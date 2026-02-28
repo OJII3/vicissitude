@@ -15,16 +15,16 @@ bun start
 
 `context/` に bot の人格・記憶・操作ルールを定義:
 
-| ファイル | 用途 |
-|---|---|
-| `IDENTITY.md` | 名前・役割 |
-| `SOUL.md` | 人格・境界線 |
-| `AGENTS.md` | 操作ルール・ツール方針 |
-| `TOOLS.md` | MCP ツール一覧 |
-| `USER.md` | ユーザー情報 |
-| `MEMORY.md` | 長期記憶 |
-| `HEARTBEAT.md` | 定期チェック |
-| `memory/YYYY-MM-DD.md` | 日次ログ |
+| ファイル               | 用途                   |
+| ---------------------- | ---------------------- |
+| `IDENTITY.md`          | 名前・役割             |
+| `SOUL.md`              | 人格・境界線           |
+| `AGENTS.md`            | 操作ルール・ツール方針 |
+| `TOOLS.md`             | MCP ツール一覧         |
+| `USER.md`              | ユーザー情報           |
+| `MEMORY.md`            | 長期記憶               |
+| `HEARTBEAT.md`         | 定期チェック           |
+| `memory/YYYY-MM-DD.md` | 日次ログ               |
 
 ### 使い方
 

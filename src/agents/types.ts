@@ -1,4 +1,4 @@
 export interface AgentResponse {
-  text: string;
-  sessionId: string;
+	text: string;
+	sessionId: string;
 }

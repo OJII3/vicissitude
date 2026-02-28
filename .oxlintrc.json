@@ -1,0 +1,39 @@
+{
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
+	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "node"],
+	"env": {
+		"es2024": true,
+		"node": true
+	},
+	"categories": {
+		"correctness": "error",
+		"suspicious": "error",
+		"pedantic": "error",
+		"perf": "error",
+		"style": "off",
+		"restriction": "off"
+	},
+	"rules": {
+		"eslint/no-console": "off",
+		"eslint/no-unused-vars": "error",
+		"typescript/no-explicit-any": "error",
+		"typescript/consistent-type-imports": "error",
+		"typescript/no-non-null-assertion": "error",
+		"typescript/no-import-type-side-effects": "error",
+		"typescript/no-require-imports": "off",
+		"unicorn/no-null": "off",
+		"unicorn/prefer-top-level-await": "off",
+		"unicorn/no-process-exit": "off",
+		"unicorn/filename-case": "off",
+		"unicorn/prevent-abbreviations": "off",
+		"unicorn/no-array-for-each": "off",
+		"node/no-process-env": "off",
+		"import/no-cycle": "error",
+		"import/no-self-import": "error",
+		"import/no-duplicates": "error",
+		"promise/no-return-wrap": "error",
+		"promise/param-names": "error",
+		"promise/catch-or-return": "error"
+	},
+	"ignorePatterns": ["node_modules", "data", ".direnv", "context"]
+}
