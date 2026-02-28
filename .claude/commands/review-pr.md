@@ -23,6 +23,7 @@ description: PRの包括的なコードレビューを実行する
 ## フィルタリング基準
 
 以下は除外してください:
+
 - oxlint / oxfmt で自動検出できるスタイルの問題
 - 理論上のリスクで実際には問題にならないもの
 - マイクロ最適化の提案
@@ -36,15 +37,19 @@ description: PRの包括的なコードレビューを実行する
 ## Code Review Summary
 
 ### Critical Issues
+
 - [ ] (あれば記載)
 
 ### Important Findings
+
 - [ ] (あれば記載)
 
 ### Minor Suggestions
+
 - (あれば記載)
 
 ### Good Points
+
 - (良い点があれば記載)
 ```
 

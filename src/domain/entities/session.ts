@@ -4,10 +4,6 @@
  */
 export type SessionKey = `${string}:${string}:${string}`;
 
-export function createSessionKey(
-	platform: string,
-	channelId: string,
-	userId: string,
-): SessionKey {
+export function createSessionKey(platform: string, channelId: string, userId: string): SessionKey {
 	return `${platform}:${channelId}:${userId}`;
 }

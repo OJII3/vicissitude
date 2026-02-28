@@ -23,9 +23,7 @@ export class FileContextLoader implements ContextLoader {
 	}
 
 	async loadBootstrapContext(): Promise<string> {
-		const contents = await Promise.all(
-			BOOTSTRAP_FILES.map((f) => this.readContextFile(f)),
-		);
+		const contents = await Promise.all(BOOTSTRAP_FILES.map((f) => this.readContextFile(f)));
 
 		const sections: string[] = [];
 		let totalLength = 0;
