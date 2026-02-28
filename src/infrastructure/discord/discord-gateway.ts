@@ -5,7 +5,6 @@ import type {
 	MessageChannel,
 	MessageGateway,
 } from "../../domain/ports/message-gateway.port.ts";
-import { createSessionKey } from "../../domain/entities/session.ts";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 
@@ -41,10 +40,7 @@ export class DiscordGateway implements MessageGateway {
 			const isThread = message.channel.isThread();
 
 			if ((isMentioned || isThread) && this.handler) {
-				await this.handler(
-					this.adaptMessage(message),
-					this.adaptChannel(message),
-				);
+				await this.handler(this.adaptMessage(message), this.adaptChannel(message));
 			}
 		});
 
@@ -52,7 +48,7 @@ export class DiscordGateway implements MessageGateway {
 		this.client = client;
 	}
 
-	async stop(): Promise<void> {
+	stop(): void {
 		this.client?.destroy();
 		this.client = null;
 	}

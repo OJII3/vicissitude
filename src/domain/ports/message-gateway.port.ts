@@ -13,5 +13,5 @@ export interface MessageChannel {
 export interface MessageGateway {
 	onMessage(handler: (msg: IncomingMessage, ch: MessageChannel) => Promise<void>): void;
 	start(): Promise<void>;
-	stop(): Promise<void>;
+	stop(): void;
 }

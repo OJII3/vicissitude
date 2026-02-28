@@ -27,15 +27,12 @@ export class HandleIncomingMessageUseCase {
 			const chunks = splitMessage(response.text);
 			const [first, ...rest] = chunks;
 			if (first) await msg.reply(first);
-			for (const chunk of rest) {
-				await channel.send(chunk);
-			}
+			// eslint-disable-next-line no-await-in-loop -- sequential sending is intentional
+			for (const chunk of rest) await channel.send(chunk);
 		} catch (error) {
 			clearInterval(typingInterval);
 			this.logger.error("Agent error:", error);
-			await msg.reply(
-				`Error: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			await msg.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 }

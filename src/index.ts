@@ -1,9 +1,9 @@
-import { startGateway } from "./gateway.ts";
+import { bootstrap } from "./composition-root.ts";
 
 console.log("Starting Vicissitude...");
 
 try {
-	await startGateway();
+	await bootstrap();
 	console.log("Vicissitude is running.");
 } catch (error) {
 	console.error("Failed to start:", error);
