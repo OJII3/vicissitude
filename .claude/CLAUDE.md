@@ -4,10 +4,19 @@
 
 Discord bot「ふあ」のプロジェクト。TypeScript + Bun で動作する。
 
+## ドキュメント導線
+
+- `docs/SPEC.md`: 要件定義（ふあ人格、メンション/スレッド応答、MCP ツール、コンテキスト運用）
+- `docs/PLAN.md`: マイルストーン、リスクレジスタ、DoD
+- `docs/ARCHITECTURE.md`: レイヤー構成、データモデル、主要シーケンス、設定項目
+- `docs/RUNBOOK.md`: 常時遵守ルール、実行手順、失敗時対応、変更管理
+- `docs/STATUS.md`: 現在の真実、確定方針、既知バグ、直近タスク、再開コンテキスト
+
 ## コマンド
 
 - `nr check` — 型チェック (`tsgo --noEmit`)
 - `nr lint` — Lint (`oxlint`)
+- `nr lint:fix` — Lint 自動修正 (`oxlint --fix`)
 - `nr fmt` — フォーマット (`oxfmt`)
 - `nr fmt:check` — フォーマット確認
 - `nr validate` — fmt:check + lint + check を一括実行
