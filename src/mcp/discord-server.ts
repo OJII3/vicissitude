@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { Client, GatewayIntentBits, type TextBasedChannel } from "discord.js";
+import { Client, GatewayIntentBits } from "discord.js";
 import { z } from "zod";
 
 const discordClient = new Client({
@@ -81,8 +81,8 @@ server.tool(
     const guild = await discordClient.guilds.fetch(guild_id);
     const channels = await guild.channels.fetch();
     const textChannels = channels
-      .filter((c) => c?.isTextBased())
-      .map((c) => `${c!.name} (${c!.id})`);
+      .filter((c): c is NonNullable<typeof c> => c?.isTextBased() ?? false)
+      .map((c) => `${c.name} (${c.id})`);
     return { content: [{ type: "text", text: textChannels.join("\n") }] };
   },
 );

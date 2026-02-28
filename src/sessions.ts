@@ -25,9 +25,7 @@ function load(): SessionMap {
   ensureDataDir();
   if (!existsSync(SESSIONS_FILE)) return {};
   try {
-    const text = Bun.file(SESSIONS_FILE).text();
     // Bun.file().text() returns a Promise, but we need sync for init
-    // Use require for sync read instead
     const raw = require("fs").readFileSync(SESSIONS_FILE, "utf-8");
     return JSON.parse(raw);
   } catch {

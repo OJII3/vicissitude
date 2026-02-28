@@ -43,7 +43,8 @@ export const opencodeAgent = {
       const created = await oc.session.create({
         body: { title: `ふあ:${sessionKey}` },
       });
-      realId = created.data!.id;
+      if (!created.data) throw new Error("Failed to create session: no data returned");
+      realId = created.data.id;
       await setSessionId("opencode", sessionKey, realId);
     }
 
@@ -73,7 +74,7 @@ export const opencodeAgent = {
     };
   },
 
-  async stop() {
+  stop() {
     closeServer?.();
     client = null;
     closeServer = null;

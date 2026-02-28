@@ -8,17 +8,17 @@
   "categories": {
     "correctness": "error",
     "suspicious": "error",
-    "pedantic": "warn",
-    "perf": "warn",
+    "pedantic": "error",
+    "perf": "error",
     "style": "off",
     "restriction": "off"
   },
   "rules": {
     "eslint/no-console": "off",
-    "eslint/no-unused-vars": "warn",
-    "typescript/no-explicit-any": "warn",
+    "eslint/no-unused-vars": "error",
+    "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
-    "typescript/no-non-null-assertion": "warn",
+    "typescript/no-non-null-assertion": "error",
     "typescript/no-import-type-side-effects": "error",
     "typescript/no-require-imports": "off",
     "unicorn/no-null": "off",
@@ -28,12 +28,12 @@
     "unicorn/prevent-abbreviations": "off",
     "unicorn/no-array-for-each": "off",
     "node/no-process-env": "off",
-    "import/no-cycle": "warn",
+    "import/no-cycle": "error",
     "import/no-self-import": "error",
     "import/no-duplicates": "error",
     "promise/no-return-wrap": "error",
     "promise/param-names": "error",
-    "promise/catch-or-return": "warn"
+    "promise/catch-or-return": "error"
   },
   "ignorePatterns": ["node_modules", "data", ".direnv", "context"]
 }

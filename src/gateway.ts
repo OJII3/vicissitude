@@ -22,6 +22,16 @@ function splitMessage(text: string): string[] {
   return chunks;
 }
 
+function sendChunksSequentially(
+  channel: { send: (content: string) => Promise<unknown> },
+  chunks: string[],
+): Promise<unknown> {
+  return chunks.reduce<Promise<unknown>>(
+    (chain, chunk) => chain.then(() => channel.send(chunk)),
+    Promise.resolve(),
+  );
+}
+
 async function handleMessage(message: Message) {
   const sessionKey = deriveSessionKey(message.channel.id, message.author.id);
 
@@ -38,12 +48,10 @@ async function handleMessage(message: Message) {
     clearInterval(typingInterval);
 
     const chunks = splitMessage(response.text);
-    for (let i = 0; i < chunks.length; i++) {
-      if (i === 0) {
-        await message.reply(chunks[i]!);
-      } else if ("send" in channel) {
-        await channel.send(chunks[i]!);
-      }
+    const [first, ...rest] = chunks;
+    if (first) await message.reply(first);
+    if ("send" in channel) {
+      await sendChunksSequentially(channel, rest);
     }
   } catch (error) {
     clearInterval(typingInterval);
@@ -72,7 +80,8 @@ export async function startGateway() {
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot) return;
 
-    const isMentioned = message.mentions.has(client.user!);
+    if (!client.user) return;
+    const isMentioned = message.mentions.has(client.user);
     const isThread = message.channel.isThread();
 
     if (isMentioned || isThread) {

@@ -40,13 +40,16 @@ async function readContextFile(filename: string): Promise<string | null> {
  * 毎ターン注入する想定 (OpenClaw と同じ)。
  */
 export async function loadBootstrapContext(): Promise<string> {
+  const contents = await Promise.all(BOOTSTRAP_FILES.map((f) => readContextFile(f)));
+
   const sections: string[] = [];
   let totalLength = 0;
 
-  for (const filename of BOOTSTRAP_FILES) {
-    const content = await readContextFile(filename);
+  for (let i = 0; i < BOOTSTRAP_FILES.length; i++) {
+    const content = contents[i];
     if (!content) continue;
 
+    const filename = BOOTSTRAP_FILES[i];
     const section = `<${filename}>\n${content}\n</${filename}>`;
     if (totalLength + section.length > TOTAL_MAX) break;
 
