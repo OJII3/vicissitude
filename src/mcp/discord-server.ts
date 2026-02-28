@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import { Client, GatewayIntentBits, type TextBasedChannel } from "discord.js";
+import { z } from "zod";
 
 const discordClient = new Client({
   intents: [
@@ -68,9 +68,7 @@ server.tool(
   async ({ channel_id, limit }) => {
     const channel = await getTextChannel(channel_id);
     const messages = await channel.messages.fetch({ limit });
-    const formatted = messages.map(
-      (m) => `[${m.author.tag}] ${m.content}`,
-    );
+    const formatted = messages.map((m) => `[${m.author.tag}] ${m.content}`);
     return { content: [{ type: "text", text: formatted.join("\n") }] };
   },
 );

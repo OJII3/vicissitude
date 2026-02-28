@@ -1,9 +1,5 @@
-import {
-  Client,
-  Events,
-  GatewayIntentBits,
-  type Message,
-} from "discord.js";
+import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
+
 import { opencodeAgent } from "./agents/opencode.ts";
 
 const MAX_DISCORD_LENGTH = 2000;
@@ -29,16 +25,13 @@ function splitMessage(text: string): string[] {
 async function handleMessage(message: Message) {
   const sessionKey = deriveSessionKey(message.channel.id, message.author.id);
 
-  const content = message.content.replace(/<@!?\d+>/g, "").trim();
+  const content = message.content.replaceAll(/<@!?\d+>/g, "").trim();
   if (!content) return;
 
   const channel = message.channel;
   if (!("sendTyping" in channel)) return;
   await channel.sendTyping();
-  const typingInterval = setInterval(
-    () => void channel.sendTyping(),
-    8000,
-  );
+  const typingInterval = setInterval(() => void channel.sendTyping(), 8000);
 
   try {
     const response = await opencodeAgent.send(sessionKey, content);
@@ -55,9 +48,7 @@ async function handleMessage(message: Message) {
   } catch (error) {
     clearInterval(typingInterval);
     console.error("Agent error:", error);
-    await message.reply(
-      `Error: ${error instanceof Error ? error.message : String(error)}`,
-    );
+    await message.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

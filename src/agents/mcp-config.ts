@@ -7,7 +7,7 @@ export function mcpServerConfigs() {
   const root = resolve(import.meta.dirname, "../..");
 
   return {
-    "discord": {
+    discord: {
       type: "local" as const,
       command: ["bun", "run", resolve(root, "src/mcp/discord-server.ts")],
       environment: {

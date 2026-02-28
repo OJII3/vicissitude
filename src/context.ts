@@ -1,5 +1,5 @@
-import { resolve } from "path";
 import { existsSync } from "fs";
+import { resolve } from "path";
 
 const CONTEXT_DIR = resolve(import.meta.dirname, "../context");
 

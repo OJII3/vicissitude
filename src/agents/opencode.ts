@@ -1,8 +1,9 @@
 import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
-import type { AgentResponse } from "./types.ts";
-import { mcpServerConfigs } from "./mcp-config.ts";
-import { getSessionId, setSessionId, isNewSession } from "../sessions.ts";
+
 import { wrapWithContext } from "../context.ts";
+import { getSessionId, setSessionId, isNewSession } from "../sessions.ts";
+import { mcpServerConfigs } from "./mcp-config.ts";
+import type { AgentResponse } from "./types.ts";
 
 let client: OpencodeClient | null = null;
 let closeServer: (() => void) | null = null;

@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
 import { $ } from "bun";
+import { z } from "zod";
 
 const server = new McpServer({
   name: "code-exec",
@@ -65,15 +65,12 @@ server.tool(
       clearTimeout(timeout);
 
       // tmux の出力をキャプチャ
-      const output =
-        await $`tmux capture-pane -t ${sessionName} -p 2>/dev/null`.text().catch(
-          () => "",
-        );
+      const output = await $`tmux capture-pane -t ${sessionName} -p 2>/dev/null`
+        .text()
+        .catch(() => "");
 
       // セッションクリーンアップ
-      await $`tmux kill-session -t ${sessionName} 2>/dev/null`.quiet().catch(
-        () => {},
-      );
+      await $`tmux kill-session -t ${sessionName} 2>/dev/null`.quiet().catch(() => {});
 
       return {
         content: [{ type: "text", text: output.trim() || "(no output)" }],

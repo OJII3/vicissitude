@@ -1,5 +1,5 @@
-import { resolve } from "path";
 import { existsSync, mkdirSync } from "fs";
+import { resolve } from "path";
 
 const DATA_DIR = resolve(import.meta.dirname, "../data");
 const SESSIONS_FILE = resolve(DATA_DIR, "sessions.json");
@@ -49,18 +49,11 @@ function makeKey(agentName: string, sessionKey: string): string {
   return `${agentName}:${sessionKey}`;
 }
 
-export function getSessionId(
-  agentName: string,
-  sessionKey: string,
-): string | undefined {
+export function getSessionId(agentName: string, sessionKey: string): string | undefined {
   return getMap()[makeKey(agentName, sessionKey)];
 }
 
-export async function setSessionId(
-  agentName: string,
-  sessionKey: string,
-  realSessionId: string,
-) {
+export async function setSessionId(agentName: string, sessionKey: string, realSessionId: string) {
   getMap()[makeKey(agentName, sessionKey)] = realSessionId;
   await save();
 }
@@ -69,9 +62,6 @@ export async function setSessionId(
  * セッションが新規かどうかを判定。
  * 新規ならコンテキスト注入が必要。
  */
-export function isNewSession(
-  agentName: string,
-  sessionKey: string,
-): boolean {
+export function isNewSession(agentName: string, sessionKey: string): boolean {
   return getSessionId(agentName, sessionKey) === undefined;
 }
