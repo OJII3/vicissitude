@@ -1,25 +1,31 @@
 ## Vicissitude
 
-OpenClaw インスパイアの、Discord bot です。OpenCode + Copilot Agent + MCP で動きます。
+OpenClaw インスパイアの Discord bot「ふあ」。OpenCode + MCP で動きます。
 
 ### セットアップ
 
 ```bash
 bun install
 cp .env.local.example .env.local
-# .env.local に DISCORD_TOKEN と GITHUB_TOKEN を設定
+# .env.local に DISCORD_TOKEN を設定
 bun start
 ```
 
-### `.env.local`
+### コンテキストファイル (OpenClaw 式)
 
-```
-DISCORD_TOKEN=your_discord_bot_token
-GITHUB_TOKEN=your_github_token
-```
+`context/` に bot の人格・記憶・操作ルールを定義:
 
-### コマンド
+| ファイル | 用途 |
+|---|---|
+| `IDENTITY.md` | 名前・役割 |
+| `SOUL.md` | 人格・境界線 |
+| `AGENTS.md` | 操作ルール・ツール方針 |
+| `TOOLS.md` | MCP ツール一覧 |
+| `USER.md` | ユーザー情報 |
+| `MEMORY.md` | 長期記憶 |
+| `HEARTBEAT.md` | 定期チェック |
+| `memory/YYYY-MM-DD.md` | 日次ログ |
 
-- `/agent switch <name>` - agent 切り替え (opencode / copilot)
-- `/agent list` - 利用可能な agent 一覧
-- bot をメンション or スレッド内でメッセージ → AI が応答
+### 使い方
+
+- bot をメンション or スレッド内でメッセージ → ふあ が応答

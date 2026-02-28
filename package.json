@@ -14,7 +14,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@github/copilot-sdk": "^0.1.29",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@opencode-ai/sdk": "^1.2.15",
     "discord.js": "^14.25.1"

@@ -1,6 +1,8 @@
 import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
-import type { AgentBackend, AgentResponse } from "./router.ts";
+import type { AgentResponse } from "./types.ts";
 import { mcpServerConfigs } from "./mcp-config.ts";
+import { getSessionId, setSessionId, isNewSession } from "../sessions.ts";
+import { wrapWithContext } from "../context.ts";
 
 let client: OpencodeClient | null = null;
 let closeServer: (() => void) | null = null;
@@ -19,33 +21,42 @@ async function getClient(): Promise<OpencodeClient> {
   return client;
 }
 
-export const opencodeAgent: AgentBackend = {
-  name: "opencode",
-
-  async send(sessionId, message) {
+export const opencodeAgent = {
+  async send(sessionKey: string, message: string): Promise<AgentResponse> {
     const oc = await getClient();
+    const isNew = isNewSession("opencode", sessionKey);
 
-    // セッション取得 or 作成
-    let session: { id: string };
-    try {
-      const existing = await oc.session.get({ path: { id: sessionId } });
-      session = existing.data!;
-    } catch {
-      const created = await oc.session.create({
-        body: { title: `discord-${sessionId}` },
-      });
-      session = created.data!;
+    // 既存セッション ID を取得、なければ新規作成
+    let realId = getSessionId("opencode", sessionKey);
+
+    if (realId) {
+      // 既存セッションが実際に存在するか確認
+      try {
+        await oc.session.get({ path: { id: realId } });
+      } catch {
+        realId = undefined;
+      }
     }
 
-    // プロンプト送信 (同期: 完了まで待機)
+    if (!realId) {
+      const created = await oc.session.create({
+        body: { title: `ふあ:${sessionKey}` },
+      });
+      realId = created.data!.id;
+      await setSessionId("opencode", sessionKey, realId);
+    }
+
+    // 新規セッションならブートストラップコンテキストを注入
+    const prompt = isNew ? await wrapWithContext(message) : message;
+
     const result = await oc.session.prompt({
-      path: { id: session.id },
+      path: { id: realId },
       body: {
-        parts: [{ type: "text", text: message }],
+        parts: [{ type: "text", text: prompt }],
+        model: { providerID: "copilot", modelID: "claude-sonnet-4-6" },
       },
     });
 
-    // レスポンスからテキスト部分を抽出
     const texts: string[] = [];
     if (result.data?.parts) {
       for (const part of result.data.parts) {
@@ -57,7 +68,7 @@ export const opencodeAgent: AgentBackend = {
 
     return {
       text: texts.join("\n") || "(no response)",
-      sessionId: session.id,
+      sessionId: realId,
     };
   },
 
