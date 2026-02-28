@@ -1,19 +1,27 @@
-const MAX_DISCORD_LENGTH = 2000;
+const DEFAULT_MAX_LENGTH = 2000;
 
 /**
- * メッセージを Discord の文字数制限に合わせて分割する純粋関数。
- * 行の区切りで分割を試み、無理なら MAX_DISCORD_LENGTH で切る。
+ * メッセージを指定の文字数制限に合わせて分割する純粋関数。
+ * 行の区切りで分割を試み、無理なら maxLength で切る。
  */
-export function splitMessage(text: string): string[] {
-	if (text.length <= MAX_DISCORD_LENGTH) return [text];
+export function splitMessage(text: string, maxLength = DEFAULT_MAX_LENGTH): string[] {
+	if (text.length <= maxLength) return [text];
 
 	const chunks: string[] = [];
 	let remaining = text;
 	while (remaining.length > 0) {
-		let splitAt = remaining.lastIndexOf("\n", MAX_DISCORD_LENGTH);
-		if (splitAt <= 0) splitAt = MAX_DISCORD_LENGTH;
-		chunks.push(remaining.slice(0, splitAt));
-		remaining = remaining.slice(splitAt);
+		if (remaining.length <= maxLength) {
+			chunks.push(remaining);
+			break;
+		}
+		const splitAt = remaining.lastIndexOf("\n", maxLength);
+		if (splitAt <= 0) {
+			chunks.push(remaining.slice(0, maxLength));
+			remaining = remaining.slice(maxLength);
+		} else {
+			chunks.push(remaining.slice(0, splitAt));
+			remaining = remaining.slice(splitAt + 1);
+		}
 	}
 	return chunks;
 }

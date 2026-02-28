@@ -9,6 +9,7 @@ export class JsonSessionRepository implements SessionRepository {
 	private readonly dataDir: string;
 	private readonly filePath: string;
 	private cache: SessionMap | null = null;
+	private writeChain: Promise<void> = Promise.resolve();
 
 	constructor(dataDir: string) {
 		this.dataDir = dataDir;
@@ -54,8 +55,13 @@ export class JsonSessionRepository implements SessionRepository {
 		return this.cache;
 	}
 
-	private async persist(): Promise<void> {
-		this.ensureDataDir();
-		await Bun.write(this.filePath, JSON.stringify(this.getMap(), null, 2));
+	private persist(): Promise<void> {
+		const prev = this.writeChain;
+		this.writeChain = (async () => {
+			await prev;
+			this.ensureDataDir();
+			await Bun.write(this.filePath, JSON.stringify(this.getMap(), null, 2));
+		})();
+		return this.writeChain;
 	}
 }

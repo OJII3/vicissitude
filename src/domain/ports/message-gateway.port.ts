@@ -1,4 +1,5 @@
 export interface IncomingMessage {
+	platform: string;
 	channelId: string;
 	authorId: string;
 	content: string;

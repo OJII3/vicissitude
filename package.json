@@ -11,6 +11,7 @@
 		"lint:fix": "oxlint --fix",
 		"fmt": "oxfmt .",
 		"fmt:check": "oxfmt --check .",
+		"test": "bun test",
 		"validate": "bun run fmt:check && bun run lint && bun run check"
 	},
 	"dependencies": {

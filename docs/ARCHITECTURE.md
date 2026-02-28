@@ -119,7 +119,7 @@
 
 ```json
 {
-  "{agentName}:{sessionKey}": "{opencode-session-id}"
+	"{agentName}:{sessionKey}": "{opencode-session-id}"
 }
 ```
 

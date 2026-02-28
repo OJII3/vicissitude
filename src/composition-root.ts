@@ -18,13 +18,23 @@ export async function bootstrap(): Promise<void> {
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
 	const contextLoader = new FileContextLoader(resolve(root, "context"));
 	const agent = new OpencodeAgent(sessions, contextLoader);
-	const gateway = new DiscordGateway(token);
+	const gateway = new DiscordGateway(token, logger);
 
 	// Use cases
 	const handleMessage = new HandleIncomingMessageUseCase(agent, logger);
 
 	// Wiring
 	gateway.onMessage((msg, ch) => handleMessage.execute(msg, ch));
+
+	// Graceful shutdown
+	const shutdown = () => {
+		logger.info("Shutting down...");
+		gateway.stop();
+		agent.stop();
+		process.exit(0);
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
 
 	await gateway.start();
 }

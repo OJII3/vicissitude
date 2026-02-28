@@ -33,65 +33,65 @@
 
 ### Critical
 
-- [ ] **`isNew` 判定バグ** — `opencode-agent.ts:22`
+- [x] **`isNew` 判定バグ** — `opencode-agent.ts:22`
   - OpenCode 側でセッションが削除された場合、セッションを再作成するが `isNew` が `false` のままとなり、ブートストラップコンテキストが注入されない。
-  - 修正: `isNew` の判定をセッションリカバリ処理の後に移す。セッション再作成時にフラグを立て直す。
+  - 修正済み: `isNew` の判定をセッションリカバリ処理の後に移し、セッション再作成時にフラグを立て直すようにした。
 
-- [ ] **エラーメッセージの Discord 漏洩** — `handle-incoming-message.use-case.ts:35`
+- [x] **エラーメッセージの Discord 漏洩** — `handle-incoming-message.use-case.ts:35`
   - `error.message` がそのまま `reply()` で送信される。内部パス・API エンドポイント等が露出する可能性。
-  - 修正: ユーザー向けには汎用エラーメッセージを返し、詳細はログのみに記録する。
+  - 修正済み: ユーザー向けには汎用エラーメッセージを返し、詳細はログのみに記録するようにした。
 
-- [ ] **テストがゼロ** — プロジェクト全体
+- [x] **テストがゼロ** — プロジェクト全体
   - Clean Architecture の利点（テスタビリティ）が活かされていない。
-  - 修正: `splitMessage()` と `HandleIncomingMessageUseCase` から優先的にテスト追加。`package.json` に `"test": "bun test"` を追加。
+  - 修正済み: `splitMessage()` と `HandleIncomingMessageUseCase` のテストを追加。`package.json` に `"test": "bun test"` を追加。
 
 ### Important
 
-- [ ] **セッションファイルの同時書き込み競合** — `json-session-repository.ts:57-60`
+- [x] **セッションファイルの同時書き込み競合** — `json-session-repository.ts:57-60`
   - 複数の Discord メッセージ同時処理で `Bun.write()` が同一ファイルに並行書き込みし、ファイル破損の可能性。
-  - 修正: Promise チェーンによる書き込み直列化を実装する。
+  - 修正済み: async IIFE による書き込み直列化を実装した。
 
-- [ ] **ユースケースが `"discord"` をハードコード** — `handle-incoming-message.use-case.ts:18`
+- [x] **ユースケースが `"discord"` をハードコード** — `handle-incoming-message.use-case.ts:18`
   - application 層がプラットフォーム固有の文字列を知っている（Clean Architecture 違反）。
-  - 修正: `IncomingMessage` に `platform: string` フィールドを追加するか、`MessageGateway` ポートにプラットフォーム名を持たせる。
+  - 修正済み: `IncomingMessage` に `platform: string` フィールドを追加し、`DiscordGateway` で設定するようにした。
 
-- [ ] **`DiscordGateway` が `Logger` を未使用** — `discord-gateway.ts:32`
+- [x] **`DiscordGateway` が `Logger` を未使用** — `discord-gateway.ts:32`
   - `ConsoleLogger` を DI で定義しているのに、`DiscordGateway` では直接 `console.log` を使用。
-  - 修正: `DiscordGateway` のコンストラクタで `Logger` を受け取り使用する。
+  - 修正済み: `DiscordGateway` のコンストラクタで `Logger` を受け取り、`this.logger.info()` を使用するようにした。
 
 ### Minor
 
-- [ ] **`splitMessage` の改行処理** — `message-formatter.ts:16`
+- [x] **`splitMessage` の改行処理** — `message-formatter.ts:16`
   - 改行位置で分割した際、改行文字が次チャンクの先頭に残る。
-  - 修正: `remaining.slice(splitAt + 1)` で改行をスキップする。
+  - 修正済み: `remaining.slice(splitAt + 1)` で改行をスキップするようにした。
 
-- [ ] **`splitMessage` の Discord 固有定数** — `message-formatter.ts:1`
+- [x] **`splitMessage` の Discord 固有定数** — `message-formatter.ts:1`
   - `MAX_DISCORD_LENGTH = 2000` が domain 層にハードコードされている。
-  - 修正: `maxLength` をパラメータ化するか `infrastructure/` に移動する。
+  - 修正済み: `maxLength` をパラメータ化した（デフォルト値 2000 を維持）。
 
-- [ ] **Graceful shutdown 未実装** — `composition-root.ts`
+- [x] **Graceful shutdown 未実装** — `composition-root.ts`
   - `SIGINT`/`SIGTERM` ハンドラがなく、`gateway.stop()` / `agent.stop()` が呼ばれない。
-  - 修正: `bootstrap()` 内でシグナルハンドラを追加する。
+  - 修正済み: `bootstrap()` 内で SIGINT/SIGTERM シグナルハンドラを追加した。
 
-- [ ] **`package.json` の `lint:fix` が CLAUDE.md に未記載**
-  - 修正: CLAUDE.md のコマンド一覧に追記する。
+- [x] **`package.json` の `lint:fix` が CLAUDE.md に未記載**
+  - 確認済み: CLAUDE.md にはすでに `nr lint:fix` が記載されていた。
 
 ### セキュリティ
 
-- [ ] **code-exec MCP サーバーにサンドボックスなし** — `mcp/code-exec-server.ts`
+- [x] **code-exec MCP サーバーにサンドボックスなし** — `mcp/code-exec-server.ts`
   - ツール説明文には "sandboxed" と記載されているが、実際にはサンドボックス未実装。任意コマンドがホスト上で実行される。
-  - 修正: コンテナ化またはコマンドホワイトリストを検討する。少なくとも説明文を実態に合わせる。
+  - 修正済み: 説明文を `"Execute code and return the output (NOT sandboxed — runs on host)"` に変更した。
 
-- [ ] **子プロセスへの環境変数継承** — `mcp/code-exec-server.ts`
+- [x] **子プロセスへの環境変数継承** — `mcp/code-exec-server.ts`
   - `Bun.spawn` がデフォルトで親プロセスの環境変数を継承するため、`DISCORD_TOKEN` 等が code-exec 内のコードから参照可能。
-  - 修正: `Bun.spawn` の `env` を明示的に制限する。
+  - 修正済み: `Bun.spawn` の `env` に `SAFE_ENV`（PATH, HOME, LANG のみ）を明示的に指定した。
 
 ## 5. 直近タスク
 
-1. Critical バグの修正（`isNew` 判定、エラーメッセージ漏洩）
-2. テスト追加（`splitMessage`, `HandleIncomingMessageUseCase`）
-3. セッション書き込み競合対策
-4. `feat/clean-architecture` ブランチを main にマージ
+1. ~~Critical バグの修正（`isNew` 判定、エラーメッセージ漏洩）~~ — 完了
+2. ~~テスト追加（`splitMessage`, `HandleIncomingMessageUseCase`）~~ — 完了
+3. ~~セッション書き込み競合対策~~ — 完了
+4. テストカバレッジの拡充（infrastructure 層のテスト等）
 
 ## 6. ブロッカー
 
@@ -99,9 +99,9 @@
 
 ## 7. リスクメモ
 
-1. テストゼロ状態でのリグレッションリスク。
-2. code-exec のサンドボックス欠如による RCE リスク。
-3. セッションファイル競合によるデータ破損リスク。
+1. ~~テストゼロ状態でのリグレッションリスク。~~ — テスト追加済み（10件）
+2. code-exec のサンドボックス欠如による RCE リスク（説明文は修正済み、コンテナ化は未対応）。
+3. ~~セッションファイル競合によるデータ破損リスク。~~ — 書き込み直列化で対応済み
 
 ## 8. 再開時コンテキスト
 

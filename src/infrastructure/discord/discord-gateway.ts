@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
 
+import type { Logger } from "../../domain/ports/logger.port.ts";
 import type {
 	IncomingMessage,
 	MessageChannel,
@@ -12,7 +13,10 @@ export class DiscordGateway implements MessageGateway {
 	private client: Client | null = null;
 	private handler: MessageHandler | null = null;
 
-	constructor(private readonly token: string) {}
+	constructor(
+		private readonly token: string,
+		private readonly logger: Logger,
+	) {}
 
 	onMessage(handler: MessageHandler): void {
 		this.handler = handler;
@@ -29,7 +33,7 @@ export class DiscordGateway implements MessageGateway {
 		});
 
 		client.once(Events.ClientReady, (readyClient) => {
-			console.log(`Logged in as ${readyClient.user.tag}`);
+			this.logger.info(`Logged in as ${readyClient.user.tag}`);
 		});
 
 		client.on(Events.MessageCreate, async (message) => {
@@ -55,6 +59,7 @@ export class DiscordGateway implements MessageGateway {
 
 	private adaptMessage(message: Message): IncomingMessage {
 		return {
+			platform: "discord",
 			channelId: message.channel.id,
 			authorId: message.author.id,
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
