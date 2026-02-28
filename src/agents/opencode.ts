@@ -53,7 +53,7 @@ export const opencodeAgent = {
       path: { id: realId },
       body: {
         parts: [{ type: "text", text: prompt }],
-        model: { providerID: "copilot", modelID: "claude-sonnet-4-6" },
+        model: { providerID: "github-copilot", modelID: "claude-sonnet-4.6" },
       },
     });
 
