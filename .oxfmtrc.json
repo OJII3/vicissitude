@@ -1,19 +1,19 @@
 {
-  "printWidth": 100,
-  "tabWidth": 2,
-  "useTabs": false,
-  "semi": true,
-  "singleQuote": false,
-  "trailingComma": "all",
-  "bracketSpacing": true,
-  "arrowParens": "always",
-  "endOfLine": "lf",
-  "sortImports": {
-    "groups": ["builtin", "external", ["parent", "sibling", "index"]],
-    "newlinesBetween": true,
-    "order": "asc",
-    "ignoreCase": true
-  },
-  "sortPackageJson": true,
-  "ignorePatterns": ["node_modules", "data", ".direnv"]
+	"printWidth": 100,
+	"tabWidth": 2,
+	"useTabs": true,
+	"semi": true,
+	"singleQuote": false,
+	"trailingComma": "all",
+	"bracketSpacing": true,
+	"arrowParens": "always",
+	"endOfLine": "lf",
+	"sortImports": {
+		"groups": ["builtin", "external", ["parent", "sibling", "index"]],
+		"newlinesBetween": true,
+		"order": "asc",
+		"ignoreCase": true
+	},
+	"sortPackageJson": true,
+	"ignorePatterns": ["node_modules", "data", ".direnv"]
 }

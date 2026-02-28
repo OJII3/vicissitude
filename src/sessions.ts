@@ -16,44 +16,44 @@ type SessionMap = Record<string, string>;
 let cache: SessionMap | null = null;
 
 function ensureDataDir() {
-  if (!existsSync(DATA_DIR)) {
-    mkdirSync(DATA_DIR, { recursive: true });
-  }
+	if (!existsSync(DATA_DIR)) {
+		mkdirSync(DATA_DIR, { recursive: true });
+	}
 }
 
 function load(): SessionMap {
-  ensureDataDir();
-  if (!existsSync(SESSIONS_FILE)) return {};
-  try {
-    // Bun.file().text() returns a Promise, but we need sync for init
-    const raw = require("fs").readFileSync(SESSIONS_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return {};
-  }
+	ensureDataDir();
+	if (!existsSync(SESSIONS_FILE)) return {};
+	try {
+		// Bun.file().text() returns a Promise, but we need sync for init
+		const raw = require("fs").readFileSync(SESSIONS_FILE, "utf-8");
+		return JSON.parse(raw);
+	} catch {
+		return {};
+	}
 }
 
 function getMap(): SessionMap {
-  if (!cache) cache = load();
-  return cache;
+	if (!cache) cache = load();
+	return cache;
 }
 
 async function save() {
-  ensureDataDir();
-  await Bun.write(SESSIONS_FILE, JSON.stringify(getMap(), null, 2));
+	ensureDataDir();
+	await Bun.write(SESSIONS_FILE, JSON.stringify(getMap(), null, 2));
 }
 
 function makeKey(agentName: string, sessionKey: string): string {
-  return `${agentName}:${sessionKey}`;
+	return `${agentName}:${sessionKey}`;
 }
 
 export function getSessionId(agentName: string, sessionKey: string): string | undefined {
-  return getMap()[makeKey(agentName, sessionKey)];
+	return getMap()[makeKey(agentName, sessionKey)];
 }
 
 export async function setSessionId(agentName: string, sessionKey: string, realSessionId: string) {
-  getMap()[makeKey(agentName, sessionKey)] = realSessionId;
-  await save();
+	getMap()[makeKey(agentName, sessionKey)] = realSessionId;
+	await save();
 }
 
 /**
@@ -61,5 +61,5 @@ export async function setSessionId(agentName: string, sessionKey: string, realSe
  * 新規ならコンテキスト注入が必要。
  */
 export function isNewSession(agentName: string, sessionKey: string): boolean {
-  return getSessionId(agentName, sessionKey) === undefined;
+	return getSessionId(agentName, sessionKey) === undefined;
 }
