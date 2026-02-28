@@ -1,6 +1,8 @@
 /.claude/*.local.*
 node_modules/
+.env
 .env.local
 bun.lock
 PLAN.md
 data/
+.direnv/
