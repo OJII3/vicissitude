@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { resolve } from "path";
 
 import { HandleHeartbeatUseCase } from "./application/use-cases/handle-heartbeat.use-case.ts";
@@ -23,11 +24,23 @@ import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-
 function createInfrastructure(root: string, token: string) {
 	const logger = new ConsoleLogger();
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
-	const contextLoaderFactory = new FileContextLoaderFactory(resolve(root, "context"));
+	const contextLoaderFactory = new FileContextLoaderFactory(
+		resolve(root, "data/context"),
+		resolve(root, "context"),
+	);
 	const agent = new OpencodeAgent(sessions, contextLoaderFactory);
 	const judgeAgent = new OpencodeJudgeAgent();
 	const gateway = new DiscordGateway(token, logger);
 	return { logger, agent, judgeAgent, gateway };
+}
+
+async function loadChannelConfig(root: string) {
+	const overlayChannels = resolve(root, "data/context/channels.json");
+	const baseChannels = resolve(root, "context/channels.json");
+	const channelsJson = existsSync(overlayChannels)
+		? await Bun.file(overlayChannels).json()
+		: await Bun.file(baseChannels).json();
+	return new JsonChannelConfigLoader(channelsJson);
 }
 
 function createHeartbeat(root: string, agent: AiAgent, logger: Logger) {
@@ -44,9 +57,8 @@ export async function bootstrap(): Promise<void> {
 	const root = resolve(import.meta.dirname, "..");
 	const { logger, agent, judgeAgent, gateway } = createInfrastructure(root, token);
 
-	// Channel config
-	const channelsJson = await Bun.file(resolve(root, "context/channels.json")).json();
-	const channelConfig = new JsonChannelConfigLoader(channelsJson);
+	// Channel config (overlay → base fallback)
+	const channelConfig = await loadChannelConfig(root);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
 
 	// Home channel infrastructure

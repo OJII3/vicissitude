@@ -1,29 +1,95 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { resolve } from "path";
 
-import { CONTEXT_DIR, guildIdSchema, resolveContextPaths } from "./memory-helpers.ts";
+import {
+	BASE_CONTEXT_DIR,
+	OVERLAY_CONTEXT_DIR,
+	guildIdSchema,
+	readWithFallback,
+	resolveContextPaths,
+} from "./memory-helpers.ts";
 
 describe("resolveContextPaths", () => {
-	it("guildId 未指定時はグローバルパスを返す", () => {
+	it("guildId 未指定時はオーバーレイベースのグローバルパスを返す", () => {
 		const paths = resolveContextPaths();
 
-		expect(paths.memoryPath).toContain("context/MEMORY.md");
-		expect(paths.lessonsPath).toContain("context/LESSONS.md");
-		expect(paths.memoryDir).toContain("context/memory");
+		expect(paths.memoryPath).toContain("data/context/MEMORY.md");
+		expect(paths.lessonsPath).toContain("data/context/LESSONS.md");
+		expect(paths.memoryDir).toContain("data/context/memory");
 		expect(paths.memoryPath).not.toContain("guilds");
 	});
 
 	it("guildId 指定時は Guild 固有パスを返す", () => {
 		const paths = resolveContextPaths("123456789");
 
-		expect(paths.memoryPath).toContain("context/guilds/123456789/MEMORY.md");
-		expect(paths.lessonsPath).toContain("context/guilds/123456789/LESSONS.md");
-		expect(paths.memoryDir).toContain("context/guilds/123456789/memory");
+		expect(paths.memoryPath).toContain("data/context/guilds/123456789/MEMORY.md");
+		expect(paths.lessonsPath).toContain("data/context/guilds/123456789/LESSONS.md");
+		expect(paths.memoryDir).toContain("data/context/guilds/123456789/memory");
 	});
 
-	it("CONTEXT_DIR をベースにしたパスを返す", () => {
+	it("OVERLAY_CONTEXT_DIR をベースにしたパスを返す", () => {
 		const paths = resolveContextPaths();
 
-		expect(paths.memoryPath).toStartWith(CONTEXT_DIR);
+		expect(paths.memoryPath).toStartWith(OVERLAY_CONTEXT_DIR);
+	});
+});
+
+describe("readWithFallback", () => {
+	const testOverlayDir = resolve(import.meta.dirname, "../../.test-fallback/overlay");
+	const testBaseDir = resolve(import.meta.dirname, "../../.test-fallback/base");
+
+	beforeEach(() => {
+		mkdirSync(testOverlayDir, { recursive: true });
+		mkdirSync(testBaseDir, { recursive: true });
+	});
+
+	afterEach(() => {
+		rmSync(resolve(import.meta.dirname, "../../.test-fallback"), { recursive: true, force: true });
+	});
+
+	it("overlay にファイルがあれば overlay を返す", () => {
+		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "TEST_FALLBACK.md");
+		const basePath = resolve(BASE_CONTEXT_DIR, "TEST_FALLBACK.md");
+
+		try {
+			mkdirSync(resolve(overlayPath, ".."), { recursive: true });
+			writeFileSync(overlayPath, "overlay content", "utf-8");
+			writeFileSync(basePath, "base content", "utf-8");
+
+			const content = readWithFallback(overlayPath);
+			expect(content).toBe("overlay content");
+		} finally {
+			try {
+				rmSync(overlayPath);
+			} catch {}
+			try {
+				rmSync(basePath);
+			} catch {}
+		}
+	});
+
+	it("overlay にない場合は base にフォールバックする", () => {
+		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "TEST_FALLBACK2.md");
+		const basePath = resolve(BASE_CONTEXT_DIR, "TEST_FALLBACK2.md");
+
+		try {
+			mkdirSync(resolve(basePath, ".."), { recursive: true });
+			writeFileSync(basePath, "base content", "utf-8");
+
+			const content = readWithFallback(overlayPath);
+			expect(content).toBe("base content");
+		} finally {
+			try {
+				rmSync(basePath);
+			} catch {}
+		}
+	});
+
+	it("どちらにもない場合は空文字を返す", () => {
+		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "NONEXISTENT.md");
+		const content = readWithFallback(overlayPath);
+		expect(content).toBe("");
 	});
 });
 
