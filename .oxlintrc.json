@@ -41,6 +41,12 @@
 			"rules": {
 				"import/max-dependencies": "off"
 			}
+		},
+		{
+			"files": ["**/*.test.ts"],
+			"rules": {
+				"eslint/max-lines-per-function": "off"
+			}
 		}
 	],
 	"ignorePatterns": ["node_modules", "data", ".direnv", "context"]
