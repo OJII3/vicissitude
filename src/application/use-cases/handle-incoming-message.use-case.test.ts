@@ -1,42 +1,13 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
-import type { Logger } from "../../domain/ports/logger.port.ts";
-import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
 import { HandleIncomingMessageUseCase } from "./handle-incoming-message.use-case.ts";
-
-function createMockAgent(response: AgentResponse): AiAgent {
-	return {
-		send: mock(() => Promise.resolve(response)),
-		stop: mock(() => {}),
-	};
-}
-
-function createMockLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		error: mock(() => {}),
-		warn: mock(() => {}),
-	};
-}
-
-function createMockMessage(content: string): IncomingMessage {
-	return {
-		platform: "test",
-		channelId: "ch-1",
-		authorId: "user-1",
-		content,
-		reply: mock(() => Promise.resolve()),
-	};
-}
-
-function createMockChannel(): MessageChannel {
-	return {
-		sendTyping: mock(() => Promise.resolve()),
-		send: mock(() => Promise.resolve()),
-	};
-}
+import {
+	createMockAgent,
+	createMockChannel,
+	createMockLogger,
+	createMockMessage,
+} from "./test-helpers.ts";
 
 describe("HandleIncomingMessageUseCase - 正常系", () => {
 	it("正常応答時に reply が呼ばれる", async () => {
@@ -71,8 +42,7 @@ describe("HandleIncomingMessageUseCase - 正常系", () => {
 		const logger = createMockLogger();
 		const useCase = new HandleIncomingMessageUseCase(agent, logger);
 
-		const msg = createMockMessage("Hi");
-		msg.platform = "slack";
+		const msg = createMockMessage("Hi", { platform: "slack" });
 		const channel = createMockChannel();
 
 		await useCase.execute(msg, channel);

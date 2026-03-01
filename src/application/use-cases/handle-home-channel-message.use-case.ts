@@ -27,35 +27,47 @@ export class HandleHomeChannelMessageUseCase {
 		const cooldownSeconds = this.channelConfig.getCooldown(msg.channelId);
 		if (this.cooldown.isOnCooldown(msg.channelId, cooldownSeconds)) return;
 
+		const decision = await this.judgeMessage(msg);
+		if (!decision) return;
+
+		if (decision.type === "ignore") return;
+
+		if (decision.type === "react") {
+			await this.handleReact(msg, decision.emoji);
+			return;
+		}
+
+		await this.handleRespond(msg, channel);
+	}
+
+	private async judgeMessage(msg: IncomingMessage) {
 		let context;
 		try {
 			context = await this.history.getRecent(msg.channelId, JUDGE_CONTEXT_LIMIT);
 		} catch (error) {
 			this.logger.error("Failed to fetch conversation history:", error);
-			return;
+			return null;
 		}
 
-		let decision;
 		try {
-			decision = await this.judge.judge(msg.content, context);
+			const decision = await this.judge.judge(msg.content, context);
+			return decision.action;
 		} catch (error) {
 			this.logger.error("Judge failed, defaulting to ignore:", error);
-			return;
+			return null;
 		}
+	}
 
-		if (decision.action.type === "ignore") return;
-
-		if (decision.action.type === "react") {
-			try {
-				await msg.react(decision.action.emoji);
-				this.cooldown.record(msg.channelId);
-			} catch (error) {
-				this.logger.error("Failed to react:", error);
-			}
-			return;
+	private async handleReact(msg: IncomingMessage, emoji: string) {
+		try {
+			await msg.react(emoji);
+			this.cooldown.record(msg.channelId);
+		} catch (error) {
+			this.logger.error("Failed to react:", error);
 		}
+	}
 
-		// decision.action.type === "respond"
+	private async handleRespond(msg: IncomingMessage, channel: MessageChannel) {
 		const sessionKey = createChannelSessionKey(msg.platform, msg.channelId);
 		const prompt = `${msg.authorName}: ${msg.content}`;
 
@@ -69,7 +81,7 @@ export class HandleHomeChannelMessageUseCase {
 			const chunks = splitMessage(response.text);
 			const [first, ...rest] = chunks;
 			if (first) await channel.send(first);
-			// eslint-disable-next-line no-await-in-loop -- sequential sending is intentional
+			// oxlint-disable-next-line no-await-in-loop -- sequential sending is intentional
 			for (const chunk of rest) await channel.send(chunk);
 
 			this.cooldown.record(msg.channelId);

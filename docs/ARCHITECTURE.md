@@ -30,8 +30,12 @@
 
 - `agent-response.ts`: `AgentResponse` — AI 応答の型定義
   - `text: string` — 応答テキスト
-- `session.ts`: `SessionKey` 型 + `createSessionKey()` — セッションキー生成
-  - 形式: `{platform}:{channelId}:{authorId}`
+- `session.ts`: `SessionKey` 型 + `createSessionKey()` / `createChannelSessionKey()` — セッションキー生成
+  - ユーザー単位: `{platform}:{channelId}:{authorId}`
+  - チャンネル単位: `{platform}:{channelId}:_channel`
+- `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
+- `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
+- `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
 
 #### ports/
 
@@ -44,28 +48,42 @@
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
 - `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`channelId`, `authorId`, `content`, `reply()`)
+  - `IncomingMessage` — 受信メッセージ（`channelId`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`, `reply()`, `react()`)
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
-  - `MessageGateway` — ゲートウェイ（`onMessage()`, `start()`, `stop()`)
+  - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
+- `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
+  - `getRole(channelId)`, `getCooldown(channelId)`
+- `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
+  - `judge(message, context): Promise<ResponseDecision>`
+- `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
+  - `getRecent(channelId, limit): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
   - `get()`, `save()`, `exists()`
 
 #### services/
 
 - `message-formatter.ts`: `splitMessage()` — 2000 文字制限でのメッセージ分割（純粋関数）
+- `cooldown-tracker.ts`: `CooldownTracker` — チャンネルごとの応答クールダウン管理
 
 ### 4.2 Application 層 — ユースケース
 
 - `handle-incoming-message.use-case.ts`: `HandleIncomingMessageUseCase`
   - 依存: `AiAgent`, `Logger`
   - 処理: メッセージ受信 → typing 開始 → AI 送信 → 応答分割 → 返信/送信
+  - 用途: メンション/スレッド（必ず応答）
+- `handle-home-channel-message.use-case.ts`: `HandleHomeChannelMessageUseCase`
+  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `Logger`
+  - 処理: クールダウン確認 → 会話履歴取得 → AI 判断 → respond/react/ignore
+  - 用途: ホームチャンネル（自律参加）
 
 ### 4.3 Infrastructure 層 — ポートの具象実装
 
 - `discord/discord-gateway.ts`: `DiscordGateway implements MessageGateway`
   - discord.js Client でメッセージ受信
-  - Bot メンションまたはスレッド内メッセージをフィルタ
+  - ルーティング: メンション/スレッド → onMessage、ホームチャンネル → onHomeChannelMessage、それ以外 → 無視
   - メンション文字列 (`<@!?\d+>`) を除去
+- `discord/discord-conversation-history.ts`: `DiscordConversationHistory implements ConversationHistory`
+  - discord.js で直近メッセージを fetch
 - `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
   - OpenCode SDK でセッション管理・メッセージ送信
   - 初回セッション時にコンテキスト注入
@@ -75,6 +93,10 @@
   - インメモリキャッシュ + lazy load
 - `context/file-context-loader.ts`: `FileContextLoader implements ContextLoader`
   - `context/` 配下の Markdown ファイルを読込・結合
+- `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
+  - `context/channels.json` からチャンネル設定を読込
+- `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
+  - AI にメッセージへの応答判断を委譲（respond/react/ignore）
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger`
 
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
@@ -100,15 +122,29 @@
 
 ### SessionKey
 
-- 形式: `{platform}:{channelId}:{authorId}`
-- 例: `discord:123456:789012`
+- ユーザー単位: `{platform}:{channelId}:{authorId}` (例: `discord:123456:789012`)
+- チャンネル単位: `{platform}:{channelId}:_channel` (例: `discord:123456:_channel`)
 
 ### IncomingMessage
 
 - `channelId: string`
 - `authorId: string`
+- `authorName: string`
+- `messageId: string`
 - `content: string`
+- `isMentioned: boolean`
+- `isThread: boolean`
 - `reply(text: string): Promise<void>`
+- `react(emoji: string): Promise<void>`
+
+### channels.json 構造
+
+```json
+{
+	"defaultCooldownSeconds": 120,
+	"channels": [{ "channelId": "...", "role": "home", "cooldownSeconds": 60 }]
+}
+```
 
 ### MessageChannel
 
@@ -125,29 +161,42 @@
 
 ## 6. 主要シーケンス
 
-### 6.1 メッセージ受信 → AI 応答
+### 6.1 メッセージルーティング
 
 1. Discord `messageCreate` を受信する。
 2. Bot 自身のメッセージを除外する。
-3. メンションまたはスレッド判定を行う。
-4. メンション文字列を除去し `IncomingMessage` に変換する。
-5. `HandleIncomingMessageUseCase.execute()` を呼ぶ。
-6. 空メッセージなら早期リターンする。
-7. セッションキーを生成する。
-8. typing インジケーターを 8 秒間隔で開始する。
-9. `AiAgent.send()` で AI に送信する。
-10. 応答を `splitMessage()` で 2000 文字以内に分割する。
-11. 最初のチャンクを `reply()` で、以降を `send()` で送信する。
-12. typing インジケーターを停止する。
+3. メンション/スレッド → `HandleIncomingMessageUseCase`（必ず応答）
+4. ホームチャンネル → `HandleHomeChannelMessageUseCase`（自律判断）
+5. その他 → 無視
 
-### 6.2 セッション管理
+### 6.2 メンション/スレッド応答（従来フロー）
+
+1. メンション文字列を除去し `IncomingMessage` に変換する。
+2. 空メッセージなら早期リターンする。
+3. ユーザー単位セッションキーを生成する。
+4. typing インジケーターを 8 秒間隔で開始する。
+5. `AiAgent.send()` で AI に送信する。
+6. 応答を `splitMessage()` で 2000 文字以内に分割する。
+7. 最初のチャンクを `reply()` で、以降を `send()` で送信する。
+
+### 6.3 ホームチャンネル応答（新フロー）
+
+1. 空メッセージ → スキップ
+2. クールダウン中 → スキップ
+3. `ConversationHistory.getRecent()` で直近 10 件取得
+4. `ResponseJudge.judge()` で AI 判断
+5. `ignore` → 何もしない
+6. `react` → `msg.react(emoji)` してクールダウン記録
+7. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
+
+### 6.4 セッション管理
 
 1. セッションキーで既存セッション ID を検索する。
 2. 存在すれば OpenCode API で有効性を検証する。
 3. 無効なら新規セッションを作成し、JSON に保存する。
 4. 初回セッションならコンテキストをラップして送信する。
 
-### 6.3 コンテキスト読込
+### 6.5 コンテキスト読込
 
 1. `IDENTITY.md` → `SOUL.md` → `AGENTS.md` → `TOOLS.md` → `USER.md` → `MEMORY.md` の順で読込。
 2. 当日の `memory/{YYYY-MM-DD}.md` があれば追加。
@@ -171,7 +220,7 @@
 
 - テストは実装モジュール近傍に同居配置する（`*.test.ts`）。
 - テストランナーは Bun 組み込みテストランナーを使用する。
-- 現時点ではテストは未実装。
+- テストヘルパーは `test-helpers.ts` に集約する。
 
 ## 10. 設計上の決定
 

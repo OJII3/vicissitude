@@ -21,7 +21,7 @@ export class DiscordConversationHistory implements ConversationHistory {
 
 		const messages: ConversationMessage[] = [];
 		// discord.js returns newest first, reverse to chronological order
-		const sorted = [...fetched.values()].reverse();
+		const sorted = [...fetched.values()].toReversed();
 		for (const msg of sorted) {
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,

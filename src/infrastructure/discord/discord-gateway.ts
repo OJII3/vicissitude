@@ -75,7 +75,6 @@ export class DiscordGateway implements MessageGateway {
 			// ホームチャンネル → ホームチャンネルハンドラ（judge で判断）
 			if (isHomeChannel && this.homeChannelHandler) {
 				await this.homeChannelHandler(adapted, channel);
-				return;
 			}
 
 			// それ以外 → 無視
@@ -95,7 +94,8 @@ export class DiscordGateway implements MessageGateway {
 			platform: "discord",
 			channelId: message.channel.id,
 			authorId: message.author.id,
-			authorName: message.member?.displayName ?? message.author.displayName ?? message.author.username,
+			authorName:
+				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
 			isMentioned,

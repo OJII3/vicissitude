@@ -64,7 +64,7 @@ export class OpencodeResponseJudge implements ResponseJudge {
 
 			const action = this.parseAction(parsed.action, parsed.emoji);
 			return { action, reason: parsed.reason ?? "" };
-		} catch (error) {
+		} catch {
 			this.logger.warn("Failed to parse judge response, defaulting to ignore:", text);
 			return { action: { type: "ignore" }, reason: "parse error" };
 		}

@@ -35,5 +35,13 @@
 		"promise/param-names": "error",
 		"promise/catch-or-return": "error"
 	},
+	"overrides": [
+		{
+			"files": ["**/composition-root.ts"],
+			"rules": {
+				"import/max-dependencies": "off"
+			}
+		}
+	],
 	"ignorePatterns": ["node_modules", "data", ".direnv", "context"]
 }

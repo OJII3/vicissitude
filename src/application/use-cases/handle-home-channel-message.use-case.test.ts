@@ -1,0 +1,113 @@
+import { describe, expect, it, mock } from "bun:test";
+
+import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
+import { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
+import { HandleHomeChannelMessageUseCase } from "./handle-home-channel-message.use-case.ts";
+import {
+	createMockAgent,
+	createMockChannel,
+	createMockChannelConfig,
+	createMockHistory,
+	createMockJudge,
+	createMockLogger,
+	createMockMessage,
+} from "./test-helpers.ts";
+
+function createUseCase(overrides: {
+	agent?: ReturnType<typeof createMockAgent>;
+	judge?: ResponseJudge;
+	cooldown?: CooldownTracker;
+	logger?: ReturnType<typeof createMockLogger>;
+}) {
+	return new HandleHomeChannelMessageUseCase(
+		overrides.agent ?? createMockAgent({ text: "Hi", sessionId: "s1" }),
+		overrides.judge ?? createMockJudge({ action: { type: "ignore" }, reason: "" }),
+		createMockHistory(),
+		createMockChannelConfig(),
+		overrides.cooldown ?? new CooldownTracker(),
+		overrides.logger ?? createMockLogger(),
+	);
+}
+
+describe("HandleHomeChannelMessageUseCase - スキップ条件", () => {
+	it("空メッセージは無視する", async () => {
+		const judge = createMockJudge({ action: { type: "respond" }, reason: "" });
+		const useCase = createUseCase({ judge });
+
+		await useCase.execute(createMockMessage(""), createMockChannel());
+
+		expect(judge.judge).not.toHaveBeenCalled();
+	});
+
+	it("クールダウン中はスキップする", async () => {
+		const judge = createMockJudge({ action: { type: "respond" }, reason: "" });
+		const cooldown = new CooldownTracker();
+		cooldown.record("ch-1");
+		const useCase = createUseCase({ judge, cooldown });
+
+		await useCase.execute(createMockMessage("hello"), createMockChannel());
+
+		expect(judge.judge).not.toHaveBeenCalled();
+	});
+});
+
+describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
+	it("ignore → 何もしない", async () => {
+		const agent = createMockAgent({ text: "Hi", sessionId: "s1" });
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "not relevant" });
+		const useCase = createUseCase({ agent, judge });
+
+		const msg = createMockMessage("hello");
+		const channel = createMockChannel();
+		await useCase.execute(msg, channel);
+
+		expect(agent.send).not.toHaveBeenCalled();
+		expect(msg.react).not.toHaveBeenCalled();
+		expect(channel.send).not.toHaveBeenCalled();
+	});
+
+	it("react → リアクションしてクールダウン記録", async () => {
+		const judge = createMockJudge({ action: { type: "react", emoji: "👍" }, reason: "agree" });
+		const cooldown = new CooldownTracker();
+		const useCase = createUseCase({ judge, cooldown });
+
+		const msg = createMockMessage("nice work!");
+		await useCase.execute(msg, createMockChannel());
+
+		expect(msg.react).toHaveBeenCalledWith("👍");
+		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
+	});
+
+	it("respond → AI 応答を送信してクールダウン記録", async () => {
+		const agent = createMockAgent({ text: "やっほー", sessionId: "s1" });
+		const judge = createMockJudge({ action: { type: "respond" }, reason: "talking to me" });
+		const cooldown = new CooldownTracker();
+		const useCase = createUseCase({ agent, judge, cooldown });
+
+		const msg = createMockMessage("ふあどう思う？");
+		const channel = createMockChannel();
+		await useCase.execute(msg, channel);
+
+		expect(agent.send).toHaveBeenCalledWith("test:ch-1:_channel", "TestUser: ふあどう思う？");
+		expect(channel.send).toHaveBeenCalledWith("やっほー");
+		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
+	});
+});
+
+describe("HandleHomeChannelMessageUseCase - エラー処理", () => {
+	it("judge エラー時は安全側(ignore)に倒す", async () => {
+		const agent = createMockAgent({ text: "Hi", sessionId: "s1" });
+		const judge: ResponseJudge = {
+			judge: mock(() => Promise.reject(new Error("AI error"))),
+		};
+		const logger = createMockLogger();
+		const useCase = createUseCase({ agent, judge, logger });
+
+		const channel = createMockChannel();
+		await useCase.execute(createMockMessage("hello"), channel);
+
+		expect(agent.send).not.toHaveBeenCalled();
+		expect(channel.send).not.toHaveBeenCalled();
+		expect(logger.error).toHaveBeenCalled();
+	});
+});
