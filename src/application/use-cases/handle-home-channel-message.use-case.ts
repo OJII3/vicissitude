@@ -4,15 +4,18 @@ import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { ChannelConfigLoader } from "../../domain/ports/channel-config-loader.port.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
 import type { EmojiInfo, EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
+import type { EmojiUsageTracker } from "../../domain/ports/emoji-usage-tracker.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import type { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
+import { filterTopEmojis } from "../../domain/services/emoji-ranking.ts";
 import { formatTimestamp } from "../../domain/services/format-timestamp.ts";
 import { splitMessage } from "../../domain/services/message-formatter.ts";
 
 const TYPING_INTERVAL_MS = 8000;
 const JUDGE_CONTEXT_LIMIT = 10;
+const TOP_EMOJI_LIMIT = 20;
 
 export class HandleHomeChannelMessageUseCase {
 	constructor(
@@ -22,6 +25,7 @@ export class HandleHomeChannelMessageUseCase {
 		private readonly channelConfig: ChannelConfigLoader,
 		private readonly cooldown: CooldownTracker,
 		private readonly emojiProvider: EmojiProvider,
+		private readonly emojiUsage: EmojiUsageTracker,
 		private readonly logger: Logger,
 	) {}
 
@@ -58,18 +62,29 @@ export class HandleHomeChannelMessageUseCase {
 			return null;
 		}
 
-		let emojis: EmojiInfo[] | undefined;
+		let allEmojis: EmojiInfo[] | undefined;
 		if (msg.guildId) {
 			try {
-				emojis = await this.emojiProvider.getGuildEmojis(msg.guildId);
+				allEmojis = await this.emojiProvider.getGuildEmojis(msg.guildId);
 			} catch (error) {
 				this.logger.warn("Failed to fetch guild emojis:", error);
 			}
 		}
 
+		// 使用頻度データがあればトップ N でフィルタリング
+		let judgeEmojis = allEmojis;
+		if (allEmojis && msg.guildId && this.emojiUsage.hasData(msg.guildId)) {
+			const topUsage = this.emojiUsage.getTopEmojis(msg.guildId, TOP_EMOJI_LIMIT);
+			const filtered = filterTopEmojis(allEmojis, topUsage);
+			if (filtered.length > 0) {
+				judgeEmojis = filtered;
+			}
+			// filtered が空（データはあるが全て削除済み等）→ allEmojis にフォールバック
+		}
+
 		try {
-			const decision = await this.judge.judge(msg.content, context, emojis);
-			return { action: decision.action, emojis };
+			const decision = await this.judge.judge(msg.content, context, judgeEmojis);
+			return { action: decision.action, emojis: allEmojis };
 		} catch (error) {
 			this.logger.error("Judge failed, defaulting to ignore:", error);
 			return null;

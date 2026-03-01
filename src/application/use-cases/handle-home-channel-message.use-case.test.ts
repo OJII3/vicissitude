@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from "bun:test";
 
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
 import type { EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
+import type { EmojiUsageTracker } from "../../domain/ports/emoji-usage-tracker.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
 import { HandleHomeChannelMessageUseCase } from "./handle-home-channel-message.use-case.ts";
@@ -10,6 +11,7 @@ import {
 	createMockChannel,
 	createMockChannelConfig,
 	createMockEmojiProvider,
+	createMockEmojiUsageTracker,
 	createMockHistory,
 	createMockJudge,
 	createMockLogger,
@@ -22,6 +24,7 @@ function createUseCase(overrides: {
 	history?: ConversationHistory;
 	cooldown?: CooldownTracker;
 	emojiProvider?: EmojiProvider;
+	emojiUsageTracker?: EmojiUsageTracker;
 	logger?: ReturnType<typeof createMockLogger>;
 }) {
 	return new HandleHomeChannelMessageUseCase(
@@ -31,6 +34,7 @@ function createUseCase(overrides: {
 		createMockChannelConfig(),
 		overrides.cooldown ?? new CooldownTracker(),
 		overrides.emojiProvider ?? createMockEmojiProvider(),
+		overrides.emojiUsageTracker ?? createMockEmojiUsageTracker(),
 		overrides.logger ?? createMockLogger(),
 	);
 }
@@ -136,6 +140,76 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 		});
 		expect(channel.send).toHaveBeenCalledWith("やっほー");
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
+	});
+});
+
+describe("HandleHomeChannelMessageUseCase - 絵文字フィルタリング", () => {
+	const allEmojis = [
+		{ name: "pepe_sad", identifier: "111", animated: false },
+		{ name: "pepe_happy", identifier: "222", animated: true },
+		{ name: "thumbsup", identifier: "333", animated: false },
+		{ name: "fire", identifier: "444", animated: false },
+	];
+
+	it("使用データあり → トップ N のみ judge に渡る", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const emojiProvider = createMockEmojiProvider(allEmojis);
+		const emojiUsageTracker = createMockEmojiUsageTracker({
+			"guild-1": [
+				{ emojiName: "fire", count: 100 },
+				{ emojiName: "pepe_sad", count: 50 },
+			],
+		});
+		const useCase = createUseCase({ judge, emojiProvider, emojiUsageTracker });
+
+		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
+
+		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), [
+			{ name: "fire", identifier: "444", animated: false },
+			{ name: "pepe_sad", identifier: "111", animated: false },
+		]);
+	});
+
+	it("コールドスタート（使用データなし）→ 全絵文字が渡る", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const emojiProvider = createMockEmojiProvider(allEmojis);
+		const emojiUsageTracker = createMockEmojiUsageTracker({});
+		const useCase = createUseCase({ judge, emojiProvider, emojiUsageTracker });
+
+		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
+
+		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis);
+	});
+
+	it("フィルタ結果空（全て削除済み）→ 全絵文字フォールバック", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const emojiProvider = createMockEmojiProvider(allEmojis);
+		const emojiUsageTracker = createMockEmojiUsageTracker({
+			"guild-1": [{ emojiName: "deleted_emoji", count: 99 }],
+		});
+		const useCase = createUseCase({ judge, emojiProvider, emojiUsageTracker });
+
+		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
+
+		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis);
+	});
+
+	it("react 時は allEmojis（フィルタ前）で resolveEmoji する", async () => {
+		const judge = createMockJudge({
+			action: { type: "react", emoji: ":thumbsup:" },
+			reason: "agree",
+		});
+		const emojiProvider = createMockEmojiProvider(allEmojis);
+		// thumbsup はトップ N に含まれていないが、allEmojis には存在する
+		const emojiUsageTracker = createMockEmojiUsageTracker({
+			"guild-1": [{ emojiName: "fire", count: 100 }],
+		});
+		const useCase = createUseCase({ judge, emojiProvider, emojiUsageTracker });
+
+		const msg = createMockMessage("nice!", { guildId: "guild-1" });
+		await useCase.execute(msg, createMockChannel());
+
+		expect(msg.react).toHaveBeenCalledWith("333");
 	});
 });
 

@@ -15,6 +15,7 @@ import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
 import { OpencodeJudgeAgent } from "./infrastructure/opencode/opencode-judge-agent.ts";
 import { OpencodeResponseJudge } from "./infrastructure/opencode/opencode-response-judge.ts";
+import { JsonEmojiUsageRepository } from "./infrastructure/persistence/json-emoji-usage-repository.ts";
 import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json-heartbeat-config-repository.ts";
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
 import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
@@ -51,6 +52,7 @@ export async function bootstrap(): Promise<void> {
 	// Home channel infrastructure
 	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
 	const emojiProvider = new DiscordEmojiProvider(() => gateway.getClient());
+	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
 	const responseJudge = new OpencodeResponseJudge(judgeAgent, logger);
 	const cooldown = new CooldownTracker();
 
@@ -66,15 +68,19 @@ export async function bootstrap(): Promise<void> {
 		channelConfig,
 		cooldown,
 		emojiProvider,
+		emojiUsageRepo,
 		logger,
 	);
 
 	// Wiring
 	gateway.onMessage((msg, ch) => handleMessage.execute(msg, ch));
 	gateway.onHomeChannelMessage((msg, ch) => handleHomeMessage.execute(msg, ch));
+	gateway.onEmojiUsed((guildId, emojiName) => {
+		emojiUsageRepo.increment(guildId, emojiName);
+	});
 
 	// Graceful shutdown
-	setupShutdown(logger, heartbeatScheduler, gateway, agent, judgeAgent);
+	setupShutdown(logger, heartbeatScheduler, gateway, agent, judgeAgent, emojiUsageRepo);
 
 	await gateway.start();
 	heartbeatScheduler.start();
@@ -86,6 +92,7 @@ function setupShutdown(
 	gateway: DiscordGateway,
 	agent: AiAgent,
 	judgeAgent: AiAgent,
+	emojiUsageRepo: JsonEmojiUsageRepository,
 ) {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -96,7 +103,9 @@ function setupShutdown(
 		gateway.stop();
 		agent.stop();
 		judgeAgent.stop();
-		setTimeout(() => process.exit(0), 1000);
+		void emojiUsageRepo.flush().finally(() => {
+			setTimeout(() => process.exit(0), 1000);
+		});
 	};
 	process.on("SIGINT", shutdown);
 	process.on("SIGTERM", shutdown);
