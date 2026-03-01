@@ -37,7 +37,7 @@ async function execWithTmux(cmd: string[]): Promise<string> {
 	const proc = Bun.spawn(tmuxCmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
 
 	const timeout = setTimeout(() => {
-		Bun.spawn(["tmux", "kill-session", "-t", sessionName]);
+		Bun.spawn(["tmux", "kill-session", "-t", sessionName], { env: SAFE_ENV });
 	}, TIMEOUT_MS);
 
 	await proc.exited;

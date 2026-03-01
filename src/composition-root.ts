@@ -27,11 +27,15 @@ export async function bootstrap(): Promise<void> {
 	gateway.onMessage((msg, ch) => handleMessage.execute(msg, ch));
 
 	// Graceful shutdown
+	let shuttingDown = false;
 	const shutdown = () => {
+		if (shuttingDown) return;
+		shuttingDown = true;
 		logger.info("Shutting down...");
 		gateway.stop();
 		agent.stop();
-		process.exit(0);
+		// イベントループを回して進行中の非同期処理を完了させる
+		setTimeout(() => process.exit(0), 1000);
 	};
 	process.on("SIGINT", shutdown);
 	process.on("SIGTERM", shutdown);

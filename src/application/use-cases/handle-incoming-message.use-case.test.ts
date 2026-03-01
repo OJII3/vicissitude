@@ -81,6 +81,25 @@ describe("HandleIncomingMessageUseCase - 正常系", () => {
 	});
 });
 
+describe("HandleIncomingMessageUseCase - 分割送信", () => {
+	it("長文応答時に reply + channel.send で分割送信される", async () => {
+		const longText = `${"a".repeat(1500)}\n${"b".repeat(1500)}`;
+		const agent = createMockAgent({ text: longText, sessionId: "s1" });
+		const logger = createMockLogger();
+		const useCase = new HandleIncomingMessageUseCase(agent, logger);
+
+		const msg = createMockMessage("Hi");
+		const channel = createMockChannel();
+
+		await useCase.execute(msg, channel);
+
+		expect(msg.reply).toHaveBeenCalledTimes(1);
+		expect(msg.reply).toHaveBeenCalledWith("a".repeat(1500));
+		expect(channel.send).toHaveBeenCalledTimes(1);
+		expect(channel.send).toHaveBeenCalledWith("b".repeat(1500));
+	});
+});
+
 describe("HandleIncomingMessageUseCase - 異常系", () => {
 	it("エラー時に汎用メッセージが返される", async () => {
 		const agent: AiAgent = {
