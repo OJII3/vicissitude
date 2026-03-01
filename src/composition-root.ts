@@ -7,6 +7,7 @@ import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-inc
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
+import { MessageBatcher } from "./domain/services/message-batcher.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
 import { JsonChannelConfigLoader } from "./infrastructure/context/json-channel-config-loader.ts";
 import { DiscordConversationHistory } from "./infrastructure/discord/discord-conversation-history.ts";
@@ -67,6 +68,7 @@ export async function bootstrap(): Promise<void> {
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
 	const responseJudge = new OpencodeResponseJudge(judgeAgent, logger);
 	const cooldown = new CooldownTracker();
+	const messageBatcher = new MessageBatcher();
 
 	// Heartbeat
 	const { scheduler: heartbeatScheduler } = createHeartbeat(root, agent, logger);
@@ -82,6 +84,7 @@ export async function bootstrap(): Promise<void> {
 		emojiProvider,
 		emojiUsageRepo,
 		logger,
+		messageBatcher,
 	);
 
 	// Wiring

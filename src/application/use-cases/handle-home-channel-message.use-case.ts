@@ -11,6 +11,7 @@ import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import type { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
 import { filterTopEmojis } from "../../domain/services/emoji-ranking.ts";
 import { formatTimestamp } from "../../domain/services/format-timestamp.ts";
+import type { MessageBatcher, QueuedMessage } from "../../domain/services/message-batcher.ts";
 import { splitMessage } from "../../domain/services/message-formatter.ts";
 
 const TYPING_INTERVAL_MS = 8000;
@@ -18,6 +19,8 @@ const JUDGE_CONTEXT_LIMIT = 10;
 const TOP_EMOJI_LIMIT = 20;
 
 export class HandleHomeChannelMessageUseCase {
+	private flushTimers = new Map<string, Timer>();
+
 	constructor(
 		private readonly agent: AiAgent,
 		private readonly judge: ResponseJudge,
@@ -27,18 +30,54 @@ export class HandleHomeChannelMessageUseCase {
 		private readonly emojiProvider: EmojiProvider,
 		private readonly emojiUsage: EmojiUsageTracker,
 		private readonly logger: Logger,
+		private readonly batcher: MessageBatcher,
 	) {}
 
 	async execute(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
 		if (!msg.content) return;
 
+		this.batcher.enqueue(msg.channelId, msg, channel);
+
 		const cooldownSeconds = this.channelConfig.getCooldown(msg.channelId);
-		if (this.cooldown.isOnCooldown(msg.channelId, cooldownSeconds)) return;
+		if (this.cooldown.isOnCooldown(msg.channelId, cooldownSeconds)) {
+			this.scheduleFlush(msg.channelId, cooldownSeconds);
+			return;
+		}
+
+		await this.processBatch(msg.channelId);
+	}
+
+	private scheduleFlush(channelId: string, cooldownSeconds: number): void {
+		if (this.flushTimers.has(channelId)) return;
+
+		const remainingMs = this.cooldown.getRemainingMs(channelId, cooldownSeconds);
+		if (remainingMs <= 0) {
+			// 境界タイミング: isOnCooldown=true だが残り時間=0 → 即時処理
+			this.processBatch(channelId).catch((e) =>
+				this.logger.error("Scheduled batch processing failed:", e),
+			);
+			return;
+		}
+
+		const timer = setTimeout(() => {
+			this.flushTimers.delete(channelId);
+			this.processBatch(channelId).catch((e) =>
+				this.logger.error("Scheduled batch processing failed:", e),
+			);
+		}, remainingMs);
+		this.flushTimers.set(channelId, timer);
+	}
+
+	private async processBatch(channelId: string): Promise<void> {
+		const batch = this.batcher.flush(channelId);
+		if (batch.length === 0) return;
 
 		// Optimistic locking: judge 前にクールダウン記録して重複処理を防ぐ
-		this.cooldown.record(msg.channelId);
+		this.cooldown.record(channelId);
 
-		const result = await this.judgeMessage(msg);
+		const latestItem = batch.at(-1);
+		if (!latestItem) return;
+		const result = await this.judgeMessage(latestItem.msg);
 		if (!result) return;
 
 		const { action, emojis } = result;
@@ -46,11 +85,11 @@ export class HandleHomeChannelMessageUseCase {
 		if (action.type === "ignore") return;
 
 		if (action.type === "react") {
-			await this.handleReact(msg, action.emoji, emojis);
+			await this.handleReact(latestItem.msg, action.emoji, emojis);
 			return;
 		}
 
-		await this.handleRespond(msg, channel);
+		await this.handleBatchRespond(batch, latestItem.msg, latestItem.channel);
 	}
 
 	private async judgeMessage(msg: IncomingMessage) {
@@ -110,9 +149,20 @@ export class HandleHomeChannelMessageUseCase {
 		return found ? found.identifier : emoji;
 	}
 
-	private async handleRespond(msg: IncomingMessage, channel: MessageChannel) {
-		const sessionKey = createChannelSessionKey(msg.platform, msg.channelId);
-		const prompt = `[${formatTimestamp(msg.timestamp)}] ${msg.authorName}: ${msg.content}`;
+	private async handleBatchRespond(
+		batch: QueuedMessage[],
+		latestMsg: IncomingMessage,
+		channel: MessageChannel,
+	) {
+		const sessionKey = createChannelSessionKey(latestMsg.platform, latestMsg.channelId);
+
+		// バッチ全体のメッセージを結合してプロンプト生成
+		const prompt = batch
+			.map(
+				(item) =>
+					`[${formatTimestamp(item.msg.timestamp)}] ${item.msg.authorName}: ${item.msg.content}`,
+			)
+			.join("\n");
 
 		await channel.sendTyping();
 		const typingInterval = setInterval(() => void channel.sendTyping(), TYPING_INTERVAL_MS);
@@ -121,7 +171,7 @@ export class HandleHomeChannelMessageUseCase {
 			const response = await this.agent.send({
 				sessionKey,
 				message: prompt,
-				guildId: msg.guildId,
+				guildId: latestMsg.guildId,
 			});
 			clearInterval(typingInterval);
 

@@ -18,6 +18,21 @@ export class CooldownTracker {
 	}
 
 	/**
+	 * クールダウンの残り時間（ミリ秒）を返す。
+	 * クールダウン中でなければ 0 を返す。
+	 * @param channelId チャンネルID
+	 * @param cooldownSeconds クールダウン秒数
+	 * @param now 現在時刻（テスト用にDI可能）
+	 */
+	getRemainingMs(channelId: string, cooldownSeconds: number, now: number = Date.now()): number {
+		const lastTime = this.lastResponseTime.get(channelId);
+		if (lastTime === undefined) return 0;
+		const elapsed = now - lastTime;
+		const remaining = cooldownSeconds * 1000 - elapsed;
+		return Math.max(remaining, 0);
+	}
+
+	/**
 	 * 応答したことを記録する。
 	 * @param channelId チャンネルID
 	 * @param now 現在時刻（テスト用にDI可能）

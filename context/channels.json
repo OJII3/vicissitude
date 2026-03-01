@@ -1,4 +1,4 @@
 {
-	"defaultCooldownSeconds": 120,
+	"defaultCooldownSeconds": 30,
 	"channels": []
 }

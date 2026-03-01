@@ -5,6 +5,7 @@ import type { EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
 import type { EmojiUsageTracker } from "../../domain/ports/emoji-usage-tracker.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
+import { MessageBatcher } from "../../domain/services/message-batcher.ts";
 import { HandleHomeChannelMessageUseCase } from "./handle-home-channel-message.use-case.ts";
 import {
 	createMockAgent,
@@ -26,6 +27,7 @@ function createUseCase(overrides: {
 	emojiProvider?: EmojiProvider;
 	emojiUsageTracker?: EmojiUsageTracker;
 	logger?: ReturnType<typeof createMockLogger>;
+	batcher?: MessageBatcher;
 }) {
 	return new HandleHomeChannelMessageUseCase(
 		overrides.agent ?? createMockAgent({ text: "Hi", sessionId: "s1" }),
@@ -36,6 +38,7 @@ function createUseCase(overrides: {
 		overrides.emojiProvider ?? createMockEmojiProvider(),
 		overrides.emojiUsageTracker ?? createMockEmojiUsageTracker(),
 		overrides.logger ?? createMockLogger(),
+		overrides.batcher ?? new MessageBatcher(),
 	);
 }
 
@@ -49,15 +52,17 @@ describe("HandleHomeChannelMessageUseCase - スキップ条件", () => {
 		expect(judge.judge).not.toHaveBeenCalled();
 	});
 
-	it("クールダウン中はスキップする", async () => {
+	it("クールダウン中はキューに溜まり judge は呼ばれない", async () => {
 		const judge = createMockJudge({ action: { type: "respond" }, reason: "" });
 		const cooldown = new CooldownTracker();
 		cooldown.record("ch-1");
-		const useCase = createUseCase({ judge, cooldown });
+		const batcher = new MessageBatcher();
+		const useCase = createUseCase({ judge, cooldown, batcher });
 
 		await useCase.execute(createMockMessage("hello"), createMockChannel());
 
 		expect(judge.judge).not.toHaveBeenCalled();
+		expect(batcher.hasPending("ch-1")).toBe(true);
 	});
 });
 
@@ -77,7 +82,6 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 		expect(channel.send).not.toHaveBeenCalled();
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
 	});
-
 	it("react → リアクションしてクールダウン記録", async () => {
 		const judge = createMockJudge({ action: { type: "react", emoji: "👍" }, reason: "agree" });
 		const cooldown = new CooldownTracker();
@@ -89,7 +93,6 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 		expect(msg.react).toHaveBeenCalledWith("👍");
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
 	});
-
 	it("react（カスタム絵文字）→ identifier に解決してリアクション", async () => {
 		const judge = createMockJudge({
 			action: { type: "react", emoji: ":pepe_sad:" },
@@ -106,7 +109,6 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 
 		expect(msg.react).toHaveBeenCalledWith("123456789");
 	});
-
 	it("react（不明なカスタム絵文字）→ そのまま渡す", async () => {
 		const judge = createMockJudge({
 			action: { type: "react", emoji: ":unknown_emoji:" },
@@ -140,6 +142,43 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 		});
 		expect(channel.send).toHaveBeenCalledWith("やっほー");
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
+	});
+});
+
+describe("HandleHomeChannelMessageUseCase - バッチ処理", () => {
+	it("複数メッセージが結合されて AI に渡される", async () => {
+		const agent = createMockAgent({ text: "まとめて返すよ", sessionId: "s1" });
+		const judge = createMockJudge({ action: { type: "respond" }, reason: "talk" });
+		const batcher = new MessageBatcher();
+		const cooldown = new CooldownTracker();
+		const useCase = createUseCase({ agent, judge, cooldown, batcher });
+
+		// 最初のメッセージでクールダウンに入る前に batcher に手動でキューイング
+		const msg1 = createMockMessage("おはよう", {
+			messageId: "msg-1",
+			authorName: "UserA",
+			timestamp: new Date("2026-03-01T06:30:00Z"),
+		});
+		const msg2 = createMockMessage("元気？", {
+			messageId: "msg-2",
+			authorName: "UserB",
+			timestamp: new Date("2026-03-01T06:30:05Z"),
+		});
+		const channel = createMockChannel();
+
+		// 先にメッセージを batcher にキューイングしておく
+		batcher.enqueue("ch-1", msg1, channel);
+
+		// 2つ目のメッセージで execute → batcher に msg2 も追加され、バッチ処理される
+		await useCase.execute(msg2, channel);
+
+		// agent.send に渡されるプロンプトに両メッセージが含まれる
+		expect(agent.send).toHaveBeenCalledWith({
+			sessionKey: "test:ch-1:_channel",
+			message: "[2026-03-01 15:30] UserA: おはよう\n[2026-03-01 15:30] UserB: 元気？",
+			guildId: undefined,
+		});
+		expect(channel.send).toHaveBeenCalledWith("まとめて返すよ");
 	});
 });
 
@@ -229,7 +268,6 @@ describe("HandleHomeChannelMessageUseCase - エラー処理", () => {
 		expect(channel.send).not.toHaveBeenCalled();
 		expect(logger.error).toHaveBeenCalled();
 	});
-
 	it("history エラー時は安全側(ignore)に倒す", async () => {
 		const agent = createMockAgent({ text: "Hi", sessionId: "s1" });
 		const history: ConversationHistory = {
@@ -245,7 +283,6 @@ describe("HandleHomeChannelMessageUseCase - エラー処理", () => {
 		expect(channel.send).not.toHaveBeenCalled();
 		expect(logger.error).toHaveBeenCalled();
 	});
-
 	it("respond 時に agent エラーでも typing が停止する", async () => {
 		const agent = createMockAgent({ text: "Hi", sessionId: "s1" });
 		agent.send = mock(() => Promise.reject(new Error("AI down")));
