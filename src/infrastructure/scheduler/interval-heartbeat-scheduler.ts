@@ -2,8 +2,10 @@ import type { HandleHeartbeatUseCase } from "../../application/use-cases/handle-
 import type { HeartbeatConfigRepository } from "../../domain/ports/heartbeat-config-repository.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import { evaluateDueReminders } from "../../domain/services/heartbeat-evaluator.ts";
+import { withTimeout } from "../../domain/services/timeout.ts";
 
 const TICK_INTERVAL_MS = 60_000;
+const TICK_TIMEOUT_MS = 180_000;
 
 export class IntervalHeartbeatScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
@@ -24,6 +26,18 @@ export class IntervalHeartbeatScheduler {
 		this.timer = setInterval(() => void this.tick(), TICK_INTERVAL_MS);
 	}
 
+	private async executeTick(): Promise<void> {
+		const config = await this.configRepo.load();
+		const dueReminders = evaluateDueReminders(config, new Date());
+
+		if (dueReminders.length > 0) {
+			this.logger.info(
+				`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
+			);
+			await this.useCase.execute(dueReminders);
+		}
+	}
+
 	stop(): void {
 		if (this.timer) {
 			clearInterval(this.timer);
@@ -40,15 +54,7 @@ export class IntervalHeartbeatScheduler {
 
 		this.running = true;
 		try {
-			const config = await this.configRepo.load();
-			const dueReminders = evaluateDueReminders(config, new Date());
-
-			if (dueReminders.length > 0) {
-				this.logger.info(
-					`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
-				);
-				await this.useCase.execute(dueReminders);
-			}
+			await withTimeout(this.executeTick(), TICK_TIMEOUT_MS, "heartbeat tick timed out");
 		} catch (error) {
 			this.logger.error("[heartbeat] tick エラー:", error);
 		} finally {
