@@ -26,7 +26,11 @@
 3. `data/` ディレクトリが書き込み可能であることを確認する。
 4. デプロイ固有のチャンネル設定がある場合、`data/context/channels.json` に配置する（なければ `context/channels.json` がフォールバックとして使われる）。
 5. `podman --version` が実行可能であることを確認する。
-6. `nr container:build` でコンテナイメージ `vicissitude-code-exec` をビルド済みであることを確認する。
+6. Podman ソケットが有効化されていることを確認する:
+   ```bash
+   systemctl --user enable --now podman.socket
+   ```
+7. `nr container:build:all` でコンテナイメージをビルド済みであることを確認する。
 
 ### 3.2 開発時コマンド
 
@@ -40,7 +44,13 @@
 
 ソースコードを変更した場合、`nr validate` を実行して問題がないことを確認してからコミットすること。
 
-### 3.3 運用時の基本挙動
+### 3.3 デプロイ操作
+
+1. `nr deploy` — Bot をコンテナとして起動（バックグラウンド、既存コンテナは自動置換）
+2. `nr deploy:logs` — 実行中コンテナのログをフォロー
+3. `nr deploy:stop` — コンテナを停止
+
+### 3.4 運用時の基本挙動
 
 1. `messageCreate` イベントで Bot メンション / スレッドを判定する。
 2. メンション文字列を除去してメッセージを AI に渡す。
