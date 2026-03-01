@@ -1,4 +1,4 @@
-import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
+import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk/v2";
 
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
@@ -17,18 +17,16 @@ export class OpencodeJudgeAgent implements AiAgent {
 		const { message } = options;
 		const oc = await this.getClient();
 
-		const created = await oc.session.create({ body: { title: "ふあ:judge" } });
+		const created = await oc.session.create({ title: "ふあ:judge" });
 		if (!created.data) throw new Error("Failed to create judge session");
 		const sessionId = created.data.id;
 
 		const result = await oc.session.prompt({
-			path: { id: sessionId },
-			body: {
-				parts: [{ type: "text", text: message }],
-				model: {
-					providerID: process.env.OPENCODE_PROVIDER_ID ?? "opencode",
-					modelID: process.env.OPENCODE_MODEL_ID ?? "big-pickle",
-				},
+			sessionID: sessionId,
+			parts: [{ type: "text", text: message }],
+			model: {
+				providerID: process.env.OPENCODE_PROVIDER_ID ?? "opencode",
+				modelID: process.env.OPENCODE_MODEL_ID ?? "big-pickle",
 			},
 		});
 
@@ -56,13 +54,11 @@ export class OpencodeJudgeAgent implements AiAgent {
 	private async getClient(): Promise<OpencodeClient> {
 		if (this.client) return this.client;
 
-		// MCP サーバーなしで起動（judge にツールは不要）
-		// 組み込みツールも全無効化（.env 等へのアクセス防止）
-		// メインエージェント(4096)とポート競合しないよう別ポートを使用
 		const result = await createOpencode({
 			port: 4097,
 			config: {
 				tools: {
+					question: false,
 					read: false,
 					glob: false,
 					grep: false,
