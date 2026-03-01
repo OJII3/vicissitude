@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from "fs";
+import { appendFileSync, existsSync, mkdirSync } from "fs";
 import { resolve } from "path";
 
 import type { BufferedEvent, EventBuffer } from "../../domain/ports/event-buffer.port.ts";
@@ -15,10 +15,9 @@ export class FileEventBuffer implements EventBuffer {
 		this.filePath = resolve(dirPath, BUFFER_FILENAME);
 	}
 
-	async append(event: BufferedEvent): Promise<void> {
+	append(event: BufferedEvent): Promise<void> {
 		const line = `${JSON.stringify(event)}\n`;
-		const file = Bun.file(this.filePath);
-		const existing = (await file.exists()) ? await file.text() : "";
-		await Bun.write(this.filePath, existing + line);
+		appendFileSync(this.filePath, line);
+		return Promise.resolve();
 	}
 }

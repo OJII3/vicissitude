@@ -37,6 +37,10 @@ export class OpencodeAgent implements AiAgent {
 			system,
 		});
 
+		if (result.error) {
+			throw new Error(`opencode prompt failed: ${JSON.stringify(result.error)}`);
+		}
+
 		const texts: string[] = [];
 		if (result.data?.parts) {
 			for (const part of result.data.parts) {
