@@ -1,16 +1,18 @@
-import { readdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { existsSync, readdirSync, statSync, writeFileSync } from "fs";
+import path, { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
 import {
+	BASE_CONTEXT_DIR,
 	MAX_DAILY_LOG_CHARS,
 	MAX_ENTRY_CHARS,
 	MAX_LESSONS_CHARS,
 	MAX_MEMORY_CHARS,
 	MAX_SOUL_LEARNED_CHARS,
+	OVERLAY_CONTEXT_DIR,
 	SOUL_PATH,
 	createBackup,
 	ensureDir,
@@ -18,7 +20,7 @@ import {
 	guildIdSchema,
 	guildLabel,
 	isDateWithinRange,
-	readFileSafe,
+	readWithFallback,
 	resolveContextPaths,
 	todayDateString,
 } from "./memory-helpers.ts";
@@ -32,7 +34,7 @@ server.tool(
 	{ guild_id: guildIdSchema },
 	({ guild_id }) => {
 		const { memoryPath } = resolveContextPaths(guild_id);
-		const content = readFileSafe(memoryPath);
+		const content = readWithFallback(memoryPath);
 		return {
 			content: [{ type: "text", text: content || `${guildLabel(guild_id)}(MEMORY.md は空です)` }],
 		};
@@ -69,7 +71,7 @@ server.tool(
 
 // --- read_soul ---
 server.tool("read_soul", "SOUL.md を読み取る", {}, () => {
-	const content = readFileSafe(SOUL_PATH);
+	const content = readWithFallback(SOUL_PATH);
 	return {
 		content: [{ type: "text", text: content || "(SOUL.md は空です)" }],
 	};
@@ -81,7 +83,7 @@ server.tool(
 	"SOUL.md の「学んだこと」セクションに追記する",
 	{ entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）") },
 	({ entry }) => {
-		const content = readFileSafe(SOUL_PATH);
+		const content = readWithFallback(SOUL_PATH);
 		const { before, section, after } = extractLearnedSection(content);
 
 		if (!section) {
@@ -142,7 +144,7 @@ server.tool(
 		const { memoryDir } = resolveContextPaths(guild_id);
 		ensureDir(memoryDir);
 		const logPath = resolve(memoryDir, `${targetDate}.md`);
-		const existing = readFileSafe(logPath);
+		const existing = readWithFallback(logPath);
 
 		const overhead = existing ? 17 : 30;
 		if (existing.length + entry.length + overhead > MAX_DAILY_LOG_CHARS) {
@@ -192,7 +194,7 @@ server.tool(
 		const targetDate = date ?? todayDateString();
 		const { memoryDir } = resolveContextPaths(guild_id);
 		const logPath = resolve(memoryDir, `${targetDate}.md`);
-		const content = readFileSafe(logPath);
+		const content = readWithFallback(logPath);
 		return {
 			content: [
 				{
@@ -215,22 +217,33 @@ server.tool(
 	({ limit, guild_id }) => {
 		const { memoryDir } = resolveContextPaths(guild_id);
 		ensureDir(memoryDir);
+
+		// base 側の memoryDir も算出
+		const overlayRelative = path.relative(OVERLAY_CONTEXT_DIR, memoryDir);
+		const baseMemoryDir = resolve(BASE_CONTEXT_DIR, overlayRelative);
+
 		const maxItems = limit ?? 7;
-		const files = readdirSync(memoryDir)
-			.filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
+		const overlayFiles = readdirSync(memoryDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f));
+		const baseFiles = existsSync(baseMemoryDir)
+			? readdirSync(baseMemoryDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
+			: [];
+		const mergedFiles = [...new Set([...overlayFiles, ...baseFiles])]
 			.toSorted()
 			.toReversed()
 			.slice(0, maxItems);
 
-		if (files.length === 0) {
+		if (mergedFiles.length === 0) {
 			return {
 				content: [{ type: "text", text: `${guildLabel(guild_id)}日次ログはありません` }],
 			};
 		}
 
-		const lines = files.map((f) => {
-			const path = resolve(memoryDir, f);
-			const size = readFileSync(path).length;
+		const lines = mergedFiles.map((f) => {
+			// overlay 優先でサイズ取得
+			const overlayPath = resolve(memoryDir, f);
+			const basePath = resolve(baseMemoryDir, f);
+			const filePath = existsSync(overlayPath) ? overlayPath : basePath;
+			const size = statSync(filePath).size;
 			return `- ${f.replace(".md", "")} (${String(size)} bytes)`;
 		});
 		return { content: [{ type: "text", text: lines.join("\n") }] };
@@ -244,7 +257,7 @@ server.tool(
 	{ guild_id: guildIdSchema },
 	({ guild_id }) => {
 		const { lessonsPath } = resolveContextPaths(guild_id);
-		const content = readFileSafe(lessonsPath);
+		const content = readWithFallback(lessonsPath);
 		return {
 			content: [{ type: "text", text: content || `${guildLabel(guild_id)}(LESSONS.md は空です)` }],
 		};

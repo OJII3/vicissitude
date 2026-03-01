@@ -15,8 +15,8 @@
 ## 3. システム境界
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
-- コンテキスト: `context/` ディレクトリ（`IDENTITY.md`, `SOUL.md` 等）
-- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`）
+- コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）
+- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`, `context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -114,12 +114,12 @@
   - `data/sessions.json` にセッション ID を永続化
   - インメモリキャッシュ + lazy load
 - `context/file-context-loader.ts`: `FileContextLoader implements ContextLoader`
-  - `context/` 配下の Markdown ファイルを読込・結合
-  - Guild-aware: 共通ファイル（IDENTITY, SOUL 等）はグローバル、記憶ファイル（MEMORY, LESSONS, daily log）は `guilds/{guildId}/` から読込
+  - `overlayDir`（`data/context/`）→ `baseDir`（`context/`）のフォールバックで Markdown ファイルを読込・結合
+  - Guild-aware: 共通ファイル（IDENTITY, SOUL 等）は overlay → base、記憶ファイル（MEMORY, LESSONS, daily log）は `guilds/{guildId}/` → グローバルの順で読込（各段階で overlay → base フォールバック）
 - `context/file-context-loader-factory.ts`: `FileContextLoaderFactory implements ContextLoaderFactory`
-  - Guild ID を指定して `FileContextLoader` を生成
+  - `overlayDir` と `baseDir` を保持し、Guild ID を指定して `FileContextLoader` を生成
 - `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
-  - `context/channels.json` からチャンネル設定を読込
+  - `data/context/channels.json` → `context/channels.json` のフォールバックでチャンネル設定を読込
   - `getHomeChannelIds()` でホームチャンネル一覧を取得（ポート外の具象メソッド）
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
   - 専用の `OpencodeJudgeAgent` を使用（MCP ツールなし、毎回新規セッション）
@@ -149,8 +149,9 @@
   - `data/heartbeat-config.json` を直接読み書き
 - `mcp/memory-server.ts`: メモリ管理ツール
   - `read_memory`, `update_memory`, `read_soul`, `evolve_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
-  - Guild 分離: `guild_id` パラメータ指定時は `context/guilds/{guildId}/` 配下を使用、省略時はグローバル
-  - `evolve_soul` は常にグローバル（`SOUL.md` は共通）
+  - オーバーレイ方式: 読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う
+  - Guild 分離: `guild_id` パラメータ指定時は `guilds/{guildId}/` 配下を使用、省略時はグローバル
+  - `evolve_soul` は常にグローバル（`SOUL.md` は共通、書き込み先は `data/context/SOUL.md`）
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
 
@@ -287,18 +288,19 @@
 
 ### 6.6 コンテキスト読込
 
-1. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）はグローバル `context/` から読込。
-2. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `context/guilds/{guildId}/` から読込、なければグローバルにフォールバック。
-3. 当日の日次ログも同様に Guild 固有 → グローバルの順でフォールバック。
-4. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
-5. XML タグでラップして結合する。
-6. guildId が存在する場合、`<guild-context>` タグで guild_id を明示し、MCP ツール使用時の指示を含める。
+1. 全ファイルはオーバーレイ方式で読み込む: `data/context/` → `context/` の順でフォールバック。
+2. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）は overlay → base の順。
+3. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `guilds/{guildId}/` → グローバルの順でフォールバック（各段階で overlay → base）。
+4. 当日の日次ログも同様に Guild 固有 → グローバルの順（各段階で overlay → base）。
+5. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
+6. XML タグでラップして結合する。
+7. guildId が存在する場合、`<guild-context>` タグで guild_id を明示し、MCP ツール使用時の指示を含める。
 
 ## 7. 設定
 
 - `DISCORD_TOKEN`: 必須（`.env` から読込）
 - データディレクトリ: `{project-root}/data/`
-- コンテキストディレクトリ: `{project-root}/context/`
+- コンテキストディレクトリ: `{project-root}/context/`（ベース）、`{project-root}/data/context/`（オーバーレイ、読み込み優先）
 
 ## 8. エラーハンドリング
 
@@ -321,5 +323,5 @@
 2. DI は手動コンストラクタ注入のみ（Pure DI）。
 3. MCP サーバーは独立プロセスとしてレイヤー外に配置する。
 4. セッション永続化は JSON ファイルを使用する。
-5. コンテキスト運用は `context/` ディレクトリの Markdown ファイルで行う。
-6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `context/guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
+5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う。
+6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。

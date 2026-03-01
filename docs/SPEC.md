@@ -55,7 +55,7 @@ OpenCode が使用する MCP サーバーを提供する。
 
 ### 3.4 コンテキスト運用
 
-- `context/` ディレクトリにブートストラップ用ドキュメントを配置する。
+- オーバーレイ方式でコンテキストを管理する: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
 - チャンネル設定: `channels.json`（ホームチャンネル一覧、guildId、クールダウン設定）
 - 日次ログ: `memory/{YYYY-MM-DD}.md`
@@ -64,8 +64,8 @@ OpenCode が使用する MCP サーバーを提供する。
 ### 3.5 Guild 跨ぎコンテキスト分離
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全 Guild で共有。
-- 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `context/guilds/{guildId}/` で分離。
-- DM やフォールバック時はグローバル `context/` を使用。
+- 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `guilds/{guildId}/` で分離（オーバーレイ方式で `data/context/` → `context/` のフォールバック）。
+- DM やフォールバック時はグローバルを使用。
 - MCP memory ツールでは `guild_id` パラメータで Guild 固有メモリにアクセス。
 - Guild 間で会話内容・メンバー情報・教訓が漏洩しない。
 

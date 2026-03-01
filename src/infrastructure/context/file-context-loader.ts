@@ -18,26 +18,25 @@ const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
 
 export class FileContextLoader implements ContextLoader {
-	private readonly contextDir: string;
+	private readonly overlayDir: string;
+	private readonly baseDir: string;
 	private readonly guildId?: string;
 
-	constructor(contextDir: string, guildId?: string) {
-		this.contextDir = contextDir;
+	constructor(overlayDir: string, baseDir: string, guildId?: string) {
+		this.overlayDir = overlayDir;
+		this.baseDir = baseDir;
 		this.guildId = guildId;
 	}
 
 	async loadBootstrapContext(): Promise<string> {
-		const sharedContents = await Promise.all(
-			SHARED_FILES.map((f) => this.readContextFile(resolve(this.contextDir, f))),
-		);
-
-		const guildMemoryDir = this.guildId ? resolve(this.contextDir, "guilds", this.guildId) : null;
+		const sharedContents = await Promise.all(SHARED_FILES.map((f) => this.readOverlaid(f)));
 
 		const memoryContents = await Promise.all(
 			MEMORY_FILES.map((f) => {
-				const guildPath = guildMemoryDir ? resolve(guildMemoryDir, f) : null;
-				const globalPath = resolve(this.contextDir, f);
-				return this.readContextFileWithFallback(guildPath, globalPath);
+				if (this.guildId) {
+					return this.readOverlaidWithGuildFallback(`guilds/${this.guildId}/${f}`, f);
+				}
+				return this.readOverlaid(f);
 			}),
 		);
 
@@ -78,22 +77,31 @@ export class FileContextLoader implements ContextLoader {
 	}
 
 	private async readDailyLog(date: string): Promise<string | null> {
-		const guildLogPath = this.guildId
-			? resolve(this.contextDir, "guilds", this.guildId, "memory", `${date}.md`)
-			: null;
-		const globalLogPath = resolve(this.contextDir, "memory", `${date}.md`);
-		return this.readContextFileWithFallback(guildLogPath, globalLogPath);
+		if (this.guildId) {
+			return this.readOverlaidWithGuildFallback(
+				`guilds/${this.guildId}/memory/${date}.md`,
+				`memory/${date}.md`,
+			);
+		}
+		return this.readOverlaid(`memory/${date}.md`);
 	}
 
-	private async readContextFileWithFallback(
-		primaryPath: string | null,
-		fallbackPath: string,
+	private async readOverlaidWithGuildFallback(
+		guildRelativePath: string,
+		globalRelativePath: string,
 	): Promise<string | null> {
-		if (primaryPath) {
-			const content = await this.readContextFile(primaryPath);
-			if (content) return content;
-		}
-		return this.readContextFile(fallbackPath);
+		const content = await this.readOverlaid(guildRelativePath);
+		if (content) return content;
+		return this.readOverlaid(globalRelativePath);
+	}
+
+	private async readOverlaid(relativePath: string): Promise<string | null> {
+		const overlayPath = resolve(this.overlayDir, relativePath);
+		const content = await this.readContextFile(overlayPath);
+		if (content) return content;
+
+		const basePath = resolve(this.baseDir, relativePath);
+		return this.readContextFile(basePath);
 	}
 
 	private async readContextFile(filepath: string): Promise<string | null> {

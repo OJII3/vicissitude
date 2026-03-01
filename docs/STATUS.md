@@ -20,8 +20,8 @@
 - セッションは `data/sessions.json` に JSON で永続化している。
   - メンション/スレッド: ユーザー単位セッション (`platform:channelId:authorId`)
   - ホームチャンネル: チャンネル単位共有セッション (`platform:channelId:_channel`)
-- ブートストラップコンテキストは `context/` 配下の Markdown から読込む。
-- チャンネル設定は `context/channels.json` で管理する。
+- ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
+- チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
 - MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）の 4 つ。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
 - **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**

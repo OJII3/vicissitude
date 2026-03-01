@@ -1,10 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import path, { resolve } from "path";
 
 import { z } from "zod";
 
-export const CONTEXT_DIR = resolve(import.meta.dirname, "../../context");
-export const SOUL_PATH = resolve(CONTEXT_DIR, "SOUL.md");
+export const BASE_CONTEXT_DIR = resolve(import.meta.dirname, "../../context");
+export const OVERLAY_CONTEXT_DIR = resolve(import.meta.dirname, "../../data/context");
+export const SOUL_PATH = resolve(OVERLAY_CONTEXT_DIR, "SOUL.md");
 
 export const MAX_MEMORY_CHARS = 50_000;
 export const MAX_LESSONS_CHARS = 30_000;
@@ -29,7 +30,7 @@ export interface ContextPaths {
 
 export function resolveContextPaths(guildId?: string): ContextPaths {
 	if (guildId) {
-		const guildDir = resolve(CONTEXT_DIR, "guilds", guildId);
+		const guildDir = resolve(OVERLAY_CONTEXT_DIR, "guilds", guildId);
 		return {
 			memoryPath: resolve(guildDir, "MEMORY.md"),
 			lessonsPath: resolve(guildDir, "LESSONS.md"),
@@ -37,9 +38,9 @@ export function resolveContextPaths(guildId?: string): ContextPaths {
 		};
 	}
 	return {
-		memoryPath: resolve(CONTEXT_DIR, "MEMORY.md"),
-		lessonsPath: resolve(CONTEXT_DIR, "LESSONS.md"),
-		memoryDir: resolve(CONTEXT_DIR, "memory"),
+		memoryPath: resolve(OVERLAY_CONTEXT_DIR, "MEMORY.md"),
+		lessonsPath: resolve(OVERLAY_CONTEXT_DIR, "LESSONS.md"),
+		memoryDir: resolve(OVERLAY_CONTEXT_DIR, "memory"),
 	};
 }
 
@@ -47,14 +48,30 @@ export function ensureDir(dir: string): void {
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-export function readFileSafe(path: string): string {
-	if (!existsSync(path)) return "";
-	return readFileSync(path, "utf-8");
+export function readFileSafe(filePath: string): string {
+	if (!existsSync(filePath)) return "";
+	return readFileSync(filePath, "utf-8");
 }
 
-export function createBackup(path: string): void {
-	if (existsSync(path)) {
-		writeFileSync(`${path}.bak`, readFileSync(path));
+/** overlay → base のフォールバック読み込み（任意のディレクトリペアを指定可能） */
+export function readWithFallbackFrom(
+	overlayPath: string,
+	overlayDir: string,
+	baseDir: string,
+): string {
+	if (existsSync(overlayPath)) return readFileSync(overlayPath, "utf-8");
+	const relative = path.relative(overlayDir, overlayPath);
+	return readFileSafe(resolve(baseDir, relative));
+}
+
+/** overlay → base のフォールバック読み込み（デフォルトディレクトリ使用） */
+export function readWithFallback(overlayPath: string): string {
+	return readWithFallbackFrom(overlayPath, OVERLAY_CONTEXT_DIR, BASE_CONTEXT_DIR);
+}
+
+export function createBackup(filePath: string): void {
+	if (existsSync(filePath)) {
+		writeFileSync(`${filePath}.bak`, readFileSync(filePath));
 	}
 }
 
