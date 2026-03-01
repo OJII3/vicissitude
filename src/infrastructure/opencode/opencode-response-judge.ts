@@ -6,11 +6,14 @@ import type { ResponseAction, ResponseDecision } from "../../domain/entities/res
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
+import { formatTime } from "../../domain/services/format-timestamp.ts";
 
 const JUDGE_SESSION_KEY = "system:judge:_internal";
 
 function formatContext(messages: ConversationMessage[]): string {
-	return messages.map((m) => `${m.authorName}: ${m.content}`).join("\n");
+	return messages
+		.map((m) => `[${formatTime(m.timestamp)}] ${m.authorName}: ${m.content}`)
+		.join("\n");
 }
 
 const JUDGE_PROMPT = `あなたはDiscordサーバーに住んでいる「ふあ」です。

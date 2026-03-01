@@ -98,6 +98,7 @@ export class DiscordGateway implements MessageGateway {
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
+			timestamp: message.createdAt,
 			isMentioned,
 			isThread,
 			reply: async (text: string) => {
