@@ -52,6 +52,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `read_soul`, `evolve_soul`: SOUL.md の読み取り・「学んだこと」への追記
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
+5. **OpenCode 組み込みツール**: Web アクセス
+   - `webfetch`: 指定 URL の内容を取得
+   - `websearch`: Web 検索を実行
 
 ### 3.4 コンテキスト運用
 
