@@ -11,12 +11,12 @@ const MEMORY_PATH = resolve(CONTEXT_DIR, "MEMORY.md");
 const SOUL_PATH = resolve(CONTEXT_DIR, "SOUL.md");
 const LESSONS_PATH = resolve(CONTEXT_DIR, "LESSONS.md");
 
-// Size limits (in bytes)
-const MAX_MEMORY_SIZE = 50 * 1024;
-const MAX_LESSONS_SIZE = 30 * 1024;
-const MAX_SOUL_LEARNED_SIZE = 10 * 1024;
-const MAX_ENTRY_SIZE = 2 * 1024;
-const MAX_DAILY_LOG_SIZE = 20 * 1024;
+// Size limits (in characters — zod .max() counts characters, not bytes)
+const MAX_MEMORY_CHARS = 50_000;
+const MAX_LESSONS_CHARS = 30_000;
+const MAX_SOUL_LEARNED_CHARS = 10_000;
+const MAX_ENTRY_CHARS = 2_000;
+const MAX_DAILY_LOG_CHARS = 20_000;
 const MAX_DAILY_LOG_AGE_DAYS = 7;
 
 function ensureMemoryDir(): void {
@@ -90,8 +90,8 @@ server.tool(
 		content: z
 			.string()
 			.min(1)
-			.max(MAX_MEMORY_SIZE)
-			.describe("新しい MEMORY.md の内容（最大 50KB）"),
+			.max(MAX_MEMORY_CHARS)
+			.describe("新しい MEMORY.md の内容（最大 50,000 文字）"),
 	},
 	({ content }) => {
 		createBackup(MEMORY_PATH);
@@ -116,7 +116,7 @@ server.tool("read_soul", "SOUL.md を読み取る", {}, () => {
 server.tool(
 	"evolve_soul",
 	"SOUL.md の「学んだこと」セクションに追記する",
-	{ entry: z.string().min(1).max(MAX_ENTRY_SIZE).describe("追記する内容（最大 2KB）") },
+	{ entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）") },
 	({ entry }) => {
 		const content = readFileSafe(SOUL_PATH);
 		const { before, section, after } = extractLearnedSection(content);
@@ -131,18 +131,20 @@ server.tool(
 
 		const newSection = `${section.trimEnd()}\n- ${entry}\n`;
 
-		if (newSection.length > MAX_SOUL_LEARNED_SIZE) {
+		if (newSection.length > MAX_SOUL_LEARNED_CHARS) {
 			return {
 				content: [
 					{
 						type: "text",
-						text: `エラー: 「学んだこと」セクションが上限（${String(MAX_SOUL_LEARNED_SIZE / 1024)}KB）を超えます`,
+						text: `エラー: 「学んだこと」セクションが上限（${String(MAX_SOUL_LEARNED_CHARS)}文字）を超えます`,
 					},
 				],
 			};
 		}
 
-		const newContent = `${before}${newSection}${after}`;
+		const separator = after ? "\n" : "";
+		const newContent = `${before}${newSection}${separator}${after}`;
+		createBackup(SOUL_PATH);
 		writeFileSync(SOUL_PATH, newContent, "utf-8");
 		return {
 			content: [{ type: "text", text: "SOUL.md の「学んだこと」に追記しました" }],
@@ -155,7 +157,7 @@ server.tool(
 	"append_daily_log",
 	"日次ログ (memory/YYYY-MM-DD.md) に追記する",
 	{
-		entry: z.string().min(1).max(MAX_ENTRY_SIZE).describe("追記する内容（最大 2KB）"),
+		entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）"),
 		date: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -177,12 +179,14 @@ server.tool(
 		const logPath = resolve(MEMORY_DIR, `${targetDate}.md`);
 		const existing = readFileSafe(logPath);
 
-		if (existing.length + entry.length + 10 > MAX_DAILY_LOG_SIZE) {
+		// overhead: "\n- [HH:MM:SS] " (16 chars) + "\n" (1 char) + header "# YYYY-MM-DD\n" (13 chars if new)
+		const overhead = existing ? 17 : 30;
+		if (existing.length + entry.length + overhead > MAX_DAILY_LOG_CHARS) {
 			return {
 				content: [
 					{
 						type: "text",
-						text: `エラー: ${targetDate} のログが上限（${String(MAX_DAILY_LOG_SIZE / 1024)}KB）を超えます`,
+						text: `エラー: ${targetDate} のログが上限（${String(MAX_DAILY_LOG_CHARS)}文字）を超えます`,
 					},
 				],
 			};
@@ -270,8 +274,8 @@ server.tool(
 		content: z
 			.string()
 			.min(1)
-			.max(MAX_LESSONS_SIZE)
-			.describe("新しい LESSONS.md の内容（最大 30KB）"),
+			.max(MAX_LESSONS_CHARS)
+			.describe("新しい LESSONS.md の内容（最大 30,000 文字）"),
 	},
 	({ content }) => {
 		createBackup(LESSONS_PATH);

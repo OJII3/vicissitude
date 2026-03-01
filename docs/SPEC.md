@@ -45,7 +45,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
 2. **code-exec**: コード実行
    - `execute_code` (JavaScript, TypeScript, Python, Shell)
-3. **memory**: メモリ・人格の自己更新
+3. **schedule**: Heartbeat スケジュール管理
+   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
+4. **memory**: メモリ・人格の自己更新
    - `read_memory`, `update_memory`: MEMORY.md の読み書き
    - `read_soul`, `evolve_soul`: SOUL.md の読み取り・「学んだこと」への追記
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
@@ -54,7 +56,7 @@ OpenCode が使用する MCP サーバーを提供する。
 ### 3.4 コンテキスト運用
 
 - `context/` ディレクトリにブートストラップ用ドキュメントを配置する。
-- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
+- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
 - チャンネル設定: `channels.json`（ホームチャンネル一覧とクールダウン設定）
 - 日次ログ: `memory/{YYYY-MM-DD}.md`
 - ファイル毎最大 20,000 文字、合計最大 150,000 文字。
