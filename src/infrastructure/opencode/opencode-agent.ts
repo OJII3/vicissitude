@@ -33,8 +33,8 @@ export class OpencodeAgent implements AiAgent {
 				body: {
 					parts: [{ type: "text", text: message }],
 					model: {
-						providerID: process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
-						modelID: process.env.OPENCODE_MODEL_ID ?? "claude-sonnet-4.6",
+						providerID: process.env.OPENCODE_PROVIDER_ID ?? "opencode",
+						modelID: process.env.OPENCODE_MODEL_ID ?? "claude-sonnet-4-6",
 					},
 					system,
 				},
