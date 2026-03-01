@@ -32,7 +32,11 @@ function buildCmd(language: Language, code: string): string[] {
 async function exec(cmd: string[]): Promise<string> {
 	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
 
-	const timeoutId = setTimeout(() => proc.kill(), TIMEOUT_MS);
+	let timedOut = false;
+	const timeoutId = setTimeout(() => {
+		timedOut = true;
+		proc.kill();
+	}, TIMEOUT_MS);
 	await proc.exited;
 	clearTimeout(timeoutId);
 
@@ -40,6 +44,7 @@ async function exec(cmd: string[]): Promise<string> {
 	const stderr = await new Response(proc.stderr).text();
 	const output = (stdout + stderr).trim() || "(no output)";
 
+	if (timedOut) return `Error (timeout after ${TIMEOUT_MS}ms):\n${output}`;
 	return proc.exitCode === 0 ? output : `Error (exit ${proc.exitCode}):\n${output}`;
 }
 
