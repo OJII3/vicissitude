@@ -39,8 +39,8 @@ export class OpencodeAgent implements AiAgent {
 		// question 待ち中なら feedEvent で注入
 		if (eventLoop.isWaiting(sessionKey)) {
 			eventLoop.feedEvent(sessionKey, message);
-			// 次の応答を待つための新しい Promise を startPrompt で設定
-			const textPromise = eventLoop.startPrompt(sessionKey, realId);
+			// 既存 LoopState を保持したまま次の応答 Promise を差し替える
+			const textPromise = eventLoop.awaitNextResponse(sessionKey);
 			const text = await withTimeout(textPromise, SEND_TIMEOUT_MS, "opencode event loop timed out");
 			return { text, sessionId: realId };
 		}
@@ -68,6 +68,7 @@ export class OpencodeAgent implements AiAgent {
 	}
 
 	stop(): void {
+		this.eventLoop?.stop();
 		this.closeServer?.();
 		this.client = null;
 		this.closeServer = null;
@@ -125,7 +126,7 @@ export class OpencodeAgent implements AiAgent {
 
 		// SSE イベントストリームを開始
 		this.eventLoop = new SessionEventLoop(this.client, this.logger);
-		await this.eventLoop.startEventStream();
+		this.eventLoop.startEventStream();
 
 		return this.client;
 	}

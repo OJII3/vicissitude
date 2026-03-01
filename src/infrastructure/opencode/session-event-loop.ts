@@ -16,32 +16,32 @@ type LoopState = {
 	status: "processing" | "waiting" | "idle";
 	pendingQuestionId?: string;
 	pendingEvents: string[];
-	// partID → text
 	textParts: Map<string, string>;
 	resolveText?: (text: string) => void;
 	rejectText?: (error: Error) => void;
 };
 
+const MAX_RECONNECT_DELAY_MS = 30_000;
+const INITIAL_RECONNECT_DELAY_MS = 1_000;
+
 export class SessionEventLoop {
 	private loops = new Map<string, LoopState>();
 	private sessionIdToKey = new Map<string, string>();
+	private abortController: AbortController | null = null;
 
 	constructor(
 		private readonly client: OpencodeClient,
 		private readonly logger: Logger,
 	) {}
 
-	async startEventStream(): Promise<void> {
-		const { stream } = await this.client.event.subscribe();
-		(async () => {
-			try {
-				for await (const event of stream) {
-					this.handleEvent(event as Event);
-				}
-			} catch (err) {
-				this.logger.error("SSE stream error", err);
-			}
-		})();
+	startEventStream(): void {
+		this.abortController = new AbortController();
+		this.runEventStreamLoop(this.abortController.signal);
+	}
+
+	stop(): void {
+		this.abortController?.abort();
+		this.abortController = null;
 	}
 
 	startPrompt(sessionKey: string, sessionId: string): Promise<string> {
@@ -59,6 +59,20 @@ export class SessionEventLoop {
 		});
 	}
 
+	awaitNextResponse(sessionKey: string): Promise<string> {
+		const loop = this.loops.get(sessionKey);
+		if (!loop) {
+			return Promise.reject(new Error(`No loop state for session key: ${sessionKey}`));
+		}
+
+		return new Promise<string>((resolve, reject) => {
+			loop.resolveText = resolve;
+			loop.rejectText = reject;
+			loop.textParts.clear();
+			loop.status = "processing";
+		});
+	}
+
 	feedEvent(sessionKey: string, content: string): void {
 		const loop = this.loops.get(sessionKey);
 		if (!loop) return;
@@ -72,6 +86,79 @@ export class SessionEventLoop {
 
 	isWaiting(sessionKey: string): boolean {
 		return this.loops.get(sessionKey)?.status === "waiting";
+	}
+
+	private runEventStreamLoop(signal: AbortSignal): void {
+		let delay = INITIAL_RECONNECT_DELAY_MS;
+
+		const connect = async () => {
+			while (!signal.aborted) {
+				try {
+					// eslint-disable-next-line no-await-in-loop -- sequential reconnect is intentional
+					const { stream } = await this.client.event.subscribe();
+					delay = INITIAL_RECONNECT_DELAY_MS;
+
+					// eslint-disable-next-line no-await-in-loop -- consuming SSE stream sequentially
+					for await (const event of stream) {
+						if (signal.aborted) return;
+						this.handleEvent(event as Event);
+					}
+				} catch (err) {
+					if (signal.aborted) return;
+					this.logger.error("SSE stream error, rejecting pending loops", err);
+					this.rejectAllPendingLoops(new Error(`SSE stream disconnected: ${String(err)}`));
+				}
+
+				if (signal.aborted) return;
+
+				this.logger.info(`SSE reconnecting in ${delay}ms...`);
+				// eslint-disable-next-line no-await-in-loop -- backoff delay between reconnects
+				await this.sleep(delay, signal);
+				delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
+			}
+		};
+
+		connect().catch((err: unknown) => {
+			this.logger.error("SSE event stream loop failed unexpectedly", err);
+		});
+	}
+
+	private sleep(ms: number, signal: AbortSignal): Promise<void> {
+		return new Promise((resolve) => {
+			if (signal.aborted) {
+				resolve();
+				return;
+			}
+			let settled = false;
+			const done = () => {
+				if (settled) return;
+				settled = true;
+				resolve();
+			};
+			const timer = setTimeout(done, ms);
+			signal.addEventListener(
+				"abort",
+				() => {
+					clearTimeout(timer);
+					done();
+				},
+				{ once: true },
+			);
+		});
+	}
+
+	private rejectAllPendingLoops(error: Error): void {
+		for (const [sessionKey, loop] of this.loops) {
+			if (loop.status === "processing" || loop.status === "waiting") {
+				loop.rejectText?.(error);
+				this.cleanup(sessionKey, loop);
+			}
+		}
+	}
+
+	private cleanup(sessionKey: string, loop: LoopState): void {
+		this.loops.delete(sessionKey);
+		this.sessionIdToKey.delete(loop.sessionId);
 	}
 
 	private handleEvent(event: Event): void {
@@ -116,13 +203,11 @@ export class SessionEventLoop {
 		loop.status = "waiting";
 		loop.pendingQuestionId = id;
 
-		// テキスト応答を返す
 		const text = this.collectText(loop);
 		loop.resolveText?.(text);
 		loop.resolveText = undefined;
 		loop.rejectText = undefined;
 
-		// キューにイベントがあれば即座に reply
 		const nextEvent = loop.pendingEvents.shift();
 		if (nextEvent !== undefined) {
 			this.replyToQuestion(loop, nextEvent);
@@ -136,13 +221,13 @@ export class SessionEventLoop {
 		const loop = this.loops.get(sessionKey);
 		if (!loop) return;
 
-		// question なしで終了（フォールバック）
-		if (loop.status === "processing") {
+		if (loop.status === "processing" || loop.status === "waiting") {
 			loop.status = "idle";
 			const text = this.collectText(loop);
 			loop.resolveText?.(text);
 			loop.resolveText = undefined;
 			loop.rejectText = undefined;
+			this.cleanup(sessionKey, loop);
 		}
 	}
 
@@ -163,6 +248,7 @@ export class SessionEventLoop {
 		loop.resolveText = undefined;
 		loop.rejectText = undefined;
 		loop.status = "idle";
+		this.cleanup(sessionKey, loop);
 	}
 
 	private replyToQuestion(loop: LoopState, content: string): void {
@@ -172,32 +258,29 @@ export class SessionEventLoop {
 		loop.pendingQuestionId = undefined;
 		loop.status = "processing";
 
-		// テキスト収集をリセット
 		loop.textParts.clear();
 
-		// 新しい Promise を設定（次の応答を待つ）
 		const textPromise = new Promise<string>((resolve, reject) => {
 			loop.resolveText = resolve;
 			loop.rejectText = reject;
 		});
 
 		const answers: QuestionAnswer[] = [[content]];
-		void this.client.question.reply({ requestID, answers }).then(
-			(result) => {
+		this.client.question
+			.reply({ requestID, answers })
+			.then((result) => {
 				if (result.error) {
 					this.logger.error("question.reply failed", result.error);
 					loop.rejectText?.(new Error(`question.reply failed: ${JSON.stringify(result.error)}`));
 				}
 				return result;
-			},
-			(err: unknown) => {
+			})
+			.catch((err: unknown) => {
 				this.logger.error("question.reply threw", err);
 				loop.rejectText?.(new Error(`question.reply threw: ${String(err)}`));
-			},
-		);
+			});
 
-		// textPromise は handleQuestionAsked / handleSessionIdle で resolve される
-		void textPromise;
+		textPromise.catch(() => {});
 	}
 
 	private collectText(loop: LoopState): string {
