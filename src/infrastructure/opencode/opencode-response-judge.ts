@@ -45,7 +45,7 @@ export class OpencodeResponseJudge implements ResponseJudge {
 		const prompt = `${JUDGE_PROMPT}\n\n## 直近の会話\n${contextStr}\n\n## 最新メッセージ\n${message}`;
 
 		try {
-			const response = await this.agent.send(JUDGE_SESSION_KEY, prompt);
+			const response = await this.agent.send({ sessionKey: JUDGE_SESSION_KEY, message: prompt });
 			return this.parseResponse(response.text);
 		} catch (error) {
 			this.logger.error("Judge AI call failed:", error);

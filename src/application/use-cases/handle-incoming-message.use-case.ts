@@ -23,7 +23,7 @@ export class HandleIncomingMessageUseCase {
 
 		try {
 			const prompt = `[${formatTimestamp(msg.timestamp)}] ${msg.content}`;
-			const response = await this.agent.send(sessionKey, prompt);
+			const response = await this.agent.send({ sessionKey, message: prompt, guildId: msg.guildId });
 			clearInterval(typingInterval);
 
 			const chunks = splitMessage(response.text);

@@ -93,6 +93,7 @@ export class DiscordGateway implements MessageGateway {
 		return {
 			platform: "discord",
 			channelId: message.channel.id,
+			guildId: message.guildId ?? undefined,
 			authorId: message.author.id,
 			authorName:
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,

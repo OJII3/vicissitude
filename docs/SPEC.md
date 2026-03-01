@@ -57,11 +57,19 @@ OpenCode が使用する MCP サーバーを提供する。
 
 - `context/` ディレクトリにブートストラップ用ドキュメントを配置する。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
-- チャンネル設定: `channels.json`（ホームチャンネル一覧とクールダウン設定）
+- チャンネル設定: `channels.json`（ホームチャンネル一覧、guildId、クールダウン設定）
 - 日次ログ: `memory/{YYYY-MM-DD}.md`
 - ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
-### 3.5 エラー応答
+### 3.5 Guild 跨ぎコンテキスト分離
+
+- 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全 Guild で共有。
+- 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `context/guilds/{guildId}/` で分離。
+- DM やフォールバック時はグローバル `context/` を使用。
+- MCP memory ツールでは `guild_id` パラメータで Guild 固有メモリにアクセス。
+- Guild 間で会話内容・メンバー情報・教訓が漏洩しない。
+
+### 3.6 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。

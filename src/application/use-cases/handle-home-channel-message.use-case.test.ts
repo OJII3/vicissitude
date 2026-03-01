@@ -92,10 +92,11 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 		const channel = createMockChannel();
 		await useCase.execute(msg, channel);
 
-		expect(agent.send).toHaveBeenCalledWith(
-			"test:ch-1:_channel",
-			"[2026-03-01 15:30] TestUser: ふあどう思う？",
-		);
+		expect(agent.send).toHaveBeenCalledWith({
+			sessionKey: "test:ch-1:_channel",
+			message: "[2026-03-01 15:30] TestUser: ふあどう思う？",
+			guildId: undefined,
+		});
 		expect(channel.send).toHaveBeenCalledWith("やっほー");
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
 	});

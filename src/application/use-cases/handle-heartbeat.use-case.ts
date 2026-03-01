@@ -3,7 +3,7 @@ import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { HeartbeatConfigRepository } from "../../domain/ports/heartbeat-config-repository.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 
-const HEARTBEAT_SESSION_KEY = "system:heartbeat:_autonomous";
+const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
 
 export class HandleHeartbeatUseCase {
 	constructor(
@@ -13,26 +13,55 @@ export class HandleHeartbeatUseCase {
 	) {}
 
 	async execute(dueReminders: DueReminder[]): Promise<void> {
-		const prompt = this.buildPrompt(dueReminders);
-		this.logger.info(`[heartbeat] ${dueReminders.length} 件の due リマインダーを実行`);
+		const grouped = this.groupByGuild(dueReminders);
+		const succeededIds = new Set<string>();
 
-		try {
-			await this.agent.send(HEARTBEAT_SESSION_KEY, prompt);
+		for (const [guildKey, reminders] of grouped) {
+			const guildId = guildKey === "_autonomous" ? undefined : guildKey;
+			const sessionKey = `${HEARTBEAT_SESSION_PREFIX}${guildKey}`;
+			const prompt = this.buildPrompt(reminders);
+			this.logger.info(
+				`[heartbeat] guild=${guildKey}: ${reminders.length} 件の due リマインダーを実行`,
+			);
 
-			const config = await this.configRepo.load();
-			const executedAt = new Date().toISOString();
-			const dueIds = new Set(dueReminders.map((d) => d.reminder.id));
-			for (const reminder of config.reminders) {
-				if (dueIds.has(reminder.id)) {
-					reminder.lastExecutedAt = executedAt;
-				}
+			try {
+				// oxlint-disable-next-line no-await-in-loop -- Guild ごとに逐次実行する設計
+				await this.agent.send({ sessionKey, message: prompt, guildId });
+				for (const r of reminders) succeededIds.add(r.reminder.id);
+			} catch (error) {
+				this.logger.error(`[heartbeat] guild=${guildKey} AI 実行エラー:`, error);
 			}
-			await this.configRepo.save(config);
-
-			this.logger.info("[heartbeat] 完了");
-		} catch (error) {
-			this.logger.error("[heartbeat] AI 実行エラー:", error);
 		}
+
+		if (succeededIds.size === 0) {
+			this.logger.info("[heartbeat] 成功した Guild なし、config 更新をスキップ");
+			return;
+		}
+
+		const config = await this.configRepo.load();
+		const executedAt = new Date().toISOString();
+		for (const reminder of config.reminders) {
+			if (succeededIds.has(reminder.id)) {
+				reminder.lastExecutedAt = executedAt;
+			}
+		}
+		await this.configRepo.save(config);
+
+		this.logger.info("[heartbeat] 完了");
+	}
+
+	private groupByGuild(dueReminders: DueReminder[]): Map<string, DueReminder[]> {
+		const groups = new Map<string, DueReminder[]>();
+		for (const due of dueReminders) {
+			const key = due.reminder.guildId ?? "_autonomous";
+			const group = groups.get(key);
+			if (group) {
+				group.push(due);
+			} else {
+				groups.set(key, [due]);
+			}
+		}
+		return groups;
 	}
 
 	buildPrompt(dueReminders: DueReminder[]): string {

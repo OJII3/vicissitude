@@ -6,7 +6,7 @@ import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-inc
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
-import { FileContextLoader } from "./infrastructure/context/file-context-loader.ts";
+import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
 import { JsonChannelConfigLoader } from "./infrastructure/context/json-channel-config-loader.ts";
 import { DiscordConversationHistory } from "./infrastructure/discord/discord-conversation-history.ts";
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
@@ -21,8 +21,8 @@ import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-
 function createInfrastructure(root: string, token: string) {
 	const logger = new ConsoleLogger();
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
-	const contextLoader = new FileContextLoader(resolve(root, "context"));
-	const agent = new OpencodeAgent(sessions, contextLoader);
+	const contextLoaderFactory = new FileContextLoaderFactory(resolve(root, "context"));
+	const agent = new OpencodeAgent(sessions, contextLoaderFactory);
 	const judgeAgent = new OpencodeJudgeAgent();
 	const gateway = new DiscordGateway(token, logger);
 	return { logger, agent, judgeAgent, gateway };

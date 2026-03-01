@@ -36,20 +36,20 @@
 - `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
 - `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
 - `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
-- `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder`, `DueReminder`, `ReminderSchedule` — Heartbeat 設定
+- `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
 
 #### ports/
 
 - `ai-agent.port.ts`: `AiAgent` — AI エージェントのインターフェース
-  - `send(sessionKey, message): Promise<AgentResponse>`
+  - `send(options: SendOptions): Promise<AgentResponse>` — `SendOptions = { sessionKey, message, guildId? }`
   - `stop(): void`
-- `context-loader.port.ts`: `ContextLoader` — コンテキスト読込
-  - `loadBootstrapContext(): Promise<string>`
-  - `wrapWithContext(message): Promise<string>`
+- `context-loader.port.ts`: `ContextLoader` + `ContextLoaderFactory` — コンテキスト読込
+  - `ContextLoader`: `loadBootstrapContext()`, `wrapWithContext(message)`
+  - `ContextLoaderFactory`: `create(guildId?): ContextLoader` — Guild 単位でローダーを生成
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
 - `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`channelId`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`, `reply()`, `react()`)
+  - `IncomingMessage` — 受信メッセージ（`channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`, `reply()`, `react()`）
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
@@ -101,6 +101,9 @@
   - インメモリキャッシュ + lazy load
 - `context/file-context-loader.ts`: `FileContextLoader implements ContextLoader`
   - `context/` 配下の Markdown ファイルを読込・結合
+  - Guild-aware: 共通ファイル（IDENTITY, SOUL 等）はグローバル、記憶ファイル（MEMORY, LESSONS, daily log）は `guilds/{guildId}/` から読込
+- `context/file-context-loader-factory.ts`: `FileContextLoaderFactory implements ContextLoaderFactory`
+  - Guild ID を指定して `FileContextLoader` を生成
 - `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
   - `context/channels.json` からチャンネル設定を読込
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
@@ -125,7 +128,9 @@
   - `data/heartbeat-config.json` を直接読み書き
 - `mcp/memory-server.ts`: メモリ管理ツール
   - `read_memory`, `update_memory`, `read_soul`, `evolve_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
-  - `context/MEMORY.md`, `context/SOUL.md`, `context/LESSONS.md`, `context/memory/*.md` を読み書き
+  - Guild 分離: `guild_id` パラメータ指定時は `context/guilds/{guildId}/` 配下を使用、省略時はグローバル
+  - `evolve_soul` は常にグローバル（`SOUL.md` は共通）
+  - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
 
 ### 4.5 Composition Root
@@ -149,6 +154,7 @@
 ### IncomingMessage
 
 - `channelId: string`
+- `guildId?: string` — Guild ID（DM 時は undefined）
 - `authorId: string`
 - `authorName: string`
 - `messageId: string`
@@ -233,7 +239,7 @@
 2. `HeartbeatConfigRepository.load()` で設定を読み込む。
 3. `evaluateDueReminders()` で due なリマインダーを判定する。
 4. due なリマインダーがあれば `HandleHeartbeatUseCase.execute()` を呼ぶ。
-5. プロンプトを構築し、永続セッション `system:heartbeat:_autonomous` で AI に送信する。
+5. due リマインダーを guildId でグループ化し、Guild ごとに別セッション `system:heartbeat:{guildId}` で逐次実行する（guildId なしは `system:heartbeat:_autonomous`）。
 6. AI が MCP ツール（discord, code-exec, schedule）を使って自律的に行動する。
 7. 成功時に `lastExecutedAt` を更新する。
 
@@ -246,10 +252,12 @@
 
 ### 6.6 コンテキスト読込
 
-1. `IDENTITY.md` → `SOUL.md` → `AGENTS.md` → `TOOLS.md` → `HEARTBEAT.md` → `USER.md` → `MEMORY.md` → `LESSONS.md` の順で読込。
-2. 当日の `memory/{YYYY-MM-DD}.md` があれば追加。
-3. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
-4. XML タグでラップして結合する。
+1. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）はグローバル `context/` から読込。
+2. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `context/guilds/{guildId}/` から読込、なければグローバルにフォールバック。
+3. 当日の日次ログも同様に Guild 固有 → グローバルの順でフォールバック。
+4. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
+5. XML タグでラップして結合する。
+6. guildId が存在する場合、`<guild-context>` タグで guild_id を明示し、MCP ツール使用時の指示を含める。
 
 ## 7. 設定
 
@@ -279,3 +287,4 @@
 3. MCP サーバーは独立プロセスとしてレイヤー外に配置する。
 4. セッション永続化は JSON ファイルを使用する。
 5. コンテキスト運用は `context/` ディレクトリの Markdown ファイルで行う。
+6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `context/guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
