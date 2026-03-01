@@ -16,7 +16,7 @@
 		"container:build": "podman build -t vicissitude-code-exec containers/code-exec",
 		"container:build:bot": "podman build -t vicissitude -f containers/bot/Containerfile .",
 		"container:build:all": "bun run container:build && bun run container:build:bot",
-		"deploy": "podman run -d --replace --name vicissitude --init --env-file .env -v ./data:/app/data:rw -v ./context:/app/context:ro -v ${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock:/run/podman/podman.sock:ro vicissitude && echo 'Deployed: nr deploy:logs to follow logs'",
+		"deploy": "podman run -d --replace --name vicissitude --init --env-file .env -v ./data:/app/data:rw -v ./context:/app/context:ro -v ${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock:/run/podman/podman.sock:ro -v ${XDG_DATA_HOME:-$HOME/.local/share}/opencode:/home/appuser/.local/share/opencode:ro vicissitude && echo 'Deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman logs -f vicissitude",
 		"deploy:stop": "podman stop vicissitude"
 	},
