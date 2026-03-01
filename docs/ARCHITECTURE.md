@@ -141,7 +141,9 @@
   - `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
 - `mcp/code-exec-server.ts`: コード実行ツール
   - `execute_code` (JS/TS/Python/Shell)
-  - Bun.spawn で直接実行、10 秒タイムアウト
+  - Podman コンテナでサンドボックス実行（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除）
+  - コード長上限 10,000 文字、出力 50KB 切り詰め、15 秒タイムアウト
+  - 起動時に podman とコンテナイメージの存在を検証
 - `mcp/schedule-server.ts`: Heartbeat スケジュール管理ツール
   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
   - `data/heartbeat-config.json` を直接読み書き
