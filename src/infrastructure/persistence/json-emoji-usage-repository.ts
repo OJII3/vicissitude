@@ -13,8 +13,7 @@ export class JsonEmojiUsageRepository implements EmojiUsageTracker {
 	private readonly dataDir: string;
 	private readonly filePath: string;
 	private cache: GuildEmojiMap | null = null;
-	private writing = false;
-	private pendingWrite = false;
+	private writePromise: Promise<void> | null = null;
 	private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
 	constructor(dataDir: string) {
@@ -46,13 +45,17 @@ export class JsonEmojiUsageRepository implements EmojiUsageTracker {
 		return guildData !== undefined && Object.keys(guildData).length > 0;
 	}
 
-	/** Graceful shutdown 用: 保留中のデータを即時書き出す */
+	/** Graceful shutdown 用: 進行中の書き込みを待ってから即時書き出す */
 	async flush(): Promise<void> {
 		if (this.flushTimer) {
 			clearTimeout(this.flushTimer);
 			this.flushTimer = null;
 		}
-		await this.persist();
+		// 進行中の書き込みがあれば完了を待つ
+		if (this.writePromise) {
+			await this.writePromise;
+		}
+		await this.writeFile();
 	}
 
 	private scheduleDeferredFlush(): void {
@@ -85,23 +88,15 @@ export class JsonEmojiUsageRepository implements EmojiUsageTracker {
 		return this.cache;
 	}
 
-	private async persist(): Promise<void> {
-		if (this.writing) {
-			this.pendingWrite = true;
-			return;
-		}
-		this.writing = true;
-		try {
-			await this.writeFile();
-		} finally {
-			this.writing = false;
-		}
+	private persist(): void {
+		if (this.writePromise) return;
+		this.writePromise = this.writeFile().finally(() => {
+			this.writePromise = null;
+		});
 	}
 
 	private async writeFile(): Promise<void> {
-		this.pendingWrite = false;
 		this.ensureDataDir();
 		await Bun.write(this.filePath, JSON.stringify(this.getMap(), null, 2));
-		if (this.pendingWrite) return this.writeFile();
 	}
 }

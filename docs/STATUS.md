@@ -11,7 +11,7 @@
 - Clean Architecture への移行が完了し、main にマージ済み。
 - domain / application / infrastructure の 3 層構成で、依存方向ルールは正しく守られている。
 - DI は手動コンストラクタ注入（Pure DI）で `composition-root.ts` に集約している。
-- テストは `bun test` で実行可能（78件）。
+- テストは `bun test` で実行可能（94件）。
 - Bot メンションまたはスレッド内メッセージに AI が必ず応答する。
 - **ホームチャンネルでは AI が自律的に respond/react/ignore を判断して参加する。**
 - **ホームチャンネルの react でギルドカスタム絵文字が使用可能（EmojiProvider 経由）。**

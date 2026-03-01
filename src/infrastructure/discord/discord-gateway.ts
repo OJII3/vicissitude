@@ -58,7 +58,7 @@ export class DiscordGateway implements MessageGateway {
 				GatewayIntentBits.DirectMessages,
 				GatewayIntentBits.GuildMessageReactions,
 			],
-			partials: [Partials.Reaction],
+			partials: [Partials.Reaction, Partials.Message, Partials.Channel],
 		});
 
 		client.once(Events.ClientReady, (readyClient) => {

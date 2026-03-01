@@ -98,6 +98,10 @@
   - discord.js Client でメッセージ受信
   - ルーティング: メンション/スレッド → onMessage、ホームチャンネル → onHomeChannelMessage、それ以外 → 無視
   - メンション文字列 (`<@!?\d+>`) を除去
+  - `onEmojiUsed(handler)`: カスタム絵文字使用イベントのハンドラ登録（具象メソッド、ポート外）
+  - `messageCreate` 内でカスタム絵文字（`<:name:id>` / `<a:name:id>`）を正規表現で検出してハンドラ呼び出し
+  - `MessageReactionAdd` イベントを購読し、カスタム絵文字リアクションでハンドラ呼び出し
+  - `Partials.Reaction`, `Partials.Message`, `Partials.Channel` を有効化（キャッシュ外メッセージへのリアクション受信に必要）
 - `discord/discord-conversation-history.ts`: `DiscordConversationHistory implements ConversationHistory`
   - discord.js で直近メッセージを fetch
 - `discord/discord-emoji-provider.ts`: `DiscordEmojiProvider implements EmojiProvider`
