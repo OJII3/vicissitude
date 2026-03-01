@@ -16,7 +16,7 @@
 - **ホームチャンネルでは AI が自律的に respond/react/ignore を判断して参加する。**
 - **ホームチャンネルの react でギルドカスタム絵文字が使用可能（EmojiProvider 経由）。**
 - **カスタム絵文字使用頻度トラッキング: `messageCreate`/`messageReactionAdd` からカウントを蓄積し、人気順トップ 20 のみを judge に渡すことでトークンコストを削減。**
-- AI 推論は OpenCode SDK 経由で `github-copilot:claude-sonnet-4.6` を使用する。
+- AI 推論は OpenCode SDK 経由。デフォルトは `opencode:big-pickle`（opencode zen 無料モデル）。環境変数 `OPENCODE_PROVIDER_ID` / `OPENCODE_MODEL_ID` で変更可能。
 - セッションは `data/sessions.json` に JSON で永続化している。
   - メンション/スレッド: ユーザー単位セッション (`platform:channelId:authorId`)
   - ホームチャンネル: チャンネル単位共有セッション (`platform:channelId:_channel`)
