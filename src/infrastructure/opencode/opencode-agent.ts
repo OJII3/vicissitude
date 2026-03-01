@@ -84,6 +84,18 @@ export class OpencodeAgent implements AiAgent {
 		const result = await createOpencode({
 			config: {
 				mcp: mcpServerConfigs(),
+				tools: {
+					read: false,
+					glob: false,
+					grep: false,
+					edit: false,
+					write: false,
+					bash: false,
+					webfetch: false,
+					task: false,
+					todowrite: false,
+					skill: false,
+				},
 			},
 		});
 
