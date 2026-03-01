@@ -93,22 +93,27 @@ export class DiscordGateway implements MessageGateway {
 			const isMentioned = message.mentions.has(client.user);
 			const isThread = message.channel.isThread();
 			const isHomeChannel = this.homeChannelIds.has(message.channel.id);
+			const isHomeThread =
+				isThread &&
+				"parentId" in message.channel &&
+				typeof message.channel.parentId === "string" &&
+				this.homeChannelIds.has(message.channel.parentId);
 
 			const adapted = this.adaptMessage(message, isMentioned, isThread);
 			const channel = this.adaptChannel(message);
 
-			// メンション or スレッド → 従来のハンドラ（必ず応答）
-			if ((isMentioned || isThread) && this.handler) {
+			// メンション → 必ず応答
+			if (isMentioned && this.handler) {
 				await this.handler(adapted, channel);
 				return;
 			}
 
-			// ホームチャンネル → ホームチャンネルハンドラ（judge で判断）
-			if (isHomeChannel && this.homeChannelHandler) {
+			// ホームチャンネル or その配下スレッド → judge で判断
+			if ((isHomeChannel || isHomeThread) && this.homeChannelHandler) {
 				await this.homeChannelHandler(adapted, channel);
 			}
 
-			// それ以外 → 無視
+			// それ以外（他チャンネルのスレッド含む） → 無視
 		});
 	}
 
