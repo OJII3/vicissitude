@@ -54,7 +54,23 @@ export class OpencodeJudgeAgent implements AiAgent {
 		if (this.client) return this.client;
 
 		// MCP サーバーなしで起動（judge にツールは不要）
-		const result = await createOpencode({});
+		// 組み込みツールも全無効化（.env 等へのアクセス防止）
+		const result = await createOpencode({
+			config: {
+				tools: {
+					read: false,
+					glob: false,
+					grep: false,
+					edit: false,
+					write: false,
+					bash: false,
+					webfetch: false,
+					task: false,
+					todowrite: false,
+					skill: false,
+				},
+			},
+		});
 
 		this.client = result.client;
 		this.closeServer = result.server.close;
