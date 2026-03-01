@@ -30,6 +30,7 @@
 
 - `agent-response.ts`: `AgentResponse` — AI 応答の型定義
   - `text: string` — 応答テキスト
+  - `sessionId: string` — セッション ID
 - `session.ts`: `SessionKey` 型 + `createSessionKey()` / `createChannelSessionKey()` — セッションキー生成
   - ユーザー単位: `{platform}:{channelId}:{authorId}`
   - チャンネル単位: `{platform}:{channelId}:_channel`
@@ -49,7 +50,7 @@
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
 - `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`, `reply()`, `react()`）
+  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `timestamp`, `isMentioned`, `isThread`, `reply()`, `react()`）
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
@@ -57,7 +58,7 @@
 - `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
   - `judge(message, context): Promise<ResponseDecision>`
 - `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
-  - `getRecent(channelId, limit): Promise<ConversationContext>`
+  - `getRecent(channelId, limit, excludeMessageId?): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
   - `get()`, `save()`, `exists()`
 - `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
@@ -106,7 +107,9 @@
   - Guild ID を指定して `FileContextLoader` を生成
 - `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
   - `context/channels.json` からチャンネル設定を読込
+  - `getHomeChannelIds()` でホームチャンネル一覧を取得（ポート外の具象メソッド）
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
+  - 専用の `OpencodeJudgeAgent` を使用（MCP ツールなし、毎回新規セッション）
   - AI にメッセージへの応答判断を委譲（respond/react/ignore）
 - `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
   - `data/heartbeat-config.json` に設定を永続化
@@ -145,6 +148,7 @@
 ### AgentResponse
 
 - `text: string`
+- `sessionId: string`
 
 ### SessionKey
 
@@ -153,12 +157,14 @@
 
 ### IncomingMessage
 
+- `platform: string` — プラットフォーム識別子
 - `channelId: string`
 - `guildId?: string` — Guild ID（DM 時は undefined）
 - `authorId: string`
 - `authorName: string`
 - `messageId: string`
 - `content: string`
+- `timestamp: Date` — メッセージ作成時刻
 - `isMentioned: boolean`
 - `isThread: boolean`
 - `reply(text: string): Promise<void>`

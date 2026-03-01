@@ -20,14 +20,14 @@ bun run start
 
 ## コマンド
 
-| コマンド          | 内容                          |
-| ----------------- | ----------------------------- |
-| `bun run start`   | 本番起動                      |
-| `bun run dev`     | 開発モード (watch)            |
-| `bun run check`   | 型チェック                    |
-| `bun run lint`    | Lint                          |
-| `bun run fmt`     | フォーマット                  |
-| `bun run validate`| fmt:check + lint + check 一括 |
+| コマンド           | 内容                          |
+| ------------------ | ----------------------------- |
+| `bun run start`    | 本番起動                      |
+| `bun run dev`      | 開発モード (watch)            |
+| `bun run check`    | 型チェック                    |
+| `bun run lint`     | Lint                          |
+| `bun run fmt`      | フォーマット                  |
+| `bun run validate` | fmt:check + lint + check 一括 |
 
 ## ドキュメント
 
