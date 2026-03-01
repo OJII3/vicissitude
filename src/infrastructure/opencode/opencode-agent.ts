@@ -20,36 +20,17 @@ export class OpencodeAgent implements AiAgent {
 	async send(options: SendOptions): Promise<AgentResponse> {
 		const { sessionKey, message, guildId } = options;
 		const oc = await this.getClient();
-
-		let realId = this.sessions.get(AGENT_NAME, sessionKey);
-		let isNew = !realId;
-
-		if (realId) {
-			try {
-				await oc.session.get({ path: { id: realId } });
-			} catch {
-				realId = undefined;
-				isNew = true;
-			}
-		}
-
-		if (!realId) {
-			const created = await oc.session.create({
-				body: { title: `ふあ:${sessionKey}` },
-			});
-			if (!created.data) throw new Error("Failed to create session: no data returned");
-			realId = created.data.id;
-			await this.sessions.save(AGENT_NAME, sessionKey, realId);
-		}
+		const realId = await this.resolveSessionId(oc, sessionKey);
 
 		const contextLoader = this.contextLoaderFactory.create(guildId);
-		const prompt = isNew ? await contextLoader.wrapWithContext(message) : message;
+		const system = await contextLoader.loadBootstrapContext();
 
 		const result = await oc.session.prompt({
 			path: { id: realId },
 			body: {
-				parts: [{ type: "text", text: prompt }],
+				parts: [{ type: "text", text: message }],
 				model: { providerID: "github-copilot", modelID: "claude-sonnet-4.6" },
+				system,
 			},
 		});
 
@@ -72,6 +53,29 @@ export class OpencodeAgent implements AiAgent {
 		this.closeServer?.();
 		this.client = null;
 		this.closeServer = null;
+	}
+
+	private async resolveSessionId(oc: OpencodeClient, sessionKey: string): Promise<string> {
+		let realId = this.sessions.get(AGENT_NAME, sessionKey);
+
+		if (realId) {
+			try {
+				await oc.session.get({ path: { id: realId } });
+			} catch {
+				realId = undefined;
+			}
+		}
+
+		if (!realId) {
+			const created = await oc.session.create({
+				body: { title: `ふあ:${sessionKey}` },
+			});
+			if (!created.data) throw new Error("Failed to create session: no data returned");
+			realId = created.data.id;
+			await this.sessions.save(AGENT_NAME, sessionKey, realId);
+		}
+
+		return realId;
 	}
 
 	private async getClient(): Promise<OpencodeClient> {
