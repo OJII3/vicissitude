@@ -78,7 +78,11 @@ export class HandleHomeChannelMessageUseCase {
 		const typingInterval = setInterval(() => void channel.sendTyping(), TYPING_INTERVAL_MS);
 
 		try {
-			const response = await this.agent.send(sessionKey, prompt);
+			const response = await this.agent.send({
+				sessionKey,
+				message: prompt,
+				guildId: msg.guildId,
+			});
 			clearInterval(typingInterval);
 
 			const chunks = splitMessage(response.text);

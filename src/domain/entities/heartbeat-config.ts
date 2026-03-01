@@ -8,6 +8,7 @@ export interface HeartbeatReminder {
 	schedule: ReminderSchedule;
 	lastExecutedAt: string | null;
 	enabled: boolean;
+	guildId?: string;
 }
 
 export interface HeartbeatConfig {

@@ -108,7 +108,7 @@ describe("HandleHeartbeatUseCase", () => {
 		expect(notUpdated?.lastExecutedAt).toBeNull();
 	});
 
-	it("AI 失敗時は config を更新しない", async () => {
+	it("AI 失敗時もエラーログを出力し、config の lastExecutedAt を更新する", async () => {
 		const agent: AiAgent = {
 			send: mock(() => Promise.reject(new Error("AI down"))),
 			stop: mock(() => {}),
@@ -119,8 +119,10 @@ describe("HandleHeartbeatUseCase", () => {
 
 		await useCase.execute(createDueReminders());
 
-		expect(configRepo.save).not.toHaveBeenCalled();
 		expect(logger.error).toHaveBeenCalled();
+		// Guild ごとに逐次実行する設計のため、個別の AI エラーは catch して続行し、
+		// 最後に一括で lastExecutedAt を更新する
+		expect(configRepo.save).toHaveBeenCalledTimes(1);
 	});
 
 	it("セッションキーが system:heartbeat:_autonomous である", async () => {
@@ -131,7 +133,9 @@ describe("HandleHeartbeatUseCase", () => {
 
 		await useCase.execute(createDueReminders());
 
-		const [sessionKey] = (agent.send as ReturnType<typeof mock>).mock.calls[0] as [string, string];
-		expect(sessionKey).toBe("system:heartbeat:_autonomous");
+		const [options] = (agent.send as ReturnType<typeof mock>).mock.calls[0] as [
+			{ sessionKey: string },
+		];
+		expect(options.sessionKey).toBe("system:heartbeat:_autonomous");
 	});
 });

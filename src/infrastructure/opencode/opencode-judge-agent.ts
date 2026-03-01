@@ -1,7 +1,7 @@
 import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
 
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
-import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
+import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 
 /**
  * judge 専用の軽量 AiAgent 実装。
@@ -13,7 +13,8 @@ export class OpencodeJudgeAgent implements AiAgent {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
 
-	async send(_sessionKey: string, message: string): Promise<AgentResponse> {
+	async send(options: SendOptions): Promise<AgentResponse> {
+		const { message } = options;
 		const oc = await this.getClient();
 
 		const created = await oc.session.create({ body: { title: "ふあ:judge" } });

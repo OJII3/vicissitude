@@ -1,6 +1,12 @@
 import type { AgentResponse } from "../entities/agent-response.ts";
 
+export interface SendOptions {
+	sessionKey: string;
+	message: string;
+	guildId?: string;
+}
+
 export interface AiAgent {
-	send(sessionKey: string, message: string): Promise<AgentResponse>;
+	send(options: SendOptions): Promise<AgentResponse>;
 	stop(): void;
 }

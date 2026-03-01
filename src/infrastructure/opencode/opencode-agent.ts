@@ -1,8 +1,8 @@
 import { createOpencode, type OpencodeClient } from "@opencode-ai/sdk";
 
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
-import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
-import type { ContextLoader } from "../../domain/ports/context-loader.port.ts";
+import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
+import type { ContextLoaderFactory } from "../../domain/ports/context-loader.port.ts";
 import type { SessionRepository } from "../../domain/ports/session-repository.port.ts";
 import { mcpServerConfigs } from "./mcp-config.ts";
 
@@ -14,10 +14,11 @@ export class OpencodeAgent implements AiAgent {
 
 	constructor(
 		private readonly sessions: SessionRepository,
-		private readonly contextLoader: ContextLoader,
+		private readonly contextLoaderFactory: ContextLoaderFactory,
 	) {}
 
-	async send(sessionKey: string, message: string): Promise<AgentResponse> {
+	async send(options: SendOptions): Promise<AgentResponse> {
+		const { sessionKey, message, guildId } = options;
 		const oc = await this.getClient();
 
 		let realId = this.sessions.get(AGENT_NAME, sessionKey);
@@ -41,7 +42,8 @@ export class OpencodeAgent implements AiAgent {
 			await this.sessions.save(AGENT_NAME, sessionKey, realId);
 		}
 
-		const prompt = isNew ? await this.contextLoader.wrapWithContext(message) : message;
+		const contextLoader = this.contextLoaderFactory.create(guildId);
+		const prompt = isNew ? await contextLoader.wrapWithContext(message) : message;
 
 		const result = await oc.session.prompt({
 			path: { id: realId },

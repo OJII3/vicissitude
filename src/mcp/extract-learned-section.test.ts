@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { extractLearnedSection } from "./memory-server.ts";
+import { extractLearnedSection } from "./memory-helpers.ts";
 
 describe("extractLearnedSection", () => {
 	it("「学んだこと」セクションが存在しない場合、before に全文が入る", () => {

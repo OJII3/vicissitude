@@ -1,6 +1,7 @@
 export interface IncomingMessage {
 	platform: string;
 	channelId: string;
+	guildId?: string;
 	authorId: string;
 	authorName: string;
 	messageId: string;

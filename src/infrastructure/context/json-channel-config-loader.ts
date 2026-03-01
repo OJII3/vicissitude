@@ -5,6 +5,7 @@ interface ChannelsJson {
 	defaultCooldownSeconds: number;
 	channels: Array<{
 		channelId: string;
+		guildId?: string;
 		role: ChannelRole;
 		cooldownSeconds?: number;
 	}>;
@@ -20,6 +21,7 @@ export class JsonChannelConfigLoader implements ChannelConfigLoader {
 		for (const ch of json.channels) {
 			this.configs.set(ch.channelId, {
 				channelId: ch.channelId,
+				guildId: ch.guildId,
 				role: ch.role,
 				cooldownSeconds: ch.cooldownSeconds ?? json.defaultCooldownSeconds,
 			});
@@ -32,6 +34,10 @@ export class JsonChannelConfigLoader implements ChannelConfigLoader {
 
 	getCooldown(channelId: string): number {
 		return this.configs.get(channelId)?.cooldownSeconds ?? this.defaultCooldownSeconds;
+	}
+
+	getGuildId(channelId: string): string | undefined {
+		return this.configs.get(channelId)?.guildId;
 	}
 
 	/**

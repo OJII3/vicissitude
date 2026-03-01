@@ -1,104 +1,67 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { readdirSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const CONTEXT_DIR = resolve(import.meta.dirname, "../../context");
-const MEMORY_DIR = resolve(CONTEXT_DIR, "memory");
-const MEMORY_PATH = resolve(CONTEXT_DIR, "MEMORY.md");
-const SOUL_PATH = resolve(CONTEXT_DIR, "SOUL.md");
-const LESSONS_PATH = resolve(CONTEXT_DIR, "LESSONS.md");
+import {
+	MAX_DAILY_LOG_CHARS,
+	MAX_ENTRY_CHARS,
+	MAX_LESSONS_CHARS,
+	MAX_MEMORY_CHARS,
+	MAX_SOUL_LEARNED_CHARS,
+	SOUL_PATH,
+	createBackup,
+	ensureDir,
+	extractLearnedSection,
+	guildIdSchema,
+	guildLabel,
+	isDateWithinRange,
+	readFileSafe,
+	resolveContextPaths,
+	todayDateString,
+} from "./memory-helpers.ts";
 
-// Size limits (in characters — zod .max() counts characters, not bytes)
-const MAX_MEMORY_CHARS = 50_000;
-const MAX_LESSONS_CHARS = 30_000;
-const MAX_SOUL_LEARNED_CHARS = 10_000;
-const MAX_ENTRY_CHARS = 2_000;
-const MAX_DAILY_LOG_CHARS = 20_000;
-const MAX_DAILY_LOG_AGE_DAYS = 7;
-
-function ensureMemoryDir(): void {
-	if (!existsSync(MEMORY_DIR)) mkdirSync(MEMORY_DIR, { recursive: true });
-}
-
-function readFileSafe(path: string): string {
-	if (!existsSync(path)) return "";
-	return readFileSync(path, "utf-8");
-}
-
-function createBackup(path: string): void {
-	if (existsSync(path)) {
-		writeFileSync(`${path}.bak`, readFileSync(path));
-	}
-}
-
-function todayDateString(): string {
-	const now = new Date();
-	const jst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-	return jst.toISOString().slice(0, 10);
-}
-
-function isDateWithinRange(dateStr: string): boolean {
-	const target = new Date(`${dateStr}T00:00:00+09:00`);
-	const now = new Date();
-	const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-	const today = new Date(`${jstNow.toISOString().slice(0, 10)}T00:00:00+09:00`);
-	const diffDays = (today.getTime() - target.getTime()) / (1000 * 60 * 60 * 24);
-	return diffDays >= 0 && diffDays <= MAX_DAILY_LOG_AGE_DAYS;
-}
-
-export function extractLearnedSection(content: string): {
-	before: string;
-	section: string;
-	after: string;
-} {
-	const marker = "## 学んだこと";
-	const idx = content.indexOf(marker);
-	if (idx === -1) return { before: content, section: "", after: "" };
-
-	const before = content.slice(0, idx);
-	const rest = content.slice(idx);
-
-	const nextSectionMatch = rest.slice(marker.length).search(/\n## /);
-	if (nextSectionMatch === -1) {
-		return { before, section: rest, after: "" };
-	}
-	const sectionEnd = marker.length + nextSectionMatch;
-	return { before, section: rest.slice(0, sectionEnd), after: rest.slice(sectionEnd) };
-}
-
-const server = new McpServer({
-	name: "memory",
-	version: "0.1.0",
-});
+const server = new McpServer({ name: "memory", version: "0.2.0" });
 
 // --- read_memory ---
-server.tool("read_memory", "MEMORY.md を読み取る", {}, () => {
-	const content = readFileSafe(MEMORY_PATH);
-	return {
-		content: [{ type: "text", text: content || "(MEMORY.md は空です)" }],
-	};
-});
+server.tool(
+	"read_memory",
+	"MEMORY.md を読み取る（guild_id 指定時は Guild 固有のメモリ）",
+	{ guild_id: guildIdSchema },
+	({ guild_id }) => {
+		const { memoryPath } = resolveContextPaths(guild_id);
+		const content = readFileSafe(memoryPath);
+		return {
+			content: [{ type: "text", text: content || `${guildLabel(guild_id)}(MEMORY.md は空です)` }],
+		};
+	},
+);
 
 // --- update_memory ---
 server.tool(
 	"update_memory",
-	"MEMORY.md を上書き更新する（バックアップ自動作成）",
+	"MEMORY.md を上書き更新する（バックアップ自動作成、guild_id 指定時は Guild 固有）",
 	{
 		content: z
 			.string()
 			.min(1)
 			.max(MAX_MEMORY_CHARS)
 			.describe("新しい MEMORY.md の内容（最大 50,000 文字）"),
+		guild_id: guildIdSchema,
 	},
-	({ content }) => {
-		createBackup(MEMORY_PATH);
-		writeFileSync(MEMORY_PATH, content, "utf-8");
+	({ content, guild_id }) => {
+		const { memoryPath } = resolveContextPaths(guild_id);
+		ensureDir(resolve(memoryPath, ".."));
+		createBackup(memoryPath);
+		writeFileSync(memoryPath, content, "utf-8");
 		return {
 			content: [
-				{ type: "text", text: `MEMORY.md を更新しました（${String(content.length)} 文字）` },
+				{
+					type: "text",
+					text: `${guildLabel(guild_id)}MEMORY.md を更新しました（${String(content.length)} 文字）`,
+				},
 			],
 		};
 	},
@@ -155,7 +118,7 @@ server.tool(
 // --- append_daily_log ---
 server.tool(
 	"append_daily_log",
-	"日次ログ (memory/YYYY-MM-DD.md) に追記する",
+	"日次ログ (memory/YYYY-MM-DD.md) に追記する（guild_id 指定時は Guild 固有）",
 	{
 		entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）"),
 		date: z
@@ -163,8 +126,9 @@ server.tool(
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
 			.optional()
 			.describe("日付（YYYY-MM-DD、デフォルト: 今日）"),
+		guild_id: guildIdSchema,
 	},
-	({ entry, date }) => {
+	({ entry, date, guild_id }) => {
 		const targetDate = date ?? todayDateString();
 
 		if (!isDateWithinRange(targetDate)) {
@@ -175,11 +139,11 @@ server.tool(
 			};
 		}
 
-		ensureMemoryDir();
-		const logPath = resolve(MEMORY_DIR, `${targetDate}.md`);
+		const { memoryDir } = resolveContextPaths(guild_id);
+		ensureDir(memoryDir);
+		const logPath = resolve(memoryDir, `${targetDate}.md`);
 		const existing = readFileSafe(logPath);
 
-		// overhead: "\n- [HH:MM:SS] " (16 chars) + "\n" (1 char) + header "# YYYY-MM-DD\n" (13 chars if new)
 		const overhead = existing ? 17 : 30;
 		if (existing.length + entry.length + overhead > MAX_DAILY_LOG_CHARS) {
 			return {
@@ -205,7 +169,9 @@ server.tool(
 		}
 
 		return {
-			content: [{ type: "text", text: `${targetDate} のログに追記しました` }],
+			content: [
+				{ type: "text", text: `${guildLabel(guild_id)}${targetDate} のログに追記しました` },
+			],
 		};
 	},
 );
@@ -213,20 +179,27 @@ server.tool(
 // --- read_daily_log ---
 server.tool(
 	"read_daily_log",
-	"日次ログを読み取る",
+	"日次ログを読み取る（guild_id 指定時は Guild 固有）",
 	{
 		date: z
 			.string()
 			.regex(/^\d{4}-\d{2}-\d{2}$/)
 			.optional()
 			.describe("日付（YYYY-MM-DD、デフォルト: 今日）"),
+		guild_id: guildIdSchema,
 	},
-	({ date }) => {
+	({ date, guild_id }) => {
 		const targetDate = date ?? todayDateString();
-		const logPath = resolve(MEMORY_DIR, `${targetDate}.md`);
+		const { memoryDir } = resolveContextPaths(guild_id);
+		const logPath = resolve(memoryDir, `${targetDate}.md`);
 		const content = readFileSafe(logPath);
 		return {
-			content: [{ type: "text", text: content || `(${targetDate} のログはありません)` }],
+			content: [
+				{
+					type: "text",
+					text: content || `${guildLabel(guild_id)}(${targetDate} のログはありません)`,
+				},
+			],
 		};
 	},
 );
@@ -234,23 +207,29 @@ server.tool(
 // --- list_daily_logs ---
 server.tool(
 	"list_daily_logs",
-	"日次ログ一覧を表示する",
-	{ limit: z.number().min(1).max(30).optional().describe("表示件数（デフォルト: 7）") },
-	({ limit }) => {
-		ensureMemoryDir();
+	"日次ログ一覧を表示する（guild_id 指定時は Guild 固有）",
+	{
+		limit: z.number().min(1).max(30).optional().describe("表示件数（デフォルト: 7）"),
+		guild_id: guildIdSchema,
+	},
+	({ limit, guild_id }) => {
+		const { memoryDir } = resolveContextPaths(guild_id);
+		ensureDir(memoryDir);
 		const maxItems = limit ?? 7;
-		const files = readdirSync(MEMORY_DIR)
+		const files = readdirSync(memoryDir)
 			.filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f))
 			.toSorted()
 			.toReversed()
 			.slice(0, maxItems);
 
 		if (files.length === 0) {
-			return { content: [{ type: "text", text: "日次ログはありません" }] };
+			return {
+				content: [{ type: "text", text: `${guildLabel(guild_id)}日次ログはありません` }],
+			};
 		}
 
 		const lines = files.map((f) => {
-			const path = resolve(MEMORY_DIR, f);
+			const path = resolve(memoryDir, f);
 			const size = readFileSync(path).length;
 			return `- ${f.replace(".md", "")} (${String(size)} bytes)`;
 		});
@@ -259,30 +238,42 @@ server.tool(
 );
 
 // --- read_lessons ---
-server.tool("read_lessons", "LESSONS.md を読み取る", {}, () => {
-	const content = readFileSafe(LESSONS_PATH);
-	return {
-		content: [{ type: "text", text: content || "(LESSONS.md は空です)" }],
-	};
-});
+server.tool(
+	"read_lessons",
+	"LESSONS.md を読み取る（guild_id 指定時は Guild 固有）",
+	{ guild_id: guildIdSchema },
+	({ guild_id }) => {
+		const { lessonsPath } = resolveContextPaths(guild_id);
+		const content = readFileSafe(lessonsPath);
+		return {
+			content: [{ type: "text", text: content || `${guildLabel(guild_id)}(LESSONS.md は空です)` }],
+		};
+	},
+);
 
 // --- update_lessons ---
 server.tool(
 	"update_lessons",
-	"LESSONS.md を上書き更新する（バックアップ自動作成）",
+	"LESSONS.md を上書き更新する（バックアップ自動作成、guild_id 指定時は Guild 固有）",
 	{
 		content: z
 			.string()
 			.min(1)
 			.max(MAX_LESSONS_CHARS)
 			.describe("新しい LESSONS.md の内容（最大 30,000 文字）"),
+		guild_id: guildIdSchema,
 	},
-	({ content }) => {
-		createBackup(LESSONS_PATH);
-		writeFileSync(LESSONS_PATH, content, "utf-8");
+	({ content, guild_id }) => {
+		const { lessonsPath } = resolveContextPaths(guild_id);
+		ensureDir(resolve(lessonsPath, ".."));
+		createBackup(lessonsPath);
+		writeFileSync(lessonsPath, content, "utf-8");
 		return {
 			content: [
-				{ type: "text", text: `LESSONS.md を更新しました（${String(content.length)} 文字）` },
+				{
+					type: "text",
+					text: `${guildLabel(guild_id)}LESSONS.md を更新しました（${String(content.length)} 文字）`,
+				},
 			],
 		};
 	},
