@@ -45,6 +45,7 @@ export class SessionEventLoop {
 	}
 
 	startPrompt(sessionKey: string, sessionId: string): Promise<string> {
+		this.logger.info(`[event-loop] startPrompt key=${sessionKey} sid=${sessionId}`);
 		this.sessionIdToKey.set(sessionId, sessionKey);
 
 		return new Promise<string>((resolve, reject) => {
@@ -60,6 +61,7 @@ export class SessionEventLoop {
 	}
 
 	awaitNextResponse(sessionKey: string): Promise<string> {
+		this.logger.info(`[event-loop] awaitNextResponse key=${sessionKey}`);
 		const loop = this.loops.get(sessionKey);
 		if (!loop) {
 			return Promise.reject(new Error(`No loop state for session key: ${sessionKey}`));
@@ -78,8 +80,10 @@ export class SessionEventLoop {
 		if (!loop) return;
 
 		if (loop.status === "waiting" && loop.pendingQuestionId) {
+			this.logger.info(`[event-loop] feedEvent key=${sessionKey} → reply`);
 			this.replyToQuestion(loop, content);
 		} else {
+			this.logger.info(`[event-loop] feedEvent key=${sessionKey} → queued`);
 			loop.pendingEvents.push(content);
 		}
 	}
@@ -124,27 +128,20 @@ export class SessionEventLoop {
 	}
 
 	private sleep(ms: number, signal: AbortSignal): Promise<void> {
-		return new Promise((resolve) => {
-			if (signal.aborted) {
-				resolve();
-				return;
-			}
-			let settled = false;
-			const done = () => {
-				if (settled) return;
-				settled = true;
-				resolve();
-			};
-			const timer = setTimeout(done, ms);
+		if (signal.aborted) return Promise.resolve();
+		const timer = new Promise<void>((resolve) => {
+			setTimeout(resolve, ms);
+		});
+		const abort = new Promise<void>((resolve) => {
 			signal.addEventListener(
 				"abort",
 				() => {
-					clearTimeout(timer);
-					done();
+					resolve();
 				},
 				{ once: true },
 			);
 		});
+		return Promise.race([timer, abort]);
 	}
 
 	private rejectAllPendingLoops(error: Error): void {
@@ -203,8 +200,9 @@ export class SessionEventLoop {
 		loop.status = "waiting";
 		loop.pendingQuestionId = id;
 
-		const text = this.collectText(loop);
-		loop.resolveText?.(text);
+		// LLM は MCP ツールで直接 Discord に送信済み。空文字を返してユースケース層の二重送信を防ぐ
+		this.logger.info(`[event-loop] question.asked key=${sessionKey} (handled by MCP tools)`);
+		loop.resolveText?.("");
 		loop.resolveText = undefined;
 		loop.rejectText = undefined;
 
@@ -224,6 +222,9 @@ export class SessionEventLoop {
 		if (loop.status === "processing" || loop.status === "waiting") {
 			loop.status = "idle";
 			const text = this.collectText(loop);
+			this.logger.info(
+				`[event-loop] session.idle key=${sessionKey} text=${text.length}chars (fallback)`,
+			);
 			loop.resolveText?.(text);
 			loop.resolveText = undefined;
 			loop.rejectText = undefined;
@@ -244,6 +245,7 @@ export class SessionEventLoop {
 		const errorMsg = event.properties.error
 			? JSON.stringify(event.properties.error)
 			: "unknown session error";
+		this.logger.error(`[event-loop] session.error key=${sessionKey}: ${errorMsg}`);
 		loop.rejectText?.(new Error(errorMsg));
 		loop.resolveText = undefined;
 		loop.rejectText = undefined;

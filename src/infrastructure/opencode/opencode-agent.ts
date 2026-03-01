@@ -36,6 +36,8 @@ export class OpencodeAgent implements AiAgent {
 		}
 		const eventLoop = this.eventLoop;
 
+		this.logger.info(`[agent] send key=${sessionKey} isWaiting=${eventLoop.isWaiting(sessionKey)}`);
+
 		// question 待ち中なら feedEvent で注入
 		if (eventLoop.isWaiting(sessionKey)) {
 			eventLoop.feedEvent(sessionKey, message);
@@ -62,7 +64,9 @@ export class OpencodeAgent implements AiAgent {
 			throw new Error(`opencode promptAsync failed: ${JSON.stringify(result.error)}`);
 		}
 
+		this.logger.info(`[agent] promptAsync sent, waiting for SSE response...`);
 		const text = await withTimeout(textPromise, SEND_TIMEOUT_MS, "opencode prompt timed out");
+		this.logger.info(`[agent] response received: ${text.length}chars`);
 
 		return { text, sessionId: realId };
 	}
