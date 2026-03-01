@@ -92,14 +92,3 @@ describe("FileContextLoader - guildId 指定時", () => {
 		expect(ctx).not.toContain("# Global Log");
 	});
 });
-
-describe("FileContextLoader - wrapWithContext", () => {
-	it("コンテキストでメッセージをラップする", async () => {
-		const loader = new FileContextLoader(TEST_DIR);
-		const result = await loader.wrapWithContext("Hello");
-
-		expect(result).toContain("## Project Context");
-		expect(result).toContain("Hello");
-		expect(result).toContain("# Identity");
-	});
-});

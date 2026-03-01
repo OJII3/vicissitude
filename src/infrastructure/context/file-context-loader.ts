@@ -77,13 +77,6 @@ export class FileContextLoader implements ContextLoader {
 		return sections.join("\n\n");
 	}
 
-	async wrapWithContext(message: string): Promise<string> {
-		const ctx = await this.loadBootstrapContext();
-		if (!ctx) return message;
-
-		return `## Project Context\n\n${ctx}\n\n---\n\n${message}`;
-	}
-
 	private async readDailyLog(date: string): Promise<string | null> {
 		const guildLogPath = this.guildId
 			? resolve(this.contextDir, "guilds", this.guildId, "memory", `${date}.md`)

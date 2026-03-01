@@ -30,6 +30,7 @@
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - エラー時はユーザーに汎用メッセージを返し、詳細はログのみに記録する。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
+- **ブートストラップコンテキストを OpenCode SDK の `system` フィールドで毎回注入するように変更。** OpenCode はセッション内で system をキャッシュしないため毎回送信が必須。Anthropic の Prompt Caching により同一内容のコスト増は緩和される。
 
 ## 3. 確定済み方針
 
