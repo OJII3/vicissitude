@@ -141,7 +141,7 @@
   - `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
 - `mcp/code-exec-server.ts`: コード実行ツール
   - `execute_code` (JS/TS/Python/Shell)
-  - tmux で実行、10 秒タイムアウト
+  - Bun.spawn で直接実行、10 秒タイムアウト
 - `mcp/schedule-server.ts`: Heartbeat スケジュール管理ツール
   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
   - `data/heartbeat-config.json` を直接読み書き
