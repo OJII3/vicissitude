@@ -9,14 +9,14 @@ WORKDIR /app
 
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --production
-RUN bun install -g opencode-ai@latest && \
+RUN bun install -g opencode-ai@1.2.15 && \
     rm /usr/local/bin/opencode && \
     cp /root/.bun/install/global/node_modules/opencode-ai/bin/.opencode /usr/local/bin/opencode && \
     chmod 755 /usr/local/bin/opencode && \
-    rm -rf /root/.bun
+    rm -rf /root/.bun && \
+    opencode --version
 
 COPY src/ ./src/
-COPY context/ ./context/
 COPY tsconfig.json ./
 
 RUN mkdir -p data/context && chown bun:bun data/context && \

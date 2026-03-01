@@ -30,9 +30,9 @@
    ```bash
    systemctl --user enable --now podman.socket
    ```
-7. opencode の GitHub Copilot 認証が完了していることを確認する（`~/.local/share/opencode/auth.json` が存在すること）:
+7. opencode の GitHub Copilot 認証が完了していることを確認する。`~/.local/share/opencode/auth.json` が存在しない場合は `opencode auth` で認証を行う:
    ```bash
-   opencode auth
+   ls ~/.local/share/opencode/auth.json || opencode auth
    ```
 8. `nr container:build:all` でコンテナイメージをビルド済みであることを確認する。
 
