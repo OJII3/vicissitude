@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
+import type { EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
 import { HandleHomeChannelMessageUseCase } from "./handle-home-channel-message.use-case.ts";
@@ -8,6 +9,7 @@ import {
 	createMockAgent,
 	createMockChannel,
 	createMockChannelConfig,
+	createMockEmojiProvider,
 	createMockHistory,
 	createMockJudge,
 	createMockLogger,
@@ -19,6 +21,7 @@ function createUseCase(overrides: {
 	judge?: ResponseJudge;
 	history?: ConversationHistory;
 	cooldown?: CooldownTracker;
+	emojiProvider?: EmojiProvider;
 	logger?: ReturnType<typeof createMockLogger>;
 }) {
 	return new HandleHomeChannelMessageUseCase(
@@ -27,6 +30,7 @@ function createUseCase(overrides: {
 		overrides.history ?? createMockHistory(),
 		createMockChannelConfig(),
 		overrides.cooldown ?? new CooldownTracker(),
+		overrides.emojiProvider ?? createMockEmojiProvider(),
 		overrides.logger ?? createMockLogger(),
 	);
 }
@@ -80,6 +84,39 @@ describe("HandleHomeChannelMessageUseCase - 判断結果", () => {
 
 		expect(msg.react).toHaveBeenCalledWith("👍");
 		expect(cooldown.isOnCooldown("ch-1", 60)).toBe(true);
+	});
+
+	it("react（カスタム絵文字）→ identifier に解決してリアクション", async () => {
+		const judge = createMockJudge({
+			action: { type: "react", emoji: ":pepe_sad:" },
+			reason: "sad",
+		});
+		const emojiProvider = createMockEmojiProvider([
+			{ name: "pepe_sad", identifier: "123456789", animated: false },
+			{ name: "pepe_happy", identifier: "987654321", animated: true },
+		]);
+		const useCase = createUseCase({ judge, emojiProvider });
+
+		const msg = createMockMessage("つらい", { guildId: "guild-1" });
+		await useCase.execute(msg, createMockChannel());
+
+		expect(msg.react).toHaveBeenCalledWith("123456789");
+	});
+
+	it("react（不明なカスタム絵文字）→ そのまま渡す", async () => {
+		const judge = createMockJudge({
+			action: { type: "react", emoji: ":unknown_emoji:" },
+			reason: "test",
+		});
+		const emojiProvider = createMockEmojiProvider([
+			{ name: "pepe_sad", identifier: "123456789", animated: false },
+		]);
+		const useCase = createUseCase({ judge, emojiProvider });
+
+		const msg = createMockMessage("test", { guildId: "guild-1" });
+		await useCase.execute(msg, createMockChannel());
+
+		expect(msg.react).toHaveBeenCalledWith(":unknown_emoji:");
 	});
 
 	it("respond → AI 応答を送信してクールダウン記録", async () => {

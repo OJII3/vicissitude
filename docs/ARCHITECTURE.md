@@ -37,6 +37,7 @@
 - `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
 - `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
 - `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
+- `emoji-info.ts`: `EmojiInfo` — カスタム絵文字情報（`name`, `identifier`, `animated`）
 - `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
 
 #### ports/
@@ -55,8 +56,10 @@
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
   - `getRole(channelId)`, `getCooldown(channelId)`
+- `emoji-provider.port.ts`: `EmojiProvider` — ギルドカスタム絵文字取得
+  - `getGuildEmojis(guildId): Promise<EmojiInfo[]>`
 - `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
-  - `judge(message, context): Promise<ResponseDecision>`
+  - `judge(message, context, availableEmojis?): Promise<ResponseDecision>`
 - `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
   - `getRecent(channelId, limit, excludeMessageId?): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
@@ -77,8 +80,8 @@
   - 処理: メッセージ受信 → typing 開始 → AI 送信 → 応答分割 → 返信/送信
   - 用途: メンション/スレッド（必ず応答）
 - `handle-home-channel-message.use-case.ts`: `HandleHomeChannelMessageUseCase`
-  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `Logger`
-  - 処理: クールダウン確認 → 会話履歴取得 → AI 判断 → respond/react/ignore
+  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `EmojiProvider`, `Logger`
+  - 処理: クールダウン確認 → 会話履歴取得 → カスタム絵文字取得 → AI 判断 → respond/react/ignore
   - 用途: ホームチャンネル（自律参加）
 - `handle-heartbeat.use-case.ts`: `HandleHeartbeatUseCase`
   - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
@@ -93,6 +96,8 @@
   - メンション文字列 (`<@!?\d+>`) を除去
 - `discord/discord-conversation-history.ts`: `DiscordConversationHistory implements ConversationHistory`
   - discord.js で直近メッセージを fetch
+- `discord/discord-emoji-provider.ts`: `DiscordEmojiProvider implements EmojiProvider`
+  - `guild.emojis.cache` からカスタム絵文字一覧を取得（キャッシュのみ参照）
 - `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
   - OpenCode SDK でセッション管理・メッセージ送信
   - 初回セッション時にコンテキスト注入
@@ -234,10 +239,11 @@
 1. 空メッセージ → スキップ
 2. クールダウン中 → スキップ
 3. `ConversationHistory.getRecent()` で直近 10 件取得
-4. `ResponseJudge.judge()` で AI 判断
-5. `ignore` → 何もしない
-6. `react` → `msg.react(emoji)` してクールダウン記録
-7. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
+4. `EmojiProvider.getGuildEmojis()` でギルドカスタム絵文字取得（失敗時は無視して続行）
+5. `ResponseJudge.judge()` で AI 判断（カスタム絵文字一覧をプロンプトに含める）
+6. `ignore` → 何もしない
+7. `react` → カスタム絵文字の `:name:` を ID に解決し `msg.react()` してクールダウン記録
+8. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
 
 ### 6.4 Heartbeat 自律行動
 

@@ -2,6 +2,7 @@ import type {
 	ConversationContext,
 	ConversationMessage,
 } from "../../domain/entities/conversation-context.ts";
+import type { EmojiInfo } from "../../domain/entities/emoji-info.ts";
 import type { ResponseAction, ResponseDecision } from "../../domain/entities/response-decision.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
@@ -32,6 +33,8 @@ const JUDGE_PROMPT = `あなたはDiscordサーバーに住んでいる「ふあ
 {"action":"respond","reason":"..."}
 {"action":"react","emoji":"😊","reason":"..."}
 {"action":"ignore","reason":"..."}
+
+emoji にはUnicode絵文字か、カスタム絵文字の場合は :name: 形式（例: :pepe_sad:）を指定してください。
 `;
 
 export class OpencodeResponseJudge implements ResponseJudge {
@@ -40,9 +43,17 @@ export class OpencodeResponseJudge implements ResponseJudge {
 		private readonly logger: Logger,
 	) {}
 
-	async judge(message: string, context: ConversationContext): Promise<ResponseDecision> {
+	async judge(
+		message: string,
+		context: ConversationContext,
+		availableEmojis?: EmojiInfo[],
+	): Promise<ResponseDecision> {
 		const contextStr = formatContext(context.messages);
-		const prompt = `${JUDGE_PROMPT}\n\n## 直近の会話\n${contextStr}\n\n## 最新メッセージ\n${message}`;
+		const emojiSection =
+			availableEmojis && availableEmojis.length > 0
+				? `\n\n## 利用可能なカスタム絵文字\n以下のカスタム絵文字も使えます（:name: 形式で指定）:\n${availableEmojis.map((e) => `:${e.name}:`).join(" ")}`
+				: "";
+		const prompt = `${JUDGE_PROMPT}${emojiSection}\n\n## 直近の会話\n${contextStr}\n\n## 最新メッセージ\n${message}`;
 
 		try {
 			const response = await this.agent.send({ sessionKey: JUDGE_SESSION_KEY, message: prompt });
