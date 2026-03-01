@@ -1,7 +1,9 @@
+// oxlint-disable max-dependencies -- DI use case naturally has many port dependencies
 import { createChannelSessionKey } from "../../domain/entities/session.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { ChannelConfigLoader } from "../../domain/ports/channel-config-loader.port.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
+import type { EmojiInfo, EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
@@ -19,6 +21,7 @@ export class HandleHomeChannelMessageUseCase {
 		private readonly history: ConversationHistory,
 		private readonly channelConfig: ChannelConfigLoader,
 		private readonly cooldown: CooldownTracker,
+		private readonly emojiProvider: EmojiProvider,
 		private readonly logger: Logger,
 	) {}
 
@@ -31,13 +34,15 @@ export class HandleHomeChannelMessageUseCase {
 		// Optimistic locking: judge 前にクールダウン記録して重複処理を防ぐ
 		this.cooldown.record(msg.channelId);
 
-		const decision = await this.judgeMessage(msg);
-		if (!decision) return;
+		const result = await this.judgeMessage(msg);
+		if (!result) return;
 
-		if (decision.type === "ignore") return;
+		const { action, emojis } = result;
 
-		if (decision.type === "react") {
-			await this.handleReact(msg, decision.emoji);
+		if (action.type === "ignore") return;
+
+		if (action.type === "react") {
+			await this.handleReact(msg, action.emoji, emojis);
 			return;
 		}
 
@@ -53,21 +58,41 @@ export class HandleHomeChannelMessageUseCase {
 			return null;
 		}
 
+		let emojis: EmojiInfo[] | undefined;
+		if (msg.guildId) {
+			try {
+				emojis = await this.emojiProvider.getGuildEmojis(msg.guildId);
+			} catch (error) {
+				this.logger.warn("Failed to fetch guild emojis:", error);
+			}
+		}
+
 		try {
-			const decision = await this.judge.judge(msg.content, context);
-			return decision.action;
+			const decision = await this.judge.judge(msg.content, context, emojis);
+			return { action: decision.action, emojis };
 		} catch (error) {
 			this.logger.error("Judge failed, defaulting to ignore:", error);
 			return null;
 		}
 	}
 
-	private async handleReact(msg: IncomingMessage, emoji: string) {
+	private async handleReact(msg: IncomingMessage, emoji: string, emojis?: EmojiInfo[]) {
 		try {
-			await msg.react(emoji);
+			const resolved = this.resolveEmoji(emoji, emojis);
+			await msg.react(resolved);
 		} catch (error) {
 			this.logger.error("Failed to react:", error);
 		}
+	}
+
+	private resolveEmoji(emoji: string, emojis?: EmojiInfo[]): string {
+		// :name: 形式のカスタム絵文字を identifier に解決
+		const match = /^:(.+):$/.exec(emoji);
+		if (!match || !emojis) return emoji;
+
+		const name = match[1];
+		const found = emojis.find((e) => e.name === name);
+		return found ? found.identifier : emoji;
 	}
 
 	private async handleRespond(msg: IncomingMessage, channel: MessageChannel) {

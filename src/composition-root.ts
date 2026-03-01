@@ -9,6 +9,7 @@ import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
 import { JsonChannelConfigLoader } from "./infrastructure/context/json-channel-config-loader.ts";
 import { DiscordConversationHistory } from "./infrastructure/discord/discord-conversation-history.ts";
+import { DiscordEmojiProvider } from "./infrastructure/discord/discord-emoji-provider.ts";
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
@@ -49,6 +50,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Home channel infrastructure
 	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
+	const emojiProvider = new DiscordEmojiProvider(() => gateway.getClient());
 	const responseJudge = new OpencodeResponseJudge(judgeAgent, logger);
 	const cooldown = new CooldownTracker();
 
@@ -63,6 +65,7 @@ export async function bootstrap(): Promise<void> {
 		conversationHistory,
 		channelConfig,
 		cooldown,
+		emojiProvider,
 		logger,
 	);
 
