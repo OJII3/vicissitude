@@ -5,17 +5,13 @@ import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 import type { ContextLoaderFactory } from "../../domain/ports/context-loader.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { SessionRepository } from "../../domain/ports/session-repository.port.ts";
-import { withTimeout } from "../../domain/services/timeout.ts";
 import { mcpServerConfigs } from "./mcp-config.ts";
-import { SessionEventLoop } from "./session-event-loop.ts";
 
 const AGENT_NAME = "opencode";
-const SEND_TIMEOUT_MS = 120_000;
 
 export class OpencodeAgent implements AiAgent {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
-	private eventLoop: SessionEventLoop | null = null;
 
 	constructor(
 		private readonly sessions: SessionRepository,
@@ -31,26 +27,7 @@ export class OpencodeAgent implements AiAgent {
 		const contextLoader = this.contextLoaderFactory.create(guildId);
 		const system = await contextLoader.loadBootstrapContext();
 
-		if (!this.eventLoop) {
-			throw new Error("eventLoop not initialized");
-		}
-		const eventLoop = this.eventLoop;
-
-		this.logger.info(`[agent] send key=${sessionKey} isWaiting=${eventLoop.isWaiting(sessionKey)}`);
-
-		// question 待ち中なら feedEvent で注入
-		if (eventLoop.isWaiting(sessionKey)) {
-			eventLoop.feedEvent(sessionKey, message);
-			// 既存 LoopState を保持したまま次の応答 Promise を差し替える
-			const textPromise = eventLoop.awaitNextResponse(sessionKey);
-			const text = await withTimeout(textPromise, SEND_TIMEOUT_MS, "opencode event loop timed out");
-			return { text, sessionId: realId };
-		}
-
-		// 新規ターン: promptAsync + SSE で応答を収集
-		const textPromise = eventLoop.startPrompt(sessionKey, realId);
-
-		const result = await oc.session.promptAsync({
+		const result = await oc.session.prompt({
 			sessionID: realId,
 			parts: [{ type: "text", text: message }],
 			model: {
@@ -60,23 +37,22 @@ export class OpencodeAgent implements AiAgent {
 			system,
 		});
 
-		if (result.error) {
-			throw new Error(`opencode promptAsync failed: ${JSON.stringify(result.error)}`);
+		const texts: string[] = [];
+		if (result.data?.parts) {
+			for (const part of result.data.parts) {
+				if (part.type === "text") {
+					texts.push(part.text);
+				}
+			}
 		}
 
-		this.logger.info(`[agent] promptAsync sent, waiting for SSE response...`);
-		const text = await withTimeout(textPromise, SEND_TIMEOUT_MS, "opencode prompt timed out");
-		this.logger.info(`[agent] response received: ${text.length}chars`);
-
-		return { text, sessionId: realId };
+		return { text: texts.join("\n") || "", sessionId: realId };
 	}
 
 	stop(): void {
-		this.eventLoop?.stop();
 		this.closeServer?.();
 		this.client = null;
 		this.closeServer = null;
-		this.eventLoop = null;
 	}
 
 	private async resolveSessionId(oc: OpencodeClient, sessionKey: string): Promise<string> {
@@ -109,8 +85,8 @@ export class OpencodeAgent implements AiAgent {
 		const result = await createOpencode({
 			config: {
 				mcp: mcpServerConfigs(),
-				permission: { question: "allow" },
 				tools: {
+					question: false,
 					read: false,
 					glob: false,
 					grep: false,
@@ -127,11 +103,6 @@ export class OpencodeAgent implements AiAgent {
 
 		this.client = result.client;
 		this.closeServer = result.server.close;
-
-		// SSE イベントストリームを開始
-		this.eventLoop = new SessionEventLoop(this.client, this.logger);
-		this.eventLoop.startEventStream();
-
 		return this.client;
 	}
 }
