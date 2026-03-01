@@ -4,7 +4,7 @@
 
 - 2026-03-01
 - 更新者: AI
-- ブランチ: feat/heartbeat-system
+- ブランチ: feat/memory-mcp-server
 
 ## 2. 現在の真実（Project Truth）
 
@@ -20,8 +20,9 @@
   - ホームチャンネル: チャンネル単位共有セッション (`platform:channelId:_channel`)
 - ブートストラップコンテキストは `context/` 配下の Markdown から読込む。
 - チャンネル設定は `context/channels.json` で管理する。
-- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）の 3 つ。
+- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）の 4 つ。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
+- **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - エラー時はユーザーに汎用メッセージを返し、詳細はログのみに記録する。
@@ -39,6 +40,7 @@
 8. クールダウンで不要な AI 呼び出しを抑制する。
 9. Heartbeat システムで定期的な自律行動を実行する（interval / daily スケジュール対応）。
 10. スケジュール管理は MCP ツール経由で通常会話からも変更可能。
+11. メモリ管理は専用 MCP サーバー経由で行い、安全策（バックアップ、サイズ上限、append-only）を適用。
 
 ## 4. 既知のバグ・要修正事項
 

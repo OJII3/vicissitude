@@ -32,7 +32,8 @@ export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
 		},
 		{
 			id: "memory-update",
-			description: "MEMORY.md に書き出すべき新しい情報がないか確認する",
+			description:
+				"memory MCP ツールを使ってメモリを更新する。手順: daily log → MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
 			schedule: { type: "interval", minutes: 60 },
 			lastExecutedAt: null,
 			enabled: true,

@@ -123,6 +123,10 @@
 - `mcp/schedule-server.ts`: Heartbeat スケジュール管理ツール
   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
   - `data/heartbeat-config.json` を直接読み書き
+- `mcp/memory-server.ts`: メモリ管理ツール
+  - `read_memory`, `update_memory`, `read_soul`, `evolve_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
+  - `context/MEMORY.md`, `context/SOUL.md`, `context/LESSONS.md`, `context/memory/*.md` を読み書き
+  - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
 
 ### 4.5 Composition Root
 
@@ -242,7 +246,7 @@
 
 ### 6.6 コンテキスト読込
 
-1. `IDENTITY.md` → `SOUL.md` → `AGENTS.md` → `TOOLS.md` → `USER.md` → `MEMORY.md` の順で読込。
+1. `IDENTITY.md` → `SOUL.md` → `AGENTS.md` → `TOOLS.md` → `HEARTBEAT.md` → `USER.md` → `MEMORY.md` → `LESSONS.md` の順で読込。
 2. 当日の `memory/{YYYY-MM-DD}.md` があれば追加。
 3. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
 4. XML タグでラップして結合する。

@@ -22,5 +22,9 @@ export function mcpServerConfigs() {
 			type: "local" as const,
 			command: ["bun", "run", resolve(root, "src/mcp/schedule-server.ts")],
 		},
+		memory: {
+			type: "local" as const,
+			command: ["bun", "run", resolve(root, "src/mcp/memory-server.ts")],
+		},
 	};
 }

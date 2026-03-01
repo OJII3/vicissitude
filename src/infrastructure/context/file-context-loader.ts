@@ -11,6 +11,7 @@ const BOOTSTRAP_FILES = [
 	"HEARTBEAT.md",
 	"USER.md",
 	"MEMORY.md",
+	"LESSONS.md",
 ] as const;
 
 const PER_FILE_MAX = 20_000;
