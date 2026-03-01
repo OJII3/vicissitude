@@ -19,15 +19,16 @@ export class OpencodeAgent implements AiAgent {
 
 	async send(sessionKey: string, message: string): Promise<AgentResponse> {
 		const oc = await this.getClient();
-		const isNew = !this.sessions.exists(AGENT_NAME, sessionKey);
 
 		let realId = this.sessions.get(AGENT_NAME, sessionKey);
+		let isNew = !realId;
 
 		if (realId) {
 			try {
 				await oc.session.get({ path: { id: realId } });
 			} catch {
 				realId = undefined;
+				isNew = true;
 			}
 		}
 

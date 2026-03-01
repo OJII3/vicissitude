@@ -10,6 +10,12 @@ const server = new McpServer({
 
 const TIMEOUT_MS = 10_000;
 const SUPPORTED_LANGUAGES = ["javascript", "typescript", "python", "shell"] as const;
+
+const SAFE_ENV: Record<string, string> = {
+	PATH: process.env.PATH ?? "/usr/bin:/bin",
+	HOME: process.env.HOME ?? "/tmp",
+	LANG: process.env.LANG ?? "en_US.UTF-8",
+};
 type Language = (typeof SUPPORTED_LANGUAGES)[number];
 
 function buildCmd(language: Language, code: string): string[] {
@@ -28,10 +34,10 @@ async function execWithTmux(cmd: string[]): Promise<string> {
 	const sessionName = `exec-${Date.now()}`;
 	const tmuxCmd = ["tmux", "new-session", "-d", "-s", sessionName, "-x", "200", "-y", "50", ...cmd];
 
-	const proc = Bun.spawn(tmuxCmd, { stdout: "pipe", stderr: "pipe" });
+	const proc = Bun.spawn(tmuxCmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
 
 	const timeout = setTimeout(() => {
-		Bun.spawn(["tmux", "kill-session", "-t", sessionName]);
+		Bun.spawn(["tmux", "kill-session", "-t", sessionName], { env: SAFE_ENV });
 	}, TIMEOUT_MS);
 
 	await proc.exited;
@@ -45,7 +51,7 @@ async function execWithTmux(cmd: string[]): Promise<string> {
 }
 
 async function execDirect(cmd: string[]): Promise<string> {
-	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe" });
+	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
 
 	const timeoutId = setTimeout(() => proc.kill(), TIMEOUT_MS);
 	await proc.exited;
@@ -60,7 +66,7 @@ async function execDirect(cmd: string[]): Promise<string> {
 
 server.tool(
 	"execute_code",
-	"Execute code in a sandboxed environment and return the output",
+	"Execute code and return the output (NOT sandboxed — runs on host)",
 	{
 		language: z.enum(SUPPORTED_LANGUAGES),
 		code: z.string(),

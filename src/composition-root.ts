@@ -18,13 +18,27 @@ export async function bootstrap(): Promise<void> {
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
 	const contextLoader = new FileContextLoader(resolve(root, "context"));
 	const agent = new OpencodeAgent(sessions, contextLoader);
-	const gateway = new DiscordGateway(token);
+	const gateway = new DiscordGateway(token, logger);
 
 	// Use cases
 	const handleMessage = new HandleIncomingMessageUseCase(agent, logger);
 
 	// Wiring
 	gateway.onMessage((msg, ch) => handleMessage.execute(msg, ch));
+
+	// Graceful shutdown
+	let shuttingDown = false;
+	const shutdown = () => {
+		if (shuttingDown) return;
+		shuttingDown = true;
+		logger.info("Shutting down...");
+		gateway.stop();
+		agent.stop();
+		// イベントループを回して進行中の非同期処理を完了させる
+		setTimeout(() => process.exit(0), 1000);
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
 
 	await gateway.start();
 }

@@ -15,7 +15,7 @@ export class HandleIncomingMessageUseCase {
 	async execute(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
 		if (!msg.content) return;
 
-		const sessionKey = createSessionKey("discord", msg.channelId, msg.authorId);
+		const sessionKey = createSessionKey(msg.platform, msg.channelId, msg.authorId);
 
 		await channel.sendTyping();
 		const typingInterval = setInterval(() => void channel.sendTyping(), TYPING_INTERVAL_MS);
@@ -32,7 +32,7 @@ export class HandleIncomingMessageUseCase {
 		} catch (error) {
 			clearInterval(typingInterval);
 			this.logger.error("Agent error:", error);
-			await msg.reply(`Error: ${error instanceof Error ? error.message : String(error)}`);
+			await msg.reply("エラーが発生しました。しばらく経ってからもう一度お試しください。");
 		}
 	}
 }
