@@ -49,7 +49,7 @@ function isDateWithinRange(dateStr: string): boolean {
 	return diffDays >= 0 && diffDays <= MAX_DAILY_LOG_AGE_DAYS;
 }
 
-function extractLearnedSection(content: string): {
+export function extractLearnedSection(content: string): {
 	before: string;
 	section: string;
 	after: string;
