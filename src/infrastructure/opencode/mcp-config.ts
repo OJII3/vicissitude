@@ -18,5 +18,9 @@ export function mcpServerConfigs() {
 			type: "local" as const,
 			command: ["bun", "run", resolve(root, "src/mcp/code-exec-server.ts")],
 		},
+		schedule: {
+			type: "local" as const,
+			command: ["bun", "run", resolve(root, "src/mcp/schedule-server.ts")],
+		},
 	};
 }

@@ -13,3 +13,12 @@
 - `execute_code(language, code)` - コード実行
   - language: "javascript" | "typescript" | "python" | "shell"
   - タイムアウト: 10秒
+
+### schedule サーバー
+
+- `get_heartbeat_config` - 現在の heartbeat 設定を表示
+- `list_reminders` - リマインダー一覧
+- `add_reminder(id, description, schedule_type, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー追加
+- `update_reminder(id, description?, enabled?, schedule_type?, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー更新
+- `remove_reminder(id)` - リマインダー削除
+- `set_base_interval(minutes)` - ベースチェック間隔を変更

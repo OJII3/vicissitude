@@ -16,7 +16,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/` ディレクトリ（`IDENTITY.md`, `SOUL.md` 等）
-- データ: `data/` ディレクトリ（`sessions.json`）
+- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -36,6 +36,7 @@
 - `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
 - `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
 - `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
+- `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder`, `DueReminder`, `ReminderSchedule` — Heartbeat 設定
 
 #### ports/
 
@@ -59,11 +60,14 @@
   - `getRecent(channelId, limit): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
   - `get()`, `save()`, `exists()`
+- `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
+  - `load()`, `save()`, `updateLastExecuted()`
 
 #### services/
 
 - `message-formatter.ts`: `splitMessage()` — 2000 文字制限でのメッセージ分割（純粋関数）
 - `cooldown-tracker.ts`: `CooldownTracker` — チャンネルごとの応答クールダウン管理
+- `heartbeat-evaluator.ts`: `evaluateDueReminders()` — Heartbeat 設定から due なリマインダーを判定（純粋関数）
 
 ### 4.2 Application 層 — ユースケース
 
@@ -75,6 +79,10 @@
   - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `Logger`
   - 処理: クールダウン確認 → 会話履歴取得 → AI 判断 → respond/react/ignore
   - 用途: ホームチャンネル（自律参加）
+- `handle-heartbeat.use-case.ts`: `HandleHeartbeatUseCase`
+  - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
+  - 処理: due リマインダーからプロンプト構築 → AI セッション起動 → lastExecutedAt 更新
+  - 用途: Heartbeat 自律行動
 
 ### 4.3 Infrastructure 層 — ポートの具象実装
 
@@ -97,6 +105,12 @@
   - `context/channels.json` からチャンネル設定を読込
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
   - AI にメッセージへの応答判断を委譲（respond/react/ignore）
+- `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
+  - `data/heartbeat-config.json` に設定を永続化
+  - ファイル不在時はデフォルト設定を返す
+- `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
+  - 1分間隔の `setInterval` ループ
+  - `running` フラグで重複実行を防止
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger`
 
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
@@ -106,6 +120,9 @@
 - `mcp/code-exec-server.ts`: コード実行ツール
   - `execute_code` (JS/TS/Python/Shell)
   - tmux で実行、10 秒タイムアウト
+- `mcp/schedule-server.ts`: Heartbeat スケジュール管理ツール
+  - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
+  - `data/heartbeat-config.json` を直接読み書き
 
 ### 4.5 Composition Root
 
@@ -151,6 +168,23 @@
 - `sendTyping(): Promise<void>`
 - `send(content: string): Promise<void>`
 
+### heartbeat-config.json 構造
+
+```json
+{
+	"baseIntervalMinutes": 1,
+	"reminders": [
+		{
+			"id": "home-check",
+			"description": "ホームチャンネルの様子を見る",
+			"schedule": { "type": "interval", "minutes": 30 },
+			"lastExecutedAt": null,
+			"enabled": true
+		}
+	]
+}
+```
+
 ### sessions.json 構造
 
 ```json
@@ -189,14 +223,24 @@
 6. `react` → `msg.react(emoji)` してクールダウン記録
 7. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
 
-### 6.4 セッション管理
+### 6.4 Heartbeat 自律行動
+
+1. `IntervalHeartbeatScheduler` が 1 分ごとに `tick()` を実行する。
+2. `HeartbeatConfigRepository.load()` で設定を読み込む。
+3. `evaluateDueReminders()` で due なリマインダーを判定する。
+4. due なリマインダーがあれば `HandleHeartbeatUseCase.execute()` を呼ぶ。
+5. プロンプトを構築し、永続セッション `system:heartbeat:_autonomous` で AI に送信する。
+6. AI が MCP ツール（discord, code-exec, schedule）を使って自律的に行動する。
+7. 成功時に `lastExecutedAt` を更新する。
+
+### 6.5 セッション管理（既存）
 
 1. セッションキーで既存セッション ID を検索する。
 2. 存在すれば OpenCode API で有効性を検証する。
 3. 無効なら新規セッションを作成し、JSON に保存する。
 4. 初回セッションならコンテキストをラップして送信する。
 
-### 6.5 コンテキスト読込
+### 6.6 コンテキスト読込
 
 1. `IDENTITY.md` → `SOUL.md` → `AGENTS.md` → `TOOLS.md` → `USER.md` → `MEMORY.md` の順で読込。
 2. 当日の `memory/{YYYY-MM-DD}.md` があれば追加。
