@@ -4,7 +4,7 @@
 
 - 2026-03-01
 - 更新者: AI
-- ブランチ: feat/memory-mcp-server
+- ブランチ: main
 
 ## 2. 現在の真実（Project Truth）
 
@@ -23,6 +23,7 @@
 - MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）の 4 つ。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
 - **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**
+- **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - エラー時はユーザーに汎用メッセージを返し、詳細はログのみに記録する。
