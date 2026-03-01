@@ -81,7 +81,7 @@ export class OpencodeAgent implements AiAgent {
 			});
 			if (created.error || !created.data) {
 				throw new Error(
-					`Failed to create session: ${JSON.stringify(created.error) ?? "no data returned"}`,
+					`Failed to create session: ${created.error ? JSON.stringify(created.error) : "no data returned"}`,
 				);
 			}
 			realId = created.data.id;
