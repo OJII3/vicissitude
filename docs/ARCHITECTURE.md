@@ -47,7 +47,7 @@
   - `send(options: SendOptions): Promise<AgentResponse>` — `SendOptions = { sessionKey, message, guildId? }`
   - `stop(): void`
 - `context-loader.port.ts`: `ContextLoader` + `ContextLoaderFactory` — コンテキスト読込
-  - `ContextLoader`: `loadBootstrapContext()`, `wrapWithContext(message)`
+  - `ContextLoader`: `loadBootstrapContext()`
   - `ContextLoaderFactory`: `create(guildId?): ContextLoader` — Guild 単位でローダーを生成
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
@@ -108,7 +108,7 @@
   - `guild.emojis.cache` からカスタム絵文字一覧を取得（キャッシュのみ参照）
 - `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
   - OpenCode SDK でセッション管理・メッセージ送信
-  - 初回セッション時にコンテキスト注入
+  - 毎回 system prompt でブートストラップコンテキストを注入
 - `opencode/mcp-config.ts`: `mcpServerConfigs()` — MCP サーバー設定
 - `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
   - `data/sessions.json` にセッション ID を永続化
@@ -283,7 +283,7 @@
 1. セッションキーで既存セッション ID を検索する。
 2. 存在すれば OpenCode API で有効性を検証する。
 3. 無効なら新規セッションを作成し、JSON に保存する。
-4. 初回セッションならコンテキストをラップして送信する。
+4. 毎回ブートストラップコンテキストを `system` フィールドで送信する（OpenCode はセッション内で system をキャッシュしないため）。
 
 ### 6.6 コンテキスト読込
 
