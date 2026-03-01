@@ -51,11 +51,19 @@ export class HandleHomeChannelMessageUseCase {
 		if (this.flushTimers.has(channelId)) return;
 
 		const remainingMs = this.cooldown.getRemainingMs(channelId, cooldownSeconds);
-		if (remainingMs <= 0) return;
+		if (remainingMs <= 0) {
+			// 境界タイミング: isOnCooldown=true だが残り時間=0 → 即時処理
+			this.processBatch(channelId).catch((e) =>
+				this.logger.error("Scheduled batch processing failed:", e),
+			);
+			return;
+		}
 
 		const timer = setTimeout(() => {
 			this.flushTimers.delete(channelId);
-			void this.processBatch(channelId);
+			this.processBatch(channelId).catch((e) =>
+				this.logger.error("Scheduled batch processing failed:", e),
+			);
 		}, remainingMs);
 		this.flushTimers.set(channelId, timer);
 	}
@@ -81,7 +89,7 @@ export class HandleHomeChannelMessageUseCase {
 			return;
 		}
 
-		await this.handleBatchRespond(batch, latestItem.channel);
+		await this.handleBatchRespond(batch, latestItem.msg, latestItem.channel);
 	}
 
 	private async judgeMessage(msg: IncomingMessage) {
@@ -141,10 +149,11 @@ export class HandleHomeChannelMessageUseCase {
 		return found ? found.identifier : emoji;
 	}
 
-	private async handleBatchRespond(batch: QueuedMessage[], channel: MessageChannel) {
-		const latestEntry = batch.at(-1);
-		if (!latestEntry) return;
-		const latestMsg = latestEntry.msg;
+	private async handleBatchRespond(
+		batch: QueuedMessage[],
+		latestMsg: IncomingMessage,
+		channel: MessageChannel,
+	) {
 		const sessionKey = createChannelSessionKey(latestMsg.platform, latestMsg.channelId);
 
 		// バッチ全体のメッセージを結合してプロンプト生成
