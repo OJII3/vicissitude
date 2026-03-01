@@ -1,0 +1,21 @@
+FROM docker.io/oven/bun:1-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends podman && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
+
+COPY src/ ./src/
+COPY context/ ./context/
+COPY tsconfig.json ./
+
+RUN mkdir -p data/context
+
+ENV CONTAINER_HOST=unix:///run/podman/podman.sock
+
+CMD ["bun", "run", "src/index.ts"]

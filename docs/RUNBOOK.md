@@ -26,7 +26,11 @@
 3. `data/` ディレクトリが書き込み可能であることを確認する。
 4. デプロイ固有のチャンネル設定がある場合、`data/context/channels.json` に配置する（なければ `context/channels.json` がフォールバックとして使われる）。
 5. `podman --version` が実行可能であることを確認する。
-6. `nr container:build` でコンテナイメージ `vicissitude-code-exec` をビルド済みであることを確認する。
+6. Podman ソケットが有効化されていることを確認する:
+   ```bash
+   systemctl --user enable --now podman.socket
+   ```
+7. `nr container:build:all` でコンテナイメージをビルド済みであることを確認する。
 
 ### 3.2 開発時コマンド
 
