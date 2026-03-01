@@ -81,7 +81,7 @@ describe("evaluateDueReminders", () => {
 		expect(result[0]?.overdueMinutes).toBe(10);
 	});
 
-	it("daily: 時刻前なら not due", () => {
+	it("daily: 時刻前なら not due（JST 8:30 = UTC 23:30 前日）", () => {
 		const config: HeartbeatConfig = {
 			baseIntervalMinutes: 1,
 			reminders: [
@@ -94,11 +94,12 @@ describe("evaluateDueReminders", () => {
 				},
 			],
 		};
-		const result = evaluateDueReminders(config, new Date("2026-03-01T08:30:00"));
+		// JST 8:30 = UTC 23:30 前日
+		const result = evaluateDueReminders(config, new Date("2026-02-28T23:30:00Z"));
 		expect(result).toEqual([]);
 	});
 
-	it("daily: 時刻到達 + 未実行なら due", () => {
+	it("daily: 時刻到達 + 未実行なら due（JST 9:15 = UTC 0:15）", () => {
 		const config: HeartbeatConfig = {
 			baseIntervalMinutes: 1,
 			reminders: [
@@ -111,12 +112,13 @@ describe("evaluateDueReminders", () => {
 				},
 			],
 		};
-		const result = evaluateDueReminders(config, new Date("2026-03-01T09:15:00"));
+		// JST 9:15 = UTC 0:15
+		const result = evaluateDueReminders(config, new Date("2026-03-01T00:15:00Z"));
 		expect(result).toHaveLength(1);
 		expect(result[0]?.overdueMinutes).toBe(15);
 	});
 
-	it("daily: 今日実行済みなら not due", () => {
+	it("daily: 今日実行済みなら not due（JST 10:00 = UTC 1:00）", () => {
 		const config: HeartbeatConfig = {
 			baseIntervalMinutes: 1,
 			reminders: [
@@ -124,12 +126,14 @@ describe("evaluateDueReminders", () => {
 					id: "morning",
 					description: "朝の挨拶",
 					schedule: { type: "daily", hour: 9, minute: 0 },
-					lastExecutedAt: "2026-03-01T09:01:00",
+					// JST 9:01 = UTC 0:01
+					lastExecutedAt: "2026-03-01T00:01:00Z",
 					enabled: true,
 				},
 			],
 		};
-		const result = evaluateDueReminders(config, new Date("2026-03-01T10:00:00"));
+		// JST 10:00 = UTC 1:00
+		const result = evaluateDueReminders(config, new Date("2026-03-01T01:00:00Z"));
 		expect(result).toEqual([]);
 	});
 
@@ -141,14 +145,14 @@ describe("evaluateDueReminders", () => {
 					id: "interval-due",
 					description: "due なインターバル",
 					schedule: { type: "interval", minutes: 10 },
-					lastExecutedAt: "2026-03-01T11:40:00Z",
+					lastExecutedAt: "2026-03-01T02:40:00Z",
 					enabled: true,
 				},
 				{
 					id: "interval-not-due",
 					description: "not due なインターバル",
 					schedule: { type: "interval", minutes: 60 },
-					lastExecutedAt: "2026-03-01T11:30:00Z",
+					lastExecutedAt: "2026-03-01T02:30:00Z",
 					enabled: true,
 				},
 				{
@@ -167,7 +171,8 @@ describe("evaluateDueReminders", () => {
 				},
 			],
 		};
-		const result = evaluateDueReminders(config, new Date("2026-03-01T12:00:00"));
+		// JST 12:00 = UTC 3:00。interval-due は 20分超過で due、daily-due は JST 9:00 超過で due
+		const result = evaluateDueReminders(config, new Date("2026-03-01T03:00:00Z"));
 		expect(result).toHaveLength(2);
 		expect(result.map((r) => r.reminder.id)).toEqual(["interval-due", "daily-due"]);
 	});

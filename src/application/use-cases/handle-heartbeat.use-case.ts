@@ -19,12 +19,15 @@ export class HandleHeartbeatUseCase {
 		try {
 			await this.agent.send(HEARTBEAT_SESSION_KEY, prompt);
 
+			const config = await this.configRepo.load();
 			const executedAt = new Date().toISOString();
-			await Promise.all(
-				dueReminders.map(({ reminder }) =>
-					this.configRepo.updateLastExecuted(reminder.id, executedAt),
-				),
-			);
+			const dueIds = new Set(dueReminders.map((d) => d.reminder.id));
+			for (const reminder of config.reminders) {
+				if (dueIds.has(reminder.id)) {
+					reminder.lastExecutedAt = executedAt;
+				}
+			}
+			await this.configRepo.save(config);
 
 			this.logger.info("[heartbeat] 完了");
 		} catch (error) {

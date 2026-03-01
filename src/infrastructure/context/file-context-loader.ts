@@ -8,6 +8,7 @@ const BOOTSTRAP_FILES = [
 	"SOUL.md",
 	"AGENTS.md",
 	"TOOLS.md",
+	"HEARTBEAT.md",
 	"USER.md",
 	"MEMORY.md",
 ] as const;

@@ -1,7 +1,11 @@
 import type { DueReminder, HeartbeatConfig } from "../entities/heartbeat-config.ts";
 
+/** JST (UTC+9) のオフセット（ミリ秒） */
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
 /**
  * 設定と現在時刻から、実行すべきリマインダーを判定する純粋関数。
+ * daily スケジュールの時刻は JST として解釈される。
  */
 export function evaluateDueReminders(config: HeartbeatConfig, now: Date): DueReminder[] {
 	const results: DueReminder[] = [];
@@ -51,29 +55,39 @@ function evaluateInterval(
 	return null;
 }
 
+/**
+ * daily スケジュールの判定。hour/minute は JST として解釈する。
+ * ローカルタイムゾーンに依存しないよう、UTC メソッドで計算する。
+ */
 function evaluateDaily(
 	lastExecutedAt: string | null,
 	hour: number,
 	minute: number,
 	now: Date,
 ): number | null {
-	const todayTarget = new Date(now);
-	todayTarget.setHours(hour, minute, 0, 0);
+	// now を JST に変換（UTC メソッドで JST 値を取得できるようにシフト）
+	const nowJstMs = now.getTime() + JST_OFFSET_MS;
+	const nowJst = new Date(nowJstMs);
 
-	if (now.getTime() < todayTarget.getTime()) {
+	// 今日の対象時刻を JST 空間で作成
+	const todayTarget = new Date(nowJst);
+	todayTarget.setUTCHours(hour, minute, 0, 0);
+
+	if (nowJstMs < todayTarget.getTime()) {
 		return null;
 	}
 
 	if (lastExecutedAt === null) {
-		const overdueMinutes = (now.getTime() - todayTarget.getTime()) / (1000 * 60);
+		const overdueMinutes = (nowJstMs - todayTarget.getTime()) / (1000 * 60);
 		return Math.floor(overdueMinutes);
 	}
 
-	const lastTime = new Date(lastExecutedAt);
-	if (lastTime.getTime() >= todayTarget.getTime()) {
+	// lastExecutedAt も JST 空間に変換して比較
+	const lastJstMs = new Date(lastExecutedAt).getTime() + JST_OFFSET_MS;
+	if (lastJstMs >= todayTarget.getTime()) {
 		return null;
 	}
 
-	const overdueMinutes = (now.getTime() - todayTarget.getTime()) / (1000 * 60);
+	const overdueMinutes = (nowJstMs - todayTarget.getTime()) / (1000 * 60);
 	return Math.floor(overdueMinutes);
 }

@@ -82,8 +82,7 @@ export function createMockHeartbeatConfigRepository(
 		reminders: [],
 	};
 	return {
-		load: mock(() => Promise.resolve(config ?? defaultConfig)),
+		load: mock(() => Promise.resolve(structuredClone(config ?? defaultConfig))),
 		save: mock(() => Promise.resolve()),
-		updateLastExecuted: mock(() => Promise.resolve()),
 	};
 }

@@ -5,36 +5,17 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+import { DEFAULT_HEARTBEAT_CONFIG } from "../domain/entities/heartbeat-config.ts";
 import type { HeartbeatConfig, HeartbeatReminder } from "../domain/entities/heartbeat-config.ts";
 
 const CONFIG_PATH = resolve(import.meta.dirname, "../../data/heartbeat-config.json");
 
-const DEFAULT_CONFIG: HeartbeatConfig = {
-	baseIntervalMinutes: 1,
-	reminders: [
-		{
-			id: "home-check",
-			description: "ホームチャンネルの様子を見る",
-			schedule: { type: "interval", minutes: 30 },
-			lastExecutedAt: null,
-			enabled: true,
-		},
-		{
-			id: "memory-update",
-			description: "MEMORY.md に書き出すべき新しい情報がないか確認する",
-			schedule: { type: "interval", minutes: 60 },
-			lastExecutedAt: null,
-			enabled: true,
-		},
-	],
-};
-
 function loadConfig(): HeartbeatConfig {
-	if (!existsSync(CONFIG_PATH)) return structuredClone(DEFAULT_CONFIG);
+	if (!existsSync(CONFIG_PATH)) return structuredClone(DEFAULT_HEARTBEAT_CONFIG);
 	try {
 		return JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as HeartbeatConfig;
 	} catch {
-		return structuredClone(DEFAULT_CONFIG);
+		return structuredClone(DEFAULT_HEARTBEAT_CONFIG);
 	}
 }
 
@@ -75,7 +56,7 @@ server.tool(
 		id: z.string().describe("一意の識別子"),
 		description: z.string().describe("リマインダーの説明"),
 		schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
-		interval_minutes: z.number().optional().describe("interval の場合の分数"),
+		interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
 		daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
 		daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
 	},
@@ -122,7 +103,7 @@ server.tool(
 		description: z.string().optional().describe("新しい説明"),
 		enabled: z.boolean().optional().describe("有効/無効"),
 		schedule_type: z.enum(["interval", "daily"]).optional().describe("新しいスケジュールタイプ"),
-		interval_minutes: z.number().optional().describe("interval の場合の分数"),
+		interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
 		daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
 		daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
 	},

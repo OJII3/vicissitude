@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { DueReminder } from "../../domain/entities/heartbeat-config.ts";
+import type { DueReminder, HeartbeatConfig } from "../../domain/entities/heartbeat-config.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import { HandleHeartbeatUseCase } from "./handle-heartbeat.use-case.ts";
 import {
@@ -8,6 +8,26 @@ import {
 	createMockHeartbeatConfigRepository,
 	createMockLogger,
 } from "./test-helpers.ts";
+
+const TEST_CONFIG: HeartbeatConfig = {
+	baseIntervalMinutes: 1,
+	reminders: [
+		{
+			id: "home-check",
+			description: "ホームチャンネルの様子を見る",
+			schedule: { type: "interval", minutes: 30 },
+			lastExecutedAt: "2026-03-01T11:30:00Z",
+			enabled: true,
+		},
+		{
+			id: "memory-update",
+			description: "メモリ確認",
+			schedule: { type: "interval", minutes: 60 },
+			lastExecutedAt: null,
+			enabled: true,
+		},
+	],
+};
 
 function createDueReminders(): DueReminder[] {
 	return [
@@ -65,39 +85,47 @@ describe("HandleHeartbeatUseCase", () => {
 		expect(prompt).toContain("最後: なし");
 	});
 
-	it("AI 成功時に lastExecutedAt が更新される", async () => {
+	it("AI 成功時に config を load → 更新 → save する", async () => {
 		const agent = createMockAgent({ text: "巡回完了", sessionId: "s1" });
-		const configRepo = createMockHeartbeatConfigRepository();
+		const configRepo = createMockHeartbeatConfigRepository(TEST_CONFIG);
 		const logger = createMockLogger();
 		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
 
 		await useCase.execute(createDueReminders());
 
 		expect(agent.send).toHaveBeenCalledTimes(1);
-		expect(configRepo.updateLastExecuted).toHaveBeenCalledTimes(1);
-		const [reminderId] = (configRepo.updateLastExecuted as ReturnType<typeof mock>).mock
-			.calls[0] as [string, string];
-		expect(reminderId).toBe("home-check");
+		expect(configRepo.load).toHaveBeenCalledTimes(1);
+		expect(configRepo.save).toHaveBeenCalledTimes(1);
+
+		const [savedConfig] = (configRepo.save as ReturnType<typeof mock>).mock.calls[0] as [
+			HeartbeatConfig,
+		];
+		const updated = savedConfig.reminders.find((r) => r.id === "home-check");
+		expect(updated?.lastExecutedAt).not.toBe("2026-03-01T11:30:00Z");
+		expect(updated?.lastExecutedAt).toBeTruthy();
+
+		const notUpdated = savedConfig.reminders.find((r) => r.id === "memory-update");
+		expect(notUpdated?.lastExecutedAt).toBeNull();
 	});
 
-	it("AI 失敗時は lastExecutedAt を更新しない", async () => {
+	it("AI 失敗時は config を更新しない", async () => {
 		const agent: AiAgent = {
 			send: mock(() => Promise.reject(new Error("AI down"))),
 			stop: mock(() => {}),
 		};
-		const configRepo = createMockHeartbeatConfigRepository();
+		const configRepo = createMockHeartbeatConfigRepository(TEST_CONFIG);
 		const logger = createMockLogger();
 		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
 
 		await useCase.execute(createDueReminders());
 
-		expect(configRepo.updateLastExecuted).not.toHaveBeenCalled();
+		expect(configRepo.save).not.toHaveBeenCalled();
 		expect(logger.error).toHaveBeenCalled();
 	});
 
 	it("セッションキーが system:heartbeat:_autonomous である", async () => {
 		const agent = createMockAgent({ text: "ok", sessionId: "s1" });
-		const configRepo = createMockHeartbeatConfigRepository();
+		const configRepo = createMockHeartbeatConfigRepository(TEST_CONFIG);
 		const logger = createMockLogger();
 		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
 
