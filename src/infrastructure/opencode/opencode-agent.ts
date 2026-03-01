@@ -4,9 +4,11 @@ import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 import type { ContextLoaderFactory } from "../../domain/ports/context-loader.port.ts";
 import type { SessionRepository } from "../../domain/ports/session-repository.port.ts";
+import { withTimeout } from "../../domain/services/timeout.ts";
 import { mcpServerConfigs } from "./mcp-config.ts";
 
 const AGENT_NAME = "opencode";
+const SEND_TIMEOUT_MS = 120_000;
 
 export class OpencodeAgent implements AiAgent {
 	private client: OpencodeClient | null = null;
@@ -25,14 +27,18 @@ export class OpencodeAgent implements AiAgent {
 		const contextLoader = this.contextLoaderFactory.create(guildId);
 		const system = await contextLoader.loadBootstrapContext();
 
-		const result = await oc.session.prompt({
-			path: { id: realId },
-			body: {
-				parts: [{ type: "text", text: message }],
-				model: { providerID: "github-copilot", modelID: "claude-sonnet-4.6" },
-				system,
-			},
-		});
+		const result = await withTimeout(
+			oc.session.prompt({
+				path: { id: realId },
+				body: {
+					parts: [{ type: "text", text: message }],
+					model: { providerID: "github-copilot", modelID: "claude-sonnet-4.6" },
+					system,
+				},
+			}),
+			SEND_TIMEOUT_MS,
+			"opencode prompt timed out",
+		);
 
 		const texts: string[] = [];
 		if (result.data?.parts) {
