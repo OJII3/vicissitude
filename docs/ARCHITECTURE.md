@@ -177,6 +177,14 @@
   - `event_count`: 未消費イベント数を返す
   - `data/event-buffer/events.jsonl` を JSONL 形式で管理
 
+### 4.5 Composition Root
+
+- `composition-root.ts`: `bootstrap()` — 唯一の DI 配線場所
+  - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
+  - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
+  - **Copilot**: `CopilotPollingAgent` + `BufferEventUseCase` のバッファポーリングフロー
+  - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
+
 ### 4.6 OpenCode 組み込みツール
 
 `OpencodeAgent` および `CopilotPollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している（`OpencodeJudgeAgent` では全て無効）:
@@ -185,14 +193,6 @@
 - `websearch`: Web 検索を実行
 
 その他の組み込みツール（`read`, `edit`, `write`, `bash`, `glob`, `grep`, `task`, `question`, `todowrite`, `skill`）は無効化している。
-
-### 4.5 Composition Root
-
-- `composition-root.ts`: `bootstrap()` — 唯一の DI 配線場所
-  - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
-  - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
-  - **Copilot**: `CopilotPollingAgent` + `BufferEventUseCase` のバッファポーリングフロー
-  - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
 
 ## 5. データモデル
 

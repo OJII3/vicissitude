@@ -66,6 +66,7 @@ export class OpencodeJudgeAgent implements AiAgent {
 					write: false,
 					bash: false,
 					webfetch: false,
+					websearch: false,
 					task: false,
 					todowrite: false,
 					skill: false,
