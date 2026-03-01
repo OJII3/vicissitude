@@ -9,8 +9,9 @@ const server = new McpServer({
 
 const IMAGE = "vicissitude-code-exec";
 const TIMEOUT_MS = 15_000;
+const PODMAN_TIMEOUT_EXIT = 255;
 const MAX_CODE_LENGTH = 10_000;
-const MAX_OUTPUT_BYTES = 50_000;
+const MAX_OUTPUT_CHARS = 50_000;
 const SUPPORTED_LANGUAGES = ["javascript", "typescript", "python", "shell"] as const;
 
 type Language = (typeof SUPPORTED_LANGUAGES)[number];
@@ -38,7 +39,7 @@ function buildPodmanCmd(language: Language, code: string): string[] {
 		"/tmp:size=10M",
 		"--memory=128m",
 		"--cpus=0.5",
-		"--pids-limit=10",
+		"--pids-limit=32",
 		"--cap-drop=ALL",
 		"--security-opt=no-new-privileges",
 		"--timeout=12",
@@ -49,10 +50,24 @@ function buildPodmanCmd(language: Language, code: string): string[] {
 }
 
 function truncateOutput(output: string): string {
-	if (output.length <= MAX_OUTPUT_BYTES) return output;
-	const headSize = Math.floor(MAX_OUTPUT_BYTES * 0.8);
-	const tailSize = MAX_OUTPUT_BYTES - headSize - 50;
-	return `${output.slice(0, headSize)}\n\n... (truncated ${output.length - MAX_OUTPUT_BYTES} bytes) ...\n\n${output.slice(-tailSize)}`;
+	if (output.length <= MAX_OUTPUT_CHARS) return output;
+	const omitted = output.length - MAX_OUTPUT_CHARS;
+	const marker = `\n\n... (truncated ${omitted} chars) ...\n\n`;
+	const headSize = Math.floor((MAX_OUTPUT_CHARS - marker.length) * 0.8);
+	const tailSize = MAX_OUTPUT_CHARS - marker.length - headSize;
+	return `${output.slice(0, headSize)}${marker}${output.slice(-tailSize)}`;
+}
+
+async function collectStream(stream: ReadableStream<Uint8Array>, limit: number): Promise<string> {
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	for await (const chunk of stream) {
+		const remaining = limit - total;
+		if (remaining <= 0) break;
+		chunks.push(remaining >= chunk.length ? chunk : chunk.slice(0, remaining));
+		total += chunk.length;
+	}
+	return new TextDecoder().decode(Buffer.concat(chunks));
 }
 
 async function exec(cmd: string[]): Promise<string> {
@@ -63,15 +78,22 @@ async function exec(cmd: string[]): Promise<string> {
 		timedOut = true;
 		proc.kill();
 	}, TIMEOUT_MS);
+
+	const byteLimit = MAX_OUTPUT_CHARS * 4;
+	const [stdout, stderr] = await Promise.all([
+		collectStream(proc.stdout as ReadableStream<Uint8Array>, byteLimit),
+		collectStream(proc.stderr as ReadableStream<Uint8Array>, byteLimit),
+	]);
+
 	await proc.exited;
 	clearTimeout(timeoutId);
 
-	const stdout = await new Response(proc.stdout).text();
-	const stderr = await new Response(proc.stderr).text();
 	const raw = (stdout + stderr).trim() || "(no output)";
 	const output = truncateOutput(raw);
 
-	if (timedOut) return `Error (timeout after ${TIMEOUT_MS}ms):\n${output}`;
+	if (timedOut || proc.exitCode === PODMAN_TIMEOUT_EXIT) {
+		return `Error (timeout):\n${output}`;
+	}
 	return proc.exitCode === 0 ? output : `Error (exit ${proc.exitCode}):\n${output}`;
 }
 
