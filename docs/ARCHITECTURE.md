@@ -243,11 +243,11 @@
 
 1. Discord `messageCreate` を受信する。
 2. Bot 自身のメッセージを除外する。
-3. メンション/スレッド → `HandleIncomingMessageUseCase`（必ず応答）
-4. ホームチャンネル → `HandleHomeChannelMessageUseCase`（自律判断）
+3. メンション → `HandleIncomingMessageUseCase`（必ず応答）
+4. ホームチャンネル（配下スレッド含む） → `HandleHomeChannelMessageUseCase`（自律判断）
 5. その他 → 無視
 
-### 6.2 メンション/スレッド応答（従来フロー）
+### 6.2 メンション応答（従来フロー）
 
 1. メンション文字列を除去し `IncomingMessage` に変換する。
 2. 空メッセージなら早期リターンする。

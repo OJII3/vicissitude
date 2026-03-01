@@ -55,7 +55,9 @@ export class OpencodeJudgeAgent implements AiAgent {
 
 		// MCP サーバーなしで起動（judge にツールは不要）
 		// 組み込みツールも全無効化（.env 等へのアクセス防止）
+		// メインエージェント(4096)とポート競合しないよう別ポートを使用
 		const result = await createOpencode({
+			port: 4097,
 			config: {
 				tools: {
 					read: false,
