@@ -29,7 +29,7 @@ function createInfrastructure(root: string, token: string) {
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 	);
-	const agent = new OpencodeAgent(sessions, contextLoaderFactory);
+	const agent = new OpencodeAgent(sessions, contextLoaderFactory, logger);
 	const judgeAgent = new OpencodeJudgeAgent();
 	const gateway = new DiscordGateway(token, logger);
 	return { logger, agent, judgeAgent, gateway };
