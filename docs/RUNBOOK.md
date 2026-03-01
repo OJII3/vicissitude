@@ -22,10 +22,11 @@
 ### 3.1 起動前チェック
 
 1. `.env` に `DISCORD_TOKEN` が設定されていることを確認する。
-2. `context/` ディレクトリにブートストラップファイルが配置されていることを確認する。
+2. `context/` ディレクトリにブートストラップファイル（ベース）が配置されていることを確認する。
 3. `data/` ディレクトリが書き込み可能であることを確認する。
-4. `podman --version` が実行可能であることを確認する。
-5. `nr container:build` でコンテナイメージ `vicissitude-code-exec` をビルド済みであることを確認する。
+4. デプロイ固有のチャンネル設定がある場合、`data/context/channels.json` に配置する（なければ `context/channels.json` がフォールバックとして使われる）。
+5. `podman --version` が実行可能であることを確認する。
+6. `nr container:build` でコンテナイメージ `vicissitude-code-exec` をビルド済みであることを確認する。
 
 ### 3.2 開発時コマンド
 
@@ -49,6 +50,7 @@
 ## 4. コンテキスト運用
 
 AI には毎回のプロンプト送信時に以下を system prompt として渡す。
+読み込みはオーバーレイ方式: `data/context/` → `context/` の順でフォールバック。MCP ツールによる書き込みは常に `data/context/` に行われる。
 
 1. `IDENTITY.md` — 名前・役割
 2. `SOUL.md` — 人格・境界線

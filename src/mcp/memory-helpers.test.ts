@@ -3,10 +3,9 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import {
-	BASE_CONTEXT_DIR,
 	OVERLAY_CONTEXT_DIR,
 	guildIdSchema,
-	readWithFallback,
+	readWithFallbackFrom,
 	resolveContextPaths,
 } from "./memory-helpers.ts";
 
@@ -35,61 +34,66 @@ describe("resolveContextPaths", () => {
 	});
 });
 
-describe("readWithFallback", () => {
-	const testOverlayDir = resolve(import.meta.dirname, "../../.test-fallback/overlay");
-	const testBaseDir = resolve(import.meta.dirname, "../../.test-fallback/base");
+describe("readWithFallbackFrom", () => {
+	const TEST_ROOT = resolve(import.meta.dirname, "../../.test-fallback");
+	const TEST_OVERLAY = resolve(TEST_ROOT, "overlay");
+	const TEST_BASE = resolve(TEST_ROOT, "base");
 
 	beforeEach(() => {
-		mkdirSync(testOverlayDir, { recursive: true });
-		mkdirSync(testBaseDir, { recursive: true });
+		mkdirSync(TEST_OVERLAY, { recursive: true });
+		mkdirSync(TEST_BASE, { recursive: true });
 	});
 
 	afterEach(() => {
-		rmSync(resolve(import.meta.dirname, "../../.test-fallback"), { recursive: true, force: true });
+		rmSync(TEST_ROOT, { recursive: true, force: true });
 	});
 
 	it("overlay にファイルがあれば overlay を返す", () => {
-		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "TEST_FALLBACK.md");
-		const basePath = resolve(BASE_CONTEXT_DIR, "TEST_FALLBACK.md");
+		writeFileSync(resolve(TEST_OVERLAY, "FILE.md"), "overlay content", "utf-8");
+		writeFileSync(resolve(TEST_BASE, "FILE.md"), "base content", "utf-8");
 
-		try {
-			mkdirSync(resolve(overlayPath, ".."), { recursive: true });
-			writeFileSync(overlayPath, "overlay content", "utf-8");
-			writeFileSync(basePath, "base content", "utf-8");
-
-			const content = readWithFallback(overlayPath);
-			expect(content).toBe("overlay content");
-		} finally {
-			try {
-				rmSync(overlayPath);
-			} catch {}
-			try {
-				rmSync(basePath);
-			} catch {}
-		}
+		const content = readWithFallbackFrom(resolve(TEST_OVERLAY, "FILE.md"), TEST_OVERLAY, TEST_BASE);
+		expect(content).toBe("overlay content");
 	});
 
 	it("overlay にない場合は base にフォールバックする", () => {
-		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "TEST_FALLBACK2.md");
-		const basePath = resolve(BASE_CONTEXT_DIR, "TEST_FALLBACK2.md");
+		writeFileSync(resolve(TEST_BASE, "FILE.md"), "base content", "utf-8");
 
-		try {
-			mkdirSync(resolve(basePath, ".."), { recursive: true });
-			writeFileSync(basePath, "base content", "utf-8");
-
-			const content = readWithFallback(overlayPath);
-			expect(content).toBe("base content");
-		} finally {
-			try {
-				rmSync(basePath);
-			} catch {}
-		}
+		const content = readWithFallbackFrom(resolve(TEST_OVERLAY, "FILE.md"), TEST_OVERLAY, TEST_BASE);
+		expect(content).toBe("base content");
 	});
 
 	it("どちらにもない場合は空文字を返す", () => {
-		const overlayPath = resolve(OVERLAY_CONTEXT_DIR, "NONEXISTENT.md");
-		const content = readWithFallback(overlayPath);
+		const content = readWithFallbackFrom(
+			resolve(TEST_OVERLAY, "NONEXISTENT.md"),
+			TEST_OVERLAY,
+			TEST_BASE,
+		);
 		expect(content).toBe("");
+	});
+
+	it("overlay に空ファイルがある場合はフォールバックせず空文字を返す", () => {
+		writeFileSync(resolve(TEST_OVERLAY, "EMPTY.md"), "", "utf-8");
+		writeFileSync(resolve(TEST_BASE, "EMPTY.md"), "base content", "utf-8");
+
+		const content = readWithFallbackFrom(
+			resolve(TEST_OVERLAY, "EMPTY.md"),
+			TEST_OVERLAY,
+			TEST_BASE,
+		);
+		expect(content).toBe("");
+	});
+
+	it("overlay に空白のみのファイルがある場合はフォールバックせず空白を返す", () => {
+		writeFileSync(resolve(TEST_OVERLAY, "WHITESPACE.md"), "  \n", "utf-8");
+		writeFileSync(resolve(TEST_BASE, "WHITESPACE.md"), "base content", "utf-8");
+
+		const content = readWithFallbackFrom(
+			resolve(TEST_OVERLAY, "WHITESPACE.md"),
+			TEST_OVERLAY,
+			TEST_BASE,
+		);
+		expect(content).toBe("  \n");
 	});
 });
 

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, statSync, writeFileSync } from "fs";
 import path, { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -243,7 +243,7 @@ server.tool(
 			const overlayPath = resolve(memoryDir, f);
 			const basePath = resolve(baseMemoryDir, f);
 			const filePath = existsSync(overlayPath) ? overlayPath : basePath;
-			const size = readFileSync(filePath).length;
+			const size = statSync(filePath).size;
 			return `- ${f.replace(".md", "")} (${String(size)} bytes)`;
 		});
 		return { content: [{ type: "text", text: lines.join("\n") }] };

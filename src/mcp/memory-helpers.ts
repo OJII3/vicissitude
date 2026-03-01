@@ -53,11 +53,20 @@ export function readFileSafe(filePath: string): string {
 	return readFileSync(filePath, "utf-8");
 }
 
+/** overlay → base のフォールバック読み込み（任意のディレクトリペアを指定可能） */
+export function readWithFallbackFrom(
+	overlayPath: string,
+	overlayDir: string,
+	baseDir: string,
+): string {
+	if (existsSync(overlayPath)) return readFileSync(overlayPath, "utf-8");
+	const relative = path.relative(overlayDir, overlayPath);
+	return readFileSafe(resolve(baseDir, relative));
+}
+
+/** overlay → base のフォールバック読み込み（デフォルトディレクトリ使用） */
 export function readWithFallback(overlayPath: string): string {
-	const content = readFileSafe(overlayPath);
-	if (content) return content;
-	const relative = path.relative(OVERLAY_CONTEXT_DIR, overlayPath);
-	return readFileSafe(resolve(BASE_CONTEXT_DIR, relative));
+	return readWithFallbackFrom(overlayPath, OVERLAY_CONTEXT_DIR, BASE_CONTEXT_DIR);
 }
 
 export function createBackup(filePath: string): void {
