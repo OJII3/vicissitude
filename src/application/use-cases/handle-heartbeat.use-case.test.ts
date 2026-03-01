@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 
 import type { DueReminder, HeartbeatConfig } from "../../domain/entities/heartbeat-config.ts";
-import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
+import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 import { HandleHeartbeatUseCase } from "./handle-heartbeat.use-case.ts";
 import {
 	createMockAgent,
@@ -108,7 +108,7 @@ describe("HandleHeartbeatUseCase", () => {
 		expect(notUpdated?.lastExecutedAt).toBeNull();
 	});
 
-	it("AI 失敗時もエラーログを出力し、config の lastExecutedAt を更新する", async () => {
+	it("AI 失敗時は config を更新しない", async () => {
 		const agent: AiAgent = {
 			send: mock(() => Promise.reject(new Error("AI down"))),
 			stop: mock(() => {}),
@@ -120,9 +120,7 @@ describe("HandleHeartbeatUseCase", () => {
 		await useCase.execute(createDueReminders());
 
 		expect(logger.error).toHaveBeenCalled();
-		// Guild ごとに逐次実行する設計のため、個別の AI エラーは catch して続行し、
-		// 最後に一括で lastExecutedAt を更新する
-		expect(configRepo.save).toHaveBeenCalledTimes(1);
+		expect(configRepo.save).not.toHaveBeenCalled();
 	});
 
 	it("セッションキーが system:heartbeat:_autonomous である", async () => {
@@ -133,9 +131,157 @@ describe("HandleHeartbeatUseCase", () => {
 
 		await useCase.execute(createDueReminders());
 
-		const [options] = (agent.send as ReturnType<typeof mock>).mock.calls[0] as [
-			{ sessionKey: string },
-		];
+		const [options] = (agent.send as ReturnType<typeof mock>).mock.calls[0] as [SendOptions];
 		expect(options.sessionKey).toBe("system:heartbeat:_autonomous");
+		expect(options.guildId).toBeUndefined();
+	});
+});
+
+describe("HandleHeartbeatUseCase - 複数 Guild", () => {
+	it("複数 Guild のリマインダーが Guild ごとに別セッションで実行される", async () => {
+		const agent = createMockAgent({ text: "ok", sessionId: "s1" });
+		const configRepo = createMockHeartbeatConfigRepository(TEST_CONFIG);
+		const logger = createMockLogger();
+		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
+
+		const dueReminders: DueReminder[] = [
+			{
+				reminder: {
+					id: "guild-a-check",
+					description: "Guild A チェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+					guildId: "111",
+				},
+				overdueMinutes: 5,
+			},
+			{
+				reminder: {
+					id: "guild-b-check",
+					description: "Guild B チェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+					guildId: "222",
+				},
+				overdueMinutes: 5,
+			},
+		];
+
+		await useCase.execute(dueReminders);
+
+		expect(agent.send).toHaveBeenCalledTimes(2);
+
+		const calls = (agent.send as ReturnType<typeof mock>).mock.calls as [SendOptions][];
+		const sessionKeys = calls.map(([opts]) => opts.sessionKey);
+		const guildIds = calls.map(([opts]) => opts.guildId);
+
+		expect(sessionKeys).toContain("system:heartbeat:111");
+		expect(sessionKeys).toContain("system:heartbeat:222");
+		expect(guildIds).toContain("111");
+		expect(guildIds).toContain("222");
+	});
+
+	it("guildId ありとなしが混在する場合に正しくグルーピングされる", async () => {
+		const agent = createMockAgent({ text: "ok", sessionId: "s1" });
+		const configRepo = createMockHeartbeatConfigRepository(TEST_CONFIG);
+		const logger = createMockLogger();
+		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
+
+		const dueReminders: DueReminder[] = [
+			{
+				reminder: {
+					id: "global-check",
+					description: "グローバルチェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+				overdueMinutes: 5,
+			},
+			{
+				reminder: {
+					id: "guild-check",
+					description: "Guild チェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+					guildId: "111",
+				},
+				overdueMinutes: 5,
+			},
+		];
+
+		await useCase.execute(dueReminders);
+
+		expect(agent.send).toHaveBeenCalledTimes(2);
+
+		const calls = (agent.send as ReturnType<typeof mock>).mock.calls as [SendOptions][];
+		const sessionKeys = calls.map(([opts]) => opts.sessionKey);
+
+		expect(sessionKeys).toContain("system:heartbeat:_autonomous");
+		expect(sessionKeys).toContain("system:heartbeat:111");
+	});
+
+	it("一部 Guild の AI 失敗時は成功した Guild のみ lastExecutedAt を更新する", async () => {
+		const agent: AiAgent = {
+			send: mock((options: SendOptions) => {
+				if (options.guildId === "222") {
+					return Promise.reject(new Error("AI down for guild 222"));
+				}
+				return Promise.resolve({ text: "ok", sessionId: "s1" });
+			}),
+			stop: mock(() => {}),
+		};
+
+		const config: HeartbeatConfig = {
+			baseIntervalMinutes: 1,
+			reminders: [
+				{
+					id: "guild-a-check",
+					description: "Guild A チェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+					guildId: "111",
+				},
+				{
+					id: "guild-b-check",
+					description: "Guild B チェック",
+					schedule: { type: "interval", minutes: 30 },
+					lastExecutedAt: null,
+					enabled: true,
+					guildId: "222",
+				},
+			],
+		};
+		const configRepo = createMockHeartbeatConfigRepository(config);
+		const logger = createMockLogger();
+		const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
+
+		const reminderA = config.reminders.find((r) => r.id === "guild-a-check");
+		const reminderB = config.reminders.find((r) => r.id === "guild-b-check");
+		if (!reminderA || !reminderB) throw new Error("Test setup error");
+
+		const dueReminders: DueReminder[] = [
+			{ reminder: reminderA, overdueMinutes: 5 },
+			{ reminder: reminderB, overdueMinutes: 5 },
+		];
+
+		await useCase.execute(dueReminders);
+
+		expect(agent.send).toHaveBeenCalledTimes(2);
+		expect(logger.error).toHaveBeenCalled();
+		expect(configRepo.save).toHaveBeenCalledTimes(1);
+
+		const [savedConfig] = (configRepo.save as ReturnType<typeof mock>).mock.calls[0] as [
+			HeartbeatConfig,
+		];
+		const guildA = savedConfig.reminders.find((r) => r.id === "guild-a-check");
+		const guildB = savedConfig.reminders.find((r) => r.id === "guild-b-check");
+
+		expect(guildA?.lastExecutedAt).toBeTruthy();
+		expect(guildB?.lastExecutedAt).toBeNull();
 	});
 });

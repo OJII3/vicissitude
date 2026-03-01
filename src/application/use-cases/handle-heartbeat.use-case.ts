@@ -14,6 +14,7 @@ export class HandleHeartbeatUseCase {
 
 	async execute(dueReminders: DueReminder[]): Promise<void> {
 		const grouped = this.groupByGuild(dueReminders);
+		const succeededIds = new Set<string>();
 
 		for (const [guildKey, reminders] of grouped) {
 			const guildId = guildKey === "_autonomous" ? undefined : guildKey;
@@ -26,16 +27,21 @@ export class HandleHeartbeatUseCase {
 			try {
 				// oxlint-disable-next-line no-await-in-loop -- Guild ごとに逐次実行する設計
 				await this.agent.send({ sessionKey, message: prompt, guildId });
+				for (const r of reminders) succeededIds.add(r.reminder.id);
 			} catch (error) {
 				this.logger.error(`[heartbeat] guild=${guildKey} AI 実行エラー:`, error);
 			}
 		}
 
+		if (succeededIds.size === 0) {
+			this.logger.info("[heartbeat] 成功した Guild なし、config 更新をスキップ");
+			return;
+		}
+
 		const config = await this.configRepo.load();
 		const executedAt = new Date().toISOString();
-		const dueIds = new Set(dueReminders.map((d) => d.reminder.id));
 		for (const reminder of config.reminders) {
-			if (dueIds.has(reminder.id)) {
+			if (succeededIds.has(reminder.id)) {
 				reminder.lastExecutedAt = executedAt;
 			}
 		}

@@ -53,7 +53,7 @@
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
-  - `getRole(channelId)`, `getCooldown(channelId)`, `getGuildId(channelId)`
+  - `getRole(channelId)`, `getCooldown(channelId)`
 - `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
   - `judge(message, context): Promise<ResponseDecision>`
 - `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
@@ -105,7 +105,7 @@
 - `context/file-context-loader-factory.ts`: `FileContextLoaderFactory implements ContextLoaderFactory`
   - Guild ID を指定して `FileContextLoader` を生成
 - `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
-  - `context/channels.json` からチャンネル設定を読込（`guildId` フィールド対応）
+  - `context/channels.json` からチャンネル設定を読込
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
   - AI にメッセージへの応答判断を委譲（respond/react/ignore）
 - `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
@@ -169,7 +169,7 @@
 ```json
 {
 	"defaultCooldownSeconds": 120,
-	"channels": [{ "channelId": "...", "guildId": "...", "role": "home", "cooldownSeconds": 60 }]
+	"channels": [{ "channelId": "...", "role": "home", "cooldownSeconds": 60 }]
 }
 ```
 
