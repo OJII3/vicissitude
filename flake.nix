@@ -21,6 +21,7 @@
               bun
               nodejs-slim
               opencode
+              podman
             ];
           };
         };

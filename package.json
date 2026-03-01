@@ -12,7 +12,8 @@
 		"fmt": "oxfmt .",
 		"fmt:check": "oxfmt --check .",
 		"test": "bun test",
-		"validate": "bun run fmt:check && bun run lint && bun run check"
+		"validate": "bun run fmt:check && bun run lint && bun run check",
+		"container:build": "podman build -t vicissitude-code-exec containers/code-exec"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
