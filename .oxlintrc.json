@@ -43,9 +43,10 @@
 			}
 		},
 		{
-			"files": ["**/*.test.ts"],
+			"files": ["**/*.test.ts", "**/test-helpers.ts"],
 			"rules": {
-				"eslint/max-lines-per-function": "off"
+				"eslint/max-lines-per-function": "off",
+				"import/max-dependencies": "off"
 			}
 		}
 	],

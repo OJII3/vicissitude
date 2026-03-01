@@ -2,10 +2,12 @@ import { mock } from "bun:test";
 
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { ConversationContext } from "../../domain/entities/conversation-context.ts";
+import type { HeartbeatConfig } from "../../domain/entities/heartbeat-config.ts";
 import type { ResponseDecision } from "../../domain/entities/response-decision.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { ChannelConfigLoader } from "../../domain/ports/channel-config-loader.port.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
+import type { HeartbeatConfigRepository } from "../../domain/ports/heartbeat-config-repository.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
@@ -69,5 +71,19 @@ export function createMockChannelConfig(cooldown = 60): ChannelConfigLoader {
 	return {
 		getRole: mock(() => "home" as const),
 		getCooldown: mock(() => cooldown),
+	};
+}
+
+export function createMockHeartbeatConfigRepository(
+	config?: HeartbeatConfig,
+): HeartbeatConfigRepository {
+	const defaultConfig: HeartbeatConfig = {
+		baseIntervalMinutes: 1,
+		reminders: [],
+	};
+	return {
+		load: mock(() => Promise.resolve(config ?? defaultConfig)),
+		save: mock(() => Promise.resolve()),
+		updateLastExecuted: mock(() => Promise.resolve()),
 	};
 }
