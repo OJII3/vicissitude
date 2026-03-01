@@ -33,6 +33,7 @@ export class DiscordConversationHistory implements ConversationHistory {
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,
 				content: msg.content,
+				timestamp: msg.createdAt,
 			});
 		}
 

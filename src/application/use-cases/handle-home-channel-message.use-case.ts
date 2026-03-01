@@ -6,6 +6,7 @@ import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
 import type { ResponseJudge } from "../../domain/ports/response-judge.port.ts";
 import type { CooldownTracker } from "../../domain/services/cooldown-tracker.ts";
+import { formatTimestamp } from "../../domain/services/format-timestamp.ts";
 import { splitMessage } from "../../domain/services/message-formatter.ts";
 
 const TYPING_INTERVAL_MS = 8000;
@@ -71,7 +72,7 @@ export class HandleHomeChannelMessageUseCase {
 
 	private async handleRespond(msg: IncomingMessage, channel: MessageChannel) {
 		const sessionKey = createChannelSessionKey(msg.platform, msg.channelId);
-		const prompt = `${msg.authorName}: ${msg.content}`;
+		const prompt = `[${formatTimestamp(msg.timestamp)}] ${msg.authorName}: ${msg.content}`;
 
 		await channel.sendTyping();
 		const typingInterval = setInterval(() => void channel.sendTyping(), TYPING_INTERVAL_MS);

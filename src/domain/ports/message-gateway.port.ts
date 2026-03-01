@@ -5,6 +5,7 @@ export interface IncomingMessage {
 	authorName: string;
 	messageId: string;
 	content: string;
+	timestamp: Date;
 	isMentioned: boolean;
 	isThread: boolean;
 	reply(text: string): Promise<void>;

@@ -47,7 +47,7 @@ describe("HandleIncomingMessageUseCase - 正常系", () => {
 
 		await useCase.execute(msg, channel);
 
-		expect(agent.send).toHaveBeenCalledWith("slack:ch-1:user-1", "Hi");
+		expect(agent.send).toHaveBeenCalledWith("slack:ch-1:user-1", "[2026-03-01 15:30] Hi");
 	});
 });
 
