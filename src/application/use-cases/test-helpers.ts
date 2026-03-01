@@ -59,7 +59,9 @@ export function createMockJudge(decision: ResponseDecision): ResponseJudge {
 
 export function createMockHistory(context?: ConversationContext): ConversationHistory {
 	return {
-		getRecent: mock(() => Promise.resolve(context ?? { channelId: "ch-1", messages: [] })),
+		getRecent: mock((_channelId: string, _limit: number, _excludeMessageId?: string) =>
+			Promise.resolve(context ?? { channelId: "ch-1", messages: [] }),
+		),
 	};
 }
 

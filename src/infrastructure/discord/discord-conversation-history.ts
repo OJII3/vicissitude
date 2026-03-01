@@ -9,20 +9,27 @@ import type { ConversationHistory } from "../../domain/ports/conversation-histor
 export class DiscordConversationHistory implements ConversationHistory {
 	constructor(private readonly getClient: () => Client | null) {}
 
-	async getRecent(channelId: string, limit: number): Promise<ConversationContext> {
+	async getRecent(
+		channelId: string,
+		limit: number,
+		excludeMessageId?: string,
+	): Promise<ConversationContext> {
 		const client = this.getClient();
 		if (!client) return { channelId, messages: [] };
 
-		const channel = await client.channels.fetch(channelId);
+		// キャッシュ優先、ミス時のみ REST API
+		const channel =
+			client.channels.cache.get(channelId) ?? (await client.channels.fetch(channelId));
 		if (!channel || !("messages" in channel)) return { channelId, messages: [] };
 
 		const textChannel = channel as TextBasedChannel;
-		const fetched = await textChannel.messages.fetch({ limit });
+		const clampedLimit = Math.min(limit, 25);
+		const fetched = await textChannel.messages.fetch({ limit: clampedLimit });
 
 		const messages: ConversationMessage[] = [];
-		// discord.js returns newest first, reverse to chronological order
 		const sorted = [...fetched.values()].toReversed();
 		for (const msg of sorted) {
+			if (excludeMessageId && msg.id === excludeMessageId) continue;
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,
 				content: msg.content,

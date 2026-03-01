@@ -27,6 +27,9 @@ export class HandleHomeChannelMessageUseCase {
 		const cooldownSeconds = this.channelConfig.getCooldown(msg.channelId);
 		if (this.cooldown.isOnCooldown(msg.channelId, cooldownSeconds)) return;
 
+		// Optimistic locking: judge 前にクールダウン記録して重複処理を防ぐ
+		this.cooldown.record(msg.channelId);
+
 		const decision = await this.judgeMessage(msg);
 		if (!decision) return;
 
@@ -43,7 +46,7 @@ export class HandleHomeChannelMessageUseCase {
 	private async judgeMessage(msg: IncomingMessage) {
 		let context;
 		try {
-			context = await this.history.getRecent(msg.channelId, JUDGE_CONTEXT_LIMIT);
+			context = await this.history.getRecent(msg.channelId, JUDGE_CONTEXT_LIMIT, msg.messageId);
 		} catch (error) {
 			this.logger.error("Failed to fetch conversation history:", error);
 			return null;
@@ -61,7 +64,6 @@ export class HandleHomeChannelMessageUseCase {
 	private async handleReact(msg: IncomingMessage, emoji: string) {
 		try {
 			await msg.react(emoji);
-			this.cooldown.record(msg.channelId);
 		} catch (error) {
 			this.logger.error("Failed to react:", error);
 		}
@@ -83,8 +85,6 @@ export class HandleHomeChannelMessageUseCase {
 			if (first) await channel.send(first);
 			// oxlint-disable-next-line no-await-in-loop -- sequential sending is intentional
 			for (const chunk of rest) await channel.send(chunk);
-
-			this.cooldown.record(msg.channelId);
 		} catch (error) {
 			clearInterval(typingInterval);
 			this.logger.error("Agent error in home channel:", error);

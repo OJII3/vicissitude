@@ -9,6 +9,7 @@ import { DiscordConversationHistory } from "./infrastructure/discord/discord-con
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
+import { OpencodeJudgeAgent } from "./infrastructure/opencode/opencode-judge-agent.ts";
 import { OpencodeResponseJudge } from "./infrastructure/opencode/opencode-response-judge.ts";
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
 
@@ -17,8 +18,9 @@ function createInfrastructure(root: string, token: string) {
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
 	const contextLoader = new FileContextLoader(resolve(root, "context"));
 	const agent = new OpencodeAgent(sessions, contextLoader);
+	const judgeAgent = new OpencodeJudgeAgent();
 	const gateway = new DiscordGateway(token, logger);
-	return { logger, agent, gateway };
+	return { logger, agent, judgeAgent, gateway };
 }
 
 export async function bootstrap(): Promise<void> {
@@ -26,7 +28,7 @@ export async function bootstrap(): Promise<void> {
 	if (!token) throw new Error("DISCORD_TOKEN is required in .env");
 
 	const root = resolve(import.meta.dirname, "..");
-	const { logger, agent, gateway } = createInfrastructure(root, token);
+	const { logger, agent, judgeAgent, gateway } = createInfrastructure(root, token);
 
 	// Channel config
 	const channelsJson = await Bun.file(resolve(root, "context/channels.json")).json();
@@ -35,7 +37,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Home channel infrastructure
 	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
-	const responseJudge = new OpencodeResponseJudge(agent, logger);
+	const responseJudge = new OpencodeResponseJudge(judgeAgent, logger);
 	const cooldown = new CooldownTracker();
 
 	// Use cases
@@ -61,6 +63,7 @@ export async function bootstrap(): Promise<void> {
 		logger.info("Shutting down...");
 		gateway.stop();
 		agent.stop();
+		judgeAgent.stop();
 		setTimeout(() => process.exit(0), 1000);
 	};
 	process.on("SIGINT", shutdown);

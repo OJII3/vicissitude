@@ -52,11 +52,13 @@ export class OpencodeResponseJudge implements ResponseJudge {
 
 	private parseResponse(text: string): ResponseDecision {
 		try {
-			// Extract JSON from response (may contain extra text)
-			const jsonMatch = text.match(/\{[^}]+\}/);
-			if (!jsonMatch) throw new Error("No JSON found in response");
+			const firstBrace = text.indexOf("{");
+			const lastBrace = text.lastIndexOf("}");
+			if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+				throw new Error("No JSON found in response");
+			}
 
-			const parsed = JSON.parse(jsonMatch[0]) as {
+			const parsed = JSON.parse(text.slice(firstBrace, lastBrace + 1)) as {
 				action: string;
 				emoji?: string;
 				reason?: string;
