@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { $ } from "bun";
 import { z } from "zod";
 
 const server = new McpServer({
@@ -30,30 +29,14 @@ function buildCmd(language: Language, code: string): string[] {
 	}
 }
 
-async function execWithTmux(cmd: string[]): Promise<string> {
-	const sessionName = `exec-${Date.now()}`;
-	const tmuxCmd = ["tmux", "new-session", "-d", "-s", sessionName, "-x", "200", "-y", "50", ...cmd];
-
-	const proc = Bun.spawn(tmuxCmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
-
-	const timeout = setTimeout(() => {
-		Bun.spawn(["tmux", "kill-session", "-t", sessionName], { env: SAFE_ENV });
-	}, TIMEOUT_MS);
-
-	await proc.exited;
-	clearTimeout(timeout);
-
-	const output = await $`tmux capture-pane -t ${sessionName} -p 2>/dev/null`.text().catch(() => "");
-
-	await $`tmux kill-session -t ${sessionName} 2>/dev/null`.quiet().catch(() => {});
-
-	return output.trim() || "(no output)";
-}
-
-async function execDirect(cmd: string[]): Promise<string> {
+async function exec(cmd: string[]): Promise<string> {
 	const proc = Bun.spawn(cmd, { stdout: "pipe", stderr: "pipe", env: SAFE_ENV });
 
-	const timeoutId = setTimeout(() => proc.kill(), TIMEOUT_MS);
+	let timedOut = false;
+	const timeoutId = setTimeout(() => {
+		timedOut = true;
+		proc.kill();
+	}, TIMEOUT_MS);
 	await proc.exited;
 	clearTimeout(timeoutId);
 
@@ -61,6 +44,7 @@ async function execDirect(cmd: string[]): Promise<string> {
 	const stderr = await new Response(proc.stderr).text();
 	const output = (stdout + stderr).trim() || "(no output)";
 
+	if (timedOut) return `Error (timeout after ${TIMEOUT_MS}ms):\n${output}`;
 	return proc.exitCode === 0 ? output : `Error (exit ${proc.exitCode}):\n${output}`;
 }
 
@@ -73,13 +57,7 @@ server.tool(
 	},
 	async ({ language, code }) => {
 		const cmd = buildCmd(language, code);
-		let output: string;
-		try {
-			output = await execWithTmux(cmd);
-		} catch {
-			// tmux が使えない場合のフォールバック: 直接実行
-			output = await execDirect(cmd);
-		}
+		const output = await exec(cmd);
 		return { content: [{ type: "text", text: output }] };
 	},
 );
