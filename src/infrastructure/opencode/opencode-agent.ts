@@ -40,6 +40,10 @@ export class OpencodeAgent implements AiAgent {
 			"opencode prompt timed out",
 		);
 
+		if (result.error) {
+			throw new Error(`opencode prompt failed: ${JSON.stringify(result.error)}`);
+		}
+
 		const texts: string[] = [];
 		if (result.data?.parts) {
 			for (const part of result.data.parts) {
@@ -65,9 +69,8 @@ export class OpencodeAgent implements AiAgent {
 		let realId = this.sessions.get(AGENT_NAME, sessionKey);
 
 		if (realId) {
-			try {
-				await oc.session.get({ path: { id: realId } });
-			} catch {
+			const result = await oc.session.get({ path: { id: realId } });
+			if (result.error || !result.data) {
 				realId = undefined;
 			}
 		}
@@ -76,7 +79,11 @@ export class OpencodeAgent implements AiAgent {
 			const created = await oc.session.create({
 				body: { title: `ふあ:${sessionKey}` },
 			});
-			if (!created.data) throw new Error("Failed to create session: no data returned");
+			if (created.error || !created.data) {
+				throw new Error(
+					`Failed to create session: ${created.error ? JSON.stringify(created.error) : "no data returned"}`,
+				);
+			}
 			realId = created.data.id;
 			await this.sessions.save(AGENT_NAME, sessionKey, realId);
 		}
