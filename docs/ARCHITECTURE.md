@@ -69,6 +69,9 @@
   - `get()`, `save()`, `exists()`
 - `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
   - `load()`, `save()`, `updateLastExecuted()`
+- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（Copilot ポーリング用）
+  - `append(event: BufferedEvent): Promise<void>`
+  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`
 
 #### services/
 
@@ -91,6 +94,10 @@
   - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
   - 処理: due リマインダーからプロンプト構築 → AI セッション起動 → lastExecutedAt 更新
   - 用途: Heartbeat 自律行動
+- `buffer-event.use-case.ts`: `BufferEventUseCase`
+  - 依存: `EventBuffer`, `Logger`
+  - 処理: `IncomingMessage` → `BufferedEvent` に変換してバッファに追加
+  - 用途: Copilot モードでのイベントバッファリング（judge/batching/cooldown をバイパス）
 
 ### 4.3 Infrastructure 層 — ポートの具象実装
 
@@ -107,9 +114,17 @@
 - `discord/discord-emoji-provider.ts`: `DiscordEmojiProvider implements EmojiProvider`
   - `guild.emojis.cache` からカスタム絵文字一覧を取得（キャッシュのみ参照）
 - `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
-  - OpenCode SDK でセッション管理・メッセージ送信
+  - OpenCode SDK でセッション管理・メッセージ送信（同期 `prompt()` 呼び出し）
   - 毎回 system prompt でブートストラップコンテキストを注入
-- `opencode/mcp-config.ts`: `mcpServerConfigs()` — MCP サーバー設定
+  - 非 Copilot プロバイダ用（デフォルト）
+- `opencode/copilot-polling-agent.ts`: `CopilotPollingAgent implements AiAgent`
+  - GitHub Copilot プロバイダ専用（`OPENCODE_PROVIDER_ID=github-copilot` で有効化）
+  - `send()`: EventBuffer にイベントを書き込み、即座に空レスポンスを返す
+  - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
+  - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
+  - MCP 設定に `event-buffer` を追加で含む
+- `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
+  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（CopilotPollingAgent 用）
 - `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
   - `data/sessions.json` にセッション ID を永続化
   - インメモリキャッシュ + lazy load
@@ -130,6 +145,9 @@
 - `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
   - `data/heartbeat-config.json` に設定を永続化
   - ファイル不在時はデフォルト設定を返す
+- `persistence/file-event-buffer.ts`: `FileEventBuffer implements EventBuffer`
+  - `data/event-buffer/events.jsonl` に JSONL 形式で append
+  - Copilot ポーリングモード用
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
@@ -154,13 +172,18 @@
   - `evolve_soul` は常にグローバル（`SOUL.md` は共通、書き込み先は `data/context/SOUL.md`）
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
+- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（CopilotPollingAgent 用）
+  - `read_events`: バッファの全イベントを読み取り、ファイルをクリアして返す（消費型）
+  - `event_count`: 未消費イベント数を返す
+  - `data/event-buffer/events.jsonl` を JSONL 形式で管理
 
 ### 4.5 Composition Root
 
 - `composition-root.ts`: `bootstrap()` — 唯一の DI 配線場所
-  - 全インフラ実装をインスタンス化
-  - ユースケースに注入
-  - ゲートウェイにハンドラをバインドして起動
+  - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
+  - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
+  - **Copilot**: `CopilotPollingAgent` + `BufferEventUseCase` のバッファポーリングフロー
+  - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
 
 ## 5. データモデル
 

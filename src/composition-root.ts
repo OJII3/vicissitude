@@ -1,6 +1,7 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
+import { BufferEventUseCase } from "./application/use-cases/buffer-event.use-case.ts";
 import { HandleHeartbeatUseCase } from "./application/use-cases/handle-heartbeat.use-case.ts";
 import { HandleHomeChannelMessageUseCase } from "./application/use-cases/handle-home-channel-message.use-case.ts";
 import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-incoming-message.use-case.ts";
@@ -14,26 +15,15 @@ import { DiscordConversationHistory } from "./infrastructure/discord/discord-con
 import { DiscordEmojiProvider } from "./infrastructure/discord/discord-emoji-provider.ts";
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
+import { CopilotPollingAgent } from "./infrastructure/opencode/copilot-polling-agent.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
 import { OpencodeJudgeAgent } from "./infrastructure/opencode/opencode-judge-agent.ts";
 import { OpencodeResponseJudge } from "./infrastructure/opencode/opencode-response-judge.ts";
+import { FileEventBuffer } from "./infrastructure/persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "./infrastructure/persistence/json-emoji-usage-repository.ts";
 import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json-heartbeat-config-repository.ts";
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
 import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
-
-function createInfrastructure(root: string, token: string) {
-	const logger = new ConsoleLogger();
-	const sessions = new JsonSessionRepository(resolve(root, "data"));
-	const contextLoaderFactory = new FileContextLoaderFactory(
-		resolve(root, "data/context"),
-		resolve(root, "context"),
-	);
-	const agent = new OpencodeAgent(sessions, contextLoaderFactory, logger);
-	const judgeAgent = new OpencodeJudgeAgent();
-	const gateway = new DiscordGateway(token, logger);
-	return { logger, agent, judgeAgent, gateway };
-}
 
 async function loadChannelConfig(root: string) {
 	const overlayChannels = resolve(root, "data/context/channels.json");
@@ -56,11 +46,72 @@ export async function bootstrap(): Promise<void> {
 	if (!token) throw new Error("DISCORD_TOKEN is required in .env");
 
 	const root = resolve(import.meta.dirname, "..");
-	const { logger, agent, judgeAgent, gateway } = createInfrastructure(root, token);
+	const logger = new ConsoleLogger();
+	const sessions = new JsonSessionRepository(resolve(root, "data"));
+	const contextLoaderFactory = new FileContextLoaderFactory(
+		resolve(root, "data/context"),
+		resolve(root, "context"),
+	);
+	const gateway = new DiscordGateway(token, logger);
 
 	// Channel config (overlay → base fallback)
 	const channelConfig = await loadChannelConfig(root);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
+
+	const providerID = process.env.OPENCODE_PROVIDER_ID ?? "opencode";
+	const isCopilot = providerID === "github-copilot";
+
+	if (isCopilot) {
+		await bootstrapCopilot(root, sessions, contextLoaderFactory, gateway, channelConfig, logger);
+	} else {
+		await bootstrapDefault(root, sessions, contextLoaderFactory, gateway, channelConfig, logger);
+	}
+}
+
+async function bootstrapCopilot(
+	root: string,
+	sessions: JsonSessionRepository,
+	contextLoaderFactory: FileContextLoaderFactory,
+	gateway: DiscordGateway,
+	channelConfig: JsonChannelConfigLoader,
+	logger: Logger,
+) {
+	const eventBuffer = new FileEventBuffer(resolve(root, "data/event-buffer"));
+	const copilotAgent = new CopilotPollingAgent(sessions, contextLoaderFactory, eventBuffer, logger);
+	const bufferUseCase = new BufferEventUseCase(eventBuffer, logger);
+
+	// 全イベントをバッファに書き込む（メンション・ホームチャンネル共通）
+	gateway.onMessage((msg) => bufferUseCase.execute(msg));
+	gateway.onHomeChannelMessage((msg) => bufferUseCase.execute(msg));
+
+	// Emoji usage tracking
+	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
+	gateway.onEmojiUsed((guildId, emojiName) => {
+		emojiUsageRepo.increment(guildId, emojiName);
+	});
+
+	// Heartbeat
+	const { scheduler: heartbeatScheduler } = createHeartbeat(root, copilotAgent, logger);
+
+	// Graceful shutdown
+	setupShutdown(logger, heartbeatScheduler, gateway, copilotAgent, emojiUsageRepo);
+
+	logger.info("[bootstrap] Copilot polling mode enabled");
+	await gateway.start();
+	heartbeatScheduler.start();
+	await copilotAgent.startPollingLoop();
+}
+
+async function bootstrapDefault(
+	root: string,
+	sessions: JsonSessionRepository,
+	contextLoaderFactory: FileContextLoaderFactory,
+	gateway: DiscordGateway,
+	channelConfig: JsonChannelConfigLoader,
+	logger: Logger,
+) {
+	const agent = new OpencodeAgent(sessions, contextLoaderFactory, logger);
+	const judgeAgent = new OpencodeJudgeAgent();
 
 	// Home channel infrastructure
 	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
@@ -95,7 +146,7 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Graceful shutdown
-	setupShutdown(logger, heartbeatScheduler, gateway, agent, judgeAgent, emojiUsageRepo);
+	setupShutdown(logger, heartbeatScheduler, gateway, agent, emojiUsageRepo, judgeAgent);
 
 	await gateway.start();
 	heartbeatScheduler.start();
@@ -106,8 +157,8 @@ function setupShutdown(
 	scheduler: IntervalHeartbeatScheduler,
 	gateway: DiscordGateway,
 	agent: AiAgent,
-	judgeAgent: AiAgent,
 	emojiUsageRepo: JsonEmojiUsageRepository,
+	judgeAgent?: AiAgent,
 ) {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -117,7 +168,7 @@ function setupShutdown(
 		scheduler.stop();
 		gateway.stop();
 		agent.stop();
-		judgeAgent.stop();
+		judgeAgent?.stop();
 		void emojiUsageRepo.flush().finally(() => {
 			setTimeout(() => process.exit(0), 1000);
 		});
