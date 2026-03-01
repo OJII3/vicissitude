@@ -1,32 +1,34 @@
-## Vicissitude
+# Vicissitude
 
-Discord bot「ふあ」。OpenCode + MCP で動きます。
+身内 Discord サーバー向けの会話 Bot「ふあ」。TypeScript + Bun で動作し、OpenCode + MCP を推論エンジンとして使用する。
 
-### セットアップ
+## できること
+
+- メンションやスレッドで話しかけると応答
+- ホームチャンネルでは会話の流れを見て自律的に参加・リアクション・スルーを判断
+- MCP ツールで Discord 操作、コード実行、スケジュール管理、自己記憶の更新が可能
+- Guild ごとに記憶を分離
+
+## セットアップ
 
 ```bash
 bun install
 cp .env.local.example .env.local
-# .env.local に必要な環境変数を設定
+# .env.local に DISCORD_TOKEN を設定
 bun run start
 ```
 
-### コンテキストファイル
+## コマンド
 
-`context/` に bot の人格・記憶・操作ルールを定義:
+| コマンド          | 内容                          |
+| ----------------- | ----------------------------- |
+| `bun run start`   | 本番起動                      |
+| `bun run dev`     | 開発モード (watch)            |
+| `bun run check`   | 型チェック                    |
+| `bun run lint`    | Lint                          |
+| `bun run fmt`     | フォーマット                  |
+| `bun run validate`| fmt:check + lint + check 一括 |
 
-| ファイル          | 用途                   |
-| ----------------- | ---------------------- |
-| `IDENTITY.md`     | 名前・役割             |
-| `SOUL.md`         | 人格・境界線           |
-| `AGENTS.md`       | 操作ルール・ツール方針 |
-| `TOOLS.md`        | MCP ツール一覧         |
-| `USER.md`         | ユーザー情報           |
-| `MEMORY.md`       | 長期記憶               |
-| `LESSONS.md`      | 学習・教訓             |
-| `HEARTBEAT.md`    | 定期チェック           |
-| `channels.json`   | チャンネル設定         |
+## ドキュメント
 
-### 使い方
-
-- bot をメンション or スレッド内でメッセージ → ふあ が応答
+詳細は `docs/` を参照。
