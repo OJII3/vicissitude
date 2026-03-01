@@ -94,9 +94,8 @@ export class DiscordGateway implements MessageGateway {
 			const isThread = message.channel.isThread();
 			const isHomeChannel = this.homeChannelIds.has(message.channel.id);
 			const isHomeThread =
-				isThread &&
-				"parentId" in message.channel &&
-				typeof message.channel.parentId === "string" &&
+				message.channel.isThread() &&
+				message.channel.parentId !== null &&
 				this.homeChannelIds.has(message.channel.parentId);
 
 			const adapted = this.adaptMessage(message, isMentioned, isThread);
