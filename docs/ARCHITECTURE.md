@@ -16,7 +16,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/` ディレクトリ（`IDENTITY.md`, `SOUL.md` 等）
-- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`）
+- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -38,6 +38,7 @@
 - `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
 - `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
 - `emoji-info.ts`: `EmojiInfo` — カスタム絵文字情報（`name`, `identifier`, `animated`）
+- `emoji-usage.ts`: `EmojiUsageCount` — カスタム絵文字使用カウント（`emojiName`, `count`）
 - `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
 
 #### ports/
@@ -58,6 +59,8 @@
   - `getRole(channelId)`, `getCooldown(channelId)`
 - `emoji-provider.port.ts`: `EmojiProvider` — ギルドカスタム絵文字取得
   - `getGuildEmojis(guildId): Promise<EmojiInfo[]>`
+- `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
+  - `increment(guildId, emojiName)`, `getTopEmojis(guildId, limit)`, `hasData(guildId)`
 - `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
   - `judge(message, context, availableEmojis?): Promise<ResponseDecision>`
 - `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
@@ -71,6 +74,7 @@
 
 - `message-formatter.ts`: `splitMessage()` — 2000 文字制限でのメッセージ分割（純粋関数）
 - `cooldown-tracker.ts`: `CooldownTracker` — チャンネルごとの応答クールダウン管理
+- `emoji-ranking.ts`: `filterTopEmojis()` — 使用頻度トップの絵文字でフィルタリング（純粋関数）
 - `heartbeat-evaluator.ts`: `evaluateDueReminders()` — Heartbeat 設定から due なリマインダーを判定（純粋関数）
 
 ### 4.2 Application 層 — ユースケース
@@ -80,8 +84,8 @@
   - 処理: メッセージ受信 → typing 開始 → AI 送信 → 応答分割 → 返信/送信
   - 用途: メンション/スレッド（必ず応答）
 - `handle-home-channel-message.use-case.ts`: `HandleHomeChannelMessageUseCase`
-  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `EmojiProvider`, `Logger`
-  - 処理: クールダウン確認 → 会話履歴取得 → カスタム絵文字取得 → AI 判断 → respond/react/ignore
+  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `EmojiProvider`, `EmojiUsageTracker`, `Logger`
+  - 処理: クールダウン確認 → 会話履歴取得 → カスタム絵文字取得 → 人気順フィルタリング → AI 判断 → respond/react/ignore
   - 用途: ホームチャンネル（自律参加）
 - `handle-heartbeat.use-case.ts`: `HandleHeartbeatUseCase`
   - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
@@ -116,6 +120,9 @@
 - `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
   - 専用の `OpencodeJudgeAgent` を使用（MCP ツールなし、毎回新規セッション）
   - AI にメッセージへの応答判断を委譲（respond/react/ignore）
+- `persistence/json-emoji-usage-repository.ts`: `JsonEmojiUsageRepository implements EmojiUsageTracker`
+  - `data/emoji-usage.json` に絵文字使用カウントを永続化
+  - インメモリキャッシュ + 30 秒遅延フラッシュ（graceful shutdown 時は即時フラッシュ）
 - `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
   - `data/heartbeat-config.json` に設定を永続化
   - ファイル不在時はデフォルト設定を返す
@@ -206,6 +213,15 @@
 }
 ```
 
+### emoji-usage.json 構造
+
+```json
+{
+	"guildId1": { "pepe_sad": 42, "pepe_happy": 17 },
+	"guildId2": { "fire": 5 }
+}
+```
+
 ### sessions.json 構造
 
 ```json
@@ -240,10 +256,11 @@
 2. クールダウン中 → スキップ
 3. `ConversationHistory.getRecent()` で直近 10 件取得
 4. `EmojiProvider.getGuildEmojis()` でギルドカスタム絵文字取得（失敗時は無視して続行）
-5. `ResponseJudge.judge()` で AI 判断（カスタム絵文字一覧をプロンプトに含める）
-6. `ignore` → 何もしない
-7. `react` → カスタム絵文字の `:name:` を ID に解決し `msg.react()` してクールダウン記録
-8. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
+5. `EmojiUsageTracker` で使用頻度トップ 20 にフィルタリング（コールドスタート時は全絵文字にフォールバック）
+6. `ResponseJudge.judge()` で AI 判断（フィルタ済み絵文字一覧をプロンプトに含める）
+7. `ignore` → 何もしない
+8. `react` → カスタム絵文字の `:name:` を ID に解決し `msg.react()` してクールダウン記録（解決にはフィルタ前の全絵文字を使用）
+9. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
 
 ### 6.4 Heartbeat 自律行動
 

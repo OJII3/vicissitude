@@ -3,12 +3,14 @@ import { mock } from "bun:test";
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { ConversationContext } from "../../domain/entities/conversation-context.ts";
 import type { EmojiInfo } from "../../domain/entities/emoji-info.ts";
+import type { EmojiUsageCount } from "../../domain/entities/emoji-usage.ts";
 import type { HeartbeatConfig } from "../../domain/entities/heartbeat-config.ts";
 import type { ResponseDecision } from "../../domain/entities/response-decision.ts";
 import type { AiAgent } from "../../domain/ports/ai-agent.port.ts";
 import type { ChannelConfigLoader } from "../../domain/ports/channel-config-loader.port.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
 import type { EmojiProvider } from "../../domain/ports/emoji-provider.port.ts";
+import type { EmojiUsageTracker } from "../../domain/ports/emoji-usage-tracker.port.ts";
 import type { HeartbeatConfigRepository } from "../../domain/ports/heartbeat-config-repository.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { IncomingMessage, MessageChannel } from "../../domain/ports/message-gateway.port.ts";
@@ -80,6 +82,16 @@ export function createMockChannelConfig(cooldown = 60): ChannelConfigLoader {
 export function createMockEmojiProvider(emojis: EmojiInfo[] = []): EmojiProvider {
 	return {
 		getGuildEmojis: mock(() => Promise.resolve(emojis)),
+	};
+}
+
+export function createMockEmojiUsageTracker(
+	data: Record<string, EmojiUsageCount[]> = {},
+): EmojiUsageTracker {
+	return {
+		increment: mock(() => {}),
+		getTopEmojis: mock((guildId: string, limit: number) => (data[guildId] ?? []).slice(0, limit)),
+		hasData: mock((guildId: string) => (data[guildId] ?? []).length > 0),
 	};
 }
 

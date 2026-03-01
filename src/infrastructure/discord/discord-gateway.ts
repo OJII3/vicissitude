@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, type Message } from "discord.js";
+import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type {
@@ -8,12 +8,17 @@ import type {
 } from "../../domain/ports/message-gateway.port.ts";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
+type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
+
+/** カスタム絵文字パターン: <:name:id> or <a:name:id> */
+const CUSTOM_EMOJI_RE = /<a?:(\w+):\d+>/g;
 
 export class DiscordGateway implements MessageGateway {
 	private client: Client | null = null;
 	private handler: MessageHandler | null = null;
 	private homeChannelHandler: MessageHandler | null = null;
 	private homeChannelIds: Set<string> = new Set();
+	private emojiUsedHandler: EmojiUsedHandler | null = null;
 
 	constructor(
 		private readonly token: string,
@@ -26,6 +31,10 @@ export class DiscordGateway implements MessageGateway {
 
 	onHomeChannelMessage(handler: MessageHandler): void {
 		this.homeChannelHandler = handler;
+	}
+
+	onEmojiUsed(handler: EmojiUsedHandler): void {
+		this.emojiUsedHandler = handler;
 	}
 
 	/**
@@ -49,15 +58,37 @@ export class DiscordGateway implements MessageGateway {
 				GatewayIntentBits.DirectMessages,
 				GatewayIntentBits.GuildMessageReactions,
 			],
+			partials: [Partials.Reaction],
 		});
 
 		client.once(Events.ClientReady, (readyClient) => {
 			this.logger.info(`Logged in as ${readyClient.user.tag}`);
 		});
 
+		this.registerMessageHandler(client);
+		this.registerReactionHandler(client);
+
+		await client.login(this.token);
+		this.client = client;
+	}
+
+	stop(): void {
+		this.client?.destroy();
+		this.client = null;
+	}
+
+	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
 			if (message.author.bot) return;
 			if (!client.user) return;
+
+			// カスタム絵文字使用を記録
+			if (message.guildId && this.emojiUsedHandler) {
+				for (const match of message.content.matchAll(CUSTOM_EMOJI_RE)) {
+					const name = match[1];
+					if (name) this.emojiUsedHandler(message.guildId, name);
+				}
+			}
 
 			const isMentioned = message.mentions.has(client.user);
 			const isThread = message.channel.isThread();
@@ -79,14 +110,17 @@ export class DiscordGateway implements MessageGateway {
 
 			// それ以外 → 無視
 		});
-
-		await client.login(this.token);
-		this.client = client;
 	}
 
-	stop(): void {
-		this.client?.destroy();
-		this.client = null;
+	private registerReactionHandler(client: Client): void {
+		client.on(Events.MessageReactionAdd, (reaction, user) => {
+			if (user.bot) return;
+			// Unicode 絵文字は無視
+			if (!reaction.emoji.id) return;
+			const guildId = reaction.message.guildId;
+			if (!guildId || !reaction.emoji.name) return;
+			this.emojiUsedHandler?.(guildId, reaction.emoji.name);
+		});
 	}
 
 	private adaptMessage(message: Message, isMentioned: boolean, isThread: boolean): IncomingMessage {
