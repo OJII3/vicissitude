@@ -6,6 +6,10 @@ interface ChannelsJson {
 	channels: Array<{
 		channelId: string;
 		guildId: string;
+		/** 人間用ラベル（コードでは使用しない） */
+		guildName?: string;
+		/** 人間用ラベル（コードでは使用しない） */
+		channelName?: string;
 		role: ChannelRole;
 		cooldownSeconds?: number;
 	}>;

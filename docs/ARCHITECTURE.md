@@ -226,7 +226,16 @@
 ```json
 {
 	"defaultCooldownSeconds": 120,
-	"channels": [{ "channelId": "...", "role": "home", "cooldownSeconds": 60 }]
+	"channels": [
+		{
+			"channelId": "...",
+			"guildId": "...",
+			"guildName": "サーバー名（人間用ラベル、省略可）",
+			"channelName": "チャンネル名（人間用ラベル、省略可）",
+			"role": "home",
+			"cooldownSeconds": 60
+		}
+	]
 }
 ```
 
