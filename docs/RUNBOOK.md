@@ -25,7 +25,7 @@
 2. `context/` ディレクトリにブートストラップファイル（ベース）が配置されていることを確認する。
 3. `data/` ディレクトリが書き込み可能であることを確認する。
 4. デプロイ固有のチャンネル設定がある場合、`data/context/channels.json` に配置する（なければ `context/channels.json` がフォールバックとして使われる）。
-5. `podman --version` が実行可能であることを確認する。
+5. `podman --version` および `podman-compose --version` が実行可能であることを確認する。
 6. Podman ソケットが有効化されていることを確認する:
    ```bash
    systemctl --user enable --now podman.socket
@@ -50,9 +50,14 @@
 
 ### 3.3 デプロイ操作
 
-1. `nr deploy` — Bot をコンテナとして起動（バックグラウンド、既存コンテナは自動置換）
+1. `nr deploy` — Podman Compose で Bot コンテナを起動（バックグラウンド）
 2. `nr deploy:logs` — 実行中コンテナのログをフォロー
-3. `nr deploy:stop` — コンテナを停止
+3. `nr deploy:stop` — コンテナを停止・削除
+
+**注意:**
+
+- イメージを再ビルドした後は `podman-compose up -d --force-recreate` でコンテナを再作成すること（`up -d` のみでは設定変更がない場合再作成されない）。
+- `compose.yaml` の UID は 1000 にハードコードされている（Cipher ホスト専用）。異なる UID の環境では `compose.yaml` の修正が必要。
 
 ### 3.4 運用時の基本挙動
 
