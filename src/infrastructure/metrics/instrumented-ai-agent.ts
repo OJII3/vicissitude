@@ -1,6 +1,7 @@
 import type { AgentResponse } from "../../domain/entities/agent-response.ts";
 import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
+import { METRIC } from "./metric-names.ts";
 
 export class InstrumentedAiAgent implements AiAgent {
 	constructor(
@@ -12,14 +13,14 @@ export class InstrumentedAiAgent implements AiAgent {
 		const start = performance.now();
 		try {
 			const response = await this.inner.send(options);
-			this.metrics.incrementCounter("ai_requests_total", { outcome: "success" });
+			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { outcome: "success" });
 			return response;
 		} catch (error) {
-			this.metrics.incrementCounter("ai_requests_total", { outcome: "error" });
+			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { outcome: "error" });
 			throw error;
 		} finally {
 			const duration = (performance.now() - start) / 1000;
-			this.metrics.observeHistogram("ai_request_duration_seconds", duration);
+			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration);
 		}
 	}
 

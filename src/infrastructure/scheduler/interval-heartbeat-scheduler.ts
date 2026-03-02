@@ -4,6 +4,7 @@ import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
 import { evaluateDueReminders } from "../../domain/services/heartbeat-evaluator.ts";
 import { withTimeout } from "../../domain/services/timeout.ts";
+import { METRIC } from "../metrics/metric-names.ts";
 
 const TICK_INTERVAL_MS = 60_000;
 const TICK_TIMEOUT_MS = 180_000;
@@ -37,7 +38,7 @@ export class IntervalHeartbeatScheduler {
 				`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
 			);
 			await this.useCase.execute(dueReminders);
-			this.metrics?.incrementCounter("heartbeat_reminders_executed_total");
+			this.metrics?.incrementCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED);
 		}
 	}
 
@@ -59,13 +60,13 @@ export class IntervalHeartbeatScheduler {
 		const start = performance.now();
 		try {
 			await withTimeout(this.executeTick(), TICK_TIMEOUT_MS, "heartbeat tick timed out");
-			this.metrics?.incrementCounter("heartbeat_ticks_total", { outcome: "success" });
+			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "success" });
 		} catch (error) {
-			this.metrics?.incrementCounter("heartbeat_ticks_total", { outcome: "error" });
+			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "error" });
 			this.logger.error("[heartbeat] tick エラー:", error);
 		} finally {
 			const duration = (performance.now() - start) / 1000;
-			this.metrics?.observeHistogram("heartbeat_tick_duration_seconds", duration);
+			this.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
 			this.running = false;
 		}
 	}

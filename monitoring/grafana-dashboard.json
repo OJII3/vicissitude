@@ -227,7 +227,7 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(ai_requests_total{outcome=\"error\"}[5m]) / rate(ai_requests_total[5m])",
+					"expr": "rate(ai_requests_total{outcome=\"error\"}[5m]) / (rate(ai_requests_total[5m]) > 0)",
 					"legendFormat": "error rate"
 				}
 			],

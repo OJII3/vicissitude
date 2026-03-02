@@ -1,5 +1,5 @@
 import type { Logger } from "../../domain/ports/logger.port.ts";
-import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
+import type { PrometheusCollector } from "./prometheus-collector.ts";
 
 const DEFAULT_PORT = 9091;
 
@@ -8,7 +8,7 @@ export class PrometheusServer {
 	private readonly port: number;
 
 	constructor(
-		private readonly collector: MetricsCollector,
+		private readonly collector: PrometheusCollector,
 		private readonly logger: Logger,
 	) {
 		this.port = Number(process.env.METRICS_PORT) || DEFAULT_PORT;

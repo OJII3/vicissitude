@@ -19,6 +19,7 @@ import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { InstrumentedAiAgent } from "./infrastructure/metrics/instrumented-ai-agent.ts";
 import { InstrumentedResponseJudge } from "./infrastructure/metrics/instrumented-response-judge.ts";
+import { METRIC } from "./infrastructure/metrics/metric-names.ts";
 import { PrometheusCollector } from "./infrastructure/metrics/prometheus-collector.ts";
 import { PrometheusServer } from "./infrastructure/metrics/prometheus-server.ts";
 import { CopilotPollingAgent } from "./infrastructure/opencode/copilot-polling-agent.ts";
@@ -54,18 +55,15 @@ async function loadChannelConfig(root: string) {
 
 function createMetrics(logger: Logger) {
 	const collector = new PrometheusCollector();
-	collector.registerCounter("discord_messages_received_total", "Discord messages received");
-	collector.registerCounter("ai_requests_total", "AI agent requests");
-	collector.registerCounter("judge_requests_total", "Response judge requests");
-	collector.registerCounter("heartbeat_ticks_total", "Heartbeat scheduler ticks");
-	collector.registerCounter("heartbeat_reminders_executed_total", "Heartbeat reminders executed");
-	collector.registerGauge("bot_info", "Bot information");
-	collector.registerHistogram("ai_request_duration_seconds", "AI request duration in seconds");
-	collector.registerHistogram(
-		"heartbeat_tick_duration_seconds",
-		"Heartbeat tick duration in seconds",
-	);
-	collector.setGauge("bot_info", 1, { bot_name: "fua" });
+	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
+	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
+	collector.registerCounter(METRIC.JUDGE_REQUESTS, "Response judge requests");
+	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
+	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
+	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
+	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
+	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
+	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "fua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
 }
 
@@ -135,8 +133,7 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 	const guildIds = channelConfig.getGuildIds();
 	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
 
-	const routeMessage = async (msg: IncomingMessage) => {
-		metrics.incrementCounter("discord_messages_received_total", { channel_type: "home" });
+	const routeBuffer = async (msg: IncomingMessage) => {
 		const useCase = msg.guildId ? bufferUseCases.get(msg.guildId) : undefined;
 		if (useCase) {
 			await useCase.execute(msg);
@@ -144,8 +141,14 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 			logger.warn(`[bootstrap] No buffer for guildId=${msg.guildId}, dropping event`);
 		}
 	};
-	gateway.onMessage((msg) => routeMessage(msg));
-	gateway.onHomeChannelMessage((msg) => routeMessage(msg));
+	gateway.onHomeChannelMessage(async (msg) => {
+		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
+		await routeBuffer(msg);
+	});
+	gateway.onMessage(async (msg) => {
+		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "mention" });
+		await routeBuffer(msg);
+	});
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
@@ -188,13 +191,13 @@ async function bootstrapDefault(ctx: BootstrapContext) {
 		new MessageBatcher(),
 	);
 
-	gateway.onMessage(async (msg, ch) => {
-		metrics.incrementCounter("discord_messages_received_total", { channel_type: "mention" });
-		await handleMessage.execute(msg, ch);
-	});
 	gateway.onHomeChannelMessage(async (msg, ch) => {
-		metrics.incrementCounter("discord_messages_received_total", { channel_type: "home" });
+		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
 		await handleHomeMessage.execute(msg, ch);
+	});
+	gateway.onMessage(async (msg, ch) => {
+		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "mention" });
+		await handleMessage.execute(msg, ch);
 	});
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
