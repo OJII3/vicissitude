@@ -156,7 +156,7 @@
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
 
 - `mcp/discord-server.ts`: Discord 操作ツール
-  - `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
+  - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
 - `mcp/code-exec-server.ts`: コード実行ツール
   - `execute_code` (JS/TS/Python/Shell)
   - Podman コンテナでサンドボックス実行（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除）

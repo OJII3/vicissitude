@@ -2,6 +2,7 @@
 
 ### discord サーバー
 
+- `send_typing(channel_id)` - タイピングインジケーター送信（8秒間隔で自動リピート、send_message/reply で自動停止、60秒タイムアウト）
 - `send_message(channel_id, content)` - チャンネルにメッセージ送信
 - `reply(channel_id, message_id, content)` - メッセージに返信
 - `add_reaction(channel_id, message_id, emoji)` - リアクション追加
