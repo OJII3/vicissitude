@@ -1,4 +1,14 @@
 {
 	"defaultCooldownSeconds": 30,
-	"channels": []
+	"channels": [
+		{
+			"_example": "guildName / channelName は人間用のラベル（コードでは使用しない）",
+			"channelId": "000000000000000000",
+			"guildId": "000000000000000000",
+			"guildName": "サーバー名",
+			"channelName": "チャンネル名",
+			"role": "home",
+			"cooldownSeconds": 30
+		}
+	]
 }
