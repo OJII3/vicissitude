@@ -6,7 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const root = resolvePath(import.meta.dirname, "../..");
-const bufferDir = resolvePath(root, "data/event-buffer");
+const bufferDir = process.env.EVENT_BUFFER_DIR ?? resolvePath(root, "data/event-buffer");
 const bufferFile = resolvePath(bufferDir, "events.jsonl");
 
 if (!existsSync(bufferDir)) {

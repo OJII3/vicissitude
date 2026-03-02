@@ -40,6 +40,14 @@ export class JsonChannelConfigLoader implements ChannelConfigLoader {
 		return this.configs.get(channelId)?.cooldownSeconds ?? this.defaultCooldownSeconds;
 	}
 
+	getGuildIds(): string[] {
+		const guildIds = new Set<string>();
+		for (const config of this.configs.values()) {
+			guildIds.add(config.guildId);
+		}
+		return [...guildIds];
+	}
+
 	/**
 	 * ホームチャンネルとして登録された全チャンネルIDを返す。
 	 */

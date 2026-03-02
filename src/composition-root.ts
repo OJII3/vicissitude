@@ -7,6 +7,7 @@ import { HandleHomeChannelMessageUseCase } from "./application/use-cases/handle-
 import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-incoming-message.use-case.ts";
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
+import type { IncomingMessage } from "./domain/ports/message-gateway.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
 import { MessageBatcher } from "./domain/services/message-batcher.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
@@ -16,6 +17,7 @@ import { DiscordEmojiProvider } from "./infrastructure/discord/discord-emoji-pro
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { CopilotPollingAgent } from "./infrastructure/opencode/copilot-polling-agent.ts";
+import { GuildRoutingAgent } from "./infrastructure/opencode/guild-routing-agent.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
 import { OpencodeJudgeAgent } from "./infrastructure/opencode/opencode-judge-agent.ts";
 import { OpencodeResponseJudge } from "./infrastructure/opencode/opencode-response-judge.ts";
@@ -68,6 +70,33 @@ export async function bootstrap(): Promise<void> {
 	}
 }
 
+function createGuildAgents(
+	root: string,
+	guildIds: string[],
+	sessions: JsonSessionRepository,
+	contextLoaderFactory: FileContextLoaderFactory,
+	logger: Logger,
+) {
+	const agents = new Map<string, CopilotPollingAgent>();
+	const bufferUseCases = new Map<string, BufferEventUseCase>();
+
+	for (const guildId of guildIds) {
+		const bufferDir = resolve(root, `data/event-buffer/guilds/${guildId}`);
+		const eventBuffer = new FileEventBuffer(bufferDir);
+		const agent = new CopilotPollingAgent(
+			guildId,
+			sessions,
+			contextLoaderFactory,
+			eventBuffer,
+			logger,
+		);
+		agents.set(guildId, agent);
+		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, logger));
+	}
+
+	return { agents, bufferUseCases };
+}
+
 async function bootstrapCopilot(
 	root: string,
 	sessions: JsonSessionRepository,
@@ -76,30 +105,44 @@ async function bootstrapCopilot(
 	channelConfig: JsonChannelConfigLoader,
 	logger: Logger,
 ) {
-	const eventBuffer = new FileEventBuffer(resolve(root, "data/event-buffer"));
-	const copilotAgent = new CopilotPollingAgent(sessions, contextLoaderFactory, eventBuffer, logger);
-	const bufferUseCase = new BufferEventUseCase(eventBuffer, logger);
+	const guildIds = channelConfig.getGuildIds();
+	const { agents, bufferUseCases } = createGuildAgents(
+		root,
+		guildIds,
+		sessions,
+		contextLoaderFactory,
+		logger,
+	);
 
-	// 全イベントをバッファに書き込む（メンション・ホームチャンネル共通）
-	gateway.onMessage((msg) => bufferUseCase.execute(msg));
-	gateway.onHomeChannelMessage((msg) => bufferUseCase.execute(msg));
+	// メッセージハンドラ: guildId に基づきギルド別バッファに振り分け
+	const routeMessage = async (msg: IncomingMessage) => {
+		const useCase = msg.guildId ? bufferUseCases.get(msg.guildId) : undefined;
+		if (useCase) {
+			await useCase.execute(msg);
+		} else {
+			logger.warn(`[bootstrap] No buffer for guildId=${msg.guildId}, dropping event`);
+		}
+	};
+	gateway.onMessage((msg) => routeMessage(msg));
+	gateway.onHomeChannelMessage((msg) => routeMessage(msg));
 
-	// Emoji usage tracking
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
-	gateway.onEmojiUsed((guildId, emojiName) => {
-		emojiUsageRepo.increment(guildId, emojiName);
-	});
+	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	// Heartbeat
-	const { scheduler: heartbeatScheduler } = createHeartbeat(root, copilotAgent, logger);
+	const routingAgent = new GuildRoutingAgent(agents);
+	const { scheduler: heartbeatScheduler } = createHeartbeat(root, routingAgent, logger);
+	setupShutdown(logger, heartbeatScheduler, gateway, routingAgent, emojiUsageRepo);
 
-	// Graceful shutdown
-	setupShutdown(logger, heartbeatScheduler, gateway, copilotAgent, emojiUsageRepo);
-
-	logger.info("[bootstrap] Copilot polling mode enabled");
+	logger.info(
+		`[bootstrap] Copilot polling mode enabled for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
+	);
 	await gateway.start();
 	heartbeatScheduler.start();
-	await copilotAgent.startPollingLoop();
+	for (const [guildId, agent] of agents) {
+		agent.startPollingLoop().catch((err) => {
+			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
+		});
+	}
 }
 
 async function bootstrapDefault(
