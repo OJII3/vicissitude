@@ -1,0 +1,19 @@
+x-podman:
+  in_pod: false # userns_mode と --pod は共存不可のため必須
+
+services:
+  bot:
+    container_name: vicissitude
+    image: vicissitude
+    init: true
+    userns_mode: "keep-id:uid=1000,gid=1000"
+    env_file:
+      - .env
+    ports:
+      - "9091:9091"
+    volumes:
+      - ./data:/app/data:rw
+      - ./context:/app/context:ro
+      - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
+      - ${XDG_DATA_HOME:-${HOME}/.local/share}/opencode/auth.json:/home/bun/.local/share/opencode/auth.json:ro
+    restart: unless-stopped

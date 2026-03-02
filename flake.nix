@@ -22,6 +22,7 @@
               nodejs-slim
               opencode
               podman
+              podman-compose
             ];
           };
         };

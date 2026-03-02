@@ -50,9 +50,9 @@
 
 ### 3.3 デプロイ操作
 
-1. `nr deploy` — Bot をコンテナとして起動（バックグラウンド、既存コンテナは自動置換）
+1. `nr deploy` — Podman Compose で Bot コンテナを起動（バックグラウンド）
 2. `nr deploy:logs` — 実行中コンテナのログをフォロー
-3. `nr deploy:stop` — コンテナを停止
+3. `nr deploy:stop` — コンテナを停止・削除
 
 ### 3.4 運用時の基本挙動
 
