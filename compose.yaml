@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     ports:
-      - "9091:9091"
+      - "127.0.0.1:9091:9091"
     volumes:
       - ./data:/app/data:rw
       - ./context:/app/context:ro
