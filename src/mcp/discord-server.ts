@@ -19,13 +19,21 @@ const server = new McpServer({
 });
 
 const TYPING_INTERVAL_MS = 8_000;
-const typingIntervals = new Map<string, ReturnType<typeof setInterval>>();
+const TYPING_TIMEOUT_MS = 60_000;
+
+interface TypingState {
+	interval: ReturnType<typeof setInterval>;
+	timeout: ReturnType<typeof setTimeout>;
+}
+
+const typingStates = new Map<string, TypingState>();
 
 function clearTyping(channelId: string) {
-	const interval = typingIntervals.get(channelId);
-	if (interval) {
-		clearInterval(interval);
-		typingIntervals.delete(channelId);
+	const state = typingStates.get(channelId);
+	if (state) {
+		clearInterval(state.interval);
+		clearTimeout(state.timeout);
+		typingStates.delete(channelId);
 	}
 }
 
@@ -39,20 +47,20 @@ async function getTextChannel(channelId: string) {
 
 server.tool(
 	"send_typing",
-	"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called.",
+	"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called, or 60s timeout.",
 	{ channel_id: z.string() },
 	async ({ channel_id }) => {
 		const channel = await getTextChannel(channel_id);
-		if ("sendTyping" in channel) {
-			await channel.sendTyping();
-			clearTyping(channel_id);
-			const interval = setInterval(() => {
-				if ("sendTyping" in channel) {
-					void channel.sendTyping();
-				}
-			}, TYPING_INTERVAL_MS);
-			typingIntervals.set(channel_id, interval);
+		if (!("sendTyping" in channel)) {
+			return { content: [{ type: "text", text: "Channel does not support typing indicators" }] };
 		}
+		clearTyping(channel_id);
+		await channel.sendTyping();
+		const interval = setInterval(() => {
+			channel.sendTyping().catch(() => clearTyping(channel_id));
+		}, TYPING_INTERVAL_MS);
+		const timeout = setTimeout(() => clearTyping(channel_id), TYPING_TIMEOUT_MS);
+		typingStates.set(channel_id, { interval, timeout });
 		return { content: [{ type: "text", text: "Typing indicator started" }] };
 	},
 );
