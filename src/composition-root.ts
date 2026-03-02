@@ -8,6 +8,7 @@ import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-inc
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
 import type { IncomingMessage } from "./domain/ports/message-gateway.port.ts";
+import type { MetricsCollector } from "./domain/ports/metrics-collector.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
 import { MessageBatcher } from "./domain/services/message-batcher.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
@@ -16,6 +17,10 @@ import { DiscordConversationHistory } from "./infrastructure/discord/discord-con
 import { DiscordEmojiProvider } from "./infrastructure/discord/discord-emoji-provider.ts";
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
+import { InstrumentedAiAgent } from "./infrastructure/metrics/instrumented-ai-agent.ts";
+import { InstrumentedResponseJudge } from "./infrastructure/metrics/instrumented-response-judge.ts";
+import { PrometheusCollector } from "./infrastructure/metrics/prometheus-collector.ts";
+import { PrometheusServer } from "./infrastructure/metrics/prometheus-server.ts";
 import { CopilotPollingAgent } from "./infrastructure/opencode/copilot-polling-agent.ts";
 import { GuildRoutingAgent } from "./infrastructure/opencode/guild-routing-agent.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
@@ -27,6 +32,17 @@ import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
 import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
 
+interface BootstrapContext {
+	root: string;
+	sessions: JsonSessionRepository;
+	contextLoaderFactory: FileContextLoaderFactory;
+	gateway: DiscordGateway;
+	channelConfig: JsonChannelConfigLoader;
+	logger: Logger;
+	metrics: PrometheusCollector;
+	metricsServer: PrometheusServer;
+}
+
 async function loadChannelConfig(root: string) {
 	const overlayChannels = resolve(root, "data/context/channels.json");
 	const baseChannels = resolve(root, "context/channels.json");
@@ -36,11 +52,27 @@ async function loadChannelConfig(root: string) {
 	return new JsonChannelConfigLoader(channelsJson);
 }
 
-function createHeartbeat(root: string, agent: AiAgent, logger: Logger) {
+function createMetrics(logger: Logger) {
+	const collector = new PrometheusCollector();
+	collector.registerCounter("discord_messages_received_total", "Discord messages received");
+	collector.registerCounter("ai_requests_total", "AI agent requests");
+	collector.registerCounter("judge_requests_total", "Response judge requests");
+	collector.registerCounter("heartbeat_ticks_total", "Heartbeat scheduler ticks");
+	collector.registerCounter("heartbeat_reminders_executed_total", "Heartbeat reminders executed");
+	collector.registerGauge("bot_info", "Bot information");
+	collector.registerHistogram("ai_request_duration_seconds", "AI request duration in seconds");
+	collector.registerHistogram(
+		"heartbeat_tick_duration_seconds",
+		"Heartbeat tick duration in seconds",
+	);
+	collector.setGauge("bot_info", 1, { bot_name: "fua" });
+	return { collector, server: new PrometheusServer(collector, logger) };
+}
+
+function createHeartbeat(root: string, agent: AiAgent, logger: Logger, metrics?: MetricsCollector) {
 	const configRepo = new JsonHeartbeatConfigRepository(resolve(root, "data/heartbeat-config.json"));
 	const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
-	const scheduler = new IntervalHeartbeatScheduler(configRepo, useCase, logger);
-	return { scheduler };
+	return new IntervalHeartbeatScheduler(configRepo, useCase, logger, metrics);
 }
 
 export async function bootstrap(): Promise<void> {
@@ -55,67 +87,56 @@ export async function bootstrap(): Promise<void> {
 		resolve(root, "context"),
 	);
 	const gateway = new DiscordGateway(token, logger);
+	const { collector: metrics, server: metricsServer } = createMetrics(logger);
+	metricsServer.start();
 
-	// Channel config (overlay → base fallback)
 	const channelConfig = await loadChannelConfig(root);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
 
+	const ctx: BootstrapContext = {
+		root,
+		sessions,
+		contextLoaderFactory,
+		gateway,
+		channelConfig,
+		logger,
+		metrics,
+		metricsServer,
+	};
 	const providerID = process.env.OPENCODE_PROVIDER_ID ?? "opencode";
-	const isCopilot = providerID === "github-copilot";
-
-	if (isCopilot) {
-		await bootstrapCopilot(root, sessions, contextLoaderFactory, gateway, channelConfig, logger);
+	if (providerID === "github-copilot") {
+		await bootstrapCopilot(ctx);
 	} else {
-		await bootstrapDefault(root, sessions, contextLoaderFactory, gateway, channelConfig, logger);
+		await bootstrapDefault(ctx);
 	}
 }
 
-function createGuildAgents(
-	root: string,
-	guildIds: string[],
-	sessions: JsonSessionRepository,
-	contextLoaderFactory: FileContextLoaderFactory,
-	logger: Logger,
-) {
+function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 	const agents = new Map<string, CopilotPollingAgent>();
 	const bufferUseCases = new Map<string, BufferEventUseCase>();
-
 	for (const guildId of guildIds) {
-		const bufferDir = resolve(root, `data/event-buffer/guilds/${guildId}`);
+		const bufferDir = resolve(ctx.root, `data/event-buffer/guilds/${guildId}`);
 		const eventBuffer = new FileEventBuffer(bufferDir);
 		const agent = new CopilotPollingAgent(
 			guildId,
-			sessions,
-			contextLoaderFactory,
+			ctx.sessions,
+			ctx.contextLoaderFactory,
 			eventBuffer,
-			logger,
+			ctx.logger,
 		);
 		agents.set(guildId, agent);
-		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, logger));
+		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, ctx.logger));
 	}
-
 	return { agents, bufferUseCases };
 }
 
-async function bootstrapCopilot(
-	root: string,
-	sessions: JsonSessionRepository,
-	contextLoaderFactory: FileContextLoaderFactory,
-	gateway: DiscordGateway,
-	channelConfig: JsonChannelConfigLoader,
-	logger: Logger,
-) {
+async function bootstrapCopilot(ctx: BootstrapContext) {
+	const { gateway, channelConfig, logger, metrics, metricsServer } = ctx;
 	const guildIds = channelConfig.getGuildIds();
-	const { agents, bufferUseCases } = createGuildAgents(
-		root,
-		guildIds,
-		sessions,
-		contextLoaderFactory,
-		logger,
-	);
+	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
 
-	// メッセージハンドラ: guildId に基づきギルド別バッファに振り分け
 	const routeMessage = async (msg: IncomingMessage) => {
+		metrics.incrementCounter("discord_messages_received_total", { channel_type: "home" });
 		const useCase = msg.guildId ? bufferUseCases.get(msg.guildId) : undefined;
 		if (useCase) {
 			await useCase.execute(msg);
@@ -126,18 +147,18 @@ async function bootstrapCopilot(
 	gateway.onMessage((msg) => routeMessage(msg));
 	gateway.onHomeChannelMessage((msg) => routeMessage(msg));
 
-	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
+	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	const routingAgent = new GuildRoutingAgent(agents);
-	const { scheduler: heartbeatScheduler } = createHeartbeat(root, routingAgent, logger);
-	setupShutdown(logger, heartbeatScheduler, gateway, routingAgent, emojiUsageRepo);
+	const routingAgent = new InstrumentedAiAgent(new GuildRoutingAgent(agents), metrics);
+	const scheduler = createHeartbeat(ctx.root, routingAgent, logger, metrics);
+	setupShutdown(logger, scheduler, gateway, routingAgent, emojiUsageRepo, undefined, metricsServer);
 
 	logger.info(
-		`[bootstrap] Copilot polling mode enabled for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
+		`[bootstrap] Copilot polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
 	);
 	await gateway.start();
-	heartbeatScheduler.start();
+	scheduler.start();
 	for (const [guildId, agent] of agents) {
 		agent.startPollingLoop().catch((err) => {
 			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
@@ -145,54 +166,42 @@ async function bootstrapCopilot(
 	}
 }
 
-async function bootstrapDefault(
-	root: string,
-	sessions: JsonSessionRepository,
-	contextLoaderFactory: FileContextLoaderFactory,
-	gateway: DiscordGateway,
-	channelConfig: JsonChannelConfigLoader,
-	logger: Logger,
-) {
-	const agent = new OpencodeAgent(sessions, contextLoaderFactory, logger);
+async function bootstrapDefault(ctx: BootstrapContext) {
+	const { root, gateway, channelConfig, logger, metrics, metricsServer } = ctx;
+	const rawAgent = new OpencodeAgent(ctx.sessions, ctx.contextLoaderFactory, logger);
+	const agent = new InstrumentedAiAgent(rawAgent, metrics);
 	const judgeAgent = new OpencodeJudgeAgent();
+	const rawJudge = new OpencodeResponseJudge(judgeAgent, logger);
+	const responseJudge = new InstrumentedResponseJudge(rawJudge, metrics);
 
-	// Home channel infrastructure
-	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
-	const emojiProvider = new DiscordEmojiProvider(() => gateway.getClient());
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
-	const responseJudge = new OpencodeResponseJudge(judgeAgent, logger);
-	const cooldown = new CooldownTracker();
-	const messageBatcher = new MessageBatcher();
-
-	// Heartbeat
-	const { scheduler: heartbeatScheduler } = createHeartbeat(root, agent, logger);
-
-	// Use cases
 	const handleMessage = new HandleIncomingMessageUseCase(agent, logger);
 	const handleHomeMessage = new HandleHomeChannelMessageUseCase(
 		agent,
 		responseJudge,
-		conversationHistory,
+		new DiscordConversationHistory(() => gateway.getClient()),
 		channelConfig,
-		cooldown,
-		emojiProvider,
+		new CooldownTracker(),
+		new DiscordEmojiProvider(() => gateway.getClient()),
 		emojiUsageRepo,
 		logger,
-		messageBatcher,
+		new MessageBatcher(),
 	);
 
-	// Wiring
-	gateway.onMessage((msg, ch) => handleMessage.execute(msg, ch));
-	gateway.onHomeChannelMessage((msg, ch) => handleHomeMessage.execute(msg, ch));
-	gateway.onEmojiUsed((guildId, emojiName) => {
-		emojiUsageRepo.increment(guildId, emojiName);
+	gateway.onMessage(async (msg, ch) => {
+		metrics.incrementCounter("discord_messages_received_total", { channel_type: "mention" });
+		await handleMessage.execute(msg, ch);
 	});
+	gateway.onHomeChannelMessage(async (msg, ch) => {
+		metrics.incrementCounter("discord_messages_received_total", { channel_type: "home" });
+		await handleHomeMessage.execute(msg, ch);
+	});
+	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	// Graceful shutdown
-	setupShutdown(logger, heartbeatScheduler, gateway, agent, emojiUsageRepo, judgeAgent);
-
+	const scheduler = createHeartbeat(root, agent, logger, metrics);
+	setupShutdown(logger, scheduler, gateway, rawAgent, emojiUsageRepo, judgeAgent, metricsServer);
 	await gateway.start();
-	heartbeatScheduler.start();
+	scheduler.start();
 }
 
 function setupShutdown(
@@ -202,6 +211,7 @@ function setupShutdown(
 	agent: AiAgent,
 	emojiUsageRepo: JsonEmojiUsageRepository,
 	judgeAgent?: AiAgent,
+	metricsServer?: PrometheusServer,
 ) {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -212,9 +222,8 @@ function setupShutdown(
 		gateway.stop();
 		agent.stop();
 		judgeAgent?.stop();
-		void emojiUsageRepo.flush().finally(() => {
-			setTimeout(() => process.exit(0), 1000);
-		});
+		metricsServer?.stop();
+		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
 	};
 	process.on("SIGINT", shutdown);
 	process.on("SIGTERM", shutdown);
