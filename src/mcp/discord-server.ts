@@ -18,6 +18,17 @@ const server = new McpServer({
 	version: "0.1.0",
 });
 
+const TYPING_INTERVAL_MS = 8_000;
+const typingIntervals = new Map<string, ReturnType<typeof setInterval>>();
+
+function clearTyping(channelId: string) {
+	const interval = typingIntervals.get(channelId);
+	if (interval) {
+		clearInterval(interval);
+		typingIntervals.delete(channelId);
+	}
+}
+
 async function getTextChannel(channelId: string) {
 	const channel = await discordClient.channels.fetch(channelId);
 	if (!channel?.isTextBased() || !("send" in channel)) {
@@ -27,10 +38,31 @@ async function getTextChannel(channelId: string) {
 }
 
 server.tool(
+	"send_typing",
+	"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called.",
+	{ channel_id: z.string() },
+	async ({ channel_id }) => {
+		const channel = await getTextChannel(channel_id);
+		if ("sendTyping" in channel) {
+			await channel.sendTyping();
+			clearTyping(channel_id);
+			const interval = setInterval(() => {
+				if ("sendTyping" in channel) {
+					void channel.sendTyping();
+				}
+			}, TYPING_INTERVAL_MS);
+			typingIntervals.set(channel_id, interval);
+		}
+		return { content: [{ type: "text", text: "Typing indicator started" }] };
+	},
+);
+
+server.tool(
 	"send_message",
 	"Send a message to a Discord channel",
 	{ channel_id: z.string(), content: z.string() },
 	async ({ channel_id, content }) => {
+		clearTyping(channel_id);
 		const channel = await getTextChannel(channel_id);
 		const msg = await channel.send(content);
 		return { content: [{ type: "text", text: `Sent message ${msg.id}` }] };
@@ -42,6 +74,7 @@ server.tool(
 	"Reply to a specific message in a Discord channel",
 	{ channel_id: z.string(), message_id: z.string(), content: z.string() },
 	async ({ channel_id, message_id, content }) => {
+		clearTyping(channel_id);
 		const channel = await getTextChannel(channel_id);
 		const target = await channel.messages.fetch(message_id);
 		const msg = await target.reply(content);
