@@ -76,6 +76,7 @@ export function createMockChannelConfig(cooldown = 60): ChannelConfigLoader {
 	return {
 		getRole: mock(() => "home" as const),
 		getCooldown: mock(() => cooldown),
+		getGuildIds: mock(() => []),
 	};
 }
 

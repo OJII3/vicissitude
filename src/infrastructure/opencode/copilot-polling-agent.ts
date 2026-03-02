@@ -15,7 +15,6 @@ import type { SessionRepository } from "../../domain/ports/session-repository.po
 import { mcpServerConfigs } from "./mcp-config.ts";
 
 const AGENT_NAME = "copilot-polling";
-const POLLING_SESSION_KEY = "__polling__";
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 
@@ -44,6 +43,7 @@ export class CopilotPollingAgent implements AiAgent {
 	private running = false;
 
 	constructor(
+		private readonly guildId: string,
 		private readonly sessions: SessionRepository,
 		private readonly contextLoaderFactory: ContextLoaderFactory,
 		private readonly eventBuffer: EventBuffer,
@@ -80,12 +80,12 @@ export class CopilotPollingAgent implements AiAgent {
 				delay = INITIAL_RECONNECT_DELAY_MS;
 			} catch (err) {
 				if (this.abortController.signal.aborted) return;
-				this.logger.error("[copilot-polling] session error, will restart", err);
+				this.logger.error(`[copilot-polling:${this.guildId}] session error, will restart`, err);
 			}
 
 			if (this.abortController.signal.aborted) return;
 
-			this.logger.info(`[copilot-polling] restarting in ${delay}ms...`);
+			this.logger.info(`[copilot-polling:${this.guildId}] restarting in ${delay}ms...`);
 			// eslint-disable-next-line no-await-in-loop -- backoff delay between restarts
 			await this.sleep(delay);
 			delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
@@ -105,10 +105,12 @@ export class CopilotPollingAgent implements AiAgent {
 		const oc = await this.getClient();
 		const sessionId = await this.resolveSessionId(oc);
 
-		const contextLoader = this.contextLoaderFactory.create();
+		const contextLoader = this.contextLoaderFactory.create(this.guildId);
 		const system = await contextLoader.loadBootstrapContext();
 
-		this.logger.info(`[copilot-polling] starting polling prompt on session ${sessionId}`);
+		this.logger.info(
+			`[copilot-polling:${this.guildId}] starting polling prompt on session ${sessionId}`,
+		);
 
 		const result = await oc.session.promptAsync({
 			sessionID: sessionId,
@@ -139,14 +141,17 @@ export class CopilotPollingAgent implements AiAgent {
 				if (typed.type === "session.idle") {
 					const idle = typed as EventSessionIdle;
 					if (idle.properties.sessionID === sessionId) {
-						this.logger.info("[copilot-polling] session went idle, will restart");
+						this.logger.info(`[copilot-polling:${this.guildId}] session went idle, will restart`);
 						return;
 					}
 				}
 				if (typed.type === "session.error") {
 					const err = typed as EventSessionError;
 					if (err.properties.sessionID === sessionId) {
-						this.logger.error("[copilot-polling] session error event", err.properties);
+						this.logger.error(
+							`[copilot-polling:${this.guildId}] session error event`,
+							err.properties,
+						);
 						return;
 					}
 				}
@@ -158,7 +163,8 @@ export class CopilotPollingAgent implements AiAgent {
 	}
 
 	private async resolveSessionId(oc: OpencodeClient): Promise<string> {
-		let realId = this.sessions.get(AGENT_NAME, POLLING_SESSION_KEY);
+		const sessionKey = `__polling__:${this.guildId}`;
+		let realId = this.sessions.get(AGENT_NAME, sessionKey);
 
 		if (realId) {
 			const result = await oc.session.get({ sessionID: realId });
@@ -168,14 +174,14 @@ export class CopilotPollingAgent implements AiAgent {
 		}
 
 		if (!realId) {
-			const created = await oc.session.create({ title: "ふあ:polling" });
+			const created = await oc.session.create({ title: `ふあ:polling:${this.guildId}` });
 			if (created.error || !created.data) {
 				throw new Error(
 					`Failed to create session: ${created.error ? JSON.stringify(created.error) : "no data returned"}`,
 				);
 			}
 			realId = created.data.id;
-			await this.sessions.save(AGENT_NAME, POLLING_SESSION_KEY, realId);
+			await this.sessions.save(AGENT_NAME, sessionKey, realId);
 		}
 
 		return realId;
@@ -186,7 +192,7 @@ export class CopilotPollingAgent implements AiAgent {
 
 		const result = await createOpencode({
 			config: {
-				mcp: mcpServerConfigs({ includeEventBuffer: true }),
+				mcp: mcpServerConfigs({ includeEventBuffer: true, guildId: this.guildId }),
 				tools: {
 					question: false,
 					read: false,

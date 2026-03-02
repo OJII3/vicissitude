@@ -2,6 +2,7 @@ import { resolve } from "path";
 
 interface McpConfigOptions {
 	includeEventBuffer?: boolean;
+	guildId?: string;
 }
 
 /**
@@ -37,9 +38,14 @@ export function mcpServerConfigs(options?: McpConfigOptions) {
 	};
 
 	if (options?.includeEventBuffer) {
+		const environment: Record<string, string> = {};
+		if (options.guildId) {
+			environment.EVENT_BUFFER_DIR = resolve(root, `data/event-buffer/guilds/${options.guildId}`);
+		}
 		configs["event-buffer"] = {
 			type: "local",
 			command: ["bun", "run", resolve(root, "src/mcp/event-buffer-server.ts")],
+			environment,
 		};
 	}
 
