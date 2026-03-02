@@ -16,7 +16,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）
-- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`, `context/`）
+- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`, `context/`, `event-buffer/guilds/{guildId}/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -56,7 +56,7 @@
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
-  - `getRole(channelId)`, `getCooldown(channelId)`
+  - `getRole(channelId)`, `getCooldown(channelId)`, `getGuildIds()`
 - `emoji-provider.port.ts`: `EmojiProvider` — ギルドカスタム絵文字取得
   - `getGuildEmojis(guildId): Promise<EmojiInfo[]>`
 - `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
@@ -123,8 +123,14 @@
   - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
   - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
   - MCP 設定に `event-buffer` を追加で含む
+- `opencode/guild-routing-agent.ts`: `GuildRoutingAgent implements AiAgent`
+  - ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード
+  - `send()`: `options.guildId` で対応するギルド固有エージェントに委譲
+  - `stop()`: 全ギルドエージェントを停止
+  - Heartbeat 等の既存ユースケースが変更不要になる
 - `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
   - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（CopilotPollingAgent 用）
+  - `guildId` 指定時はギルド別バッファパスを `EVENT_BUFFER_DIR` 環境変数で渡す
 - `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
   - `data/sessions.json` にセッション ID を永続化
   - インメモリキャッシュ + lazy load
@@ -146,8 +152,9 @@
   - `data/heartbeat-config.json` に設定を永続化
   - ファイル不在時はデフォルト設定を返す
 - `persistence/file-event-buffer.ts`: `FileEventBuffer implements EventBuffer`
-  - `data/event-buffer/events.jsonl` に JSONL 形式で append
+  - JSONL 形式で append
   - Copilot ポーリングモード用
+  - ギルド分離: `data/event-buffer/guilds/{guildId}/events.jsonl` にギルドごとに書き込み
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
@@ -175,14 +182,16 @@
 - `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（CopilotPollingAgent 用）
   - `read_events`: バッファの全イベントを読み取り、ファイルをクリアして返す（消費型）
   - `event_count`: 未消費イベント数を返す
-  - `data/event-buffer/events.jsonl` を JSONL 形式で管理
+  - `wait`: 指定秒数待機する
+  - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
+  - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
 
 ### 4.5 Composition Root
 
 - `composition-root.ts`: `bootstrap()` — 唯一の DI 配線場所
   - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
   - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
-  - **Copilot**: `CopilotPollingAgent` + `BufferEventUseCase` のバッファポーリングフロー
+  - **Copilot**: ギルドごとに `CopilotPollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
   - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
 
 ### 4.6 OpenCode 組み込みツール

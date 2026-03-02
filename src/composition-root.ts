@@ -138,7 +138,11 @@ async function bootstrapCopilot(
 	);
 	await gateway.start();
 	heartbeatScheduler.start();
-	await Promise.all([...agents.values()].map((agent) => agent.startPollingLoop()));
+	for (const [guildId, agent] of agents) {
+		agent.startPollingLoop().catch((err) => {
+			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
+		});
+	}
 }
 
 async function bootstrapDefault(

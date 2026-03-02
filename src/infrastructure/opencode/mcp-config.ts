@@ -1,5 +1,7 @@
 import { resolve } from "path";
 
+const GUILD_ID_REGEX = /^\d+$/;
+
 interface McpConfigOptions {
 	includeEventBuffer?: boolean;
 	guildId?: string;
@@ -40,6 +42,9 @@ export function mcpServerConfigs(options?: McpConfigOptions) {
 	if (options?.includeEventBuffer) {
 		const environment: Record<string, string> = {};
 		if (options.guildId) {
+			if (!GUILD_ID_REGEX.test(options.guildId)) {
+				throw new Error(`Invalid guildId: ${options.guildId}`);
+			}
 			environment.EVENT_BUFFER_DIR = resolve(root, `data/event-buffer/guilds/${options.guildId}`);
 		}
 		configs["event-buffer"] = {
