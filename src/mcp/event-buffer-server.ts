@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from "fs";
 import { resolve as resolvePath } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -13,66 +13,69 @@ if (!existsSync(bufferDir)) {
 	mkdirSync(bufferDir, { recursive: true });
 }
 
+/** バッファファイルをアトミックに消費して JSON 配列文字列を返す。イベントなしなら null。 */
+function consumeBuffer(): string | null {
+	if (!existsSync(bufferFile)) return null;
+
+	const tmpFile = `${bufferFile}.reading.${Date.now()}`;
+	try {
+		renameSync(bufferFile, tmpFile);
+	} catch {
+		return null;
+	}
+
+	const raw = readFileSync(tmpFile, "utf-8");
+	unlinkSync(tmpFile);
+
+	const lines = raw.split("\n").filter((line) => line.trim() !== "");
+	if (lines.length === 0) return null;
+
+	const events = lines.map((line) => JSON.parse(line));
+	return JSON.stringify(events, null, 2);
+}
+
+/** バッファファイルが存在しかつ中身があるか */
+function hasEvents(): boolean {
+	try {
+		return existsSync(bufferFile) && statSync(bufferFile).size > 0;
+	} catch {
+		return false;
+	}
+}
+
 const server = new McpServer({
 	name: "event-buffer",
 	version: "1.0.0",
 });
 
 server.tool(
-	"read_events",
-	"バッファの全イベントを読み取り、ファイルをクリアして返す（消費型）",
-	{},
-	() => {
-		if (!existsSync(bufferFile)) {
-			return { content: [{ type: "text" as const, text: "[]" }] };
+	"wait_for_events",
+	"イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す。",
+	{ timeout_seconds: z.number().min(1).max(120).default(60) },
+	async ({ timeout_seconds }) => {
+		// 既にバッファにイベントがあれば即返却
+		const immediate = consumeBuffer();
+		if (immediate) {
+			return { content: [{ type: "text" as const, text: immediate }] };
 		}
 
-		// アトミックなリネームで TOCTOU を回避
-		const tmpFile = `${bufferFile}.reading.${Date.now()}`;
-		try {
-			renameSync(bufferFile, tmpFile);
-		} catch {
-			// リネーム失敗 = ファイルが存在しない（別の read_events が先に処理した）
-			return { content: [{ type: "text" as const, text: "[]" }] };
+		// 1 秒間隔でポーリング
+		const deadline = Date.now() + timeout_seconds * 1000;
+		while (Date.now() < deadline) {
+			// eslint-disable-next-line no-await-in-loop -- intentional sequential polling
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 1000);
+			});
+
+			if (hasEvents()) {
+				const result = consumeBuffer();
+				if (result) {
+					return { content: [{ type: "text" as const, text: result }] };
+				}
+			}
 		}
 
-		const raw = readFileSync(tmpFile, "utf-8");
-		unlinkSync(tmpFile);
-
-		const lines = raw.split("\n").filter((line) => line.trim() !== "");
-
-		if (lines.length === 0) {
-			return { content: [{ type: "text" as const, text: "[]" }] };
-		}
-
-		const events = lines.map((line) => JSON.parse(line));
-		return { content: [{ type: "text" as const, text: JSON.stringify(events, null, 2) }] };
-	},
-);
-
-server.tool("event_count", "未消費イベント数を返す", {}, () => {
-	if (!existsSync(bufferFile)) {
-		return { content: [{ type: "text" as const, text: "0" }] };
-	}
-
-	try {
-		const raw = readFileSync(bufferFile, "utf-8");
-		const count = raw.split("\n").filter((line) => line.trim() !== "").length;
-		return { content: [{ type: "text" as const, text: String(count) }] };
-	} catch {
-		return { content: [{ type: "text" as const, text: "0" }] };
-	}
-});
-
-server.tool(
-	"wait",
-	"指定秒数待機する",
-	{ seconds: z.number().min(1).max(60) },
-	async ({ seconds }) => {
-		await new Promise<void>((resolve) => {
-			setTimeout(resolve, seconds * 1000);
-		});
-		return { content: [{ type: "text", text: `${seconds}秒待機しました` }] };
+		return { content: [{ type: "text" as const, text: "[]" }] };
 	},
 );
 
