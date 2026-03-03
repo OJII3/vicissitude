@@ -85,6 +85,25 @@ describe("BufferEventUseCase", () => {
 		expect(logger.info).toHaveBeenCalledTimes(1);
 	});
 
+	it("content が空でも attachments があればバッファに追加される", async () => {
+		const buffer = createMockBuffer();
+		const logger = createMockLogger();
+		const useCase = new BufferEventUseCase(buffer, logger);
+
+		await useCase.execute(
+			createMockMessage("", {
+				attachments: [{ url: "https://cdn.discordapp.com/img.png", contentType: "image/png" }],
+			}),
+		);
+
+		expect(buffer.append).toHaveBeenCalledTimes(1);
+		const [event] = (buffer.append as ReturnType<typeof mock>).mock.calls[0] as [BufferedEvent];
+		expect(event.content).toBe("");
+		expect(event.attachments).toEqual([
+			{ url: "https://cdn.discordapp.com/img.png", contentType: "image/png" },
+		]);
+	});
+
 	it("guildId が undefined でもバッファに追加される", async () => {
 		const buffer = createMockBuffer();
 		const logger = createMockLogger();

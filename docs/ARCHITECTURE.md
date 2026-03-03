@@ -36,7 +36,8 @@
   - チャンネル単位: `{platform}:{channelId}:_channel`
 - `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
 - `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
-- `conversation-context.ts`: `ConversationMessage`, `ConversationContext` — 会話履歴
+- `conversation-context.ts`: `ConversationMessage`（`attachments: Attachment[]` フィールド含む）, `ConversationContext` — 会話履歴
+- `attachment.ts`: `Attachment` — 添付ファイル情報（`url: string`, `contentType?: string`, `filename?: string`）
 - `emoji-info.ts`: `EmojiInfo` — カスタム絵文字情報（`name`, `identifier`, `animated`）
 - `emoji-usage.ts`: `EmojiUsageCount` — カスタム絵文字使用カウント（`emojiName`, `count`）
 - `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
@@ -44,7 +45,7 @@
 #### ports/
 
 - `ai-agent.port.ts`: `AiAgent` — AI エージェントのインターフェース
-  - `send(options: SendOptions): Promise<AgentResponse>` — `SendOptions = { sessionKey, message, guildId? }`
+  - `send(options: SendOptions): Promise<AgentResponse>` — `SendOptions = { sessionKey, message, guildId?, attachments?: Attachment[] }`
   - `stop(): void`
 - `context-loader.port.ts`: `ContextLoader` + `ContextLoaderFactory` — コンテキスト読込
   - `ContextLoader`: `loadBootstrapContext()`
@@ -52,7 +53,7 @@
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
 - `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `timestamp`, `isMentioned`, `isThread`, `reply()`, `react()`）
+  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments: Attachment[]`, `timestamp`, `isMentioned`, `isThread`, `reply()`, `react()`）
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
@@ -62,7 +63,7 @@
 - `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
   - `increment(guildId, emojiName)`, `getTopEmojis(guildId, limit)`, `hasData(guildId)`
 - `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
-  - `judge(message, context, availableEmojis?): Promise<ResponseDecision>`
+  - `judge(message, context, availableEmojis?, attachments?: Attachment[]): Promise<ResponseDecision>`
 - `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
   - `getRecent(channelId, limit, excludeMessageId?): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
@@ -71,7 +72,7 @@
   - `load()`, `save()`, `updateLastExecuted()`
 - `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（Copilot ポーリング用）
   - `append(event: BufferedEvent): Promise<void>`
-  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `isMentioned`, `isThread`
+  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`
 
 #### services/
 
@@ -109,6 +110,7 @@
   - `messageCreate` 内でカスタム絵文字（`<:name:id>` / `<a:name:id>`）を正規表現で検出してハンドラ呼び出し
   - `MessageReactionAdd` イベントを購読し、カスタム絵文字リアクションでハンドラ呼び出し
   - `Partials.Reaction`, `Partials.Message`, `Partials.Channel` を有効化（キャッシュ外メッセージへのリアクション受信に必要）
+- `discord/discord-attachment-mapper.ts`: `mapDiscordAttachments()` — Discord 添付ファイルから画像 MIME タイプ（`image/png`, `image/jpeg`, `image/gif`, `image/webp`）のみを allowlist フィルタリングし `Attachment[]` に変換
 - `discord/discord-conversation-history.ts`: `DiscordConversationHistory implements ConversationHistory`
   - discord.js で直近メッセージを fetch
 - `discord/discord-emoji-provider.ts`: `DiscordEmojiProvider implements EmojiProvider`
@@ -116,6 +118,7 @@
 - `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
   - OpenCode SDK でセッション管理・メッセージ送信（同期 `prompt()` 呼び出し）
   - 毎回 system prompt でブートストラップコンテキストを注入
+  - 添付画像がある場合は `FilePartInput` として AI に送信（マルチモーダル対応）
   - 非 Copilot プロバイダ用（デフォルト）
 - `opencode/copilot-polling-agent.ts`: `CopilotPollingAgent implements AiAgent`
   - GitHub Copilot プロバイダ専用（`OPENCODE_PROVIDER_ID=github-copilot` で有効化）
@@ -213,6 +216,12 @@
 - ユーザー単位: `{platform}:{channelId}:{authorId}` (例: `discord:123456:789012`)
 - チャンネル単位: `{platform}:{channelId}:_channel` (例: `discord:123456:_channel`)
 
+### Attachment
+
+- `url: string` — 添付ファイルの URL
+- `contentType?: string` — MIME タイプ
+- `filename?: string` — ファイル名
+
 ### IncomingMessage
 
 - `platform: string` — プラットフォーム識別子
@@ -222,6 +231,7 @@
 - `authorName: string`
 - `messageId: string`
 - `content: string`
+- `attachments: Attachment[]` — 画像添付ファイル一覧
 - `timestamp: Date` — メッセージ作成時刻
 - `isMentioned: boolean`
 - `isThread: boolean`
@@ -298,7 +308,7 @@
 ### 6.2 メンション応答（従来フロー）
 
 1. メンション文字列を除去し `IncomingMessage` に変換する。
-2. 空メッセージなら早期リターンする。
+2. テキストが空かつ添付画像もなければ早期リターンする。
 3. ユーザー単位セッションキーを生成する。
 4. typing インジケーターを 8 秒間隔で開始する。
 5. `AiAgent.send()` で AI に送信する。
@@ -307,7 +317,7 @@
 
 ### 6.3 ホームチャンネル応答（新フロー）
 
-1. 空メッセージ → スキップ
+1. テキストが空かつ添付画像もなし → スキップ
 2. クールダウン中 → スキップ
 3. `ConversationHistory.getRecent()` で直近 10 件取得
 4. `EmojiProvider.getGuildEmojis()` でギルドカスタム絵文字取得（失敗時は無視して続行）

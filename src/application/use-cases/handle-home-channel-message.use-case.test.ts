@@ -53,6 +53,21 @@ describe("HandleHomeChannelMessageUseCase - スキップ条件", () => {
 		expect(judge.judge).not.toHaveBeenCalled();
 	});
 
+	it("content が空でも添付ありなら judge が呼ばれる", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const useCase = createUseCase({ judge });
+
+		await useCase.execute(
+			createMockMessage("", {
+				attachments: [{ url: "https://cdn.discordapp.com/img.png", contentType: "image/png" }],
+				guildId: "guild-1",
+			}),
+			createMockChannel(),
+		);
+
+		expect(judge.judge).toHaveBeenCalled();
+	});
+
 	it("クールダウン中はキューに溜まり judge は呼ばれない", async () => {
 		const judge = createMockJudge({ action: { type: "respond" }, reason: "" });
 		const cooldown = new CooldownTracker();
