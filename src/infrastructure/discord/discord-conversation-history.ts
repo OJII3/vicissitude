@@ -5,6 +5,7 @@ import type {
 	ConversationMessage,
 } from "../../domain/entities/conversation-context.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
+import { mapAttachments } from "./discord-attachment-mapper.ts";
 
 export class DiscordConversationHistory implements ConversationHistory {
 	constructor(private readonly getClient: () => Client | null) {}
@@ -30,9 +31,11 @@ export class DiscordConversationHistory implements ConversationHistory {
 		const sorted = [...fetched.values()].toReversed();
 		for (const msg of sorted) {
 			if (excludeMessageId && msg.id === excludeMessageId) continue;
+			const attachments = mapAttachments(msg.attachments);
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,
 				content: msg.content,
+				attachments,
 				timestamp: msg.createdAt,
 			});
 		}

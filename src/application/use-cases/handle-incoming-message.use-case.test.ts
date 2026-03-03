@@ -37,6 +37,29 @@ describe("HandleIncomingMessageUseCase - 正常系", () => {
 		expect(agent.send).not.toHaveBeenCalled();
 	});
 
+	it("content が空でも添付画像ありなら agent.send が呼ばれる", async () => {
+		const agent = createMockAgent({ text: "画像を確認しました", sessionId: "s1" });
+		const logger = createMockLogger();
+		const useCase = new HandleIncomingMessageUseCase(agent, logger);
+
+		const msg = createMockMessage("", {
+			attachments: [{ url: "https://cdn.discordapp.com/img.png", contentType: "image/png" }],
+			isMentioned: true,
+		});
+		const channel = createMockChannel();
+
+		await useCase.execute(msg, channel);
+
+		expect(agent.send).toHaveBeenCalledTimes(1);
+		const call = (agent.send as ReturnType<typeof mock>).mock.calls[0] as [
+			Parameters<typeof agent.send>[0],
+		];
+		expect(call[0].attachments).toEqual([
+			{ url: "https://cdn.discordapp.com/img.png", contentType: "image/png" },
+		]);
+		expect(msg.reply).toHaveBeenCalledWith("画像を確認しました");
+	});
+
 	it("platform フィールドがセッションキーに使われる", async () => {
 		const agent = createMockAgent({ text: "OK", sessionId: "s1" });
 		const logger = createMockLogger();

@@ -6,6 +6,7 @@ import type {
 	MessageChannel,
 	MessageGateway,
 } from "../../domain/ports/message-gateway.port.ts";
+import { mapAttachments } from "./discord-attachment-mapper.ts";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
@@ -128,6 +129,8 @@ export class DiscordGateway implements MessageGateway {
 	}
 
 	private adaptMessage(message: Message, isMentioned: boolean, isThread: boolean): IncomingMessage {
+		const attachments = mapAttachments(message.attachments);
+
 		return {
 			platform: "discord",
 			channelId: message.channel.id,
@@ -137,6 +140,7 @@ export class DiscordGateway implements MessageGateway {
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
+			attachments,
 			timestamp: message.createdAt,
 			isMentioned,
 			isThread,

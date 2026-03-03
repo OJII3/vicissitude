@@ -34,7 +34,7 @@ export class HandleHomeChannelMessageUseCase {
 	) {}
 
 	async execute(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
-		if (!msg.content) return;
+		if (!msg.content && msg.attachments.length === 0) return;
 
 		this.batcher.enqueue(msg.channelId, msg, channel);
 
@@ -122,7 +122,12 @@ export class HandleHomeChannelMessageUseCase {
 		}
 
 		try {
-			const decision = await this.judge.judge(msg.content, context, judgeEmojis);
+			const decision = await this.judge.judge(
+				msg.content,
+				context,
+				judgeEmojis,
+				msg.attachments.length > 0 ? msg.attachments : undefined,
+			);
 			return { action: decision.action, emojis: allEmojis };
 		} catch (error) {
 			this.logger.error("Judge failed, defaulting to ignore:", error);
@@ -172,6 +177,7 @@ export class HandleHomeChannelMessageUseCase {
 				sessionKey,
 				message: prompt,
 				guildId: latestMsg.guildId,
+				attachments: latestMsg.attachments.length > 0 ? latestMsg.attachments : undefined,
 			});
 			clearInterval(typingInterval);
 
