@@ -17,6 +17,7 @@
 		"container:build:bot": "podman build -t vicissitude -f containers/bot/Containerfile .",
 		"container:build:all": "bun run container:build && bun run container:build:bot",
 		"deploy": "podman-compose up -d && echo 'Deployed: nr deploy:logs to follow logs'",
+		"deploy:rebuild": "podman-compose down && bun run container:build:bot && podman-compose up -d && echo 'Rebuilt and deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman-compose logs -f",
 		"deploy:stop": "podman-compose down"
 	},

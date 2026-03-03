@@ -59,9 +59,7 @@
 ソースコードはコンテナイメージに `COPY` されているため、変更後はリビルドが必要:
 
 ```bash
-nr deploy:stop
-podman build -t vicissitude -f containers/bot/Containerfile .
-nr deploy
+nr deploy:rebuild
 ```
 
 **注意:**
