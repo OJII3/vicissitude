@@ -109,6 +109,8 @@ export async function bootstrap(): Promise<void> {
 	}
 }
 
+// bootstrapDefault パスの OpencodeAgent(4096) / OpencodeJudgeAgent(4097) と
+// 範囲が重複するが、bootstrapCopilot と bootstrapDefault は排他的に実行される
 const COPILOT_BASE_PORT = 4096;
 
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {

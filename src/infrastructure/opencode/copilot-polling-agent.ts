@@ -45,7 +45,7 @@ export class CopilotPollingAgent implements AiAgent {
 		private readonly contextLoaderFactory: ContextLoaderFactory,
 		private readonly eventBuffer: EventBuffer,
 		private readonly logger: Logger,
-		private readonly port?: number,
+		private readonly port: number,
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
