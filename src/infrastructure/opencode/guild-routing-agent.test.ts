@@ -35,12 +35,35 @@ describe("GuildRoutingAgent", () => {
 		expect(agentB.send).toHaveBeenCalledTimes(1);
 	});
 
-	it("guildId が undefined の場合にエラーがスローされる", () => {
+	it("guildId が undefined で defaultAgent なしの場合にエラーがスローされる", () => {
 		const router = new GuildRoutingAgent(new Map());
 
 		expect(() => router.send(createSendOptions())).toThrow(
-			"GuildRoutingAgent requires guildId in SendOptions",
+			"GuildRoutingAgent requires guildId in SendOptions (no defaultAgent configured)",
 		);
+	});
+
+	it("guildId が undefined で defaultAgent ありの場合に defaultAgent に委譲される", async () => {
+		const defaultAgent = createMockAgent();
+		const router = new GuildRoutingAgent(new Map(), defaultAgent);
+		const options = createSendOptions();
+
+		await router.send(options);
+
+		expect(defaultAgent.send).toHaveBeenCalledTimes(1);
+		expect(defaultAgent.send).toHaveBeenCalledWith(options);
+	});
+
+	it("guildId が指定されている場合は defaultAgent ではなく該当エージェントに委譲される", async () => {
+		const defaultAgent = createMockAgent();
+		const guildAgent = createMockAgent();
+		const agents = new Map<string, AiAgent>([["111", guildAgent]]);
+		const router = new GuildRoutingAgent(agents, defaultAgent);
+
+		await router.send(createSendOptions("111"));
+
+		expect(guildAgent.send).toHaveBeenCalledTimes(1);
+		expect(defaultAgent.send).not.toHaveBeenCalled();
 	});
 
 	it("未登録の guildId の場合にエラーがスローされる", () => {

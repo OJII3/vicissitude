@@ -125,7 +125,7 @@
   - MCP 設定に `event-buffer` を追加で含む
 - `opencode/guild-routing-agent.ts`: `GuildRoutingAgent implements AiAgent`
   - ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード
-  - `send()`: `options.guildId` で対応するギルド固有エージェントに委譲
+  - `send()`: `options.guildId` で対応するギルド固有エージェントに委譲。`guildId` 未指定時は `defaultAgent` にフォールバック（Heartbeat の `_autonomous` リマインダー用）
   - `stop()`: 全ギルドエージェントを停止
   - Heartbeat 等の既存ユースケースが変更不要になる
 - `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
