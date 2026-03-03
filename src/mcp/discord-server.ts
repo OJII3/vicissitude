@@ -3,6 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Client, GatewayIntentBits } from "discord.js";
 import { z } from "zod";
 
+import { filterImageUrls } from "../infrastructure/discord/discord-attachment-mapper.ts";
+
 const discordClient = new Client({
 	intents: [
 		GatewayIntentBits.Guilds,
@@ -110,9 +112,7 @@ server.tool(
 		const channel = await getTextChannel(channel_id);
 		const messages = await channel.messages.fetch({ limit });
 		const formatted = messages.map((m) => {
-			const imageUrls = m.attachments
-				.filter((a) => a.contentType?.startsWith("image/"))
-				.map((a) => a.url);
+			const imageUrls = filterImageUrls(m.attachments);
 			const imageText = imageUrls.length > 0 ? ` [画像: ${imageUrls.join(", ")}]` : "";
 			return `[${m.author.tag}] ${m.content}${imageText}`;
 		});

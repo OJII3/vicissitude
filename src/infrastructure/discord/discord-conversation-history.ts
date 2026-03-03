@@ -1,11 +1,11 @@
 import type { Client, TextBasedChannel } from "discord.js";
 
-import type { Attachment } from "../../domain/entities/attachment.ts";
 import type {
 	ConversationContext,
 	ConversationMessage,
 } from "../../domain/entities/conversation-context.ts";
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
+import { mapAttachments } from "./discord-attachment-mapper.ts";
 
 export class DiscordConversationHistory implements ConversationHistory {
 	constructor(private readonly getClient: () => Client | null) {}
@@ -31,13 +31,7 @@ export class DiscordConversationHistory implements ConversationHistory {
 		const sorted = [...fetched.values()].toReversed();
 		for (const msg of sorted) {
 			if (excludeMessageId && msg.id === excludeMessageId) continue;
-			const attachments: Attachment[] = msg.attachments
-				.filter((a) => a.contentType?.startsWith("image/"))
-				.map((a) => ({
-					url: a.url,
-					contentType: a.contentType ?? undefined,
-					filename: a.name ?? undefined,
-				}));
+			const attachments = mapAttachments(msg.attachments);
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,
 				content: msg.content,
