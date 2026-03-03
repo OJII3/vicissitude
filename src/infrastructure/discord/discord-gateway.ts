@@ -102,15 +102,17 @@ export class DiscordGateway implements MessageGateway {
 			const adapted = this.adaptMessage(message, isMentioned, isThread);
 			const channel = this.adaptChannel(message);
 
-			// メンション → 必ず応答
-			if (isMentioned && this.handler) {
-				await this.handler(adapted, channel);
+			// ホームチャンネル or その配下スレッド → judge で判断（メンション含む）
+			if (isHomeChannel || isHomeThread) {
+				if (this.homeChannelHandler) {
+					await this.homeChannelHandler(adapted, channel);
+				}
 				return;
 			}
 
-			// ホームチャンネル or その配下スレッド → judge で判断
-			if ((isHomeChannel || isHomeThread) && this.homeChannelHandler) {
-				await this.homeChannelHandler(adapted, channel);
+			// メンション → 必ず応答（ホームチャンネル以外）
+			if (isMentioned && this.handler) {
+				await this.handler(adapted, channel);
 			}
 
 			// それ以外（他チャンネルのスレッド含む） → 無視
