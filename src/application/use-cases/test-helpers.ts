@@ -42,6 +42,7 @@ export function createMockMessage(
 		authorName: "TestUser",
 		messageId: "msg-1",
 		content,
+		attachments: [],
 		timestamp: new Date("2026-03-01T06:30:00Z"),
 		isMentioned: true,
 		isThread: false,

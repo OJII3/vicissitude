@@ -1,3 +1,4 @@
+import type { Attachment } from "../../domain/entities/attachment.ts";
 import type {
 	ConversationContext,
 	ConversationMessage,
@@ -47,13 +48,18 @@ export class OpencodeResponseJudge implements ResponseJudge {
 		message: string,
 		context: ConversationContext,
 		availableEmojis?: EmojiInfo[],
+		attachments?: Attachment[],
 	): Promise<ResponseDecision> {
 		const contextStr = formatContext(context.messages);
 		const emojiSection =
 			availableEmojis && availableEmojis.length > 0
 				? `\n\n## 利用可能なカスタム絵文字\n以下のカスタム絵文字も使えます（:name: 形式で指定）:\n${availableEmojis.map((e) => `:${e.name}:`).join(" ")}`
 				: "";
-		const prompt = `${JUDGE_PROMPT}${emojiSection}\n\n## 直近の会話\n${contextStr}\n\n## 最新メッセージ\n${message}`;
+		const attachmentSection =
+			attachments && attachments.length > 0
+				? `\n（画像が${attachments.length}枚添付されています）`
+				: "";
+		const prompt = `${JUDGE_PROMPT}${emojiSection}\n\n## 直近の会話\n${contextStr}\n\n## 最新メッセージ\n${message}${attachmentSection}`;
 
 		try {
 			const response = await this.agent.send({ sessionKey: JUDGE_SESSION_KEY, message: prompt });

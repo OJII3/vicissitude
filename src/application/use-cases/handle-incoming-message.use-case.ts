@@ -14,7 +14,7 @@ export class HandleIncomingMessageUseCase {
 	) {}
 
 	async execute(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
-		if (!msg.content) return;
+		if (!msg.content && msg.attachments.length === 0) return;
 
 		const sessionKey = createSessionKey(msg.platform, msg.channelId, msg.authorId);
 
@@ -23,7 +23,12 @@ export class HandleIncomingMessageUseCase {
 
 		try {
 			const prompt = `[${formatTimestamp(msg.timestamp)}] ${msg.content}`;
-			const response = await this.agent.send({ sessionKey, message: prompt, guildId: msg.guildId });
+			const response = await this.agent.send({
+				sessionKey,
+				message: prompt,
+				guildId: msg.guildId,
+				attachments: msg.attachments.length > 0 ? msg.attachments : undefined,
+			});
 			clearInterval(typingInterval);
 
 			const chunks = splitMessage(response.text);

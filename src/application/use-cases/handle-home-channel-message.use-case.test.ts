@@ -1,3 +1,4 @@
+// oxlint-disable max-lines -- test file with comprehensive emoji filter coverage
 import { describe, expect, it, mock } from "bun:test";
 
 import type { ConversationHistory } from "../../domain/ports/conversation-history.port.ts";
@@ -203,10 +204,16 @@ describe("HandleHomeChannelMessageUseCase - 絵文字フィルタリング", () 
 
 		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
 
-		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), [
+		const expectedFiltered = [
 			{ name: "fire", identifier: "444", animated: false },
 			{ name: "pepe_sad", identifier: "111", animated: false },
-		]);
+		];
+		expect(judge.judge).toHaveBeenCalledWith(
+			"hello",
+			expect.anything(),
+			expectedFiltered,
+			undefined,
+		);
 	});
 
 	it("コールドスタート（使用データなし）→ 全絵文字が渡る", async () => {
@@ -217,7 +224,7 @@ describe("HandleHomeChannelMessageUseCase - 絵文字フィルタリング", () 
 
 		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
 
-		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis);
+		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis, undefined);
 	});
 
 	it("フィルタ結果空（全て削除済み）→ 全絵文字フォールバック", async () => {
@@ -230,7 +237,7 @@ describe("HandleHomeChannelMessageUseCase - 絵文字フィルタリング", () 
 
 		await useCase.execute(createMockMessage("hello", { guildId: "guild-1" }), createMockChannel());
 
-		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis);
+		expect(judge.judge).toHaveBeenCalledWith("hello", expect.anything(), allEmojis, undefined);
 	});
 
 	it("react 時は allEmojis（フィルタ前）で resolveEmoji する", async () => {

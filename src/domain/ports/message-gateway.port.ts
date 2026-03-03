@@ -1,3 +1,5 @@
+import type { Attachment } from "../entities/attachment.ts";
+
 export interface IncomingMessage {
 	platform: string;
 	channelId: string;
@@ -6,6 +8,7 @@ export interface IncomingMessage {
 	authorName: string;
 	messageId: string;
 	content: string;
+	attachments: Attachment[];
 	timestamp: Date;
 	isMentioned: boolean;
 	isThread: boolean;

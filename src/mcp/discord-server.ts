@@ -109,7 +109,13 @@ server.tool(
 	async ({ channel_id, limit }) => {
 		const channel = await getTextChannel(channel_id);
 		const messages = await channel.messages.fetch({ limit });
-		const formatted = messages.map((m) => `[${m.author.tag}] ${m.content}`);
+		const formatted = messages.map((m) => {
+			const imageUrls = m.attachments
+				.filter((a) => a.contentType?.startsWith("image/"))
+				.map((a) => a.url);
+			const imageText = imageUrls.length > 0 ? ` [画像: ${imageUrls.join(", ")}]` : "";
+			return `[${m.author.tag}] ${m.content}${imageText}`;
+		});
 		return { content: [{ type: "text", text: formatted.join("\n") }] };
 	},
 );

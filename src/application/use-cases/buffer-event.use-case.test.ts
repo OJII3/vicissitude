@@ -28,6 +28,7 @@ function createMockMessage(content: string, overrides?: Partial<IncomingMessage>
 		authorName: "TestUser",
 		messageId: "msg-001",
 		content,
+		attachments: [],
 		timestamp: new Date("2026-03-02T12:00:00Z"),
 		isMentioned: false,
 		isThread: false,

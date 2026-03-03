@@ -1,3 +1,5 @@
+import type { Attachment } from "../entities/attachment.ts";
+
 export interface BufferedEvent {
 	ts: string;
 	channelId: string;
@@ -6,6 +8,7 @@ export interface BufferedEvent {
 	authorName: string;
 	messageId: string;
 	content: string;
+	attachments?: Attachment[];
 	isMentioned: boolean;
 	isThread: boolean;
 }

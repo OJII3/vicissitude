@@ -9,7 +9,7 @@ export class BufferEventUseCase {
 	) {}
 
 	async execute(msg: IncomingMessage): Promise<void> {
-		if (!msg.content) return;
+		if (!msg.content && msg.attachments.length === 0) return;
 
 		await this.buffer.append({
 			ts: msg.timestamp.toISOString(),
@@ -19,6 +19,7 @@ export class BufferEventUseCase {
 			authorName: msg.authorName,
 			messageId: msg.messageId,
 			content: msg.content,
+			attachments: msg.attachments.length > 0 ? msg.attachments : undefined,
 			isMentioned: msg.isMentioned,
 			isThread: msg.isThread,
 		});

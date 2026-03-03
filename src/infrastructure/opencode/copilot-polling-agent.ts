@@ -49,7 +49,7 @@ export class CopilotPollingAgent implements AiAgent {
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
-		const { message, guildId } = options;
+		const { message, guildId, attachments } = options;
 		await this.eventBuffer.append({
 			ts: new Date().toISOString(),
 			channelId: "system",
@@ -58,6 +58,7 @@ export class CopilotPollingAgent implements AiAgent {
 			authorName: "system",
 			messageId: `send-${Date.now()}`,
 			content: message,
+			attachments: attachments && attachments.length > 0 ? attachments : undefined,
 			isMentioned: false,
 			isThread: false,
 		});

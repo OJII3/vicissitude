@@ -20,16 +20,20 @@ export class OpencodeAgent implements AiAgent {
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
-		const { sessionKey, message, guildId } = options;
+		const { sessionKey, message, guildId, attachments } = options;
 		const oc = await this.getClient();
 		const realId = await this.resolveSessionId(oc, sessionKey);
 
 		const contextLoader = this.contextLoaderFactory.create(guildId);
 		const system = await contextLoader.loadBootstrapContext();
 
+		const fileParts = (attachments ?? []).flatMap((a) =>
+			a.contentType ? [{ type: "file" as const, mime: a.contentType, url: a.url }] : [],
+		);
+
 		const result = await oc.session.prompt({
 			sessionID: realId,
-			parts: [{ type: "text", text: message }],
+			parts: [{ type: "text", text: message }, ...fileParts],
 			model: {
 				providerID: process.env.OPENCODE_PROVIDER_ID ?? "opencode",
 				modelID: process.env.OPENCODE_MODEL_ID ?? "big-pickle",

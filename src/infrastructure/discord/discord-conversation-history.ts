@@ -1,5 +1,6 @@
 import type { Client, TextBasedChannel } from "discord.js";
 
+import type { Attachment } from "../../domain/entities/attachment.ts";
 import type {
 	ConversationContext,
 	ConversationMessage,
@@ -30,9 +31,17 @@ export class DiscordConversationHistory implements ConversationHistory {
 		const sorted = [...fetched.values()].toReversed();
 		for (const msg of sorted) {
 			if (excludeMessageId && msg.id === excludeMessageId) continue;
+			const attachments: Attachment[] = msg.attachments
+				.filter((a) => a.contentType?.startsWith("image/"))
+				.map((a) => ({
+					url: a.url,
+					contentType: a.contentType ?? undefined,
+					filename: a.name ?? undefined,
+				}));
 			messages.push({
 				authorName: msg.author.displayName ?? msg.author.username,
 				content: msg.content,
+				attachments,
 				timestamp: msg.createdAt,
 			});
 		}

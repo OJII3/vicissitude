@@ -1,5 +1,6 @@
 import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
+import type { Attachment } from "../../domain/entities/attachment.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type {
 	IncomingMessage,
@@ -128,6 +129,14 @@ export class DiscordGateway implements MessageGateway {
 	}
 
 	private adaptMessage(message: Message, isMentioned: boolean, isThread: boolean): IncomingMessage {
+		const attachments: Attachment[] = message.attachments
+			.filter((a) => a.contentType?.startsWith("image/"))
+			.map((a) => ({
+				url: a.url,
+				contentType: a.contentType ?? undefined,
+				filename: a.name ?? undefined,
+			}));
+
 		return {
 			platform: "discord",
 			channelId: message.channel.id,
@@ -137,6 +146,7 @@ export class DiscordGateway implements MessageGateway {
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
+			attachments,
 			timestamp: message.createdAt,
 			isMentioned,
 			isThread,
