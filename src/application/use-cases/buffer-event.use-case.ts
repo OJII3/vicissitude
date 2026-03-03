@@ -20,6 +20,7 @@ export class BufferEventUseCase {
 			messageId: msg.messageId,
 			content: msg.content,
 			attachments: msg.attachments.length > 0 ? msg.attachments : undefined,
+			isBot: msg.isBot,
 			isMentioned: msg.isMentioned,
 			isThread: msg.isThread,
 		});

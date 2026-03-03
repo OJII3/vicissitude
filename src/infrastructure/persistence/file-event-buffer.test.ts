@@ -26,6 +26,7 @@ function createEvent(overrides?: Partial<BufferedEvent>): BufferedEvent {
 		authorName: "TestUser",
 		messageId: "msg-001",
 		content: "テストメッセージ",
+		isBot: false,
 		isMentioned: false,
 		isThread: false,
 		...overrides,

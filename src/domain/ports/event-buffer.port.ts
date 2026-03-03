@@ -9,6 +9,7 @@ export interface BufferedEvent {
 	messageId: string;
 	content: string;
 	attachments?: Attachment[];
+	isBot: boolean;
 	isMentioned: boolean;
 	isThread: boolean;
 }

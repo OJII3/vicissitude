@@ -122,8 +122,9 @@ export class HandleHomeChannelMessageUseCase {
 		}
 
 		try {
+			const judgeContent = msg.isBot ? `[Bot] ${msg.content}` : msg.content;
 			const decision = await this.judge.judge(
-				msg.content,
+				judgeContent,
 				context,
 				judgeEmojis,
 				msg.attachments.length > 0 ? msg.attachments : undefined,
