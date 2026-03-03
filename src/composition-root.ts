@@ -109,18 +109,22 @@ export async function bootstrap(): Promise<void> {
 	}
 }
 
+const COPILOT_BASE_PORT = 4096;
+
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 	const agents = new Map<string, CopilotPollingAgent>();
 	const bufferUseCases = new Map<string, BufferEventUseCase>();
-	for (const guildId of guildIds) {
+	for (const [index, guildId] of guildIds.entries()) {
 		const bufferDir = resolve(ctx.root, `data/event-buffer/guilds/${guildId}`);
 		const eventBuffer = new FileEventBuffer(bufferDir);
+		const port = COPILOT_BASE_PORT + index;
 		const agent = new CopilotPollingAgent(
 			guildId,
 			ctx.sessions,
 			ctx.contextLoaderFactory,
 			eventBuffer,
 			ctx.logger,
+			port,
 		);
 		agents.set(guildId, agent);
 		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, ctx.logger));

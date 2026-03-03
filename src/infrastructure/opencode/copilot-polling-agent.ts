@@ -45,6 +45,7 @@ export class CopilotPollingAgent implements AiAgent {
 		private readonly contextLoaderFactory: ContextLoaderFactory,
 		private readonly eventBuffer: EventBuffer,
 		private readonly logger: Logger,
+		private readonly port?: number,
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
@@ -188,6 +189,7 @@ export class CopilotPollingAgent implements AiAgent {
 		if (this.client) return this.client;
 
 		const result = await createOpencode({
+			port: this.port,
 			config: {
 				mcp: mcpServerConfigs({ includeEventBuffer: true, guildId: this.guildId }),
 				tools: {
