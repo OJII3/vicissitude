@@ -103,8 +103,10 @@ export class DiscordGateway implements MessageGateway {
 			const channel = this.adaptChannel(message);
 
 			// ホームチャンネル or その配下スレッド → judge で判断（メンション含む）
-			if ((isHomeChannel || isHomeThread) && this.homeChannelHandler) {
-				await this.homeChannelHandler(adapted, channel);
+			if (isHomeChannel || isHomeThread) {
+				if (this.homeChannelHandler) {
+					await this.homeChannelHandler(adapted, channel);
+				}
 				return;
 			}
 
