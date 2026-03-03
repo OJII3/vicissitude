@@ -159,7 +159,11 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	const routingAgent = new InstrumentedAiAgent(new GuildRoutingAgent(agents), metrics);
+	const firstAgent = agents.values().next().value as CopilotPollingAgent | undefined;
+	if (!firstAgent) {
+		throw new Error("No guild agents available; cannot create defaultAgent for GuildRoutingAgent");
+	}
+	const routingAgent = new InstrumentedAiAgent(new GuildRoutingAgent(agents, firstAgent), metrics);
 	const scheduler = createHeartbeat(ctx.root, routingAgent, logger, metrics);
 	setupShutdown(logger, scheduler, gateway, routingAgent, emojiUsageRepo, undefined, metricsServer);
 
