@@ -54,6 +54,16 @@
 2. `nr deploy:logs` — 実行中コンテナのログをフォロー
 3. `nr deploy:stop` — コンテナを停止・削除
 
+**ソースコード変更後のデプロイ手順:**
+
+ソースコードはコンテナイメージに `COPY` されているため、変更後はリビルドが必要:
+
+```bash
+nr deploy:stop
+podman build -t vicissitude -f containers/bot/Containerfile .
+nr deploy
+```
+
 **注意:**
 
 - イメージを再ビルドした後は `podman-compose up -d --force-recreate` でコンテナを再作成すること（`up -d` のみでは設定変更がない場合再作成されない）。
