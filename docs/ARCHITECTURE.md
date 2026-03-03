@@ -180,9 +180,7 @@
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
 - `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（CopilotPollingAgent 用）
-  - `read_events`: バッファの全イベントを読み取り、ファイルをクリアして返す（消費型）
-  - `event_count`: 未消費イベント数を返す
-  - `wait`: 指定秒数待機する
+  - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
   - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
 

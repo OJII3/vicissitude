@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync, unlinkSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync } from "fs";
 import { resolve as resolvePath } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -30,17 +30,16 @@ function consumeBuffer(): string | null {
 	const lines = raw.split("\n").filter((line) => line.trim() !== "");
 	if (lines.length === 0) return null;
 
-	const events = lines.map((line) => JSON.parse(line));
-	return JSON.stringify(events, null, 2);
-}
-
-/** バッファファイルが存在しかつ中身があるか */
-function hasEvents(): boolean {
-	try {
-		return existsSync(bufferFile) && statSync(bufferFile).size > 0;
-	} catch {
-		return false;
+	const events: unknown[] = [];
+	for (const line of lines) {
+		try {
+			events.push(JSON.parse(line));
+		} catch {
+			// 破損行はスキップ（部分書き込み等）
+		}
 	}
+	if (events.length === 0) return null;
+	return JSON.stringify(events, null, 2);
 }
 
 const server = new McpServer({
@@ -67,11 +66,9 @@ server.tool(
 				setTimeout(resolve, 1000);
 			});
 
-			if (hasEvents()) {
-				const result = consumeBuffer();
-				if (result) {
-					return { content: [{ type: "text" as const, text: result }] };
-				}
+			const result = consumeBuffer();
+			if (result) {
+				return { content: [{ type: "text" as const, text: result }] };
 			}
 		}
 
