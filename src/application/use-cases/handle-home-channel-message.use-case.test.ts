@@ -319,3 +319,48 @@ describe("HandleHomeChannelMessageUseCase - エラー処理", () => {
 		expect(logger.error).toHaveBeenCalled();
 	});
 });
+
+describe("HandleHomeChannelMessageUseCase - Bot プレフィックス", () => {
+	it("isBot=true のメッセージ → judge に [Bot] プレフィックス付きで渡される", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const useCase = createUseCase({ judge });
+
+		await useCase.execute(createMockMessage("こんにちは", { isBot: true }), createMockChannel());
+
+		expect(judge.judge).toHaveBeenCalledWith(
+			"[Bot] こんにちは",
+			expect.anything(),
+			undefined,
+			undefined,
+		);
+	});
+
+	it("isBot=false のメッセージ → judge にプレフィックスなしで渡される", async () => {
+		const judge = createMockJudge({ action: { type: "ignore" }, reason: "" });
+		const useCase = createUseCase({ judge });
+
+		await useCase.execute(createMockMessage("こんにちは", { isBot: false }), createMockChannel());
+
+		expect(judge.judge).toHaveBeenCalledWith("こんにちは", expect.anything(), undefined, undefined);
+	});
+
+	it("isBot=true の respond → バッチプロンプトに [Bot] プレフィックスが付く", async () => {
+		const agent = createMockAgent({ text: "返答", sessionId: "s1" });
+		const judge = createMockJudge({ action: { type: "respond" }, reason: "talk" });
+		const useCase = createUseCase({ agent, judge });
+
+		const msg = createMockMessage("Botの発言", {
+			isBot: true,
+			authorName: "OtherBot",
+		});
+		const channel = createMockChannel();
+
+		await useCase.execute(msg, channel);
+
+		expect(agent.send).toHaveBeenCalledWith({
+			sessionKey: "test:ch-1:_channel",
+			message: "[2026-03-01 15:30] [Bot] OtherBot: Botの発言",
+			guildId: undefined,
+		});
+	});
+});

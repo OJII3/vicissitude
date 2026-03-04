@@ -53,7 +53,7 @@
 - `logger.port.ts`: `Logger` — ログ出力
   - `info()`, `error()`, `warn()`
 - `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments: Attachment[]`, `timestamp`, `isMentioned`, `isThread`, `reply()`, `react()`）
+  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments: Attachment[]`, `timestamp`, `isMentioned`, `isThread`, `isBot`, `reply()`, `react()`）
   - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
@@ -72,7 +72,7 @@
   - `load()`, `save()`, `updateLastExecuted()`
 - `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（Copilot ポーリング用）
   - `append(event: BufferedEvent): Promise<void>`
-  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`
+  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`, `isBot`
 
 #### services/
 
@@ -235,6 +235,7 @@
 - `timestamp: Date` — メッセージ作成時刻
 - `isMentioned: boolean`
 - `isThread: boolean`
+- `isBot: boolean` — 送信者が Bot かどうか
 - `reply(text: string): Promise<void>`
 - `react(emoji: string): Promise<void>`
 
@@ -300,9 +301,9 @@
 ### 6.1 メッセージルーティング
 
 1. Discord `messageCreate` を受信する。
-2. Bot 自身のメッセージを除外する。
+2. Bot 自身のメッセージのみ除外する。他 Bot メッセージには `isBot` フラグを付与して処理を継続する。
 3. メンション → `HandleIncomingMessageUseCase`（必ず応答）
-4. ホームチャンネル（配下スレッド含む） → `HandleHomeChannelMessageUseCase`（自律判断）
+4. ホームチャンネル（配下スレッド含む） → `HandleHomeChannelMessageUseCase`（自律判断。Bot メッセージは judge で応答可否を判断し、Bot 同士の会話ループを防止するため連続応答回数に上限を設ける）
 5. その他 → 無視
 
 ### 6.2 メンション応答（従来フロー）

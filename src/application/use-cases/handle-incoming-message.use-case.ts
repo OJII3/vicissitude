@@ -9,8 +9,11 @@ import { splitMessage } from "../../domain/services/message-formatter.ts";
 
 const TYPING_INTERVAL_MS = 8000;
 const JUDGE_CONTEXT_LIMIT = 10;
+const MAX_BOT_REPLY_CHAIN = 3;
 
 export class HandleIncomingMessageUseCase {
+	private botReplyChains = new Map<string, number>();
+
 	constructor(
 		private readonly agent: AiAgent,
 		private readonly logger: Logger,
@@ -21,12 +24,43 @@ export class HandleIncomingMessageUseCase {
 	async execute(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
 		if (!msg.content && msg.attachments.length === 0) return;
 
-		// Botからのメンションはjudgeで応答判断する
-		if (msg.isBot && this.judge && this.history) {
-			const shouldRespond = await this.judgeBotMention(msg, this.judge, this.history);
+		// 人間のメッセージではBot連続応答カウンターをリセット
+		if (!msg.isBot) {
+			this.botReplyChains.delete(msg.channelId);
+		}
+
+		// Botメッセージのフィルタリング
+		if (msg.isBot) {
+			const shouldRespond = await this.handleBotMessage(msg);
 			if (!shouldRespond) return;
 		}
 
+		await this.sendResponse(msg, channel);
+	}
+
+	/** Botメッセージの応答判定とチェーン管理 */
+	private async handleBotMessage(msg: IncomingMessage): Promise<boolean> {
+		// judge 未設定のBotメッセージは応答しない
+		if (!this.judge) return false;
+		if (!this.history) return false;
+
+		// Bot連続応答チェーンの上限チェック
+		const chain = this.botReplyChains.get(msg.channelId) ?? 0;
+		if (chain >= MAX_BOT_REPLY_CHAIN) {
+			this.logger.info(`[handle-incoming] Bot reply chain limit reached: ch=${msg.channelId}`);
+			return false;
+		}
+
+		const shouldRespond = await this.judgeBotMention(msg, this.judge, this.history);
+		if (!shouldRespond) return false;
+
+		// 応答する場合にカウントアップ
+		this.botReplyChains.set(msg.channelId, chain + 1);
+		return true;
+	}
+
+	/** メッセージに対してAIで応答を生成・送信する */
+	private async sendResponse(msg: IncomingMessage, channel: MessageChannel): Promise<void> {
 		const sessionKey = createSessionKey(msg.platform, msg.channelId, msg.authorId);
 
 		await channel.sendTyping();
@@ -71,8 +105,11 @@ export class HandleIncomingMessageUseCase {
 			if (decision.action.type === "respond") {
 				return true;
 			}
+			if (decision.action.type === "react") {
+				await msg.react(decision.action.emoji);
+			}
 			this.logger.info(
-				`[handle-incoming] Bot mention ignored: action=${decision.action.type} reason=${decision.reason}`,
+				`[handle-incoming] Bot mention not responded: action=${decision.action.type} reason=${decision.reason}`,
 			);
 			return false;
 		} catch (error) {
