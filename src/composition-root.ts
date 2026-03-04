@@ -188,11 +188,17 @@ async function bootstrapDefault(ctx: BootstrapContext) {
 	const responseJudge = new InstrumentedResponseJudge(rawJudge, metrics);
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
-	const handleMessage = new HandleIncomingMessageUseCase(agent, logger);
+	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
+	const handleMessage = new HandleIncomingMessageUseCase(
+		agent,
+		logger,
+		responseJudge,
+		conversationHistory,
+	);
 	const handleHomeMessage = new HandleHomeChannelMessageUseCase(
 		agent,
 		responseJudge,
-		new DiscordConversationHistory(() => gateway.getClient()),
+		conversationHistory,
 		channelConfig,
 		new CooldownTracker(),
 		new DiscordEmojiProvider(() => gateway.getClient()),

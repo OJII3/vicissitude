@@ -122,8 +122,9 @@ export class HandleHomeChannelMessageUseCase {
 		}
 
 		try {
+			const judgeContent = msg.isBot ? `[Bot] ${msg.content}` : msg.content;
 			const decision = await this.judge.judge(
-				msg.content,
+				judgeContent,
 				context,
 				judgeEmojis,
 				msg.attachments.length > 0 ? msg.attachments : undefined,
@@ -163,10 +164,10 @@ export class HandleHomeChannelMessageUseCase {
 
 		// バッチ全体のメッセージを結合してプロンプト生成
 		const prompt = batch
-			.map(
-				(item) =>
-					`[${formatTimestamp(item.msg.timestamp)}] ${item.msg.authorName}: ${item.msg.content}`,
-			)
+			.map((item) => {
+				const prefix = item.msg.isBot ? "[Bot] " : "";
+				return `[${formatTimestamp(item.msg.timestamp)}] ${prefix}${item.msg.authorName}: ${item.msg.content}`;
+			})
 			.join("\n");
 
 		await channel.sendTyping();

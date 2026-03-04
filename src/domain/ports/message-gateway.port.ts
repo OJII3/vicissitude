@@ -10,6 +10,7 @@ export interface IncomingMessage {
 	content: string;
 	attachments: Attachment[];
 	timestamp: Date;
+	isBot: boolean;
 	isMentioned: boolean;
 	isThread: boolean;
 	reply(text: string): Promise<void>;

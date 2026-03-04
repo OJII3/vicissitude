@@ -80,8 +80,8 @@ export class DiscordGateway implements MessageGateway {
 
 	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
-			if (message.author.bot) return;
 			if (!client.user) return;
+			if (message.author.id === client.user.id) return;
 
 			// カスタム絵文字使用を記録
 			if (message.guildId && this.emojiUsedHandler) {
@@ -144,6 +144,7 @@ export class DiscordGateway implements MessageGateway {
 			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
 			attachments,
 			timestamp: message.createdAt,
+			isBot: message.author.bot ?? false,
 			isMentioned,
 			isThread,
 			reply: async (text: string) => {

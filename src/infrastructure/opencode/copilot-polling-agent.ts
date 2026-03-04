@@ -59,6 +59,7 @@ export class CopilotPollingAgent implements AiAgent {
 			messageId: `send-${Date.now()}`,
 			content: message,
 			attachments: attachments && attachments.length > 0 ? attachments : undefined,
+			isBot: false,
 			isMentioned: false,
 			isThread: false,
 		});

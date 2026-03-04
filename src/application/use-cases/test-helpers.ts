@@ -44,6 +44,7 @@ export function createMockMessage(
 		content,
 		attachments: [],
 		timestamp: new Date("2026-03-01T06:30:00Z"),
+		isBot: false,
 		isMentioned: true,
 		isThread: false,
 		reply: mock(() => Promise.resolve()),

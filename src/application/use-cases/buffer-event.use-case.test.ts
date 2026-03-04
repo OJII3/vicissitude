@@ -30,6 +30,7 @@ function createMockMessage(content: string, overrides?: Partial<IncomingMessage>
 		content,
 		attachments: [],
 		timestamp: new Date("2026-03-02T12:00:00Z"),
+		isBot: false,
 		isMentioned: false,
 		isThread: false,
 		reply: mock(() => Promise.resolve()),
