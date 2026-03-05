@@ -1,0 +1,57 @@
+import { resolve } from "path";
+
+import { HandleHeartbeatUseCase } from "./application/use-cases/handle-heartbeat.use-case.ts";
+import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
+import type { Logger } from "./domain/ports/logger.port.ts";
+import type { MetricsCollector } from "./domain/ports/metrics-collector.port.ts";
+import type { SessionRepository } from "./domain/ports/session-repository.port.ts";
+import { METRIC } from "./infrastructure/metrics/metric-names.ts";
+import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json-heartbeat-config-repository.ts";
+import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
+
+export function createHeartbeat(
+	root: string,
+	agent: AiAgent,
+	logger: Logger,
+	metrics?: MetricsCollector,
+): IntervalHeartbeatScheduler {
+	const configRepo = new JsonHeartbeatConfigRepository(resolve(root, "data/heartbeat-config.json"));
+	const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
+	return new IntervalHeartbeatScheduler(configRepo, useCase, logger, metrics);
+}
+
+export function startSessionGauge(
+	sessions: SessionRepository,
+	metrics: MetricsCollector,
+): ReturnType<typeof setInterval> {
+	const update = () => metrics.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessions.count());
+	update();
+	return setInterval(update, 30_000);
+}
+
+export function setupShutdown(
+	logger: Logger,
+	scheduler: { stop(): void },
+	gateway: { stop(): void },
+	agent: AiAgent,
+	emojiUsageRepo: { flush(): Promise<void> },
+	judgeAgent?: AiAgent,
+	metricsServer?: { stop(): void },
+	sessionGaugeTimer?: ReturnType<typeof setInterval>,
+): void {
+	let shuttingDown = false;
+	const shutdown = () => {
+		if (shuttingDown) return;
+		shuttingDown = true;
+		logger.info("Shutting down...");
+		if (sessionGaugeTimer) clearInterval(sessionGaugeTimer);
+		scheduler.stop();
+		gateway.stop();
+		agent.stop();
+		judgeAgent?.stop();
+		metricsServer?.stop();
+		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
+	};
+	process.on("SIGINT", shutdown);
+	process.on("SIGTERM", shutdown);
+}

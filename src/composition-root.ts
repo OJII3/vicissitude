@@ -1,15 +1,12 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
-import { BufferEventUseCase } from "./application/use-cases/buffer-event.use-case.ts";
-import { HandleHeartbeatUseCase } from "./application/use-cases/handle-heartbeat.use-case.ts";
 import { HandleHomeChannelMessageUseCase } from "./application/use-cases/handle-home-channel-message.use-case.ts";
 import { HandleIncomingMessageUseCase } from "./application/use-cases/handle-incoming-message.use-case.ts";
+import type { BootstrapContext } from "./bootstrap-context.ts";
+import { createHeartbeat, setupShutdown, startSessionGauge } from "./bootstrap-helpers.ts";
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
-import type { IncomingMessage } from "./domain/ports/message-gateway.port.ts";
-import type { MetricsCollector } from "./domain/ports/metrics-collector.port.ts";
-import type { SessionRepository } from "./domain/ports/session-repository.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
 import { MessageBatcher } from "./domain/services/message-batcher.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
@@ -23,27 +20,12 @@ import { InstrumentedResponseJudge } from "./infrastructure/metrics/instrumented
 import { METRIC } from "./infrastructure/metrics/metric-names.ts";
 import { PrometheusCollector } from "./infrastructure/metrics/prometheus-collector.ts";
 import { PrometheusServer } from "./infrastructure/metrics/prometheus-server.ts";
-import { CopilotPollingAgent } from "./infrastructure/opencode/copilot-polling-agent.ts";
-import { GuildRoutingAgent } from "./infrastructure/opencode/guild-routing-agent.ts";
+import { bootstrapCopilot } from "./infrastructure/opencode/bootstrap-copilot.ts";
 import { OpencodeAgent } from "./infrastructure/opencode/opencode-agent.ts";
 import { OpencodeJudgeAgent } from "./infrastructure/opencode/opencode-judge-agent.ts";
 import { OpencodeResponseJudge } from "./infrastructure/opencode/opencode-response-judge.ts";
-import { FileEventBuffer } from "./infrastructure/persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "./infrastructure/persistence/json-emoji-usage-repository.ts";
-import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json-heartbeat-config-repository.ts";
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
-import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
-
-interface BootstrapContext {
-	root: string;
-	sessions: JsonSessionRepository;
-	contextLoaderFactory: FileContextLoaderFactory;
-	gateway: DiscordGateway;
-	channelConfig: JsonChannelConfigLoader;
-	logger: Logger;
-	metrics: PrometheusCollector;
-	metricsServer: PrometheusServer;
-}
 
 async function loadChannelConfig(root: string) {
 	const overlayChannels = resolve(root, "data/context/channels.json");
@@ -64,15 +46,10 @@ function createMetrics(logger: Logger) {
 	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
 	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
 	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
-	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Number of active LLM sessions");
+	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
+	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "fua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
-}
-
-function createHeartbeat(root: string, agent: AiAgent, logger: Logger, metrics?: MetricsCollector) {
-	const configRepo = new JsonHeartbeatConfigRepository(resolve(root, "data/heartbeat-config.json"));
-	const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
-	return new IntervalHeartbeatScheduler(configRepo, useCase, logger, metrics);
 }
 
 export async function bootstrap(): Promise<void> {
@@ -108,96 +85,6 @@ export async function bootstrap(): Promise<void> {
 		await bootstrapCopilot(ctx);
 	} else {
 		await bootstrapDefault(ctx);
-	}
-}
-
-// bootstrapCopilot と bootstrapDefault は排他的に実行されるためポート範囲の重複は問題ない
-const COPILOT_BASE_PORT = 4096;
-
-function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
-	const agents = new Map<string, CopilotPollingAgent>();
-	const bufferUseCases = new Map<string, BufferEventUseCase>();
-	for (const [index, guildId] of guildIds.entries()) {
-		const bufferDir = resolve(ctx.root, `data/event-buffer/guilds/${guildId}`);
-		const eventBuffer = new FileEventBuffer(bufferDir);
-		const port = COPILOT_BASE_PORT + index;
-		const agent = new CopilotPollingAgent(
-			guildId,
-			ctx.sessions,
-			ctx.contextLoaderFactory,
-			eventBuffer,
-			ctx.logger,
-			port,
-		);
-		agents.set(guildId, agent);
-		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, ctx.logger));
-	}
-	return { agents, bufferUseCases };
-}
-
-function setupCopilotEventHandlers(
-	ctx: BootstrapContext,
-	bufferUseCases: Map<string, BufferEventUseCase>,
-) {
-	const { gateway, logger, metrics } = ctx;
-	const routeBuffer = async (msg: IncomingMessage) => {
-		const useCase = msg.guildId ? bufferUseCases.get(msg.guildId) : undefined;
-		if (useCase) {
-			await useCase.execute(msg);
-		} else {
-			logger.warn(`[bootstrap] No buffer for guildId=${msg.guildId}, dropping event`);
-		}
-	};
-	gateway.onHomeChannelMessage(async (msg) => {
-		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
-		await routeBuffer(msg);
-	});
-	gateway.onMessage(async (msg) => {
-		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "mention" });
-		await routeBuffer(msg);
-	});
-}
-
-async function bootstrapCopilot(ctx: BootstrapContext) {
-	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
-	const guildIds = channelConfig.getGuildIds();
-	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
-	setupCopilotEventHandlers(ctx, bufferUseCases);
-
-	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
-	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
-
-	const firstAgent = agents.values().next().value as CopilotPollingAgent | undefined;
-	if (!firstAgent) {
-		throw new Error("No guild agents available; cannot create defaultAgent for GuildRoutingAgent");
-	}
-	const routingAgent = new InstrumentedAiAgent(
-		new GuildRoutingAgent(agents, firstAgent),
-		metrics,
-		"copilot",
-	);
-	const scheduler = createHeartbeat(ctx.root, routingAgent, logger, metrics);
-	const sessionGaugeTimer = startSessionGauge(sessions, metrics);
-	setupShutdown(
-		logger,
-		scheduler,
-		gateway,
-		routingAgent,
-		emojiUsageRepo,
-		undefined,
-		metricsServer,
-		sessionGaugeTimer,
-	);
-
-	logger.info(
-		`[bootstrap] Copilot polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
-	);
-	await gateway.start();
-	scheduler.start();
-	for (const [guildId, agent] of agents) {
-		agent.startPollingLoop().catch((err) => {
-			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
-		});
 	}
 }
 
@@ -261,40 +148,4 @@ async function bootstrapDefault(ctx: BootstrapContext) {
 	);
 	await gateway.start();
 	scheduler.start();
-}
-
-function startSessionGauge(
-	sessions: SessionRepository,
-	metrics: PrometheusCollector,
-): ReturnType<typeof setInterval> {
-	const update = () => metrics.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessions.count());
-	update();
-	return setInterval(update, 30_000);
-}
-
-function setupShutdown(
-	logger: Logger,
-	scheduler: IntervalHeartbeatScheduler,
-	gateway: DiscordGateway,
-	agent: AiAgent,
-	emojiUsageRepo: JsonEmojiUsageRepository,
-	judgeAgent?: AiAgent,
-	metricsServer?: PrometheusServer,
-	sessionGaugeTimer?: ReturnType<typeof setInterval>,
-) {
-	let shuttingDown = false;
-	const shutdown = () => {
-		if (shuttingDown) return;
-		shuttingDown = true;
-		logger.info("Shutting down...");
-		if (sessionGaugeTimer) clearInterval(sessionGaugeTimer);
-		scheduler.stop();
-		gateway.stop();
-		agent.stop();
-		judgeAgent?.stop();
-		metricsServer?.stop();
-		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
-	};
-	process.on("SIGINT", shutdown);
-	process.on("SIGTERM", shutdown);
 }

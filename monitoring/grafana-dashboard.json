@@ -431,10 +431,14 @@
 			"targets": [
 				{
 					"expr": "llm_active_sessions",
-					"legendFormat": "active sessions"
+					"legendFormat": "registered sessions"
+				},
+				{
+					"expr": "llm_busy_sessions",
+					"legendFormat": "busy sessions"
 				}
 			],
-			"title": "Active Sessions",
+			"title": "LLM Sessions",
 			"type": "timeseries"
 		},
 		{
