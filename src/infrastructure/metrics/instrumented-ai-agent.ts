@@ -3,9 +3,9 @@ import type { AiAgent, SendOptions } from "../../domain/ports/ai-agent.port.ts";
 import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
 import { METRIC } from "./metric-names.ts";
 
-export type AgentType = "opencode" | "copilot" | "judge";
+export type AgentType = "opencode" | "copilot";
 
-function inferTrigger(sessionKey: string): "heartbeat" | "home" | "mention" {
+export function inferTrigger(sessionKey: string): "heartbeat" | "home" | "mention" {
 	if (sessionKey.startsWith("system:heartbeat:")) return "heartbeat";
 	if (sessionKey.endsWith(":_channel")) return "home";
 	return "mention";
