@@ -7,6 +7,14 @@
 			"type": "datasource",
 			"pluginId": "prometheus",
 			"pluginName": "Prometheus"
+		},
+		{
+			"name": "DS_LOKI",
+			"label": "Loki",
+			"description": "",
+			"type": "datasource",
+			"pluginId": "loki",
+			"pluginName": "Loki"
 		}
 	],
 	"annotations": {
@@ -495,6 +503,140 @@
 			],
 			"title": "AI Requests by Trigger (1h)",
 			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+			"id": 600,
+			"title": "Logs",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "bars",
+						"fillOpacity": 80,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": { "group": "A", "mode": "normal" }
+					},
+					"unit": "short"
+				},
+				"overrides": [
+					{
+						"matcher": { "id": "byName", "options": "error" },
+						"properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+					},
+					{
+						"matcher": { "id": "byName", "options": "warn" },
+						"properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+					},
+					{
+						"matcher": { "id": "byName", "options": "info" },
+						"properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+					}
+				]
+			},
+			"gridPos": { "h": 6, "w": 12, "x": 0, "y": 46 },
+			"id": 14,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (level) (count_over_time({container_tag=\"vicissitude\"} | json [1m]))",
+					"legendFormat": "{{level}}"
+				}
+			],
+			"title": "Log Volume by Level",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "bars",
+						"fillOpacity": 80,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": { "group": "A", "mode": "normal" }
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 6, "w": 12, "x": 12, "y": 46 },
+			"id": 15,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (component) (count_over_time({container_tag=\"vicissitude\"} | json [1m]))",
+					"legendFormat": "{{component}}"
+				}
+			],
+			"title": "Log Volume by Component",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 52 },
+			"id": 16,
+			"options": {
+				"dedupStrategy": "none",
+				"enableLogDetails": true,
+				"prettifyLogMessage": false,
+				"showCommonLabels": false,
+				"showLabels": false,
+				"showTime": true,
+				"sortOrder": "Descending",
+				"wrapLogMessage": true
+			},
+			"targets": [
+				{
+					"expr": "{container_tag=\"vicissitude\"} | json | level =~ `error|warn`",
+					"legendFormat": ""
+				}
+			],
+			"title": "Errors & Warnings",
+			"type": "logs"
+		},
+		{
+			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 62 },
+			"id": 17,
+			"options": {
+				"dedupStrategy": "none",
+				"enableLogDetails": true,
+				"prettifyLogMessage": false,
+				"showCommonLabels": false,
+				"showLabels": false,
+				"showTime": true,
+				"sortOrder": "Descending",
+				"wrapLogMessage": true
+			},
+			"targets": [
+				{
+					"expr": "{container_tag=\"vicissitude\"} | json",
+					"legendFormat": ""
+				}
+			],
+			"title": "All Logs",
+			"type": "logs"
 		}
 	],
 	"schemaVersion": 39,
