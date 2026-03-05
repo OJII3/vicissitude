@@ -9,6 +9,7 @@ import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
 import type { IncomingMessage } from "./domain/ports/message-gateway.port.ts";
 import type { MetricsCollector } from "./domain/ports/metrics-collector.port.ts";
+import type { SessionRepository } from "./domain/ports/session-repository.port.ts";
 import { CooldownTracker } from "./domain/services/cooldown-tracker.ts";
 import { MessageBatcher } from "./domain/services/message-batcher.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
@@ -63,6 +64,7 @@ function createMetrics(logger: Logger) {
 	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
 	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
 	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
+	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Number of active LLM sessions");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "fua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
 }
@@ -109,8 +111,7 @@ export async function bootstrap(): Promise<void> {
 	}
 }
 
-// bootstrapDefault パスの OpencodeAgent(4096) / OpencodeJudgeAgent(4097) と
-// 範囲が重複するが、bootstrapCopilot と bootstrapDefault は排他的に実行される
+// bootstrapCopilot と bootstrapDefault は排他的に実行されるためポート範囲の重複は問題ない
 const COPILOT_BASE_PORT = 4096;
 
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
@@ -134,11 +135,11 @@ function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 	return { agents, bufferUseCases };
 }
 
-async function bootstrapCopilot(ctx: BootstrapContext) {
-	const { gateway, channelConfig, logger, metrics, metricsServer } = ctx;
-	const guildIds = channelConfig.getGuildIds();
-	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
-
+function setupCopilotEventHandlers(
+	ctx: BootstrapContext,
+	bufferUseCases: Map<string, BufferEventUseCase>,
+) {
+	const { gateway, logger, metrics } = ctx;
 	const routeBuffer = async (msg: IncomingMessage) => {
 		const useCase = msg.guildId ? bufferUseCases.get(msg.guildId) : undefined;
 		if (useCase) {
@@ -155,6 +156,13 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "mention" });
 		await routeBuffer(msg);
 	});
+}
+
+async function bootstrapCopilot(ctx: BootstrapContext) {
+	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
+	const guildIds = channelConfig.getGuildIds();
+	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
+	setupCopilotEventHandlers(ctx, bufferUseCases);
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
@@ -163,9 +171,23 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 	if (!firstAgent) {
 		throw new Error("No guild agents available; cannot create defaultAgent for GuildRoutingAgent");
 	}
-	const routingAgent = new InstrumentedAiAgent(new GuildRoutingAgent(agents, firstAgent), metrics);
+	const routingAgent = new InstrumentedAiAgent(
+		new GuildRoutingAgent(agents, firstAgent),
+		metrics,
+		"copilot",
+	);
 	const scheduler = createHeartbeat(ctx.root, routingAgent, logger, metrics);
-	setupShutdown(logger, scheduler, gateway, routingAgent, emojiUsageRepo, undefined, metricsServer);
+	const sessionGaugeTimer = startSessionGauge(sessions, metrics);
+	setupShutdown(
+		logger,
+		scheduler,
+		gateway,
+		routingAgent,
+		emojiUsageRepo,
+		undefined,
+		metricsServer,
+		sessionGaugeTimer,
+	);
 
 	logger.info(
 		`[bootstrap] Copilot polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
@@ -179,16 +201,13 @@ async function bootstrapCopilot(ctx: BootstrapContext) {
 	}
 }
 
-async function bootstrapDefault(ctx: BootstrapContext) {
-	const { root, gateway, channelConfig, logger, metrics, metricsServer } = ctx;
-	const rawAgent = new OpencodeAgent(ctx.sessions, ctx.contextLoaderFactory, logger);
-	const agent = new InstrumentedAiAgent(rawAgent, metrics);
+function createDefaultUseCases(ctx: BootstrapContext, agent: AiAgent) {
+	const { root, gateway, channelConfig, logger, metrics } = ctx;
 	const judgeAgent = new OpencodeJudgeAgent();
 	const rawJudge = new OpencodeResponseJudge(judgeAgent, logger);
 	const responseJudge = new InstrumentedResponseJudge(rawJudge, metrics);
-
-	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
 	const conversationHistory = new DiscordConversationHistory(() => gateway.getClient());
+	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(root, "data"));
 	const handleMessage = new HandleIncomingMessageUseCase(
 		agent,
 		logger,
@@ -206,6 +225,17 @@ async function bootstrapDefault(ctx: BootstrapContext) {
 		logger,
 		new MessageBatcher(),
 	);
+	return { judgeAgent, handleMessage, handleHomeMessage, emojiUsageRepo };
+}
+
+async function bootstrapDefault(ctx: BootstrapContext) {
+	const { root, gateway, logger, metrics, metricsServer } = ctx;
+	const rawAgent = new OpencodeAgent(ctx.sessions, ctx.contextLoaderFactory, logger);
+	const agent = new InstrumentedAiAgent(rawAgent, metrics, "opencode");
+	const { judgeAgent, handleMessage, handleHomeMessage, emojiUsageRepo } = createDefaultUseCases(
+		ctx,
+		agent,
+	);
 
 	gateway.onHomeChannelMessage(async (msg, ch) => {
 		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
@@ -218,9 +248,28 @@ async function bootstrapDefault(ctx: BootstrapContext) {
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
 	const scheduler = createHeartbeat(root, agent, logger, metrics);
-	setupShutdown(logger, scheduler, gateway, rawAgent, emojiUsageRepo, judgeAgent, metricsServer);
+	const sessionGaugeTimer = startSessionGauge(ctx.sessions, metrics);
+	setupShutdown(
+		logger,
+		scheduler,
+		gateway,
+		rawAgent,
+		emojiUsageRepo,
+		judgeAgent,
+		metricsServer,
+		sessionGaugeTimer,
+	);
 	await gateway.start();
 	scheduler.start();
+}
+
+function startSessionGauge(
+	sessions: SessionRepository,
+	metrics: PrometheusCollector,
+): ReturnType<typeof setInterval> {
+	const update = () => metrics.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessions.count());
+	update();
+	return setInterval(update, 30_000);
 }
 
 function setupShutdown(
@@ -231,12 +280,14 @@ function setupShutdown(
 	emojiUsageRepo: JsonEmojiUsageRepository,
 	judgeAgent?: AiAgent,
 	metricsServer?: PrometheusServer,
+	sessionGaugeTimer?: ReturnType<typeof setInterval>,
 ) {
 	let shuttingDown = false;
 	const shutdown = () => {
 		if (shuttingDown) return;
 		shuttingDown = true;
 		logger.info("Shutting down...");
+		if (sessionGaugeTimer) clearInterval(sessionGaugeTimer);
 		scheduler.stop();
 		gateway.stop();
 		agent.stop();
