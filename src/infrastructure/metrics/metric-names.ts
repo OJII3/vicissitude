@@ -7,4 +7,5 @@ export const METRIC = {
 	BOT_INFO: "bot_info",
 	AI_REQUEST_DURATION: "ai_request_duration_seconds",
 	HEARTBEAT_TICK_DURATION: "heartbeat_tick_duration_seconds",
+	LLM_ACTIVE_SESSIONS: "llm_active_sessions",
 } as const;

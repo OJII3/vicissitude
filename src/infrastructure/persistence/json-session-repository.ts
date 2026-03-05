@@ -30,6 +30,10 @@ export class JsonSessionRepository implements SessionRepository {
 		return this.get(agentName, sessionKey) !== undefined;
 	}
 
+	count(): number {
+		return Object.keys(this.getMap()).length;
+	}
+
 	private makeKey(agentName: string, sessionKey: string): string {
 		return `${agentName}:${sessionKey}`;
 	}

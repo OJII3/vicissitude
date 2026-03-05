@@ -38,7 +38,7 @@
 						"showPoints": "never",
 						"spanNulls": false
 					},
-					"unit": "reqps"
+					"unit": "short"
 				},
 				"overrides": []
 			},
@@ -50,11 +50,11 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(discord_messages_received_total[5m])",
+					"expr": "increase(discord_messages_received_total[1h])",
 					"legendFormat": "{{channel_type}}"
 				}
 			],
-			"title": "Message Rate",
+			"title": "Messages (1h)",
 			"type": "timeseries"
 		},
 		{
@@ -71,7 +71,7 @@
 						"showPoints": "never",
 						"spanNulls": false
 					},
-					"unit": "reqps"
+					"unit": "short"
 				},
 				"overrides": []
 			},
@@ -83,11 +83,11 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(ai_requests_total[5m])",
+					"expr": "increase(ai_requests_total[1h])",
 					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "AI Request Rate",
+			"title": "AI Requests (1h)",
 			"type": "timeseries"
 		},
 		{
@@ -182,7 +182,7 @@
 						"showPoints": "never",
 						"spanNulls": false
 					},
-					"unit": "reqps"
+					"unit": "short"
 				},
 				"overrides": []
 			},
@@ -194,11 +194,11 @@
 			},
 			"targets": [
 				{
-					"expr": "sum(rate(ai_requests_total[5m]))",
-					"legendFormat": "requests/s"
+					"expr": "sum(increase(ai_requests_total[1h]))",
+					"legendFormat": "requests/h"
 				}
 			],
-			"title": "AI Requests/s",
+			"title": "AI Requests (1h total)",
 			"type": "timeseries"
 		},
 		{
@@ -256,7 +256,7 @@
 						"spanNulls": false,
 						"stacking": { "group": "A", "mode": "normal" }
 					},
-					"unit": "reqps"
+					"unit": "short"
 				},
 				"overrides": []
 			},
@@ -268,11 +268,11 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(judge_requests_total[5m])",
+					"expr": "increase(judge_requests_total[1h])",
 					"legendFormat": "{{action}}"
 				}
 			],
-			"title": "Judge Decisions Rate (Stacked)",
+			"title": "Judge Decisions (1h)",
 			"type": "timeseries"
 		},
 		{
@@ -296,7 +296,7 @@
 						"showPoints": "never",
 						"spanNulls": false
 					},
-					"unit": "reqps"
+					"unit": "short"
 				},
 				"overrides": []
 			},
@@ -308,11 +308,11 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(heartbeat_ticks_total[5m])",
+					"expr": "increase(heartbeat_ticks_total[1h])",
 					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "Heartbeat Tick Rate",
+			"title": "Heartbeat Ticks (1h)",
 			"type": "timeseries"
 		},
 		{
@@ -387,6 +387,113 @@
 				}
 			],
 			"title": "Reminders Executed (1h)",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+			"id": 500,
+			"title": "LLM Sessions",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 37 },
+			"id": 11,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "llm_active_sessions",
+					"legendFormat": "active sessions"
+				}
+			],
+			"title": "Active Sessions",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 37 },
+			"id": 12,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "increase(ai_requests_total[1h])",
+					"legendFormat": "{{agent_type}}"
+				}
+			],
+			"title": "AI Requests by Agent Type (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 30,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": { "group": "A", "mode": "normal" }
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 37 },
+			"id": 13,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "increase(ai_requests_total[1h])",
+					"legendFormat": "{{trigger}}"
+				}
+			],
+			"title": "AI Requests by Trigger (1h)",
 			"type": "timeseries"
 		}
 	],
