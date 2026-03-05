@@ -71,6 +71,12 @@ nr deploy:rebuild
   journalctl CONTAINER_TAG=vicissitude -f          # リアルタイム表示
   journalctl CONTAINER_TAG=vicissitude --no-pager -n 100  # 直近 100 行
   ```
+- **Grafana ダッシュボード** (`monitoring/grafana-dashboard.json`) の Logs セクションでも確認可能:
+  - Log Volume by Level: レベル別ログボリュームの推移
+  - Log Volume by Component: コンポーネント別ログボリュームの推移
+  - Errors & Warnings: error/warn レベルのログのみ表示
+  - All Logs: 全ログの検索・閲覧
+  - Loki データソースの設定が必要（インポート時にプロンプトが表示される）
 
 **注意:**
 
