@@ -596,6 +596,7 @@
 			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
 			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 52 },
 			"id": 16,
+			"maxDataPoints": 200,
 			"options": {
 				"dedupStrategy": "none",
 				"enableLogDetails": true,
@@ -619,6 +620,7 @@
 			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
 			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 62 },
 			"id": 17,
+			"maxDataPoints": 500,
 			"options": {
 				"dedupStrategy": "none",
 				"enableLogDetails": true,
