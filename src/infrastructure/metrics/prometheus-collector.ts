@@ -81,6 +81,20 @@ export class PrometheusCollector implements MetricsCollector {
 		map.set(key, value);
 	}
 
+	incrementGauge(name: string, labels?: Record<string, string>): void {
+		const key = labelsToKey(labels ?? {});
+		const map = this.gauges.get(name);
+		if (!map) return;
+		map.set(key, (map.get(key) ?? 0) + 1);
+	}
+
+	decrementGauge(name: string, labels?: Record<string, string>): void {
+		const key = labelsToKey(labels ?? {});
+		const map = this.gauges.get(name);
+		if (!map) return;
+		map.set(key, (map.get(key) ?? 0) - 1);
+	}
+
 	observeHistogram(name: string, value: number, labels?: Record<string, string>): void {
 		const config = this.histogramConfigs.get(name);
 		const map = this.histograms.get(name);

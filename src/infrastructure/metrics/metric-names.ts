@@ -8,4 +8,5 @@ export const METRIC = {
 	AI_REQUEST_DURATION: "ai_request_duration_seconds",
 	HEARTBEAT_TICK_DURATION: "heartbeat_tick_duration_seconds",
 	LLM_ACTIVE_SESSIONS: "llm_active_sessions",
+	LLM_BUSY_SESSIONS: "llm_busy_sessions",
 } as const;

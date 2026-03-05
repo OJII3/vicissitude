@@ -74,6 +74,47 @@ describe("PrometheusCollector", () => {
 			const output = c.serialize();
 			expect(output).toContain('bot_info{bot_name="fua"} 1');
 		});
+
+		it("should increment gauge value", () => {
+			const c = new PrometheusCollector();
+			c.registerGauge("busy", "Busy count");
+			c.incrementGauge("busy");
+			c.incrementGauge("busy");
+			c.incrementGauge("busy");
+
+			const output = c.serialize();
+			expect(output).toContain("busy 3");
+		});
+
+		it("should decrement gauge value", () => {
+			const c = new PrometheusCollector();
+			c.registerGauge("busy", "Busy count");
+			c.incrementGauge("busy");
+			c.incrementGauge("busy");
+			c.decrementGauge("busy");
+
+			const output = c.serialize();
+			expect(output).toContain("busy 1");
+		});
+
+		it("should ignore increment/decrement for unregistered gauge", () => {
+			const c = new PrometheusCollector();
+			c.incrementGauge("unregistered");
+			c.decrementGauge("unregistered");
+			expect(c.serialize()).toBe("");
+		});
+
+		it("should support increment/decrement with labels", () => {
+			const c = new PrometheusCollector();
+			c.registerGauge("busy", "Busy count");
+			c.incrementGauge("busy", { agent_type: "opencode" });
+			c.incrementGauge("busy", { agent_type: "copilot" });
+			c.incrementGauge("busy", { agent_type: "opencode" });
+
+			const output = c.serialize();
+			expect(output).toContain('busy{agent_type="opencode"} 2');
+			expect(output).toContain('busy{agent_type="copilot"} 1');
+		});
 	});
 
 	describe("Histogram", () => {

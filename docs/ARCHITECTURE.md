@@ -189,11 +189,14 @@
 
 ### 4.5 Composition Root
 
-- `composition-root.ts`: `bootstrap()` — 唯一の DI 配線場所
+- `composition-root.ts`: `bootstrap()` — DI 配線のエントリポイント
   - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
   - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
-  - **Copilot**: ギルドごとに `CopilotPollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
+  - **Copilot**: `bootstrapCopilot()` に委譲
   - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
+- `bootstrap-context.ts`: `BootstrapContext` — 各ブートストラップ関数で共有するコンテキスト型
+- `bootstrap-helpers.ts`: `createHeartbeat()`, `startSessionGauge()`, `setupShutdown()` — ブートストラップ共有ヘルパー
+- `infrastructure/opencode/bootstrap-copilot.ts`: `bootstrapCopilot()` — Copilot モードのブートストラップ。ギルドごとに `CopilotPollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
 
 ### 4.6 OpenCode 組み込みツール
 

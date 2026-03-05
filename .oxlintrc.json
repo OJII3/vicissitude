@@ -37,7 +37,7 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/composition-root.ts"],
+			"files": ["**/composition-root.ts", "**/bootstrap-copilot.ts"],
 			"rules": {
 				"import/max-dependencies": "off"
 			}
