@@ -31,7 +31,11 @@ function buildEntry(level: LogLevel, message: string, args: unknown[]): string {
 		entry.extra = args.map((a) => serializeArg(a));
 	}
 
-	return `${JSON.stringify(entry)}\n`;
+	try {
+		return `${JSON.stringify(entry)}\n`;
+	} catch {
+		return `${JSON.stringify({ timestamp: entry.timestamp, level, message, error: "Failed to serialize log entry" })}\n`;
+	}
 }
 
 export class ConsoleLogger implements Logger {
