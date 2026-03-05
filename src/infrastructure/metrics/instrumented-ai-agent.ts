@@ -22,7 +22,8 @@ export class InstrumentedAiAgent implements AiAgent {
 		const trigger = inferTrigger(options.sessionKey);
 		const labels = { agent_type: this.agentType, trigger };
 		const start = performance.now();
-		this.metrics.incrementGauge(METRIC.LLM_BUSY_SESSIONS);
+		const agentLabel = { agent_type: this.agentType };
+		this.metrics.incrementGauge(METRIC.LLM_BUSY_SESSIONS, agentLabel);
 		try {
 			const response = await this.inner.send(options);
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "success" });
@@ -31,7 +32,7 @@ export class InstrumentedAiAgent implements AiAgent {
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "error" });
 			throw error;
 		} finally {
-			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS);
+			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS, agentLabel);
 			const duration = (performance.now() - start) / 1000;
 			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration);
 		}

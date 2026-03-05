@@ -52,8 +52,10 @@ src/
 │   ├── context/
 │   └── logging/
 ├── mcp/              # MCP サーバー（独立プロセス、レイヤー外）
-├── composition-root.ts  # DI 配線
-└── index.ts          # エントリポイント
+├── bootstrap-context.ts    # ブートストラップ共有型
+├── bootstrap-helpers.ts    # ブートストラップ共有ヘルパー
+├── composition-root.ts     # DI 配線エントリポイント
+└── index.ts                # エントリポイント
 ```
 
 ### 依存方向ルール
@@ -67,7 +69,7 @@ src/
 
 - 手動コンストラクタ注入（Pure DI）を使用
 - DI コンテナライブラリは使わない
-- `composition-root.ts` が唯一の配線場所
+- `composition-root.ts` が配線のエントリポイント。Copilot 配線は `bootstrap-copilot.ts` に委譲
 
 ### 命名規約
 

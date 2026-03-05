@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-03
+- 2026-03-05
 - 更新者: AI
-- ブランチ: feat/image-attachments
+- ブランチ: feat/grafana-busy-sessions
 
 ## 2. 現在の真実（Project Truth）
 
@@ -31,6 +31,8 @@
 - **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**
 - **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。** AI が Web ページの取得と Web 検索を行える。Judge エージェントでは無効のまま。
+- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-copilot.ts`（Copilot ブートストラップ）に分割。** 302→151 行に削減。
+- **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。Grafana ダッシュボードにパネル追加済み。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - エラー時はユーザーに汎用メッセージを返し、詳細はログのみに記録する。
@@ -75,6 +77,7 @@
 1. ~~code-exec のサンドボックス欠如による RCE リスク~~ **対策済み** — Podman コンテナ化（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除、メモリ/CPU/PID 制限）。
 2. judge の AI 呼び出しコスト（クールダウンで緩和済み、将来的に軽量モデル切り替えも検討）。
 3. judge のレスポンスパース失敗時は ignore にフォールバック（安全側）。
+4. `bootstrap-copilot.ts` は `infrastructure/opencode/` に配置しているが、実態はブートストラップ（DI 配線）ロジック。`src/` 直下や `src/bootstrap/` への移動を将来的に検討。現状は `import/no-cycle` 違反がなく動作に問題ないため許容。
 
 ## 8. 再開時コンテキスト
 
