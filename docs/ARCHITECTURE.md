@@ -161,7 +161,7 @@
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
-- `logging/console-logger.ts`: `ConsoleLogger implements Logger`
+- `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
 
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
 

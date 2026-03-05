@@ -62,6 +62,16 @@
 nr deploy:rebuild
 ```
 
+**ログ確認:**
+
+- コンテナは `journald` ログドライバーを使用しており、ログは JSON 構造化形式（NDJSON）でシステムジャーナルに記録される。
+- `nr deploy:logs` (`podman-compose logs -f`) でも確認可能。
+- journald から直接確認する場合:
+  ```bash
+  journalctl CONTAINER_TAG=vicissitude -f          # リアルタイム表示
+  journalctl CONTAINER_TAG=vicissitude --no-pager -n 100  # 直近 100 行
+  ```
+
 **注意:**
 
 - イメージを再ビルドした後は `podman-compose up -d --force-recreate` でコンテナを再作成すること（`up -d` のみでは設定変更がない場合再作成されない）。
