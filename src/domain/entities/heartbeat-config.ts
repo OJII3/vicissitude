@@ -27,7 +27,7 @@ export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
 		{
 			id: "home-check",
 			description: "ホームチャンネルの様子を見る",
-			schedule: { type: "interval", minutes: 30 },
+			schedule: { type: "interval", minutes: 1440 },
 			lastExecutedAt: null,
 			enabled: true,
 		},
@@ -35,7 +35,7 @@ export const DEFAULT_HEARTBEAT_CONFIG: HeartbeatConfig = {
 			id: "memory-update",
 			description:
 				"memory MCP ツールを使ってメモリを更新する。手順: daily log → MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
-			schedule: { type: "interval", minutes: 60 },
+			schedule: { type: "interval", minutes: 360 },
 			lastExecutedAt: null,
 			enabled: true,
 		},
