@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
+import type { LtmFact, LtmFactReader } from "../../domain/ports/ltm-fact-reader.port.ts";
 import { FileContextLoader } from "./file-context-loader.ts";
 
 const TEST_ROOT = resolve(import.meta.dirname, "../../../.test-context-loader");
@@ -130,5 +131,60 @@ describe("FileContextLoader - guildId 指定時", () => {
 
 		expect(ctx).toContain("# Guild Log");
 		expect(ctx).not.toContain("# Global Log");
+	});
+});
+
+function createMockFactReader(facts: LtmFact[]): LtmFactReader {
+	return {
+		getFacts: async () => facts,
+		close: async () => {},
+	};
+}
+
+describe("FileContextLoader - LTM ファクト注入", () => {
+	it("guildId と ltmFactReader がある場合 <ltm-facts> セクションが出力に含まれる", async () => {
+		const reader = createMockFactReader([
+			{
+				content: "ユーザーはコーヒーが好き",
+				category: "preference",
+				createdAt: "2025-01-01T00:00:00Z",
+			},
+			{ content: "プログラミングが得意", category: "skill", createdAt: "2025-01-02T00:00:00Z" },
+		]);
+
+		const loader = new FileContextLoader(TEST_OVERLAY_DIR, TEST_BASE_DIR, "123456", reader);
+		const ctx = await loader.loadBootstrapContext();
+
+		expect(ctx).toContain("<ltm-facts>");
+		expect(ctx).toContain("</ltm-facts>");
+		expect(ctx).toContain("- [preference] ユーザーはコーヒーが好き");
+		expect(ctx).toContain("- [skill] プログラミングが得意");
+	});
+
+	it("guildId なしの場合は <ltm-facts> が含まれない", async () => {
+		const reader = createMockFactReader([
+			{ content: "テストファクト", category: "test", createdAt: "2025-01-01T00:00:00Z" },
+		]);
+
+		const loader = new FileContextLoader(TEST_OVERLAY_DIR, TEST_BASE_DIR, undefined, reader);
+		const ctx = await loader.loadBootstrapContext();
+
+		expect(ctx).not.toContain("<ltm-facts>");
+	});
+
+	it("ファクトが空配列の場合は <ltm-facts> が含まれない", async () => {
+		const reader = createMockFactReader([]);
+
+		const loader = new FileContextLoader(TEST_OVERLAY_DIR, TEST_BASE_DIR, "123456", reader);
+		const ctx = await loader.loadBootstrapContext();
+
+		expect(ctx).not.toContain("<ltm-facts>");
+	});
+
+	it("ltmFactReader がない場合は <ltm-facts> が含まれない", async () => {
+		const loader = new FileContextLoader(TEST_OVERLAY_DIR, TEST_BASE_DIR, "123456");
+		const ctx = await loader.loadBootstrapContext();
+
+		expect(ctx).not.toContain("<ltm-facts>");
 	});
 });

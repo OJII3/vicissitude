@@ -138,6 +138,7 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 		sessionGaugeTimer,
 		ltmResources?.chatAdapter,
 		ltmResources?.recorder,
+		ctx.ltmFactReader,
 	);
 
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);

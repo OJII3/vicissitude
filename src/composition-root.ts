@@ -6,6 +6,7 @@ import type { Logger } from "./domain/ports/logger.port.ts";
 import { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
 import { JsonChannelConfigLoader } from "./infrastructure/context/json-channel-config-loader.ts";
 import { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
+import { FenghuangFactReader } from "./infrastructure/fenghuang/fenghuang-fact-reader.ts";
 import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { METRIC } from "./infrastructure/metrics/metric-names.ts";
 import { PrometheusCollector } from "./infrastructure/metrics/prometheus-collector.ts";
@@ -44,9 +45,11 @@ export async function bootstrap(): Promise<void> {
 	const root = resolve(import.meta.dirname, "..");
 	const logger = new ConsoleLogger();
 	const sessions = new JsonSessionRepository(resolve(root, "data"));
+	const ltmFactReader = new FenghuangFactReader(resolve(root, "data/fenghuang"));
 	const contextLoaderFactory = new FileContextLoaderFactory(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
+		ltmFactReader,
 	);
 	const gateway = new DiscordGateway(token, logger);
 	const { collector: metrics, server: metricsServer } = createMetrics(logger);
@@ -64,6 +67,7 @@ export async function bootstrap(): Promise<void> {
 		logger,
 		metrics,
 		metricsServer,
+		ltmFactReader,
 	};
 	await bootstrapAgents(ctx);
 }
