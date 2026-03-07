@@ -1,3 +1,4 @@
+/* oxlint-disable max-dependencies -- bootstrap file naturally requires many imports for DI wiring */
 import { resolve } from "path";
 
 import { BufferEventUseCase } from "../../application/use-cases/buffer-event.use-case.ts";
@@ -8,19 +9,19 @@ import { InstrumentedAiAgent } from "../metrics/instrumented-ai-agent.ts";
 import { METRIC } from "../metrics/metric-names.ts";
 import { FileEventBuffer } from "../persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "../persistence/json-emoji-usage-repository.ts";
-import { CopilotPollingAgent } from "./copilot-polling-agent.ts";
 import { GuildRoutingAgent } from "./guild-routing-agent.ts";
+import { PollingAgent } from "./polling-agent.ts";
 
-const COPILOT_BASE_PORT = 4096;
+const BASE_PORT = 4096;
 
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
-	const agents = new Map<string, CopilotPollingAgent>();
+	const agents = new Map<string, PollingAgent>();
 	const bufferUseCases = new Map<string, BufferEventUseCase>();
 	for (const [index, guildId] of guildIds.entries()) {
 		const bufferDir = resolve(ctx.root, `data/event-buffer/guilds/${guildId}`);
 		const eventBuffer = new FileEventBuffer(bufferDir);
-		const port = COPILOT_BASE_PORT + index;
-		const agent = new CopilotPollingAgent(
+		const port = BASE_PORT + index;
+		const agent = new PollingAgent(
 			guildId,
 			ctx.sessions,
 			ctx.contextLoaderFactory,
@@ -34,7 +35,7 @@ function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 	return { agents, bufferUseCases };
 }
 
-function setupCopilotEventHandlers(
+function setupEventHandlers(
 	ctx: BootstrapContext,
 	bufferUseCases: Map<string, BufferEventUseCase>,
 ) {
@@ -57,23 +58,23 @@ function setupCopilotEventHandlers(
 	});
 }
 
-export async function bootstrapCopilot(ctx: BootstrapContext): Promise<void> {
+export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
 	const guildIds = channelConfig.getGuildIds();
 	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
-	setupCopilotEventHandlers(ctx, bufferUseCases);
+	setupEventHandlers(ctx, bufferUseCases);
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	const firstAgent = agents.values().next().value as CopilotPollingAgent | undefined;
+	const firstAgent = agents.values().next().value as PollingAgent | undefined;
 	if (!firstAgent) {
 		throw new Error("No guild agents available; cannot create defaultAgent for GuildRoutingAgent");
 	}
 	const routingAgent = new InstrumentedAiAgent(
 		new GuildRoutingAgent(agents, firstAgent),
 		metrics,
-		"copilot",
+		"polling",
 	);
 	const scheduler = createHeartbeat(ctx.root, routingAgent, logger, metrics);
 	const sessionGaugeTimer = startSessionGauge(sessions, metrics);
@@ -83,14 +84,11 @@ export async function bootstrapCopilot(ctx: BootstrapContext): Promise<void> {
 		gateway,
 		routingAgent,
 		emojiUsageRepo,
-		undefined,
 		metricsServer,
 		sessionGaugeTimer,
 	);
 
-	logger.info(
-		`[bootstrap] Copilot polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`,
-	);
+	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
 	await gateway.start();
 	scheduler.start();
 	for (const [guildId, agent] of agents) {

@@ -35,7 +35,6 @@ export function setupShutdown(
 	gateway: { stop(): void },
 	agent: AiAgent,
 	emojiUsageRepo: { flush(): Promise<void> },
-	judgeAgent?: AiAgent,
 	metricsServer?: { stop(): void },
 	sessionGaugeTimer?: ReturnType<typeof setInterval>,
 ): void {
@@ -48,7 +47,6 @@ export function setupShutdown(
 		scheduler.stop();
 		gateway.stop();
 		agent.stop();
-		judgeAgent?.stop();
 		metricsServer?.stop();
 		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
 	};

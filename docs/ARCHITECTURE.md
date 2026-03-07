@@ -35,10 +35,7 @@
   - ユーザー単位: `{platform}:{channelId}:{authorId}`
   - チャンネル単位: `{platform}:{channelId}:_channel`
 - `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
-- `response-decision.ts`: `ResponseAction`, `ResponseDecision` — AI 応答判断結果
-- `conversation-context.ts`: `ConversationMessage`（`attachments: Attachment[]` フィールド含む）, `ConversationContext` — 会話履歴
 - `attachment.ts`: `Attachment` — 添付ファイル情報（`url: string`, `contentType?: string`, `filename?: string`）
-- `emoji-info.ts`: `EmojiInfo` — カスタム絵文字情報（`name`, `identifier`, `animated`）
 - `emoji-usage.ts`: `EmojiUsageCount` — カスタム絵文字使用カウント（`emojiName`, `count`）
 - `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
 
@@ -58,39 +55,23 @@
   - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
 - `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
   - `getRole(channelId)`, `getCooldown(channelId)`, `getGuildIds()`
-- `emoji-provider.port.ts`: `EmojiProvider` — ギルドカスタム絵文字取得
-  - `getGuildEmojis(guildId): Promise<EmojiInfo[]>`
 - `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
   - `increment(guildId, emojiName)`, `getTopEmojis(guildId, limit)`, `hasData(guildId)`
-- `response-judge.port.ts`: `ResponseJudge` — AI 応答判断
-  - `judge(message, context, availableEmojis?, attachments?: Attachment[]): Promise<ResponseDecision>`
-- `conversation-history.port.ts`: `ConversationHistory` — 会話履歴取得
-  - `getRecent(channelId, limit, excludeMessageId?): Promise<ConversationContext>`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
   - `get()`, `save()`, `exists()`
 - `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
   - `load()`, `save()`, `updateLastExecuted()`
-- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（Copilot ポーリング用）
+- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（ポーリング用）
   - `append(event: BufferedEvent): Promise<void>`
   - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`, `isBot`
 
 #### services/
 
 - `message-formatter.ts`: `splitMessage()` — 2000 文字制限でのメッセージ分割（純粋関数）
-- `cooldown-tracker.ts`: `CooldownTracker` — チャンネルごとの応答クールダウン管理
-- `emoji-ranking.ts`: `filterTopEmojis()` — 使用頻度トップの絵文字でフィルタリング（純粋関数）
 - `heartbeat-evaluator.ts`: `evaluateDueReminders()` — Heartbeat 設定から due なリマインダーを判定（純粋関数）
 
 ### 4.2 Application 層 — ユースケース
 
-- `handle-incoming-message.use-case.ts`: `HandleIncomingMessageUseCase`
-  - 依存: `AiAgent`, `Logger`
-  - 処理: メッセージ受信 → typing 開始 → AI 送信 → 応答分割 → 返信/送信
-  - 用途: メンション/スレッド（必ず応答）
-- `handle-home-channel-message.use-case.ts`: `HandleHomeChannelMessageUseCase`
-  - 依存: `AiAgent`, `ResponseJudge`, `ConversationHistory`, `ChannelConfigLoader`, `CooldownTracker`, `EmojiProvider`, `EmojiUsageTracker`, `Logger`
-  - 処理: クールダウン確認 → 会話履歴取得 → カスタム絵文字取得 → 人気順フィルタリング → AI 判断 → respond/react/ignore
-  - 用途: ホームチャンネル（自律参加）
 - `handle-heartbeat.use-case.ts`: `HandleHeartbeatUseCase`
   - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
   - 処理: due リマインダーからプロンプト構築 → AI セッション起動 → lastExecutedAt 更新
@@ -98,7 +79,7 @@
 - `buffer-event.use-case.ts`: `BufferEventUseCase`
   - 依存: `EventBuffer`, `Logger`
   - 処理: `IncomingMessage` → `BufferedEvent` に変換してバッファに追加
-  - 用途: Copilot モードでのイベントバッファリング（judge/batching/cooldown をバイパス）
+  - 用途: イベントバッファリング（AI がポーリングで消費）
 
 ### 4.3 Infrastructure 層 — ポートの具象実装
 
@@ -111,17 +92,7 @@
   - `MessageReactionAdd` イベントを購読し、カスタム絵文字リアクションでハンドラ呼び出し
   - `Partials.Reaction`, `Partials.Message`, `Partials.Channel` を有効化（キャッシュ外メッセージへのリアクション受信に必要）
 - `discord/discord-attachment-mapper.ts`: `mapDiscordAttachments()` — Discord 添付ファイルから画像 MIME タイプ（`image/png`, `image/jpeg`, `image/gif`, `image/webp`）のみを allowlist フィルタリングし `Attachment[]` に変換
-- `discord/discord-conversation-history.ts`: `DiscordConversationHistory implements ConversationHistory`
-  - discord.js で直近メッセージを fetch
-- `discord/discord-emoji-provider.ts`: `DiscordEmojiProvider implements EmojiProvider`
-  - `guild.emojis.cache` からカスタム絵文字一覧を取得（キャッシュのみ参照）
-- `opencode/opencode-agent.ts`: `OpencodeAgent implements AiAgent`
-  - OpenCode SDK でセッション管理・メッセージ送信（同期 `prompt()` 呼び出し）
-  - 毎回 system prompt でブートストラップコンテキストを注入
-  - 添付画像がある場合は `FilePartInput` として AI に送信（マルチモーダル対応）
-  - 非 Copilot プロバイダ用（デフォルト）
-- `opencode/copilot-polling-agent.ts`: `CopilotPollingAgent implements AiAgent`
-  - GitHub Copilot プロバイダ専用（`OPENCODE_PROVIDER_ID=github-copilot` で有効化）
+- `opencode/polling-agent.ts`: `PollingAgent implements AiAgent`
   - `send()`: EventBuffer にイベントを書き込み、即座に空レスポンスを返す
   - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
   - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
@@ -132,7 +103,7 @@
   - `stop()`: 全ギルドエージェントを停止
   - Heartbeat 等の既存ユースケースが変更不要になる
 - `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
-  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（CopilotPollingAgent 用）
+  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（PollingAgent 用）
   - `guildId` 指定時はギルド別バッファパスを `EVENT_BUFFER_DIR` 環境変数で渡す
 - `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
   - `data/sessions.json` にセッション ID を永続化
@@ -145,9 +116,6 @@
 - `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
   - `data/context/channels.json` → `context/channels.json` のフォールバックでチャンネル設定を読込
   - `getHomeChannelIds()` でホームチャンネル一覧を取得（ポート外の具象メソッド）
-- `opencode/opencode-response-judge.ts`: `OpencodeResponseJudge implements ResponseJudge`
-  - 専用の `OpencodeJudgeAgent` を使用（MCP ツールなし、毎回新規セッション）
-  - AI にメッセージへの応答判断を委譲（respond/react/ignore）
 - `persistence/json-emoji-usage-repository.ts`: `JsonEmojiUsageRepository implements EmojiUsageTracker`
   - `data/emoji-usage.json` に絵文字使用カウントを永続化
   - インメモリキャッシュ + 30 秒遅延フラッシュ（graceful shutdown 時は即時フラッシュ）
@@ -156,7 +124,7 @@
   - ファイル不在時はデフォルト設定を返す
 - `persistence/file-event-buffer.ts`: `FileEventBuffer implements EventBuffer`
   - JSONL 形式で append
-  - Copilot ポーリングモード用
+  - ポーリングモード用
   - ギルド分離: `data/event-buffer/guilds/{guildId}/events.jsonl` にギルドごとに書き込み
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
@@ -182,7 +150,7 @@
   - `evolve_soul` は常にグローバル（`SOUL.md` は共通、書き込み先は `data/context/SOUL.md`）
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
-- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（CopilotPollingAgent 用）
+- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（PollingAgent 用）
   - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
   - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
@@ -190,17 +158,15 @@
 ### 4.5 Composition Root
 
 - `composition-root.ts`: `bootstrap()` — DI 配線のエントリポイント
-  - プロバイダ別分岐: `OPENCODE_PROVIDER_ID` に応じて異なる戦略を配線
-  - **デフォルト（非 Copilot）**: `OpencodeAgent` + judge + batching + cooldown の従来フロー
-  - **Copilot**: `bootstrapCopilot()` に委譲
+  - `bootstrapAgents()` に委譲してポーリングモードを起動
   - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
 - `bootstrap-context.ts`: `BootstrapContext` — 各ブートストラップ関数で共有するコンテキスト型
 - `bootstrap-helpers.ts`: `createHeartbeat()`, `startSessionGauge()`, `setupShutdown()` — ブートストラップ共有ヘルパー
-- `infrastructure/opencode/bootstrap-copilot.ts`: `bootstrapCopilot()` — Copilot モードのブートストラップ。ギルドごとに `CopilotPollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
+- `infrastructure/opencode/bootstrap-agents.ts`: `bootstrapAgents()` — エージェントのブートストラップ。ギルドごとに `PollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
 
 ### 4.6 OpenCode 組み込みツール
 
-`OpencodeAgent` および `CopilotPollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している（`OpencodeJudgeAgent` では全て無効）:
+`PollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している:
 
 - `webfetch`: 指定 URL の内容を取得
 - `websearch`: Web 検索を実行
@@ -301,35 +267,14 @@
 
 ## 6. 主要シーケンス
 
-### 6.1 メッセージルーティング
+### 6.1 メッセージルーティング（ポーリングモード）
 
 1. Discord `messageCreate` を受信する。
 2. Bot 自身のメッセージのみ除外する。他 Bot メッセージには `isBot` フラグを付与して処理を継続する。
-3. メンション → `HandleIncomingMessageUseCase`（必ず応答）
-4. ホームチャンネル（配下スレッド含む） → `HandleHomeChannelMessageUseCase`（自律判断。Bot メッセージは judge で応答可否を判断し、Bot 同士の会話ループを防止するため連続応答回数に上限を設ける）
+3. メンション → `BufferEventUseCase` でイベントバッファに追加
+4. ホームチャンネル（配下スレッド含む） → `BufferEventUseCase` でイベントバッファに追加
 5. その他 → 無視
-
-### 6.2 メンション応答（従来フロー）
-
-1. メンション文字列を除去し `IncomingMessage` に変換する。
-2. テキストが空かつ添付画像もなければ早期リターンする。
-3. ユーザー単位セッションキーを生成する。
-4. typing インジケーターを 8 秒間隔で開始する。
-5. `AiAgent.send()` で AI に送信する。
-6. 応答を `splitMessage()` で 2000 文字以内に分割する。
-7. 最初のチャンクを `reply()` で、以降を `send()` で送信する。
-
-### 6.3 ホームチャンネル応答（新フロー）
-
-1. テキストが空かつ添付画像もなし → スキップ
-2. クールダウン中 → スキップ
-3. `ConversationHistory.getRecent()` で直近 10 件取得
-4. `EmojiProvider.getGuildEmojis()` でギルドカスタム絵文字取得（失敗時は無視して続行）
-5. `EmojiUsageTracker` で使用頻度トップ 20 にフィルタリング（コールドスタート時は全絵文字にフォールバック）
-6. `ResponseJudge.judge()` で AI 判断（フィルタ済み絵文字一覧をプロンプトに含める）
-7. `ignore` → 何もしない
-8. `react` → カスタム絵文字の `:name:` を ID に解決し `msg.react()` してクールダウン記録（解決にはフィルタ前の全絵文字を使用）
-9. `respond` → チャンネル単位セッションで `agent.send()` し、`channel.send()` で送信、クールダウン記録
+6. AI が `event-buffer` MCP ツールでバッファをポーリングし、自律的に応答を判断・送信する
 
 ### 6.4 Heartbeat 自律行動
 
@@ -366,9 +311,7 @@
 
 ## 8. エラーハンドリング
 
-- AI 呼び出し失敗（メンション/スレッド）: 汎用エラーメッセージを reply で返信し、詳細はログのみに記録する。
-- AI 呼び出し失敗（ホームチャンネル）: ログに記録するのみ（ユーザーへのフィードバックなし）。
-- judge 失敗: 安全側（ignore）にフォールバックし、ログに記録する。
+- AI セッションエラー: 指数バックオフで自動再起動し、ログに記録する。
 - セッション検証失敗: 新規セッションを作成してリカバリする。
 - コンテキストファイル不在: スキップして空文字を返す。
 - 設定不備: 起動時に例外を投げて終了する。

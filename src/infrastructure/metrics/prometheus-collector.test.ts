@@ -107,13 +107,13 @@ describe("PrometheusCollector", () => {
 		it("should support increment/decrement with labels", () => {
 			const c = new PrometheusCollector();
 			c.registerGauge("busy", "Busy count");
-			c.incrementGauge("busy", { agent_type: "opencode" });
-			c.incrementGauge("busy", { agent_type: "copilot" });
-			c.incrementGauge("busy", { agent_type: "opencode" });
+			c.incrementGauge("busy", { agent_type: "polling" });
+			c.incrementGauge("busy", { agent_type: "other" });
+			c.incrementGauge("busy", { agent_type: "polling" });
 
 			const output = c.serialize();
-			expect(output).toContain('busy{agent_type="opencode"} 2');
-			expect(output).toContain('busy{agent_type="copilot"} 1');
+			expect(output).toContain('busy{agent_type="polling"} 2');
+			expect(output).toContain('busy{agent_type="other"} 1');
 		});
 	});
 
