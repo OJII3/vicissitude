@@ -14,6 +14,8 @@ import { BASE_PORT } from "./mcp-config.ts";
 import { PollingAgent } from "./polling-agent.ts";
 
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
+	const providerId = process.env.OPENCODE_PROVIDER_ID ?? "github-copilot";
+	const modelId = process.env.OPENCODE_MODEL_ID ?? "big-pickle";
 	const agents = new Map<string, PollingAgent>();
 	const bufferUseCases = new Map<string, BufferEventUseCase>();
 	for (const [index, guildId] of guildIds.entries()) {
@@ -27,6 +29,8 @@ function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 			eventBuffer,
 			ctx.logger,
 			port,
+			providerId,
+			modelId,
 		);
 		agents.set(guildId, agent);
 		bufferUseCases.set(guildId, new BufferEventUseCase(eventBuffer, ctx.logger));

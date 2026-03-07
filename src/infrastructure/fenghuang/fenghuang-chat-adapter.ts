@@ -15,6 +15,7 @@ export class FenghuangChatAdapter {
 
 	constructor(
 		private readonly port: number,
+		private readonly providerId: string,
 		private readonly modelId: string,
 	) {}
 
@@ -57,7 +58,7 @@ export class FenghuangChatAdapter {
 			const result = await oc.session.prompt({
 				sessionID: sessionId,
 				parts: [{ type: "text", text: userContent }],
-				model: { providerID: "github-copilot", modelID: this.modelId },
+				model: { providerID: this.providerId, modelID: this.modelId },
 				system,
 				tools: {},
 			});

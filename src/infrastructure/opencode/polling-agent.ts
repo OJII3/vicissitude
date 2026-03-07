@@ -46,6 +46,8 @@ export class PollingAgent implements AiAgent {
 		private readonly eventBuffer: EventBuffer,
 		private readonly logger: Logger,
 		private readonly port: number,
+		private readonly providerId: string,
+		private readonly modelId: string,
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
@@ -119,8 +121,8 @@ export class PollingAgent implements AiAgent {
 			sessionID: sessionId,
 			parts: [{ type: "text", text: POLLING_PROMPT }],
 			model: {
-				providerID: "github-copilot",
-				modelID: process.env.OPENCODE_MODEL_ID ?? "big-pickle",
+				providerID: this.providerId,
+				modelID: this.modelId,
 			},
 			system,
 		});

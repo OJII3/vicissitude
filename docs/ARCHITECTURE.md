@@ -315,7 +315,24 @@
 
 ## 7. 設定
 
-- `DISCORD_TOKEN`: 必須（`.env` から読込）
+### 必須環境変数
+
+- `DISCORD_TOKEN`: Discord API トークン（`.env` から読込）
+
+### OpenCode プロバイダ設定（PollingAgent 用）
+
+- `OPENCODE_PROVIDER_ID`: プロバイダ ID（デフォルト: `"github-copilot"`）
+- `OPENCODE_MODEL_ID`: モデル ID（デフォルト: `"big-pickle"`）
+
+### LTM プロバイダ設定（FenghuangChatAdapter 用）
+
+- `LTM_PROVIDER_ID`: LTM 用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` → `"github-copilot"`）
+- `LTM_MODEL_ID`: LTM 用モデル ID（デフォルト: `"gpt-4o"`）
+- `OLLAMA_BASE_URL`: Ollama API エンドポイント（デフォルト: `"http://localhost:11434"`）
+- `LTM_EMBEDDING_MODEL`: 埋め込みモデル（デフォルト: `"embeddinggemma"`）
+
+### ディレクトリ
+
 - データディレクトリ: `{project-root}/data/`
 - コンテキストディレクトリ: `{project-root}/context/`（ベース）、`{project-root}/data/context/`（オーバーレイ、読み込み優先）
 

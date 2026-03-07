@@ -18,6 +18,7 @@ import { OllamaEmbeddingAdapter } from "../infrastructure/ollama/ollama-embeddin
 // --- Configuration from environment ---
 
 const LTM_OPENCODE_PORT = Number(process.env.LTM_OPENCODE_PORT ?? "4095");
+const LTM_PROVIDER_ID = process.env.LTM_PROVIDER_ID ?? "github-copilot";
 const LTM_MODEL_ID = process.env.LTM_MODEL_ID ?? "gpt-4o";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
 const LTM_EMBEDDING_MODEL = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
@@ -28,7 +29,7 @@ const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild I
 
 // --- Initialize adapters ---
 
-const chatAdapter = new FenghuangChatAdapter(LTM_OPENCODE_PORT, LTM_MODEL_ID);
+const chatAdapter = new FenghuangChatAdapter(LTM_OPENCODE_PORT, LTM_PROVIDER_ID, LTM_MODEL_ID);
 await chatAdapter.initialize();
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
