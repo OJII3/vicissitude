@@ -47,6 +47,10 @@ export class FileEventBuffer implements EventBuffer {
 				}
 			});
 
+			watcher.on("error", () => {
+				cleanup();
+			});
+
 			const pollTimer = setInterval(() => {
 				if (this.hasBufferedEvents()) {
 					cleanup();
@@ -58,7 +62,6 @@ export class FileEventBuffer implements EventBuffer {
 	}
 
 	private hasBufferedEvents(): boolean {
-		if (!existsSync(this.filePath)) return false;
 		try {
 			return statSync(this.filePath).size > 0;
 		} catch {

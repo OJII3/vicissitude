@@ -136,8 +136,11 @@ describe("FileEventBuffer.waitForEvents", () => {
 		// 少し遅延してから append
 		setTimeout(() => buffer.append(createEvent()), 50);
 
-		await promise;
+		// 2秒以内に resolve しなければタイムアウト
+		const timeout = new Promise<never>((_resolve, reject) => {
+			setTimeout(() => reject(new Error("waitForEvents did not resolve within 2s")), 2000);
+		});
+		await Promise.race([promise, timeout]);
 		ac.abort();
-		// append 後に waitForEvents が resolve すればテスト成功
 	});
 });
