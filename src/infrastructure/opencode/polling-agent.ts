@@ -18,6 +18,11 @@ const AGENT_NAME = "copilot-polling";
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 
+const SESSION_MAX_AGE_MS = (() => {
+	const hours = Number(process.env.SESSION_MAX_AGE_HOURS);
+	return Number.isFinite(hours) && hours > 0 ? hours * 3_600_000 : 48 * 3_600_000;
+})();
+
 const POLLING_PROMPT = `あなたは Discord bot「ふあ」です。以下のループを実行してください:
 
 1. wait_for_events ツールでイベントを待つ（タイムアウトは60秒）
@@ -38,6 +43,7 @@ export class PollingAgent implements AiAgent {
 	private closeServer: (() => void) | null = null;
 	private abortController: AbortController | null = null;
 	private running = false;
+	private sessionCreatedAt: number | null = null;
 
 	constructor(
 		private readonly guildId: string,
@@ -84,6 +90,8 @@ export class PollingAgent implements AiAgent {
 				this.logger.info(`[polling:${this.guildId}] events detected, starting session`);
 				// eslint-disable-next-line no-await-in-loop -- sequential restart is intentional
 				await this.runPollingSession();
+				// eslint-disable-next-line no-await-in-loop -- session rotation must happen sequentially
+				await this.rotateSessionIfExpired();
 				delay = INITIAL_RECONNECT_DELAY_MS;
 			} catch (err) {
 				if (this.abortController.signal.aborted) return;
@@ -175,7 +183,9 @@ export class PollingAgent implements AiAgent {
 			}
 		}
 
-		if (!realId) {
+		if (realId) {
+			this.sessionCreatedAt = this.sessions.getCreatedAt(AGENT_NAME, sessionKey) ?? Date.now();
+		} else {
 			const created = await oc.session.create({ title: `ふあ:polling:${this.guildId}` });
 			if (created.error || !created.data) {
 				throw new Error(
@@ -184,9 +194,33 @@ export class PollingAgent implements AiAgent {
 			}
 			realId = created.data.id;
 			await this.sessions.save(AGENT_NAME, sessionKey, realId);
+			this.sessionCreatedAt = Date.now();
 		}
 
 		return realId;
+	}
+
+	private async rotateSessionIfExpired(): Promise<void> {
+		if (this.sessionCreatedAt === null) return;
+		const age = Date.now() - this.sessionCreatedAt;
+		if (age < SESSION_MAX_AGE_MS) return;
+
+		const sessionKey = `__polling__:${this.guildId}`;
+		const sessionId = this.sessions.get(AGENT_NAME, sessionKey);
+		if (!sessionId) return;
+
+		const oc = await this.getClient();
+		try {
+			await oc.session.delete({ sessionID: sessionId });
+		} catch (err) {
+			this.logger.error(`[polling:${this.guildId}] failed to delete OpenCode session`, err);
+		}
+
+		await this.sessions.delete(AGENT_NAME, sessionKey);
+		this.sessionCreatedAt = null;
+
+		const hours = Math.round(age / 3_600_000);
+		this.logger.info(`[polling:${this.guildId}] session rotated after ${hours}h`);
 	}
 
 	private async getClient(): Promise<OpencodeClient> {
