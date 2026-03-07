@@ -65,16 +65,42 @@ OpenCode が使用する MCP サーバーを提供する。
 - チャンネル設定: `channels.json`（ホームチャンネル一覧、guildId、guildName・channelName（人間用ラベル）、クールダウン設定）
 - 日次ログ: `memory/{YYYY-MM-DD}.md`
 - ファイル毎最大 20,000 文字、合計最大 150,000 文字。
+- **LTM ファクト注入**: `loadBootstrapContext()` 時に LTM（fenghuang）から蓄積済みファクト（SemanticFact）を読み取り、`<ltm-facts>` セクションとしてシステムプロンプトに注入する。これにより AI は過去の会話から抽出された意味記憶（ユーザー情報、関係性、嗜好等）を常時参照できる。
 
 ### 3.5 Guild 跨ぎコンテキスト分離
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全 Guild で共有。
 - 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `guilds/{guildId}/` で分離（オーバーレイ方式で `data/context/` → `context/` のフォールバック）。
+- LTM（fenghuang）も Guild ごとに `data/fenghuang/guilds/{guildId}/memory.db` で分離。
 - DM やフォールバック時はグローバルを使用。
 - MCP memory ツールでは `guild_id` パラメータで Guild 固有メモリにアクセス。
 - Guild 間で会話内容・メンバー情報・教訓が漏洩しない。
 
-### 3.6 エラー応答
+### 3.6 記憶システムマイグレーション方針
+
+ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（Episodes, SemanticFacts）の責任範囲を段階的に整理する。完全廃止はしない。
+
+#### 記憶の責任分離
+
+| 情報の種類                         | 担当システム     | 理由                        |
+| ---------------------------------- | ---------------- | --------------------------- |
+| ユーザー情報（名前、特徴、関係性） | LTM SemanticFact | 会話から自動抽出可能        |
+| メンバーの性格・好み               | LTM SemanticFact | 会話から自動抽出可能        |
+| チャンネル設定メモ                 | MEMORY.md        | 運用固有、自動抽出不適      |
+| 行動ルール                         | MEMORY.md        | AI の自己指示、構造化が必要 |
+| 週次目標・運用メモ                 | MEMORY.md        | 時限的、手動管理が適切      |
+| 精選教訓                           | LESSONS.md       | AI がキュレーション、高品質 |
+| Heartbeat 実行ログ・自省           | 日次ログ         | 時系列記録                  |
+
+#### マイグレーションフェーズ
+
+1. **Phase 1**: LTM ファクトをシステムプロンプトに注入（`LtmFactReader` ポート + `<ltm-facts>` セクション）
+2. **Phase 2**: MEMORY.md のスリム化（ユーザー情報を LTM に委譲、運用特化に限定）
+3. **Phase 3**: 日次ログ再設計 + LESSONS.md 整理（記録内容の限定、LTM guideline との連携）
+
+各フェーズ間に数日の観察期間を設け、情報ロスがないことを確認してから次に進む。
+
+### 3.7 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
