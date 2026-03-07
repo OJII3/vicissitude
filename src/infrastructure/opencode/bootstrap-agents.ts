@@ -46,6 +46,7 @@ function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 function setupEventHandlers(
 	ctx: BootstrapContext,
 	bufferUseCases: Map<string, BufferEventUseCase>,
+	ltmUseCase?: RecordConversationUseCase,
 ) {
 	const { gateway, logger, metrics } = ctx;
 	const routeBuffer = async (msg: IncomingMessage) => {
@@ -59,6 +60,13 @@ function setupEventHandlers(
 	gateway.onHomeChannelMessage(async (msg) => {
 		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
 		await routeBuffer(msg);
+		if (ltmUseCase) {
+			try {
+				await ltmUseCase.execute(msg);
+			} catch (err) {
+				logger.error("[ltm-record] failed to record message", err);
+			}
+		}
 	});
 	gateway.onMessage(async (msg) => {
 		metrics.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "mention" });
@@ -69,10 +77,11 @@ function setupEventHandlers(
 interface LtmResources {
 	chatAdapter: FenghuangChatAdapter;
 	recorder: FenghuangConversationRecorder;
+	useCase: RecordConversationUseCase;
 }
 
 async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | undefined> {
-	const { gateway, logger } = ctx;
+	const { logger } = ctx;
 	const ltmPort = BASE_PORT - 2;
 	const providerId =
 		process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot";
@@ -90,16 +99,8 @@ async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | 
 		const recorder = new FenghuangConversationRecorder(llm, dataDir);
 		const useCase = new RecordConversationUseCase(recorder, logger);
 
-		gateway.onAnyMessage(async (msg) => {
-			try {
-				await useCase.execute(msg);
-			} catch (err) {
-				logger.error("[ltm-record] failed to record message", err);
-			}
-		});
-
 		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
-		return { chatAdapter, recorder };
+		return { chatAdapter, recorder, useCase };
 	} catch (err) {
 		logger.error("[bootstrap] LTM auto-recording init failed, continuing without LTM", err);
 		return undefined;
@@ -110,12 +111,12 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
 	const guildIds = channelConfig.getGuildIds();
 	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
-	setupEventHandlers(ctx, bufferUseCases);
+
+	const ltmResources = await setupLtmRecording(ctx);
+	setupEventHandlers(ctx, bufferUseCases, ltmResources?.useCase);
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
-
-	const ltmResources = await setupLtmRecording(ctx);
 
 	const firstAgent = agents.values().next().value as PollingAgent | undefined;
 	if (!firstAgent) {

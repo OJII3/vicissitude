@@ -27,7 +27,6 @@ type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void
 export interface MessageGateway {
 	onMessage(handler: MessageHandler): void;
 	onHomeChannelMessage(handler: MessageHandler): void;
-	onAnyMessage(handler: (msg: IncomingMessage) => Promise<void>): void;
 	start(): Promise<void>;
 	stop(): void;
 }
