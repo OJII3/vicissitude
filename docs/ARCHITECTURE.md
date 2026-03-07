@@ -157,8 +157,8 @@
   - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
   - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
-- `mcp/ltm-server.ts`: 長期記憶（LTM）管理ツール — fenghuang ライブラリを使用したエピソード記憶・意味記憶の管理
-  - `ltm_ingest`: 会話メッセージを長期記憶に取り込み、閾値到達時にエピソードを自動生成
+- `mcp/ltm-server.ts`: 長期記憶（LTM）検索・統合ツール — fenghuang ライブラリを使用したエピソード記憶・意味記憶の管理
+  - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（`RecordConversationUseCase` + `FenghuangConversationRecorder`）
   - `ltm_retrieve`: クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得
   - `ltm_consolidate`: 未統合のエピソードからファクト（意味記憶）を抽出・統合
   - `ltm_get_facts`: 蓄積されたファクト一覧を取得（カテゴリフィルタ対応）

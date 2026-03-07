@@ -18,6 +18,7 @@ export class DiscordGateway implements MessageGateway {
 	private client: Client | null = null;
 	private handler: MessageHandler | null = null;
 	private homeChannelHandler: MessageHandler | null = null;
+	private anyMessageHandler: ((msg: IncomingMessage) => Promise<void>) | null = null;
 	private homeChannelIds: Set<string> = new Set();
 	private emojiUsedHandler: EmojiUsedHandler | null = null;
 
@@ -32,6 +33,10 @@ export class DiscordGateway implements MessageGateway {
 
 	onHomeChannelMessage(handler: MessageHandler): void {
 		this.homeChannelHandler = handler;
+	}
+
+	onAnyMessage(handler: (msg: IncomingMessage) => Promise<void>): void {
+		this.anyMessageHandler = handler;
 	}
 
 	onEmojiUsed(handler: EmojiUsedHandler): void {
@@ -81,6 +86,15 @@ export class DiscordGateway implements MessageGateway {
 	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
 			if (!client.user) return;
+
+			// LTM 記録: bot 自身含む全メッセージを観測（fire-and-forget）
+			if (this.anyMessageHandler) {
+				const adapted = this.adaptMessage(message, false, message.channel.isThread());
+				this.anyMessageHandler(adapted).catch((err) => {
+					this.logger.warn("[gateway] anyMessageHandler error", err);
+				});
+			}
+
 			if (message.author.id === client.user.id) return;
 
 			// カスタム絵文字使用を記録
