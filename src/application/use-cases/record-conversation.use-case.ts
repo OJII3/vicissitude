@@ -15,7 +15,7 @@ export class RecordConversationUseCase {
 		const role = msg.isBot ? "assistant" : "user";
 		let content = msg.content;
 		if (msg.attachments.length > 0) {
-			const info = msg.attachments.map((a) => `[添付: ${a.filename}]`).join(" ");
+			const info = msg.attachments.map((a) => `[添付: ${a.filename ?? "unknown"}]`).join(" ");
 			content = content ? `${content} ${info}` : info;
 		}
 

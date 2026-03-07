@@ -90,7 +90,9 @@ export class DiscordGateway implements MessageGateway {
 			// LTM 記録: bot 自身含む全メッセージを観測（fire-and-forget）
 			if (this.anyMessageHandler) {
 				const adapted = this.adaptMessage(message, false, message.channel.isThread());
-				this.anyMessageHandler(adapted).catch(() => {});
+				this.anyMessageHandler(adapted).catch((err) => {
+					this.logger.warn("[gateway] anyMessageHandler error", err);
+				});
 			}
 
 			if (message.author.id === client.user.id) return;

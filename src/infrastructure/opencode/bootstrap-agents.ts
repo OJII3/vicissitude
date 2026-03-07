@@ -66,7 +66,12 @@ function setupEventHandlers(
 	});
 }
 
-async function setupLtmRecording(ctx: BootstrapContext): Promise<FenghuangChatAdapter | undefined> {
+interface LtmResources {
+	chatAdapter: FenghuangChatAdapter;
+	recorder: FenghuangConversationRecorder;
+}
+
+async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | undefined> {
 	const { gateway, logger } = ctx;
 	const ltmPort = BASE_PORT - 2;
 	const providerId =
@@ -94,7 +99,7 @@ async function setupLtmRecording(ctx: BootstrapContext): Promise<FenghuangChatAd
 		});
 
 		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
-		return chatAdapter;
+		return { chatAdapter, recorder };
 	} catch (err) {
 		logger.error("[bootstrap] LTM auto-recording init failed, continuing without LTM", err);
 		return undefined;
@@ -110,7 +115,7 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
 
-	const ltmChatAdapter = await setupLtmRecording(ctx);
+	const ltmResources = await setupLtmRecording(ctx);
 
 	const firstAgent = agents.values().next().value as PollingAgent | undefined;
 	if (!firstAgent) {
@@ -131,7 +136,8 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 		emojiUsageRepo,
 		metricsServer,
 		sessionGaugeTimer,
-		ltmChatAdapter,
+		ltmResources?.chatAdapter,
+		ltmResources?.recorder,
 	);
 
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);

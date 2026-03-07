@@ -48,7 +48,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
 5. **ltm**: 長期記憶（fenghuang ベース）
-   - `ltm_ingest`: 会話メッセージを取り込み、エピソード記憶を自動生成
+   - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（bot 自身の発言を含む全メッセージ）
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得

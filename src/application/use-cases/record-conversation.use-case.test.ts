@@ -156,4 +156,66 @@ describe("RecordConversationUseCase", () => {
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
 	});
+
+	it("recorder.record() が失敗した場合、例外が伝播する", async () => {
+		const recorder = createMockRecorder();
+		(recorder.record as ReturnType<typeof mock>).mockImplementation(() =>
+			Promise.reject(new Error("DB connection failed")),
+		);
+		const logger = createMockLogger();
+		const useCase = new RecordConversationUseCase(recorder, logger);
+
+		await expect(useCase.execute(createMockMessage("テスト"))).rejects.toThrow(
+			"DB connection failed",
+		);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it("filename が undefined の添付ファイルは 'unknown' と表示する", async () => {
+		const recorder = createMockRecorder();
+		const logger = createMockLogger();
+		const useCase = new RecordConversationUseCase(recorder, logger);
+
+		await useCase.execute(
+			createMockMessage("", {
+				attachments: [
+					{
+						url: "https://cdn.example.com/file",
+						contentType: "application/octet-stream",
+					},
+				],
+			}),
+		);
+
+		const [, msg] = (recorder.record as ReturnType<typeof mock>).mock.calls[0] as [
+			string,
+			ConversationMessage,
+		];
+		expect(msg.content).toBe("TestUser: [添付: unknown]");
+	});
+
+	it("複数の添付ファイルがスペース区切りで結合される", async () => {
+		const recorder = createMockRecorder();
+		const logger = createMockLogger();
+		const useCase = new RecordConversationUseCase(recorder, logger);
+
+		await useCase.execute(
+			createMockMessage("ファイル送るね", {
+				attachments: [
+					{ url: "https://example.com/a.png", contentType: "image/png", filename: "a.png" },
+					{
+						url: "https://example.com/b.pdf",
+						contentType: "application/pdf",
+						filename: "b.pdf",
+					},
+				],
+			}),
+		);
+
+		const [, msg] = (recorder.record as ReturnType<typeof mock>).mock.calls[0] as [
+			string,
+			ConversationMessage,
+		];
+		expect(msg.content).toBe("TestUser: ファイル送るね [添付: a.png] [添付: b.pdf]");
+	});
 });
