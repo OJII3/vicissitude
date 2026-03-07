@@ -18,7 +18,6 @@ export class DiscordGateway implements MessageGateway {
 	private client: Client | null = null;
 	private handler: MessageHandler | null = null;
 	private homeChannelHandler: MessageHandler | null = null;
-	private anyMessageHandler: ((msg: IncomingMessage) => Promise<void>) | null = null;
 	private homeChannelIds: Set<string> = new Set();
 	private emojiUsedHandler: EmojiUsedHandler | null = null;
 
@@ -33,10 +32,6 @@ export class DiscordGateway implements MessageGateway {
 
 	onHomeChannelMessage(handler: MessageHandler): void {
 		this.homeChannelHandler = handler;
-	}
-
-	onAnyMessage(handler: (msg: IncomingMessage) => Promise<void>): void {
-		this.anyMessageHandler = handler;
 	}
 
 	onEmojiUsed(handler: EmojiUsedHandler): void {
@@ -83,54 +78,49 @@ export class DiscordGateway implements MessageGateway {
 		this.client = null;
 	}
 
+	private isHomeMessage(message: Message): boolean {
+		if (this.homeChannelIds.has(message.channel.id)) return true;
+		return (
+			message.channel.isThread() &&
+			message.channel.parentId !== null &&
+			this.homeChannelIds.has(message.channel.parentId)
+		);
+	}
+
 	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
 			if (!client.user) return;
 
-			// LTM 記録: bot 自身含む全メッセージを観測（fire-and-forget）
-			if (this.anyMessageHandler) {
-				const adapted = this.adaptMessage(message, false, message.channel.isThread());
-				this.anyMessageHandler(adapted).catch((err) => {
-					this.logger.warn("[gateway] anyMessageHandler error", err);
-				});
-			}
-
-			if (message.author.id === client.user.id) return;
-
-			// カスタム絵文字使用を記録
-			if (message.guildId && this.emojiUsedHandler) {
-				for (const match of message.content.matchAll(CUSTOM_EMOJI_RE)) {
-					const name = match[1];
-					if (name) this.emojiUsedHandler(message.guildId, name);
-				}
-			}
-
-			const isMentioned = message.mentions.has(client.user);
-			const isThread = message.channel.isThread();
-			const isHomeChannel = this.homeChannelIds.has(message.channel.id);
-			const isHomeThread =
-				message.channel.isThread() &&
-				message.channel.parentId !== null &&
-				this.homeChannelIds.has(message.channel.parentId);
-
-			const adapted = this.adaptMessage(message, isMentioned, isThread);
-			const channel = this.adaptChannel(message);
-
-			// ホームチャンネル or その配下スレッド → judge で判断（メンション含む）
-			if (isHomeChannel || isHomeThread) {
-				if (this.homeChannelHandler) {
-					await this.homeChannelHandler(adapted, channel);
+			// bot 自身のメッセージ: ホームチャンネルなら LTM 記録用にハンドラへ流す
+			if (message.author.id === client.user.id) {
+				if (this.isHomeMessage(message) && this.homeChannelHandler) {
+					const adapted = this.adaptMessage(message, false, message.channel.isThread());
+					await this.homeChannelHandler(adapted, this.adaptChannel(message));
 				}
 				return;
 			}
 
-			// メンション → 必ず応答（ホームチャンネル以外）
-			if (isMentioned && this.handler) {
-				await this.handler(adapted, channel);
+			this.trackEmojiUsage(message);
+
+			const isMentioned = message.mentions.has(client.user);
+			const adapted = this.adaptMessage(message, isMentioned, message.channel.isThread());
+			const channel = this.adaptChannel(message);
+
+			if (this.isHomeMessage(message)) {
+				if (this.homeChannelHandler) await this.homeChannelHandler(adapted, channel);
+				return;
 			}
 
-			// それ以外（他チャンネルのスレッド含む） → 無視
+			if (isMentioned && this.handler) await this.handler(adapted, channel);
 		});
+	}
+
+	private trackEmojiUsage(message: Message): void {
+		if (!message.guildId || !this.emojiUsedHandler) return;
+		for (const match of message.content.matchAll(CUSTOM_EMOJI_RE)) {
+			const name = match[1];
+			if (name) this.emojiUsedHandler(message.guildId, name);
+		}
 	}
 
 	private registerReactionHandler(client: Client): void {
