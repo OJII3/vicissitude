@@ -8,7 +8,7 @@ import {
 	cleanJsonResponse,
 	extractText,
 	separateMessages,
-} from "./opencode-chat-adapter.ts";
+} from "./fenghuang-chat-adapter.ts";
 
 describe("separateMessages", () => {
 	it("should separate system messages from non-system messages", () => {

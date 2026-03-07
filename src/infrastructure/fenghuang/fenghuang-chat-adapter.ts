@@ -8,8 +8,8 @@ interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** Adapter that uses OpenCode SDK for chat / chatStructured */
-export class OpencodeChatAdapter {
+/** Adapter that uses OpenCode SDK for fenghuang chat / chatStructured */
+export class FenghuangChatAdapter {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
 
@@ -98,7 +98,7 @@ export class OpencodeChatAdapter {
 
 	private getClient(): OpencodeClient {
 		if (!this.client) {
-			throw new Error("OpencodeChatAdapter not initialized — call initialize() first");
+			throw new Error("FenghuangChatAdapter not initialized — call initialize() first");
 		}
 		return this.client;
 	}
