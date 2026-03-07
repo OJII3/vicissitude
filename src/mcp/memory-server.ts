@@ -120,7 +120,7 @@ server.tool(
 // --- append_daily_log ---
 server.tool(
 	"append_daily_log",
-	"日次ログ (memory/YYYY-MM-DD.md) に追記する（guild_id 指定時は Guild 固有）",
+	"日次ログに追記する（heartbeat 実行記録・自省メモ専用。会話まとめは LTM に自動記録されるため不要。guild_id 指定時は Guild 固有）",
 	{
 		entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）"),
 		date: z
@@ -267,7 +267,7 @@ server.tool(
 // --- update_lessons ---
 server.tool(
 	"update_lessons",
-	"LESSONS.md を上書き更新する（バックアップ自動作成、guild_id 指定時は Guild 固有）",
+	"LESSONS.md を上書き更新する（更新前に ltm_get_facts で guideline カテゴリを確認し重複を避ける。バックアップ自動作成、guild_id 指定時は Guild 固有）",
 	{
 		content: z
 			.string()

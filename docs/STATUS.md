@@ -29,6 +29,7 @@
 - **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。
 - **M5 Phase 1 完了: LTM ファクトのシステムプロンプト注入。** `LtmFactReader` ポート、`FenghuangFactReader` アダプタ（SQLite WAL モード読み取り専用）、`FileContextLoader` への `<ltm-facts>` セクション注入を実装。PR #63 でマージ済み。
 - **M5 Phase 2 完了: MEMORY.md スリム化。** MEMORY.md の責任範囲を「運用設定・行動ルール・週次目標」に限定し、ユーザー背景情報は LTM ファクトに委譲。TOOLS.md / HEARTBEAT.md のガイドラインを更新し、MCP ツール説明文も改善。
+- **M5 Phase 3 完了: 日次ログ再設計 + LESSONS.md 整理。** 日次ログの記録対象を「heartbeat 実行記録・自省メモ」に限定し、会話まとめは LTM Episodes に委譲。LESSONS.md と LTM guideline の使い分けを明確化し、更新前に LTM guideline を確認するフローを追加。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。

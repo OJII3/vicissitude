@@ -2,6 +2,12 @@
 
 会話や行動を通じて学んだ教訓を記録する。memory MCP の `update_lessons` で更新される。
 
+> **LTM guideline との使い分け**:
+>
+> - LESSONS.md: 複数の経験から一般化した精選教訓（原則レベル）
+> - LTM guideline: 個別の会話から自動抽出された行動ガイドライン（状況固有）
+> - 更新時は `ltm_get_facts(category: "guideline")` で既存 guideline を確認し、重複を避ける
+
 ## コミュニケーション
 
 (まだ教訓はありません。)
