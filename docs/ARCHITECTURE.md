@@ -130,6 +130,9 @@
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
+- `opencode/opencode-chat-adapter.ts`: `OpencodeChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
+- `ollama/ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得するアダプタ。30 秒タイムアウト。
+- `fenghuang/composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat/chatStructured を `OpencodeChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲するコンポジットアダプタ。ltm-server で使用。
 
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
 
@@ -154,6 +157,13 @@
   - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
   - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
+- `mcp/ltm-server.ts`: 長期記憶（LTM）管理ツール — fenghuang ライブラリを使用したエピソード記憶・意味記憶の管理
+  - `ltm_ingest`: 会話メッセージを長期記憶に取り込み、閾値到達時にエピソードを自動生成
+  - `ltm_retrieve`: クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得
+  - `ltm_consolidate`: 未統合のエピソードからファクト（意味記憶）を抽出・統合
+  - `ltm_get_facts`: 蓄積されたファクト一覧を取得（カテゴリフィルタ対応）
+  - Guild 分離: `data/fenghuang/guilds/{guildId}/memory.db` に SQLite で永続化
+  - LLM: `CompositeLLMAdapter`（chat は OpenCode SDK、embed は Ollama）を使用
 
 ### 4.5 Composition Root
 

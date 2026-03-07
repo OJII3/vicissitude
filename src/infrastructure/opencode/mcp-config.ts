@@ -1,23 +1,17 @@
 import { resolve } from "path";
 
+export const BASE_PORT = 4096;
 const GUILD_ID_REGEX = /^\d+$/;
+
+type McpServerConfig = { type: "local"; command: string[]; environment?: Record<string, string> };
 
 interface McpConfigOptions {
 	includeEventBuffer?: boolean;
 	guildId?: string;
 }
 
-/**
- * MCP サーバー設定を返す。
- * PollingAgent のみ includeEventBuffer: true で呼ぶ。
- */
-export function mcpServerConfigs(options?: McpConfigOptions) {
-	const root = resolve(import.meta.dirname, "../../..");
-
-	const configs: Record<
-		string,
-		{ type: "local"; command: string[]; environment?: Record<string, string> }
-	> = {
+function coreConfigs(root: string): Record<string, McpServerConfig> {
+	return {
 		discord: {
 			type: "local",
 			command: ["bun", "run", resolve(root, "src/mcp/discord-server.ts")],
@@ -37,7 +31,27 @@ export function mcpServerConfigs(options?: McpConfigOptions) {
 			type: "local",
 			command: ["bun", "run", resolve(root, "src/mcp/memory-server.ts")],
 		},
+		ltm: {
+			type: "local",
+			command: ["bun", "run", resolve(root, "src/mcp/ltm-server.ts")],
+			environment: {
+				LTM_OPENCODE_PORT: String(BASE_PORT - 1),
+				LTM_MODEL_ID: process.env.LTM_MODEL_ID ?? "gpt-4o",
+				OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+				LTM_EMBEDDING_MODEL: process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
+				LTM_DATA_DIR: resolve(root, "data/fenghuang"),
+			},
+		},
 	};
+}
+
+/**
+ * MCP サーバー設定を返す。
+ * PollingAgent のみ includeEventBuffer: true で呼ぶ。
+ */
+export function mcpServerConfigs(options?: McpConfigOptions) {
+	const root = resolve(import.meta.dirname, "../../..");
+	const configs = coreConfigs(root);
 
 	if (options?.includeEventBuffer) {
 		const environment: Record<string, string> = {};
