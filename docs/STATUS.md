@@ -4,7 +4,7 @@
 
 - 2026-03-07
 - 更新者: AI
-- ブランチ: feat/memory-migration-docs
+- ブランチ: main
 
 ## 2. 現在の真実（Project Truth）
 
@@ -26,7 +26,8 @@
 - **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。**
 - **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。
 - **Ollama をコンテナ化。** `compose.yaml` で `ollama` サービスを追加し、`vicissitude-net` ネットワークで `bot` と通信。初回起動時に `embeddinggemma` モデルを自動プル。`OLLAMA_BASE_URL` のデフォルトを `http://ollama:11434` に変更。
-- **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。Phase 1 で LTM ファクトのシステムプロンプト注入、Phase 2 で MEMORY.md スリム化、Phase 3 で日次ログ再設計を予定。
+- **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。
+- **M5 Phase 1 完了: LTM ファクトのシステムプロンプト注入。** `LtmFactReader` ポート、`FenghuangFactReader` アダプタ（SQLite WAL モード読み取り専用）、`FileContextLoader` への `<ltm-facts>` セクション注入を実装。PR #63 でマージ済み。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -53,12 +54,10 @@
 
 ## 5. 直近タスク
 
-1. **M5 Phase 1: LTM ファクトのシステムプロンプト注入**
-   - `src/domain/ports/ltm-fact-reader.port.ts` — `LtmFactReader` ポート定義
-   - `src/infrastructure/fenghuang/fenghuang-fact-reader.ts` — SQLite 読み取り専用アダプタ
-   - `src/infrastructure/context/file-context-loader.ts` — `<ltm-facts>` セクション注入
-   - `src/composition-root.ts` — DI 配線
-   - `context/HEARTBEAT.md` — `ltm_consolidate` 定期実行の追記
+1. **M5 Phase 2: MEMORY.md のスリム化**（Phase 1 完了後の観察期間を経てから着手）
+   - MEMORY.md テンプレートの更新（運用設定・行動ルール・週次目標に限定）
+   - HEARTBEAT.md の memory-update 手順更新
+   - TOOLS.md の `update_memory` 説明更新
 2. `context/channels.json` にホームチャンネル ID を設定して動作確認する
 3. テスト用 Discord サーバーでの E2E 検証
 4. infrastructure 層のテストカバレッジ拡充

@@ -90,6 +90,10 @@ src/
 4. `infrastructure/` に具象実装を追加
 5. `composition-root.ts` で配線
 
+### マージ前チェック
+
+- PR をマージする前に `docs/STATUS.md` を最新の状態に更新すること（完了タスク、直近タスク、既知バグの反映）
+
 ### MCP サーバー
 
 `src/mcp/` は独立プロセスとして起動されるため、Clean Architecture レイヤーの対象外。
