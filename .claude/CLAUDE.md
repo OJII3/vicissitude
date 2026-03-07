@@ -46,11 +46,15 @@ src/
 ├── application/      # アプリケーション層 — ユースケース
 │   └── use-cases/
 ├── infrastructure/   # インフラ層 — ポートの具象実装
+│   ├── context/
 │   ├── discord/
+│   ├── fenghuang/
+│   ├── logging/
+│   ├── metrics/
+│   ├── ollama/
 │   ├── opencode/
 │   ├── persistence/
-│   ├── context/
-│   └── logging/
+│   └── scheduler/
 ├── mcp/              # MCP サーバー（独立プロセス、レイヤー外）
 ├── bootstrap-context.ts    # ブートストラップ共有型
 ├── bootstrap-helpers.ts    # ブートストラップ共有ヘルパー
