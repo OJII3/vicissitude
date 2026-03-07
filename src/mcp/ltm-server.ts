@@ -55,61 +55,6 @@ function getOrCreate(guildId: string): Fenghuang {
 
 const server = new McpServer({ name: "ltm", version: "0.1.0" });
 
-// --- ltm_ingest ---
-server.tool(
-	"ltm_ingest",
-	"会話メッセージを長期記憶に取り込む。メッセージキューに追加し、閾値到達時にエピソードを自動生成する",
-	{
-		guild_id: guildIdSchema,
-		messages: z
-			.array(
-				z.object({
-					role: z.enum(["user", "assistant", "system"]),
-					content: z.string().max(10000),
-					timestamp: z.string().optional().describe("ISO8601 タイムスタンプ"),
-				}),
-			)
-			.min(1)
-			.max(100)
-			.describe("取り込むメッセージ配列"),
-	},
-	async ({ guild_id, messages }) => {
-		try {
-			const feng = getOrCreate(guild_id);
-			let totalEpisodes = 0;
-
-			for (const msg of messages) {
-				// oxlint-disable-next-line no-await-in-loop -- sequential: segmenter state depends on previous messages
-				const episodes = await feng.segmenter.addMessage(guild_id, {
-					role: msg.role,
-					content: msg.content,
-					timestamp: msg.timestamp ? new Date(msg.timestamp) : undefined,
-				});
-				totalEpisodes += episodes.length;
-			}
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: `${messages.length} メッセージを取り込みました。${totalEpisodes > 0 ? `${totalEpisodes} 件のエピソードが生成されました。` : ""}`,
-					},
-				],
-			};
-		} catch (error) {
-			return {
-				content: [
-					{
-						type: "text",
-						text: `ltm_ingest エラー: ${error instanceof Error ? error.message : String(error)}`,
-					},
-				],
-				isError: true,
-			};
-		}
-	},
-);
-
 // --- ltm_retrieve ---
 server.tool(
 	"ltm_retrieve",

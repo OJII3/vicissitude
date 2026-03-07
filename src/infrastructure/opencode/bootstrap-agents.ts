@@ -2,11 +2,16 @@
 import { resolve } from "path";
 
 import { BufferEventUseCase } from "../../application/use-cases/buffer-event.use-case.ts";
+import { RecordConversationUseCase } from "../../application/use-cases/record-conversation.use-case.ts";
 import type { BootstrapContext } from "../../bootstrap-context.ts";
 import { createHeartbeat, setupShutdown, startSessionGauge } from "../../bootstrap-helpers.ts";
 import type { IncomingMessage } from "../../domain/ports/message-gateway.port.ts";
+import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
+import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
+import { FenghuangConversationRecorder } from "../fenghuang/fenghuang-conversation-recorder.ts";
 import { InstrumentedAiAgent } from "../metrics/instrumented-ai-agent.ts";
 import { METRIC } from "../metrics/metric-names.ts";
+import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
 import { FileEventBuffer } from "../persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "../persistence/json-emoji-usage-repository.ts";
 import { GuildRoutingAgent } from "./guild-routing-agent.ts";
@@ -61,6 +66,41 @@ function setupEventHandlers(
 	});
 }
 
+async function setupLtmRecording(ctx: BootstrapContext): Promise<FenghuangChatAdapter | undefined> {
+	const { gateway, logger } = ctx;
+	const ltmPort = BASE_PORT - 2;
+	const providerId =
+		process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot";
+	const modelId = process.env.LTM_MODEL_ID ?? "gpt-4o";
+	const ollamaBaseUrl = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
+	const embeddingModel = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
+	const dataDir = resolve(ctx.root, "data/fenghuang");
+
+	try {
+		const chatAdapter = new FenghuangChatAdapter(ltmPort, providerId, modelId);
+		await chatAdapter.initialize();
+
+		const ollama = new OllamaEmbeddingAdapter(ollamaBaseUrl, embeddingModel);
+		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
+		const recorder = new FenghuangConversationRecorder(llm, dataDir);
+		const useCase = new RecordConversationUseCase(recorder, logger);
+
+		gateway.onAnyMessage(async (msg) => {
+			try {
+				await useCase.execute(msg);
+			} catch (err) {
+				logger.error("[ltm-record] failed to record message", err);
+			}
+		});
+
+		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
+		return chatAdapter;
+	} catch (err) {
+		logger.error("[bootstrap] LTM auto-recording init failed, continuing without LTM", err);
+		return undefined;
+	}
+}
+
 export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
 	const guildIds = channelConfig.getGuildIds();
@@ -69,6 +109,8 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 
 	const emojiUsageRepo = new JsonEmojiUsageRepository(resolve(ctx.root, "data"));
 	gateway.onEmojiUsed((guildId, emojiName) => emojiUsageRepo.increment(guildId, emojiName));
+
+	const ltmChatAdapter = await setupLtmRecording(ctx);
 
 	const firstAgent = agents.values().next().value as PollingAgent | undefined;
 	if (!firstAgent) {
@@ -89,6 +131,7 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 		emojiUsageRepo,
 		metricsServer,
 		sessionGaugeTimer,
+		ltmChatAdapter,
 	);
 
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
