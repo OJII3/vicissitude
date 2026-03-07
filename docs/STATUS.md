@@ -4,7 +4,7 @@
 
 - 2026-03-08
 - 更新者: AI
-- ブランチ: refactor/remove-evolve-soul
+- ブランチ: main
 
 ## 2. 現在の真実（Project Truth）
 
