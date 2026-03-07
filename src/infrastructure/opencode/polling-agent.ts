@@ -183,7 +183,9 @@ export class PollingAgent implements AiAgent {
 			}
 		}
 
-		if (!realId) {
+		if (realId) {
+			this.sessionCreatedAt = this.sessions.getCreatedAt(AGENT_NAME, sessionKey) ?? Date.now();
+		} else {
 			const created = await oc.session.create({ title: `ふあ:polling:${this.guildId}` });
 			if (created.error || !created.data) {
 				throw new Error(
@@ -192,10 +194,6 @@ export class PollingAgent implements AiAgent {
 			}
 			realId = created.data.id;
 			await this.sessions.save(AGENT_NAME, sessionKey, realId);
-			this.sessionCreatedAt = Date.now();
-		}
-
-		if (this.sessionCreatedAt === null) {
 			this.sessionCreatedAt = Date.now();
 		}
 

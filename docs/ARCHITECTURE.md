@@ -58,7 +58,7 @@
 - `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
   - `increment(guildId, emojiName)`, `getTopEmojis(guildId, limit)`, `hasData(guildId)`
 - `session-repository.port.ts`: `SessionRepository` — セッション永続化
-  - `get()`, `save()`, `exists()`
+  - `get()`, `save()`, `exists()`, `delete()`, `count()`
 - `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
   - `load()`, `save()`, `updateLastExecuted()`
 - `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（ポーリング用）
@@ -101,6 +101,7 @@
   - `send()`: EventBuffer にイベントを書き込み、即座に空レスポンスを返す
   - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
   - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
+  - セッション自動ローテーション: `SESSION_MAX_AGE_HOURS`（デフォルト 48 時間）を超過したセッションを自動で破棄・再作成し、コンテキスト肥大化を防止する
   - MCP 設定に `event-buffer` を追加で含む
 - `opencode/guild-routing-agent.ts`: `GuildRoutingAgent implements AiAgent`
   - ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード
@@ -324,6 +325,10 @@
 ### 必須環境変数
 
 - `DISCORD_TOKEN`: Discord API トークン（`.env` から読込）
+
+### セッション管理
+
+- `SESSION_MAX_AGE_HOURS`: セッション自動ローテーションの最大寿命（デフォルト: `4`）。超過したセッションは PollingAgent 再起動時に自動破棄される。
 
 ### OpenCode プロバイダ設定（PollingAgent 用）
 

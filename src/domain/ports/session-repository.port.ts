@@ -4,4 +4,5 @@ export interface SessionRepository {
 	delete(agentName: string, sessionKey: string): Promise<void>;
 	exists(agentName: string, sessionKey: string): boolean;
 	count(): number;
+	getCreatedAt(agentName: string, sessionKey: string): number | undefined;
 }

@@ -22,15 +22,23 @@ export class JsonSessionRepository implements SessionRepository {
 	}
 
 	async save(agentName: string, sessionKey: string, agentSessionId: string): Promise<void> {
-		this.getMap()[this.makeKey(agentName, sessionKey)] = agentSessionId;
+		const key = this.makeKey(agentName, sessionKey);
+		const map = this.getMap();
+		map[key] = agentSessionId;
+		const metaKey = this.makeCreatedAtKey(agentName, sessionKey);
+		if (!(metaKey in map)) {
+			map[metaKey] = String(Date.now());
+		}
 		await this.persist();
 	}
 
 	async delete(agentName: string, sessionKey: string): Promise<void> {
 		const map = this.getMap();
 		const key = this.makeKey(agentName, sessionKey);
-		if (key in map) {
+		const metaKey = this.makeCreatedAtKey(agentName, sessionKey);
+		if (key in map || metaKey in map) {
 			delete map[key];
+			delete map[metaKey];
 			await this.persist();
 		}
 	}
@@ -40,11 +48,23 @@ export class JsonSessionRepository implements SessionRepository {
 	}
 
 	count(): number {
-		return Object.keys(this.getMap()).length;
+		return Object.keys(this.getMap()).filter((k) => !k.includes(":__meta:createdAt")).length;
+	}
+
+	getCreatedAt(agentName: string, sessionKey: string): number | undefined {
+		const metaKey = this.makeCreatedAtKey(agentName, sessionKey);
+		const value = this.getMap()[metaKey];
+		if (value === undefined) return undefined;
+		const parsed = Number(value);
+		return Number.isFinite(parsed) ? parsed : undefined;
 	}
 
 	private makeKey(agentName: string, sessionKey: string): string {
 		return `${agentName}:${sessionKey}`;
+	}
+
+	private makeCreatedAtKey(agentName: string, sessionKey: string): string {
+		return `${agentName}:${sessionKey}:__meta:createdAt`;
 	}
 
 	private ensureDataDir(): void {
