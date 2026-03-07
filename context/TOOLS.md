@@ -42,7 +42,6 @@
     - 過去の出来事の詳細（日次ログや LTM エピソードに記録済み）
     - 関連プロジェクトの説明
 - `read_soul` - SOUL.md を読み取る
-- `evolve_soul(entry)` - SOUL.md の「学んだこと」セクションに追記する（2,000 文字上限、セクション 10,000 文字上限）
 - `append_daily_log(entry, date?)` - memory/YYYY-MM-DD.md に追記する（heartbeat 実行記録・自省メモ専用。会話まとめは LTM に自動記録されるため不要。追記のみ、過去7日以内、1日 20,000 文字上限）
 - `read_daily_log(date?)` - 日次ログを読み取る（デフォルト: 今日）
 - `list_daily_logs(limit?)` - 日次ログ一覧を表示する（デフォルト: 7件）

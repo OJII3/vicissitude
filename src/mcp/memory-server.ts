@@ -11,12 +11,10 @@ import {
 	MAX_ENTRY_CHARS,
 	MAX_LESSONS_CHARS,
 	MAX_MEMORY_CHARS,
-	MAX_SOUL_LEARNED_CHARS,
 	OVERLAY_CONTEXT_DIR,
 	SOUL_PATH,
 	createBackup,
 	ensureDir,
-	extractLearnedSection,
 	guildIdSchema,
 	guildLabel,
 	isDateWithinRange,
@@ -76,46 +74,6 @@ server.tool("read_soul", "SOUL.md を読み取る", {}, () => {
 		content: [{ type: "text", text: content || "(SOUL.md は空です)" }],
 	};
 });
-
-// --- evolve_soul ---
-server.tool(
-	"evolve_soul",
-	"SOUL.md の「学んだこと」セクションに追記する",
-	{ entry: z.string().min(1).max(MAX_ENTRY_CHARS).describe("追記する内容（最大 2,000 文字）") },
-	({ entry }) => {
-		const content = readWithFallback(SOUL_PATH);
-		const { before, section, after } = extractLearnedSection(content);
-
-		if (!section) {
-			return {
-				content: [
-					{ type: "text", text: "エラー: SOUL.md に「## 学んだこと」セクションが見つかりません" },
-				],
-			};
-		}
-
-		const newSection = `${section.trimEnd()}\n- ${entry}\n`;
-
-		if (newSection.length > MAX_SOUL_LEARNED_CHARS) {
-			return {
-				content: [
-					{
-						type: "text",
-						text: `エラー: 「学んだこと」セクションが上限（${String(MAX_SOUL_LEARNED_CHARS)}文字）を超えます`,
-					},
-				],
-			};
-		}
-
-		const separator = after ? "\n" : "";
-		const newContent = `${before}${newSection}${separator}${after}`;
-		createBackup(SOUL_PATH);
-		writeFileSync(SOUL_PATH, newContent, "utf-8");
-		return {
-			content: [{ type: "text", text: "SOUL.md の「学んだこと」に追記しました" }],
-		};
-	},
-);
 
 // --- append_daily_log ---
 server.tool(

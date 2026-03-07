@@ -44,7 +44,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
 4. **memory**: メモリ・人格の自己更新
    - `read_memory`, `update_memory`: MEMORY.md の読み書き
-   - `read_soul`, `evolve_soul`: SOUL.md の読み取り・「学んだこと」への追記
+   - `read_soul`: SOUL.md の読み取り
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
 5. **ltm**: 長期記憶（fenghuang ベース）

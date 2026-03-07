@@ -2,7 +2,7 @@
 
 ## 1. 最終更新
 
-- 2026-03-07
+- 2026-03-08
 - 更新者: AI
 - ブランチ: main
 
@@ -20,7 +20,8 @@
 - チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
 - MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）の 6 つ。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
-- **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**
+- **memory MCP サーバーで MEMORY.md / SOUL.md（読み取り専用） / LESSONS.md / 日次ログの構造化された読み書きが可能。**
+- **`evolve_soul` ツールを廃止し、LESSONS.md に一本化。** SOUL.md はペルソナ定義に専念させ、「学んだこと」セクションを削除。既存エントリは guild LESSONS.md にマイグレーション済み。
 - **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。**
 - **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。**
