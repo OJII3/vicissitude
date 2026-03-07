@@ -1,6 +1,13 @@
 x-podman:
   in_pod: false # userns_mode と --pod は共存不可のため必須
 
+networks:
+  vicissitude-net:
+    driver: bridge
+
+volumes:
+  ollama-data:
+
 services:
   bot:
     container_name: vicissitude
@@ -16,8 +23,36 @@ services:
       - ./context:/app/context:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
       - ${HOME}/.local/share/opencode/auth.json:/home/bun/.local/share/opencode/auth.json:ro
+    networks:
+      - vicissitude-net
     logging:
       driver: journald
       options:
         tag: vicissitude
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+
+  ollama:
+    container_name: vicissitude-ollama
+    image: docker.io/ollama/ollama:latest
+    entrypoint: ["/entrypoint.sh"]
+    environment:
+      LTM_EMBEDDING_MODEL: ${LTM_EMBEDDING_MODEL:-embeddinggemma}
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./containers/ollama/entrypoint.sh:/entrypoint.sh:ro
+    networks:
+      - vicissitude-net
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-ollama
     restart: unless-stopped

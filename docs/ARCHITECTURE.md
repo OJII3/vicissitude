@@ -328,8 +328,16 @@
 
 - `LTM_PROVIDER_ID`: LTM 用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` → `"github-copilot"`）
 - `LTM_MODEL_ID`: LTM 用モデル ID（デフォルト: `"gpt-4o"`）
-- `OLLAMA_BASE_URL`: Ollama API エンドポイント（デフォルト: `"http://localhost:11434"`）
+- `OLLAMA_BASE_URL`: Ollama API エンドポイント（デフォルト: `"http://ollama:11434"`、コンテナ間通信用）
 - `LTM_EMBEDDING_MODEL`: 埋め込みモデル（デフォルト: `"embeddinggemma"`）
+
+### Ollama コンテナ
+
+- `compose.yaml` で `ollama` サービスとして定義（`docker.io/ollama/ollama:latest`、CPU 版）
+- `bot` → `ollama` のコンテナ間通信は `vicissitude-net` ブリッジネットワーク経由
+- モデルデータは `ollama-data` ボリュームに永続化
+- 初回起動時に `containers/ollama/entrypoint.sh` が `embeddinggemma` モデルを自動プル（`LTM_EMBEDDING_MODEL` 環境変数で変更可能）
+- healthcheck (`ollama list`) で起動完了を確認し、`bot` は `service_healthy` 条件で待機
 
 ### ディレクトリ
 
