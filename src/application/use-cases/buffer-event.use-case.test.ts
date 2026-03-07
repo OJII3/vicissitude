@@ -8,6 +8,7 @@ import { BufferEventUseCase } from "./buffer-event.use-case.ts";
 function createMockBuffer(): EventBuffer {
 	return {
 		append: mock(() => Promise.resolve()),
+		waitForEvents: mock(() => Promise.resolve()),
 	};
 }
 

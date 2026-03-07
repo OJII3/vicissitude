@@ -16,4 +16,5 @@ export interface BufferedEvent {
 
 export interface EventBuffer {
 	append(event: BufferedEvent): Promise<void>;
+	waitForEvents(signal: AbortSignal): Promise<void>;
 }
