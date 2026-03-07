@@ -10,9 +10,8 @@ import { METRIC } from "../metrics/metric-names.ts";
 import { FileEventBuffer } from "../persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "../persistence/json-emoji-usage-repository.ts";
 import { GuildRoutingAgent } from "./guild-routing-agent.ts";
+import { BASE_PORT } from "./mcp-config.ts";
 import { PollingAgent } from "./polling-agent.ts";
-
-const BASE_PORT = 4096;
 
 function createGuildAgents(ctx: BootstrapContext, guildIds: string[]) {
 	const agents = new Map<string, PollingAgent>();

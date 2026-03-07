@@ -38,6 +38,26 @@
 - `read_lessons` - LESSONS.md を読み取る
 - `update_lessons(content)` - LESSONS.md を上書き更新する（.bak バックアップ作成、空文字禁止、30,000 文字上限）
 
+### ltm サーバー（長期記憶）
+
+fenghuang ベースの認知記憶システム。会話をエピソードに自動分割し、意味記憶（ファクト）に統合する。
+
+- `ltm_ingest(guild_id, messages[])` - 会話メッセージを長期記憶に取り込む
+  - messages: `{ role, content, timestamp? }[]`
+  - メッセージキューに追加し、閾値到達時にエピソード（話題単位の記憶）を自動生成
+  - **使いどき**: 会話を処理した後に、やり取りの内容を記憶に残したいとき
+- `ltm_retrieve(guild_id, query, limit?)` - 関連する長期記憶をハイブリッド検索で取得
+  - テキスト検索＋ベクトル検索＋忘却曲線によるリランキング
+  - エピソード記憶（過去の会話まとめ）と意味記憶（蓄積ファクト）の両方を返す
+  - **使いどき**: ユーザーへの返信を作成する前に、関連する過去の記憶を想起したいとき
+- `ltm_consolidate(guild_id)` - 未統合エピソードからファクト（意味記憶）を抽出・統合
+  - エピソードを分析し、ユーザーに関する永続的な事実（好み、性格、関係性など）を抽出
+  - 既存ファクトの強化・更新・無効化も自動判定
+  - **使いどき**: 定期的に（heartbeat リマインダーなどで）実行し、記憶を整理する
+- `ltm_get_facts(guild_id, category?)` - 蓄積されたファクト一覧を取得
+  - category: "identity" | "preference" | "interest" | "personality" | "relationship" | "experience" | "goal" | "guideline"
+  - **使いどき**: 特定カテゴリのファクトを確認したいとき
+
 ### 組み込みツール（OpenCode SDK）
 
 - `webfetch(url)` - 指定 URL の内容を取得して返す
