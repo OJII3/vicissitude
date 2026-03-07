@@ -28,6 +28,7 @@
 - **Ollama をコンテナ化。** `compose.yaml` で `ollama` サービスを追加し、`vicissitude-net` ネットワークで `bot` と通信。初回起動時に `embeddinggemma` モデルを自動プル。`OLLAMA_BASE_URL` のデフォルトを `http://ollama:11434` に変更。
 - **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。
 - **M5 Phase 1 完了: LTM ファクトのシステムプロンプト注入。** `LtmFactReader` ポート、`FenghuangFactReader` アダプタ（SQLite WAL モード読み取り専用）、`FileContextLoader` への `<ltm-facts>` セクション注入を実装。PR #63 でマージ済み。
+- **M5 Phase 2 完了: MEMORY.md スリム化。** MEMORY.md の責任範囲を「運用設定・行動ルール・週次目標」に限定し、ユーザー背景情報は LTM ファクトに委譲。TOOLS.md / HEARTBEAT.md のガイドラインを更新し、MCP ツール説明文も改善。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -54,13 +55,9 @@
 
 ## 5. 直近タスク
 
-1. **M5 Phase 2: MEMORY.md のスリム化**（Phase 1 完了後の観察期間を経てから着手）
-   - MEMORY.md テンプレートの更新（運用設定・行動ルール・週次目標に限定）
-   - HEARTBEAT.md の memory-update 手順更新
-   - TOOLS.md の `update_memory` 説明更新
-2. `context/channels.json` にホームチャンネル ID を設定して動作確認する
-3. テスト用 Discord サーバーでの E2E 検証
-4. infrastructure 層のテストカバレッジ拡充
+1. `context/channels.json` にホームチャンネル ID を設定して動作確認する
+2. テスト用 Discord サーバーでの E2E 検証
+3. infrastructure 層のテストカバレッジ拡充
 
 ## 6. ブロッカー
 
