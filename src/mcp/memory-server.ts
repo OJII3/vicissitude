@@ -44,7 +44,7 @@ server.tool(
 // --- update_memory ---
 server.tool(
 	"update_memory",
-	"MEMORY.md を上書き更新する（バックアップ自動作成、guild_id 指定時は Guild 固有）",
+	"MEMORY.md を上書き更新する（.bak バックアップ自動作成、guild_id 指定時は Guild 固有。運用設定・行動ルール・週次目標が対象、ユーザー背景情報は LTM に委譲）",
 	{
 		content: z
 			.string()
