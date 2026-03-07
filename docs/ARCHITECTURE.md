@@ -130,9 +130,9 @@
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
-- `opencode/opencode-chat-adapter.ts`: `OpencodeChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
+- `fenghuang/fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
 - `ollama/ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得するアダプタ。30 秒タイムアウト。
-- `fenghuang/composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat/chatStructured を `OpencodeChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲するコンポジットアダプタ。ltm-server で使用。
+- `fenghuang/composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat/chatStructured を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲するコンポジットアダプタ。ltm-server で使用。
 
 ### 4.4 MCP サーバー（独立プロセス、レイヤー外）
 
