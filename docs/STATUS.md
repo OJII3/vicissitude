@@ -45,7 +45,8 @@
 
 ## 4. 既知のバグ・要修正事項
 
-なし。
+- `PollingAgent` のコンストラクタ引数が 8 個に増加。`port` / `providerId` / `modelId` を設定オブジェクトにまとめることを将来的に検討。
+- `GuildRoutingAgent.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
 
 ## 5. 直近タスク
 
