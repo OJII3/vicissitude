@@ -69,10 +69,10 @@ describe("PrometheusCollector", () => {
 		it("should support gauge with labels", () => {
 			const c = new PrometheusCollector();
 			c.registerGauge("bot_info", "Bot information");
-			c.setGauge("bot_info", 1, { bot_name: "fua" });
+			c.setGauge("bot_info", 1, { bot_name: "hua" });
 
 			const output = c.serialize();
-			expect(output).toContain('bot_info{bot_name="fua"} 1');
+			expect(output).toContain('bot_info{bot_name="hua"} 1');
 		});
 
 		it("should increment gauge value", () => {
