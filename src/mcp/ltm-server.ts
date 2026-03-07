@@ -20,7 +20,7 @@ import { OllamaEmbeddingAdapter } from "../infrastructure/ollama/ollama-embeddin
 const LTM_OPENCODE_PORT = Number(process.env.LTM_OPENCODE_PORT ?? "4095");
 const LTM_PROVIDER_ID = process.env.LTM_PROVIDER_ID ?? "github-copilot";
 const LTM_MODEL_ID = process.env.LTM_MODEL_ID ?? "gpt-4o";
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://localhost:11434";
+const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 const LTM_EMBEDDING_MODEL = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
 const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/fenghuang";
 

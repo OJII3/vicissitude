@@ -39,7 +39,7 @@ function coreConfigs(root: string): Record<string, McpServerConfig> {
 				LTM_PROVIDER_ID:
 					process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
 				LTM_MODEL_ID: process.env.LTM_MODEL_ID ?? "gpt-4o",
-				OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+				OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL ?? "http://ollama:11434",
 				LTM_EMBEDDING_MODEL: process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
 				LTM_DATA_DIR: resolve(root, "data/fenghuang"),
 			},

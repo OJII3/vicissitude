@@ -4,7 +4,7 @@
 
 - 2026-03-07
 - 更新者: AI
-- ブランチ: refactor/remove-hardcoded-provider-model
+- ブランチ: feat/ollama-container
 
 ## 2. 現在の真実（Project Truth）
 
@@ -25,6 +25,7 @@
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。**
 - **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。**
 - **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。
+- **Ollama をコンテナ化。** `compose.yaml` で `ollama` サービスを追加し、`vicissitude-net` ネットワークで `bot` と通信。初回起動時に `embeddinggemma` モデルを自動プル。`OLLAMA_BASE_URL` のデフォルトを `http://ollama:11434` に変更。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
