@@ -56,9 +56,9 @@
 
 ## 5. 直近タスク
 
-1. `context/channels.json` にホームチャンネル ID を設定して動作確認する
-2. テスト用 Discord サーバーでの E2E 検証
-3. infrastructure 層のテストカバレッジ拡充
+1. テスト用 Discord サーバーでの E2E 検証
+2. infrastructure 層のテストカバレッジ拡充
+3. M4 残り: プラットフォーム抽象化（`"discord"` ハードコードの解消）
 
 ## 6. ブロッカー
 
