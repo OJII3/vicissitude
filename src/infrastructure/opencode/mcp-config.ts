@@ -36,6 +36,8 @@ function coreConfigs(root: string): Record<string, McpServerConfig> {
 			command: ["bun", "run", resolve(root, "src/mcp/ltm-server.ts")],
 			environment: {
 				LTM_OPENCODE_PORT: String(BASE_PORT - 1),
+				LTM_PROVIDER_ID:
+					process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
 				LTM_MODEL_ID: process.env.LTM_MODEL_ID ?? "gpt-4o",
 				OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
 				LTM_EMBEDDING_MODEL: process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
