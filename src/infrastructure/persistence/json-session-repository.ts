@@ -26,6 +26,15 @@ export class JsonSessionRepository implements SessionRepository {
 		await this.persist();
 	}
 
+	async delete(agentName: string, sessionKey: string): Promise<void> {
+		const map = this.getMap();
+		const key = this.makeKey(agentName, sessionKey);
+		if (key in map) {
+			delete map[key];
+			await this.persist();
+		}
+	}
+
 	exists(agentName: string, sessionKey: string): boolean {
 		return this.get(agentName, sessionKey) !== undefined;
 	}
