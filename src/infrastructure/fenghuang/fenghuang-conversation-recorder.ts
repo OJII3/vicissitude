@@ -1,22 +1,28 @@
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 
-import { type LLMPort, SQLiteStorageAdapter, Segmenter } from "fenghuang";
+import { ConsolidationPipeline, type LLMPort, SQLiteStorageAdapter, Segmenter } from "fenghuang";
 
 import type {
 	ConversationMessage,
 	ConversationRecorder,
 } from "../../domain/ports/conversation-recorder.port.ts";
+import type {
+	ConsolidationResult,
+	MemoryConsolidator,
+} from "../../domain/ports/memory-consolidator.port.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 
 interface GuildInstance {
 	segmenter: Segmenter;
 	storage: SQLiteStorageAdapter;
+	consolidation: ConsolidationPipeline;
 }
 
-export class FenghuangConversationRecorder implements ConversationRecorder {
+export class FenghuangConversationRecorder implements ConversationRecorder, MemoryConsolidator {
 	private readonly instances = new Map<string, GuildInstance>();
+	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
 
 	constructor(
@@ -48,6 +54,30 @@ export class FenghuangConversationRecorder implements ConversationRecorder {
 		await next;
 	}
 
+	getActiveGuildIds(): string[] {
+		return [...this.instances.keys()];
+	}
+
+	consolidate(guildId: string): Promise<ConsolidationResult> {
+		if (!GUILD_ID_RE.test(guildId)) {
+			throw new Error(`Invalid guildId: ${guildId}`);
+		}
+
+		// record() のロックとは独立: SQLite WAL モードで読み書き直列化は DB 側が保証するため、
+		// consolidation が record() をブロックする必要はない
+		const instance = this.instances.get(guildId);
+		if (!instance) {
+			return Promise.resolve({
+				processedEpisodes: 0,
+				newFacts: 0,
+				reinforced: 0,
+				updated: 0,
+				invalidated: 0,
+			});
+		}
+		return instance.consolidation.consolidate(guildId);
+	}
+
 	close(): void {
 		for (const { storage } of this.instances.values()) {
 			storage.close();
@@ -64,7 +94,8 @@ export class FenghuangConversationRecorder implements ConversationRecorder {
 		mkdirSync(dbDir, { recursive: true });
 		const storage = new SQLiteStorageAdapter(resolve(dbDir, "memory.db"));
 		const segmenter = new Segmenter(this.llm, storage);
-		const instance = { segmenter, storage };
+		const consolidation = new ConsolidationPipeline(this.llm, storage);
+		const instance = { segmenter, storage, consolidation };
 		this.instances.set(guildId, instance);
 		return instance;
 	}

@@ -34,6 +34,11 @@ function createMetrics(logger: Logger) {
 	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
 	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
 	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
+	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
+	collector.registerHistogram(
+		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
+		"LTM consolidation tick duration in seconds",
+	);
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
 }

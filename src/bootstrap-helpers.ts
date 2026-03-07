@@ -1,12 +1,16 @@
+/* oxlint-disable max-dependencies -- bootstrap helper naturally requires many imports for DI wiring */
 import { resolve } from "path";
 
+import { ConsolidateMemoryUseCase } from "./application/use-cases/consolidate-memory.use-case.ts";
 import { HandleHeartbeatUseCase } from "./application/use-cases/handle-heartbeat.use-case.ts";
 import type { AiAgent } from "./domain/ports/ai-agent.port.ts";
 import type { Logger } from "./domain/ports/logger.port.ts";
+import type { MemoryConsolidator } from "./domain/ports/memory-consolidator.port.ts";
 import type { MetricsCollector } from "./domain/ports/metrics-collector.port.ts";
 import type { SessionRepository } from "./domain/ports/session-repository.port.ts";
 import { METRIC } from "./infrastructure/metrics/metric-names.ts";
 import { JsonHeartbeatConfigRepository } from "./infrastructure/persistence/json-heartbeat-config-repository.ts";
+import { IntervalConsolidationScheduler } from "./infrastructure/scheduler/interval-consolidation-scheduler.ts";
 import { IntervalHeartbeatScheduler } from "./infrastructure/scheduler/interval-heartbeat-scheduler.ts";
 
 export function createHeartbeat(
@@ -18,6 +22,15 @@ export function createHeartbeat(
 	const configRepo = new JsonHeartbeatConfigRepository(resolve(root, "data/heartbeat-config.json"));
 	const useCase = new HandleHeartbeatUseCase(agent, configRepo, logger);
 	return new IntervalHeartbeatScheduler(configRepo, useCase, logger, metrics);
+}
+
+export function createConsolidationScheduler(
+	consolidator: MemoryConsolidator,
+	logger: Logger,
+	metrics?: MetricsCollector,
+): IntervalConsolidationScheduler {
+	const useCase = new ConsolidateMemoryUseCase(consolidator, logger);
+	return new IntervalConsolidationScheduler(useCase, logger, metrics);
 }
 
 export function startSessionGauge(
@@ -40,6 +53,7 @@ export function setupShutdown(
 	ltmChatAdapter?: { close(): void },
 	ltmRecorder?: { close(): void },
 	ltmFactReader?: { close(): Promise<void> },
+	consolidationScheduler?: { stop(): void },
 ): void {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -47,6 +61,7 @@ export function setupShutdown(
 		shuttingDown = true;
 		logger.info("Shutting down...");
 		if (sessionGaugeTimer) clearInterval(sessionGaugeTimer);
+		consolidationScheduler?.stop();
 		scheduler.stop();
 		gateway.stop();
 		agent.stop();

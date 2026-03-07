@@ -8,4 +8,6 @@ export const METRIC = {
 	HEARTBEAT_TICK_DURATION: "heartbeat_tick_duration_seconds",
 	LLM_ACTIVE_SESSIONS: "llm_active_sessions",
 	LLM_BUSY_SESSIONS: "llm_busy_sessions",
+	LTM_CONSOLIDATION_TICKS: "ltm_consolidation_ticks_total",
+	LTM_CONSOLIDATION_TICK_DURATION: "ltm_consolidation_tick_duration_seconds",
 } as const;

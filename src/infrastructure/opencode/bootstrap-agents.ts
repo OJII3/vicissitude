@@ -4,7 +4,12 @@ import { resolve } from "path";
 import { BufferEventUseCase } from "../../application/use-cases/buffer-event.use-case.ts";
 import { RecordConversationUseCase } from "../../application/use-cases/record-conversation.use-case.ts";
 import type { BootstrapContext } from "../../bootstrap-context.ts";
-import { createHeartbeat, setupShutdown, startSessionGauge } from "../../bootstrap-helpers.ts";
+import {
+	createConsolidationScheduler,
+	createHeartbeat,
+	setupShutdown,
+	startSessionGauge,
+} from "../../bootstrap-helpers.ts";
 import type { IncomingMessage } from "../../domain/ports/message-gateway.port.ts";
 import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
@@ -14,6 +19,7 @@ import { METRIC } from "../metrics/metric-names.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
 import { FileEventBuffer } from "../persistence/file-event-buffer.ts";
 import { JsonEmojiUsageRepository } from "../persistence/json-emoji-usage-repository.ts";
+import type { IntervalConsolidationScheduler } from "../scheduler/interval-consolidation-scheduler.ts";
 import { GuildRoutingAgent } from "./guild-routing-agent.ts";
 import { BASE_PORT } from "./mcp-config.ts";
 import { PollingAgent } from "./polling-agent.ts";
@@ -78,6 +84,7 @@ interface LtmResources {
 	chatAdapter: FenghuangChatAdapter;
 	recorder: FenghuangConversationRecorder;
 	useCase: RecordConversationUseCase;
+	consolidationScheduler: IntervalConsolidationScheduler;
 }
 
 async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | undefined> {
@@ -98,9 +105,10 @@ async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | 
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 		const recorder = new FenghuangConversationRecorder(llm, dataDir);
 		const useCase = new RecordConversationUseCase(recorder, logger);
+		const consolidationScheduler = createConsolidationScheduler(recorder, logger, ctx.metrics);
 
 		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
-		return { chatAdapter, recorder, useCase };
+		return { chatAdapter, recorder, useCase, consolidationScheduler };
 	} catch (err) {
 		logger.error("[bootstrap] LTM auto-recording init failed, continuing without LTM", err);
 		return undefined;
@@ -140,11 +148,13 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 		ltmResources?.chatAdapter,
 		ltmResources?.recorder,
 		ctx.ltmFactReader,
+		ltmResources?.consolidationScheduler,
 	);
 
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
 	await gateway.start();
 	scheduler.start();
+	ltmResources?.consolidationScheduler.start();
 	for (const [guildId, agent] of agents) {
 		agent.startPollingLoop().catch((err) => {
 			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);

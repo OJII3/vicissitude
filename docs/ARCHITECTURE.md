@@ -135,6 +135,10 @@
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
   - `running` フラグで重複実行を防止
+- `scheduler/interval-consolidation-scheduler.ts`: `IntervalConsolidationScheduler`
+  - 30分間隔で LTM 未統合エピソードからファクトを自動抽出
+  - 初回は 5 分遅延（起動直後はエピソード未蓄積）、タイムアウト 10 分
+  - `running` フラグ + `executePromise` でタイムアウト後のゾンビ処理との並走を防止
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
 - `fenghuang/fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
 - `fenghuang/fenghuang-fact-reader.ts`: `FenghuangFactReader implements LtmFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得するアダプタ。WAL モードで ltm-server との同時アクセスを安全に行う。
