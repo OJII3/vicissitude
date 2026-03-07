@@ -1,12 +1,12 @@
 import type { ChatMessage, LLMPort, Schema } from "fenghuang";
 
 import type { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
-import type { CopilotChatAdapter } from "../opencode/copilot-chat-adapter.ts";
+import type { OpencodeChatAdapter } from "../opencode/opencode-chat-adapter.ts";
 
-/** Composite LLMPort: chat/chatStructured via Copilot, embed via Ollama */
+/** Composite LLMPort: chat/chatStructured via OpenCode, embed via Ollama */
 export class CompositeLLMAdapter implements LLMPort {
 	constructor(
-		private readonly chatAdapter: CopilotChatAdapter,
+		private readonly chatAdapter: OpencodeChatAdapter,
 		private readonly embeddingAdapter: OllamaEmbeddingAdapter,
 	) {}
 

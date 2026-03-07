@@ -13,7 +13,7 @@ import { z } from "zod";
 
 import { CompositeLLMAdapter } from "../infrastructure/fenghuang/composite-llm-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../infrastructure/ollama/ollama-embedding-adapter.ts";
-import { CopilotChatAdapter } from "../infrastructure/opencode/copilot-chat-adapter.ts";
+import { OpencodeChatAdapter } from "../infrastructure/opencode/opencode-chat-adapter.ts";
 
 // --- Configuration from environment ---
 
@@ -28,11 +28,11 @@ const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild I
 
 // --- Initialize adapters ---
 
-const copilot = new CopilotChatAdapter(LTM_OPENCODE_PORT, LTM_MODEL_ID);
-await copilot.initialize();
+const chatAdapter = new OpencodeChatAdapter(LTM_OPENCODE_PORT, LTM_MODEL_ID);
+await chatAdapter.initialize();
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
-const llm = new CompositeLLMAdapter(copilot, ollama);
+const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 
 // --- Per-guild Fenghuang instances ---
 

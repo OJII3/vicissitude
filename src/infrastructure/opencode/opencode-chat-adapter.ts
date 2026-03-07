@@ -8,8 +8,8 @@ interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** Adapter that uses OpenCode SDK (GitHub Copilot) for chat / chatStructured */
-export class CopilotChatAdapter {
+/** Adapter that uses OpenCode SDK for chat / chatStructured */
+export class OpencodeChatAdapter {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
 
@@ -94,7 +94,7 @@ export class CopilotChatAdapter {
 
 	private getClient(): OpencodeClient {
 		if (!this.client) {
-			throw new Error("CopilotChatAdapter not initialized — call initialize() first");
+			throw new Error("OpencodeChatAdapter not initialized — call initialize() first");
 		}
 		return this.client;
 	}
