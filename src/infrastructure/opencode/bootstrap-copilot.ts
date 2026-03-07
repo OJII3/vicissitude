@@ -83,7 +83,6 @@ export async function bootstrapCopilot(ctx: BootstrapContext): Promise<void> {
 		gateway,
 		routingAgent,
 		emojiUsageRepo,
-		undefined,
 		metricsServer,
 		sessionGaugeTimer,
 	);

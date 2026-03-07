@@ -121,7 +121,7 @@ export class CopilotPollingAgent implements AiAgent {
 			sessionID: sessionId,
 			parts: [{ type: "text", text: POLLING_PROMPT }],
 			model: {
-				providerID: process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
+				providerID: "github-copilot",
 				modelID: process.env.OPENCODE_MODEL_ID ?? "big-pickle",
 			},
 			system,
