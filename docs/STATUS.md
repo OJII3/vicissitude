@@ -4,7 +4,7 @@
 
 - 2026-03-07
 - 更新者: AI
-- ブランチ: refactor/remove-default-mode
+- ブランチ: refactor/remove-hardcoded-provider-model
 
 ## 2. 現在の真実（Project Truth）
 
@@ -13,7 +13,7 @@
 - DI は手動コンストラクタ注入（Pure DI）で `composition-root.ts` に集約している。
 - テストは `bun test` で実行可能。
 - **Default モードを廃止し、ポーリングモードに一本化。** judge/cooldown/batching 等の従来フローを削除し、コードベースを大幅に簡素化。
-- AI 推論は OpenCode SDK 経由。GitHub Copilot プロバイダ (`github-copilot`) を使用。モデルは環境変数 `OPENCODE_MODEL_ID` で変更可能（デフォルト: `big-pickle`）。
+- AI 推論は OpenCode SDK 経由。プロバイダとモデルは環境変数で設定可能。本筋エージェント: `OPENCODE_PROVIDER_ID`（デフォルト: `github-copilot`）/ `OPENCODE_MODEL_ID`（デフォルト: `big-pickle`）。LTM: `LTM_PROVIDER_ID`（フォールバック: `OPENCODE_PROVIDER_ID` → `github-copilot`）/ `LTM_MODEL_ID`（デフォルト: `gpt-4o`）。
 - **ポーリングモード**: `PollingAgent` が 1 回の `promptAsync()` で AI にバッファをポーリングさせる。全イベントを `FileEventBuffer` に JSONL で書き込み、AI が `event-buffer` MCP ツールで消費。1 セッションで全イベントを処理するためプロンプト課金を節約。
 - セッションは `data/sessions.json` に JSON で永続化している。
 - ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
