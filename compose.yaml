@@ -31,19 +31,26 @@ services:
         tag: vicissitude
     restart: unless-stopped
     depends_on:
-      - ollama
+      ollama:
+        condition: service_healthy
 
   ollama:
     container_name: vicissitude-ollama
     image: docker.io/ollama/ollama:latest
     entrypoint: ["/entrypoint.sh"]
-    env_file:
-      - .env
+    environment:
+      LTM_EMBEDDING_MODEL: ${LTM_EMBEDDING_MODEL:-embeddinggemma}
     volumes:
       - ollama-data:/root/.ollama
       - ./containers/ollama/entrypoint.sh:/entrypoint.sh:ro
     networks:
       - vicissitude-net
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     logging:
       driver: journald
       options:
