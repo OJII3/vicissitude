@@ -4,7 +4,7 @@
 
 - 2026-03-07
 - 更新者: AI
-- ブランチ: feat/ollama-container
+- ブランチ: main
 
 ## 2. 現在の真実（Project Truth）
 
@@ -48,6 +48,7 @@
 
 - `PollingAgent` のコンストラクタ引数が 8 個に増加。`port` / `providerId` / `modelId` を設定オブジェクトにまとめることを将来的に検討。
 - `GuildRoutingAgent.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
+- Ollama コンテナのイメージタグが `latest` 固定。再現性向上のためバージョン固定を将来的に検討。
 
 ## 5. 直近タスク
 
