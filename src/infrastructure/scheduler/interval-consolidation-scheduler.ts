@@ -1,4 +1,4 @@
-import type { ConsolidateMemoryUseCase } from "../../application/use-cases/consolidate-memory.use-case.ts";
+import type { Executable } from "../../domain/ports/executable.port.ts";
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
 import { withTimeout } from "../../domain/services/timeout.ts";
@@ -15,9 +15,15 @@ export class IntervalConsolidationScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private initialTimer: ReturnType<typeof setTimeout> | null = null;
 	private running = false;
+	/**
+	 * useCase.execute() の実 Promise を保持。
+	 * withTimeout がタイムアウトしても、内部処理が完了するまで running を保持し、
+	 * 次の tick との並走を防ぐ。
+	 */
+	private executePromise: Promise<void> | null = null;
 
 	constructor(
-		private readonly useCase: ConsolidateMemoryUseCase,
+		private readonly useCase: Executable,
 		private readonly logger: Logger,
 		private readonly metrics?: MetricsCollector,
 	) {}
@@ -54,12 +60,10 @@ export class IntervalConsolidationScheduler {
 
 		this.running = true;
 		const start = performance.now();
+		const execution = this.useCase.execute();
+		this.executePromise = execution;
 		try {
-			await withTimeout(
-				this.useCase.execute(),
-				TICK_TIMEOUT_MS,
-				"ltm consolidation tick timed out",
-			);
+			await withTimeout(execution, TICK_TIMEOUT_MS, "ltm consolidation tick timed out");
 			this.metrics?.incrementCounter(METRIC.LTM_CONSOLIDATION_TICKS, { outcome: "success" });
 		} catch (error) {
 			this.metrics?.incrementCounter(METRIC.LTM_CONSOLIDATION_TICKS, { outcome: "error" });
@@ -67,7 +71,11 @@ export class IntervalConsolidationScheduler {
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.LTM_CONSOLIDATION_TICK_DURATION, duration);
-			this.running = false;
 		}
+
+		// タイムアウト後も内部処理が完了するまで running を保持し、次の tick との並走を防ぐ
+		await execution.catch(() => {});
+		this.executePromise = null;
+		this.running = false;
 	}
 }

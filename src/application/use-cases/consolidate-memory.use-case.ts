@@ -1,12 +1,10 @@
 import type { Logger } from "../../domain/ports/logger.port.ts";
 import type { MemoryConsolidator } from "../../domain/ports/memory-consolidator.port.ts";
-import type { MetricsCollector } from "../../domain/ports/metrics-collector.port.ts";
 
 export class ConsolidateMemoryUseCase {
 	constructor(
 		private readonly consolidator: MemoryConsolidator,
 		private readonly logger: Logger,
-		private readonly metrics?: MetricsCollector,
 	) {}
 
 	async execute(): Promise<void> {

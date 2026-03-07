@@ -22,6 +22,7 @@ interface GuildInstance {
 
 export class FenghuangConversationRecorder implements ConversationRecorder, MemoryConsolidator {
 	private readonly instances = new Map<string, GuildInstance>();
+	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
 
 	constructor(
@@ -62,18 +63,19 @@ export class FenghuangConversationRecorder implements ConversationRecorder, Memo
 			throw new Error(`Invalid guildId: ${guildId}`);
 		}
 
-		// record() と同じロック機構を共有して競合を防止
-		const prev = this.locks.get(guildId) ?? Promise.resolve();
-		const doConsolidate = async () => {
-			await prev;
-			const { consolidation } = this.getOrCreate(guildId);
-			return consolidation.consolidate(guildId);
-		};
-		const next = doConsolidate();
-		/* oxlint-disable-next-line promise/always-return -- intentionally discard result for lock */
-		const lock: Promise<void> = next.then(() => {}).catch(() => {});
-		this.locks.set(guildId, lock);
-		return next;
+		// record() のロックとは独立: SQLite WAL モードで読み書き直列化は DB 側が保証するため、
+		// consolidation が record() をブロックする必要はない
+		const instance = this.instances.get(guildId);
+		if (!instance) {
+			return Promise.resolve({
+				processedEpisodes: 0,
+				newFacts: 0,
+				reinforced: 0,
+				updated: 0,
+				invalidated: 0,
+			});
+		}
+		return instance.consolidation.consolidate(guildId);
 	}
 
 	close(): void {

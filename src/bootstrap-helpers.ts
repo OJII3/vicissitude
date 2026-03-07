@@ -29,7 +29,7 @@ export function createConsolidationScheduler(
 	logger: Logger,
 	metrics?: MetricsCollector,
 ): IntervalConsolidationScheduler {
-	const useCase = new ConsolidateMemoryUseCase(consolidator, logger, metrics);
+	const useCase = new ConsolidateMemoryUseCase(consolidator, logger);
 	return new IntervalConsolidationScheduler(useCase, logger, metrics);
 }
 
