@@ -9,7 +9,6 @@ export const SOUL_PATH = resolve(OVERLAY_CONTEXT_DIR, "SOUL.md");
 
 export const MAX_MEMORY_CHARS = 50_000;
 export const MAX_LESSONS_CHARS = 30_000;
-export const MAX_SOUL_LEARNED_CHARS = 10_000;
 export const MAX_ENTRY_CHARS = 2_000;
 export const MAX_DAILY_LOG_CHARS = 20_000;
 export const MAX_DAILY_LOG_AGE_DAYS = 7;
@@ -92,24 +91,4 @@ export function isDateWithinRange(dateStr: string): boolean {
 
 export function guildLabel(guildId?: string): string {
 	return guildId ? `[guild:${guildId}] ` : "";
-}
-
-export function extractLearnedSection(content: string): {
-	before: string;
-	section: string;
-	after: string;
-} {
-	const marker = "## 学んだこと";
-	const idx = content.indexOf(marker);
-	if (idx === -1) return { before: content, section: "", after: "" };
-
-	const before = content.slice(0, idx);
-	const rest = content.slice(idx);
-
-	const nextSectionMatch = rest.slice(marker.length).search(/\n## /);
-	if (nextSectionMatch === -1) {
-		return { before, section: rest, after: "" };
-	}
-	const sectionEnd = marker.length + nextSectionMatch;
-	return { before, section: rest.slice(0, sectionEnd), after: rest.slice(sectionEnd) };
 }

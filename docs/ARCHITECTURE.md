@@ -153,12 +153,11 @@
   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
   - `data/heartbeat-config.json` を直接読み書き
 - `mcp/memory-server.ts`: メモリ管理ツール
-  - `read_memory`, `update_memory`, `read_soul`, `evolve_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
+  - `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
   - オーバーレイ方式: 読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う
   - Guild 分離: `guild_id` パラメータ指定時は `guilds/{guildId}/` 配下を使用、省略時はグローバル
-  - `evolve_soul` は常にグローバル（`SOUL.md` は共通、書き込み先は `data/context/SOUL.md`）
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
-  - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
+  - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は読み取り専用
 - `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（PollingAgent 用）
   - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
