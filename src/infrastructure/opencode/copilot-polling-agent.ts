@@ -75,6 +75,11 @@ export class CopilotPollingAgent implements AiAgent {
 
 		while (this.running && !this.abortController.signal.aborted) {
 			try {
+				this.logger.info(`[copilot-polling:${this.guildId}] waiting for events...`);
+				// oxlint-disable-next-line no-await-in-loop -- must wait for events before starting session
+				await this.eventBuffer.waitForEvents(this.abortController.signal);
+				if (this.abortController.signal.aborted) return;
+				this.logger.info(`[copilot-polling:${this.guildId}] events detected, starting session`);
 				// eslint-disable-next-line no-await-in-loop -- sequential restart is intentional
 				await this.runPollingSession();
 				delay = INITIAL_RECONNECT_DELAY_MS;

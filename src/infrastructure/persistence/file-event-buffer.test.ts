@@ -95,3 +95,52 @@ describe("FileEventBuffer", () => {
 		expect(JSON.parse(line).content).toBe("日本語テスト 🎉");
 	});
 });
+
+describe("FileEventBuffer.waitForEvents", () => {
+	it("既にイベントがある場合、即座に resolve する", async () => {
+		const dir = createTempDir();
+		const buffer = new FileEventBuffer(dir);
+		await buffer.append(createEvent());
+
+		const ac = new AbortController();
+		await buffer.waitForEvents(ac.signal);
+		ac.abort();
+		// waitForEvents が即座に resolve すればテスト成功
+	});
+
+	it("AbortSignal.abort() で即座に resolve する", async () => {
+		const dir = createTempDir();
+		const buffer = new FileEventBuffer(dir);
+
+		const ac = new AbortController();
+		const promise = buffer.waitForEvents(ac.signal);
+		ac.abort();
+		await promise;
+		// abort 後にハングしなければテスト成功
+	});
+
+	it("既に abort 済みの signal で即座に resolve する", async () => {
+		const dir = createTempDir();
+		const buffer = new FileEventBuffer(dir);
+
+		await buffer.waitForEvents(AbortSignal.abort());
+	});
+
+	it("append() が呼ばれたら resolve する", async () => {
+		const dir = createTempDir();
+		const buffer = new FileEventBuffer(dir);
+
+		const ac = new AbortController();
+		const promise = buffer.waitForEvents(ac.signal);
+
+		// 少し遅延してから append
+		setTimeout(() => buffer.append(createEvent()), 50);
+
+		// 2秒以内に resolve しなければタイムアウト
+		const timeout = new Promise<never>((_resolve, reject) => {
+			setTimeout(() => reject(new Error("waitForEvents did not resolve within 2s")), 2000);
+		});
+		await Promise.race([promise, timeout]);
+		ac.abort();
+	});
+});
