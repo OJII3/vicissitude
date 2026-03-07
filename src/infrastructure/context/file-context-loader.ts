@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 
 import type { ContextLoader } from "../../domain/ports/context-loader.port.ts";
+import type { LtmFactReader } from "../../domain/ports/ltm-fact-reader.port.ts";
 
 const SHARED_FILES = [
 	"IDENTITY.md",
@@ -21,11 +22,18 @@ export class FileContextLoader implements ContextLoader {
 	private readonly overlayDir: string;
 	private readonly baseDir: string;
 	private readonly guildId?: string;
+	private readonly ltmFactReader?: LtmFactReader;
 
-	constructor(overlayDir: string, baseDir: string, guildId?: string) {
+	constructor(
+		overlayDir: string,
+		baseDir: string,
+		guildId?: string,
+		ltmFactReader?: LtmFactReader,
+	) {
 		this.overlayDir = overlayDir;
 		this.baseDir = baseDir;
 		this.guildId = guildId;
+		this.ltmFactReader = ltmFactReader;
 	}
 
 	async loadBootstrapContext(): Promise<string> {
@@ -64,6 +72,22 @@ export class FileContextLoader implements ContextLoader {
 			const section = `<daily-log date="${today}">\n${dailyLog}\n</daily-log>`;
 			if (totalLength + section.length <= TOTAL_MAX) {
 				sections.push(section);
+			}
+		}
+
+		if (this.guildId && this.ltmFactReader) {
+			try {
+				const facts = await this.ltmFactReader.getFacts(this.guildId);
+				if (facts.length > 0) {
+					const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
+					const section = `<ltm-facts>\n${lines.join("\n")}\n</ltm-facts>`;
+					if (totalLength + section.length <= TOTAL_MAX) {
+						sections.push(section);
+						totalLength += section.length;
+					}
+				}
+			} catch {
+				// LTM ファクト取得失敗時はスキップして続行
 			}
 		}
 

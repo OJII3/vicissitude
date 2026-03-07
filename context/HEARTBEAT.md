@@ -15,6 +15,7 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 - `home-check`（1日1回）: ホームチャンネルの最近のメッセージを読んで、話したいことがあれば話す
 - `memory-update`（6時間ごと）: 最近の会話を振り返り、memory MCP ツールでメモリを更新する
+- `ltm-consolidate`（3時間ごと）: `ltm_consolidate` ツールで未統合エピソードからファクトを抽出する
 
 ### memory-update の手順
 

@@ -39,6 +39,7 @@ export function setupShutdown(
 	sessionGaugeTimer?: ReturnType<typeof setInterval>,
 	ltmChatAdapter?: { close(): void },
 	ltmRecorder?: { close(): void },
+	ltmFactReader?: { close(): Promise<void> },
 ): void {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -52,6 +53,7 @@ export function setupShutdown(
 		metricsServer?.stop();
 		ltmRecorder?.close();
 		ltmChatAdapter?.close();
+		void ltmFactReader?.close();
 		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
 	};
 	process.on("SIGINT", shutdown);

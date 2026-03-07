@@ -1,4 +1,5 @@
 import type { Logger } from "./domain/ports/logger.port.ts";
+import type { LtmFactReader } from "./domain/ports/ltm-fact-reader.port.ts";
 import type { FileContextLoaderFactory } from "./infrastructure/context/file-context-loader-factory.ts";
 import type { JsonChannelConfigLoader } from "./infrastructure/context/json-channel-config-loader.ts";
 import type { DiscordGateway } from "./infrastructure/discord/discord-gateway.ts";
@@ -15,4 +16,5 @@ export interface BootstrapContext {
 	logger: Logger;
 	metrics: PrometheusCollector;
 	metricsServer: PrometheusServer;
+	ltmFactReader?: LtmFactReader;
 }
