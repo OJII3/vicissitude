@@ -69,7 +69,7 @@ src/
 
 - 手動コンストラクタ注入（Pure DI）を使用
 - DI コンテナライブラリは使わない
-- `composition-root.ts` が配線のエントリポイント。Copilot 配線は `bootstrap-copilot.ts` に委譲
+- `composition-root.ts` が配線のエントリポイント。エージェント配線は `bootstrap-agents.ts` に委譲
 
 ### 命名規約
 

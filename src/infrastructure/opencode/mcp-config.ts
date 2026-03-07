@@ -8,8 +8,8 @@ interface McpConfigOptions {
 }
 
 /**
- * MCP サーバー設定を返す。OpenCode / Copilot 両方から使う共通設定。
- * CopilotPollingAgent のみ includeEventBuffer: true で呼ぶ。
+ * MCP サーバー設定を返す。
+ * PollingAgent のみ includeEventBuffer: true で呼ぶ。
  */
 export function mcpServerConfigs(options?: McpConfigOptions) {
 	const root = resolve(import.meta.dirname, "../../..");

@@ -12,9 +12,9 @@
 - domain / application / infrastructure の 3 層構成で、依存方向ルールは正しく守られている。
 - DI は手動コンストラクタ注入（Pure DI）で `composition-root.ts` に集約している。
 - テストは `bun test` で実行可能。
-- **Default モードを廃止し、Copilot ポーリングモードに一本化。** judge/cooldown/batching 等の従来フローを削除し、コードベースを大幅に簡素化。
+- **Default モードを廃止し、ポーリングモードに一本化。** judge/cooldown/batching 等の従来フローを削除し、コードベースを大幅に簡素化。
 - AI 推論は OpenCode SDK 経由。GitHub Copilot プロバイダ (`github-copilot`) を使用。モデルは環境変数 `OPENCODE_MODEL_ID` で変更可能（デフォルト: `big-pickle`）。
-- **Copilot ポーリングモード**: `CopilotPollingAgent` が 1 回の `promptAsync()` で AI にバッファをポーリングさせる。全イベントを `FileEventBuffer` に JSONL で書き込み、AI が `event-buffer` MCP ツールで消費。1 セッションで全イベントを処理するためプロンプト課金を節約。
+- **ポーリングモード**: `PollingAgent` が 1 回の `promptAsync()` で AI にバッファをポーリングさせる。全イベントを `FileEventBuffer` に JSONL で書き込み、AI が `event-buffer` MCP ツールで消費。1 セッションで全イベントを処理するためプロンプト課金を節約。
 - セッションは `data/sessions.json` に JSON で永続化している。
 - ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
 - チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
@@ -23,7 +23,7 @@
 - **memory MCP サーバーで MEMORY.md / SOUL.md / LESSONS.md / 日次ログの構造化された読み書きが可能。**
 - **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。**
-- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-copilot.ts`（Copilot ブートストラップ）に分割。**
+- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。**
 - **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
@@ -38,7 +38,7 @@
 4. Pure DI（DI コンテナなし）。
 5. MCP サーバーは独立プロセスとしてレイヤー外に配置。
 6. `STATUS.md` は作業ごとに更新する。
-7. AI がイベントバッファをポーリングし、自律的に応答判断・送信する（Copilot 一本化）。
+7. AI がイベントバッファをポーリングし、自律的に応答判断・送信する（ポーリングモード一本化）。
 8. Heartbeat システムで定期的な自律行動を実行する（interval / daily スケジュール対応）。
 9. スケジュール管理は MCP ツール経由で通常会話からも変更可能。
 10. メモリ管理は専用 MCP サーバー経由で行い、安全策（バックアップ、サイズ上限、append-only）を適用。
@@ -60,7 +60,7 @@
 ## 7. リスクメモ
 
 1. ~~code-exec のサンドボックス欠如による RCE リスク~~ **対策済み** — Podman コンテナ化（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除、メモリ/CPU/PID 制限）。
-2. `bootstrap-copilot.ts` は `infrastructure/opencode/` に配置しているが、実態はブートストラップ（DI 配線）ロジック。`src/` 直下や `src/bootstrap/` への移動を将来的に検討。現状は `import/no-cycle` 違反がなく動作に問題ないため許容。
+2. `bootstrap-agents.ts` は `infrastructure/opencode/` に配置しているが、実態はブートストラップ（DI 配線）ロジック。`src/` 直下や `src/bootstrap/` への移動を将来的に検討。現状は `import/no-cycle` 違反がなく動作に問題ないため許容。
 
 ## 8. 再開時コンテキスト
 

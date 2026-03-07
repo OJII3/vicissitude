@@ -10,7 +10,7 @@ import { ConsoleLogger } from "./infrastructure/logging/console-logger.ts";
 import { METRIC } from "./infrastructure/metrics/metric-names.ts";
 import { PrometheusCollector } from "./infrastructure/metrics/prometheus-collector.ts";
 import { PrometheusServer } from "./infrastructure/metrics/prometheus-server.ts";
-import { bootstrapCopilot } from "./infrastructure/opencode/bootstrap-copilot.ts";
+import { bootstrapAgents } from "./infrastructure/opencode/bootstrap-agents.ts";
 import { JsonSessionRepository } from "./infrastructure/persistence/json-session-repository.ts";
 
 async function loadChannelConfig(root: string) {
@@ -65,5 +65,5 @@ export async function bootstrap(): Promise<void> {
 		metrics,
 		metricsServer,
 	};
-	await bootstrapCopilot(ctx);
+	await bootstrapAgents(ctx);
 }

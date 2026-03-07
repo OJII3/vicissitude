@@ -61,7 +61,7 @@
   - `get()`, `save()`, `exists()`
 - `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
   - `load()`, `save()`, `updateLastExecuted()`
-- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（Copilot ポーリング用）
+- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（ポーリング用）
   - `append(event: BufferedEvent): Promise<void>`
   - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`, `isBot`
 
@@ -92,7 +92,7 @@
   - `MessageReactionAdd` イベントを購読し、カスタム絵文字リアクションでハンドラ呼び出し
   - `Partials.Reaction`, `Partials.Message`, `Partials.Channel` を有効化（キャッシュ外メッセージへのリアクション受信に必要）
 - `discord/discord-attachment-mapper.ts`: `mapDiscordAttachments()` — Discord 添付ファイルから画像 MIME タイプ（`image/png`, `image/jpeg`, `image/gif`, `image/webp`）のみを allowlist フィルタリングし `Attachment[]` に変換
-- `opencode/copilot-polling-agent.ts`: `CopilotPollingAgent implements AiAgent`
+- `opencode/polling-agent.ts`: `PollingAgent implements AiAgent`
   - `send()`: EventBuffer にイベントを書き込み、即座に空レスポンスを返す
   - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
   - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
@@ -103,7 +103,7 @@
   - `stop()`: 全ギルドエージェントを停止
   - Heartbeat 等の既存ユースケースが変更不要になる
 - `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
-  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（CopilotPollingAgent 用）
+  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（PollingAgent 用）
   - `guildId` 指定時はギルド別バッファパスを `EVENT_BUFFER_DIR` 環境変数で渡す
 - `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
   - `data/sessions.json` にセッション ID を永続化
@@ -124,7 +124,7 @@
   - ファイル不在時はデフォルト設定を返す
 - `persistence/file-event-buffer.ts`: `FileEventBuffer implements EventBuffer`
   - JSONL 形式で append
-  - Copilot ポーリングモード用
+  - ポーリングモード用
   - ギルド分離: `data/event-buffer/guilds/{guildId}/events.jsonl` にギルドごとに書き込み
 - `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
   - 1分間隔の `setInterval` ループ
@@ -150,7 +150,7 @@
   - `evolve_soul` は常にグローバル（`SOUL.md` は共通、書き込み先は `data/context/SOUL.md`）
   - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
   - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は「学んだこと」のみ変更可
-- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（CopilotPollingAgent 用）
+- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（PollingAgent 用）
   - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
   - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
   - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
@@ -158,15 +158,15 @@
 ### 4.5 Composition Root
 
 - `composition-root.ts`: `bootstrap()` — DI 配線のエントリポイント
-  - `bootstrapCopilot()` に委譲してCopilot ポーリングモードを起動
+  - `bootstrapAgents()` に委譲してポーリングモードを起動
   - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
 - `bootstrap-context.ts`: `BootstrapContext` — 各ブートストラップ関数で共有するコンテキスト型
 - `bootstrap-helpers.ts`: `createHeartbeat()`, `startSessionGauge()`, `setupShutdown()` — ブートストラップ共有ヘルパー
-- `infrastructure/opencode/bootstrap-copilot.ts`: `bootstrapCopilot()` — Copilot モードのブートストラップ。ギルドごとに `CopilotPollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
+- `infrastructure/opencode/bootstrap-agents.ts`: `bootstrapAgents()` — エージェントのブートストラップ。ギルドごとに `PollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
 
 ### 4.6 OpenCode 組み込みツール
 
-`CopilotPollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している:
+`PollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している:
 
 - `webfetch`: 指定 URL の内容を取得
 - `websearch`: Web 検索を実行
@@ -267,7 +267,7 @@
 
 ## 6. 主要シーケンス
 
-### 6.1 メッセージルーティング（Copilot ポーリングモード）
+### 6.1 メッセージルーティング（ポーリングモード）
 
 1. Discord `messageCreate` を受信する。
 2. Bot 自身のメッセージのみ除外する。他 Bot メッセージには `isBot` フラグを付与して処理を継続する。

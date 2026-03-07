@@ -54,7 +54,7 @@ const defaultOptions: SendOptions = {
 describe("InstrumentedAiAgent", () => {
 	it("should increment and decrement busy gauge on success", async () => {
 		const { collector, calls } = createMockMetrics();
-		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "opencode");
+		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "polling");
 
 		await agent.send(defaultOptions);
 
@@ -72,7 +72,7 @@ describe("InstrumentedAiAgent", () => {
 		const agent = new InstrumentedAiAgent(
 			createMockAgent(undefined, new Error("LLM failure")),
 			collector,
-			"opencode",
+			"polling",
 		);
 
 		await expect(agent.send(defaultOptions)).rejects.toThrow("LLM failure");
@@ -88,7 +88,7 @@ describe("InstrumentedAiAgent", () => {
 
 	it("should record success counter on success", async () => {
 		const { collector, calls } = createMockMetrics();
-		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "opencode");
+		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "polling");
 
 		await agent.send(defaultOptions);
 
@@ -97,7 +97,7 @@ describe("InstrumentedAiAgent", () => {
 		);
 		expect(counterCall).toBeDefined();
 		expect(counterCall?.labels).toEqual({
-			agent_type: "opencode",
+			agent_type: "polling",
 			trigger: "mention",
 			outcome: "success",
 		});
@@ -108,7 +108,7 @@ describe("InstrumentedAiAgent", () => {
 		const agent = new InstrumentedAiAgent(
 			createMockAgent(undefined, new Error("fail")),
 			collector,
-			"copilot",
+			"polling",
 		);
 
 		await expect(agent.send(defaultOptions)).rejects.toThrow();
@@ -117,7 +117,7 @@ describe("InstrumentedAiAgent", () => {
 			(c) => c.method === "incrementCounter" && c.name === "ai_requests_total",
 		);
 		expect(counterCall?.labels).toEqual({
-			agent_type: "copilot",
+			agent_type: "polling",
 			trigger: "mention",
 			outcome: "error",
 		});
@@ -125,7 +125,7 @@ describe("InstrumentedAiAgent", () => {
 
 	it("should observe histogram duration on both success and failure", async () => {
 		const { collector, calls } = createMockMetrics();
-		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "opencode");
+		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "polling");
 
 		await agent.send(defaultOptions);
 
@@ -138,13 +138,13 @@ describe("InstrumentedAiAgent", () => {
 
 	it("should pass agent_type label to busy gauge", async () => {
 		const { collector, calls } = createMockMetrics();
-		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "copilot");
+		const agent = new InstrumentedAiAgent(createMockAgent(), collector, "polling");
 
 		await agent.send(defaultOptions);
 
 		const incCall = calls.find(
 			(c) => c.method === "incrementGauge" && c.name === "llm_busy_sessions",
 		);
-		expect(incCall?.labels).toEqual({ agent_type: "copilot" });
+		expect(incCall?.labels).toEqual({ agent_type: "polling" });
 	});
 });

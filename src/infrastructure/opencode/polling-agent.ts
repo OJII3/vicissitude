@@ -33,7 +33,7 @@ const POLLING_PROMPT = `あなたは Discord bot「ふあ」です。以下の�
 - 各イベントの channelId に対して返信してください
 - 返信を作成する前に必ず send_typing を呼んでください（ユーザーに考え中であることを示します）`;
 
-export class CopilotPollingAgent implements AiAgent {
+export class PollingAgent implements AiAgent {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
 	private abortController: AbortController | null = null;
@@ -63,7 +63,7 @@ export class CopilotPollingAgent implements AiAgent {
 			isMentioned: false,
 			isThread: false,
 		});
-		return { text: "", sessionId: "copilot-polling" };
+		return { text: "", sessionId: "polling" };
 	}
 
 	async startPollingLoop(): Promise<void> {
@@ -75,22 +75,22 @@ export class CopilotPollingAgent implements AiAgent {
 
 		while (this.running && !this.abortController.signal.aborted) {
 			try {
-				this.logger.info(`[copilot-polling:${this.guildId}] waiting for events...`);
+				this.logger.info(`[polling:${this.guildId}] waiting for events...`);
 				// oxlint-disable-next-line no-await-in-loop -- must wait for events before starting session
 				await this.eventBuffer.waitForEvents(this.abortController.signal);
 				if (this.abortController.signal.aborted) return;
-				this.logger.info(`[copilot-polling:${this.guildId}] events detected, starting session`);
+				this.logger.info(`[polling:${this.guildId}] events detected, starting session`);
 				// eslint-disable-next-line no-await-in-loop -- sequential restart is intentional
 				await this.runPollingSession();
 				delay = INITIAL_RECONNECT_DELAY_MS;
 			} catch (err) {
 				if (this.abortController.signal.aborted) return;
-				this.logger.error(`[copilot-polling:${this.guildId}] session error, will restart`, err);
+				this.logger.error(`[polling:${this.guildId}] session error, will restart`, err);
 			}
 
 			if (this.abortController.signal.aborted) return;
 
-			this.logger.info(`[copilot-polling:${this.guildId}] restarting in ${delay}ms...`);
+			this.logger.info(`[polling:${this.guildId}] restarting in ${delay}ms...`);
 			// eslint-disable-next-line no-await-in-loop -- backoff delay between restarts
 			await this.sleep(delay);
 			delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
@@ -113,9 +113,7 @@ export class CopilotPollingAgent implements AiAgent {
 		const contextLoader = this.contextLoaderFactory.create(this.guildId);
 		const system = await contextLoader.loadBootstrapContext();
 
-		this.logger.info(
-			`[copilot-polling:${this.guildId}] starting polling prompt on session ${sessionId}`,
-		);
+		this.logger.info(`[polling:${this.guildId}] starting polling prompt on session ${sessionId}`);
 
 		const result = await oc.session.promptAsync({
 			sessionID: sessionId,
@@ -146,17 +144,14 @@ export class CopilotPollingAgent implements AiAgent {
 				if (typed.type === "session.idle") {
 					const idle = typed as EventSessionIdle;
 					if (idle.properties.sessionID === sessionId) {
-						this.logger.info(`[copilot-polling:${this.guildId}] session went idle, will restart`);
+						this.logger.info(`[polling:${this.guildId}] session went idle, will restart`);
 						return;
 					}
 				}
 				if (typed.type === "session.error") {
 					const err = typed as EventSessionError;
 					if (err.properties.sessionID === sessionId) {
-						this.logger.error(
-							`[copilot-polling:${this.guildId}] session error event`,
-							err.properties,
-						);
+						this.logger.error(`[polling:${this.guildId}] session error event`, err.properties);
 						return;
 					}
 				}
