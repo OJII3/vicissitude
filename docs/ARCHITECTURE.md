@@ -65,7 +65,7 @@
   - `append(event: BufferedEvent): Promise<void>`
   - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`, `isBot`
 
-- `ltm-fact-reader.port.ts`: `LtmFactReader` — LTM ファクト読み取り（Phase 1 で追加予定）
+- `ltm-fact-reader.port.ts`: `LtmFactReader` — LTM ファクト読み取り
   - `getFacts(guildId?: string): Promise<LtmFact[]>` — 蓄積済みファクトを取得
   - `close(): Promise<void>` — リソース解放
   - `LtmFact`: `content: string`, `category: string`, `createdAt: string`
@@ -136,7 +136,7 @@
   - `running` フラグで重複実行を防止
 - `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
 - `fenghuang/fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
-- `fenghuang/fenghuang-fact-reader.ts`: `FenghuangFactReader implements LtmFactReader`（Phase 1 で追加予定） — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得するアダプタ。WAL モードで ltm-server との同時アクセスを安全に行う。
+- `fenghuang/fenghuang-fact-reader.ts`: `FenghuangFactReader implements LtmFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得するアダプタ。WAL モードで ltm-server との同時アクセスを安全に行う。
 - `ollama/ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得するアダプタ。30 秒タイムアウト。
 - `fenghuang/composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat/chatStructured を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲するコンポジットアダプタ。ltm-server で使用。
 
@@ -315,7 +315,7 @@
 2. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）は overlay → base の順。
 3. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `guilds/{guildId}/` → グローバルの順でフォールバック（各段階で overlay → base）。
 4. 当日の日次ログも同様に Guild 固有 → グローバルの順（各段階で overlay → base）。
-5. **LTM ファクト注入**（Phase 1 で追加予定）: `LtmFactReader` から蓄積済みファクトを取得し、`<ltm-facts>` セクションとして注入する。
+5. **LTM ファクト注入**: `LtmFactReader` から蓄積済みファクトを取得し、`<ltm-facts>` セクションとして注入する。
 6. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
 7. XML タグでラップして結合する。
 8. guildId が存在する場合、`<guild-context>` タグで guild_id を明示し、MCP ツール使用時の指示を含める。

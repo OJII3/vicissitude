@@ -76,14 +76,18 @@ export class FileContextLoader implements ContextLoader {
 		}
 
 		if (this.guildId && this.ltmFactReader) {
-			const facts = await this.ltmFactReader.getFacts(this.guildId);
-			if (facts.length > 0) {
-				const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
-				const section = `<ltm-facts>\n${lines.join("\n")}\n</ltm-facts>`;
-				if (totalLength + section.length <= TOTAL_MAX) {
-					sections.push(section);
-					totalLength += section.length;
+			try {
+				const facts = await this.ltmFactReader.getFacts(this.guildId);
+				if (facts.length > 0) {
+					const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
+					const section = `<ltm-facts>\n${lines.join("\n")}\n</ltm-facts>`;
+					if (totalLength + section.length <= TOTAL_MAX) {
+						sections.push(section);
+						totalLength += section.length;
+					}
 				}
+			} catch {
+				// LTM ファクト取得失敗時はスキップして続行
 			}
 		}
 

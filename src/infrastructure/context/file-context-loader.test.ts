@@ -187,4 +187,19 @@ describe("FileContextLoader - LTM ファクト注入", () => {
 
 		expect(ctx).not.toContain("<ltm-facts>");
 	});
+
+	it("getFacts が例外をスローしても正常にコンテキストを返す", async () => {
+		const reader: LtmFactReader = {
+			getFacts: async () => {
+				throw new Error("DB connection lost");
+			},
+			close: async () => {},
+		};
+
+		const loader = new FileContextLoader(TEST_OVERLAY_DIR, TEST_BASE_DIR, "123456", reader);
+		const ctx = await loader.loadBootstrapContext();
+
+		expect(ctx).not.toContain("<ltm-facts>");
+		expect(ctx).toContain("<guild-context>");
+	});
 });
