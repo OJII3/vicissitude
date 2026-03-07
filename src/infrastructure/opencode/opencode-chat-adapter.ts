@@ -68,7 +68,11 @@ export class OpencodeChatAdapter {
 
 			return extractText(result.data.parts);
 		} finally {
-			await oc.session.delete({ sessionID: sessionId });
+			try {
+				await oc.session.delete({ sessionID: sessionId });
+			} catch (e) {
+				console.error("Failed to delete session:", e);
+			}
 		}
 	}
 
@@ -100,7 +104,7 @@ export class OpencodeChatAdapter {
 	}
 }
 
-function separateMessages(messages: ChatMessage[]): {
+export function separateMessages(messages: ChatMessage[]): {
 	system: string | undefined;
 	userContent: string;
 } {
@@ -121,14 +125,14 @@ function separateMessages(messages: ChatMessage[]): {
 	};
 }
 
-function extractText(parts: Part[]): string {
+export function extractText(parts: Part[]): string {
 	return parts
 		.filter((p): p is Part & { type: "text" } => p.type === "text")
 		.map((p) => p.text)
 		.join("");
 }
 
-function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {
+export function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {
 	const augmented = [...messages];
 	const lastIdx = augmented.length - 1;
 	const lastMsg = augmented[lastIdx];
@@ -138,7 +142,7 @@ function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {
 	return augmented;
 }
 
-function cleanJsonResponse(text: string): string {
+export function cleanJsonResponse(text: string): string {
 	const trimmed = text.trim();
 	const fenceMatch = trimmed.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?\s*```$/);
 	if (fenceMatch?.[1]) {

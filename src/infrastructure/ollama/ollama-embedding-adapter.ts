@@ -10,6 +10,7 @@ export class OllamaEmbeddingAdapter {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ model: this.model, input: text }),
+			signal: AbortSignal.timeout(30_000),
 		});
 
 		if (!response.ok) {

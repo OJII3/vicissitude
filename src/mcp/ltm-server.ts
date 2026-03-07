@@ -64,35 +64,48 @@ server.tool(
 			.array(
 				z.object({
 					role: z.enum(["user", "assistant", "system"]),
-					content: z.string(),
+					content: z.string().max(10000),
 					timestamp: z.string().optional().describe("ISO8601 タイムスタンプ"),
 				}),
 			)
 			.min(1)
+			.max(100)
 			.describe("取り込むメッセージ配列"),
 	},
 	async ({ guild_id, messages }) => {
-		const feng = getOrCreate(guild_id);
-		let totalEpisodes = 0;
+		try {
+			const feng = getOrCreate(guild_id);
+			let totalEpisodes = 0;
 
-		for (const msg of messages) {
-			// oxlint-disable-next-line no-await-in-loop -- sequential: segmenter state depends on previous messages
-			const episodes = await feng.segmenter.addMessage(guild_id, {
-				role: msg.role,
-				content: msg.content,
-				timestamp: msg.timestamp ? new Date(msg.timestamp) : undefined,
-			});
-			totalEpisodes += episodes.length;
+			for (const msg of messages) {
+				// oxlint-disable-next-line no-await-in-loop -- sequential: segmenter state depends on previous messages
+				const episodes = await feng.segmenter.addMessage(guild_id, {
+					role: msg.role,
+					content: msg.content,
+					timestamp: msg.timestamp ? new Date(msg.timestamp) : undefined,
+				});
+				totalEpisodes += episodes.length;
+			}
+
+			return {
+				content: [
+					{
+						type: "text",
+						text: `${messages.length} メッセージを取り込みました。${totalEpisodes > 0 ? `${totalEpisodes} 件のエピソードが生成されました。` : ""}`,
+					},
+				],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: `ltm_ingest エラー: ${error instanceof Error ? error.message : String(error)}`,
+					},
+				],
+				isError: true,
+			};
 		}
-
-		return {
-			content: [
-				{
-					type: "text",
-					text: `${messages.length} メッセージを取り込みました。${totalEpisodes > 0 ? `${totalEpisodes} 件のエピソードが生成されました。` : ""}`,
-				},
-			],
-		};
 	},
 );
 
@@ -106,32 +119,44 @@ server.tool(
 		limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
 	},
 	async ({ guild_id, query, limit }) => {
-		const feng = getOrCreate(guild_id);
-		const result = await feng.retrieval.retrieve(guild_id, query, { limit: limit ?? 10 });
+		try {
+			const feng = getOrCreate(guild_id);
+			const result = await feng.retrieval.retrieve(guild_id, query, { limit: limit ?? 10 });
 
-		const parts: string[] = [];
+			const parts: string[] = [];
 
-		if (result.episodes.length > 0) {
-			parts.push("## エピソード記憶");
-			for (const ep of result.episodes) {
-				parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
-				parts.push(ep.episode.summary);
-				parts.push("");
+			if (result.episodes.length > 0) {
+				parts.push("## エピソード記憶");
+				for (const ep of result.episodes) {
+					parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
+					parts.push(ep.episode.summary);
+					parts.push("");
+				}
 			}
-		}
 
-		if (result.facts.length > 0) {
-			parts.push("## 意味記憶（ファクト）");
-			for (const f of result.facts) {
-				parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
+			if (result.facts.length > 0) {
+				parts.push("## 意味記憶（ファクト）");
+				for (const f of result.facts) {
+					parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
+				}
 			}
-		}
 
-		if (parts.length === 0) {
-			parts.push("関連する記憶は見つかりませんでした。");
-		}
+			if (parts.length === 0) {
+				parts.push("関連する記憶は見つかりませんでした。");
+			}
 
-		return { content: [{ type: "text", text: parts.join("\n") }] };
+			return { content: [{ type: "text", text: parts.join("\n") }] };
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: `ltm_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
+					},
+				],
+				isError: true,
+			};
+		}
 	},
 );
 
@@ -143,24 +168,36 @@ server.tool(
 		guild_id: guildIdSchema,
 	},
 	async ({ guild_id }) => {
-		const feng = getOrCreate(guild_id);
-		const result = await feng.consolidation.consolidate(guild_id);
+		try {
+			const feng = getOrCreate(guild_id);
+			const result = await feng.consolidation.consolidate(guild_id);
 
-		return {
-			content: [
-				{
-					type: "text",
-					text: [
-						`統合完了:`,
-						`- 処理エピソード: ${result.processedEpisodes}`,
-						`- 新規ファクト: ${result.newFacts}`,
-						`- 強化: ${result.reinforced}`,
-						`- 更新: ${result.updated}`,
-						`- 無効化: ${result.invalidated}`,
-					].join("\n"),
-				},
-			],
-		};
+			return {
+				content: [
+					{
+						type: "text",
+						text: [
+							`統合完了:`,
+							`- 処理エピソード: ${result.processedEpisodes}`,
+							`- 新規ファクト: ${result.newFacts}`,
+							`- 強化: ${result.reinforced}`,
+							`- 更新: ${result.updated}`,
+							`- 無効化: ${result.invalidated}`,
+						].join("\n"),
+					},
+				],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: `ltm_consolidate エラー: ${error instanceof Error ? error.message : String(error)}`,
+					},
+				],
+				isError: true,
+			};
+		}
 	},
 );
 
@@ -185,25 +222,48 @@ server.tool(
 			.describe("カテゴリでフィルタ（省略で全件）"),
 	},
 	async ({ guild_id, category }) => {
-		const feng = getOrCreate(guild_id);
-		const facts = category
-			? await feng.semantic.getFactsByCategory(guild_id, category)
-			: await feng.semantic.getFacts(guild_id);
+		try {
+			const feng = getOrCreate(guild_id);
+			const facts = category
+				? await feng.semantic.getFactsByCategory(guild_id, category)
+				: await feng.semantic.getFacts(guild_id);
 
-		if (facts.length === 0) {
+			if (facts.length === 0) {
+				return {
+					content: [{ type: "text", text: "ファクトはまだありません。" }],
+				};
+			}
+
+			const lines = facts.map(
+				(f: SemanticFact) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`,
+			);
 			return {
-				content: [{ type: "text", text: "ファクトはまだありません。" }],
+				content: [{ type: "text", text: `${facts.length} 件のファクト:\n${lines.join("\n")}` }],
+			};
+		} catch (error) {
+			return {
+				content: [
+					{
+						type: "text",
+						text: `ltm_get_facts エラー: ${error instanceof Error ? error.message : String(error)}`,
+					},
+				],
+				isError: true,
 			};
 		}
-
-		const lines = facts.map(
-			(f: SemanticFact) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`,
-		);
-		return {
-			content: [{ type: "text", text: `${facts.length} 件のファクト:\n${lines.join("\n")}` }],
-		};
 	},
 );
+
+// --- Graceful Shutdown ---
+
+async function shutdown() {
+	await server.close();
+	chatAdapter.close();
+	process.exit(0);
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 // --- Start server ---
 
