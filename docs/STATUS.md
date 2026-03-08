@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-08
+- 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-mcp-server
+- ブランチ: feat/minecraft-compose
 
 ## 2. 現在の真実（Project Truth）
 
@@ -36,6 +36,7 @@
 - **LTM ファクト抽出に話者名を構造化フィールドで渡すように変更。** fenghuang の `ChatMessage.name` 対応に合わせ、`content` への著者名埋め込み（`"authorName: content"`）を廃止し、`ConversationMessage.name` フィールドで渡すように変更。fenghuang 側で `role(name)` 形式の話者表示とファクト抽出時の明示的な主語付与が有効になり、LTM ファクトの品質が向上。
 - **ドキュメント方針を Minecraft 拡張前提に更新。** `PLAN.md` を全面更新し、`SPEC.md` / `ARCHITECTURE.md` に「既存人格維持 + Minecraft MCP 追加 + 要約/イベント駆動」の方針を反映。
 - **Minecraft MCP サーバー（最小土台）。** mineflayer + mineflayer-pathfinder を使用し、`observe_state`（状態要約）と `get_recent_events`（イベントログ）の 2 ツールを提供。`MC_HOST` 環境変数設定時のみ有効化。オフラインモード接続、指数バックオフ自動再接続、インメモリリングバッファ（最大100件）でイベント蓄積。
+- **Minecraft ゲームサーバーをコンテナ化。** `compose.yaml` に `itzg/minecraft-server:java21` ベースの `minecraft` サービスを追加。オフラインモード、メモリ 1GB 制限、`mc-health` ヘルスチェック、`minecraft-data` ボリュームでワールド永続化。`MC_HOST=minecraft` で bot から DNS 解決可能。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -63,7 +64,7 @@
 ## 5. 直近タスク
 
 1. ~~`minecraft` MCP server の最小土台作成（接続 + `observe_state`）~~ **完了**
-2. Minecraft サーバーを compose.yaml にコンテナとして追加
+2. ~~Minecraft サーバーを compose.yaml にコンテナとして追加~~ **完了**
 3. `follow_player` / `go_to` / `collect_block` の最小実装
 4. Minecraft 状態要約レイヤーとイベントログ整備
 
