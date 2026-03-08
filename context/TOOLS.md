@@ -80,9 +80,9 @@ Minecraft ワールドに接続中のボットを操作する。
 - `get_recent_events(limit?, importance?)` - 直近のイベントログをテキスト形式で取得する
   - limit: 取得件数（デフォルト: 10、最大: 50）
   - importance: 最低重要度フィルタ（"low" | "medium" | "high"、省略時は全件）
-  - 種類: spawn, death, health, chat, kicked, damage, disconnect, playerJoined, playerLeft, timeChange, weatherChange, follow, navigation, collect, stop
+  - 種類: spawn, death, health, chat, kicked, damage, disconnect, playerJoined, playerLeft, timeChange, weatherChange, job
   - 各イベントには重要度（low/medium/high）が付与される
-- `follow_player(username, range?)` - 指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す）
+- `follow_player(username, range?)` - 指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す、range デフォルト: 3）
 - `go_to(x, y, z, range?)` - 指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）
 - `collect_block(blockName, count?, maxDistance?)` - 指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、進捗更新あり）
 - `stop` - 現在のジョブ（移動・追従・採集）を停止する

@@ -45,9 +45,13 @@ async function digOneBlock(
 }
 
 function registerAbortHandler(bot: mineflayer.Bot, signal: AbortSignal): void {
-	signal.addEventListener("abort", () => {
-		bot.pathfinder.stop();
-	});
+	signal.addEventListener(
+		"abort",
+		() => {
+			bot.pathfinder.stop();
+		},
+		{ once: true },
+	);
 }
 
 function registerFollowPlayer(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
@@ -69,21 +73,27 @@ function registerFollowPlayer(server: McpServer, getBot: GetBot, jobManager: Job
 
 			const jobId = jobManager.startJob("following", username, (signal) => {
 				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
 				bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
 
 				return new Promise<void>((resolve) => {
-					const onPlayerLeft = (player: { username: string }) => {
-						if (player.username === username) {
-							bot.pathfinder.stop();
-							resolve();
-						}
-					};
-					bot.once("playerLeft", onPlayerLeft);
-					signal.addEventListener("abort", () => {
+					let done = false;
+					const finish = () => {
+						if (done) return;
+						done = true;
+						bot.pathfinder.stop();
 						bot.removeListener("playerLeft", onPlayerLeft);
+						bot.removeListener("entityGone", onEntityGone);
 						resolve();
-					});
+					};
+					const onPlayerLeft = (player: { username: string }) => {
+						if (player.username === username) finish();
+					};
+					const onEntityGone = (e: { id: number }) => {
+						if (e === entity) finish();
+					};
+					bot.on("playerLeft", onPlayerLeft);
+					bot.on("entityGone", onEntityGone);
+					signal.addEventListener("abort", () => finish(), { once: true });
 				});
 			});
 

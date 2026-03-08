@@ -10,23 +10,23 @@ export type JobExecutor = (
 
 const MAX_RECENT_JOBS = 20;
 
-let nextJobId = 1;
-function generateJobId(): string {
-	return `job-${String(nextJobId++)}`;
-}
-
 export class JobManager {
 	private currentJob: {
 		info: JobInfo;
 		abortController: AbortController;
 	} | null = null;
 	private recentJobs: JobInfo[] = [];
+	private nextJobId = 1;
 	private readonly pushEvent: PushEvent;
 	private readonly setActionState: SetActionState;
 
 	constructor(pushEvent: PushEvent, setActionState: SetActionState) {
 		this.pushEvent = pushEvent;
 		this.setActionState = setActionState;
+	}
+
+	private generateJobId(): string {
+		return `job-${String(this.nextJobId++)}`;
 	}
 
 	/** ジョブを開始する。既存ジョブがあれば自動キャンセルする。 */
@@ -40,7 +40,7 @@ export class JobManager {
 			this.cancelCurrentJob();
 		}
 
-		const id = generateJobId();
+		const id = this.generateJobId();
 		const abortController = new AbortController();
 		const info: JobInfo = {
 			id,
@@ -110,7 +110,7 @@ export class JobManager {
 		this.setActionState({ type: "idle" });
 
 		const description = this.formatFinishDescription(info);
-		const importance: Importance = status === "failed" ? "medium" : "low";
+		const importance: Importance = status === "cancelled" ? "low" : "medium";
 		this.pushEvent("job", description, importance);
 	}
 

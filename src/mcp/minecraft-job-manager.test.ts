@@ -26,7 +26,8 @@ const noopExecutor: JobExecutor = async () => {};
 // 即座に失敗する executor
 const failingExecutor: JobExecutor = () => Promise.reject(new Error("パスが見つからない"));
 
-// no-op progress callback
+// no-op callbacks
+const noop = (): void => {};
 const noopProgress = (_p: string): void => {};
 
 /** Promise を即座に解決させるヘルパー */
@@ -80,7 +81,7 @@ describe("JobManager", () => {
 		expect(events).toContainEqual({
 			kind: "job",
 			description: "ジョブ完了: moving → (10, 64, -20)",
-			importance: "low",
+			importance: "medium",
 		});
 	});
 
@@ -186,5 +187,42 @@ describe("JobManager", () => {
 		expect(recent).toHaveLength(2);
 		expect(recent.at(0)?.target).toBe("B");
 		expect(recent.at(1)?.target).toBe("C");
+	});
+
+	test("recentJobs が MAX_RECENT_JOBS (20) を超えたら先頭が削除される", async () => {
+		const { manager } = setup();
+		for (let i = 0; i < 21; i++) {
+			manager.startJob("moving", `target-${String(i)}`, noopExecutor);
+			// eslint-disable-next-line no-await-in-loop
+			await flushPromises();
+		}
+		const recent = manager.getRecentJobs(100);
+		expect(recent).toHaveLength(20);
+		expect(recent.at(0)?.target).toBe("target-1");
+		expect(recent.at(-1)?.target).toBe("target-20");
+	});
+
+	test("旧ジョブの非同期完了が新ジョブの状態を汚染しない", async () => {
+		const { manager, events } = setup();
+		let resolveFirst: () => void = noop;
+		const slowExecutor: JobExecutor = async () => {
+			await new Promise<void>((resolve) => {
+				resolveFirst = resolve;
+			});
+		};
+		manager.startJob("moving", "A", slowExecutor);
+		// 新ジョブ開始（旧ジョブは自動キャンセル）
+		manager.startJob("moving", "B", hangingExecutor);
+		// 旧ジョブの executor を完了させる（finishJob ガードで無視されるべき）
+		resolveFirst();
+		await flushPromises();
+		// 新ジョブが影響を受けていないこと
+		const current = manager.getCurrentJob();
+		expect(current?.target).toBe("B");
+		expect(current?.status).toBe("running");
+		// キャンセルイベントのみ、完了イベントは追加されない
+		const jobEvents = events.filter((e) => e.kind === "job");
+		expect(jobEvents).toHaveLength(1);
+		expect(jobEvents[0]?.description).toContain("キャンセル");
 	});
 });

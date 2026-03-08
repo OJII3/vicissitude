@@ -29,12 +29,13 @@ export function getInventorySummary(b: mineflayer.Bot): {
 	items: { name: string; count: number }[];
 	emptySlots: number;
 } {
-	const items = b.inventory
-		.items()
-		.map((item) => ({ name: item.displayName ?? item.name, count: item.count }));
+	const rawItems = b.inventory.items();
+	const items = rawItems.map((item) => ({
+		name: item.displayName ?? item.name,
+		count: item.count,
+	}));
 	const totalSlots = b.inventory.slots.length;
-	const usedSlots = b.inventory.items().length;
-	return { items, emptySlots: totalSlots - usedSlots };
+	return { items, emptySlots: totalSlots - rawItems.length };
 }
 
 export function getEquipment(b: mineflayer.Bot): Record<string, string> {
