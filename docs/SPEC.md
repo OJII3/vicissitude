@@ -71,11 +71,11 @@ OpenCode が使用する MCP サーバーを提供する。
      - `prismarine-viewer` + `node-canvas-webgl` + `three` によるヘッドレスレンダリング
      - MCP `image` content type で AI が画像を直接認識可能
      - 撮影した画像は `send_message` の `file_path` で Discord に送信可能
-   - `craft_item`: 指定アイテムをクラフト（計画）
-   - `place_block`: 指定ブロックを設置（計画）
-   - `equip_item`: アイテム装備（計画）
-   - `sleep_in_bed`: 就寝を試行（計画）
-   - `send_chat`: Minecraft 内チャット送信（計画）
+   - `craft_item`: 指定アイテムをクラフト（実装済み）
+   - `place_block`: 指定ブロックを設置（実装済み）
+   - `equip_item`: アイテム装備（実装済み）
+   - `sleep_in_bed`: 就寝を試行（実装済み）
+   - `send_chat`: Minecraft 内チャット送信（実装済み）
 
 #### OpenCode SDK 組み込みツール
 

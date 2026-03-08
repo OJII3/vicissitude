@@ -5,7 +5,7 @@ import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
-import { registerActionTools } from "./minecraft-actions.ts";
+import { registerActionTools } from "./minecraft-actions/index.ts";
 import {
 	IMPORTANCE_ORDER,
 	getEquipment,

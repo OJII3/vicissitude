@@ -1,24 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
-import { Movements, goals } from "mineflayer-pathfinder";
+import { goals } from "mineflayer-pathfinder";
+import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
-import type { JobManager } from "./minecraft-job-manager.ts";
-
-type GetBot = () => mineflayer.Bot | null;
-type TextResult = { content: { type: "text"; text: string }[] };
+import type { JobManager } from "../minecraft-job-manager.ts";
+import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
 
 const MAX_COLLECT_COUNT = 64;
-
-function textResult(text: string): TextResult {
-	return { content: [{ type: "text", text }] };
-}
-
-function ensureMovements(b: mineflayer.Bot): void {
-	if (!b.pathfinder.movements) {
-		b.pathfinder.setMovements(new Movements(b));
-	}
-}
 
 async function digOneBlock(
 	b: mineflayer.Bot,
@@ -44,17 +33,44 @@ async function digOneBlock(
 	return true;
 }
 
-function registerAbortHandler(bot: mineflayer.Bot, signal: AbortSignal): void {
-	signal.addEventListener(
-		"abort",
-		() => {
+/** 追従ジョブの executor: プレイヤーが離脱するか abort されるまで追従し続ける */
+function executeFollow(
+	bot: mineflayer.Bot,
+	entity: Entity,
+	username: string,
+	range: number,
+	signal: AbortSignal,
+): Promise<void> {
+	ensureMovements(bot);
+	bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
+
+	return new Promise<void>((resolve) => {
+		let done = false;
+		const finish = () => {
+			if (done) return;
+			done = true;
 			bot.pathfinder.stop();
-		},
-		{ once: true },
-	);
+			bot.removeListener("playerLeft", onPlayerLeft);
+			bot.removeListener("entityGone", onEntityGone);
+			resolve();
+		};
+		const onPlayerLeft = (player: { username: string }) => {
+			if (player.username === username) finish();
+		};
+		const onEntityGone = (e: { id: number }) => {
+			if (e === entity) finish();
+		};
+		bot.on("playerLeft", onPlayerLeft);
+		bot.on("entityGone", onEntityGone);
+		signal.addEventListener("abort", () => finish(), { once: true });
+	});
 }
 
-function registerFollowPlayer(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
+export function registerFollowPlayer(
+	server: McpServer,
+	getBot: GetBot,
+	jobManager: JobManager,
+): void {
 	server.tool(
 		"follow_player",
 		"指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す）",
@@ -71,31 +87,9 @@ function registerFollowPlayer(server: McpServer, getBot: GetBot, jobManager: Job
 				return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
 			}
 
-			const jobId = jobManager.startJob("following", username, (signal) => {
-				ensureMovements(bot);
-				bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
-
-				return new Promise<void>((resolve) => {
-					let done = false;
-					const finish = () => {
-						if (done) return;
-						done = true;
-						bot.pathfinder.stop();
-						bot.removeListener("playerLeft", onPlayerLeft);
-						bot.removeListener("entityGone", onEntityGone);
-						resolve();
-					};
-					const onPlayerLeft = (player: { username: string }) => {
-						if (player.username === username) finish();
-					};
-					const onEntityGone = (e: { id: number }) => {
-						if (e === entity) finish();
-					};
-					bot.on("playerLeft", onPlayerLeft);
-					bot.on("entityGone", onEntityGone);
-					signal.addEventListener("abort", () => finish(), { once: true });
-				});
-			});
+			const jobId = jobManager.startJob("following", username, (signal) =>
+				executeFollow(bot, entity, username, range, signal),
+			);
 
 			return textResult(
 				`${username} への追従を開始しました（jobId: ${jobId}, range: ${String(range)}）`,
@@ -104,7 +98,7 @@ function registerFollowPlayer(server: McpServer, getBot: GetBot, jobManager: Job
 	);
 }
 
-function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
+export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
 	server.tool(
 		"go_to",
 		"指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）",
@@ -131,7 +125,11 @@ function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobManager)
 	);
 }
 
-function registerCollectBlock(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
+export function registerCollectBlock(
+	server: McpServer,
+	getBot: GetBot,
+	jobManager: JobManager,
+): void {
 	server.tool(
 		"collect_block",
 		"指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、最適ツール自動装備）",
@@ -174,23 +172,12 @@ function registerCollectBlock(server: McpServer, getBot: GetBot, jobManager: Job
 	);
 }
 
-function registerStop(server: McpServer, jobManager: JobManager): void {
-	server.tool("stop", "現在のジョブ（移動・追従・採集）を停止する", {}, () => {
+export function registerStop(server: McpServer, jobManager: JobManager): void {
+	server.tool("stop", "現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する", {}, () => {
 		const cancelled = jobManager.cancelCurrentJob();
 		if (cancelled) {
 			return textResult("ジョブを停止しました");
 		}
 		return textResult("実行中のジョブはありません");
 	});
-}
-
-export function registerActionTools(
-	server: McpServer,
-	getBot: GetBot,
-	jobManager: JobManager,
-): void {
-	registerFollowPlayer(server, getBot, jobManager);
-	registerGoTo(server, getBot, jobManager);
-	registerCollectBlock(server, getBot, jobManager);
-	registerStop(server, jobManager);
 }
