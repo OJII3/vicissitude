@@ -22,7 +22,7 @@
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
   - MCP SDK (`@modelcontextprotocol/sdk`)
-  - mineflayer（Minecraft 操作、拡張導入予定）
+  - mineflayer + mineflayer-pathfinder（Minecraft 操作、`MC_HOST` 設定時のみ）
 
 ## 4. レイヤー構成
 
@@ -177,10 +177,16 @@
   - Guild 分離: `data/fenghuang/guilds/{guildId}/memory.db` に SQLite で永続化
   - LLM: `CompositeLLMAdapter`（chat は OpenCode SDK、embed は Ollama）を使用
 
+- `mcp/minecraft-server.ts`: Minecraft 操作ツール（mineflayer ベース、`MC_HOST` 設定時のみ有効）
+  - `observe_state`: 位置、体力、空腹度、時間帯、天候、近くのエンティティ、インベントリ、装備、直近イベントの要約を返す
+  - `get_recent_events`: インメモリリングバッファ（最大100件）から直近イベントログを取得
+  - mineflayer-pathfinder プラグインを読み込み済み（後続ツール用）
+  - オフラインモード接続、指数バックオフ自動再接続（1秒〜60秒）
+
 将来拡張（計画）:
 
-- `mcp/minecraft-server.ts`: Minecraft 操作ツール（mineflayer ベース）
-  - `observe_state`, `follow_player`, `go_to`, `collect_block`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `get_recent_events`
+- `mcp/minecraft-server.ts` に追加予定のツール:
+  - `follow_player`, `go_to`, `collect_block`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
   - 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
   - 状態は要約を主に返し、生ログは必要時のみ限定的に参照
 
@@ -362,6 +368,13 @@
 - モデルデータは `ollama-data` ボリュームに永続化
 - 初回起動時に `containers/ollama/entrypoint.sh` が `embeddinggemma` モデルを自動プル（`LTM_EMBEDDING_MODEL` 環境変数で変更可能）
 - healthcheck (`ollama list`) で起動完了を確認し、`bot` は `service_healthy` 条件で待機
+
+### Minecraft MCP サーバー設定（`MC_HOST` 設定時のみ有効）
+
+- `MC_HOST`: Minecraft サーバーホスト（必須）
+- `MC_PORT`: ポート（デフォルト: `25565`）
+- `MC_USERNAME`: bot ユーザー名（デフォルト: `fua`）
+- `MC_VERSION`: Minecraft バージョン指定（省略可、mineflayer 自動検出）
 
 ### ディレクトリ
 
