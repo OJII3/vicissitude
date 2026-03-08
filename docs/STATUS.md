@@ -33,6 +33,7 @@
 - **M5 Phase 3 完了: 日次ログ再設計 + LESSONS.md 整理。** 日次ログの記録対象を「heartbeat 実行記録・自省メモ」に限定し、会話まとめは LTM Episodes に委譲。LESSONS.md と LTM guideline の使い分けを明確化し、更新前に LTM guideline を確認するフローを追加。
 - **LTM 記録をホームチャンネルのみに限定。** `onAnyMessage`（全チャンネル購読）を廃止し、`onHomeChannelMessage` 経由でホームチャンネルのメッセージのみを記録するように変更。bot 自身の発言もホームチャンネル内であれば記録。
 - **LTM 自動統合スケジューラ（ハイブリッド方式）。** 30 分間隔で未統合エピソードからファクトを自動抽出する `IntervalConsolidationScheduler` を追加。初回は 5 分遅延、タイムアウト 10 分。手動 MCP ツール `ltm_consolidate` もそのまま残す。`FenghuangConversationRecorder` に `MemoryConsolidator` ポートを実装。consolidation は `record()` のロックとは独立して実行（SQLite WAL モードで DB 側が直列化を保証）。タイムアウト後も内部処理完了まで `running` フラグを保持しゾンビ処理との並走を防止。`Executable` ドメインポートで CA 依存方向ルールを遵守。
+- **LTM ファクト抽出に話者名を構造化フィールドで渡すように変更。** fenghuang の `ChatMessage.name` 対応に合わせ、`content` への著者名埋め込み（`"authorName: content"`）を廃止し、`ConversationMessage.name` フィールドで渡すように変更。fenghuang 側で `role(name)` 形式の話者表示とファクト抽出時の明示的な主語付与が有効になり、LTM ファクトの品質が向上。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
