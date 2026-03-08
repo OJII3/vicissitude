@@ -7,8 +7,16 @@ type GetBot = () => mineflayer.Bot | null;
 type PushEvent = (kind: string, description: string) => void;
 type TextResult = { content: { type: "text"; text: string }[] };
 
+const MAX_COLLECT_COUNT = 64;
+
 function textResult(text: string): TextResult {
 	return { content: [{ type: "text", text }] };
+}
+
+function ensureMovements(b: mineflayer.Bot): void {
+	if (!b.pathfinder.movements) {
+		b.pathfinder.setMovements(new Movements(b));
+	}
 }
 
 async function digOneBlock(
@@ -20,7 +28,14 @@ async function digOneBlock(
 	if (!block) return false;
 	const { x, y, z: bz } = block.position;
 	await b.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));
-	await b.dig(block);
+
+	// 移動後にブロックがまだ存在するか再検証
+	const current = b.blockAt(block.position);
+	if (!current || current.type !== blockId) return false;
+
+	const tool = b.pathfinder.bestHarvestTool(current);
+	if (tool) await b.equip(tool, "hand");
+	await b.dig(current);
 	return true;
 }
 
@@ -28,12 +43,16 @@ async function collectBlocks(
 	b: mineflayer.Bot,
 	blockId: number,
 	maxDistance: number,
-	remaining: number,
+	count: number,
 ): Promise<number> {
-	if (remaining <= 0) return 0;
-	const dug = await digOneBlock(b, blockId, maxDistance);
-	if (!dug) return 0;
-	return 1 + (await collectBlocks(b, blockId, maxDistance, remaining - 1));
+	let collected = 0;
+	while (collected < count) {
+		// eslint-disable-next-line no-await-in-loop -- ブロック採掘は順次実行が必須
+		const dug = await digOneBlock(b, blockId, maxDistance);
+		if (!dug) break;
+		collected++;
+	}
+	return collected;
 }
 
 function registerFollowPlayer(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
@@ -53,8 +72,18 @@ function registerFollowPlayer(server: McpServer, getBot: GetBot, pushEvent: Push
 				return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
 			}
 
-			bot.pathfinder.setMovements(new Movements(bot));
+			ensureMovements(bot);
 			bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
+
+			// 対象プレイヤーがログアウトしたら自動停止
+			const onPlayerLeft = (player: { username: string }) => {
+				if (player.username === username) {
+					bot.pathfinder.stop();
+					pushEvent("follow", `${username} がログアウトしたため追従を停止`);
+				}
+			};
+			bot.once("playerLeft", onPlayerLeft);
+
 			pushEvent("follow", `${username} への追従を開始（range: ${String(range)}）`);
 			return textResult(`${username} への追従を開始しました（range: ${String(range)}）`);
 		},
@@ -75,7 +104,7 @@ function registerGoTo(server: McpServer, getBot: GetBot, pushEvent: PushEvent): 
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			bot.pathfinder.setMovements(new Movements(bot));
+			ensureMovements(bot);
 			const coord = `(${String(x)}, ${String(y)}, ${String(zCoord)})`;
 			try {
 				await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
@@ -93,10 +122,16 @@ function registerGoTo(server: McpServer, getBot: GetBot, pushEvent: PushEvent): 
 function registerCollectBlock(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
 	server.tool(
 		"collect_block",
-		"指定ブロックを探して採集する",
+		"指定ブロックを探して採集する（最適ツールを自動装備）",
 		{
 			blockName: z.string().describe('ブロック名（例: "oak_log", "diamond_ore"）'),
-			count: z.number().int().min(1).default(1).describe("採集する個数（デフォルト: 1）"),
+			count: z
+				.number()
+				.int()
+				.min(1)
+				.max(MAX_COLLECT_COUNT)
+				.default(1)
+				.describe(`採集する個数（デフォルト: 1、最大: ${String(MAX_COLLECT_COUNT)}）`),
 			maxDistance: z.number().min(1).default(32).describe("検索範囲（デフォルト: 32）"),
 		},
 		async ({ blockName, count, maxDistance }) => {
@@ -106,7 +141,7 @@ function registerCollectBlock(server: McpServer, getBot: GetBot, pushEvent: Push
 			const blockType = bot.registry.blocksByName[blockName];
 			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
-			bot.pathfinder.setMovements(new Movements(bot));
+			ensureMovements(bot);
 			try {
 				const collected = await collectBlocks(bot, blockType.id, maxDistance, count);
 				const progress = `${String(collected)}/${String(count)}`;

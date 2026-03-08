@@ -61,9 +61,10 @@ OpenCode が使用する MCP サーバーを提供する。
 6. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
    - `observe_state`: 現在状態の要約を取得（実装済み）
    - `get_recent_events`: 直近重要イベント取得（実装済み）
-   - `follow_player`: 指定プレイヤーへ追従（計画）
-   - `go_to`: 指定地点へ移動（計画）
-   - `collect_block`: 指定ブロックを採集（計画）
+   - `follow_player`: 指定プレイヤーへ追従（実装済み）
+   - `go_to`: 指定地点へ移動（実装済み）
+   - `collect_block`: 指定ブロックを採集（実装済み）
+   - `stop`: 現在の移動・追従を停止（実装済み）
    - `craft_item`: 指定アイテムをクラフト（計画）
    - `place_block`: 指定ブロックを設置（計画）
    - `equip_item`: アイテム装備（計画）
