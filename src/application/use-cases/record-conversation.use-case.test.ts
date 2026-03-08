@@ -57,7 +57,8 @@ describe("RecordConversationUseCase", () => {
 		];
 		expect(guildId).toBe("guild-456");
 		expect(msg.role).toBe("user");
-		expect(msg.content).toBe("TestUser: こんにちは");
+		expect(msg.content).toBe("こんにちは");
+		expect(msg.name).toBe("TestUser");
 		expect(msg.timestamp).toEqual(new Date("2026-03-02T12:00:00Z"));
 	});
 
@@ -75,7 +76,8 @@ describe("RecordConversationUseCase", () => {
 			ConversationMessage,
 		];
 		expect(msg.role).toBe("assistant");
-		expect(msg.content).toBe("ふあ: はい、お手伝いします");
+		expect(msg.content).toBe("はい、お手伝いします");
+		expect(msg.name).toBe("ふあ");
 	});
 
 	it("guildId が undefined のメッセージはスキップする", async () => {
@@ -119,7 +121,7 @@ describe("RecordConversationUseCase", () => {
 			string,
 			ConversationMessage,
 		];
-		expect(msg.content).toBe("TestUser: 見てこれ [添付: image.png]");
+		expect(msg.content).toBe("見てこれ [添付: image.png]");
 	});
 
 	it("content が空で attachments のみの場合も記録する", async () => {
@@ -144,7 +146,7 @@ describe("RecordConversationUseCase", () => {
 			string,
 			ConversationMessage,
 		];
-		expect(msg.content).toBe("TestUser: [添付: doc.pdf]");
+		expect(msg.content).toBe("[添付: doc.pdf]");
 	});
 
 	it("記録後にログが出力される", async () => {
@@ -191,7 +193,7 @@ describe("RecordConversationUseCase", () => {
 			string,
 			ConversationMessage,
 		];
-		expect(msg.content).toBe("TestUser: [添付: unknown]");
+		expect(msg.content).toBe("[添付: unknown]");
 	});
 
 	it("複数の添付ファイルがスペース区切りで結合される", async () => {
@@ -216,6 +218,6 @@ describe("RecordConversationUseCase", () => {
 			string,
 			ConversationMessage,
 		];
-		expect(msg.content).toBe("TestUser: ファイル送るね [添付: a.png] [添付: b.pdf]");
+		expect(msg.content).toBe("ファイル送るね [添付: a.png] [添付: b.pdf]");
 	});
 });

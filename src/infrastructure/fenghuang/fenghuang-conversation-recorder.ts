@@ -43,6 +43,7 @@ export class FenghuangConversationRecorder implements ConversationRecorder, Memo
 			await segmenter.addMessage(guildId, {
 				role: message.role,
 				content: message.content,
+				name: message.name,
 				timestamp: message.timestamp,
 			});
 		};
