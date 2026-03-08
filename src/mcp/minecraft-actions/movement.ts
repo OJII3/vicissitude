@@ -46,23 +46,25 @@ function executeFollow(
 
 	return new Promise<void>((resolve) => {
 		let done = false;
+		const onAbort = () => finish();
 		const finish = () => {
 			if (done) return;
 			done = true;
 			bot.pathfinder.stop();
 			bot.removeListener("playerLeft", onPlayerLeft);
 			bot.removeListener("entityGone", onEntityGone);
+			signal.removeEventListener("abort", onAbort);
 			resolve();
 		};
 		const onPlayerLeft = (player: { username: string }) => {
 			if (player.username === username) finish();
 		};
 		const onEntityGone = (e: { id: number }) => {
-			if (e === entity) finish();
+			if (e.id === entity.id) finish();
 		};
 		bot.on("playerLeft", onPlayerLeft);
 		bot.on("entityGone", onEntityGone);
-		signal.addEventListener("abort", () => finish(), { once: true });
+		signal.addEventListener("abort", onAbort, { once: true });
 	});
 }
 

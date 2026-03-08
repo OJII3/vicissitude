@@ -51,7 +51,11 @@ function waitForWakeOrAbort(bot: mineflayer.Bot, signal: AbortSignal): Promise<v
 		};
 		const onAbort = () => {
 			bot.removeListener("wake", onWake);
-			void bot.wake().catch(() => {});
+			void bot.wake().catch((err) => {
+				console.error(
+					`[minecraft] wake failed during abort: ${err instanceof Error ? err.message : String(err)}`,
+				);
+			});
 			resolve();
 		};
 		bot.once("wake", onWake);
@@ -155,7 +159,12 @@ export function registerSleepInBed(
 		"sleep_in_bed",
 		"近くのベッドで就寝を試みる（非同期ジョブ: 即座に jobId を返す）",
 		{
-			maxDistance: z.number().min(1).default(32).describe("ベッド検索範囲（デフォルト: 32）"),
+			maxDistance: z
+				.number()
+				.min(1)
+				.max(64)
+				.default(32)
+				.describe("ベッド検索範囲（デフォルト: 32、最大: 64）"),
 		},
 		({ maxDistance }) => {
 			const bot = getBot();

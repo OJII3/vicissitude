@@ -40,17 +40,18 @@ async function placeOnAdjacentBlock(
 export function registerSendChat(server: McpServer, getBot: GetBot): void {
 	server.tool(
 		"send_chat",
-		"Minecraft ゲーム内チャットにメッセージを送信する",
+		"Minecraft ゲーム内チャットにメッセージを送信する（コマンド送信不可）",
 		{
 			message: z
 				.string()
 				.min(1)
 				.max(MAX_CHAT_LENGTH)
-				.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字）`),
+				.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字、"/" 始まり禁止）`),
 		},
 		({ message }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
+			if (message.startsWith("/")) return textResult("コマンド送信は許可されていません");
 			bot.chat(message);
 			return textResult(`チャット送信: "${message}"`);
 		},
