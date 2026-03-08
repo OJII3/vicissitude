@@ -180,13 +180,18 @@
 - `mcp/minecraft-server.ts`: Minecraft 操作ツール（mineflayer ベース、`MC_HOST` 設定時のみ有効）
   - `observe_state`: 位置、体力、空腹度、時間帯、天候、近くのエンティティ、インベントリ、装備、直近イベントの要約を返す
   - `get_recent_events`: インメモリリングバッファ（最大100件）から直近イベントログを取得
-  - mineflayer-pathfinder プラグインを読み込み済み（後続ツール用）
+  - `follow_player`: 指定プレイヤーへの動的追従（GoalFollow）。対象ログアウト時に自動停止
+  - `go_to`: 指定座標への移動（GoalNear）
+  - `collect_block`: 指定ブロックの探索・最適ツール自動装備・採掘（GoalGetToBlock + dig、最大64個）
+  - `stop`: 現在の移動・追従を停止
+  - 行動ツールは `mcp/minecraft-actions.ts` に分離して登録
+  - mineflayer-pathfinder プラグインを読み込み済み
   - オフラインモード接続、指数バックオフ自動再接続（1秒〜60秒）
 
 将来拡張（計画）:
 
 - `mcp/minecraft-server.ts` に追加予定のツール:
-  - `follow_player`, `go_to`, `collect_block`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
+  - `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
   - 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
   - 状態は要約を主に返し、生ログは必要時のみ限定的に参照
 
