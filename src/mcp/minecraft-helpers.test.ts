@@ -92,4 +92,12 @@ describe("formatActionState", () => {
 		expect(
 			formatActionState({ type: "moving", target: "(10, 64, -20)", progress: "移動中..." }),
 		).toBe("(10, 64, -20) へ移動中 (移動中...)"));
+	test("crafting", () =>
+		expect(formatActionState({ type: "crafting", target: "stick" })).toBe("stick をクラフト中"));
+	test("crafting with progress", () =>
+		expect(
+			formatActionState({ type: "crafting", target: "stick", progress: "クラフト中..." }),
+		).toBe("stick をクラフト中 (クラフト中...)"));
+	test("sleeping", () =>
+		expect(formatActionState({ type: "sleeping", target: "ベッド" })).toBe("ベッド で就寝中"));
 });

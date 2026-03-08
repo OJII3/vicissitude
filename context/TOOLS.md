@@ -83,12 +83,20 @@ Minecraft ワールドに接続中のボットを操作する。
   - 種類: spawn, death, health, chat, kicked, damage, disconnect, playerJoined, playerLeft, timeChange, weatherChange, job
   - 各イベントには重要度（low/medium/high）が付与される
 - `follow_player(username, range?)` - 指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す、range デフォルト: 3）
-- `go_to(x, y, z, range?)` - 指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）
-- `collect_block(blockName, count?, maxDistance?)` - 指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、進捗更新あり）
-- `stop` - 現在のジョブ（移動・追従・採集）を停止する
+- `go_to(x, y, z, range?)` - 指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す、range デフォルト: 2）
+- `collect_block(blockName, count?, maxDistance?)` - 指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、進捗更新あり、maxDistance デフォルト: 32）
+- `send_chat(message)` - Minecraft ゲーム内チャットにメッセージを送信する（最大 256 文字、"/" 始まりのコマンド送信不可）
+- `equip_item(itemName, destination?)` - インベントリのアイテムを装備する
+  - destination: "hand" | "head" | "torso" | "legs" | "feet" | "off-hand"（デフォルト: hand）
+- `place_block(blockName, x, y, z)` - 指定座標にブロックを設置する（隣接固体ブロックを自動検出、インベントリから自動装備）
+- `craft_item(itemName, count?)` - 指定アイテムをクラフトする（非同期ジョブ: 即座に jobId を返す、作業台が必要な場合は 32 ブロック以内を自動検索して移動）
+  - count: クラフト個数（デフォルト: 1、最大: 64）
+- `sleep_in_bed(maxDistance?)` - 近くのベッドで就寝を試みる（非同期ジョブ: 即座に jobId を返す、全 16 色のベッド対応）
+  - maxDistance: ベッド検索範囲（デフォルト: 32、最大: 64）
+- `stop` - 現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する
 - `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
   - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
-  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
+  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
 - `take_screenshot(width?, height?)` - ボット視点のスクリーンショットを撮影する（PNG形式）
   - width: 画像の幅（デフォルト: 512、範囲: 64-1920）
   - height: 画像の高さ（デフォルト: 512、範囲: 64-1080）
