@@ -5,6 +5,7 @@ import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
+import { registerActionTools } from "./minecraft-actions.ts";
 import { getTimePeriod } from "./minecraft-helpers.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
@@ -217,6 +218,8 @@ server.tool(
 		return { content: [{ type: "text", text: JSON.stringify(recent, null, 2) }] };
 	},
 );
+
+registerActionTools(server, () => bot, pushEvent);
 
 // ── Startup ──────────────────────────────────────────────────────────────────
 

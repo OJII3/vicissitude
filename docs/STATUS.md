@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-compose
+- ブランチ: feat/minecraft-action-tools
 
 ## 2. 現在の真実（Project Truth）
 
@@ -37,6 +37,7 @@
 - **ドキュメント方針を Minecraft 拡張前提に更新。** `PLAN.md` を全面更新し、`SPEC.md` / `ARCHITECTURE.md` に「既存人格維持 + Minecraft MCP 追加 + 要約/イベント駆動」の方針を反映。
 - **Minecraft MCP サーバー（最小土台）。** mineflayer + mineflayer-pathfinder を使用し、`observe_state`（状態要約）と `get_recent_events`（イベントログ）の 2 ツールを提供。`MC_HOST` 環境変数設定時のみ有効化。オフラインモード接続、指数バックオフ自動再接続、インメモリリングバッファ（最大100件）でイベント蓄積。
 - **Minecraft ゲームサーバーをコンテナ化。** `compose.yaml` に `itzg/minecraft-server:java21` ベースの `minecraft` サービスを追加。オフラインモード、メモリ 1GB 制限、`mc-health` ヘルスチェック、`minecraft-data` ボリュームでワールド永続化。`MC_HOST=minecraft` で bot から DNS 解決可能。
+- **Minecraft MCP サーバーに行動ツールを追加。** `follow_player`（プレイヤー追従）、`go_to`（座標移動）、`collect_block`（ブロック採集）、`stop`（移動停止）の 4 ツールを `minecraft-actions.ts` に実装。mineflayer-pathfinder の GoalFollow/GoalNear/GoalGetToBlock を使用。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -65,7 +66,7 @@
 
 1. ~~`minecraft` MCP server の最小土台作成（接続 + `observe_state`）~~ **完了**
 2. ~~Minecraft サーバーを compose.yaml にコンテナとして追加~~ **完了**
-3. `follow_player` / `go_to` / `collect_block` の最小実装
+3. ~~`follow_player` / `go_to` / `collect_block` / `stop` の最小実装~~ **完了**
 4. Minecraft 状態要約レイヤーとイベントログ整備
 
 ## 6. ブロッカー
