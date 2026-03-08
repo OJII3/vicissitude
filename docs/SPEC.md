@@ -2,8 +2,14 @@
 
 ## 1. 目的
 
-Vicissitude は、身内向け Discord サーバーで雑談に自然参加する Bot を作るプロジェクトである。
+Vicissitude は、身内向け Discord サーバーで雑談に自然参加する Bot を中核としつつ、Minecraft 上での基本行動を追加するプロジェクトである。
 人格名は「ふあ」とし、OpenCode + MCP を推論エンジンとして使用する。
+
+最重要目標は次の 3 点の両立:
+
+1. Discord 上で自然に雑談できる
+2. Minecraft 上で簡単な自律行動ができる
+3. 情報過多でエージェントがパンクしない
 
 ## 2. 対象ユーザー
 
@@ -48,10 +54,21 @@ OpenCode が使用する MCP サーバーを提供する。
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
 5. **ltm**: 長期記憶（fenghuang ベース）
-   - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
-   - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
-   - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
-   - `ltm_get_facts`: 蓄積されたファクト一覧を取得
+    - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
+    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
+    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
+    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
+6. **minecraft**: Minecraft 操作（mineflayer ベース、初期は最小機能）
+   - `observe_state`: 現在状態の要約を取得
+   - `follow_player`: 指定プレイヤーへ追従
+   - `go_to`: 指定地点へ移動
+   - `collect_block`: 指定ブロックを採集
+   - `craft_item`: 指定アイテムをクラフト
+   - `place_block`: 指定ブロックを設置
+   - `equip_item`: アイテム装備
+   - `sleep_in_bed`: 就寝を試行
+   - `send_chat`: Minecraft 内チャット送信
+   - `get_recent_events`: 直近重要イベント取得
 
 #### OpenCode SDK 組み込みツール
 
@@ -106,6 +123,19 @@ OpenCode が使用する MCP サーバーを提供する。
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
 
+### 3.8 Minecraft 連携方針（初期実装）
+
+- 既存の OpenCode + MCP + memory 構成は置き換えない。
+- Minecraft 連携は新規 `minecraft` MCP サーバー追加で実現する。
+- 低レベル操作（移動、採集、クラフト等）は mineflayer に委譲し、LLM は高レベル判断に集中する。
+- 外向き人格は Discord 雑談人格に統一し、内部実装事情を直接露出しない。
+
+### 3.9 コンテキスト過負荷の防止
+
+- 毎 tick の生状態を LLM に渡さない（座標列、視界詳細、長大ログは直接投入しない）。
+- LLM へは要約済み状態のみ渡す（位置概要、体力/空腹、昼夜、近傍危険、重要インベントリ、現在目標、直近重要イベント）。
+- 意思決定はイベント駆動を基本とし、状態変化や失敗時に再判断する。
+
 ## 4. 非機能要件
 
 - 初期の実行環境はローカル常駐（Bun ランタイム）とする。
@@ -125,3 +155,5 @@ OpenCode が使用する MCP サーバーを提供する。
 4. ブートストラップコンテキストが毎回 system prompt として注入される。
 5. MCP サーバー経由で Discord 操作・コード実行が可能。
 6. AI がイベントバッファをポーリングし、自律的に応答を判断・送信する。
+7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
+8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。

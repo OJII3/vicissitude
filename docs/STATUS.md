@@ -3,8 +3,8 @@
 ## 1. 最終更新
 
 - 2026-03-08
-- 更新者: Claude
-- ブランチ: main
+- 更新者: OpenCode
+- ブランチ: chore/update-fenghuang
 
 ## 2. 現在の真実（Project Truth）
 
@@ -34,6 +34,7 @@
 - **LTM 記録をホームチャンネルのみに限定。** `onAnyMessage`（全チャンネル購読）を廃止し、`onHomeChannelMessage` 経由でホームチャンネルのメッセージのみを記録するように変更。bot 自身の発言もホームチャンネル内であれば記録。
 - **LTM 自動統合スケジューラ（ハイブリッド方式）。** 30 分間隔で未統合エピソードからファクトを自動抽出する `IntervalConsolidationScheduler` を追加。初回は 5 分遅延、タイムアウト 10 分。手動 MCP ツール `ltm_consolidate` もそのまま残す。`FenghuangConversationRecorder` に `MemoryConsolidator` ポートを実装。consolidation は `record()` のロックとは独立して実行（SQLite WAL モードで DB 側が直列化を保証）。タイムアウト後も内部処理完了まで `running` フラグを保持しゾンビ処理との並走を防止。`Executable` ドメインポートで CA 依存方向ルールを遵守。
 - **LTM ファクト抽出に話者名を構造化フィールドで渡すように変更。** fenghuang の `ChatMessage.name` 対応に合わせ、`content` への著者名埋め込み（`"authorName: content"`）を廃止し、`ConversationMessage.name` フィールドで渡すように変更。fenghuang 側で `role(name)` 形式の話者表示とファクト抽出時の明示的な主語付与が有効になり、LTM ファクトの品質が向上。
+- **ドキュメント方針を Minecraft 拡張前提に更新。** `PLAN.md` を全面更新し、`SPEC.md` / `ARCHITECTURE.md` に「既存人格維持 + Minecraft MCP 追加 + 要約/イベント駆動」の方針を反映。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -60,9 +61,9 @@
 
 ## 5. 直近タスク
 
-1. テスト用 Discord サーバーでの E2E 検証
-2. infrastructure 層のテストカバレッジ拡充
-3. M4 残り: プラットフォーム抽象化（`"discord"` ハードコードの解消）
+1. `minecraft` MCP server の最小土台作成（接続 + `observe_state`）
+2. `follow_player` / `go_to` / `collect_block` の最小実装
+3. Minecraft 状態要約レイヤーとイベントログ整備
 
 ## 6. ブロッカー
 

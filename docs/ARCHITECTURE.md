@@ -3,6 +3,7 @@
 ## 1. 位置づけ
 
 - 本書は、現在の実装構成（`src/` 配下 Clean Architecture）に基づく実装準拠アーキテクチャを定義する。
+- Minecraft 拡張は「既存構成を維持した段階的追加」として、末尾の拡張設計セクションに記載する。
 - 要件の正本は `SPEC.md`、運用方針の正本は `RUNBOOK.md`、進行状況の正本は `STATUS.md` とする。
 
 ## 2. 設計原則
@@ -21,6 +22,7 @@
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
   - MCP SDK (`@modelcontextprotocol/sdk`)
+  - mineflayer（Minecraft 操作、拡張導入予定）
 
 ## 4. レイヤー構成
 
@@ -174,6 +176,13 @@
   - `ltm_get_facts`: 蓄積されたファクト一覧を取得（カテゴリフィルタ対応）
   - Guild 分離: `data/fenghuang/guilds/{guildId}/memory.db` に SQLite で永続化
   - LLM: `CompositeLLMAdapter`（chat は OpenCode SDK、embed は Ollama）を使用
+
+将来拡張（計画）:
+
+- `mcp/minecraft-server.ts`: Minecraft 操作ツール（mineflayer ベース）
+  - `observe_state`, `follow_player`, `go_to`, `collect_block`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `get_recent_events`
+  - 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
+  - 状態は要約を主に返し、生ログは必要時のみ限定的に参照
 
 ### 4.5 Composition Root
 
@@ -381,3 +390,32 @@
 5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
 7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（fenghuang の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`FileContextLoader` は `LtmFactReader` ポートを通じて LTM ファクトをシステムプロンプトに注入する（Clean Architecture の依存方向を維持）。
+8. Minecraft 拡張は既存エージェント基盤の置換ではなく、MCP サーバー追加で実装する。人格は 1 つに維持し、Minecraft は内部で分業する。
+9. Minecraft 連携の意思決定はイベント駆動を基本にし、毎 tick 推論は行わない。LLM への入力は要約優先でコンテキスト過負荷を防ぐ。
+
+## 11. Minecraft 拡張設計（計画）
+
+### 11.1 目的
+
+- Discord 雑談人格を維持したまま、Minecraft 上で最小限の自律行動を可能にする。
+- 高頻度ゲーム状態をそのまま LLM に流さず、要約レイヤーで情報量を制御する。
+
+### 11.2 内部責務分離
+
+- Conversation persona layer: 既存の Discord 雑談応答生成
+- Minecraft tool layer: mineflayer による移動・採集・クラフト等
+- Minecraft state summarization layer: 生状態を短い要約へ変換
+- Event-driven decision layer: 重要イベント時のみ再判断
+
+### 11.3 イベント駆動フロー（想定）
+
+1. Minecraft 側で重要イベント（危険接近、行動失敗、目標達成等）を検知する。
+2. `minecraft` MCP サーバーが直近イベントを蓄積し、要約状態を生成する。
+3. AI は必要時のみ `observe_state` / `get_recent_events` を参照して次行動を決定する。
+4. 実行は `follow_player` / `go_to` / `collect_block` などの高レベルツールで行う。
+5. 必要に応じて Discord へ自然文で状況共有する。
+
+### 11.4 初期スコープ
+
+- 接続、状態取得、追従、移動、基本採集、基本クラフト、装備、睡眠、チャット送信、直近イベント取得
+- 非目標: 完全自律長期サバイバル、高度建築、複雑戦闘、全知覚リアルタイム推論
