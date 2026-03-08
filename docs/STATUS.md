@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-action-tools
+- ブランチ: feat/minecraft-state-summary
 
 ## 2. 現在の真実（Project Truth）
 
@@ -38,6 +38,7 @@
 - **Minecraft MCP サーバー（最小土台）。** mineflayer + mineflayer-pathfinder を使用し、`observe_state`（状態要約）と `get_recent_events`（イベントログ）の 2 ツールを提供。`MC_HOST` 環境変数設定時のみ有効化。オフラインモード接続、指数バックオフ自動再接続、インメモリリングバッファ（最大100件）でイベント蓄積。
 - **Minecraft ゲームサーバーをコンテナ化。** `compose.yaml` に `itzg/minecraft-server:java21` ベースの `minecraft` サービスを追加。オフラインモード、メモリ 1GB 制限、`mc-health` ヘルスチェック、`minecraft-data` ボリュームでワールド永続化。`MC_HOST=minecraft` で bot から DNS 解決可能。
 - **Minecraft MCP サーバーに行動ツールを追加。** `follow_player`（プレイヤー追従）、`go_to`（座標移動）、`collect_block`（ブロック採集）、`stop`（移動停止）の 4 ツールを `minecraft-actions.ts` に実装。mineflayer-pathfinder の GoalFollow/GoalNear/GoalGetToBlock を使用。
+- **Minecraft 状態要約レイヤーとイベントログ整備。** `observe_state` が自然言語要約テキストを返すように変更（体力♥バー、hostile mob ⚠ 表示、インベントリ1行要約）。BotEvent に `importance` フィールド（low/medium/high）を追加し、health イベントをスロットリング（体力変化5以上 or 体力5以下のみ記録）。playerJoined/playerLeft/timeChange/weatherChange の新イベント種別を追加。`get_recent_events` に importance フィルタを追加しテキスト形式で出力。アクション状態（idle/following/moving/collecting）をトラッキング。要約関数は `minecraft-state-summary.ts`、ヘルパーは `minecraft-helpers.ts` に分離しテスト完備。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -67,7 +68,7 @@
 1. ~~`minecraft` MCP server の最小土台作成（接続 + `observe_state`）~~ **完了**
 2. ~~Minecraft サーバーを compose.yaml にコンテナとして追加~~ **完了**
 3. ~~`follow_player` / `go_to` / `collect_block` / `stop` の最小実装~~ **完了**
-4. Minecraft 状態要約レイヤーとイベントログ整備
+4. ~~Minecraft 状態要約レイヤーとイベントログ整備~~ **完了**
 
 ## 6. ブロッカー
 
