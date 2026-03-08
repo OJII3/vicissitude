@@ -21,7 +21,8 @@ export class RecordConversationUseCase {
 
 		await this.recorder.record(msg.guildId, {
 			role,
-			content: `${msg.authorName}: ${content}`,
+			content,
+			name: msg.authorName,
 			timestamp: msg.timestamp,
 		});
 
