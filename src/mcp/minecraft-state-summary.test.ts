@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import type { JobInfo } from "./minecraft-helpers.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
 import type { BotEventInput, BotStateInput } from "./minecraft-state-summary.ts";
-import type { JobInfo } from "./minecraft-helpers.ts";
 
 function makeState(overrides: Partial<BotStateInput> = {}): BotStateInput {
 	return {
@@ -156,18 +156,18 @@ describe("formatEvents", () => {
 	});
 });
 
-describe("formatJobStatus", () => {
-	function makeJob(overrides: Partial<JobInfo> = {}): JobInfo {
-		return {
-			id: "job-1",
-			type: "moving",
-			target: "(10, 64, -20)",
-			status: "running",
-			startedAt: new Date("2026-03-09T18:00:00Z"),
-			...overrides,
-		};
-	}
+function makeJob(overrides: Partial<JobInfo> = {}): JobInfo {
+	return {
+		id: "job-1",
+		type: "moving",
+		target: "(10, 64, -20)",
+		status: "running",
+		startedAt: new Date("2026-03-09T18:00:00Z"),
+		...overrides,
+	};
+}
 
+describe("formatJobStatus", () => {
 	test("現在のジョブがない場合", () => {
 		const result = formatJobStatus(null, []);
 		expect(result).toContain("## 現在のジョブ");

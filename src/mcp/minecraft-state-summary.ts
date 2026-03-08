@@ -93,14 +93,7 @@ function formatJobLine(job: JobInfo): string {
 
 /** ジョブステータスをテキスト形式で返す */
 export function formatJobStatus(current: JobInfo | null, recent: JobInfo[]): string {
-	const lines: string[] = [];
-
-	lines.push("## 現在のジョブ");
-	if (current) {
-		lines.push(formatJobLine(current));
-	} else {
-		lines.push("なし");
-	}
+	const lines: string[] = ["## 現在のジョブ", current ? formatJobLine(current) : "なし"];
 
 	if (recent.length > 0) {
 		lines.push("");
