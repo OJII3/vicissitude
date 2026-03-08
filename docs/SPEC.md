@@ -58,7 +58,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
-6. **minecraft**: Minecraft 操作（mineflayer ベース、初期は最小機能）
+6. **minecraft**（計画・未実装）: Minecraft 操作（mineflayer ベース、初期は最小機能）
    - `observe_state`: 現在状態の要約を取得
    - `follow_player`: 指定プレイヤーへ追従
    - `go_to`: 指定地点へ移動
@@ -149,11 +149,16 @@ OpenCode が使用する MCP サーバーを提供する。
 
 ## 6. 受け入れ条件
 
+### 現行（実装済み）
+
 1. Bot メンションで AI 応答が返る。
 2. Bot 自身のメッセージには反応しない。
 3. セッション管理が永続化され、再起動後も継続できる。
 4. ブートストラップコンテキストが毎回 system prompt として注入される。
 5. MCP サーバー経由で Discord 操作・コード実行が可能。
 6. AI がイベントバッファをポーリングし、自律的に応答を判断・送信する。
+
+### Minecraft 拡張（M6 完了時）
+
 7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
 8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。
