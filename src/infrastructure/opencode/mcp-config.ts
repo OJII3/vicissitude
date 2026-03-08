@@ -55,6 +55,19 @@ export function mcpServerConfigs(options?: McpConfigOptions) {
 	const root = resolve(import.meta.dirname, "../../..");
 	const configs = coreConfigs(root);
 
+	if (process.env.MC_HOST) {
+		configs.minecraft = {
+			type: "local",
+			command: ["bun", "run", resolve(root, "src/mcp/minecraft-server.ts")],
+			environment: {
+				MC_HOST: process.env.MC_HOST,
+				MC_PORT: process.env.MC_PORT ?? "25565",
+				MC_USERNAME: process.env.MC_USERNAME ?? "fua",
+				...(process.env.MC_VERSION ? { MC_VERSION: process.env.MC_VERSION } : {}),
+			},
+		};
+	}
+
 	if (options?.includeEventBuffer) {
 		const environment: Record<string, string> = {};
 		if (options.guildId) {

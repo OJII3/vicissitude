@@ -25,7 +25,9 @@
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@opencode-ai/sdk": "^1.2.15",
 		"discord.js": "^14.25.1",
-		"fenghuang": "github:OJII3/fenghuang"
+		"fenghuang": "github:OJII3/fenghuang",
+		"mineflayer": "^4.35.0",
+		"mineflayer-pathfinder": "^2.4.5"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
