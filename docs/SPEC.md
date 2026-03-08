@@ -44,6 +44,7 @@ OpenCode が使用する MCP サーバーを提供する。
 
 1. **discord**: Discord チャンネルへの読み書き
    - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`（画像 URL をメッセージに含む）, `list_channels`
+   - `send_message` / `reply` はオプションで画像ファイルパスを受け取り、添付ファイルとして送信可能（計画）
 2. **code-exec**: コード実行
    - `execute_code` (JavaScript, TypeScript, Python, Shell)
 3. **schedule**: Heartbeat スケジュール管理
@@ -70,6 +71,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `equip_item`: アイテム装備（計画）
    - `sleep_in_bed`: 就寝を試行（計画）
    - `send_chat`: Minecraft 内チャット送信（計画）
+   - `take_screenshot`: ボット視点のスクリーンショットを撮影し画像ファイルとして保存（計画）
+     - `prismarine-viewer` のヘッドレスレンダリングを使用
+     - 撮影した画像は Discord に送信可能
 
 #### OpenCode SDK 組み込みツール
 
@@ -136,6 +140,13 @@ OpenCode が使用する MCP サーバーを提供する。
 - 毎 tick の生状態を LLM に渡さない（座標列、視界詳細、長大ログは直接投入しない）。
 - LLM へは要約済み状態のみ渡す（位置概要、体力/空腹、昼夜、近傍危険、重要インベントリ、現在目標、直近重要イベント）。
 - 意思決定はイベント駆動を基本とし、状態変化や失敗時に再判断する。
+
+### 3.10 Minecraft スクリーンショット機能
+
+- `prismarine-viewer` のヘッドレスレンダリングを使用し、ボット視点の画像を撮影する。
+- 撮影した画像は一時ファイルとして保存し、Discord の `send_message` / `reply` で添付ファイルとして送信可能にする。
+- サーバー環境での GPU 非依存レンダリング（ソフトウェアレンダリング）を考慮する。
+- チャンクの読み込み完了後に撮影する（未読み込みチャンクの空白を防止）。
 
 ## 4. 非機能要件
 

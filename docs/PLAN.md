@@ -100,6 +100,7 @@
 | R7  | MEMORY.md スリム化時の情報ロス          | 会話品質低下         | Phase 1 完了後に Phase 2 実施、観察期間を設ける |
 | R8  | LTM ファクトのノイズ混入                | プロンプト品質低下   | 件数上限 + カテゴリ優先度ソートで対策           |
 | R9  | Minecraft 状態の LLM コンテキスト過負荷 | 応答品質低下         | 要約レイヤー + イベント駆動で対策               |
+| R10 | prismarine-viewer の Bun 互換性          | スクリーンショット不可 | Node.js ネイティブモジュール依存（node-canvas-webgl 等）のため Bun で動作しない可能性。事前検証し、必要なら Node.js サブプロセスで実行 |
 
 ## 4. 完了定義（DoD）
 
@@ -208,6 +209,7 @@ Minecraft の生データをそのまま LLM に流さない。
 - ベッドで睡眠
 - Minecraft 内チャット送信
 - 直近イベント取得
+- ボット視点のスクリーンショット撮影・Discord 送信
 
 #### 初期行動スタイル
 
@@ -271,6 +273,7 @@ Minecraft の生状態を、LLM が扱いやすい短い要約へ変換する層
 - `sleep_in_bed`
 - `send_chat`
 - `get_recent_events`
+- `take_screenshot`
 
 必要なら追加してよいが、まずは最小限で始めること。
 
@@ -286,15 +289,18 @@ Minecraft の生状態を、LLM が扱いやすい短い要約へ変換する層
 
 優先順で以下を進める:
 
-1. `minecraft` MCP server の土台を作る
-2. mineflayer bot を起動・接続できるようにする
-3. `observe_state` を実装する
-4. `follow_player` / `go_to` を実装する
-5. `collect_block` を実装する
-6. 重要イベントのログを整備する
-7. LLM に渡す Minecraft 状態要約を作る
+1. ~~`minecraft` MCP server の土台を作る~~ ✅
+2. ~~mineflayer bot を起動・接続できるようにする~~ ✅
+3. ~~`observe_state` を実装する~~ ✅
+4. ~~`follow_player` / `go_to` を実装する~~ ✅
+5. ~~`collect_block` を実装する~~ ✅
+6. ~~重要イベントのログを整備する~~ ✅
+7. ~~LLM に渡す Minecraft 状態要約を作る~~ ✅
 8. 既存 agent から Minecraft ツールを呼べるようにする
 9. Discord 雑談と Minecraft 状況説明の整合を取る
+10. `take_screenshot` を実装する（`prismarine-viewer` ヘッドレスレンダリング）
+11. Discord MCP サーバーに画像添付送信機能を追加する
+12. `craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` を実装する
 
 ### 実装方針
 
