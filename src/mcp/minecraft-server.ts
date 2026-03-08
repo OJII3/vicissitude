@@ -6,7 +6,8 @@ import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
 import { registerActionTools } from "./minecraft-actions.ts";
-import { getTimePeriod } from "./minecraft-helpers.ts";
+import { IMPORTANCE_ORDER, getTimePeriod } from "./minecraft-helpers.ts";
+import type { ActionState, Importance } from "./minecraft-helpers.ts";
 import { formatEvents, summarizeState } from "./minecraft-state-summary.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
@@ -25,8 +26,6 @@ const MC_USERNAME = process.env.MC_USERNAME ?? "fua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
 
 // ── Event ring buffer ────────────────────────────────────────────────────────
-type Importance = "low" | "medium" | "high";
-
 interface BotEvent {
 	timestamp: string;
 	kind: string;
@@ -43,11 +42,6 @@ function pushEvent(kind: string, description: string, importance: Importance): v
 }
 
 // ── Action state ─────────────────────────────────────────────────────────────
-interface ActionState {
-	type: "idle" | "following" | "moving" | "collecting";
-	target?: string;
-}
-
 const actionState: ActionState = { type: "idle" };
 
 function setActionState(state: ActionState): void {
@@ -261,10 +255,9 @@ server.tool(
 	},
 	({ limit, importance }) => {
 		let filtered = events;
-		if (importance === "high") {
-			filtered = events.filter((e) => e.importance === "high");
-		} else if (importance === "medium") {
-			filtered = events.filter((e) => e.importance === "medium" || e.importance === "high");
+		if (importance) {
+			const threshold = IMPORTANCE_ORDER[importance];
+			filtered = events.filter((e) => IMPORTANCE_ORDER[e.importance] >= threshold);
 		}
 		const recent = filtered.slice(-limit);
 		return { content: [{ type: "text", text: formatEvents(recent) }] };

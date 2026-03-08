@@ -3,13 +3,10 @@ import type mineflayer from "mineflayer";
 import { Movements, goals } from "mineflayer-pathfinder";
 import { z } from "zod";
 
+import type { ActionState, Importance } from "./minecraft-helpers.ts";
+
 type GetBot = () => mineflayer.Bot | null;
-type Importance = "low" | "medium" | "high";
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
-interface ActionState {
-	type: "idle" | "following" | "moving" | "collecting";
-	target?: string;
-}
 type SetActionState = (state: ActionState) => void;
 type TextResult = { content: { type: "text"; text: string }[] };
 

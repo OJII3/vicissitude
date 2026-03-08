@@ -8,7 +8,7 @@ function makeState(overrides: Partial<BotStateInput> = {}): BotStateInput {
 		position: { x: 120, y: 64, z: -200 },
 		health: 20,
 		food: 18,
-		timePeriod: "夕方",
+		timePeriod: "夕",
 		weather: "晴れ",
 		action: { type: "idle" },
 		nearbyEntities: [],
@@ -26,7 +26,7 @@ describe("summarizeState", () => {
 		expect(result).toContain("(120, 64, -200)");
 		expect(result).toContain("♥♥♥♥♥♥♥♥♥♥ (20/20)");
 		expect(result).toContain("🍖 18/20");
-		expect(result).toContain("時間帯: 夕方 | 天気: 晴れ");
+		expect(result).toContain("時間帯: 夕 | 天気: 晴れ");
 		expect(result).toContain("行動: 待機中");
 	});
 

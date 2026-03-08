@@ -5,6 +5,7 @@ import {
 	formatHealthBar,
 	formatInventoryText,
 } from "./minecraft-helpers.ts";
+import type { ActionState, Importance } from "./minecraft-helpers.ts";
 
 export interface BotStateInput {
 	position: { x: number; y: number; z: number };
@@ -12,11 +13,11 @@ export interface BotStateInput {
 	food: number;
 	timePeriod: string;
 	weather: string;
-	action: { type: "idle" | "following" | "moving" | "collecting"; target?: string };
+	action: ActionState;
 	nearbyEntities: { name: string; distance: number; type: string }[];
 	inventory: { items: { name: string; count: number }[]; emptySlots: number };
 	equipment: Record<string, string>;
-	recentEvents: { timestamp: string; kind: string; description: string; importance: string }[];
+	recentEvents: { timestamp: string; kind: string; description: string; importance: Importance }[];
 }
 
 /** ボット状態を自然言語要約テキストに変換する */
@@ -72,7 +73,7 @@ export interface BotEventInput {
 	timestamp: string;
 	kind: string;
 	description: string;
-	importance: string;
+	importance: Importance;
 }
 
 /** イベントリストをテキスト形式に変換する */
