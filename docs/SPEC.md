@@ -58,17 +58,17 @@ OpenCode が使用する MCP サーバーを提供する。
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
-6. **minecraft**（計画・未実装）: Minecraft 操作（mineflayer ベース、初期は最小機能）
-   - `observe_state`: 現在状態の要約を取得
-   - `follow_player`: 指定プレイヤーへ追従
-   - `go_to`: 指定地点へ移動
-   - `collect_block`: 指定ブロックを採集
-   - `craft_item`: 指定アイテムをクラフト
-   - `place_block`: 指定ブロックを設置
-   - `equip_item`: アイテム装備
-   - `sleep_in_bed`: 就寝を試行
-   - `send_chat`: Minecraft 内チャット送信
-   - `get_recent_events`: 直近重要イベント取得
+6. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
+   - `observe_state`: 現在状態の要約を取得（実装済み）
+   - `get_recent_events`: 直近重要イベント取得（実装済み）
+   - `follow_player`: 指定プレイヤーへ追従（計画）
+   - `go_to`: 指定地点へ移動（計画）
+   - `collect_block`: 指定ブロックを採集（計画）
+   - `craft_item`: 指定アイテムをクラフト（計画）
+   - `place_block`: 指定ブロックを設置（計画）
+   - `equip_item`: アイテム装備（計画）
+   - `sleep_in_bed`: 就寝を試行（計画）
+   - `send_chat`: Minecraft 内チャット送信（計画）
 
 #### OpenCode SDK 組み込みツール
 

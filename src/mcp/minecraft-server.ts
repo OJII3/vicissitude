@@ -5,6 +5,8 @@ import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
+import { getTimePeriod } from "./minecraft-helpers.ts";
+
 // ── Environment ──────────────────────────────────────────────────────────────
 
 const MC_HOST = process.env.MC_HOST;
@@ -12,7 +14,12 @@ if (!MC_HOST) {
 	console.error("MC_HOST is required");
 	process.exit(1);
 }
-const MC_PORT = Number(process.env.MC_PORT ?? "25565");
+const portRaw = Number(process.env.MC_PORT ?? "25565");
+if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
+	console.error("MC_PORT must be a valid port number (1-65535)");
+	process.exit(1);
+}
+const MC_PORT = portRaw;
 const MC_USERNAME = process.env.MC_USERNAME ?? "fua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
 
@@ -38,6 +45,10 @@ let bot: mineflayer.Bot | null = null;
 let reconnectDelay = 1000;
 const MAX_RECONNECT_DELAY = 60_000;
 let shuttingDown = false;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
+let lastHealth = -1;
+let lastFood = -1;
 
 function registerBotEvents(b: mineflayer.Bot): void {
 	b.once("spawn", () => {
@@ -46,7 +57,15 @@ function registerBotEvents(b: mineflayer.Bot): void {
 		reconnectDelay = 1000;
 	});
 	b.on("death", () => pushEvent("death", "Bot died"));
-	b.on("health", () => pushEvent("health", `Health: ${String(b.health)}, Food: ${String(b.food)}`));
+	b.on("health", () => {
+		const h = Math.round(b.health);
+		const f = Math.round(b.food);
+		if (h !== lastHealth || f !== lastFood) {
+			lastHealth = h;
+			lastFood = f;
+			pushEvent("health", `Health: ${String(h)}, Food: ${String(f)}`);
+		}
+	});
 	b.on("chat", (username: string, message: string) => {
 		if (username !== b.username) pushEvent("chat", `<${username}> ${message}`);
 	});
@@ -65,6 +84,11 @@ function registerBotEvents(b: mineflayer.Bot): void {
 	b.on("error", (err: Error) => console.error(`[minecraft] Error: ${err.message}`));
 }
 
+function cleanupBot(b: mineflayer.Bot): void {
+	b.removeAllListeners();
+	b.quit();
+}
+
 function createBot(): mineflayer.Bot {
 	const b = mineflayer.createBot({
 		host: MC_HOST,
@@ -79,22 +103,18 @@ function createBot(): mineflayer.Bot {
 }
 
 function scheduleReconnect(): void {
+	if (reconnectTimer) clearTimeout(reconnectTimer);
 	console.error(`[minecraft] Reconnecting in ${String(reconnectDelay)}ms...`);
-	setTimeout(() => {
+	reconnectTimer = setTimeout(() => {
+		reconnectTimer = null;
 		if (shuttingDown) return;
+		if (bot) cleanupBot(bot);
 		bot = createBot();
 	}, reconnectDelay);
 	reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function getTimePeriod(timeOfDay: number): string {
-	if (timeOfDay < 6000) return "朝";
-	if (timeOfDay < 12000) return "昼";
-	if (timeOfDay < 13000) return "夕";
-	return "夜";
-}
 
 function getWeather(b: mineflayer.Bot): string {
 	if (b.thunderState > 0) return "雷雨";
@@ -106,15 +126,15 @@ function getNearbyEntities(
 	b: mineflayer.Bot,
 	limit: number,
 ): { name: string; distance: number; type: string }[] {
-	const entries = Object.values(b.entities)
+	return Object.values(b.entities)
 		.filter((e) => e !== b.entity && e.position)
 		.map((e) => ({
 			name: e.username ?? e.displayName ?? e.name ?? "unknown",
 			distance: Math.round(e.position.distanceTo(b.entity.position)),
 			type: e.type,
 		}))
-		.toSorted((x, y) => x.distance - y.distance);
-	return entries.slice(0, limit);
+		.toSorted((x, y) => x.distance - y.distance)
+		.slice(0, limit);
 }
 
 function getInventorySummary(b: mineflayer.Bot): {
@@ -129,21 +149,27 @@ function getInventorySummary(b: mineflayer.Bot): {
 	return { items, emptySlots: totalSlots - usedSlots };
 }
 
+const ARMOR_HEAD = 5;
+const ARMOR_CHEST = 6;
+const ARMOR_LEGS = 7;
+const ARMOR_FEET = 8;
+const OFFHAND = 45;
+
 function getEquipment(b: mineflayer.Bot): Record<string, string> {
-	const slots: Record<string, string> = {};
-	const head = b.inventory.slots[5];
-	const chest = b.inventory.slots[6];
-	const legs = b.inventory.slots[7];
-	const feet = b.inventory.slots[8];
-	const offhand = b.inventory.slots[45];
-	if (head) slots.head = head.displayName ?? head.name;
-	if (chest) slots.chest = chest.displayName ?? chest.name;
-	if (legs) slots.legs = legs.displayName ?? legs.name;
-	if (feet) slots.feet = feet.displayName ?? feet.name;
-	if (offhand) slots.offhand = offhand.displayName ?? offhand.name;
+	const result: Record<string, string> = {};
+	const head = b.inventory.slots[ARMOR_HEAD];
+	const chest = b.inventory.slots[ARMOR_CHEST];
+	const legs = b.inventory.slots[ARMOR_LEGS];
+	const feet = b.inventory.slots[ARMOR_FEET];
+	const offhand = b.inventory.slots[OFFHAND];
+	if (head) result.head = head.displayName ?? head.name;
+	if (chest) result.chest = chest.displayName ?? chest.name;
+	if (legs) result.legs = legs.displayName ?? legs.name;
+	if (feet) result.feet = feet.displayName ?? feet.name;
+	if (offhand) result.offhand = offhand.displayName ?? offhand.name;
 	const hand = b.heldItem;
-	if (hand) slots.hand = hand.displayName ?? hand.name;
-	return slots;
+	if (hand) result.hand = hand.displayName ?? hand.name;
+	return result;
 }
 
 // ── MCP Server ───────────────────────────────────────────────────────────────
@@ -159,11 +185,12 @@ server.tool("observe_state", "Minecraft ボットの現在の状態を取得す�
 	}
 
 	const pos = bot.entity.position;
+	const timeOfDay = bot.time?.timeOfDay;
 	const state = {
 		position: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
 		health: bot.health,
 		food: bot.food,
-		timePeriod: getTimePeriod(bot.time.timeOfDay),
+		timePeriod: timeOfDay === undefined ? "不明" : getTimePeriod(timeOfDay),
 		weather: getWeather(bot),
 		nearbyEntities: getNearbyEntities(bot, 5),
 		inventory: getInventorySummary(bot),
@@ -202,6 +229,10 @@ await server.connect(transport);
 
 function shutdown(): void {
 	shuttingDown = true;
+	if (reconnectTimer) {
+		clearTimeout(reconnectTimer);
+		reconnectTimer = null;
+	}
 	if (bot) {
 		bot.quit();
 		bot = null;
