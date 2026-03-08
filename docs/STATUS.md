@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-state-summary
+- ブランチ: feat/minecraft-job-system
 
 ## 2. 現在の真実（Project Truth）
 
@@ -39,6 +39,7 @@
 - **Minecraft ゲームサーバーをコンテナ化。** `compose.yaml` に `itzg/minecraft-server:java21` ベースの `minecraft` サービスを追加。オフラインモード、メモリ 1GB 制限、`mc-health` ヘルスチェック、`minecraft-data` ボリュームでワールド永続化。`MC_HOST=minecraft` で bot から DNS 解決可能。
 - **Minecraft MCP サーバーに行動ツールを追加。** `follow_player`（プレイヤー追従）、`go_to`（座標移動）、`collect_block`（ブロック採集）、`stop`（移動停止）の 4 ツールを `minecraft-actions.ts` に実装。mineflayer-pathfinder の GoalFollow/GoalNear/GoalGetToBlock を使用。
 - **Minecraft 状態要約レイヤーとイベントログ整備。** `observe_state` が自然言語要約テキストを返すように変更（体力♥バー、hostile mob ⚠ 表示、インベントリ1行要約）。BotEvent に `importance` フィールド（low/medium/high）を追加し、health イベントをスロットリング（体力変化5以上 or 体力5以下のみ記録）。playerJoined/playerLeft/timeChange/weatherChange の新イベント種別を追加。`get_recent_events` に importance フィルタを追加しテキスト形式で出力。アクション状態（idle/following/moving/collecting）をトラッキング。要約関数は `minecraft-state-summary.ts`、ヘルパーは `minecraft-helpers.ts` に分離しテスト完備。
+- **Minecraft アクションのジョブシステム化。** `go_to` / `collect_block` / `follow_player` を非同期ジョブ化し、即座に jobId を返すように変更。`JobManager` クラスがシングルジョブの排他制御・自動キャンセル・AbortSignal によるキャンセル伝播・進捗更新を管理。`stop` ツールは `jobManager.cancelCurrentJob()` 経由に統一。`get_job_status` ツールを追加しジョブ履歴の確認が可能。`minecraft-bot-queries.ts` にヘルパー関数を切り出しファイル分割を推進。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -69,6 +70,7 @@
 2. ~~Minecraft サーバーを compose.yaml にコンテナとして追加~~ **完了**
 3. ~~`follow_player` / `go_to` / `collect_block` / `stop` の最小実装~~ **完了**
 4. ~~Minecraft 状態要約レイヤーとイベントログ整備~~ **完了**
+5. ~~Minecraft アクションのジョブシステム化~~ **完了**
 
 ## 6. ブロッカー
 

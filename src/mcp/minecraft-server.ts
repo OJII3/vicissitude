@@ -6,9 +6,17 @@ import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
 import { registerActionTools } from "./minecraft-actions.ts";
-import { IMPORTANCE_ORDER, getTimePeriod } from "./minecraft-helpers.ts";
-import type { ActionState, Importance } from "./minecraft-helpers.ts";
-import { formatEvents, summarizeState } from "./minecraft-state-summary.ts";
+import {
+	IMPORTANCE_ORDER,
+	getEquipment,
+	getInventorySummary,
+	getNearbyEntities,
+	getTimePeriod,
+	getWeather,
+} from "./minecraft-bot-queries.ts";
+import type { ActionState, Importance } from "./minecraft-bot-queries.ts";
+import { JobManager } from "./minecraft-job-manager.ts";
+import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
 const MC_HOST = process.env.MC_HOST;
@@ -47,6 +55,8 @@ const actionState: ActionState = { type: "idle" };
 function setActionState(state: ActionState): void {
 	actionState.type = state.type;
 	actionState.target = state.target;
+	actionState.jobId = state.jobId;
+	actionState.progress = state.progress;
 }
 
 // ── Bot connection ───────────────────────────────────────────────────────────
@@ -157,58 +167,6 @@ function scheduleReconnect(): void {
 	reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function getWeather(b: mineflayer.Bot): string {
-	if (b.thunderState > 0) return "雷雨";
-	if (b.isRaining) return "雨";
-	return "晴れ";
-}
-
-function getNearbyEntities(
-	b: mineflayer.Bot,
-	limit: number,
-): { name: string; distance: number; type: string }[] {
-	return Object.values(b.entities)
-		.filter((e) => e !== b.entity && e.position)
-		.map((e) => ({
-			name: e.username ?? e.displayName ?? e.name ?? "unknown",
-			distance: Math.round(e.position.distanceTo(b.entity.position)),
-			type: e.type,
-		}))
-		.toSorted((x, y) => x.distance - y.distance)
-		.slice(0, limit);
-}
-
-function getInventorySummary(b: mineflayer.Bot): {
-	items: { name: string; count: number }[];
-	emptySlots: number;
-} {
-	const items = b.inventory
-		.items()
-		.map((item) => ({ name: item.displayName ?? item.name, count: item.count }));
-	const totalSlots = b.inventory.slots.length;
-	const usedSlots = b.inventory.items().length;
-	return { items, emptySlots: totalSlots - usedSlots };
-}
-
-function getEquipment(b: mineflayer.Bot): Record<string, string> {
-	const result: Record<string, string> = {};
-	const slots: [string, number][] = [
-		["head", 5],
-		["chest", 6],
-		["legs", 7],
-		["feet", 8],
-		["offhand", 45],
-	];
-	for (const [name, idx] of slots) {
-		const item = b.inventory.slots[idx];
-		if (item) result[name] = item.displayName ?? item.name;
-	}
-	const hand = b.heldItem;
-	if (hand) result.hand = hand.displayName ?? hand.name;
-	return result;
-}
-
 // ── MCP Server ───────────────────────────────────────────────────────────────
 const server = new McpServer({
 	name: "minecraft",
@@ -264,7 +222,28 @@ server.tool(
 	},
 );
 
-registerActionTools(server, () => bot, pushEvent, setActionState);
+const jobManager = new JobManager(pushEvent, setActionState);
+
+registerActionTools(server, () => bot, jobManager);
+
+server.tool(
+	"get_job_status",
+	"現在のジョブ状態と直近のジョブ履歴を取得する",
+	{
+		limit: z
+			.number()
+			.min(1)
+			.max(20)
+			.default(5)
+			.describe("取得するジョブ履歴数（デフォルト: 5、最大: 20）"),
+	},
+	({ limit }) => {
+		const current = jobManager.getCurrentJob();
+		const recent = jobManager.getRecentJobs(limit);
+		const text = formatJobStatus(current, recent);
+		return { content: [{ type: "text", text }] };
+	},
+);
 
 // ── Startup ──────────────────────────────────────────────────────────────────
 bot = createBot();

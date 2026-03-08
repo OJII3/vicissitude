@@ -80,12 +80,15 @@ Minecraft ワールドに接続中のボットを操作する。
 - `get_recent_events(limit?, importance?)` - 直近のイベントログをテキスト形式で取得する
   - limit: 取得件数（デフォルト: 10、最大: 50）
   - importance: 最低重要度フィルタ（"low" | "medium" | "high"、省略時は全件）
-  - 種類: spawn, death, health, chat, kicked, damage, disconnect, playerJoined, playerLeft, timeChange, weatherChange, follow, navigation, collect, stop
+  - 種類: spawn, death, health, chat, kicked, damage, disconnect, playerJoined, playerLeft, timeChange, weatherChange, job
   - 各イベントには重要度（low/medium/high）が付与される
-- `follow_player(username, range?)` - 指定プレイヤーへの追従を開始する
-- `go_to(x, y, z, range?)` - 指定座標への移動を実行する
-- `collect_block(blockName, count?, maxDistance?)` - 指定ブロックを探して採集する
-- `stop` - 現在の移動・追従を停止する
+- `follow_player(username, range?)` - 指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す、range デフォルト: 3）
+- `go_to(x, y, z, range?)` - 指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）
+- `collect_block(blockName, count?, maxDistance?)` - 指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、進捗更新あり）
+- `stop` - 現在のジョブ（移動・追従・採集）を停止する
+- `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
+  - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
+  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
 
 ### 組み込みツール（OpenCode SDK）
 
