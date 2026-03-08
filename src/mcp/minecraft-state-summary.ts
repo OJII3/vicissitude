@@ -5,7 +5,7 @@ import {
 	formatHealthBar,
 	formatInventoryText,
 } from "./minecraft-helpers.ts";
-import type { ActionState, Importance } from "./minecraft-helpers.ts";
+import type { ActionState, Importance, JobInfo } from "./minecraft-helpers.ts";
 
 export interface BotStateInput {
 	position: { x: number; y: number; z: number };
@@ -74,6 +74,43 @@ export interface BotEventInput {
 	kind: string;
 	description: string;
 	importance: Importance;
+}
+
+const JOB_STATUS_LABELS: Record<JobInfo["status"], string> = {
+	running: "実行中",
+	completed: "完了",
+	failed: "失敗",
+	cancelled: "キャンセル",
+};
+
+function formatJobLine(job: JobInfo): string {
+	const status = JOB_STATUS_LABELS[job.status];
+	const time = job.startedAt.toISOString().slice(11, 16);
+	let line = `[${time}] ${status}: ${job.type} → ${job.target}`;
+	if (job.error) line += ` (${job.error})`;
+	return line;
+}
+
+/** ジョブステータスをテキスト形式で返す */
+export function formatJobStatus(current: JobInfo | null, recent: JobInfo[]): string {
+	const lines: string[] = [];
+
+	lines.push("## 現在のジョブ");
+	if (current) {
+		lines.push(formatJobLine(current));
+	} else {
+		lines.push("なし");
+	}
+
+	if (recent.length > 0) {
+		lines.push("");
+		lines.push("## ジョブ履歴");
+		for (const job of recent) {
+			lines.push(formatJobLine(job));
+		}
+	}
+
+	return lines.join("\n");
 }
 
 /** イベントリストをテキスト形式に変換する */

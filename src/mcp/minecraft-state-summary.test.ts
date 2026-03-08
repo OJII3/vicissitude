@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatEvents, summarizeState } from "./minecraft-state-summary.ts";
+import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
 import type { BotEventInput, BotStateInput } from "./minecraft-state-summary.ts";
+import type { JobInfo } from "./minecraft-helpers.ts";
 
 function makeState(overrides: Partial<BotStateInput> = {}): BotStateInput {
 	return {
@@ -152,5 +153,59 @@ describe("formatEvents", () => {
 		expect(result).toBe(
 			"[2026-03-09T18:03:00Z] playerJoined: ojii3 が参加\n[2026-03-09T18:05:00Z] timeChange: 夜になった",
 		);
+	});
+});
+
+describe("formatJobStatus", () => {
+	function makeJob(overrides: Partial<JobInfo> = {}): JobInfo {
+		return {
+			id: "job-1",
+			type: "moving",
+			target: "(10, 64, -20)",
+			status: "running",
+			startedAt: new Date("2026-03-09T18:00:00Z"),
+			...overrides,
+		};
+	}
+
+	test("現在のジョブがない場合", () => {
+		const result = formatJobStatus(null, []);
+		expect(result).toContain("## 現在のジョブ");
+		expect(result).toContain("なし");
+		expect(result).not.toContain("## ジョブ履歴");
+	});
+
+	test("現在のジョブがある場合", () => {
+		const current = makeJob();
+		const result = formatJobStatus(current, []);
+		expect(result).toContain("実行中: moving → (10, 64, -20)");
+	});
+
+	test("ジョブ履歴を表示する", () => {
+		const recent = [
+			makeJob({
+				id: "job-1",
+				status: "completed",
+				target: "A",
+				finishedAt: new Date("2026-03-09T18:01:00Z"),
+			}),
+			makeJob({
+				id: "job-2",
+				status: "failed",
+				target: "B",
+				error: "パスなし",
+				finishedAt: new Date("2026-03-09T18:02:00Z"),
+			}),
+		];
+		const result = formatJobStatus(null, recent);
+		expect(result).toContain("## ジョブ履歴");
+		expect(result).toContain("完了: moving → A");
+		expect(result).toContain("失敗: moving → B (パスなし)");
+	});
+
+	test("キャンセル済みジョブの表示", () => {
+		const recent = [makeJob({ status: "cancelled", target: "C" })];
+		const result = formatJobStatus(null, recent);
+		expect(result).toContain("キャンセル: moving → C");
 	});
 });

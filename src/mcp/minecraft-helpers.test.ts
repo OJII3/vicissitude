@@ -84,4 +84,12 @@ describe("formatActionState", () => {
 		));
 	test("collecting", () =>
 		expect(formatActionState({ type: "collecting", target: "oak_log" })).toBe("oak_log を採集中"));
+	test("collecting with progress", () =>
+		expect(
+			formatActionState({ type: "collecting", target: "oak_log", progress: "3/10 採集済み" }),
+		).toBe("oak_log を採集中 (3/10 採集済み)"));
+	test("moving with progress", () =>
+		expect(
+			formatActionState({ type: "moving", target: "(10, 64, -20)", progress: "移動中..." }),
+		).toBe("(10, 64, -20) へ移動中 (移動中...)"));
 });

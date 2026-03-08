@@ -3,6 +3,20 @@ export type Importance = "low" | "medium" | "high";
 export interface ActionState {
 	type: "idle" | "following" | "moving" | "collecting";
 	target?: string;
+	jobId?: string;
+	progress?: string;
+}
+
+export type JobStatus = "running" | "completed" | "failed" | "cancelled";
+
+export interface JobInfo {
+	id: string;
+	type: ActionState["type"];
+	target: string;
+	status: JobStatus;
+	startedAt: Date;
+	finishedAt?: Date;
+	error?: string;
 }
 
 export const IMPORTANCE_ORDER: Record<Importance, number> = { low: 1, medium: 2, high: 3 };
@@ -100,14 +114,20 @@ export function formatEntityEntry(entity: {
 
 /** アクション状態を表示用テキストに変換する */
 export function formatActionState(action: ActionState): string {
+	let base: string;
 	switch (action.type) {
 		case "idle":
 			return "待機中";
 		case "following":
-			return `${action.target ?? "?"} を追従中`;
+			base = `${action.target ?? "?"} を追従中`;
+			break;
 		case "moving":
-			return `${action.target ?? "?"} へ移動中`;
+			base = `${action.target ?? "?"} へ移動中`;
+			break;
 		case "collecting":
-			return `${action.target ?? "?"} を採集中`;
+			base = `${action.target ?? "?"} を採集中`;
+			break;
 	}
+	if (action.progress) base += ` (${action.progress})`;
+	return base;
 }
