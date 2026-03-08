@@ -16,10 +16,18 @@ interface ScreenshotOptions {
 	viewDistance?: number;
 }
 
-function timeoutPromise(ms: number): Promise<void> {
-	return new Promise<void>((_resolve, reject) => {
-		setTimeout(() => reject(new Error("チャンクレンダリングがタイムアウトしました")), ms);
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | "timeout"> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<"timeout">((_resolve) => {
+		timer = setTimeout(() => _resolve("timeout"), ms);
 	});
+	return Promise.race([
+		promise.then((v) => {
+			clearTimeout(timer);
+			return v;
+		}),
+		timeout,
+	]);
 }
 
 function savePngBuffer(buffer: Buffer): string {
@@ -31,7 +39,25 @@ function savePngBuffer(buffer: Buffer): string {
 	return filePath;
 }
 
-// eslint-disable-next-line max-lines-per-function -- dynamic imports inflate line count
+// Module-level cache for dynamic imports (initialized once)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic import cache; typed at usage site
+let cachedModules: Record<string, any> | null = null;
+
+async function loadModules() {
+	if (cachedModules) return cachedModules;
+
+	const THREE = await import("three");
+	const { createCanvas } = await import("node-canvas-webgl");
+	const { Viewer, WorldView, getBufferFromStream } = await import("prismarine-viewer/viewer");
+
+	// @ts-expect-error prismarine-viewer requires global THREE
+	global.THREE = THREE;
+
+	cachedModules = { THREE, createCanvas, Viewer, WorldView, getBufferFromStream };
+	return cachedModules;
+}
+
+// eslint-disable-next-line max-lines-per-function -- rendering setup requires sequential steps
 export async function takeScreenshot(
 	bot: mineflayer.Bot,
 	options?: ScreenshotOptions,
@@ -40,12 +66,7 @@ export async function takeScreenshot(
 	const height = options?.height ?? 512;
 	const viewDistance = options?.viewDistance ?? 4;
 
-	const THREE = await import("three");
-	const { createCanvas } = await import("node-canvas-webgl");
-	const { Viewer, WorldView, getBufferFromStream } = await import("prismarine-viewer/viewer");
-
-	// @ts-expect-error prismarine-viewer requires global THREE
-	global.THREE = THREE;
+	const { THREE, createCanvas, Viewer, WorldView, getBufferFromStream } = await loadModules();
 
 	const canvas = createCanvas(width, height);
 	const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -59,10 +80,8 @@ export async function takeScreenshot(
 		viewer.listen(worldView);
 		await worldView.init(bot.entity.position);
 
-		// Timeout is non-fatal — render whatever is loaded
-		await Promise.race([viewer.waitForChunksToRender(), timeoutPromise(RENDER_TIMEOUT_MS)]).catch(
-			() => {},
-		);
+		// Wait for chunks; timeout is non-fatal — render whatever is loaded
+		await withTimeout(viewer.waitForChunksToRender(), RENDER_TIMEOUT_MS);
 
 		renderer.render(viewer.scene, viewer.camera);
 
