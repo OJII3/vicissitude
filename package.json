@@ -27,7 +27,10 @@
 		"discord.js": "^14.25.1",
 		"fenghuang": "github:OJII3/fenghuang",
 		"mineflayer": "^4.35.0",
-		"mineflayer-pathfinder": "^2.4.5"
+		"mineflayer-pathfinder": "^2.4.5",
+		"node-canvas-webgl": "^0.3.0",
+		"prismarine-viewer": "^1.33.0",
+		"three": "^0.183.2"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",

@@ -3,8 +3,8 @@
 ### discord サーバー
 
 - `send_typing(channel_id)` - タイピングインジケーター送信（8秒間隔で自動リピート、send_message/reply で自動停止、60秒タイムアウト）
-- `send_message(channel_id, content)` - チャンネルにメッセージ送信
-- `reply(channel_id, message_id, content)` - メッセージに返信
+- `send_message(channel_id, content, file_path?)` - チャンネルにメッセージ送信（オプションでファイル添付）
+- `reply(channel_id, message_id, content, file_path?)` - メッセージに返信（オプションでファイル添付）
 - `add_reaction(channel_id, message_id, emoji)` - リアクション追加
 - `read_messages(channel_id, limit?)` - チャンネルの最近のメッセージを読む
 - `list_channels(guild_id)` - サーバーのテキストチャンネル一覧
@@ -89,6 +89,12 @@ Minecraft ワールドに接続中のボットを操作する。
 - `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
   - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
   - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
+- `take_screenshot(width?, height?)` - ボット視点のスクリーンショットを撮影する（PNG形式）
+  - width: 画像の幅（デフォルト: 512、範囲: 64-1920）
+  - height: 画像の高さ（デフォルト: 512、範囲: 64-1080）
+  - 戻り値: テキスト（保存パス）+ PNG 画像（MCP image content type）
+  - チャンクレンダリング 10 秒タイムアウト付き
+  - 画像は `send_message` の `file_path` で Discord に送信可能
 
 ### 組み込みツール（OpenCode SDK）
 

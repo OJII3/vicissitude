@@ -1,9 +1,21 @@
+import path from "node:path";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Client, GatewayIntentBits } from "discord.js";
 import { z } from "zod";
 
 import { filterImageUrls } from "../infrastructure/discord/discord-attachment-mapper.ts";
+
+const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
+
+function validateFilePath(filePath: string): void {
+	const resolved = path.resolve(filePath);
+	const allowed = ALLOWED_FILE_DIRS.some((dir) => resolved.startsWith(dir + "/"));
+	if (!allowed) {
+		throw new Error(`許可されていないファイルパスです: ${filePath}`);
+	}
+}
 
 const discordClient = new Client({
 	intents: [
@@ -69,25 +81,44 @@ server.tool(
 
 server.tool(
 	"send_message",
-	"Send a message to a Discord channel",
-	{ channel_id: z.string(), content: z.string() },
-	async ({ channel_id, content }) => {
+	"Send a message to a Discord channel (optionally with a file attachment)",
+	{
+		channel_id: z.string(),
+		content: z.string(),
+		file_path: z.string().optional().describe("添付するファイルのパス"),
+	},
+	async ({ channel_id, content, file_path }) => {
 		clearTyping(channel_id);
 		const channel = await getTextChannel(channel_id);
-		const msg = await channel.send(content);
+		const options: { content: string; files?: { attachment: string }[] } = { content };
+		if (file_path) {
+			validateFilePath(file_path);
+			options.files = [{ attachment: file_path }];
+		}
+		const msg = await channel.send(options);
 		return { content: [{ type: "text", text: `Sent message ${msg.id}` }] };
 	},
 );
 
 server.tool(
 	"reply",
-	"Reply to a specific message in a Discord channel",
-	{ channel_id: z.string(), message_id: z.string(), content: z.string() },
-	async ({ channel_id, message_id, content }) => {
+	"Reply to a specific message in a Discord channel (optionally with a file attachment)",
+	{
+		channel_id: z.string(),
+		message_id: z.string(),
+		content: z.string(),
+		file_path: z.string().optional().describe("添付するファイルのパス"),
+	},
+	async ({ channel_id, message_id, content, file_path }) => {
 		clearTyping(channel_id);
 		const channel = await getTextChannel(channel_id);
 		const target = await channel.messages.fetch(message_id);
-		const msg = await target.reply(content);
+		const options: { content: string; files?: { attachment: string }[] } = { content };
+		if (file_path) {
+			validateFilePath(file_path);
+			options.files = [{ attachment: file_path }];
+		}
+		const msg = await target.reply(options);
 		return { content: [{ type: "text", text: `Replied with message ${msg.id}` }] };
 	},
 );
