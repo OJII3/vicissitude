@@ -13,8 +13,9 @@ import {
 	getNearbyEntities,
 	getTimePeriod,
 	getWeather,
+	type ActionState,
+	type Importance,
 } from "./minecraft-bot-queries.ts";
-import type { ActionState, Importance } from "./minecraft-bot-queries.ts";
 import { JobManager } from "./minecraft-job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
 
@@ -242,6 +243,33 @@ server.tool(
 		const recent = jobManager.getRecentJobs(limit);
 		const text = formatJobStatus(current, recent);
 		return { content: [{ type: "text", text }] };
+	},
+);
+
+server.tool(
+	"take_screenshot",
+	"ボット視点のスクリーンショットを撮影する（PNG形式）",
+	{
+		width: z.number().min(64).max(1920).default(512).describe("画像の幅（デフォルト: 512）"),
+		height: z.number().min(64).max(1080).default(512).describe("画像の高さ（デフォルト: 512）"),
+	},
+	async ({ width, height }) => {
+		if (!bot?.entity) {
+			return { content: [{ type: "text" as const, text: "ボット未接続" }] };
+		}
+		try {
+			const { takeScreenshot } = await import("./minecraft-screenshot.ts");
+			const { filePath, base64 } = await takeScreenshot(bot, { width, height });
+			return {
+				content: [
+					{ type: "text" as const, text: `スクリーンショットを保存しました: ${filePath}` },
+					{ type: "image" as const, data: base64, mimeType: "image/png" },
+				],
+			};
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			return { content: [{ type: "text" as const, text: `スクリーンショット失敗: ${message}` }] };
+		}
 	},
 );
 

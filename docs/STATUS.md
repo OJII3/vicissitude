@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-job-system
+- ブランチ: feat/take-screenshot
 
 ## 2. 現在の真実（Project Truth）
 
@@ -40,6 +40,8 @@
 - **Minecraft MCP サーバーに行動ツールを追加。** `follow_player`（プレイヤー追従）、`go_to`（座標移動）、`collect_block`（ブロック採集）、`stop`（移動停止）の 4 ツールを `minecraft-actions.ts` に実装。mineflayer-pathfinder の GoalFollow/GoalNear/GoalGetToBlock を使用。
 - **Minecraft 状態要約レイヤーとイベントログ整備。** `observe_state` が自然言語要約テキストを返すように変更（体力♥バー、hostile mob ⚠ 表示、インベントリ1行要約）。BotEvent に `importance` フィールド（low/medium/high）を追加し、health イベントをスロットリング（体力変化5以上 or 体力5以下のみ記録）。playerJoined/playerLeft/timeChange/weatherChange の新イベント種別を追加。`get_recent_events` に importance フィルタを追加しテキスト形式で出力。アクション状態（idle/following/moving/collecting）をトラッキング。要約関数は `minecraft-state-summary.ts`、ヘルパーは `minecraft-helpers.ts` に分離しテスト完備。
 - **Minecraft アクションのジョブシステム化。** `go_to` / `collect_block` / `follow_player` を非同期ジョブ化し、即座に jobId を返すように変更。`JobManager` クラスがシングルジョブの排他制御・自動キャンセル・AbortSignal によるキャンセル伝播・進捗更新を管理。`stop` ツールは `jobManager.cancelCurrentJob()` 経由に統一。`get_job_status` ツールを追加しジョブ履歴の確認が可能。`minecraft-bot-queries.ts` にヘルパー関数を切り出しファイル分割を推進。
+- **`take_screenshot` MCP ツールを実装。** `prismarine-viewer` + `node-canvas-webgl` + `three` によるヘッドレスレンダリングでボット一人称視点の PNG スクリーンショットを撮影。MCP `image` content type で AI が画像を直接認識可能。チャンクレンダリング 10 秒タイムアウト付き。Containerfile に Node.js / Cairo / Mesa / Xvfb を追加し `xvfb-run` で起動。
+- **Discord MCP サーバーの `send_message` / `reply` に `file_path` パラメータを追加。** オプショナルなファイル添付送信に対応し、スクリーンショット画像の Discord 送信が可能。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -71,8 +73,8 @@
 3. ~~`follow_player` / `go_to` / `collect_block` / `stop` の最小実装~~ **完了**
 4. ~~Minecraft 状態要約レイヤーとイベントログ整備~~ **完了**
 5. ~~Minecraft アクションのジョブシステム化~~ **完了**
-6. `take_screenshot` ツール実装（`prismarine-viewer` ヘッドレスレンダリング、Bun 互換性検証含む）
-7. Discord MCP サーバーに画像添付送信機能を追加
+6. ~~`take_screenshot` ツール実装（`prismarine-viewer` ヘッドレスレンダリング、Bun 互換性検証含む）~~ **完了**
+7. ~~Discord MCP サーバーに画像添付送信機能を追加~~ **完了**
 8. `craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` の実装
 
 ## 6. ブロッカー

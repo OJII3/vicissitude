@@ -44,7 +44,7 @@ OpenCode が使用する MCP サーバーを提供する。
 
 1. **discord**: Discord チャンネルへの読み書き
    - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`（画像 URL をメッセージに含む）, `list_channels`
-   - `send_message` / `reply` はオプションで画像ファイルパスを受け取り、添付ファイルとして送信可能（計画）
+   - `send_message` / `reply` はオプションで画像ファイルパス（`file_path`）を受け取り、添付ファイルとして送信可能（実装済み）
 2. **code-exec**: コード実行
    - `execute_code` (JavaScript, TypeScript, Python, Shell)
 3. **schedule**: Heartbeat スケジュール管理
@@ -66,14 +66,16 @@ OpenCode が使用する MCP サーバーを提供する。
    - `go_to`: 指定地点へ移動（実装済み）
    - `collect_block`: 指定ブロックを採集（実装済み）
    - `stop`: 現在の移動・追従を停止（実装済み）
+   - `get_job_status`: ジョブ状態・履歴取得（実装済み）
+   - `take_screenshot`: ボット視点のスクリーンショットを撮影（実装済み）
+     - `prismarine-viewer` + `node-canvas-webgl` + `three` によるヘッドレスレンダリング
+     - MCP `image` content type で AI が画像を直接認識可能
+     - 撮影した画像は `send_message` の `file_path` で Discord に送信可能
    - `craft_item`: 指定アイテムをクラフト（計画）
    - `place_block`: 指定ブロックを設置（計画）
    - `equip_item`: アイテム装備（計画）
    - `sleep_in_bed`: 就寝を試行（計画）
    - `send_chat`: Minecraft 内チャット送信（計画）
-   - `take_screenshot`: ボット視点のスクリーンショットを撮影し画像ファイルとして保存（計画）
-     - `prismarine-viewer` のヘッドレスレンダリングを使用
-     - 撮影した画像は Discord に送信可能
 
 #### OpenCode SDK 組み込みツール
 
