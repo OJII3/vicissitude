@@ -73,7 +73,7 @@
 5. ~~Minecraft アクションのジョブシステム化~~ **完了**
 6. `take_screenshot` ツール実装（`prismarine-viewer` ヘッドレスレンダリング、Bun 互換性検証含む）
 7. Discord MCP サーバーに画像添付送信機能を追加
-8. `craft_item` / `equip_item` / `sleep_in_bed` / `send_chat` の実装
+8. `craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` の実装
 
 ## 6. ブロッカー
 
