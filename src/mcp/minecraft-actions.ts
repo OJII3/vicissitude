@@ -4,7 +4,13 @@ import { Movements, goals } from "mineflayer-pathfinder";
 import { z } from "zod";
 
 type GetBot = () => mineflayer.Bot | null;
-type PushEvent = (kind: string, description: string) => void;
+type Importance = "low" | "medium" | "high";
+type PushEvent = (kind: string, description: string, importance: Importance) => void;
+interface ActionState {
+	type: "idle" | "following" | "moving" | "collecting";
+	target?: string;
+}
+type SetActionState = (state: ActionState) => void;
 type TextResult = { content: { type: "text"; text: string }[] };
 
 const MAX_COLLECT_COUNT = 64;
@@ -55,7 +61,12 @@ async function collectBlocks(
 	return collected;
 }
 
-function registerFollowPlayer(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
+function registerFollowPlayer(
+	server: McpServer,
+	getBot: GetBot,
+	pushEvent: PushEvent,
+	setActionState: SetActionState,
+): void {
 	server.tool(
 		"follow_player",
 		"指定プレイヤーへの追従を開始する",
@@ -75,22 +86,30 @@ function registerFollowPlayer(server: McpServer, getBot: GetBot, pushEvent: Push
 			ensureMovements(bot);
 			bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
 
+			setActionState({ type: "following", target: username });
+
 			// 対象プレイヤーがログアウトしたら自動停止
 			const onPlayerLeft = (player: { username: string }) => {
 				if (player.username === username) {
 					bot.pathfinder.stop();
-					pushEvent("follow", `${username} がログアウトしたため追従を停止`);
+					setActionState({ type: "idle" });
+					pushEvent("follow", `${username} がログアウトしたため追従を停止`, "medium");
 				}
 			};
 			bot.once("playerLeft", onPlayerLeft);
 
-			pushEvent("follow", `${username} への追従を開始（range: ${String(range)}）`);
+			pushEvent("follow", `${username} への追従を開始（range: ${String(range)}）`, "medium");
 			return textResult(`${username} への追従を開始しました（range: ${String(range)}）`);
 		},
 	);
 }
 
-function registerGoTo(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
+function registerGoTo(
+	server: McpServer,
+	getBot: GetBot,
+	pushEvent: PushEvent,
+	setActionState: SetActionState,
+): void {
 	server.tool(
 		"go_to",
 		"指定座標への移動を実行する",
@@ -106,20 +125,28 @@ function registerGoTo(server: McpServer, getBot: GetBot, pushEvent: PushEvent): 
 
 			ensureMovements(bot);
 			const coord = `(${String(x)}, ${String(y)}, ${String(zCoord)})`;
+			setActionState({ type: "moving", target: coord });
 			try {
 				await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
-				pushEvent("navigation", `${coord} に到達`);
+				setActionState({ type: "idle" });
+				pushEvent("navigation", `${coord} に到達`, "medium");
 				return textResult(`${coord} に到達しました`);
 			} catch (err) {
+				setActionState({ type: "idle" });
 				const msg = err instanceof Error ? err.message : String(err);
-				pushEvent("navigation", `${coord} への移動に失敗: ${msg}`);
+				pushEvent("navigation", `${coord} への移動に失敗: ${msg}`, "medium");
 				return textResult(`移動に失敗しました: ${msg}`);
 			}
 		},
 	);
 }
 
-function registerCollectBlock(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
+function registerCollectBlock(
+	server: McpServer,
+	getBot: GetBot,
+	pushEvent: PushEvent,
+	setActionState: SetActionState,
+): void {
 	server.tool(
 		"collect_block",
 		"指定ブロックを探して採集する（最適ツールを自動装備）",
@@ -142,34 +169,48 @@ function registerCollectBlock(server: McpServer, getBot: GetBot, pushEvent: Push
 			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
 			ensureMovements(bot);
+			setActionState({ type: "collecting", target: blockName });
 			try {
 				const collected = await collectBlocks(bot, blockType.id, maxDistance, count);
+				setActionState({ type: "idle" });
 				const progress = `${String(collected)}/${String(count)}`;
-				pushEvent("collect", `${blockName} を ${progress} 個採集`);
+				pushEvent("collect", `${blockName} を ${progress} 個採集`, "low");
 				return textResult(`${blockName} を ${progress} 個採集しました`);
 			} catch (err) {
+				setActionState({ type: "idle" });
 				const msg = err instanceof Error ? err.message : String(err);
-				pushEvent("collect", `${blockName} の採集中にエラー: ${msg}`);
+				pushEvent("collect", `${blockName} の採集中にエラー: ${msg}`, "low");
 				return textResult(`${blockName} の採集中にエラー: ${msg}`);
 			}
 		},
 	);
 }
 
-function registerStop(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
+function registerStop(
+	server: McpServer,
+	getBot: GetBot,
+	pushEvent: PushEvent,
+	setActionState: SetActionState,
+): void {
 	server.tool("stop", "現在の移動・追従を停止する", {}, () => {
 		const bot = getBot();
 		if (!bot?.entity) return textResult("ボット未接続");
 
 		bot.pathfinder.stop();
-		pushEvent("stop", "移動を停止");
+		setActionState({ type: "idle" });
+		pushEvent("stop", "移動を停止", "low");
 		return textResult("移動を停止しました");
 	});
 }
 
-export function registerActionTools(server: McpServer, getBot: GetBot, pushEvent: PushEvent): void {
-	registerFollowPlayer(server, getBot, pushEvent);
-	registerGoTo(server, getBot, pushEvent);
-	registerCollectBlock(server, getBot, pushEvent);
-	registerStop(server, getBot, pushEvent);
+export function registerActionTools(
+	server: McpServer,
+	getBot: GetBot,
+	pushEvent: PushEvent,
+	setActionState: SetActionState,
+): void {
+	registerFollowPlayer(server, getBot, pushEvent, setActionState);
+	registerGoTo(server, getBot, pushEvent, setActionState);
+	registerCollectBlock(server, getBot, pushEvent, setActionState);
+	registerStop(server, getBot, pushEvent, setActionState);
 }
