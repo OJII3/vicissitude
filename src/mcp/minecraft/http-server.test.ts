@@ -5,6 +5,23 @@ import { startHttpServer } from "./http-server.ts";
 
 // テスト用ポート（他と競合しない高ポート）
 const TEST_PORT = 49_731;
+const TEST_PORT_ERROR = 49_732;
+
+const MCP_INIT_BODY = JSON.stringify({
+	jsonrpc: "2.0",
+	id: 1,
+	method: "initialize",
+	params: {
+		protocolVersion: "2025-03-26",
+		capabilities: {},
+		clientInfo: { name: "test", version: "0.1.0" },
+	},
+});
+
+const MCP_HEADERS = {
+	"Content-Type": "application/json",
+	Accept: "application/json, text/event-stream",
+};
 
 function createTestServer(): McpServer {
 	return new McpServer({ name: "test", version: "0.1.0" });
@@ -51,24 +68,67 @@ describe("MCP HTTP Server ライフサイクル", () => {
 		test("POST /mcp はセッション無しで新規セッションを作成する", async () => {
 			const res = await fetch(`${baseUrl}/mcp`, {
 				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Accept: "application/json, text/event-stream",
-				},
-				body: JSON.stringify({
-					jsonrpc: "2.0",
-					id: 1,
-					method: "initialize",
-					params: {
-						protocolVersion: "2025-03-26",
-						capabilities: {},
-						clientInfo: { name: "test", version: "0.1.0" },
-					},
-				}),
+				headers: MCP_HEADERS,
+				body: MCP_INIT_BODY,
 			});
-			// 初期化成功 → セッション ID がヘッダに含まれる
 			expect(res.status).toBe(200);
 			expect(res.headers.get("mcp-session-id")).toBeTruthy();
 		});
+	});
+
+	describe("セッション再利用", () => {
+		test("セッション ID 付きリクエストで既存セッションが再利用される", async () => {
+			// セッション作成
+			const initRes = await fetch(`${baseUrl}/mcp`, {
+				method: "POST",
+				headers: MCP_HEADERS,
+				body: MCP_INIT_BODY,
+			});
+			const sessionId = initRes.headers.get("mcp-session-id");
+			expect(sessionId).toBeTruthy();
+
+			// 同じセッション ID でリクエスト
+			const res = await fetch(`${baseUrl}/mcp`, {
+				method: "POST",
+				headers: { ...MCP_HEADERS, "mcp-session-id": sessionId ?? "" },
+				body: JSON.stringify({
+					jsonrpc: "2.0",
+					id: 2,
+					method: "tools/list",
+				}),
+			});
+			expect(res.status).toBe(200);
+		});
+
+		test("存在しないセッション ID は 400 を返す", async () => {
+			const res = await fetch(`${baseUrl}/mcp`, {
+				method: "GET",
+				headers: { "mcp-session-id": "nonexistent-session-id" },
+			});
+			expect(res.status).toBe(400);
+		});
+	});
+});
+
+function createFailingServer(): McpServer {
+	throw new Error("factory error");
+}
+
+describe("createServer 例外ハンドリング", () => {
+	const { cleanupTimer, closeAllSessions } = startHttpServer(createFailingServer, TEST_PORT_ERROR);
+	const baseUrl = `http://localhost:${TEST_PORT_ERROR}`;
+
+	afterAll(() => {
+		clearInterval(cleanupTimer);
+		closeAllSessions();
+	});
+
+	test("createServer が例外をスローすると 500 を返す", async () => {
+		const res = await fetch(`${baseUrl}/mcp`, {
+			method: "POST",
+			headers: MCP_HEADERS,
+			body: MCP_INIT_BODY,
+		});
+		expect(res.status).toBe(500);
 	});
 });
