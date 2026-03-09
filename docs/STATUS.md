@@ -17,6 +17,7 @@
 - **Minecraft MCP。** mineflayer ベース。行動ツール、ジョブシステム、マルチセッション対応。
 - **Ollama コンテナ化。** `compose.yaml` で `ollama` サービスを運用。`embeddinggemma` モデル自動プル。
 - **画像添付サポート。** `image/png`, `image/jpeg`, `image/gif`, `image/webp`。
+- **Lint 依存方向ルール。** `no-restricted-imports` の overrides で ARCHITECTURE.md の依存方向マトリクスを静的に強制。`import/first`, `import/no-mutable-exports`, `import/no-anonymous-default-export` も追加。
 - `nr validate` (fmt:check + lint + check) 通過。Graceful shutdown 実装済み。
 
 ## 3. 確定済み方針
@@ -40,6 +41,7 @@
 ## 5. 直近タスク
 
 - M7-M11 全完了。PR #93 レビュー修正済み。テスト全219件パス。
+- Lint 依存方向ルール追加済み。`EventBuffer` を `core/types.ts` に移動し違反解消。
 - 未移植テストの追加。
 
 ## 6. ブロッカー
