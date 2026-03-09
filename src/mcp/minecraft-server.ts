@@ -277,29 +277,52 @@ server.tool(
 // ── HTTP Server ──────────────────────────────────────────────────────────────
 bot = createBot();
 const MC_MCP_PORT = Number(process.env.MC_MCP_PORT ?? "3001");
-const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
+// 30 分
+const SESSION_TTL_MS = 30 * 60 * 1000;
+// 5 分ごとに掃除
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+interface SessionEntry {
+	transport: WebStandardStreamableHTTPServerTransport;
+	lastAccess: number;
+}
+const sessions = new Map<string, SessionEntry>();
+
+// 孤立セッションの定期クリーンアップ
+const sessionCleanupTimer = setInterval(() => {
+	const now = Date.now();
+	for (const [id, entry] of sessions) {
+		if (now - entry.lastAccess > SESSION_TTL_MS) {
+			entry.transport.close().catch(() => {});
+			sessions.delete(id);
+		}
+	}
+}, SESSION_CLEANUP_INTERVAL_MS);
 
 Bun.serve({
 	port: MC_MCP_PORT,
 	async fetch(req) {
 		if (new URL(req.url).pathname !== "/mcp") return new Response("Not Found", { status: 404 });
 		const sessionId = req.headers.get("mcp-session-id");
-		const existing = sessionId ? transports.get(sessionId) : undefined;
-		if (existing) return existing.handleRequest(req);
+		const entry = sessionId ? sessions.get(sessionId) : undefined;
+		if (entry) {
+			entry.lastAccess = Date.now();
+			return entry.transport.handleRequest(req);
+		}
 		if (req.method === "POST" && !sessionId) {
 			const t = new WebStandardStreamableHTTPServerTransport({
 				sessionIdGenerator: () => crypto.randomUUID(),
 				onsessioninitialized: (id) => {
-					transports.set(id, t);
+					sessions.set(id, { transport: t, lastAccess: Date.now() });
 				},
 				onsessionclosed: (id) => {
-					transports.delete(id);
+					sessions.delete(id);
 				},
 			});
 			/* oxlint-disable-next-line prefer-add-event-listener -- SDK callback property */
 			t.onclose = () => {
 				const id = t.sessionId;
-				if (id) transports.delete(id);
+				if (id) sessions.delete(id);
 			};
 			await server.connect(t);
 			return t.handleRequest(req);
@@ -311,6 +334,7 @@ console.error(`[minecraft] MCP server listening on port ${MC_MCP_PORT}`);
 
 const shutdown = (): void => {
 	shuttingDown = true;
+	clearInterval(sessionCleanupTimer);
 	if (reconnectTimer) {
 		clearTimeout(reconnectTimer);
 		reconnectTimer = null;
