@@ -66,6 +66,8 @@
 - `PollingAgent` のコンストラクタ引数が 8 個に増加。`port` / `providerId` / `modelId` を設定オブジェクトにまとめることを将来的に検討。
 - `GuildRoutingAgent.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
 - Ollama コンテナのイメージタグが `latest` 固定。再現性向上のためバージョン固定を将来的に検討。
+- `setupShutdown()` の位置引数が 12 個に膨張。オプション引数を設定オブジェクトにまとめるリファクタリングを検討。
+- `minecraft-server.ts` が `max-lines`（300行制限）を超過し `oxlint-disable` で回避中。ボット接続・イベント登録を別ファイルに分離することを検討。
 
 ## 5. 直近タスク
 
