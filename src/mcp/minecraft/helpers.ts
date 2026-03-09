@@ -1,7 +1,7 @@
 export type Importance = "low" | "medium" | "high";
 
 export interface ActionState {
-	type: "idle" | "following" | "moving" | "collecting" | "crafting" | "sleeping";
+	type: "idle" | "following" | "moving" | "collecting" | "crafting" | "sleeping" | "fleeing";
 	target?: string;
 	jobId?: string;
 	progress?: string;
@@ -132,6 +132,9 @@ export function formatActionState(action: ActionState): string {
 			break;
 		case "sleeping":
 			base = `${action.target ?? "?"} で就寝中`;
+			break;
+		case "fleeing":
+			base = `${action.target ?? "?"} から逃走中`;
 			break;
 	}
 	if (action.progress) base += ` (${action.progress})`;

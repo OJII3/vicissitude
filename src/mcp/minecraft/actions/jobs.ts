@@ -5,16 +5,15 @@ import type { Recipe } from "prismarine-recipe";
 import { z } from "zod";
 
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
+import {
+	type GetBot,
+	collectBedIds,
+	ensureMovements,
+	registerAbortHandler,
+	textResult,
+} from "./shared.ts";
 
 const MAX_CRAFT_COUNT = 64;
-
-/** ベッドブロック名の色リスト（16 色） */
-// prettier-ignore
-const BED_COLORS = [
-	"white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
-	"light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black",
-];
 
 /** レシピを検索し、作業台が必要かどうかも返す */
 function findRecipe(
@@ -30,16 +29,6 @@ function findRecipe(
 	if (firstTable) return { recipe: firstTable, needTable: true };
 
 	return null;
-}
-
-/** レジストリからベッドブロック ID を全色分収集する */
-function collectBedIds(bot: mineflayer.Bot): number[] {
-	const ids: number[] = [];
-	for (const color of BED_COLORS) {
-		const bed = bot.registry.blocksByName[`${color}_bed`];
-		if (bed) ids.push(bed.id);
-	}
-	return ids;
 }
 
 /** wake イベントまたは abort で解決する Promise を返す */

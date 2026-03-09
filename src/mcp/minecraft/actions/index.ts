@@ -10,6 +10,7 @@ import {
 	registerStop,
 } from "./movement.ts";
 import type { GetBot } from "./shared.ts";
+import { registerSurvivalTools } from "./survival.ts";
 
 export function registerActionTools(
 	server: McpServer,
@@ -25,4 +26,5 @@ export function registerActionTools(
 	registerPlaceBlock(server, getBot);
 	registerCraftItem(server, getBot, jobManager);
 	registerSleepInBed(server, getBot, jobManager);
+	registerSurvivalTools(server, getBot, jobManager);
 }
