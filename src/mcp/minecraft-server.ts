@@ -348,3 +348,7 @@ const shutdown = (): void => {
 };
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
+process.on("uncaughtException", (err) =>
+	console.error("[minecraft] uncaughtException:", err.message),
+);
+process.on("unhandledRejection", (err) => console.error("[minecraft] unhandledRejection:", err));
