@@ -77,7 +77,9 @@ export class FenghuangConversationRecorder implements ConversationRecorder, Memo
 		return instance.consolidation.consolidate(guildId);
 	}
 
-	close(): void {
+	async close(): Promise<void> {
+		// 進行中の record() を全て待ってから storage を閉じる
+		await Promise.allSettled(this.locks.values());
 		for (const { storage } of this.instances.values()) {
 			storage.close();
 		}

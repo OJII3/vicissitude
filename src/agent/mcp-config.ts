@@ -2,7 +2,7 @@ import { resolve } from "path";
 
 import type { McpServerConfig } from "./profile.ts";
 
-export const BASE_PORT = 4096;
+const DEFAULT_BASE_PORT = 4096;
 
 /**
  * MCP サーバー設定を返す。
@@ -10,6 +10,7 @@ export const BASE_PORT = 4096;
  */
 export function mcpServerConfigs(options?: { guildId?: string }) {
 	const root = resolve(import.meta.dirname, "../..");
+	const basePort = Number(process.env.OPENCODE_BASE_PORT ?? String(DEFAULT_BASE_PORT));
 
 	const configs: Record<string, McpServerConfig> = {
 		core: {
@@ -17,7 +18,7 @@ export function mcpServerConfigs(options?: { guildId?: string }) {
 			command: ["bun", "run", resolve(root, "src/mcp/core-server.ts")],
 			environment: {
 				DISCORD_TOKEN: process.env.DISCORD_TOKEN ?? "",
-				LTM_OPENCODE_PORT: String(BASE_PORT - 1),
+				LTM_OPENCODE_PORT: String(basePort - 1),
 				LTM_PROVIDER_ID:
 					process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
 				LTM_MODEL_ID: process.env.LTM_MODEL_ID ?? "gpt-4o",

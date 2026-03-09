@@ -13,7 +13,7 @@ import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
 
 export interface EventBuffer {
-	append(event: BufferedEvent): void | Promise<void>;
+	append(event: BufferedEvent): void;
 	waitForEvents(signal: AbortSignal): Promise<void>;
 }
 
@@ -58,9 +58,9 @@ export class AgentRunner implements AiAgent {
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 	}
 
-	async send(options: SendOptions): Promise<AgentResponse> {
+	send(options: SendOptions): Promise<AgentResponse> {
 		const { message, guildId, attachments } = options;
-		await this.eventBuffer.append({
+		this.eventBuffer.append({
 			ts: new Date().toISOString(),
 			channelId: "system",
 			guildId: guildId ?? this.guildId,
@@ -73,7 +73,7 @@ export class AgentRunner implements AiAgent {
 			isMentioned: false,
 			isThread: false,
 		});
-		return { text: "", sessionId: "polling" };
+		return Promise.resolve({ text: "", sessionId: "polling" });
 	}
 
 	async startPollingLoop(): Promise<void> {
@@ -210,7 +210,7 @@ export class AgentRunner implements AiAgent {
 				);
 			}
 			realId = created.data.id;
-			await this.sessionStore.save(this.profile.name, sessionKey, realId);
+			this.sessionStore.save(this.profile.name, sessionKey, realId);
 			this.sessionCreatedAt = Date.now();
 		}
 
@@ -236,7 +236,7 @@ export class AgentRunner implements AiAgent {
 			);
 		}
 
-		await this.sessionStore.delete(this.profile.name, sessionKey);
+		this.sessionStore.delete(this.profile.name, sessionKey);
 		this.sessionCreatedAt = null;
 
 		const hours = Math.round(age / 3_600_000);

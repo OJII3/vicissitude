@@ -8,7 +8,10 @@ import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../../core/config.ts";
 import type { HeartbeatConfig, HeartbeatReminder } from "../../core/types.ts";
 import { createDefaultHeartbeatConfig } from "../../core/types.ts";
 
-const CONFIG_PATH = resolve(import.meta.dirname, "../../..", HEARTBEAT_CONFIG_RELATIVE_PATH);
+const DATA_DIR = process.env.DATA_DIR;
+const CONFIG_PATH = DATA_DIR
+	? resolve(DATA_DIR, "heartbeat-config.json")
+	: resolve(import.meta.dirname, "../../..", HEARTBEAT_CONFIG_RELATIVE_PATH);
 
 function loadConfig(): HeartbeatConfig {
 	if (!existsSync(CONFIG_PATH)) return createDefaultHeartbeatConfig();

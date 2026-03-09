@@ -42,7 +42,7 @@ export function recordLtmMessage(
 export function bufferIncomingMessage(db: StoreDb, msg: IncomingMessage, logger: Logger): void {
 	if (!msg.content && msg.attachments.length === 0) return;
 	if (!msg.guildId) {
-		logger.warn(`[bootstrap] No guildId for message, dropping event`);
+		logger.warn(`[message-handlers] No guildId for message, dropping event`);
 		return;
 	}
 

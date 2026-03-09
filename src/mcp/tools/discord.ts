@@ -1,4 +1,4 @@
-import { realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -10,7 +10,11 @@ import { filterImageUrls } from "../../gateway/discord-attachment-mapper.ts";
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 
 function validateFilePath(filePath: string): void {
-	const resolved = realpathSync(path.resolve(filePath));
+	const absolute = path.resolve(filePath);
+	if (!existsSync(absolute)) {
+		throw new Error(`ファイルが見つかりません: ${filePath}`);
+	}
+	const resolved = realpathSync(absolute);
 	const allowed = ALLOWED_FILE_DIRS.some((dir) => resolved.startsWith(dir + "/"));
 	if (!allowed) {
 		throw new Error(`許可されていないファイルパスです: ${filePath}`);

@@ -250,7 +250,9 @@ async function startMinecraftMcp(
 	if (!config.minecraft) return null;
 
 	const mcEnv: Record<string, string> = {
-		...(process.env as Record<string, string>),
+		// 子プロセスに必要な環境変数のみを明示的に渡す
+		PATH: process.env.PATH ?? "",
+		HOME: process.env.HOME ?? "",
 		MC_HOST: config.minecraft.host,
 		MC_PORT: String(config.minecraft.port),
 		MC_USERNAME: config.minecraft.username,
