@@ -1,321 +1,325 @@
-# PLAN.md
+# PLAN.md — v2: アーキテクチャ再設計
 
 ## 1. 方針
 
-- 小さく作って早く動かす。
-- 複雑な最適化より、会話体験と運用しやすさを優先する。
-- Clean Architecture の原則に従い、テスタビリティを重視する。
+- OpenCode SDK を AI ランタイムとして維持しつつ、周辺設計を洗練する。
+- Clean Architecture の過剰な儀式（14 ポート、5 ユースケース）を廃止し、責務別フラットモジュールに移行。
+- 永続化を SQLite（Drizzle ORM）に統一し、JSON/JSONL の脆弱性を解消。
+- MCP サーバーを 3 プロセスに統合（core / code-exec / minecraft）。
+- AgentProfile + AgentRunner でエージェント種の抽象化と将来のオーケストレーションに備える。
+- ブートストラップを 1 ファイルに集約し、AbortController でライフサイクル管理。
 
-## 2. 完了済みマイルストーン
+## 2. 完了済みマイルストーン（旧 PLAN より引き継ぎ）
 
-### M1: Clean Architecture 移行 ✅
+- M1: Clean Architecture 移行 ✅
+- M2: 品質強化・既知バグ修正 ✅
+- M3: 堅牢性強化 ✅
+- M4: 機能拡張（Heartbeat、ホームチャンネル） ✅ ※プラットフォーム抽象化は将来スコープに延期
+- M5: 記憶システム統合（Phase 1-3 全完了） ✅
+- M6: Minecraft 拡張 ✅
 
-成果物:
+## 3. ターゲットディレクトリ構成
 
-- domain / application / infrastructure の 3 層構成
-- ポートベースの DI 配線
-- レガシーコードの削除
+```
+src/
+├── core/                    # 型定義・設定・純粋関数（外部依存なし）
+│   ├── types.ts             # Branded types, 値オブジェクト, エンティティ
+│   ├── config.ts            # Zod スキーマによる設定バリデーション
+│   └── functions.ts         # splitMessage, evaluateDueReminders 等
+│
+├── agent/                   # OpenCode エージェント基盤
+│   ├── profile.ts           # AgentProfile 型定義
+│   ├── runner.ts            # AgentRunner（旧 PollingAgent を汎用化）
+│   ├── router.ts            # GuildRouter（旧 GuildRoutingAgent）
+│   ├── context-builder.ts   # システムプロンプト構築（旧 FileContextLoader）
+│   ├── session-store.ts     # セッション永続化（SQLite）
+│   └── profiles/            # 各エージェント種のプロファイル定義
+│       └── conversation.ts  # 会話エージェント（現行の唯一のプロファイル）
+│
+├── gateway/                 # 外部世界との接点
+│   ├── discord.ts           # DiscordGateway（簡素化）
+│   └── scheduler.ts         # Heartbeat + Consolidation スケジューラ
+│
+├── mcp/                     # MCP サーバー（独立プロセス）
+│   ├── core-server.ts       # 統合エントリポイント
+│   ├── code-exec-server.ts  # コード実行（セキュリティ隔離）
+│   ├── minecraft/           # Minecraft（現行維持）
+│   │   └── ...
+│   └── tools/               # ツール定義（register* 関数）
+│       ├── discord.ts
+│       ├── memory.ts
+│       ├── schedule.ts
+│       ├── event-buffer.ts
+│       └── ltm.ts
+│
+├── store/                   # SQLite 統一永続化
+│   ├── db.ts                # Drizzle クライアント初期化
+│   ├── schema.ts            # 全テーブル定義
+│   ├── migrations/          # マイグレーションファイル
+│   └── queries.ts           # 共通クエリヘルパー
+│
+├── observability/           # ログ・メトリクス
+│   ├── logger.ts            # ConsoleLogger（現行踏襲）
+│   └── metrics.ts           # PrometheusCollector + Server
+│
+└── bootstrap.ts             # DI 配線 + エントリポイント（1 ファイル）
+```
 
-完了条件:
+## 4. 再設計マイルストーン
 
-- 依存方向ルールが守られている
+### M7: 基盤層 — core/ + store/
+
+**概要**: 型定義・設定・SQLite 永続化の土台を構築する。既存コードと並行して新モジュールを作成し、段階的に移行する。
+
+**成果物**:
+
+1. `core/types.ts` — Branded types（`GuildId`, `SessionKey`, `ChannelId`）と全エンティティ型を集約
+2. `core/config.ts` — Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す
+3. `core/functions.ts` — `splitMessage()`, `evaluateDueReminders()` を移動
+4. `store/schema.ts` — Drizzle スキーマ定義（sessions, reminders, emoji_usage, event_buffer, episodes, semantic_facts）
+5. `store/db.ts` — DB 初期化 + マイグレーション
+6. `store/queries.ts` — 共通クエリヘルパー
+7. `store/migrations/` — 初期マイグレーション
+
+**依存追加**: `drizzle-orm`, `drizzle-kit` (devDependency)
+
+**完了条件**:
+
+- `loadConfig()` が全環境変数をバリデーションし、不正値で起動時にエラーを出す
+- SQLite DB が `data/vicissitude.db` に作成される
+- 既存 JSON データからのマイグレーションスクリプトが動作する
 - `nr validate` が通る
-- 既存機能（メンション応答・スレッド応答）が動作する
+- `bun test` で core/ と store/ のテストが通る
 
-### M2: 品質強化・既知バグ修正 ✅
+**チーム割り当て**:
 
-成果物:
+| エージェント | 担当                                                   | 備考                                   |
+| ------------ | ------------------------------------------------------ | -------------------------------------- |
+| agent-core   | `core/types.ts`, `core/config.ts`, `core/functions.ts` | 既存 domain/ から型と関数を移動・統合  |
+| agent-store  | `store/` 全体 + Drizzle 設定                           | スキーマ定義、マイグレーション、クエリ |
 
-- ユニットテスト（domain / application）
-- 既知バグの修正（詳細は STATUS.md 参照）
-- エラーハンドリングの改善
+---
 
-完了条件:
+### M8: MCP サーバー統合
 
-- `splitMessage()` と `HandleIncomingMessageUseCase` のテストが通る
-- エラーメッセージが Discord に漏洩しない
-- セッション再作成時にコンテキストが正しく system prompt として注入される
+**概要**: 5 つの MCP サーバー（discord, memory, schedule, event-buffer, ltm）を 1 つの `core-server` に統合する。ツール定義を `mcp/tools/` に分離し、将来の再分割に備える。
 
-### M3: 堅牢性強化 ✅
+**成果物**:
 
-成果物:
+1. `mcp/tools/discord.ts` — `registerDiscordTools(server, deps)` 関数
+2. `mcp/tools/memory.ts` — `registerMemoryTools(server, deps)` 関数
+3. `mcp/tools/schedule.ts` — `registerScheduleTools(server, deps)` 関数
+4. `mcp/tools/event-buffer.ts` — `registerEventBufferTools(server, deps)` 関数（SQLite ベース）
+5. `mcp/tools/ltm.ts` — `registerLtmTools(server, deps)` 関数
+6. `mcp/core-server.ts` — 全ツールを組み立てる統合エントリポイント
+7. event-buffer を SQLite ベースに移行（JSONL 廃止）
 
-- セッション永続化の競合対策
-- Graceful shutdown の実装
-- Logger の統一利用
+**前提**: M7 の store/ が完成していること
 
-完了条件:
+**完了条件**:
 
-- 同時メッセージでファイル破損が起きない
-- SIGINT/SIGTERM で正常終了する
-- 全コンポーネントが Logger ポート経由でログ出力する
+- `core-server.ts` が単一プロセスで全ツールを提供する
+- `code-exec-server.ts` は変更なし（独立維持）
+- `minecraft/` は変更なし（独立維持）
+- OpenCode から全ツールが呼べることを手動確認
+- 既存の JSONL イベントバッファが SQLite に置き換わっている
+- `nr validate` が通る
 
-### M4: 機能拡張（一部完了）
+**チーム割り当て**:
 
-成果物:
+| エージェント      | 担当                                                                       | 備考                                            |
+| ----------------- | -------------------------------------------------------------------------- | ----------------------------------------------- |
+| agent-mcp-discord | `mcp/tools/discord.ts`                                                     | 既存 discord-server.ts からツール定義を抽出     |
+| agent-mcp-memory  | `mcp/tools/memory.ts`, `mcp/tools/ltm.ts`                                  | 既存 memory-server.ts + ltm-server.ts を統合    |
+| agent-mcp-infra   | `mcp/tools/schedule.ts`, `mcp/tools/event-buffer.ts`, `mcp/core-server.ts` | 統合サーバーの組み立て + event-buffer SQLite 化 |
 
-- ~~heartbeat（定期実行）~~ ✅ 実装済み
-- ~~チャンネル限定フィルタリング~~ ✅ ホームチャンネル機能として実装済み
-- プラットフォーム抽象化（`"discord"` ハードコードの解消）— 未着手
+---
 
-### M5: 記憶システム統合 ✅
+### M9: エージェント抽象化
 
-ファイルベースメモリと LTM の責任範囲を段階的に整理し、重複を解消する。
+**概要**: `PollingAgent` を `AgentProfile` + `AgentRunner` に分解し、エージェント種の追加を容易にする。
 
-#### Phase 1: LTM ファクトをシステムプロンプトに注入 ✅
+**成果物**:
 
-成果物:
+1. `agent/profile.ts` — `AgentProfile` 型定義（name, buildSystemPrompt, mcpServers, builtinTools, pollingPrompt, model）
+2. `agent/runner.ts` — `AgentRunner` クラス（旧 PollingAgent から profile 固有ロジックを除去し汎用化）
+3. `agent/router.ts` — `GuildRouter`（旧 GuildRoutingAgent）
+4. `agent/context-builder.ts` — `ContextBuilder`（旧 FileContextLoader + Factory を統合、LTM ファクト注入を SQLite 化）
+5. `agent/session-store.ts` — セッション永続化を SQLite に移行
+6. `agent/profiles/conversation.ts` — 現行の会話エージェントプロファイル
 
-- `LtmFactReader` ポート（domain 層）
-- `FenghuangFactReader` アダプタ（infrastructure 層、SQLite 読み取り専用）
-- `FileContextLoader` への `<ltm-facts>` セクション注入
-- `composition-root.ts` の DI 配線更新
-- `context/HEARTBEAT.md` に `ltm_consolidate` 定期実行の追記
+**前提**: M7（store/）が完成していること。M8 と並行可能。
 
-#### Phase 2: MEMORY.md のスリム化 ✅
+**完了条件**:
 
-成果物:
+- `AgentRunner` が任意の `AgentProfile` を受け取って動作する
+- 会話エージェントが `profiles/conversation.ts` のプロファイルで現行と同じ動作をする
+- セッション永続化が `data/sessions.json` → SQLite に移行済み
+- `nr validate` が通る
 
-- MEMORY.md テンプレートの更新（運用設定・行動ルール・週次目標に限定）
-- HEARTBEAT.md の memory-update 手順更新
-- TOOLS.md の `update_memory` 説明更新
+**チーム割り当て**:
 
-#### Phase 3: 日次ログ再設計 + LESSONS.md 整理 ✅
+| エージェント     | 担当                                                                                   | 備考                              |
+| ---------------- | -------------------------------------------------------------------------------------- | --------------------------------- |
+| agent-agent-core | `agent/profile.ts`, `agent/runner.ts`, `agent/router.ts`                               | PollingAgent のリファクタリング   |
+| agent-agent-ctx  | `agent/context-builder.ts`, `agent/session-store.ts`, `agent/profiles/conversation.ts` | コンテキスト構築 + セッション移行 |
 
-成果物:
+---
 
-- 日次ログの記録内容を限定（heartbeat 実行記録・自省メモのみ）
-- LESSONS.md 更新時に LTM guideline ファクトを参照する運用手順
+### M10: ブートストラップ + ゲートウェイ簡素化
 
-## 3. リスクレジスタ
+**概要**: 4 ファイルのブートストラップを 1 ファイルに統合。DiscordGateway とスケジューラを gateway/ に移動。AbortController でライフサイクルを統一。
 
-| ID  | リスク                                  | 影響                   | 対策                                                                                                                                   |
-| --- | --------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| R1  | AI が返信しすぎる / しなさすぎる        | 会話体験の悪化         | コンテキストドキュメントで制御                                                                                                         |
-| R2  | セッションファイルの同時書き込み競合    | データ破損             | 書き込みキューまたは SQLite 移行                                                                                                       |
-| R3  | OpenCode セッションのリモート消失       | コンテキスト注入漏れ   | 毎回 system prompt で注入するため解消                                                                                                  |
-| R4  | code-exec MCP にサンドボックスなし      | RCE                    | ✅ Podman コンテナ化実装済み                                                                                                           |
-| R5  | エラーメッセージの Discord 漏洩         | 内部情報露出           | 汎用メッセージ返却 + ログのみ記録                                                                                                      |
-| R6  | テストゼロ状態でのリグレッション        | 品質低下               | M2 で最低限のテスト追加                                                                                                                |
-| R7  | MEMORY.md スリム化時の情報ロス          | 会話品質低下           | Phase 1 完了後に Phase 2 実施、観察期間を設ける                                                                                        |
-| R8  | LTM ファクトのノイズ混入                | プロンプト品質低下     | 件数上限 + カテゴリ優先度ソートで対策                                                                                                  |
-| R9  | Minecraft 状態の LLM コンテキスト過負荷 | 応答品質低下           | 要約レイヤー + イベント駆動で対策                                                                                                      |
-| R10 | prismarine-viewer の Bun 互換性         | スクリーンショット不可 | Node.js ネイティブモジュール依存（node-canvas-webgl 等）のため Bun で動作しない可能性。事前検証し、必要なら Node.js サブプロセスで実行 |
+**成果物**:
 
-## 4. 完了定義（DoD）
+1. `bootstrap.ts` — 1 ファイルの DI 配線 + エントリポイント
+2. `gateway/discord.ts` — DiscordGateway（簡素化、イベントルーティングを直接記述）
+3. `gateway/scheduler.ts` — Heartbeat + Consolidation スケジューラを統合
+4. `observability/logger.ts` — ConsoleLogger 移動
+5. `observability/metrics.ts` — PrometheusCollector + Server 移動
+6. AbortController ベースの graceful shutdown
 
-- `SPEC.md` の受け入れ条件を満たす。
-- コード変更はレビュー可能な最小差分である。
-- ドキュメントが現在の挙動と矛盾しない。
-- `STATUS.md` が作業ごとに更新されている。
-- `nr validate` が通る。
+**前提**: M8, M9 が完成していること
 
-## 5. Minecraft 拡張計画（M6）
+**完了条件**:
 
-### 概要
+- `bootstrap.ts` が唯一の DI 配線ファイル
+- `composition-root.ts`, `bootstrap-context.ts`, `bootstrap-helpers.ts`, `bootstrap-agents.ts` を削除
+- 旧 `domain/`, `application/`, `infrastructure/` ディレクトリを完全削除
+- graceful shutdown が `controller.abort()` 一発で動作
+- `nr validate` が通る
+- `bun test` が通る
+- 手動動作確認（Discord 応答、Heartbeat、Minecraft）
 
-既存の Discord 雑談 AI エージェント `vicissitude` に Minecraft プレイ能力を追加する。
+**チーム割り当て**:
 
-### 目標
+| エージェント        | 担当                                                  | 備考                           |
+| ------------------- | ----------------------------------------------------- | ------------------------------ |
+| agent-bootstrap     | `bootstrap.ts`, shutdown ロジック                     | 全配線の統合                   |
+| agent-gateway       | `gateway/discord.ts`, `gateway/scheduler.ts`          | ゲートウェイ移動 + 簡素化      |
+| agent-observability | `observability/logger.ts`, `observability/metrics.ts` | 移動のみ、ロジック変更は最小限 |
 
-既存の「人間っぽい雑談 AI」の人格と記憶機能を維持したまま、Minecraft 上で基本的な行動を行えるようにする。
+---
 
-最重要目標は以下の両立:
+### M11: クリーンアップ + ドキュメント更新
 
-1. Discord 上で自然に雑談できること
-2. Minecraft 上で簡単な自律行動ができること
-3. 情報過多でエージェントがパンクしないこと
+**概要**: 旧コードの完全削除、ドキュメント更新、最終検証。
 
-### 既存アーキテクチャの活用
+**成果物**:
 
-既存システムにはすでに以下がある:
+1. 旧 MCP サーバー（`discord-server.ts`, `memory-server.ts`, `schedule-server.ts`, `event-buffer-server.ts`, `ltm-server.ts`）の削除
+2. `docs/ARCHITECTURE.md` の全面更新
+3. `docs/STATUS.md` の更新
+4. `docs/RUNBOOK.md` の更新（新コマンド体系に合わせて）
+5. `docs/SPEC.md` の更新（新アーキテクチャに合わせて）
+6. `CLAUDE.md` の更新
 
-- Discord bot
-- 記憶機能
-- opencode をバックエンドとした LLM agent 実行
-- MCP ベースのツール呼び出し構成
-- event-buffer / memory / ltm / schedule などの MCP サーバー
+**完了条件**:
 
-今回やるべきことはエージェント基盤の総入れ替えではなく、Minecraft を新しい MCP ツール群として追加すること。
+- `src/` 配下にターゲット構成以外のファイルがない
+- 全ドキュメントが新アーキテクチャを反映している
+- `nr validate` が通る
+- `bun test` が通る
+- デプロイして本番動作確認
 
-### 基本方針
+## 5. マイルストーン依存グラフ
 
-方針は「人格は 1 つ、内部は分業」。
+```
+M7 (core/ + store/)
+├──→ M8 (MCP 統合)──────→ M10 (bootstrap + gateway)──→ M11 (cleanup)
+└──→ M9 (agent 抽象化)──→ M10
+```
 
-外から見える人格は既存の Discord 雑談エージェントのまま維持する。
-一方で Minecraft の状態や行動は、そのまま巨大な文脈として LLM に渡さず、MCP ツールと要約レイヤーを通して扱う。
+- M8 と M9 は M7 完了後に並行着手可能
+- M10 は M8, M9 の両方が完了してから着手
+- M11 は M10 完了後
 
-重要な考え方:
+## 6. チーム構成（Agent Team）
 
-- 会話人格は 1 つに保つ
-- Minecraft の低レベル操作は mineflayer に任せる
-- LLM は高レベル判断に集中させる
-- 状態は常に要約して渡す
-- 毎 tick LLM に判断させない
-- イベント駆動で考える
+各マイルストーンで以下のチーム構成を使用する:
 
-### 技術方針
+### リーダー: team-lead
 
-#### 1) MCP サーバーによる Minecraft 統合
+- タスクの分割・割り当て
+- マイルストーン境界での統合テスト
+- コンフリクト解決
 
-新しい `minecraft` MCP server を追加する。
+### ワーカーエージェント（マイルストーンごとに spawn/shutdown）
 
-この MCP server は内部で mineflayer bot を保持し、Minecraft サーバーへの接続・移動・採集・クラフトなどを担当する。
+**M7**:
 
-LLM/opencode は直接 Minecraft を制御しない。
-代わりに MCP ツールとして高レベル API を呼ぶ。
+- `agent-core`: core/ 全般（型、設定、純粋関数）
+- `agent-store`: store/ 全般（Drizzle スキーマ、DB、マイグレーション）
 
-#### 2) opencode を現行 LLM バックエンドとして維持
+**M8**:
 
-opencode は現時点では置き換えない。
-既存の agent loop と MCP 呼び出し構成をそのまま活かす。
+- `agent-mcp-discord`: Discord ツール抽出
+- `agent-mcp-memory`: Memory + LTM ツール統合
+- `agent-mcp-infra`: Schedule + EventBuffer + core-server 統合
 
-今回の目的は新しいエージェントフレームワークへの移行ではなく、Minecraft 能力の追加である。
+**M9**:
 
-#### 3) コンテキスト過負荷の防止
+- `agent-agent-core`: AgentProfile / Runner / Router
+- `agent-agent-ctx`: ContextBuilder / SessionStore / Profiles
 
-Minecraft の生データをそのまま LLM に流さない。
+**M10**:
 
-例えば以下のような raw 情報を直接毎回渡すのは避ける:
+- `agent-bootstrap`: bootstrap.ts + shutdown
+- `agent-gateway`: discord.ts + scheduler.ts
+- `agent-observability`: logger.ts + metrics.ts
 
-- 詳細な周辺ブロック一覧
-- 毎 tick の座標変化
-- すべての視界情報
-- 長大なイベントログ
+**M11**:
 
-代わりに、要約済み状態だけを LLM に見せる:
+- `agent-cleanup`: 旧コード削除 + ドキュメント更新（1 エージェントで十分）
 
-- 現在地の概要
-- 体力 / 空腹
-- 時間帯（昼 / 夜）
-- 近くの危険
-- インベントリの重要アイテム
-- 現在の目標
-- 直近の重要イベント
+## 7. リスクレジスタ
 
-### 初期実装スコープ
+| ID  | リスク                                    | 影響                 | 対策                                                                                    |
+| --- | ----------------------------------------- | -------------------- | --------------------------------------------------------------------------------------- |
+| R1  | SQLite マイグレーション中のデータロス     | 記憶・セッション消失 | JSON → SQLite のマイグレーションスクリプトを先に作成・テスト                            |
+| R2  | MCP 統合で OpenCode との接続不良          | bot 停止             | 段階的に統合（まず 2 サーバーを統合して検証、残りを追加）                               |
+| R3  | Drizzle ORM の Bun 互換性問題             | ビルド不可           | `better-sqlite3` ドライバで事前検証。問題があれば `bun:sqlite` 直接使用にフォールバック |
+| R4  | event-buffer の SQLite 化でポーリング遅延 | 応答遅延             | SQLite WAL モード + NOTIFY 相当の仕組み（fs.watch or polling）で即時性を維持            |
+| R5  | 大規模リファクタリング中の本番不安定      | サービス停止         | 各マイルストーン完了時にデプロイ・検証。問題があれば旧コードに revert 可能な状態を維持  |
+| R6  | fenghuang ライブラリの SQLite 統合        | LTM 機能後退         | fenghuang は現行の独立 SQLite を維持し、core DB とは別管理とする選択肢を残す            |
 
-最初の実装では、複雑な完全自律ではなく「基本行動 + 雑談との共存」を目指す。
+## 8. 完了定義（DoD）
 
-#### 初期サポート機能
+- `nr validate` が通る
+- `bun test` が通る
+- ドキュメント（ARCHITECTURE.md, STATUS.md）が現在の実装と一致する
+- 手動動作確認: Discord 応答、Heartbeat 自律行動、Minecraft 接続（MC_HOST 設定時）
+- 旧ディレクトリ・旧ファイルが `src/` に残っていない
+- PR は各マイルストーン単位でマージする
 
-- Minecraft サーバーへの接続
-- 状態取得
-- 指定プレイヤーへの追従
-- 指定地点への移動
-- 木材や簡単なブロックの採集
-- 基本的なクラフト
-- 道具装備
-- ベッドで睡眠
-- Minecraft 内チャット送信
-- 直近イベント取得
-- ボット視点のスクリーンショット撮影・Discord 送信
+## 9. 設計判断の根拠（ADR 的メモ）
 
-#### 初期行動スタイル
+### なぜポート層を廃止するか
 
-最初は「高度な長期計画」よりも「短い行動の安定実行」を優先する。
+- 14 ポート中、テストでモック差し替えされるのは 2-3 個
+- 実装が 1 つしかないインターフェースは **Speculative Generality**（YAGNI 違反）
+- テスト時に差し替えが必要な箇所は、コンストラクタ引数に関数を渡せばよい
 
-例:
+### なぜユースケース層を廃止するか
 
-- プレイヤーについてくる
-- 木を切る
-- 夜になったら寝ようとする
-- 危険なら軽く退避する
-- Discord 上で今の状況を自然に説明する
+- `BufferEventUseCase` は `eventBuffer.append()` を呼ぶだけ
+- `RecordConversationUseCase` は `recorder.record()` を呼ぶだけ
+- 1 行の委譲をクラスにしても、テスタビリティも可読性も向上しない
 
-### 非目標
+### なぜ Effect-TS を採用しないか
 
-今回の初期実装では以下は目標にしない:
+- 学習コストが高く、コントリビューターの参入障壁になる
+- このプロジェクトの規模では Result 型 + AbortController で十分
+- OpenCode SDK 自体が Promise ベースなので、Effect との相性に懸念
 
-- 完全自律の長期サバイバル
-- 高度な建築計画
-- 複雑な戦闘 AI
-- Minecraft の全知覚を使ったリアルタイム推論
-- エージェント基盤全体の刷新
-- マルチエージェントフレームワークの新規導入
+### なぜ Markdown メモリは SQLite 化しないか
 
-必要以上に複雑化しないこと。
+- AI が MCP ツールで直接読み書きする形式として Markdown が最適
+- SQLite に入れると SQL → Markdown 変換が必要になり、かえって複雑化
+- context/ のオーバーレイパターンは十分に機能している
 
-### 内部責務分離
+### なぜ fenghuang を内製化しないか（R6 関連）
 
-内部責務は以下のように分ける:
-
-#### A) 会話人格レイヤー
-
-既存の Discord 雑談人格。
-ユーザーへの返答文はここが最終的に生成する。
-
-#### B) Minecraft ツールレイヤー
-
-mineflayer を使って実際のゲーム操作を行う層。
-移動・採集・クラフトなどの低レベル行動を担当する。
-
-#### C) Minecraft 状態要約レイヤー
-
-Minecraft の生状態を、LLM が扱いやすい短い要約へ変換する層。
-
-#### D) イベント駆動判断レイヤー
-
-重要イベントが起きたときだけ、LLM が再判断する。
-毎フレーム判断はしない。
-
-### 想定 MCP API
-
-初期段階では、以下のようなツールを想定する:
-
-- `observe_state`
-- `follow_player`
-- `go_to`
-- `collect_block`
-- `craft_item`
-- `place_block`
-- `equip_item`
-- `sleep_in_bed`
-- `send_chat`
-- `get_recent_events`
-- `take_screenshot`
-
-必要なら追加してよいが、まずは最小限で始めること。
-
-### 設計制約
-
-1. **LLM を過負荷にしない**: Minecraft 状態を大量に渡しすぎないこと。
-2. **既存アーキテクチャを不必要に置き換えない**: 既存の opencode + MCP + memory 構成は活かすこと。
-3. **人格を統一する**: 外向きの人格は 1 つに保つこと。内部事情をそのまま喋らせないこと。
-4. **安定したツール実行を優先**: 賢いプロンプトより、安定したツール実行を優先すること。
-5. **イベント駆動を優先**: 状態変化や失敗時のみ再判断する。常時思考させない。
-
-### 具体的な実装タスク
-
-優先順で以下を進める:
-
-1. ~~`minecraft` MCP server の土台を作る~~ ✅
-2. ~~mineflayer bot を起動・接続できるようにする~~ ✅
-3. ~~`observe_state` を実装する~~ ✅
-4. ~~`follow_player` / `go_to` を実装する~~ ✅
-5. ~~`collect_block` を実装する~~ ✅
-6. ~~重要イベントのログを整備する~~ ✅
-7. ~~LLM に渡す Minecraft 状態要約を作る~~ ✅
-8. 既存 agent から Minecraft ツールを呼べるようにする
-9. Discord 雑談と Minecraft 状況説明の整合を取る
-10. `take_screenshot` を実装する（`prismarine-viewer` ヘッドレスレンダリング）
-11. Discord MCP サーバーに画像添付送信機能を追加する
-12. `craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` を実装する
-
-### 実装方針
-
-- TypeScript / Bun ベースを維持する
-- 既存 repo の構造を尊重する
-- まず動く最小構成を作る
-- 抽象化は必要最小限にする
-- 先に interface を完璧化するより、最小の end-to-end 動作を優先する
-
-### 成功条件
-
-初期成功条件は以下:
-
-- Discord から話しかけると、既存人格として自然に返答できる
-- Minecraft に接続した bot が最低限の行動を実行できる
-- bot が現在の Minecraft 状況を簡潔に説明できる
-- 実装が過度に複雑化していない
-- コンテキスト過多で応答品質が崩れていない
+- fenghuang の Episode/SemanticFact モデルと FSRS スケジューリングは十分に機能している
+- 内製化のコストに見合う改善点が現時点では不明確
+- 独立 SQLite のまま運用し、将来必要なら統合を検討する
