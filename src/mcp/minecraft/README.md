@@ -25,21 +25,21 @@ src/mcp/minecraft/
 
 ### 提供ツール
 
-| ツール | 種別 | 説明 |
-|---|---|---|
-| `observe_state` | 観察 | 現在状態の自然言語要約 |
+| ツール              | 種別 | 説明                                      |
+| ------------------- | ---- | ----------------------------------------- |
+| `observe_state`     | 観察 | 現在状態の自然言語要約                    |
 | `get_recent_events` | 観察 | 直近イベント取得（importance フィルタ可） |
-| `get_job_status` | 観察 | 現在・履歴ジョブ |
-| `get_viewer_url` | 観察 | prismarine-viewer URL |
-| `follow_player` | 行動 | プレイヤー追従 |
-| `go_to` | 行動 | 座標移動 |
-| `collect_block` | 行動 | ブロック採集 |
-| `stop` | 行動 | 移動/追従停止 |
-| `craft_item` | 行動 | クラフト（ジョブ） |
-| `sleep_in_bed` | 行動 | 就寝試行（ジョブ） |
-| `equip_item` | 行動 | アイテム装備 |
-| `place_block` | 行動 | ブロック設置 |
-| `send_chat` | 行動 | ゲーム内チャット送信 |
+| `get_job_status`    | 観察 | 現在・履歴ジョブ                          |
+| `get_viewer_url`    | 観察 | prismarine-viewer URL                     |
+| `follow_player`     | 行動 | プレイヤー追従                            |
+| `go_to`             | 行動 | 座標移動                                  |
+| `collect_block`     | 行動 | ブロック採集                              |
+| `stop`              | 行動 | 移動/追従停止                             |
+| `craft_item`        | 行動 | クラフト（ジョブ）                        |
+| `sleep_in_bed`      | 行動 | 就寝試行（ジョブ）                        |
+| `equip_item`        | 行動 | アイテム装備                              |
+| `place_block`       | 行動 | ブロック設置                              |
+| `send_chat`         | 行動 | ゲーム内チャット送信                      |
 
 ### 環境変数
 
@@ -104,17 +104,20 @@ src/mcp/minecraft/
 ### サブブレインの責務
 
 #### Reactive Layer — 生存本能
+
 - 敵 mob 接近時の回避行動
 - 夜間の自動就寝
 - 体力・空腹が低い時の対応（食事、退避）
 - 危険イベントのメインブレインへの即時報告
 
 #### Goal Planner — 自動カリキュラム
+
 - 現在の装備・進捗から次の達成目標を自動発見（tech tree ベース）
 - 目標に向けたサブゴール分解と段階的実行
 - 達成時の記録とメインブレインへの報告
 
 #### Skill Memory — 学習記録
+
 - 成功した行動パターンの自然言語記録
 - 例: 「鉄鉱石は Y=16 以下で多い」「クリーパーは距離を取る」
 - 記録はファイルベース（`data/context/minecraft/MINECRAFT-SKILLS.md`）
@@ -123,14 +126,14 @@ src/mcp/minecraft/
 
 Event Bridge（`store/mc-bridge.ts`）を介した非同期メッセージング:
 
-| 方向 | ツール | 用途 |
-|---|---|---|
-| Main → Sub | `minecraft_delegate(command)` | 高レベル指示（「ダイヤ探して」等） |
-| Main → Sub | `minecraft_start_session()` | サブブレイン起動 |
-| Main → Sub | `minecraft_stop_session()` | サブブレイン停止 |
-| Sub → Main | `mc_report(message, importance)` | 状況報告（発見、達成、危険等） |
-| Main ← Sub | `minecraft_status()` | 現在状態の要約取得 |
-| Main ← Sub | `minecraft_read_reports()` | 未読レポート取得 |
+| 方向       | ツール                           | 用途                               |
+| ---------- | -------------------------------- | ---------------------------------- |
+| Main → Sub | `minecraft_delegate(command)`    | 高レベル指示（「ダイヤ探して」等） |
+| Main → Sub | `minecraft_start_session()`      | サブブレイン起動                   |
+| Main → Sub | `minecraft_stop_session()`       | サブブレイン停止                   |
+| Sub → Main | `mc_report(message, importance)` | 状況報告（発見、達成、危険等）     |
+| Main ← Sub | `minecraft_status()`             | 現在状態の要約取得                 |
+| Main ← Sub | `minecraft_read_reports()`       | 未読レポート取得                   |
 
 ### Minecraft グローバル記憶
 
@@ -149,11 +152,11 @@ context/minecraft/
 
 ### 実装フェーズ
 
-| フェーズ | 概要 | 依存 |
-|---|---|---|
-| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶 | なし |
-| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事） | M12a |
-| **M12c** | 目標管理: 自動カリキュラム + スキル記録 | M12a |
+| フェーズ | 概要                                                 | 依存 |
+| -------- | ---------------------------------------------------- | ---- |
+| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶   | なし |
+| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事）       | M12a |
+| **M12c** | 目標管理: 自動カリキュラム + スキル記録              | M12a |
 | **M12d** | メインブレイン統合: delegate、状態注入、Discord 共有 | M12c |
 
 M12b と M12c は並行着手可能。

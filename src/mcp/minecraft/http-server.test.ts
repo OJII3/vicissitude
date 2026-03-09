@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { startHttpServer } from "./http-server.ts";
