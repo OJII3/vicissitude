@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS heartbeat_config (
 	key TEXT PRIMARY KEY DEFAULT 'default',
 	base_interval_minutes INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
 `;
 
 export function createDb(dataDir: string): StoreDb {

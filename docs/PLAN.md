@@ -7,7 +7,7 @@
 - 永続化を SQLite（Drizzle ORM）に統一し、JSON/JSONL の脆弱性を解消。
 - MCP サーバーを 3 プロセスに統合（core / code-exec / minecraft）。
 - AgentProfile + AgentRunner でエージェント種の抽象化と将来のオーケストレーションに備える。
-- ブートストラップを 1 ファイルに集約し、AbortController でライフサイクル管理。
+- ブートストラップを 1 ファイルに集約し、SIGINT/SIGTERM ハンドリングでライフサイクル管理。
 
 ## 2. 完了済みマイルストーン（旧 PLAN より引き継ぎ）
 
@@ -62,7 +62,11 @@ src/
 │   ├── logger.ts            # ConsoleLogger（現行踏襲）
 │   └── metrics.ts           # PrometheusCollector + Server
 │
-└── bootstrap.ts             # DI 配線 + エントリポイント（1 ファイル）
+├── fenghuang/               # fenghuang LTM アダプタ
+├── ollama/                  # Ollama 埋め込みアダプタ
+│
+├── bootstrap.ts             # DI 配線 + エントリポイント（1 ファイル）
+└── index.ts                 # アプリケーションエントリポイント
 ```
 
 ## 4. 再設計マイルストーン
@@ -168,7 +172,7 @@ src/
 
 ### M10: ブートストラップ + ゲートウェイ簡素化
 
-**概要**: 4 ファイルのブートストラップを 1 ファイルに統合。DiscordGateway とスケジューラを gateway/ に移動。AbortController でライフサイクルを統一。
+**概要**: 4 ファイルのブートストラップを 1 ファイルに統合。DiscordGateway とスケジューラを gateway/ に移動。SIGINT/SIGTERM ハンドリングで graceful shutdown。
 
 **成果物**:
 
@@ -177,7 +181,7 @@ src/
 3. `gateway/scheduler.ts` — Heartbeat + Consolidation スケジューラを統合
 4. `observability/logger.ts` — ConsoleLogger 移動
 5. `observability/metrics.ts` — PrometheusCollector + Server 移動
-6. AbortController ベースの graceful shutdown
+6. SIGINT/SIGTERM ハンドリングで graceful shutdown
 
 **前提**: M8, M9 が完成していること
 
@@ -186,7 +190,7 @@ src/
 - `bootstrap.ts` が唯一の DI 配線ファイル
 - `composition-root.ts`, `bootstrap-context.ts`, `bootstrap-helpers.ts`, `bootstrap-agents.ts` を削除
 - 旧 `domain/`, `application/`, `infrastructure/` ディレクトリを完全削除
-- graceful shutdown が `controller.abort()` 一発で動作
+- graceful shutdown が SIGINT/SIGTERM ハンドリングで動作
 - `nr validate` が通る
 - `bun test` が通る
 - 手動動作確認（Discord 応答、Heartbeat、Minecraft）

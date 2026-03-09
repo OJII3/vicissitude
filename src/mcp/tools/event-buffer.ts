@@ -25,11 +25,13 @@ async function pollEvents(
 	guildId: string,
 	deadlineMs: number,
 ): Promise<string | null> {
-	if (Date.now() >= deadlineMs) return null;
-	await sleep(1000);
-	const rows = consumeEvents(db, guildId);
-	if (rows.length > 0) return formatEvents(rows);
-	return pollEvents(db, guildId, deadlineMs);
+	while (Date.now() < deadlineMs) {
+		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
+		await sleep(1000);
+		const rows = consumeEvents(db, guildId);
+		if (rows.length > 0) return formatEvents(rows);
+	}
+	return null;
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {

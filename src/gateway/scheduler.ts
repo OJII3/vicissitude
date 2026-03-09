@@ -57,7 +57,7 @@ class JsonHeartbeatConfigRepository implements HeartbeatConfigRepository {
 
 const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
 
-function buildHeartbeatPrompt(dueReminders: DueReminder[]): string {
+export function buildHeartbeatPrompt(dueReminders: DueReminder[]): string {
 	const now = new Date();
 	const datetime = now.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" });
 
@@ -83,7 +83,7 @@ ${reminderLines}
 特になければ何もしなくていいよ。`;
 }
 
-function groupByGuild(dueReminders: DueReminder[]): Map<string, DueReminder[]> {
+export function groupByGuild(dueReminders: DueReminder[]): Map<string, DueReminder[]> {
 	const groups = new Map<string, DueReminder[]>();
 	for (const due of dueReminders) {
 		const key = due.reminder.guildId ?? "_autonomous";

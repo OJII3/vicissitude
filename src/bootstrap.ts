@@ -11,12 +11,13 @@ import { GuildRouter, type AiAgent } from "./agent/router.ts";
 import { AgentRunner, type EventBuffer } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { loadConfig } from "./core/config.ts";
-import type { BufferedEvent, ConversationMessage, IncomingMessage, Logger } from "./core/types.ts";
+import type { BufferedEvent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
 import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
 import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
+import { recordLtmMessage, bufferIncomingMessage } from "./gateway/message-handlers.ts";
 import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
@@ -171,63 +172,7 @@ async function setupLtmRecording(
 	}
 }
 
-// ─── LTM Message Recording (inline) ────────────────────────────
-
-function recordLtmMessage(
-	recorder: FenghuangConversationRecorder,
-	msg: IncomingMessage,
-	logger: Logger,
-): void {
-	if (!msg.guildId) return;
-	if (!msg.content && msg.attachments.length === 0) return;
-
-	const role = msg.isBot ? "assistant" : "user";
-	let content = msg.content;
-	if (msg.attachments.length > 0) {
-		const info = msg.attachments.map((a) => `[添付: ${a.filename ?? "unknown"}]`).join(" ");
-		content = content ? `${content} ${info}` : info;
-	}
-
-	const message: ConversationMessage = {
-		role,
-		content,
-		name: msg.authorName,
-		timestamp: msg.timestamp,
-	};
-
-	recorder.record(msg.guildId, message).catch((err) => {
-		logger.error("[ltm-record] failed to record message", err);
-	});
-}
-
 // ─── Event Handlers ─────────────────────────────────────────────
-
-function bufferIncomingMessage(db: StoreDb, msg: IncomingMessage, logger: Logger): void {
-	if (!msg.content && msg.attachments.length === 0) return;
-	if (!msg.guildId) {
-		logger.warn(`[bootstrap] No guildId for message, dropping event`);
-		return;
-	}
-
-	const event: BufferedEvent = {
-		ts: msg.timestamp.toISOString(),
-		channelId: msg.channelId,
-		guildId: msg.guildId,
-		authorId: msg.authorId,
-		authorName: msg.authorName,
-		messageId: msg.messageId,
-		content: msg.content,
-		attachments: msg.attachments.length > 0 ? msg.attachments : undefined,
-		isBot: msg.isBot,
-		isMentioned: msg.isMentioned,
-		isThread: msg.isThread,
-	};
-
-	appendEvent(db, msg.guildId, JSON.stringify(event));
-	logger.info(
-		`[buffer-event] buffered: ch=${msg.channelId} author=${msg.authorName} mentioned=${msg.isMentioned}`,
-	);
-}
 
 function setupEventHandlers(
 	gateway: DiscordGateway,
@@ -380,6 +325,7 @@ export async function bootstrap(): Promise<void> {
 			logger,
 			port: config.opencode.basePort + index,
 			eventBuffer,
+			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 		});
 		agents.set(guildId, runner);
 	}

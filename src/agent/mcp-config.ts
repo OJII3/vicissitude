@@ -1,10 +1,8 @@
 import { resolve } from "path";
 
-export const BASE_PORT = 4096;
+import type { McpServerConfig } from "./profile.ts";
 
-type McpServerConfig =
-	| { type: "local"; command: string[]; environment?: Record<string, string> }
-	| { type: "remote"; url: string };
+export const BASE_PORT = 4096;
 
 /**
  * MCP サーバー設定を返す。

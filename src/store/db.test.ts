@@ -48,6 +48,7 @@ function createTestDb() {
 			key TEXT PRIMARY KEY DEFAULT 'default',
 			base_interval_minutes INTEGER NOT NULL DEFAULT 1
 		);
+		CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
 	`);
 	return drizzle(sqlite, { schema });
 }

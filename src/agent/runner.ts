@@ -20,11 +20,6 @@ export interface EventBuffer {
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 
-const SESSION_MAX_AGE_MS = (() => {
-	const hours = Number(process.env.SESSION_MAX_AGE_HOURS);
-	return Number.isFinite(hours) && hours > 0 ? hours * 3_600_000 : 48 * 3_600_000;
-})();
-
 export interface RunnerDeps {
 	profile: AgentProfile;
 	guildId: string;
@@ -33,6 +28,7 @@ export interface RunnerDeps {
 	logger: Logger;
 	port: number;
 	eventBuffer: EventBuffer;
+	sessionMaxAgeMs: number;
 }
 
 export class AgentRunner implements AiAgent {
@@ -49,6 +45,7 @@ export class AgentRunner implements AiAgent {
 	private readonly logger: Logger;
 	private readonly port: number;
 	private readonly eventBuffer: EventBuffer;
+	private readonly sessionMaxAgeMs: number;
 
 	constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
@@ -58,6 +55,7 @@ export class AgentRunner implements AiAgent {
 		this.logger = deps.logger;
 		this.port = deps.port;
 		this.eventBuffer = deps.eventBuffer;
+		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 	}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
@@ -220,7 +218,7 @@ export class AgentRunner implements AiAgent {
 	private async rotateSessionIfExpired(): Promise<void> {
 		if (this.sessionCreatedAt === null) return;
 		const age = Date.now() - this.sessionCreatedAt;
-		if (age < SESSION_MAX_AGE_MS) return;
+		if (age < this.sessionMaxAgeMs) return;
 
 		const sessionKey = `__polling__:${this.guildId}`;
 		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);

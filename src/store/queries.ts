@@ -1,18 +1,21 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
 import { emojiUsage, eventBuffer, sessions } from "./schema.ts";
 
-/** event_buffer から該当ギルドのイベントを取得して削除する */
+/** event_buffer から該当ギルドのイベントを取得して削除する（トランザクションでアトミック） */
 export function consumeEvents(
 	db: StoreDb,
 	guildId: string,
 ): { id: number; payload: string; createdAt: number }[] {
-	const rows = db.select().from(eventBuffer).where(eq(eventBuffer.guildId, guildId)).all();
-	if (rows.length > 0) {
-		db.delete(eventBuffer).where(eq(eventBuffer.guildId, guildId)).run();
-	}
-	return rows.map((r) => ({ id: r.id ?? 0, payload: r.payload, createdAt: r.createdAt }));
+	return db.transaction((tx) => {
+		const rows = tx.select().from(eventBuffer).where(eq(eventBuffer.guildId, guildId)).all();
+		if (rows.length > 0) {
+			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
+			tx.delete(eventBuffer).where(inArray(eventBuffer.id, ids)).run();
+		}
+		return rows.map((r) => ({ id: r.id ?? 0, payload: r.payload, createdAt: r.createdAt }));
+	});
 }
 
 /** event_buffer にイベントを追加する */

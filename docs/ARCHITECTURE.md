@@ -47,11 +47,13 @@ src/
 │
 ├── gateway/                 # 外部世界との接点
 │   ├── discord.ts           # DiscordGateway
+│   ├── discord-attachment-mapper.ts  # 添付ファイルマッピング
 │   └── scheduler.ts         # HeartbeatScheduler + ConsolidationScheduler
 │
 ├── mcp/                     # MCP サーバー（独立プロセス、レイヤー外）
 │   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm）
 │   ├── code-exec-server.ts  # コード実行（Podman サンドボックス）
+│   ├── memory-helpers.ts    # メモリツール用ヘルパー関数
 │   ├── minecraft/           # Minecraft（StreamableHTTP、MC_HOST 設定時のみ）
 │   │   └── ...
 │   └── tools/               # ツール定義（registerXxxTools 関数）
@@ -282,7 +284,7 @@ MCP サーバーは 3 プロセス構成:
 
 ### セッション管理
 
-- `SESSION_MAX_AGE_HOURS`: セッション自動ローテーションの最大寿命（デフォルト: `4`）。超過したセッションは AgentRunner 再起動時に自動破棄される。
+- `SESSION_MAX_AGE_HOURS`: セッション自動ローテーションの最大寿命（デフォルト: `48`）。超過したセッションは AgentRunner 再起動時に自動破棄される。
 
 ### OpenCode プロバイダ設定（AgentRunner 用）
 

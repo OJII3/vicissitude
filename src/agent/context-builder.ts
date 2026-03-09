@@ -1,12 +1,7 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
-import type { LtmFact } from "../core/types.ts";
-
-export interface LtmFactReader {
-	getFacts(guildId?: string): Promise<LtmFact[]>;
-	close(): Promise<void>;
-}
+import type { LtmFactReader } from "../core/types.ts";
 
 const SHARED_FILES = [
 	"IDENTITY.md",
