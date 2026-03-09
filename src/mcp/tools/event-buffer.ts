@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
-import { consumeEvents } from "../../store/queries.ts";
+import { consumeEvents, hasEvents } from "../../store/queries.ts";
 
 export interface EventBufferDeps {
 	db: StoreDb;
@@ -26,10 +26,12 @@ async function pollEvents(
 	deadlineMs: number,
 ): Promise<string | null> {
 	while (Date.now() < deadlineMs) {
+		if (hasEvents(db, guildId)) {
+			const rows = consumeEvents(db, guildId);
+			if (rows.length > 0) return formatEvents(rows);
+		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
 		await sleep(1000);
-		const rows = consumeEvents(db, guildId);
-		if (rows.length > 0) return formatEvents(rows);
 	}
 	return null;
 }

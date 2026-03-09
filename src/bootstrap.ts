@@ -27,7 +27,7 @@ import {
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
 import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
-import { createDb, type StoreDb } from "./store/db.ts";
+import { createDb, closeDb, type StoreDb } from "./store/db.ts";
 import { appendEvent, hasEvents, incrementEmoji } from "./store/queries.ts";
 
 // ─── Channel Config Loader ──────────────────────────────────────
@@ -79,16 +79,19 @@ class SqliteEventBuffer implements EventBuffer {
 		private readonly guildId: string,
 	) {}
 
-	async append(event: BufferedEvent): Promise<void> {
+	append(event: BufferedEvent): void {
 		appendEvent(this.db, this.guildId, JSON.stringify(event));
-		await Promise.resolve();
 	}
 
 	waitForEvents(signal: AbortSignal): Promise<void> {
+		const POLL_MIN_MS = 500;
+		const POLL_MAX_MS = 5000;
+
 		// oxlint-disable-next-line no-shadow -- Promise parameter shadows `resolve` import, intentional
 		return new Promise((resolve) => {
 			let timer: ReturnType<typeof setTimeout> | undefined;
 			let resolved = false;
+			let interval = POLL_MIN_MS;
 			const done = () => {
 				if (resolved) return;
 				resolved = true;
@@ -103,7 +106,8 @@ class SqliteEventBuffer implements EventBuffer {
 					done();
 					return;
 				}
-				timer = setTimeout(poll, 1000);
+				timer = setTimeout(poll, interval);
+				interval = Math.min(interval * 1.5, POLL_MAX_MS);
 			};
 			signal.addEventListener(
 				"abort",
@@ -383,7 +387,7 @@ export async function bootstrap(): Promise<void> {
 		const forceTimer = setTimeout(() => process.exit(1), 5000);
 		try {
 			clearInterval(sessionGaugeTimer);
-			ltmResources?.consolidationScheduler.stop();
+			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
 			routingAgent.stop();
@@ -392,6 +396,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.recorder.close();
 			await ltmFactReader.close();
 			mcProcess?.kill();
+			closeDb(db);
 		} catch (err) {
 			logger.error("Error during shutdown:", err);
 		}

@@ -207,9 +207,10 @@ export class PrometheusServer {
 	start(): void {
 		this.server = Bun.serve({
 			port: this.port,
+			hostname: "127.0.0.1",
 			fetch: (req) => this.handleRequest(req),
 		});
-		this.logger.info(`[metrics] Prometheus server listening on :${String(this.port)}`);
+		this.logger.info(`[metrics] Prometheus server listening on 127.0.0.1:${String(this.port)}`);
 	}
 
 	stop(): void {

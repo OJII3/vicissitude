@@ -28,7 +28,8 @@ interface TypingState {
 	timeout: ReturnType<typeof setTimeout>;
 }
 
-export function registerDiscordTools(server: McpServer, deps: DiscordDeps): void {
+/** Returns a cleanup function that clears all active typing timers */
+export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () => void {
 	const { discordClient } = deps;
 	const typingStates = new Map<string, TypingState>();
 
@@ -38,6 +39,12 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): void
 			clearInterval(state.interval);
 			clearTimeout(state.timeout);
 			typingStates.delete(channelId);
+		}
+	}
+
+	function clearAllTyping() {
+		for (const [channelId] of typingStates) {
+			clearTyping(channelId);
 		}
 	}
 
@@ -156,4 +163,6 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): void
 			return { content: [{ type: "text", text: textChannels.join("\n") }] };
 		},
 	);
+
+	return clearAllTyping;
 }

@@ -47,7 +47,12 @@ const discordClient = new Client({
 	],
 });
 
-await discordClient.login(process.env.DISCORD_TOKEN);
+try {
+	await discordClient.login(process.env.DISCORD_TOKEN);
+} catch (err) {
+	console.error("[core-server] Failed to login to Discord:", err);
+	process.exit(1);
+}
 
 // --- Drizzle DB ---
 
@@ -56,12 +61,19 @@ const db = createDb(DATA_DIR);
 // --- Fenghuang (LTM) ---
 
 const chatAdapter = new FenghuangChatAdapter(LTM_OPENCODE_PORT, LTM_PROVIDER_ID, LTM_MODEL_ID);
-await chatAdapter.initialize();
+try {
+	await chatAdapter.initialize();
+} catch (err) {
+	console.error("[core-server] Failed to initialize FenghuangChatAdapter:", err);
+	process.exit(1);
+}
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 
+const MAX_FENGHUANG_INSTANCES = 50;
 const fenghuangInstances = new Map<string, Fenghuang>();
+const fenghuangStorages = new Map<string, SQLiteStorageAdapter>();
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -73,11 +85,21 @@ function getOrCreateFenghuang(guildId: string): Fenghuang {
 	const existing = fenghuangInstances.get(guildId);
 	if (existing) return existing;
 
+	// Evict oldest entry if at capacity
+	if (fenghuangInstances.size >= MAX_FENGHUANG_INSTANCES) {
+		const oldestKey = fenghuangInstances.keys().next().value as string;
+		fenghuangInstances.delete(oldestKey);
+		const oldStorage = fenghuangStorages.get(oldestKey);
+		oldStorage?.close();
+		fenghuangStorages.delete(oldestKey);
+	}
+
 	const dbDir = resolve(LTM_DATA_DIR, "guilds", guildId);
 	mkdirSync(dbDir, { recursive: true });
 	const storage = new SQLiteStorageAdapter(resolve(dbDir, "memory.db"));
 	const instance = createFenghuang({ llm, storage });
 	fenghuangInstances.set(guildId, instance);
+	fenghuangStorages.set(guildId, storage);
 	return instance;
 }
 
@@ -85,7 +107,7 @@ function getOrCreateFenghuang(guildId: string): Fenghuang {
 
 const server = new McpServer({ name: "core", version: "1.0.0" });
 
-registerDiscordTools(server, { discordClient });
+const discordCleanup = registerDiscordTools(server, { discordClient });
 registerMemoryTools(server);
 registerScheduleTools(server);
 registerEventBufferTools(server, { db, guildId: GUILD_ID });
@@ -95,7 +117,13 @@ registerLtmTools(server, { getOrCreateFenghuang });
 
 async function shutdown() {
 	await server.close();
-	chatAdapter.close();
+	discordCleanup();
+	for (const storage of fenghuangStorages.values()) {
+		storage.close();
+	}
+	fenghuangInstances.clear();
+	fenghuangStorages.clear();
+	await chatAdapter.close();
 	process.exit(0);
 }
 

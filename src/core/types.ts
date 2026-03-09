@@ -1,33 +1,3 @@
-// ─── Branded Types ───────────────────────────────────────────────
-
-export type GuildId = string & { readonly __brand: "GuildId" };
-export type ChannelId = string & { readonly __brand: "ChannelId" };
-export type SessionKey = string & { readonly __brand: "SessionKey" };
-
-export function guildId(raw: string): GuildId {
-	if (!raw) throw new Error("GuildId must be a non-empty string");
-	return raw as GuildId;
-}
-
-export function channelId(raw: string): ChannelId {
-	if (!raw) throw new Error("ChannelId must be a non-empty string");
-	return raw as ChannelId;
-}
-
-export function createSessionKey(platform: string, chId: string, userId: string): SessionKey {
-	if (!platform || !chId || !userId) {
-		throw new Error("createSessionKey: platform, chId, userId must be non-empty strings");
-	}
-	return `${platform}:${chId}:${userId}` as SessionKey;
-}
-
-export function createChannelSessionKey(platform: string, chId: string): SessionKey {
-	if (!platform || !chId) {
-		throw new Error("createChannelSessionKey: platform, chId must be non-empty strings");
-	}
-	return `${platform}:${chId}:_channel` as SessionKey;
-}
-
 // ─── Agent Response ──────────────────────────────────────────────
 
 export interface AgentResponse {

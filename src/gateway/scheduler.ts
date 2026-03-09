@@ -15,6 +15,12 @@ import type {
 import { DEFAULT_HEARTBEAT_CONFIG } from "../core/types.ts";
 import { METRIC } from "../observability/metrics.ts";
 
+function delayResolve<T>(ms: number, value: T): Promise<T> {
+	return new Promise((_resolve) => {
+		setTimeout(() => _resolve(value), ms);
+	});
+}
+
 // ─── HeartbeatConfigRepository (local) ──────────────────────────
 
 interface HeartbeatConfigRepository {
@@ -154,8 +160,16 @@ export class HeartbeatScheduler {
 			this.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
 		}
 
-		// タイムアウト後も内部処理が完了するまで running を保持し、次の tick との並走を防ぐ
-		await execution.catch(() => {});
+		// Wait for execution to complete, but cap at double the timeout to prevent deadlock
+		const settled = await Promise.race([
+			execution.then(() => true).catch(() => true),
+			delayResolve(HEARTBEAT_TICK_TIMEOUT_MS, false as const),
+		]);
+		if (!settled) {
+			this.logger.error(
+				"[heartbeat] execution did not settle after force timeout, resetting running flag",
+			);
+		}
 		this.running = false;
 	}
 
@@ -169,12 +183,15 @@ export class HeartbeatScheduler {
 			`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
 		);
 
-		await this.executeHeartbeat(dueReminders);
+		await this.executeHeartbeat(config, dueReminders);
 		this.metrics?.incrementCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED);
 	}
 
 	/** Inlined HandleHeartbeatUseCase.execute */
-	private async executeHeartbeat(dueReminders: DueReminder[]): Promise<void> {
+	private async executeHeartbeat(
+		config: HeartbeatConfig,
+		dueReminders: DueReminder[],
+	): Promise<void> {
 		const grouped = groupByGuild(dueReminders);
 		const succeededIds = new Set<string>();
 
@@ -200,7 +217,6 @@ export class HeartbeatScheduler {
 			return;
 		}
 
-		const config = await this.configRepo.load();
 		const executedAt = new Date().toISOString();
 		for (const reminder of config.reminders) {
 			if (succeededIds.has(reminder.id)) {
@@ -243,7 +259,7 @@ export class ConsolidationScheduler {
 		}, CONSOLIDATION_INITIAL_DELAY_MS);
 	}
 
-	stop(): void {
+	async stop(): Promise<void> {
 		if (this.initialTimer) {
 			clearTimeout(this.initialTimer);
 			this.initialTimer = null;
@@ -251,6 +267,9 @@ export class ConsolidationScheduler {
 		if (this.timer) {
 			clearInterval(this.timer);
 			this.timer = null;
+		}
+		if (this.executePromise) {
+			await this.executePromise.catch(() => {});
 		}
 		this.logger.info("[ltm-consolidation] スケジューラ停止");
 	}
@@ -280,8 +299,16 @@ export class ConsolidationScheduler {
 			this.metrics?.observeHistogram(METRIC.LTM_CONSOLIDATION_TICK_DURATION, duration);
 		}
 
-		// タイムアウト後も内部処理が完了するまで running を保持し、次の tick との並走を防ぐ
-		await execution.catch(() => {});
+		// Wait for execution to complete, but cap to prevent deadlock
+		const settled = await Promise.race([
+			execution.then(() => true).catch(() => true),
+			delayResolve(CONSOLIDATION_TICK_TIMEOUT_MS, false as const),
+		]);
+		if (!settled) {
+			this.logger.error(
+				"[ltm-consolidation] execution did not settle after force timeout, resetting running flag",
+			);
+		}
 		this.executePromise = null;
 		this.running = false;
 	}

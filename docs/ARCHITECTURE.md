@@ -17,7 +17,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）
-- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, reminders, event_buffer, emoji_usage, heartbeat_config）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -125,7 +125,7 @@ MCP サーバーは 3 プロセス構成:
 ### 4.5 store/ — SQLite 統一永続化
 
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
-- `schema.ts`: テーブル定義（sessions, reminders, event_buffer, emoji_usage, heartbeat_config）
+- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage）
 - `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `consumeEvents`, `incrementEmoji` 等）
 
 ### 4.6 observability/ — ログ・メトリクス
@@ -235,10 +235,12 @@ MCP サーバーは 3 プロセス構成:
 ### SQLite テーブル（store/schema.ts）
 
 - `sessions`: セッション永続化（key, sessionId, createdAt）
-- `reminders`: Heartbeat リマインダー（id, guildId, description, scheduleType, scheduleValue, lastExecutedAt, enabled）
 - `event_buffer`: イベントバッファ（guildId, payload, createdAt）
 - `emoji_usage`: 絵文字使用カウント（guildId, emojiName, count）
-- `heartbeat_config`: Heartbeat 基本設定（key, baseIntervalMinutes）
+
+### JSON ファイル
+
+- `data/heartbeat-config.json`: Heartbeat 設定（baseIntervalMinutes, reminders 配列）— 構造は上記「heartbeat-config.json 構造」を参照
 
 ## 6. 主要シーケンス
 

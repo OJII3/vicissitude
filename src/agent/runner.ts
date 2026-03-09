@@ -13,7 +13,7 @@ import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
 
 export interface EventBuffer {
-	append(event: BufferedEvent): Promise<void>;
+	append(event: BufferedEvent): void | Promise<void>;
 	waitForEvents(signal: AbortSignal): Promise<void>;
 }
 

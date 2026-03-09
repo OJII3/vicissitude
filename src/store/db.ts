@@ -8,6 +8,18 @@ import * as schema from "./schema.ts";
 
 export type StoreDb = ReturnType<typeof drizzle<typeof schema>>;
 
+const dbInstances = new WeakMap<StoreDb, Database>();
+
+/** Close the underlying SQLite database, flushing WAL checkpoint */
+export function closeDb(db: StoreDb): void {
+	const sqlite = dbInstances.get(db);
+	if (sqlite) {
+		sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+		sqlite.close();
+		dbInstances.delete(db);
+	}
+}
+
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS sessions (
 	key TEXT PRIMARY KEY,
@@ -38,5 +50,7 @@ export function createDb(dataDir: string): StoreDb {
 	const sqlite = new Database(dbPath);
 	sqlite.exec("PRAGMA journal_mode = WAL");
 	sqlite.exec(CREATE_TABLES_SQL);
-	return drizzle(sqlite, { schema });
+	const db = drizzle(sqlite, { schema });
+	dbInstances.set(db, sqlite);
+	return db;
 }
