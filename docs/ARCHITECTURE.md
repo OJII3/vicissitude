@@ -350,19 +350,27 @@ MCP サーバーは 3 プロセス構成:
 
 ## 11. Minecraft 拡張設計（計画）
 
-### 11.1 目的
+### 11.1 MCP サーバーライフサイクル
+
+- MCP HTTP サーバーは OpenCode より先に ready でなければならない（OpenCode が接続できないとエージェント全体が機能しない）
+- 起動順序: HTTP サーバー起動 → health check 通過 → Minecraft bot 接続開始
+- Minecraft bot 接続は MCP HTTP サーバー起動後に遅延実行される（既存の exponential backoff reconnect が活きる）
+- bot 未接続時は MCP ツールが「ボット未接続」を返す（graceful degradation）
+- `bootstrap.ts` は `GET /health` で readiness を確認する。タイムアウトしてもプロセスは kill しない
+
+### 11.2 目的
 
 - Discord 雑談人格を維持したまま、Minecraft 上で最小限の自律行動を可能にする。
 - 高頻度ゲーム状態をそのまま LLM に流さず、要約レイヤーで情報量を制御する。
 
-### 11.2 内部責務分離
+### 11.3 内部責務分離
 
 - Conversation persona layer: 既存の Discord 雑談応答生成
 - Minecraft tool layer: mineflayer による移動・採集・クラフト等
 - Minecraft state summarization layer: 生状態を短い要約へ変換
 - Event-driven decision layer: 重要イベント時のみ再判断
 
-### 11.3 イベント駆動フロー（想定）
+### 11.4 イベント駆動フロー（想定）
 
 1. Minecraft 側で重要イベント（危険接近、行動失敗、目標達成等）を検知する。
 2. `minecraft` MCP サーバーが直近イベントを蓄積し、要約状態を生成する。
@@ -370,7 +378,7 @@ MCP サーバーは 3 プロセス構成:
 4. 実行は `follow_player` / `go_to` / `collect_block` などの高レベルツールで行う。
 5. 必要に応じて Discord へ自然文で状況共有する。
 
-### 11.4 初期スコープ
+### 11.5 初期スコープ
 
 - 接続、状態取得、追従、移動、基本採集、基本クラフト、装備、睡眠、チャット送信、直近イベント取得
 - 非目標: 完全自律長期サバイバル、高度建築、複雑戦闘、全知覚リアルタイム推論

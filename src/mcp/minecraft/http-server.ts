@@ -17,7 +17,13 @@ function createFetchHandler(
 	sessions: Map<string, SessionEntry>,
 ): (req: Request) => Response | Promise<Response> {
 	return async (req) => {
-		if (new URL(req.url).pathname !== "/mcp") return new Response("Not Found", { status: 404 });
+		const pathname = new URL(req.url).pathname;
+		if (pathname === "/health")
+			return new Response(JSON.stringify({ status: "ok" }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		if (pathname !== "/mcp") return new Response("Not Found", { status: 404 });
 		const sessionId = req.headers.get("mcp-session-id");
 		const entry = sessionId ? sessions.get(sessionId) : undefined;
 		if (entry) {

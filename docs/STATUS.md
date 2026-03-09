@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: refactor/m7-foundation
+- ブランチ: docs/mc-subbrain-plan
 
 ## 2. 現在の真実（Project Truth）
 
@@ -14,7 +14,7 @@
 - **Heartbeat 自律行動。** 1 分間隔チェックで due リマインダーを検知し AI セッションを起動。
 - **LTM（fenghuang）。** ホームチャンネルのみ記録。30 分間隔自動統合。ファクトをシステムプロンプトに注入。
 - **Guild コンテキスト分離。** 人格は共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごと。
-- **Minecraft MCP。** mineflayer ベース。行動ツール、ジョブシステム、マルチセッション対応。
+- **Minecraft MCP。** mineflayer ベース。行動ツール、ジョブシステム、マルチセッション対応。ライフサイクル修正済み（HTTP サーバー先行起動 → `/health` で readiness 確認 → bot 遅延接続）。
 - **Ollama コンテナ化。** `compose.yaml` で `ollama` サービスを運用。`embeddinggemma` モデル自動プル。
 - **画像添付サポート。** `image/png`, `image/jpeg`, `image/gif`, `image/webp`。
 - **Lint 依存方向ルール。** `no-restricted-imports` の overrides で ARCHITECTURE.md の依存方向マトリクスを静的に強制。`import/first`, `import/no-mutable-exports`, `import/no-anonymous-default-export` も追加。
@@ -40,9 +40,10 @@
 
 ## 5. 直近タスク
 
-- M7-M11 全完了。PR #93 レビュー修正済み。テスト全219件パス。
-- Lint 依存方向ルール追加済み。`EventBuffer` を `core/types.ts` に移動し違反解消。
+- M7-M11 全完了。PR #93 マージ済み。
+- Minecraft MCP ライフサイクル修正完了（PR #94）: `/health` エンドポイント追加、起動順序変更、タイムアウト時の kill 廃止。
 - 未移植テストの追加。
+- M12 Minecraft サブブレイン計画策定中。
 
 ## 6. ブロッカー
 

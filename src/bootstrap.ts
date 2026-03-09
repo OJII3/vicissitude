@@ -140,7 +140,7 @@ async function waitForMcpReady(
 	/* oxlint-disable no-await-in-loop -- intentional sequential polling */
 	for (let i = 0; i < maxRetries; i++) {
 		const result = await Promise.race([
-			fetch(`http://localhost:${port}/mcp`, { method: "GET" })
+			fetch(`http://localhost:${port}/health`)
 				.then((res) => res.status)
 				.catch(() => null),
 			exitPromise,
@@ -185,11 +185,10 @@ async function startMinecraftMcp(
 		return null;
 	}
 	if (status === "timeout") {
-		logger.error(
-			"[bootstrap] Minecraft MCP server failed to start within timeout, killing process",
+		logger.warn(
+			"[bootstrap] Minecraft MCP server health check timed out, but keeping process alive",
 		);
-		mcProcess.kill();
-		return null;
+		return mcProcess;
 	}
 
 	logger.info("[bootstrap] Minecraft MCP server started");
