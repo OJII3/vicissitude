@@ -1,9 +1,10 @@
-/* oxlint-disable max-lines -- standalone MCP server process, splitting would reduce readability */
+/* oxlint-disable max-lines, max-dependencies -- standalone MCP server process, splitting would reduce readability */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
+import { mineflayer as prismarineViewer } from "prismarine-viewer";
 import { z } from "zod";
 
 import { registerActionTools } from "./minecraft-actions/index.ts";
@@ -21,6 +22,7 @@ import { JobManager } from "./minecraft-job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
+const MC_VIEWER_PORT = Number(process.env.MC_VIEWER_PORT ?? "3007");
 const MC_HOST = process.env.MC_HOST;
 if (!MC_HOST) {
 	console.error("MC_HOST is required");
@@ -78,6 +80,7 @@ function registerCoreEvents(b: mineflayer.Bot): void {
 		console.error(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
 		pushEvent("spawn", `Spawned at ${b.entity.position}`, "high");
 		reconnectDelay = 1000;
+		startViewer(b);
 	});
 	b.on("death", () => pushEvent("death", "Bot died", "high"));
 	b.on("health", () => {
@@ -139,8 +142,22 @@ function registerWorldEvents(b: mineflayer.Bot): void {
 }
 
 function cleanupBot(b: mineflayer.Bot): void {
+	// prismarine-viewer adds `viewer` dynamically; not in mineflayer's type definitions
+	const viewer = (b as unknown as Record<string, unknown>).viewer as
+		| { close?: () => void }
+		| undefined;
+	if (viewer?.close) {
+		try {
+			viewer.close();
+		} catch {}
+	}
 	b.removeAllListeners();
 	if (typeof b.quit === "function") b.quit();
+}
+
+function startViewer(b: mineflayer.Bot): void {
+	prismarineViewer(b, { viewDistance: 4, firstPerson: true, port: MC_VIEWER_PORT });
+	console.error(`[minecraft] Viewer running on *:${String(MC_VIEWER_PORT)}`);
 }
 
 function createBot(): mineflayer.Bot {
@@ -247,32 +264,19 @@ server.tool(
 	},
 );
 
-server.tool(
-	"take_screenshot",
-	"ボット視点のスクリーンショットを撮影する（PNG形式）",
-	{
-		width: z.number().min(64).max(1920).default(512).describe("画像の幅（デフォルト: 512）"),
-		height: z.number().min(64).max(1080).default(512).describe("画像の高さ（デフォルト: 512）"),
-	},
-	async ({ width, height }) => {
-		if (!bot?.entity) {
-			return { content: [{ type: "text" as const, text: "ボット未接続" }] };
-		}
-		try {
-			const { takeScreenshot } = await import("./minecraft-screenshot.ts");
-			const { filePath, base64 } = await takeScreenshot(bot, { width, height });
-			return {
-				content: [
-					{ type: "text" as const, text: `スクリーンショットを保存しました: ${filePath}` },
-					{ type: "image" as const, data: base64, mimeType: "image/png" },
-				],
-			};
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			return { content: [{ type: "text" as const, text: `スクリーンショット失敗: ${message}` }] };
-		}
-	},
-);
+server.tool("get_viewer_url", "Minecraft ビューアーの URL を返す", {}, () => {
+	if (!bot?.entity) {
+		return { content: [{ type: "text" as const, text: "ボット未接続" }] };
+	}
+	return {
+		content: [
+			{
+				type: "text" as const,
+				text: `http://localhost:${String(MC_VIEWER_PORT)}`,
+			},
+		],
+	};
+});
 
 // ── HTTP Server ──────────────────────────────────────────────────────────────
 bot = createBot();

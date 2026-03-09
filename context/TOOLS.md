@@ -97,12 +97,10 @@ Minecraft ワールドに接続中のボットを操作する。
 - `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
   - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
   - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
-- `take_screenshot(width?, height?)` - ボット視点のスクリーンショットを撮影する（PNG形式）
-  - width: 画像の幅（デフォルト: 512、範囲: 64-1920）
-  - height: 画像の高さ（デフォルト: 512、範囲: 64-1080）
-  - 戻り値: テキスト（保存パス）+ PNG 画像（MCP image content type）
-  - チャンクレンダリング 10 秒タイムアウト付き
-  - 画像は `send_message` の `file_path` で Discord に送信可能
+- `get_viewer_url` - Minecraft ビューアーの URL を返す
+  - prismarine-viewer ベースの Web ビューアー（ブラウザで 3D ワールドをリアルタイム表示）
+  - ボット未接続時はエラーメッセージを返す
+  - デフォルトポート: 3007（`MC_VIEWER_PORT` 環境変数で変更可能）
 
 ### 組み込みツール（OpenCode SDK）
 
