@@ -35,11 +35,11 @@
 - Ollama イメージタグ `latest` 固定。バージョン固定を将来検討。
 - `HeartbeatScheduler` / `ConsolidationScheduler` の二重タイムアウトで最悪 tick 時間が 2 倍（6 分 / 20 分）。
 - 旧テスト（Guild 部分成功/失敗、`InstrumentedAiAgent`、`GuildRoutingAgent`）が新構成に未移植。
-- `OllamaEmbeddingAdapter` テストが `fetch` に URL オブジェクトが渡される件で失敗中。
+- ~~`OllamaEmbeddingAdapter` テストが `fetch` に URL オブジェクトが渡される件で失敗中。~~ **修正済み** — テスト側で `toString()` 比較に変更。
 
 ## 5. 直近タスク
 
-- M7-M11 全完了。PR #93 レビュー修正済み。
+- M7-M11 全完了。PR #93 レビュー修正済み。テスト全219件パス。
 - 未移植テストの追加。
 
 ## 6. ブロッカー
