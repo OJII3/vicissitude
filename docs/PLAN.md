@@ -14,7 +14,7 @@
 - M1: Clean Architecture 移行 ✅
 - M2: 品質強化・既知バグ修正 ✅
 - M3: 堅牢性強化 ✅
-- M4: 機能拡張（Heartbeat、ホームチャンネル） ✅
+- M4: 機能拡張（Heartbeat、ホームチャンネル） ✅ ※プラットフォーム抽象化は将来スコープに延期
 - M5: 記憶システム統合（Phase 1-3 全完了） ✅
 - M6: Minecraft 拡張 ✅
 
@@ -185,8 +185,8 @@ src/
 
 - `bootstrap.ts` が唯一の DI 配線ファイル
 - `composition-root.ts`, `bootstrap-context.ts`, `bootstrap-helpers.ts`, `bootstrap-agents.ts` を削除
-- graceful shutdown が `controller.abort()` 一発で動作
 - 旧 `domain/`, `application/`, `infrastructure/` ディレクトリを完全削除
+- graceful shutdown が `controller.abort()` 一発で動作
 - `nr validate` が通る
 - `bun test` が通る
 - 手動動作確認（Discord 応答、Heartbeat、Minecraft）
@@ -207,13 +207,12 @@ src/
 
 **成果物**:
 
-1. 旧ディレクトリ（`domain/`, `application/`, `infrastructure/`）の完全削除
-2. 旧 MCP サーバー（`discord-server.ts`, `memory-server.ts`, `schedule-server.ts`, `event-buffer-server.ts`, `ltm-server.ts`）の削除
-3. 旧ブートストラップファイル（`composition-root.ts`, `bootstrap-context.ts`, `bootstrap-helpers.ts`）の削除
-4. `docs/ARCHITECTURE.md` の全面更新
-5. `docs/STATUS.md` の更新
-6. `docs/RUNBOOK.md` の更新（新コマンド体系に合わせて）
-7. `CLAUDE.md` の更新
+1. 旧 MCP サーバー（`discord-server.ts`, `memory-server.ts`, `schedule-server.ts`, `event-buffer-server.ts`, `ltm-server.ts`）の削除
+2. `docs/ARCHITECTURE.md` の全面更新
+3. `docs/STATUS.md` の更新
+4. `docs/RUNBOOK.md` の更新（新コマンド体系に合わせて）
+5. `docs/SPEC.md` の更新（新アーキテクチャに合わせて）
+6. `CLAUDE.md` の更新
 
 **完了条件**:
 
