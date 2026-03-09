@@ -49,6 +49,13 @@
 				"eslint/max-lines-per-function": "off",
 				"import/max-dependencies": "off"
 			}
+		},
+		{
+			"files": ["**/mcp/tools/*.ts", "**/mcp/core-server.ts"],
+			"rules": {
+				"eslint/max-lines-per-function": "off",
+				"import/max-dependencies": "off"
+			}
 		}
 	],
 	"ignorePatterns": ["node_modules", "data", ".direnv", "context"]
