@@ -30,8 +30,11 @@ RUN mise x -- bun install -g opencode-ai@1.2.15 && \
 COPY src/ ./src/
 COPY tsconfig.json ./
 
-RUN mkdir -p data/context && \
-    mkdir -p /root/.local/share/opencode /root/.local/state
+# userns keep-id で uid 1000 として実行されるため書き込み可能にする
+RUN mkdir -p data/context \
+    .local/share/opencode/bin .local/state/mise .config && \
+    chown -R 1000:1000 /app/data/context /app/.local /app/.config && \
+    chown 1000:1000 /app
 
 ENV CONTAINER_HOST=unix:///run/podman/podman.sock
 
