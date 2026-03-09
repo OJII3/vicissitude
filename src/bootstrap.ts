@@ -5,21 +5,19 @@ import { resolve } from "path";
 import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/context-builder.ts";
+import { mcpServerConfigs } from "./agent/mcp-config.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
 import { GuildRouter, type AiAgent } from "./agent/router.ts";
 import { AgentRunner, type EventBuffer } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { loadConfig } from "./core/config.ts";
 import type { BufferedEvent, ConversationMessage, IncomingMessage, Logger } from "./core/types.ts";
+import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
+import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
+import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
+import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
-import { CompositeLLMAdapter } from "./infrastructure/fenghuang/composite-llm-adapter.ts";
-import { FenghuangChatAdapter } from "./infrastructure/fenghuang/fenghuang-chat-adapter.ts";
-import { FenghuangConversationRecorder } from "./infrastructure/fenghuang/fenghuang-conversation-recorder.ts";
-// infrastructure imports that will be cleaned up in M11:
-import { FenghuangFactReader } from "./infrastructure/fenghuang/fenghuang-fact-reader.ts";
-import { OllamaEmbeddingAdapter } from "./infrastructure/ollama/ollama-embedding-adapter.ts";
-import { mcpServerConfigs } from "./infrastructure/opencode/mcp-config.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -27,6 +25,7 @@ import {
 	METRIC,
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
+import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import { createDb, type StoreDb } from "./store/db.ts";
 import { appendEvent, hasEvents, incrementEmoji } from "./store/queries.ts";
 
@@ -371,7 +370,7 @@ export async function bootstrap(): Promise<void> {
 		const profile = createConversationProfile({
 			providerId: config.opencode.providerId,
 			modelId: config.opencode.modelId,
-			mcpServers: mcpServerConfigs({ includeEventBuffer: true, guildId }),
+			mcpServers: mcpServerConfigs({ guildId }),
 		});
 		const runner = new AgentRunner({
 			profile,

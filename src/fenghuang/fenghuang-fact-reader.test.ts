@@ -7,7 +7,7 @@ import type { FactCategory } from "fenghuang";
 
 import { FenghuangFactReader } from "./fenghuang-fact-reader.ts";
 
-const TEST_DATA_DIR = resolve(import.meta.dirname, "../../../.test-fact-reader");
+const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";
 
 async function insertFact(

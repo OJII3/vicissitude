@@ -3,7 +3,7 @@ import { resolve } from "path";
 
 import { SQLiteStorageAdapter } from "fenghuang";
 
-import type { LtmFact, LtmFactReader } from "../../core/types.ts";
+import type { LtmFact, LtmFactReader } from "../core/types.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 

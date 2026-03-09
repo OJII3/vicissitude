@@ -8,7 +8,7 @@ import type {
 	ConversationMessage,
 	ConversationRecorder,
 	MemoryConsolidator,
-} from "../../core/types.ts";
+} from "../core/types.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 

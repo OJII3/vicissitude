@@ -6,9 +6,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Client, GatewayIntentBits } from "discord.js";
 import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang";
 
-import { CompositeLLMAdapter } from "../infrastructure/fenghuang/composite-llm-adapter.ts";
-import { FenghuangChatAdapter } from "../infrastructure/fenghuang/fenghuang-chat-adapter.ts";
-import { OllamaEmbeddingAdapter } from "../infrastructure/ollama/ollama-embedding-adapter.ts";
+import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
+import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
+import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
 import { createDb } from "../store/db.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";

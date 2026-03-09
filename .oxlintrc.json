@@ -37,7 +37,7 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/composition-root.ts", "**/bootstrap.ts", "**/bootstrap-agents.ts"],
+			"files": ["**/bootstrap.ts"],
 			"rules": {
 				"import/max-dependencies": "off",
 				"eslint/max-lines-per-function": "off"

@@ -2,7 +2,7 @@
 
 ## 1. 位置づけ
 
-- 本書は、現在の実装構成（`src/` 配下 Clean Architecture）に基づく実装準拠アーキテクチャを定義する。
+- 本書は、現在の実装構成（`src/` 配下モジュール構成）に基づく実装準拠アーキテクチャを定義する。
 - Minecraft 拡張は「既存構成を維持した段階的追加」として、末尾の拡張設計セクションに記載する。
 - 要件の正本は `SPEC.md`、運用方針の正本は `RUNBOOK.md`、進行状況の正本は `STATUS.md` とする。
 
@@ -10,212 +10,148 @@
 
 - KISS: 小さい責務を明確な境界で分割する。
 - YAGNI: 現行要件に不要な機能は導入しない。
-- Clean Architecture + Ports and Adapters を採用する。
+- 責務別フラットモジュール構成を採用する（Clean Architecture からの移行完了）。
 - 手動コンストラクタ注入（Pure DI）のみ使用し、DI コンテナは導入しない。
 
 ## 3. システム境界
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）
-- データ: `data/` ディレクトリ（`sessions.json`, `heartbeat-config.json`, `emoji-usage.json`, `context/`, `event-buffer/guilds/{guildId}/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, heartbeat_config）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
   - MCP SDK (`@modelcontextprotocol/sdk`)
+  - Drizzle ORM (`drizzle-orm`) + `bun:sqlite`
+  - fenghuang（LTM: Episode/SemanticFact 管理）
   - mineflayer + mineflayer-pathfinder（Minecraft 操作、`MC_HOST` 設定時のみ）
 
-## 4. レイヤー構成
+## 4. モジュール構成
 
-### 4.1 Domain 層 — 純粋 TS、外部依存なし
+```
+src/
+├── core/                    # 型定義・設定・純粋関数（外部依存なし）
+│   ├── types.ts             # 型定義、値オブジェクト、インターフェース
+│   ├── config.ts            # Zod スキーマによる設定バリデーション
+│   └── functions.ts         # splitMessage, evaluateDueReminders 等
+│
+├── agent/                   # OpenCode エージェント基盤
+│   ├── profile.ts           # AgentProfile 型定義
+│   ├── runner.ts            # AgentRunner（ポーリングループ）
+│   ├── router.ts            # GuildRouter（ギルド ID ベースのルーティング）
+│   ├── context-builder.ts   # システムプロンプト構築（LTM ファクト注入含む）
+│   ├── session-store.ts     # セッション永続化（SQLite）
+│   ├── mcp-config.ts        # MCP サーバー設定（core / code-exec / minecraft）
+│   └── profiles/
+│       └── conversation.ts  # 会話エージェントプロファイル
+│
+├── gateway/                 # 外部世界との接点
+│   ├── discord.ts           # DiscordGateway
+│   └── scheduler.ts         # HeartbeatScheduler + ConsolidationScheduler
+│
+├── mcp/                     # MCP サーバー（独立プロセス、レイヤー外）
+│   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm）
+│   ├── code-exec-server.ts  # コード実行（Podman サンドボックス）
+│   ├── minecraft/           # Minecraft（StreamableHTTP、MC_HOST 設定時のみ）
+│   │   └── ...
+│   └── tools/               # ツール定義（registerXxxTools 関数）
+│       ├── discord.ts
+│       ├── memory.ts
+│       ├── schedule.ts
+│       ├── event-buffer.ts
+│       └── ltm.ts
+│
+├── store/                   # SQLite 統一永続化（Drizzle ORM）
+│   ├── db.ts                # Drizzle クライアント初期化
+│   ├── schema.ts            # 全テーブル定義
+│   └── queries.ts           # 共通クエリヘルパー
+│
+├── observability/           # ログ・メトリクス
+│   ├── logger.ts            # ConsoleLogger（NDJSON 構造化ログ）
+│   └── metrics.ts           # PrometheusCollector + Server + InstrumentedAiAgent
+│
+├── fenghuang/               # fenghuang LTM アダプタ
+│   ├── composite-llm-adapter.ts       # CompositeLLMAdapter（chat + embed の合成）
+│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpenCode SDK 経由）
+│   ├── fenghuang-conversation-recorder.ts  # FenghuangConversationRecorder（会話記録 + 統合）
+│   └── fenghuang-fact-reader.ts       # FenghuangFactReader（SQLite 読み取り専用）
+│
+├── ollama/                  # Ollama 埋め込みアダプタ
+│   └── ollama-embedding-adapter.ts    # OllamaEmbeddingAdapter（HTTP API）
+│
+├── bootstrap.ts             # DI 配線エントリポイント
+└── index.ts                 # アプリケーションエントリポイント
+```
 
-#### entities/
+### 4.1 core/ — 型・設定・純粋関数
 
-- `agent-response.ts`: `AgentResponse` — AI 応答の型定義
-  - `text: string` — 応答テキスト
-  - `sessionId: string` — セッション ID
-- `session.ts`: `SessionKey` 型 + `createSessionKey()` / `createChannelSessionKey()` — セッションキー生成
-  - ユーザー単位: `{platform}:{channelId}:{authorId}`
-  - チャンネル単位: `{platform}:{channelId}:_channel`
-- `channel-config.ts`: `ChannelRole`, `ChannelConfig` — チャンネル設定
-- `attachment.ts`: `Attachment` — 添付ファイル情報（`url: string`, `contentType?: string`, `filename?: string`）
-- `emoji-usage.ts`: `EmojiUsageCount` — カスタム絵文字使用カウント（`emojiName`, `count`）
-- `heartbeat-config.ts`: `HeartbeatConfig`, `HeartbeatReminder` (`guildId?` フィールド追加), `DueReminder`, `ReminderSchedule` — Heartbeat 設定
+- `types.ts`: 全エンティティ型、インターフェース（`ConversationRecorder`, `MemoryConsolidator`, `LtmFactReader` 等）
+- `config.ts`: Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す
+- `functions.ts`: `splitMessage()`, `evaluateDueReminders()` 等の純粋関数
 
-#### ports/
+### 4.2 agent/ — OpenCode エージェント基盤
 
-- `ai-agent.port.ts`: `AiAgent` — AI エージェントのインターフェース
-  - `send(options: SendOptions): Promise<AgentResponse>` — `SendOptions = { sessionKey, message, guildId?, attachments?: Attachment[] }`
-  - `stop(): void`
-- `context-loader.port.ts`: `ContextLoader` + `ContextLoaderFactory` — コンテキスト読込
-  - `ContextLoader`: `loadBootstrapContext()`
-  - `ContextLoaderFactory`: `create(guildId?): ContextLoader` — Guild 単位でローダーを生成
-- `logger.port.ts`: `Logger` — ログ出力
-  - `info()`, `error()`, `warn()`
-- `message-gateway.port.ts`:
-  - `IncomingMessage` — 受信メッセージ（`platform`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments: Attachment[]`, `timestamp`, `isMentioned`, `isThread`, `isBot`, `reply()`, `react()`）
-  - `MessageChannel` — チャンネル操作（`sendTyping()`, `send()`)
-  - `MessageGateway` — ゲートウェイ（`onMessage()`, `onHomeChannelMessage()`, `start()`, `stop()`)
-- `channel-config-loader.port.ts`: `ChannelConfigLoader` — チャンネル設定読込
-  - `getRole(channelId)`, `getCooldown(channelId)`, `getGuildIds()`
-- `emoji-usage-tracker.port.ts`: `EmojiUsageTracker` — カスタム絵文字使用頻度トラッキング
-  - `increment(guildId, emojiName)`, `getTopEmojis(guildId, limit)`, `hasData(guildId)`
-- `session-repository.port.ts`: `SessionRepository` — セッション永続化
-  - `get()`, `save()`, `exists()`, `delete()`, `count()`
-- `heartbeat-config-repository.port.ts`: `HeartbeatConfigRepository` — Heartbeat 設定永続化
-  - `load()`, `save()`, `updateLastExecuted()`
-- `event-buffer.port.ts`: `EventBuffer` — イベントバッファ（ポーリング用）
-  - `append(event: BufferedEvent): Promise<void>`
-  - `BufferedEvent`: `ts`, `channelId`, `guildId?`, `authorId`, `authorName`, `messageId`, `content`, `attachments?: Attachment[]`, `isMentioned`, `isThread`, `isBot`
+- `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
+- `runner.ts`: `AgentRunner` — `AgentProfile` を受け取って `promptAsync()` でポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
+- `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
+- `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
+- `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
+- `mcp-config.ts`: `mcpServerConfigs()` — MCP サーバー設定を返す。`core`（統合サーバー）、`code-exec`、`minecraft`（条件付き）の 3 エントリ
+- `profiles/conversation.ts`: 会話エージェントプロファイル
 
-- `ltm-fact-reader.port.ts`: `LtmFactReader` — LTM ファクト読み取り
-  - `getFacts(guildId?: string): Promise<LtmFact[]>` — 蓄積済みファクトを取得
-  - `close(): Promise<void>` — リソース解放
-  - `LtmFact`: `content: string`, `category: string`, `createdAt: string`
+### 4.3 gateway/ — 外部世界との接点
 
-#### services/
+- `discord.ts`: `DiscordGateway` — discord.js Client でメッセージ受信。ルーティング: メンション/スレッド -> onMessage、ホームチャンネル -> onHomeChannelMessage。`onEmojiUsed()` でカスタム絵文字トラッキング
+- `scheduler.ts`: `HeartbeatScheduler`（1 分間隔）+ `ConsolidationScheduler`（30 分間隔、初回 5 分遅延）
 
-- `message-formatter.ts`: `splitMessage()` — 2000 文字制限でのメッセージ分割（純粋関数）
-- `heartbeat-evaluator.ts`: `evaluateDueReminders()` — Heartbeat 設定から due なリマインダーを判定（純粋関数）
+### 4.4 mcp/ — MCP サーバー（独立プロセス）
 
-### 4.2 Application 層 — ユースケース
+MCP サーバーは 3 プロセス構成:
 
-- `handle-heartbeat.use-case.ts`: `HandleHeartbeatUseCase`
-  - 依存: `AiAgent`, `HeartbeatConfigRepository`, `Logger`
-  - 処理: due リマインダーからプロンプト構築 → AI セッション起動 → lastExecutedAt 更新
-  - 用途: Heartbeat 自律行動
-- `buffer-event.use-case.ts`: `BufferEventUseCase`
-  - 依存: `EventBuffer`, `Logger`
-  - 処理: `IncomingMessage` → `BufferedEvent` に変換してバッファに追加
-  - 用途: イベントバッファリング（AI がポーリングで消費）
+1. **core-server.ts** (`type: "local"`): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM を統合した単一プロセス
+   - `tools/discord.ts`: `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
+   - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
+   - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
+   - `tools/event-buffer.ts`: `wait_for_events` — SQLite ベース
+   - `tools/ltm.ts`: `ltm_retrieve`, `ltm_consolidate`, `ltm_get_facts`
+2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
+3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
+   - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
 
-### 4.3 Infrastructure 層 — ポートの具象実装
+### 4.5 store/ — SQLite 統一永続化
 
-- `discord/discord-gateway.ts`: `DiscordGateway implements MessageGateway`
-  - discord.js Client でメッセージ受信
-  - ルーティング: メンション/スレッド → onMessage、ホームチャンネル → onHomeChannelMessage、それ以外 → 無視
-  - メンション文字列 (`<@!?\d+>`) を除去
-  - `onEmojiUsed(handler)`: カスタム絵文字使用イベントのハンドラ登録（具象メソッド、ポート外）
-  - `messageCreate` 内でカスタム絵文字（`<:name:id>` / `<a:name:id>`）を正規表現で検出してハンドラ呼び出し
-  - `MessageReactionAdd` イベントを購読し、カスタム絵文字リアクションでハンドラ呼び出し
-  - `Partials.Reaction`, `Partials.Message`, `Partials.Channel` を有効化（キャッシュ外メッセージへのリアクション受信に必要）
-- `discord/discord-attachment-mapper.ts`: `mapDiscordAttachments()` — Discord 添付ファイルから画像 MIME タイプ（`image/png`, `image/jpeg`, `image/gif`, `image/webp`）のみを allowlist フィルタリングし `Attachment[]` に変換
-- `opencode/polling-agent.ts`: `PollingAgent implements AiAgent`
-  - `send()`: EventBuffer にイベントを書き込み、即座に空レスポンスを返す
-  - `startPollingLoop()`: 1回の `promptAsync()` で AI がバッファをポーリングし続ける長寿命セッション
-  - SSE で `session.idle`/`session.error` を検知し、指数バックオフで自動再起動
-  - セッション自動ローテーション: `SESSION_MAX_AGE_HOURS`（デフォルト 48 時間）を超過したセッションを自動で破棄・再作成し、コンテキスト肥大化を防止する
-  - MCP 設定に `event-buffer` を追加で含む
-- `opencode/guild-routing-agent.ts`: `GuildRoutingAgent implements AiAgent`
-  - ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード
-  - `send()`: `options.guildId` で対応するギルド固有エージェントに委譲。`guildId` 未指定時は `defaultAgent` にフォールバック（Heartbeat の `_autonomous` リマインダー用）
-  - `stop()`: 全ギルドエージェントを停止
-  - Heartbeat 等の既存ユースケースが変更不要になる
-- `opencode/mcp-config.ts`: `mcpServerConfigs(options?)` — MCP サーバー設定
-  - `includeEventBuffer: true` で event-buffer MCP サーバーを含む（PollingAgent 用）
-  - `guildId` 指定時はギルド別バッファパスを `EVENT_BUFFER_DIR` 環境変数で渡す
-- `persistence/json-session-repository.ts`: `JsonSessionRepository implements SessionRepository`
-  - `data/sessions.json` にセッション ID を永続化
-  - インメモリキャッシュ + lazy load
-- `context/file-context-loader.ts`: `FileContextLoader implements ContextLoader`
-  - `overlayDir`（`data/context/`）→ `baseDir`（`context/`）のフォールバックで Markdown ファイルを読込・結合
-  - Guild-aware: 共通ファイル（IDENTITY, SOUL 等）は overlay → base、記憶ファイル（MEMORY, LESSONS, daily log）は `guilds/{guildId}/` → グローバルの順で読込（各段階で overlay → base フォールバック）
-- `context/file-context-loader-factory.ts`: `FileContextLoaderFactory implements ContextLoaderFactory`
-  - `overlayDir` と `baseDir` を保持し、Guild ID を指定して `FileContextLoader` を生成
-- `context/json-channel-config-loader.ts`: `JsonChannelConfigLoader implements ChannelConfigLoader`
-  - `data/context/channels.json` → `context/channels.json` のフォールバックでチャンネル設定を読込
-  - `getHomeChannelIds()` でホームチャンネル一覧を取得（ポート外の具象メソッド）
-- `persistence/json-emoji-usage-repository.ts`: `JsonEmojiUsageRepository implements EmojiUsageTracker`
-  - `data/emoji-usage.json` に絵文字使用カウントを永続化
-  - インメモリキャッシュ + 30 秒遅延フラッシュ（graceful shutdown 時は即時フラッシュ）
-- `persistence/json-heartbeat-config-repository.ts`: `JsonHeartbeatConfigRepository implements HeartbeatConfigRepository`
-  - `data/heartbeat-config.json` に設定を永続化
-  - ファイル不在時はデフォルト設定を返す
-- `persistence/file-event-buffer.ts`: `FileEventBuffer implements EventBuffer`
-  - JSONL 形式で append
-  - ポーリングモード用
-  - ギルド分離: `data/event-buffer/guilds/{guildId}/events.jsonl` にギルドごとに書き込み
-- `scheduler/interval-heartbeat-scheduler.ts`: `IntervalHeartbeatScheduler`
-  - 1分間隔の `setInterval` ループ
-  - `running` フラグで重複実行を防止
-- `scheduler/interval-consolidation-scheduler.ts`: `IntervalConsolidationScheduler`
-  - 30分間隔で LTM 未統合エピソードからファクトを自動抽出
-  - 初回は 5 分遅延（起動直後はエピソード未蓄積）、タイムアウト 10 分
-  - `running` フラグ + `executePromise` でタイムアウト後のゾンビ処理との並走を防止
-- `logging/console-logger.ts`: `ConsoleLogger implements Logger` — JSON 構造化ログ（NDJSON）を `process.stdout/stderr` に出力。`[component]` プレフィックスを `component` フィールドに抽出。journald + Grafana Loki 連携を想定。
-- `fenghuang/fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って chat / chatStructured を提供するアダプタ。fenghuang の LLMPort 用。独自の OpenCode インスタンスをポート `LTM_OPENCODE_PORT` で起動し、全組み込みツール・MCP を無効化。
-- `fenghuang/fenghuang-fact-reader.ts`: `FenghuangFactReader implements LtmFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得するアダプタ。WAL モードで ltm-server との同時アクセスを安全に行う。
-- `ollama/ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得するアダプタ。30 秒タイムアウト。
-- `fenghuang/composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat/chatStructured を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲するコンポジットアダプタ。ltm-server で使用。
+- `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
+- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, heartbeat_config）
+- `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `incrementEmoji` 等）
 
-### 4.4 MCP サーバー（独立プロセス、レイヤー外）
+### 4.6 observability/ — ログ・メトリクス
 
-- `mcp/discord-server.ts`: Discord 操作ツール
-  - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
-- `mcp/code-exec-server.ts`: コード実行ツール
-  - `execute_code` (JS/TS/Python/Shell)
-  - Podman コンテナでサンドボックス実行（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除）
-  - コード長上限 10,000 文字、出力 50KB 切り詰め、15 秒タイムアウト
-  - 起動時に podman とコンテナイメージの存在を検証
-- `mcp/schedule-server.ts`: Heartbeat スケジュール管理ツール
-  - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
-  - `data/heartbeat-config.json` を直接読み書き
-- `mcp/memory-server.ts`: メモリ管理ツール
-  - `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
-  - オーバーレイ方式: 読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う
-  - Guild 分離: `guild_id` パラメータ指定時は `guilds/{guildId}/` 配下を使用、省略時はグローバル
-  - `guild_id` は `/^\d+$/` で検証（パストラバーサル防止）
-  - 安全策: 上書き前バックアップ、サイズ上限、append-only 日次ログ、SOUL.md は読み取り専用
-- `mcp/event-buffer-server.ts`: イベントバッファ管理ツール（PollingAgent 用）
-  - `wait_for_events`: イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す
-  - `EVENT_BUFFER_DIR` 環境変数でバッファディレクトリを指定可能（デフォルト: `data/event-buffer/`）
-  - ギルド分離時は `data/event-buffer/guilds/{guildId}/events.jsonl` を JSONL 形式で管理
-- `mcp/ltm-server.ts`: 長期記憶（LTM）検索・統合ツール — fenghuang ライブラリを使用したエピソード記憶・意味記憶の管理
-  - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（`RecordConversationUseCase` + `FenghuangConversationRecorder`）
-  - `ltm_retrieve`: クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得
-  - `ltm_consolidate`: 未統合のエピソードからファクト（意味記憶）を抽出・統合
-  - `ltm_get_facts`: 蓄積されたファクト一覧を取得（カテゴリフィルタ対応）
-  - Guild 分離: `data/fenghuang/guilds/{guildId}/memory.db` に SQLite で永続化
-  - LLM: `CompositeLLMAdapter`（chat は OpenCode SDK、embed は Ollama）を使用
+- `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
+- `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent` + `METRIC` 定数
 
-- `mcp/minecraft/server.ts`: Minecraft 操作ツール（mineflayer ベース、`MC_HOST` 設定時のみ有効）
-  - 分割後の構造:
-    - `bot-context.ts`: ボット状態・イベントバッファ・ジョブマネージャの共有コンテキスト
-    - `bot-connection.ts`: mineflayer 接続管理・自動再接続・イベント登録
-    - `mcp-tools.ts`: MCP ツール定義・登録
-    - `http-server.ts`: StreamableHTTP サーバー
-    - `server.ts`: エントリポイント
-  - `observe_state`: 位置、体力、空腹度、時間帯、天候、近くのエンティティ、インベントリ、装備、直近イベントの要約を返す
-  - `get_recent_events`: インメモリリングバッファ（最大100件）から直近イベントログを取得
-  - `follow_player`: 指定プレイヤーへの動的追従（GoalFollow）。対象ログアウト時に自動停止
-  - `go_to`: 指定座標への移動（GoalNear）
-  - `collect_block`: 指定ブロックの探索・最適ツール自動装備・採掘（GoalGetToBlock + dig、最大64個）
-  - `stop`: 現在の移動・追従を停止
-  - `craft_item`: クラフト（作業台自動移動、ジョブシステム使用）
-  - `place_block`: ブロック設置（隣接ブロック自動検出）
-  - `equip_item`: アイテム装備
-  - `sleep_in_bed`: 就寝（全 16 色ベッド対応、ジョブシステム使用）
-  - `send_chat`: ゲーム内チャット送信
-  - 行動ツールは `mcp/minecraft/actions/` に分離して登録
-  - mineflayer-pathfinder プラグインを読み込み済み
-  - オフラインモード接続、指数バックオフ自動再接続（1秒〜60秒）
+### 4.7 fenghuang/ — LTM アダプタ
 
-設計方針:
+- `composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲
+- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って fenghuang の LLMPort 用 chat/chatStructured を提供
+- `fenghuang-conversation-recorder.ts`: `FenghuangConversationRecorder` — Guild ごとの会話記録 + メモリ統合。`ConversationRecorder` + `MemoryConsolidator` インターフェースを実装
+- `fenghuang-fact-reader.ts`: `FenghuangFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得。WAL モードで安全に同時アクセス
 
-- 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
-- 状態は要約を主に返し、生ログは必要時のみ限定的に参照
+### 4.8 ollama/ — 埋め込みアダプタ
 
-### 4.5 Composition Root
+- `ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得（30 秒タイムアウト）
 
-- `composition-root.ts`: `bootstrap()` — DI 配線のエントリポイント
-  - `bootstrapAgents()` に委譲してポーリングモードを起動
-  - 全インフラ実装をインスタンス化し、ユースケースに注入してゲートウェイにハンドラをバインド
-- `bootstrap-context.ts`: `BootstrapContext` — 各ブートストラップ関数で共有するコンテキスト型
-- `bootstrap-helpers.ts`: `createHeartbeat()`, `startSessionGauge()`, `setupShutdown()` — ブートストラップ共有ヘルパー
-- `infrastructure/opencode/bootstrap-agents.ts`: `bootstrapAgents()` — エージェントのブートストラップ。ギルドごとに `PollingAgent` + `FileEventBuffer` + `BufferEventUseCase` を生成し、`GuildRoutingAgent` でラップして Heartbeat に渡す。全ギルドのポーリングループを並列起動。
+### 4.9 bootstrap.ts — DI 配線
 
-### 4.6 OpenCode 組み込みツール
+- `bootstrap()` — DI 配線のエントリポイント
+- 全モジュールをインスタンス化し、イベントハンドラをバインド
+- ギルドごとに `AgentRunner` + `SqliteEventBuffer` を生成し、`GuildRouter` でラップ
+- LTM 記録、Heartbeat スケジューラ、Consolidation スケジューラを起動
+- Minecraft MCP を子プロセスとして起動（`MC_HOST` 設定時のみ）
+- Graceful shutdown（SIGINT/SIGTERM）実装済み
 
-`PollingAgent` では以下の OpenCode SDK 組み込みツールを有効化している:
+### 4.10 OpenCode 組み込みツール
+
+`AgentRunner` では以下の OpenCode SDK 組み込みツールを有効化している:
 
 - `webfetch`: 指定 URL の内容を取得
 - `websearch`: Web 検索を実行
@@ -275,11 +211,6 @@
 }
 ```
 
-### MessageChannel
-
-- `sendTyping(): Promise<void>`
-- `send(content: string): Promise<void>`
-
 ### heartbeat-config.json 構造
 
 ```json
@@ -297,22 +228,12 @@
 }
 ```
 
-### emoji-usage.json 構造
+### SQLite テーブル（store/schema.ts）
 
-```json
-{
-	"guildId1": { "pepe_sad": 42, "pepe_happy": 17 },
-	"guildId2": { "fire": 5 }
-}
-```
-
-### sessions.json 構造
-
-```json
-{
-	"{agentName}:{sessionKey}": "{opencode-session-id}"
-}
-```
+- `sessions`: セッション永続化（key, sessionId, createdAt）
+- `event_buffer`: イベントバッファ（guildId, payload, createdAt）
+- `emoji_usage`: 絵文字使用カウント（guildId, emojiName, count）
+- `heartbeat_config`: Heartbeat 設定（JSON blob）
 
 ## 6. 主要シーケンス
 
@@ -320,34 +241,34 @@
 
 1. Discord `messageCreate` を受信する。
 2. Bot 自身のメッセージのみ除外する。他 Bot メッセージには `isBot` フラグを付与して処理を継続する。
-3. メンション → `BufferEventUseCase` でイベントバッファに追加
-4. ホームチャンネル（配下スレッド含む） → `BufferEventUseCase` でイベントバッファに追加
-5. その他 → 無視
+3. メンション -> `bootstrap.ts` の `bufferIncomingMessage()` でイベントバッファに追加
+4. ホームチャンネル（配下スレッド含む） -> `bufferIncomingMessage()` でイベントバッファに追加 + LTM 記録
+5. その他 -> 無視
 6. AI が `event-buffer` MCP ツールでバッファをポーリングし、自律的に応答を判断・送信する
 
-### 6.4 Heartbeat 自律行動
+### 6.2 Heartbeat 自律行動
 
-1. `IntervalHeartbeatScheduler` が 1 分ごとに `tick()` を実行する。
-2. `HeartbeatConfigRepository.load()` で設定を読み込む。
+1. `HeartbeatScheduler` が 1 分ごとに `tick()` を実行する。
+2. Heartbeat 設定を読み込む。
 3. `evaluateDueReminders()` で due なリマインダーを判定する。
-4. due なリマインダーがあれば `HandleHeartbeatUseCase.execute()` を呼ぶ。
+4. due なリマインダーがあれば `InstrumentedAiAgent.send()` を呼ぶ。
 5. due リマインダーを guildId でグループ化し、Guild ごとに別セッション `system:heartbeat:{guildId}` で逐次実行する（guildId なしは `system:heartbeat:_autonomous`）。
 6. AI が MCP ツール（discord, code-exec, schedule）を使って自律的に行動する。
 7. 成功時に `lastExecutedAt` を更新する。
 
-### 6.5 セッション管理（既存）
+### 6.3 セッション管理
 
 1. セッションキーで既存セッション ID を検索する。
 2. 存在すれば OpenCode API で有効性を検証する。
-3. 無効なら新規セッションを作成し、JSON に保存する。
-4. 毎回ブートストラップコンテキストを `system` フィールドで送信する（OpenCode はセッション内で system をキャッシュしないため）。
+3. 無効なら新規セッションを作成し、SQLite に保存する。
+4. 毎回ブートストラップコンテキストを `system` フィールドで送信する。
 
-### 6.6 コンテキスト読込
+### 6.4 コンテキスト読込
 
-1. 全ファイルはオーバーレイ方式で読み込む: `data/context/` → `context/` の順でフォールバック。
-2. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）は overlay → base の順。
-3. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `guilds/{guildId}/` → グローバルの順でフォールバック（各段階で overlay → base）。
-4. 当日の日次ログも同様に Guild 固有 → グローバルの順（各段階で overlay → base）。
+1. 全ファイルはオーバーレイ方式で読み込む: `data/context/` -> `context/` の順でフォールバック。
+2. 共通ファイル（`IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`）は overlay -> base の順。
+3. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `guilds/{guildId}/` -> グローバルの順でフォールバック（各段階で overlay -> base）。
+4. 当日の日次ログも同様に Guild 固有 -> グローバルの順（各段階で overlay -> base）。
 5. **LTM ファクト注入**: `LtmFactReader` から蓄積済みファクトを取得し、`<ltm-facts>` セクションとして注入する。
 6. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
 7. XML タグでラップして結合する。
@@ -361,16 +282,16 @@
 
 ### セッション管理
 
-- `SESSION_MAX_AGE_HOURS`: セッション自動ローテーションの最大寿命（デフォルト: `4`）。超過したセッションは PollingAgent 再起動時に自動破棄される。
+- `SESSION_MAX_AGE_HOURS`: セッション自動ローテーションの最大寿命（デフォルト: `4`）。超過したセッションは AgentRunner 再起動時に自動破棄される。
 
-### OpenCode プロバイダ設定（PollingAgent 用）
+### OpenCode プロバイダ設定（AgentRunner 用）
 
 - `OPENCODE_PROVIDER_ID`: プロバイダ ID（デフォルト: `"github-copilot"`）
 - `OPENCODE_MODEL_ID`: モデル ID（デフォルト: `"big-pickle"`）
 
 ### LTM プロバイダ設定（FenghuangChatAdapter 用）
 
-- `LTM_PROVIDER_ID`: LTM 用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` → `"github-copilot"`）
+- `LTM_PROVIDER_ID`: LTM 用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` -> `"github-copilot"`）
 - `LTM_MODEL_ID`: LTM 用モデル ID（デフォルト: `"gpt-4o"`）
 - `OLLAMA_BASE_URL`: Ollama API エンドポイント（デフォルト: `"http://ollama:11434"`、コンテナ間通信用）
 - `LTM_EMBEDDING_MODEL`: 埋め込みモデル（デフォルト: `"embeddinggemma"`）
@@ -378,7 +299,7 @@
 ### Ollama コンテナ
 
 - `compose.yaml` で `ollama` サービスとして定義（`docker.io/ollama/ollama:latest`、CPU 版）
-- `bot` → `ollama` のコンテナ間通信は `vicissitude-net` ブリッジネットワーク経由
+- `bot` -> `ollama` のコンテナ間通信は `vicissitude-net` ブリッジネットワーク経由
 - モデルデータは `ollama-data` ボリュームに永続化
 - 初回起動時に `containers/ollama/entrypoint.sh` が `embeddinggemma` モデルを自動プル（`LTM_EMBEDDING_MODEL` 環境変数で変更可能）
 - healthcheck (`ollama list`) で起動完了を確認し、`bot` は `service_healthy` 条件で待機
@@ -410,13 +331,13 @@
 
 ## 10. 設計上の決定
 
-1. Clean Architecture + Ports and Adapters を採用する。
+1. 責務別フラットモジュール構成を採用する（Clean Architecture からの移行完了）。
 2. DI は手動コンストラクタ注入のみ（Pure DI）。
-3. MCP サーバーは独立プロセスとしてレイヤー外に配置する。
-4. セッション永続化は JSON ファイルを使用する。
-5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う。
+3. MCP サーバーは独立プロセスとして 3 プロセス構成（core / code-exec / minecraft）。
+4. セッション永続化は SQLite を使用する。
+5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` -> `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
-7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（fenghuang の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`FileContextLoader` は `LtmFactReader` ポートを通じて LTM ファクトをシステムプロンプトに注入する（Clean Architecture の依存方向を維持）。
+7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（fenghuang の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`ContextBuilder` は `LtmFactReader` を通じて LTM ファクトをシステムプロンプトに注入する。
 8. Minecraft 拡張は既存エージェント基盤の置換ではなく、MCP サーバー追加で実装する。人格は 1 つに維持し、Minecraft は内部で分業する。
 9. Minecraft 連携の意思決定はイベント駆動を基本にし、毎 tick 推論は行わない。LLM への入力は要約優先でコンテキスト過負荷を防ぐ。
 
