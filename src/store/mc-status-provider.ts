@@ -37,9 +37,27 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 		const recent = events.slice(-MAX_RECENT_REPORTS);
 		const lines = recent.map((e) => {
 			const ts = new Date(e.createdAt).toISOString();
+			if (e.type === "report") {
+				const parsed = this.parseReportPayload(e.payload);
+				if (parsed) {
+					return `- [${ts}] [${parsed.importance}] ${parsed.message}`;
+				}
+			}
 			return `- [${ts}] (${e.type}) ${e.payload}`;
 		});
 		return `## 直近のレポート\n${lines.join("\n")}`;
+	}
+
+	private parseReportPayload(payload: string): { message: string; importance: string } | null {
+		try {
+			const parsed = JSON.parse(payload) as Record<string, unknown>;
+			if (typeof parsed.message === "string" && typeof parsed.importance === "string") {
+				return { message: parsed.message, importance: parsed.importance };
+			}
+		} catch {
+			// JSON パース失敗時は null を返す
+		}
+		return null;
 	}
 
 	private async buildGoalsSection(): Promise<string | null> {

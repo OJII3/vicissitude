@@ -4,11 +4,12 @@ import type { StoreDb } from "./db.ts";
 import { mcBridgeEvents } from "./schema.ts";
 
 export type BridgeDirection = "to_main" | "to_sub";
+export type BridgeEventType = "command" | "report" | "lifecycle";
 
 export interface BridgeEvent {
 	id: number;
 	direction: BridgeDirection;
-	type: string;
+	type: BridgeEventType;
 	payload: string;
 	createdAt: number;
 }
@@ -17,7 +18,7 @@ export interface BridgeEvent {
 export function insertBridgeEvent(
 	db: StoreDb,
 	direction: BridgeDirection,
-	type: string,
+	type: BridgeEventType,
 	payload: string,
 ): void {
 	db.insert(mcBridgeEvents).values({ direction, type, payload, createdAt: Date.now() }).run();
@@ -26,14 +27,27 @@ export function insertBridgeEvent(
 /** 消費済みレコードを保持する期間（24時間） */
 const PURGE_AGE_MS = 24 * 60 * 60 * 1000;
 
-/** 未消費のブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
-export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): BridgeEvent[] {
+/** DB 行を BridgeEvent に変換するヘルパー */
+function toBridgeEvent(r: {
+	id: number | null;
+	direction: string;
+	type: string;
+	payload: string;
+	createdAt: number;
+}): BridgeEvent {
+	return {
+		id: r.id ?? 0,
+		direction: r.direction as BridgeDirection,
+		type: r.type as BridgeEventType,
+		payload: r.payload,
+		createdAt: r.createdAt,
+	};
+}
+
+/** 未消費イベントをアトミックに消費し、古い消費済みレコードをパージする共通処理 */
+function consumeAndPurge(db: StoreDb, whereConditions: ReturnType<typeof and>): BridgeEvent[] {
 	return db.transaction((tx) => {
-		const rows = tx
-			.select()
-			.from(mcBridgeEvents)
-			.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
-			.all();
+		const rows = tx.select().from(mcBridgeEvents).where(whereConditions).all();
 
 		if (rows.length > 0) {
 			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
@@ -50,14 +64,16 @@ export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): Br
 			)
 			.run();
 
-		return rows.map((r) => ({
-			id: r.id ?? 0,
-			direction: r.direction as BridgeDirection,
-			type: r.type,
-			payload: r.payload,
-			createdAt: r.createdAt,
-		}));
+		return rows.map((r) => toBridgeEvent(r));
 	});
+}
+
+/** 未消費のブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
+export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): BridgeEvent[] {
+	return consumeAndPurge(
+		db,
+		and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)),
+	);
 }
 
 /** 未消費のブリッジイベントを消費せず覗き見する */
@@ -67,47 +83,23 @@ export function peekBridgeEvents(db: StoreDb, direction: BridgeDirection): Bridg
 		.from(mcBridgeEvents)
 		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
 		.all()
-		.map((r) => ({
-			id: r.id ?? 0,
-			direction: r.direction as BridgeDirection,
-			type: r.type,
-			payload: r.payload,
-			createdAt: r.createdAt,
-		}));
+		.map((r) => toBridgeEvent(r));
 }
 
-/** 未消費の特定タイプのブリッジイベントをアトミックに取得し consumed=1 にする */
+/** 未消費の特定タイプのブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
 export function consumeBridgeEventsByType(
 	db: StoreDb,
 	direction: BridgeDirection,
-	type: string,
+	type: BridgeEventType,
 ): BridgeEvent[] {
-	return db.transaction((tx) => {
-		const rows = tx
-			.select()
-			.from(mcBridgeEvents)
-			.where(
-				and(
-					eq(mcBridgeEvents.direction, direction),
-					eq(mcBridgeEvents.type, type),
-					eq(mcBridgeEvents.consumed, 0),
-				),
-			)
-			.all();
-
-		if (rows.length > 0) {
-			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
-			tx.update(mcBridgeEvents).set({ consumed: 1 }).where(inArray(mcBridgeEvents.id, ids)).run();
-		}
-
-		return rows.map((r) => ({
-			id: r.id ?? 0,
-			direction: r.direction as BridgeDirection,
-			type: r.type,
-			payload: r.payload,
-			createdAt: r.createdAt,
-		}));
-	});
+	return consumeAndPurge(
+		db,
+		and(
+			eq(mcBridgeEvents.direction, direction),
+			eq(mcBridgeEvents.type, type),
+			eq(mcBridgeEvents.consumed, 0),
+		),
+	);
 }
 
 /** 未消費のブリッジイベントが存在するか確認する */

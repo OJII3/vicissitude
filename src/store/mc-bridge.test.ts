@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	consumeBridgeEvents,
+	consumeBridgeEventsByType,
 	hasBridgeEvents,
 	insertBridgeEvent,
 	peekBridgeEvents,
@@ -83,6 +84,52 @@ describe("mc-bridge", () => {
 			const mainEvents = peekBridgeEvents(db, "to_main");
 			expect(mainEvents).toHaveLength(1);
 			expect(mainEvents[0]?.direction).toBe("to_main");
+		});
+	});
+
+	describe("consumeBridgeEventsByType", () => {
+		test("consumes only events of the specified type", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_sub", "command", "go to forest");
+			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+			insertBridgeEvent(db, "to_sub", "command", "mine diamonds");
+
+			const lifecycleEvents = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+			expect(lifecycleEvents).toHaveLength(1);
+			expect(lifecycleEvents[0]?.type).toBe("lifecycle");
+			expect(lifecycleEvents[0]?.payload).toBe("start");
+
+			// command events should remain unconsumed
+			const commandEvents = consumeBridgeEventsByType(db, "to_sub", "command");
+			expect(commandEvents).toHaveLength(2);
+		});
+
+		test("consumed events are not returned again", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+			consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+
+			const remaining = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+			expect(remaining).toHaveLength(0);
+		});
+
+		test("returns empty array when no events of the type exist", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_sub", "command", "test");
+
+			const events = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+			expect(events).toHaveLength(0);
+		});
+
+		test("does not affect other direction", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_main", "report", "found diamond");
+			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+
+			consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+
+			const mainEvents = peekBridgeEvents(db, "to_main");
+			expect(mainEvents).toHaveLength(1);
 		});
 	});
 

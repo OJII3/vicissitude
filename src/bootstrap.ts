@@ -279,15 +279,19 @@ class McSubBrainManager {
 	}
 
 	private checkLifecycleEvents(): void {
-		const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
-		for (const event of events) {
-			if (event.payload === "start") {
-				this.deps.logger.info("[McSubBrainManager] received lifecycle start");
-				this.startRunner();
-			} else if (event.payload === "stop") {
-				this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
-				this.stopRunner();
+		try {
+			const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
+			for (const event of events) {
+				if (event.payload === "start") {
+					this.deps.logger.info("[McSubBrainManager] received lifecycle start");
+					this.startRunner();
+				} else if (event.payload === "stop") {
+					this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
+					this.stopRunner();
+				}
 			}
+		} catch (err) {
+			this.deps.logger.error("[McSubBrainManager] lifecycle check error", err);
 		}
 	}
 }

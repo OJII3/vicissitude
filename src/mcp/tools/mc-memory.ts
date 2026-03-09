@@ -93,7 +93,8 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		({ name, description }) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME);
 			const safeName = name.replaceAll(/[\r\n]/g, " ");
-			const entry = `\n## ${safeName}\n\n${description}\n`;
+			const safeDescription = description.replaceAll(/^#{1,6}\s/gm, "");
+			const entry = `\n## ${safeName}\n\n${safeDescription}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			writeOverlay(dataDir, SKILLS_FILENAME, updated);
 			return {

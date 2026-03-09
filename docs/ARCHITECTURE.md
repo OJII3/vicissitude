@@ -17,7 +17,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, SKILLS）
-- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -74,6 +74,7 @@ src/
 │   ├── schema.ts            # 全テーブル定義
 │   ├── queries.ts           # 共通クエリヘルパー
 │   ├── mc-bridge.ts         # MC ブリッジクエリ関数
+│   ├── mc-status-provider.ts  # メインブレイン用 MC 状態サマリー生成
 │   └── mc-sub-event-buffer.ts  # Minecraft サブブレイン用タイマーベース EventBuffer
 │
 ├── observability/           # ログ・メトリクス
@@ -140,7 +141,8 @@ MCP サーバーは 4 プロセス構成:
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
 - `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events）
 - `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `consumeEvents`, `incrementEmoji` 等）
-- `mc-bridge.ts`: MC ブリッジクエリ（`insertBridgeEvent`, `consumeBridgeEvents`, `peekBridgeEvents`, `hasBridgeEvents`）
+- `mc-bridge.ts`: MC ブリッジクエリ（`insertBridgeEvent`, `consumeBridgeEvents`, `consumeBridgeEventsByType`, `peekBridgeEvents`, `hasBridgeEvents`）
+- `mc-status-provider.ts`: `SqliteMcStatusProvider` — ブリッジレポート + MINECRAFT-GOALS.md からメインブレイン用 MC 状態サマリーを生成
 - `mc-sub-event-buffer.ts`: `MinecraftEventBuffer` — タイマーベースの EventBuffer 実装（30秒間隔ポーリング用）
 
 ### 4.6 observability/ — ログ・メトリクス
@@ -294,6 +296,7 @@ MCP サーバーは 4 プロセス構成:
 3. 記憶ファイル（`MEMORY.md`, `LESSONS.md`）は guildId 指定時に `guilds/{guildId}/` -> グローバルの順でフォールバック（各段階で overlay -> base）。
 4. 当日の日次ログも同様に Guild 固有 -> グローバルの順（各段階で overlay -> base）。
 5. **LTM ファクト注入**: `LtmFactReader` から蓄積済みファクトを取得し、`<ltm-facts>` セクションとして注入する。
+   5.1. **Minecraft 状態注入**（`config.minecraft` 設定時のみ）: `McStatusProvider` からサブブレインのレポートと目標を取得し、`<minecraft-status>` セクションとして注入する。
 6. 各ファイル 20,000 文字、合計 150,000 文字で切り詰め。
 7. XML タグでラップして結合する。
 8. guildId が存在する場合、`<guild-context>` タグで guild_id を明示し、MCP ツール使用時の指示を含める。
