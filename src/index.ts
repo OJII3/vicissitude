@@ -1,4 +1,4 @@
-import { bootstrap } from "./composition-root.ts";
+import { bootstrap } from "./bootstrap.ts";
 
 console.log("Starting Vicissitude...");
 

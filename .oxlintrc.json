@@ -31,13 +31,16 @@
 		"import/no-cycle": "error",
 		"import/no-self-import": "error",
 		"import/no-duplicates": "error",
+		"import/no-mutable-exports": "error",
+		"import/first": "error",
+		"import/no-anonymous-default-export": "error",
 		"promise/no-return-wrap": "error",
 		"promise/param-names": "error",
 		"promise/catch-or-return": "error"
 	},
 	"overrides": [
 		{
-			"files": ["**/composition-root.ts", "**/bootstrap.ts", "**/bootstrap-agents.ts"],
+			"files": ["**/bootstrap.ts"],
 			"rules": {
 				"import/max-dependencies": "off",
 				"eslint/max-lines-per-function": "off"
@@ -48,6 +51,141 @@
 			"rules": {
 				"eslint/max-lines-per-function": "off",
 				"import/max-dependencies": "off"
+			}
+		},
+		{
+			"files": ["**/mcp/tools/*.ts", "**/mcp/core-server.ts"],
+			"rules": {
+				"eslint/max-lines-per-function": "off",
+				"import/max-dependencies": "off"
+			}
+		},
+		{
+			"files": ["**/core/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama)/",
+								"message": "core/ は他の内部モジュールに依存できません"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/observability/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama)/",
+								"message": "observability/ は core/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/ollama/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang)/",
+								"message": "ollama/ は core/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/store/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|observability|fenghuang|ollama)/",
+								"message": "store/ は core/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/agent/**/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(gateway|mcp|observability|fenghuang|ollama)/",
+								"message": "agent/ は core/, store/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/fenghuang/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|observability)/",
+								"message": "fenghuang/ は core/, ollama/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/gateway/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(mcp|fenghuang|ollama)/",
+								"message": "gateway/ は core/, agent/, store/, observability/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/mcp/**/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|observability)/",
+								"message": "mcp/ は agent/, observability/ に依存できません"
+							}
+						]
+					}
+				]
 			}
 		}
 	],
