@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: upgrade/canvas-next
+- ブランチ: fix/mcp-minecraft-multi-session
 
 ## 2. 現在の真実（Project Truth）
 
@@ -45,6 +45,7 @@
 - **Discord MCP サーバーの `send_message` / `reply` に `file_path` パラメータを追加。** オプショナルなファイル添付送信に対応し、スクリーンショット画像の Discord 送信が可能。
 - **Minecraft MCP ツール 5 種追加。** `send_chat`（ゲーム内チャット送信）、`equip_item`（アイテム装備）、`place_block`（ブロック設置、隣接ブロック自動検出）、`craft_item`（クラフト、作業台自動移動、ジョブシステム使用）、`sleep_in_bed`（就寝、全 16 色ベッド対応、ジョブシステム使用）を実装。
 - **Minecraft MCP サーバーの安定性修正。** `Bun.serve` の `idleTimeout` を最大値（255秒）に設定し StreamableHTTP 長時間接続の切断を防止。`uncaughtException` / `unhandledRejection` ハンドラを追加しプロセスクラッシュを防止。`cleanupBot` で `quit()` 未定義時のクラッシュを防止。
+- **Minecraft MCP サーバーのマルチセッション対応。** MCP SDK の `Protocol.connect()` が 1 インスタンスにつき 1 トランスポートしか受け付けない制約により、2 番目以降の Guild セッションで接続エラーが発生していた問題を修正。SDK 公式パターンに従い、セッションごとに新しい `McpServer` インスタンスを生成するファクトリ関数方式に変更。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。

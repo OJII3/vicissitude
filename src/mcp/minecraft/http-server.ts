@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 
 interface SessionEntry {
+	server: McpServer;
 	transport: WebStandardStreamableHTTPServerTransport;
 	lastAccess: number;
 }
@@ -12,7 +13,7 @@ const SESSION_TTL_MS = 30 * 60 * 1000;
 const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
 function createFetchHandler(
-	server: McpServer,
+	createServer: () => McpServer,
 	sessions: Map<string, SessionEntry>,
 ): (req: Request) => Response | Promise<Response> {
 	return async (req) => {
@@ -24,10 +25,17 @@ function createFetchHandler(
 			return entry.transport.handleRequest(req);
 		}
 		if (req.method === "POST" && !sessionId) {
+			let server: McpServer;
+			try {
+				server = createServer();
+			} catch (err) {
+				console.error("[minecraft] failed to create MCP server session:", err);
+				return new Response("Internal Server Error", { status: 500 });
+			}
 			const t = new WebStandardStreamableHTTPServerTransport({
 				sessionIdGenerator: () => crypto.randomUUID(),
 				onsessioninitialized: (id) => {
-					sessions.set(id, { transport: t, lastAccess: Date.now() });
+					sessions.set(id, { server, transport: t, lastAccess: Date.now() });
 				},
 				onsessionclosed: (id) => {
 					sessions.delete(id);
@@ -46,15 +54,24 @@ function createFetchHandler(
 }
 
 export function startHttpServer(
-	server: McpServer,
+	createServer: () => McpServer,
 	port: number,
-): { cleanupTimer: ReturnType<typeof setInterval> } {
+): { cleanupTimer: ReturnType<typeof setInterval>; closeAllSessions: () => void } {
 	const sessions = new Map<string, SessionEntry>();
+
+	const closeAllSessions = (): void => {
+		for (const [id, entry] of sessions) {
+			entry.server.close().catch(() => {});
+			entry.transport.close().catch(() => {});
+			sessions.delete(id);
+		}
+	};
 
 	const cleanupTimer = setInterval(() => {
 		const now = Date.now();
 		for (const [id, entry] of sessions) {
 			if (now - entry.lastAccess > SESSION_TTL_MS) {
+				entry.server.close().catch(() => {});
 				entry.transport.close().catch(() => {});
 				sessions.delete(id);
 			}
@@ -65,10 +82,10 @@ export function startHttpServer(
 	Bun.serve({
 		port,
 		idleTimeout: 255,
-		fetch: createFetchHandler(server, sessions),
+		fetch: createFetchHandler(createServer, sessions),
 	});
 
 	console.error(`[minecraft] MCP server listening on port ${port}`);
 
-	return { cleanupTimer };
+	return { cleanupTimer, closeAllSessions };
 }
