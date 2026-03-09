@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: fix/minecraft-mcp-idle-timeout
+- ブランチ: upgrade/canvas-next
 
 ## 2. 現在の真実（Project Truth）
 
@@ -41,6 +41,7 @@
 - **Minecraft 状態要約レイヤーとイベントログ整備。** `observe_state` が自然言語要約テキストを返すように変更（体力♥バー、hostile mob ⚠ 表示、インベントリ1行要約）。BotEvent に `importance` フィールド（low/medium/high）を追加し、health イベントをスロットリング（体力変化5以上 or 体力5以下のみ記録）。playerJoined/playerLeft/timeChange/weatherChange の新イベント種別を追加。`get_recent_events` に importance フィルタを追加しテキスト形式で出力。アクション状態（idle/following/moving/collecting）をトラッキング。要約関数は `minecraft-state-summary.ts`、ヘルパーは `minecraft-helpers.ts` に分離しテスト完備。
 - **Minecraft アクションのジョブシステム化。** `go_to` / `collect_block` / `follow_player` を非同期ジョブ化し、即座に jobId を返すように変更。`JobManager` クラスがシングルジョブの排他制御・自動キャンセル・AbortSignal によるキャンセル伝播・進捗更新を管理。`stop` ツールは `jobManager.cancelCurrentJob()` 経由に統一。`get_job_status` ツールを追加しジョブ履歴の確認が可能。`minecraft-bot-queries.ts` にヘルパー関数を切り出しファイル分割を推進。
 - **`take_screenshot` を `get_viewer_url` に置き換え。** `node-canvas-webgl` が Bun の V8 API と非互換のため、サーバーサイドレンダリングを廃止。代わりに `prismarine-viewer` の Web サーバーモード（Express + Socket.IO）を採用し、ブラウザ側で Three.js レンダリングを行う。bot spawn 時にビューアーサーバーを自動起動（デフォルトポート: 3007、`MC_VIEWER_PORT` で変更可能）。再接続時はビューアーを close → 再起動。
+- **`canvas@next` (v3) にアップグレード。** `canvas@2` は NAN ベースで Bun 非互換のため、N-API ベースの `canvas@3` に移行。`node-canvas-webgl` も削除（未使用かつ canvas@2 依存で競合）。これにより Minecraft MCP サーバーの `exit code 127` クラッシュが解消。
 - **Discord MCP サーバーの `send_message` / `reply` に `file_path` パラメータを追加。** オプショナルなファイル添付送信に対応し、スクリーンショット画像の Discord 送信が可能。
 - **Minecraft MCP ツール 5 種追加。** `send_chat`（ゲーム内チャット送信）、`equip_item`（アイテム装備）、`place_block`（ブロック設置、隣接ブロック自動検出）、`craft_item`（クラフト、作業台自動移動、ジョブシステム使用）、`sleep_in_bed`（就寝、全 16 色ベッド対応、ジョブシステム使用）を実装。
 - **Minecraft MCP サーバーの安定性修正。** `Bun.serve` の `idleTimeout` を最大値（255秒）に設定し StreamableHTTP 長時間接続の切断を防止。`uncaughtException` / `unhandledRejection` ハンドラを追加しプロセスクラッシュを防止。`cleanupBot` で `quit()` 未定義時のクラッシュを防止。
@@ -81,6 +82,7 @@
 8. ~~`craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` の実装~~ **完了**
 9. ~~Minecraft MCP サーバーを永続 HTTP プロセス化（Stdio → StreamableHTTP、セッション終了後もボット接続維持）~~ **完了**
 10. ~~Containerfile を簡素化（mise shims 活用）~~ **完了**
+11. ~~`canvas@next` (v3) にアップグレードし Bun 互換化~~ **完了**
 
 ## 6. ブロッカー
 
