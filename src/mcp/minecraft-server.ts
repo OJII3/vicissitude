@@ -140,7 +140,7 @@ function registerWorldEvents(b: mineflayer.Bot): void {
 
 function cleanupBot(b: mineflayer.Bot): void {
 	b.removeAllListeners();
-	b.quit();
+	if (typeof b.quit === "function") b.quit();
 }
 
 function createBot(): mineflayer.Bot {
