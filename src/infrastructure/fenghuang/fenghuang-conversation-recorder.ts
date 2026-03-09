@@ -4,13 +4,11 @@ import { resolve } from "path";
 import { ConsolidationPipeline, type LLMPort, SQLiteStorageAdapter, Segmenter } from "fenghuang";
 
 import type {
+	ConsolidationResult,
 	ConversationMessage,
 	ConversationRecorder,
-} from "../../domain/ports/conversation-recorder.port.ts";
-import type {
-	ConsolidationResult,
 	MemoryConsolidator,
-} from "../../domain/ports/memory-consolidator.port.ts";
+} from "../../core/types.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 

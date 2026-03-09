@@ -177,3 +177,31 @@ export interface Logger {
 	error(message: string, ...args: unknown[]): void;
 	warn(message: string, ...args: unknown[]): void;
 }
+
+// ─── Conversation Recorder ───────────────────────────────────────
+
+export interface ConversationRecorder {
+	record(guildId: string, message: ConversationMessage): Promise<void>;
+}
+
+// ─── Memory Consolidator ─────────────────────────────────────────
+
+export interface ConsolidationResult {
+	processedEpisodes: number;
+	newFacts: number;
+	reinforced: number;
+	updated: number;
+	invalidated: number;
+}
+
+export interface MemoryConsolidator {
+	getActiveGuildIds(): string[];
+	consolidate(guildId: string): Promise<ConsolidationResult>;
+}
+
+// ─── LTM Fact Reader ─────────────────────────────────────────────
+
+export interface LtmFactReader {
+	getFacts(guildId?: string): Promise<LtmFact[]>;
+	close(): Promise<void>;
+}
