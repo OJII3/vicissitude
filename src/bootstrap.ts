@@ -34,6 +34,8 @@ import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
+import { consumeBridgeEventsByType } from "./store/mc-bridge.ts";
+import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { MinecraftEventBuffer } from "./store/mc-sub-event-buffer.ts";
 import { incrementEmoji } from "./store/queries.ts";
 
@@ -199,6 +201,97 @@ async function startMinecraftMcp(
 	return mcProcess;
 }
 
+// ─── McSubBrainManager ──────────────────────────────────────────
+
+const MC_LIFECYCLE_POLL_MS = 10_000;
+
+interface McSubBrainManagerDeps {
+	db: StoreDb;
+	sessionStore: SessionStore;
+	logger: Logger;
+	root: string;
+	port: number;
+	providerId: string;
+	modelId: string;
+	sessionMaxAgeMs: number;
+}
+
+/**
+ * Minecraft サブブレインの生成・起動・停止を管理する。
+ * ブリッジテーブルの lifecycle イベントを定期ポーリングし、
+ * start/stop 指示に応じてランナーを制御する。
+ */
+class McSubBrainManager {
+	private runner: AgentRunner | undefined;
+	private pollTimer: ReturnType<typeof setInterval> | undefined;
+
+	constructor(private readonly deps: McSubBrainManagerDeps) {}
+
+	/** 初期起動（自動的にランナーを開始し、lifecycle ポーリングも開始） */
+	start(): void {
+		this.startRunner();
+		this.pollTimer = setInterval(() => this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
+	}
+
+	stop(): void {
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = undefined;
+		}
+		this.stopRunner();
+	}
+
+	private startRunner(): void {
+		if (this.runner) return;
+
+		const { root, sessionStore, logger, port, providerId, modelId, sessionMaxAgeMs } = this.deps;
+		const mcEventBuffer = new MinecraftEventBuffer(30_000);
+		const mcContextBuilder = new MinecraftContextBuilder(
+			resolve(root, "data/context/minecraft"),
+			resolve(root, "context/minecraft"),
+		);
+		const mcProfile = createMinecraftProfile({
+			providerId,
+			modelId,
+			mcpServers: mcpMinecraftSubBrainConfigs(),
+		});
+		this.runner = new AgentRunner({
+			profile: mcProfile,
+			guildId: MC_SUB_BRAIN_GUILD_ID,
+			sessionStore,
+			contextBuilder: mcContextBuilder,
+			logger,
+			port,
+			eventBuffer: mcEventBuffer,
+			sessionMaxAgeMs,
+		});
+		this.runner.startPollingLoop().catch((err) => {
+			logger.error("[McSubBrainManager] polling loop unexpectedly rejected", err);
+		});
+		logger.info("[McSubBrainManager] sub-brain started");
+	}
+
+	private stopRunner(): void {
+		if (!this.runner) return;
+		this.runner.stop();
+		this.runner = undefined;
+		this.deps.logger.info("[McSubBrainManager] sub-brain stopped");
+	}
+
+	private checkLifecycleEvents(): void {
+		const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
+		for (const event of events) {
+			if (event.payload === "start") {
+				this.deps.logger.info("[McSubBrainManager] received lifecycle start");
+				this.startRunner();
+			} else if (event.payload === "stop") {
+				this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
+				this.stopRunner();
+			}
+		}
+	}
+}
+
 // ─── Session Gauge ──────────────────────────────────────────────
 
 function startSessionGauge(
@@ -223,10 +316,18 @@ export async function bootstrap(): Promise<void> {
 
 	// LTM
 	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
+	const mcStatusProvider = config.minecraft
+		? new SqliteMcStatusProvider(
+				db,
+				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
+				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
+			)
+		: undefined;
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 		ltmFactReader,
+		mcStatusProvider,
 	);
 
 	// Metrics
@@ -296,27 +397,17 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft MCP
 	const mcProcess = await mcReady;
 
-	// Minecraft sub-brain
-	let mcSubBrainRunner: AgentRunner | undefined;
+	// Minecraft sub-brain manager
+	let mcSubBrainManager: McSubBrainManager | undefined;
 	if (config.minecraft) {
-		const mcEventBuffer = new MinecraftEventBuffer(30_000);
-		const mcContextBuilder = new MinecraftContextBuilder(
-			resolve(root, "data/context/minecraft"),
-			resolve(root, "context/minecraft"),
-		);
-		const mcProfile = createMinecraftProfile({
+		mcSubBrainManager = new McSubBrainManager({
+			db,
+			sessionStore,
+			logger,
+			root,
+			port: config.opencode.basePort + guildIds.length,
 			providerId: config.opencode.providerId,
 			modelId: config.opencode.modelId,
-			mcpServers: mcpMinecraftSubBrainConfigs(),
-		});
-		mcSubBrainRunner = new AgentRunner({
-			profile: mcProfile,
-			guildId: MC_SUB_BRAIN_GUILD_ID,
-			sessionStore,
-			contextBuilder: mcContextBuilder,
-			logger,
-			port: config.opencode.basePort + guildIds.length,
-			eventBuffer: mcEventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 		});
 	}
@@ -334,7 +425,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
-			mcSubBrainRunner?.stop();
+			mcSubBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await ltmResources?.chatAdapter.close();
@@ -362,10 +453,7 @@ export async function bootstrap(): Promise<void> {
 		});
 	}
 
-	if (mcSubBrainRunner) {
-		mcSubBrainRunner.startPollingLoop().catch((err) => {
-			logger.error("[bootstrap] minecraft sub-brain polling loop unexpectedly rejected", err);
-		});
-		logger.info("[bootstrap] Minecraft sub-brain started");
+	if (mcSubBrainManager) {
+		mcSubBrainManager.start();
 	}
 }

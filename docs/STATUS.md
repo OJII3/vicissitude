@@ -11,7 +11,7 @@
 - **モジュール構成移行完了（M7-M11）。** `core/` `agent/` `gateway/` `observability/` `store/` `fenghuang/` `ollama/` `mcp/` の機能別構成。DI は `bootstrap.ts` に集約。
 - **ポーリングモード一本化。** `AgentRunner` が SQLite `event_buffer` にイベントを書き込み、AI が MCP ツールで消費。セッション自動ローテーション（デフォルト 48h、`SESSION_MAX_AGE_HOURS` で変更可）。
 - **MCP サーバー 4 プロセス構成。** core（Discord + メモリ + スケジュール + イベントバッファ + LTM + MC ブリッジ）、code-exec、minecraft（`MC_HOST` 設定時のみ）、mc-sub-bridge（サブブレイン用ブリッジ）。
-- **Minecraft サブブレイン（M12a/M12b/M12c）。** メインブレインとは独立した AgentRunner で動作。30秒間隔ポーリング。SQLite ベースの Event Bridge でメインブレインと通信。`config.minecraft` 存在時のみ起動。M12b でサバイバル本能（`eat_food`, `flee_from_entity`, `find_shelter`）と P0-P3 優先度プロンプトを追加。M12c で目標管理（mc-memory ツール6種、MINECRAFT-GOALS.md / MINECRAFT-SKILLS.md コンテキスト注入、目標駆動 P3 プロンプト）を追加。
+- **Minecraft サブブレイン（M12a/M12b/M12c/M12d）。** メインブレインとは独立した AgentRunner で動作。30秒間隔ポーリング。SQLite ベースの Event Bridge でメインブレインと通信。`config.minecraft` 存在時のみ起動。M12b でサバイバル本能（`eat_food`, `flee_from_entity`, `find_shelter`）と P0-P3 優先度プロンプトを追加。M12c で目標管理（mc-memory ツール6種、MINECRAFT-GOALS.md / MINECRAFT-SKILLS.md コンテキスト注入、目標駆動 P3 プロンプト）を追加。M12d でメインブレイン統合（`<minecraft-status>` コンテキスト注入、`minecraft_start_session`/`minecraft_stop_session` ライフサイクルツール、`McSubBrainManager` によるライフサイクル管理、ポーリングプロンプトへの Minecraft 認知、heartbeat `mc-check` リマインダー）を追加。
 - **Heartbeat 自律行動。** 1 分間隔チェックで due リマインダーを検知し AI セッションを起動。
 - **LTM（fenghuang）。** ホームチャンネルのみ記録。30 分間隔自動統合。ファクトをシステムプロンプトに注入。
 - **Guild コンテキスト分離。** 人格は共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごと。
@@ -46,8 +46,8 @@
 - M12a Minecraft サブブレイン基盤完了: ContextBuilderPort 抽象化、MC Bridge テーブル、MCP ブリッジツール、サブブレイン専用 MCP サーバー、Minecraft エージェントプロファイル、タイマーベース EventBuffer、MinecraftContextBuilder、Bootstrap 統合。
 - M12b リアクティブ行動完了: サバイバルツール3種（`eat_food`, `flee_from_entity`, `find_shelter`）、ActionState に `"fleeing"` 追加、`collectBedIds` 共有化、P0-P3 優先度付きポーリングプロンプト、MINECRAFT-KNOWLEDGE.md 拡充。
 - M12c 目標管理完了: mc-memory MCP ツール6種（`mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`）、MINECRAFT-GOALS.md / MINECRAFT-SKILLS.md テンプレート作成、MinecraftContextBuilder に GOALS/SKILLS 読み込み追加、P3 を目標駆動に変更。
+- M12d メインブレイン統合完了: `McStatusProvider` インターフェース + `SqliteMcStatusProvider` 実装、ContextBuilder に `<minecraft-status>` セクション注入、`minecraft_start_session`/`minecraft_stop_session` ライフサイクルツール、`McSubBrainManager` によるサブブレイン生成・起動・停止管理（10秒間隔 lifecycle ポーリング）、TOOLS.md にブリッジツール文書化、HEARTBEAT.md に mc-check 手順追加、conversation.ts に Minecraft 認知プロンプト、デフォルトリマインダーに `mc-check`（15分間隔）追加。
 - 未移植テストの追加。
-- M12d 以降: サブブレインの高度な行動パターン、メインブレインとの連携強化。
 
 ## 6. ブロッカー
 

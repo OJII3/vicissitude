@@ -102,6 +102,29 @@ Minecraft ワールドに接続中のボットを操作する。
   - ボット未接続時はエラーメッセージを返す
   - デフォルトポート: 3007（`MC_VIEWER_PORT` 環境変数で変更可能）
 
+### minecraft ブリッジツール（MC_HOST 設定時のみ有効）
+
+Minecraft サブブレインとの双方向通信ツール。サブブレインは独立した AI エージェントとして Minecraft 内で自律行動している。
+
+- `minecraft_delegate(command)` - サブブレインに指示を送る（次のポーリングで受け取る）
+  - **使いどき**: ユーザーから「ダイヤ探して」「拠点を作って」など Minecraft 内での作業指示があったとき
+  - command: 自然言語での指示内容（最大 10,000 文字）
+- `minecraft_status` - サブブレインからのレポートを覗き見する（消費しない）
+  - **使いどき**: Minecraft の現在の状況を確認したいとき（`<minecraft-status>` セクションの情報が古い場合）
+- `minecraft_read_reports` - サブブレインからのレポートを消費して読む
+  - **使いどき**: レポートを確認済みとしてクリアしたいとき
+- `minecraft_start_session` - サブブレインのセッションを開始する
+  - **使いどき**: サブブレインが停止中で、再開したいとき
+- `minecraft_stop_session` - サブブレインのセッションを停止する
+  - **使いどき**: Minecraft での活動を一時中断したいとき
+
+#### 使い方ガイドライン
+
+1. ユーザーが Minecraft の状況を聞いたら → まず `<minecraft-status>` セクションを確認し、必要なら `minecraft_status` で最新情報を取得
+2. ユーザーが Minecraft 内での作業を依頼したら → `minecraft_delegate` でサブブレインに委譲
+3. サブブレインからの重要レポート（high/critical）を発見したら → Discord で自然に共有
+4. セッション管理は通常不要（自動起動済み）。ユーザーから明示的に要求された場合のみ使用
+
 ### 組み込みツール（OpenCode SDK）
 
 - `webfetch(url)` - 指定 URL の内容を取得して返す

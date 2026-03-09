@@ -76,6 +76,40 @@ export function peekBridgeEvents(db: StoreDb, direction: BridgeDirection): Bridg
 		}));
 }
 
+/** 未消費の特定タイプのブリッジイベントをアトミックに取得し consumed=1 にする */
+export function consumeBridgeEventsByType(
+	db: StoreDb,
+	direction: BridgeDirection,
+	type: string,
+): BridgeEvent[] {
+	return db.transaction((tx) => {
+		const rows = tx
+			.select()
+			.from(mcBridgeEvents)
+			.where(
+				and(
+					eq(mcBridgeEvents.direction, direction),
+					eq(mcBridgeEvents.type, type),
+					eq(mcBridgeEvents.consumed, 0),
+				),
+			)
+			.all();
+
+		if (rows.length > 0) {
+			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
+			tx.update(mcBridgeEvents).set({ consumed: 1 }).where(inArray(mcBridgeEvents.id, ids)).run();
+		}
+
+		return rows.map((r) => ({
+			id: r.id ?? 0,
+			direction: r.direction as BridgeDirection,
+			type: r.type,
+			payload: r.payload,
+			createdAt: r.createdAt,
+		}));
+	});
+}
+
 /** 未消費のブリッジイベントが存在するか確認する */
 export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolean {
 	const row = db

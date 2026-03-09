@@ -21,6 +21,14 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: true,
 			},
+			{
+				id: "mc-check",
+				description:
+					"Minecraft サブブレインの状態を確認する。<minecraft-status> を確認し、重要レポートがあればホームチャンネルに自然に共有する",
+				schedule: { type: "interval", minutes: 15 },
+				lastExecutedAt: null,
+				enabled: true,
+			},
 		],
 	};
 }

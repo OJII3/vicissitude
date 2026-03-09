@@ -72,6 +72,40 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 			};
 		},
 	);
+
+	server.tool(
+		"minecraft_start_session",
+		"Minecraft サブブレインのセッションを開始する。サブブレインが起動していない場合に使用。",
+		{},
+		() => {
+			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: "サブブレインに開始指示を送信しました。起動まで少し時間がかかる場合があります。",
+					},
+				],
+			};
+		},
+	);
+
+	server.tool(
+		"minecraft_stop_session",
+		"Minecraft サブブレインのセッションを停止する。",
+		{},
+		() => {
+			insertBridgeEvent(db, "to_sub", "lifecycle", "stop");
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: "サブブレインに停止指示を送信しました。",
+					},
+				],
+			};
+		},
+	);
 }
 
 /** サブブレイン側のブリッジツールを登録する */
