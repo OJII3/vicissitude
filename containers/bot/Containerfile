@@ -1,19 +1,25 @@
 FROM docker.io/oven/bun:1-slim
 
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     apt-get install -y --no-install-recommends \
     podman \
     nodejs \
     # node-canvas (canvas) build deps
-    build-essential python3 libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
-    # headless-gl (Mesa + Xvfb) deps
-    xvfb libgl1-mesa-dri libgl1-mesa-dev libglapi-mesa libosmesa6 \
+    build-essential python3 python3-setuptools libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
+    # headless-gl (Mesa + Xvfb + ANGLE build) deps
+    xvfb libgl1-mesa-dri libgl1-mesa-dev libglapi-mesa libosmesa6 libxi-dev \
+    && ln -sf /usr/bin/python3 /usr/bin/python \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY package.json bun.lock ./
+# gl@6 の ANGLE ソースが GCC 14 の <cstdint> 必須化に未対応のため強制インクルード
+# TODO: gl パッケージが GCC 14+ 対応したらこのワークアラウンドを削除する
+ARG CXXFLAGS="-include cstdint"
 RUN bun install --frozen-lockfile --production
 RUN bun install -g opencode-ai@1.2.15 && \
     rm /usr/local/bin/opencode && \
