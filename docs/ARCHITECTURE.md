@@ -177,23 +177,32 @@
   - Guild 分離: `data/fenghuang/guilds/{guildId}/memory.db` に SQLite で永続化
   - LLM: `CompositeLLMAdapter`（chat は OpenCode SDK、embed は Ollama）を使用
 
-- `mcp/minecraft-server.ts`: Minecraft 操作ツール（mineflayer ベース、`MC_HOST` 設定時のみ有効）
+- `mcp/minecraft/server.ts`: Minecraft 操作ツール（mineflayer ベース、`MC_HOST` 設定時のみ有効）
+  - 分割後の構造:
+    - `bot-context.ts`: ボット状態・イベントバッファ・ジョブマネージャの共有コンテキスト
+    - `bot-connection.ts`: mineflayer 接続管理・自動再接続・イベント登録
+    - `mcp-tools.ts`: MCP ツール定義・登録
+    - `http-server.ts`: StreamableHTTP サーバー
+    - `server.ts`: エントリポイント
   - `observe_state`: 位置、体力、空腹度、時間帯、天候、近くのエンティティ、インベントリ、装備、直近イベントの要約を返す
   - `get_recent_events`: インメモリリングバッファ（最大100件）から直近イベントログを取得
   - `follow_player`: 指定プレイヤーへの動的追従（GoalFollow）。対象ログアウト時に自動停止
   - `go_to`: 指定座標への移動（GoalNear）
   - `collect_block`: 指定ブロックの探索・最適ツール自動装備・採掘（GoalGetToBlock + dig、最大64個）
   - `stop`: 現在の移動・追従を停止
-  - 行動ツールは `mcp/minecraft-actions.ts` に分離して登録
+  - `craft_item`: クラフト（作業台自動移動、ジョブシステム使用）
+  - `place_block`: ブロック設置（隣接ブロック自動検出）
+  - `equip_item`: アイテム装備
+  - `sleep_in_bed`: 就寝（全 16 色ベッド対応、ジョブシステム使用）
+  - `send_chat`: ゲーム内チャット送信
+  - 行動ツールは `mcp/minecraft/actions/` に分離して登録
   - mineflayer-pathfinder プラグインを読み込み済み
   - オフラインモード接続、指数バックオフ自動再接続（1秒〜60秒）
 
-将来拡張（計画）:
+設計方針:
 
-- `mcp/minecraft-server.ts` に追加予定のツール:
-  - `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
-  - 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
-  - 状態は要約を主に返し、生ログは必要時のみ限定的に参照
+- 低レベルのゲーム制御は MCP サーバー側で完結させ、LLM には高レベル API のみ公開
+- 状態は要約を主に返し、生ログは必要時のみ限定的に参照
 
 ### 4.5 Composition Root
 

@@ -18,7 +18,7 @@
 - セッションは `data/sessions.json` に JSON で永続化している。**セッション自動ローテーション: 48 時間（`SESSION_MAX_AGE_HOURS` で変更可）経過後にセッションを削除・再作成し、トークン蓄積を防止。**
 - ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
 - チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
-- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）の 6 つが `type: "local"` で起動。`minecraft-server.ts`（Minecraft 操作、`MC_HOST` 設定時のみ）は `type: "remote"` で独立 HTTP プロセスとして接続。
+- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）の 6 つが `type: "local"` で起動。`minecraft/server.ts`（Minecraft 操作、`MC_HOST` 設定時のみ）は `type: "remote"` で独立 HTTP プロセスとして接続。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
 - **memory MCP サーバーで MEMORY.md / SOUL.md（読み取り専用） / LESSONS.md / 日次ログの構造化された読み書きが可能。**
 - **`evolve_soul` ツールを廃止し、LESSONS.md に一本化。** SOUL.md はペルソナ定義に専念させ、「学んだこと」セクションを削除。既存エントリは guild LESSONS.md にマイグレーション済み。
@@ -68,7 +68,6 @@
 - `GuildRoutingAgent.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
 - Ollama コンテナのイメージタグが `latest` 固定。再現性向上のためバージョン固定を将来的に検討。
 - `setupShutdown()` の位置引数が 12 個に膨張。オプション引数を設定オブジェクトにまとめるリファクタリングを検討。
-- `minecraft-server.ts` が `max-lines` / `max-dependencies` を超過し `oxlint-disable` で回避中。ボット接続・イベント登録を別ファイルに分離することを検討。
 
 ## 5. 直近タスク
 

@@ -195,7 +195,7 @@ export function createBotConnection(
 			}
 			const currentBot = ctx.getBot();
 			if (currentBot) {
-				currentBot.quit();
+				cleanupBot(currentBot);
 				ctx.setBot(null);
 			}
 		},

@@ -1,6 +1,6 @@
 import type mineflayer from "mineflayer";
 
-// helpers.ts から server.ts で使う名前を re-export
+// helpers.ts の名前を mcp-tools.ts / bot-connection.ts 向けに re-export
 export { IMPORTANCE_ORDER, getTimePeriod } from "./helpers.ts";
 export type { ActionState, Importance } from "./helpers.ts";
 

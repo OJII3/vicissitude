@@ -7,7 +7,12 @@ import { JobManager } from "./job-manager.ts";
 import { registerMinecraftTools } from "./mcp-tools.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
-const MC_VIEWER_PORT = Number(process.env.MC_VIEWER_PORT ?? "3007");
+const viewerPortRaw = Number(process.env.MC_VIEWER_PORT ?? "3007");
+if (!Number.isInteger(viewerPortRaw) || viewerPortRaw < 1 || viewerPortRaw > 65535) {
+	console.error("MC_VIEWER_PORT must be a valid port number (1-65535)");
+	process.exit(1);
+}
+const MC_VIEWER_PORT = viewerPortRaw;
 const MC_HOST = process.env.MC_HOST;
 if (!MC_HOST) {
 	console.error("MC_HOST is required");
@@ -21,7 +26,12 @@ if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
 const MC_PORT = portRaw;
 const MC_USERNAME = process.env.MC_USERNAME ?? "fua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
-const MC_MCP_PORT = Number(process.env.MC_MCP_PORT ?? "3001");
+const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
+if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
+	console.error("MC_MCP_PORT must be a valid port number (1-65535)");
+	process.exit(1);
+}
+const MC_MCP_PORT = mcpPortRaw;
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 const ctx = createBotContext();
