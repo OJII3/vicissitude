@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: fix/mcp-minecraft-multi-session
+- ブランチ: refactor/m7-foundation
 
 ## 2. 現在の真実（Project Truth）
 
@@ -46,6 +46,9 @@
 - **Minecraft MCP ツール 5 種追加。** `send_chat`（ゲーム内チャット送信）、`equip_item`（アイテム装備）、`place_block`（ブロック設置、隣接ブロック自動検出）、`craft_item`（クラフト、作業台自動移動、ジョブシステム使用）、`sleep_in_bed`（就寝、全 16 色ベッド対応、ジョブシステム使用）を実装。
 - **Minecraft MCP サーバーの安定性修正。** `Bun.serve` の `idleTimeout` を最大値（255秒）に設定し StreamableHTTP 長時間接続の切断を防止。`uncaughtException` / `unhandledRejection` ハンドラを追加しプロセスクラッシュを防止。`cleanupBot` で `quit()` 未定義時のクラッシュを防止。
 - **Minecraft MCP サーバーのマルチセッション対応。** MCP SDK の `Protocol.connect()` が 1 インスタンスにつき 1 トランスポートしか受け付けない制約により、2 番目以降の Guild セッションで接続エラーが発生していた問題を修正。SDK 公式パターンに従い、セッションごとに新しい `McpServer` インスタンスを生成するファクトリ関数方式に変更。
+- **M7 完了: 基盤層構築。** `src/core/`（types.ts, config.ts, functions.ts）に型定義・Zod 設定・純粋関数を集約。`src/store/`（db.ts, schema.ts, queries.ts）に Drizzle ORM + bun:sqlite で SQLite 統一永続化基盤を構築。既存コードと並行して新モジュールが共存する状態。
+- **M8 完了: MCP サーバー統合。** `src/mcp/tools/`（discord.ts, memory.ts, schedule.ts, event-buffer.ts, ltm.ts）にツール定義を `registerXxxTools()` 関数として分離。`src/mcp/core-server.ts` が全ツールを組み立てる統合エントリポイント。event-buffer を SQLite ベースに移行（JSONL 廃止）。旧サーバーファイルは M11 で削除予定。
+- **M9 完了: エージェント抽象化。** `src/agent/`（profile.ts, runner.ts, router.ts, context-builder.ts, session-store.ts, profiles/conversation.ts）を作成。`PollingAgent` を `AgentProfile` + `AgentRunner` に分解し、エージェント種の追加を容易化。`SessionStore` で SQLite セッション永続化。`ContextBuilder` で FileContextLoader + Factory を統合。旧ファイルは M11 で削除予定。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -73,17 +76,17 @@
 
 ## 5. 直近タスク
 
-1. ~~`minecraft` MCP server の最小土台作成（接続 + `observe_state`）~~ **完了**
-2. ~~Minecraft サーバーを compose.yaml にコンテナとして追加~~ **完了**
-3. ~~`follow_player` / `go_to` / `collect_block` / `stop` の最小実装~~ **完了**
-4. ~~Minecraft 状態要約レイヤーとイベントログ整備~~ **完了**
-5. ~~Minecraft アクションのジョブシステム化~~ **完了**
-6. ~~`take_screenshot` ツール実装（`prismarine-viewer` ヘッドレスレンダリング、Bun 互換性検証含む）~~ **完了**
-7. ~~Discord MCP サーバーに画像添付送信機能を追加~~ **完了**
-8. ~~`craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` の実装~~ **完了**
-9. ~~Minecraft MCP サーバーを永続 HTTP プロセス化（Stdio → StreamableHTTP、セッション終了後もボット接続維持）~~ **完了**
-10. ~~Containerfile を簡素化（mise shims 活用）~~ **完了**
-11. ~~`canvas@next` (v3) にアップグレードし Bun 互換化~~ **完了**
+### アーキテクチャ再設計 (PLAN.md v2)
+
+1. ~~M7: 基盤層 — core/ 型・設定・関数 + store/ SQLite 永続化~~ **完了**
+2. ~~M8: MCP サーバー統合 — 5 MCP サーバーのツール分離 + core-server 統合エントリポイント~~ **完了**
+3. ~~M9: エージェント抽象化 — AgentProfile + AgentRunner 分解 + SQLite セッション永続化~~ **完了**
+4. **M10: ブートストラップ + ゲートウェイ簡素化** — bootstrap.ts 統合、gateway/ 移動、AbortController ライフサイクル
+5. M11: クリーンアップ + ドキュメント更新 — 旧コード削除、ドキュメント全面更新
+
+### 過去の完了タスク（M1-M6 + Minecraft）
+
+- ~~M1-M6~~ **完了** — Clean Architecture 移行、品質強化、堅牢性、機能拡張、記憶システム統合、Minecraft 拡張
 
 ## 6. ブロッカー
 
