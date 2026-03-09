@@ -1,0 +1,71 @@
+import { desc, eq, sql } from "drizzle-orm";
+
+import type { StoreDb } from "./db.ts";
+import { emojiUsage, eventBuffer, sessions } from "./schema.ts";
+
+/** event_buffer から該当ギルドのイベントを取得して削除する */
+export function consumeEvents(
+	db: StoreDb,
+	guildId: string,
+): { id: number; payload: string; createdAt: number }[] {
+	const rows = db.select().from(eventBuffer).where(eq(eventBuffer.guildId, guildId)).all();
+	if (rows.length > 0) {
+		db.delete(eventBuffer).where(eq(eventBuffer.guildId, guildId)).run();
+	}
+	return rows.map((r) => ({ id: r.id ?? 0, payload: r.payload, createdAt: r.createdAt }));
+}
+
+/** event_buffer にイベントを追加する */
+export function appendEvent(db: StoreDb, guildId: string, payload: string): void {
+	db.insert(eventBuffer).values({ guildId, payload, createdAt: Date.now() }).run();
+}
+
+/** セッションを取得する */
+export function getSession(
+	db: StoreDb,
+	key: string,
+): { key: string; sessionId: string; createdAt: number } | undefined {
+	return db.select().from(sessions).where(eq(sessions.key, key)).get();
+}
+
+/** セッションを保存する（INSERT OR REPLACE） */
+export function saveSession(db: StoreDb, key: string, sessionId: string): void {
+	db.insert(sessions)
+		.values({ key, sessionId, createdAt: Date.now() })
+		.onConflictDoUpdate({
+			target: sessions.key,
+			set: { sessionId },
+		})
+		.run();
+}
+
+/** セッションを削除する */
+export function deleteSession(db: StoreDb, key: string): void {
+	db.delete(sessions).where(eq(sessions.key, key)).run();
+}
+
+/** 絵文字カウントを +1 する（UPSERT） */
+export function incrementEmoji(db: StoreDb, guildId: string, emojiName: string): void {
+	db.insert(emojiUsage)
+		.values({ guildId, emojiName, count: 1 })
+		.onConflictDoUpdate({
+			target: [emojiUsage.guildId, emojiUsage.emojiName],
+			set: { count: sql`${emojiUsage.count} + 1` },
+		})
+		.run();
+}
+
+/** 使用頻度トップ N の絵文字を返す */
+export function getTopEmojis(
+	db: StoreDb,
+	guildId: string,
+	limit: number,
+): { emojiName: string; count: number }[] {
+	return db
+		.select({ emojiName: emojiUsage.emojiName, count: emojiUsage.count })
+		.from(emojiUsage)
+		.where(eq(emojiUsage.guildId, guildId))
+		.orderBy(desc(emojiUsage.count))
+		.limit(limit)
+		.all();
+}

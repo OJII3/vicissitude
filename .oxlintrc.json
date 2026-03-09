@@ -37,9 +37,15 @@
 	},
 	"overrides": [
 		{
-			"files": ["**/composition-root.ts", "**/bootstrap-copilot.ts"],
+			"files": [
+				"**/composition-root.ts",
+				"**/bootstrap-copilot.ts",
+				"**/bootstrap.ts",
+				"**/bootstrap-agents.ts"
+			],
 			"rules": {
-				"import/max-dependencies": "off"
+				"import/max-dependencies": "off",
+				"eslint/max-lines-per-function": "off"
 			}
 		},
 		{

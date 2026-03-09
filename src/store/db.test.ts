@@ -1,0 +1,194 @@
+import { Database } from "bun:sqlite";
+import { describe, expect, test } from "bun:test";
+
+import { drizzle } from "drizzle-orm/bun-sqlite";
+
+import {
+	appendEvent,
+	consumeEvents,
+	deleteSession,
+	getSession,
+	getTopEmojis,
+	incrementEmoji,
+	saveSession,
+} from "./queries.ts";
+import * as schema from "./schema.ts";
+
+function createTestDb() {
+	const sqlite = new Database(":memory:");
+	sqlite.exec("PRAGMA journal_mode = WAL");
+	sqlite.exec(`
+		CREATE TABLE sessions (
+			key TEXT PRIMARY KEY,
+			session_id TEXT NOT NULL,
+			created_at INTEGER NOT NULL
+		);
+		CREATE TABLE reminders (
+			id TEXT PRIMARY KEY,
+			guild_id TEXT,
+			description TEXT NOT NULL,
+			schedule_type TEXT NOT NULL,
+			schedule_value TEXT NOT NULL,
+			last_executed_at TEXT,
+			enabled INTEGER NOT NULL DEFAULT 1
+		);
+		CREATE TABLE emoji_usage (
+			guild_id TEXT NOT NULL,
+			emoji_name TEXT NOT NULL,
+			count INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (guild_id, emoji_name)
+		);
+		CREATE TABLE event_buffer (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			guild_id TEXT NOT NULL,
+			payload TEXT NOT NULL,
+			created_at INTEGER NOT NULL
+		);
+		CREATE TABLE heartbeat_config (
+			key TEXT PRIMARY KEY DEFAULT 'default',
+			base_interval_minutes INTEGER NOT NULL DEFAULT 1
+		);
+	`);
+	return drizzle(sqlite, { schema });
+}
+
+describe("store", () => {
+	describe("table creation", () => {
+		test("all tables exist", () => {
+			const db = createTestDb();
+			const tables = db.$client
+				.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+				.all() as { name: string }[];
+			const tableNames = tables.map((t) => t.name);
+			expect(tableNames).toContain("sessions");
+			expect(tableNames).toContain("reminders");
+			expect(tableNames).toContain("emoji_usage");
+			expect(tableNames).toContain("event_buffer");
+			expect(tableNames).toContain("heartbeat_config");
+		});
+	});
+
+	describe("sessions CRUD", () => {
+		test("save and get a session", () => {
+			const db = createTestDb();
+			saveSession(db, "agent:channel:user", "sid-001");
+			const result = getSession(db, "agent:channel:user");
+			expect(result).toBeDefined();
+			expect(result?.sessionId).toBe("sid-001");
+			expect(result?.createdAt).toBeGreaterThan(0);
+		});
+
+		test("get returns undefined for missing session", () => {
+			const db = createTestDb();
+			const result = getSession(db, "nonexistent");
+			expect(result).toBeUndefined();
+		});
+
+		test("save overwrites existing session", () => {
+			const db = createTestDb();
+			saveSession(db, "key1", "sid-a");
+			saveSession(db, "key1", "sid-b");
+			const result = getSession(db, "key1");
+			expect(result?.sessionId).toBe("sid-b");
+		});
+
+		test("delete removes session", () => {
+			const db = createTestDb();
+			saveSession(db, "key1", "sid-a");
+			deleteSession(db, "key1");
+			const result = getSession(db, "key1");
+			expect(result).toBeUndefined();
+		});
+
+		test("delete nonexistent key does not throw", () => {
+			const db = createTestDb();
+			expect(() => deleteSession(db, "nonexistent")).not.toThrow();
+		});
+	});
+
+	describe("event_buffer", () => {
+		test("append and consume events", () => {
+			const db = createTestDb();
+			appendEvent(db, "guild-1", JSON.stringify({ type: "message", text: "hello" }));
+			appendEvent(db, "guild-1", JSON.stringify({ type: "message", text: "world" }));
+			appendEvent(db, "guild-2", JSON.stringify({ type: "message", text: "other" }));
+
+			const events = consumeEvents(db, "guild-1");
+			expect(events).toHaveLength(2);
+			expect(JSON.parse(events[0]?.payload ?? "")).toEqual({ type: "message", text: "hello" });
+			expect(JSON.parse(events[1]?.payload ?? "")).toEqual({ type: "message", text: "world" });
+		});
+
+		test("consume deletes events", () => {
+			const db = createTestDb();
+			appendEvent(db, "guild-1", JSON.stringify({ type: "a" }));
+			consumeEvents(db, "guild-1");
+			const remaining = consumeEvents(db, "guild-1");
+			expect(remaining).toHaveLength(0);
+		});
+
+		test("consume does not affect other guilds", () => {
+			const db = createTestDb();
+			appendEvent(db, "guild-1", JSON.stringify({ type: "a" }));
+			appendEvent(db, "guild-2", JSON.stringify({ type: "b" }));
+			consumeEvents(db, "guild-1");
+			const guild2Events = consumeEvents(db, "guild-2");
+			expect(guild2Events).toHaveLength(1);
+		});
+	});
+
+	describe("emoji_usage", () => {
+		test("increment creates entry with count 1", () => {
+			const db = createTestDb();
+			incrementEmoji(db, "guild-1", "thumbsup");
+			const top = getTopEmojis(db, "guild-1", 10);
+			expect(top).toHaveLength(1);
+			expect(top[0]?.emojiName).toBe("thumbsup");
+			expect(top[0]?.count).toBe(1);
+		});
+
+		test("increment adds to existing count", () => {
+			const db = createTestDb();
+			incrementEmoji(db, "guild-1", "fire");
+			incrementEmoji(db, "guild-1", "fire");
+			incrementEmoji(db, "guild-1", "fire");
+			const top = getTopEmojis(db, "guild-1", 10);
+			expect(top[0]?.count).toBe(3);
+		});
+
+		test("getTopEmojis returns sorted by count descending", () => {
+			const db = createTestDb();
+			incrementEmoji(db, "guild-1", "a");
+			incrementEmoji(db, "guild-1", "b");
+			incrementEmoji(db, "guild-1", "b");
+			incrementEmoji(db, "guild-1", "c");
+			incrementEmoji(db, "guild-1", "c");
+			incrementEmoji(db, "guild-1", "c");
+
+			const top = getTopEmojis(db, "guild-1", 2);
+			expect(top).toHaveLength(2);
+			expect(top[0]?.emojiName).toBe("c");
+			expect(top[0]?.count).toBe(3);
+			expect(top[1]?.emojiName).toBe("b");
+			expect(top[1]?.count).toBe(2);
+		});
+
+		test("getTopEmojis returns empty for unknown guild", () => {
+			const db = createTestDb();
+			const top = getTopEmojis(db, "nonexistent", 10);
+			expect(top).toHaveLength(0);
+		});
+
+		test("emoji counts are guild-scoped", () => {
+			const db = createTestDb();
+			incrementEmoji(db, "guild-1", "star");
+			incrementEmoji(db, "guild-2", "star");
+			incrementEmoji(db, "guild-2", "star");
+
+			const g1 = getTopEmojis(db, "guild-1", 10);
+			const g2 = getTopEmojis(db, "guild-2", 10);
+			expect(g1[0]?.count).toBe(1);
+			expect(g2[0]?.count).toBe(2);
+		});
+	});
+});
