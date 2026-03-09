@@ -188,6 +188,7 @@ async function startMinecraftMcp(
 		logger.warn(
 			"[bootstrap] Minecraft MCP server health check timed out, but keeping process alive",
 		);
+		return mcProcess;
 	}
 
 	logger.info("[bootstrap] Minecraft MCP server started");
