@@ -8,14 +8,14 @@
 
 ## 2. 現在の真実（Project Truth）
 
-- Clean Architecture への移行が完了し、main にマージ済み。
-- domain / application / infrastructure の 3 層構成で、依存方向ルールは正しく守られている。
-- DI は手動コンストラクタ注入（Pure DI）で `composition-root.ts` に集約している。
+- Clean Architecture からモジュール構成へ移行中。
+- 旧 domain / application / infrastructure の 3 層構成を解体し、core/ agent/ gateway/ observability/ store/ の機能別モジュール構成に移行。
+- DI は `bootstrap.ts` に集約している。
 - テストは `bun test` で実行可能。
 - **Default モードを廃止し、ポーリングモードに一本化。** judge/cooldown/batching 等の従来フローを削除し、コードベースを大幅に簡素化。
 - AI 推論は OpenCode SDK 経由。プロバイダとモデルは環境変数で設定可能。本筋エージェント: `OPENCODE_PROVIDER_ID`（デフォルト: `github-copilot`）/ `OPENCODE_MODEL_ID`（デフォルト: `big-pickle`）。LTM: `LTM_PROVIDER_ID`（フォールバック: `OPENCODE_PROVIDER_ID` → `github-copilot`）/ `LTM_MODEL_ID`（デフォルト: `gpt-4o`）。
-- **ポーリングモード**: `PollingAgent` が 1 回の `promptAsync()` で AI にバッファをポーリングさせる。全イベントを `FileEventBuffer` に JSONL で書き込み、AI が `event-buffer` MCP ツールで消費。1 セッションで全イベントを処理するためプロンプト課金を節約。
-- セッションは `data/sessions.json` に JSON で永続化している。**セッション自動ローテーション: 48 時間（`SESSION_MAX_AGE_HOURS` で変更可）経過後にセッションを削除・再作成し、トークン蓄積を防止。**
+- **ポーリングモード**: `AgentRunner` が 1 回の `promptAsync()` で AI にバッファをポーリングさせる。全イベントを SQLite `event_buffer` テーブルに書き込み、AI が `event-buffer` MCP ツールで消費。1 セッションで全イベントを処理するためプロンプト課金を節約。
+- セッションは SQLite `sessions` テーブルに永続化している。**セッション自動ローテーション: 48 時間（`SESSION_MAX_AGE_HOURS` で変更可）経過後にセッションを削除・再作成し、トークン蓄積を防止。**
 - ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
 - チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
 - MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）の 6 つが `type: "local"` で起動。`minecraft/server.ts`（Minecraft 操作、`MC_HOST` 設定時のみ）は `type: "remote"` で独立 HTTP プロセスとして接続。
@@ -24,7 +24,7 @@
 - **`evolve_soul` ツールを廃止し、LESSONS.md に一本化。** SOUL.md はペルソナ定義に専念させ、「学んだこと」セクションを削除。既存エントリは guild LESSONS.md にマイグレーション済み。
 - **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。**
-- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。** `bootstrap-agents.ts` は minecraft MCP プロセスの事前起動も担当。
+- **M10 で 4 ファイルのブートストラップ（composition-root.ts, bootstrap-context.ts, bootstrap-helpers.ts, bootstrap-agents.ts）を `bootstrap.ts` 1 ファイルに統合。** DiscordGateway + スケジューラを `gateway/` に、ロガー + メトリクスを `observability/` に移動。旧 domain/, application/, infrastructure/ の大部分を削除し新モジュールに完全移行。
 - **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。
 - **Ollama をコンテナ化。** `compose.yaml` で `ollama` サービスを追加し、`vicissitude-net` ネットワークで `bot` と通信。初回起動時に `embeddinggemma` モデルを自動プル。`OLLAMA_BASE_URL` のデフォルトを `http://ollama:11434` に変更。
 - **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。
@@ -48,7 +48,8 @@
 - **Minecraft MCP サーバーのマルチセッション対応。** MCP SDK の `Protocol.connect()` が 1 インスタンスにつき 1 トランスポートしか受け付けない制約により、2 番目以降の Guild セッションで接続エラーが発生していた問題を修正。SDK 公式パターンに従い、セッションごとに新しい `McpServer` インスタンスを生成するファクトリ関数方式に変更。
 - **M7 完了: 基盤層構築。** `src/core/`（types.ts, config.ts, functions.ts）に型定義・Zod 設定・純粋関数を集約。`src/store/`（db.ts, schema.ts, queries.ts）に Drizzle ORM + bun:sqlite で SQLite 統一永続化基盤を構築。既存コードと並行して新モジュールが共存する状態。
 - **M8 完了: MCP サーバー統合。** `src/mcp/tools/`（discord.ts, memory.ts, schedule.ts, event-buffer.ts, ltm.ts）にツール定義を `registerXxxTools()` 関数として分離。`src/mcp/core-server.ts` が全ツールを組み立てる統合エントリポイント。event-buffer を SQLite ベースに移行（JSONL 廃止）。旧サーバーファイルは M11 で削除予定。
-- **M9 完了: エージェント抽象化。** `src/agent/`（profile.ts, runner.ts, router.ts, context-builder.ts, session-store.ts, profiles/conversation.ts）を作成。`PollingAgent` を `AgentProfile` + `AgentRunner` に分解し、エージェント種の追加を容易化。`SessionStore` で SQLite セッション永続化。`ContextBuilder` で FileContextLoader + Factory を統合。旧ファイルは M11 で削除予定。
+- **M9 完了: エージェント抽象化。** `src/agent/`（profile.ts, runner.ts, router.ts, context-builder.ts, session-store.ts, profiles/conversation.ts）を作成。`PollingAgent` を `AgentProfile` + `AgentRunner` に分解し、エージェント種の追加を容易化。`SessionStore` で SQLite セッション永続化。`ContextBuilder` で FileContextLoader + Factory を統合。
+- **M10 完了: ブートストラップ + ゲートウェイ簡素化。** 4 ファイルのブートストラップを `bootstrap.ts` 1 ファイルに統合。`DiscordGateway` と `HeartbeatScheduler` / `ConsolidationScheduler` を `gateway/` に移動。`ConsoleLogger` / `PrometheusCollector` / `PrometheusServer` / `InstrumentedAiAgent` / `METRIC` を `observability/` に統合。`ConversationRecorder` / `MemoryConsolidator` / `LtmFactReader` インターフェースを `core/types.ts` に追加。旧 `domain/`, `application/`, `infrastructure/` の大部分（discord/, logging/, metrics/, scheduler/, persistence/, context/, opencode/ の大半）を削除。
 - `nr validate` (fmt:check + lint + check) および `bun test` が通る。
 - Graceful shutdown（SIGINT/SIGTERM）実装済み。
 - ペルソナ（SOUL.md）を全面刷新。Anti-AI-Slop ルール、会話参加判断基準、感情表現パターンを追加。
@@ -69,10 +70,10 @@
 
 ## 4. 既知のバグ・要修正事項
 
-- `PollingAgent` のコンストラクタ引数が 8 個に増加。`port` / `providerId` / `modelId` を設定オブジェクトにまとめることを将来的に検討。
-- `GuildRoutingAgent.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
+- `GuildRouter.send()` がエラーを同期的にスローする（戻り値は `Promise<AgentResponse>`）。`.catch()` のみでハンドリングする呼び出し元が増えた場合は `Promise.reject()` に変更が必要。
 - Ollama コンテナのイメージタグが `latest` 固定。再現性向上のためバージョン固定を将来的に検討。
-- `setupShutdown()` の位置引数が 12 個に膨張。オプション引数を設定オブジェクトにまとめるリファクタリングを検討。
+- `infrastructure/opencode/mcp-config.ts` が残存（bootstrap.ts から参照）。M11 で gateway/ に移動予定。
+- `infrastructure/fenghuang/` と `infrastructure/ollama/` が残存（MCP サーバーから参照）。M11 で整理予定。
 
 ## 5. 直近タスク
 
@@ -81,8 +82,8 @@
 1. ~~M7: 基盤層 — core/ 型・設定・関数 + store/ SQLite 永続化~~ **完了**
 2. ~~M8: MCP サーバー統合 — 5 MCP サーバーのツール分離 + core-server 統合エントリポイント~~ **完了**
 3. ~~M9: エージェント抽象化 — AgentProfile + AgentRunner 分解 + SQLite セッション永続化~~ **完了**
-4. **M10: ブートストラップ + ゲートウェイ簡素化** — bootstrap.ts 統合、gateway/ 移動、AbortController ライフサイクル
-5. M11: クリーンアップ + ドキュメント更新 — 旧コード削除、ドキュメント全面更新
+4. ~~M10: ブートストラップ + ゲートウェイ簡素化~~ **完了** — bootstrap.ts 統合、gateway/ 移動、旧 domain/application/ 削除
+5. M11: クリーンアップ + ドキュメント更新 — 残存 infrastructure/ 整理、旧 MCP サーバー削除、ドキュメント全面更新
 
 ### 過去の完了タスク（M1-M6 + Minecraft）
 
@@ -95,7 +96,7 @@
 ## 7. リスクメモ
 
 1. ~~code-exec のサンドボックス欠如による RCE リスク~~ **対策済み** — Podman コンテナ化（ネットワーク遮断、読み取り専用 rootfs、全ケーパビリティ削除、メモリ/CPU/PID 制限）。
-2. `bootstrap-agents.ts` は `infrastructure/opencode/` に配置しているが、実態はブートストラップ（DI 配線）ロジック。`src/` 直下や `src/bootstrap/` への移動を将来的に検討。現状は `import/no-cycle` 違反がなく動作に問題ないため許容。
+2. `infrastructure/opencode/mcp-config.ts` が残存。M11 で適切な場所に移動予定。
 
 ## 8. 再開時コンテキスト
 
