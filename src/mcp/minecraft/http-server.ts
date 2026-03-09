@@ -25,7 +25,13 @@ function createFetchHandler(
 			return entry.transport.handleRequest(req);
 		}
 		if (req.method === "POST" && !sessionId) {
-			const server = createServer();
+			let server: McpServer;
+			try {
+				server = createServer();
+			} catch (err) {
+				console.error("[minecraft] failed to create MCP server session:", err);
+				return new Response("Internal Server Error", { status: 500 });
+			}
 			const t = new WebStandardStreamableHTTPServerTransport({
 				sessionIdGenerator: () => crypto.randomUUID(),
 				onsessioninitialized: (id) => {
@@ -50,8 +56,16 @@ function createFetchHandler(
 export function startHttpServer(
 	createServer: () => McpServer,
 	port: number,
-): { cleanupTimer: ReturnType<typeof setInterval> } {
+): { cleanupTimer: ReturnType<typeof setInterval>; closeAllSessions: () => void } {
 	const sessions = new Map<string, SessionEntry>();
+
+	const closeAllSessions = (): void => {
+		for (const [id, entry] of sessions) {
+			entry.server.close().catch(() => {});
+			entry.transport.close().catch(() => {});
+			sessions.delete(id);
+		}
+	};
 
 	const cleanupTimer = setInterval(() => {
 		const now = Date.now();
@@ -73,5 +87,5 @@ export function startHttpServer(
 
 	console.error(`[minecraft] MCP server listening on port ${port}`);
 
-	return { cleanupTimer };
+	return { cleanupTimer, closeAllSessions };
 }

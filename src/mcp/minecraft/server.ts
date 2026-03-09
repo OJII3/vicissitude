@@ -55,11 +55,12 @@ function createServer(): McpServer {
 }
 
 connection.start();
-const { cleanupTimer } = startHttpServer(createServer, MC_MCP_PORT);
+const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, MC_MCP_PORT);
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 const shutdown = (): void => {
 	clearInterval(cleanupTimer);
+	closeAllSessions();
 	connection.shutdown();
 	process.exit(0);
 };
