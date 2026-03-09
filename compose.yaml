@@ -19,7 +19,7 @@ services:
       - .env
     ports:
       - "127.0.0.1:9091:9091"
-      - "127.0.0.1:3007:3007" # prismarine-viewer
+      - "0.0.0.0:3007:3007" # prismarine-viewer
     volumes:
       - ./data:/app/data:rw
       - ./context:/app/context:ro
