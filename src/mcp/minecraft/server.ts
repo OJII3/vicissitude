@@ -46,19 +46,21 @@ const connection = createBotConnection(
 	ctx,
 );
 
-const server = new McpServer({ name: "minecraft", version: "0.1.0" });
 const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState);
 
-registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT);
+function createServer(): McpServer {
+	const server = new McpServer({ name: "minecraft", version: "0.1.0" });
+	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT);
+	return server;
+}
 
 connection.start();
-const { cleanupTimer } = startHttpServer(server, MC_MCP_PORT);
+const { cleanupTimer } = startHttpServer(createServer, MC_MCP_PORT);
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 const shutdown = (): void => {
 	clearInterval(cleanupTimer);
 	connection.shutdown();
-	server.close().catch(() => {});
 	process.exit(0);
 };
 process.on("SIGINT", shutdown);
