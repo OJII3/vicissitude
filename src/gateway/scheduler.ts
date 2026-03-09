@@ -4,7 +4,6 @@ import { dirname, resolve } from "path";
 
 import { z } from "zod";
 
-import type { AiAgent } from "../agent/router.ts";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../core/config.ts";
 import {
 	createDefaultHeartbeatConfig,
@@ -12,6 +11,7 @@ import {
 	withTimeout,
 } from "../core/functions.ts";
 import type {
+	AiAgent,
 	DueReminder,
 	HeartbeatConfig,
 	Logger,

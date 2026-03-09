@@ -1,5 +1,4 @@
-import type { EventBuffer } from "../agent/runner.ts";
-import type { BufferedEvent } from "../core/types.ts";
+import type { BufferedEvent, EventBuffer } from "../core/types.ts";
 import type { StoreDb } from "./db.ts";
 import { appendEvent, hasEvents } from "./queries.ts";
 

@@ -56,6 +56,13 @@ export interface DueReminder {
 	overdueMinutes: number;
 }
 
+// ─── Event Buffer ───────────────────────────────────────────────
+
+export interface EventBuffer {
+	append(event: BufferedEvent): void;
+	waitForEvents(signal: AbortSignal): Promise<void>;
+}
+
 // ─── Buffered Event ──────────────────────────────────────────────
 
 export interface BufferedEvent {

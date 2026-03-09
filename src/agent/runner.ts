@@ -6,16 +6,11 @@ import {
 	type OpencodeClient,
 } from "@opencode-ai/sdk/v2";
 
-import type { AgentResponse, BufferedEvent, Logger } from "../core/types.ts";
+import type { AgentResponse, EventBuffer, Logger } from "../core/types.ts";
 import type { ContextBuilder } from "./context-builder.ts";
 import type { AgentProfile } from "./profile.ts";
 import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
-
-export interface EventBuffer {
-	append(event: BufferedEvent): void;
-	waitForEvents(signal: AbortSignal): Promise<void>;
-}
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
