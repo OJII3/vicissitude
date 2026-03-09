@@ -23,7 +23,7 @@ services:
       - ./data:/app/data:rw
       - ./context:/app/context:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
-      - ${HOME}/.local/share/opencode/auth.json:/home/bun/.local/share/opencode/auth.json:ro
+      - ${HOME}/.local/share/opencode/auth.json:/app/.local/share/opencode/auth.json:ro
     networks:
       - vicissitude-net
     logging:
