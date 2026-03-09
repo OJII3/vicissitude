@@ -7,7 +7,7 @@ RUN mise use -g bun@1 node@24 python@3.11
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     podman \
-    # node-canvas (canvas) build deps
+    # canvas v3 (N-API) native build deps
     build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
     # headless-gl (Mesa + Xvfb + ANGLE build) deps
     xvfb xauth libgl1-mesa-dri libgl1-mesa-dev libglapi-mesa libosmesa6 libxi-dev \
