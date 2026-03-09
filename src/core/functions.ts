@@ -1,5 +1,30 @@
 import type { DueReminder, HeartbeatConfig } from "./types.ts";
 
+// ─── createDefaultHeartbeatConfig ────────────────────────────────
+
+export function createDefaultHeartbeatConfig(): HeartbeatConfig {
+	return {
+		baseIntervalMinutes: 1,
+		reminders: [
+			{
+				id: "home-check",
+				description: "ホームチャンネルの様子を見る",
+				schedule: { type: "interval", minutes: 1440 },
+				lastExecutedAt: null,
+				enabled: true,
+			},
+			{
+				id: "memory-update",
+				description:
+					"memory MCP ツールを使ってメモリを更新する。手順: daily log → MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
+				schedule: { type: "interval", minutes: 360 },
+				lastExecutedAt: null,
+				enabled: true,
+			},
+		],
+	};
+}
+
 // ─── splitMessage ────────────────────────────────────────────────
 
 const DEFAULT_MAX_LENGTH = 2000;

@@ -1,6 +1,11 @@
 /* oxlint-disable max-classes-per-file -- metrics module consolidates related classes */
-import type { AiAgent, SendOptions } from "../agent/router.ts";
-import type { AgentResponse, Logger, MetricsCollector } from "../core/types.ts";
+import type {
+	AgentResponse,
+	AiAgent,
+	Logger,
+	MetricsCollector,
+	SendOptions,
+} from "../core/types.ts";
 
 // ─── Metric Names ───────────────────────────────────────────────
 

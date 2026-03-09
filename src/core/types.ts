@@ -56,29 +56,6 @@ export interface DueReminder {
 	overdueMinutes: number;
 }
 
-export function createDefaultHeartbeatConfig(): HeartbeatConfig {
-	return {
-		baseIntervalMinutes: 1,
-		reminders: [
-			{
-				id: "home-check",
-				description: "ホームチャンネルの様子を見る",
-				schedule: { type: "interval", minutes: 1440 },
-				lastExecutedAt: null,
-				enabled: true,
-			},
-			{
-				id: "memory-update",
-				description:
-					"memory MCP ツールを使ってメモリを更新する。手順: daily log → MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
-				schedule: { type: "interval", minutes: 360 },
-				lastExecutedAt: null,
-				enabled: true,
-			},
-		],
-	};
-}
-
 // ─── Buffered Event ──────────────────────────────────────────────
 
 export interface BufferedEvent {
@@ -175,6 +152,20 @@ export interface ConsolidationResult {
 export interface MemoryConsolidator {
 	getActiveGuildIds(): string[];
 	consolidate(guildId: string): Promise<ConsolidationResult>;
+}
+
+// ─── AI Agent ─────────────────────────────────────────────────────
+
+export interface SendOptions {
+	sessionKey: string;
+	message: string;
+	guildId?: string;
+	attachments?: Attachment[];
+}
+
+export interface AiAgent {
+	send(options: SendOptions): Promise<AgentResponse>;
+	stop(): void;
 }
 
 // ─── LTM Fact Reader ─────────────────────────────────────────────

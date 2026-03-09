@@ -1,4 +1,4 @@
-/* oxlint-disable max-dependencies, max-classes-per-file, max-lines -- bootstrap file naturally requires many imports, classes, and lines for DI wiring */
+/* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
 import { existsSync } from "fs";
 import { resolve } from "path";
 
@@ -7,15 +7,16 @@ import { spawn, type Subprocess } from "bun";
 import { ContextBuilder } from "./agent/context-builder.ts";
 import { mcpServerConfigs } from "./agent/mcp-config.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
-import { GuildRouter, type AiAgent } from "./agent/router.ts";
-import { AgentRunner, type EventBuffer } from "./agent/runner.ts";
+import { GuildRouter } from "./agent/router.ts";
+import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { loadConfig } from "./core/config.ts";
-import type { BufferedEvent, Logger } from "./core/types.ts";
+import type { AiAgent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
 import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
 import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
+import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { recordLtmMessage, bufferIncomingMessage } from "./gateway/message-handlers.ts";
 import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
@@ -27,100 +28,10 @@ import {
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
 import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
-import { createDb, closeDb, type StoreDb } from "./store/db.ts";
-import { appendEvent, hasEvents, incrementEmoji } from "./store/queries.ts";
-
-// ─── Channel Config Loader ──────────────────────────────────────
-
-interface ChannelConfigData {
-	defaultCooldownSeconds: number;
-	channels: Array<{
-		channelId: string;
-		guildId: string;
-		guildName?: string;
-		channelName?: string;
-		role: "home" | "default";
-		cooldownSeconds?: number;
-	}>;
-}
-
-class ChannelConfigLoader {
-	private readonly configs: Map<string, { guildId: string; role: "home" | "default" }>;
-
-	constructor(json: ChannelConfigData) {
-		this.configs = new Map();
-		for (const ch of json.channels) {
-			this.configs.set(ch.channelId, { guildId: ch.guildId, role: ch.role });
-		}
-	}
-
-	getGuildIds(): string[] {
-		const guildIds = new Set<string>();
-		for (const config of this.configs.values()) {
-			guildIds.add(config.guildId);
-		}
-		return [...guildIds];
-	}
-
-	getHomeChannelIds(): string[] {
-		const ids: string[] = [];
-		for (const [id, config] of this.configs) {
-			if (config.role === "home") ids.push(id);
-		}
-		return ids;
-	}
-}
-
-// ─── SQLite Event Buffer ────────────────────────────────────────
-
-class SqliteEventBuffer implements EventBuffer {
-	constructor(
-		private readonly db: StoreDb,
-		private readonly guildId: string,
-	) {}
-
-	append(event: BufferedEvent): void {
-		appendEvent(this.db, this.guildId, JSON.stringify(event));
-	}
-
-	waitForEvents(signal: AbortSignal): Promise<void> {
-		const POLL_MIN_MS = 500;
-		const POLL_MAX_MS = 5000;
-
-		// oxlint-disable-next-line no-shadow -- Promise parameter shadows `resolve` import, intentional
-		return new Promise((resolve) => {
-			let timer: ReturnType<typeof setTimeout> | undefined;
-			let resolved = false;
-			let interval = POLL_MIN_MS;
-			const done = () => {
-				if (resolved) return;
-				resolved = true;
-				resolve();
-			};
-			const poll = () => {
-				if (signal.aborted) {
-					done();
-					return;
-				}
-				if (hasEvents(this.db, this.guildId)) {
-					done();
-					return;
-				}
-				timer = setTimeout(poll, interval);
-				interval = Math.min(interval * 1.5, POLL_MAX_MS);
-			};
-			signal.addEventListener(
-				"abort",
-				() => {
-					if (timer) clearTimeout(timer);
-					done();
-				},
-				{ once: true },
-			);
-			poll();
-		});
-	}
-}
+import type { StoreDb } from "./store/db.ts";
+import { createDb, closeDb } from "./store/db.ts";
+import { SqliteEventBuffer } from "./store/event-buffer.ts";
+import { incrementEmoji } from "./store/queries.ts";
 
 // ─── Helper Functions ───────────────────────────────────────────
 
@@ -235,7 +146,7 @@ async function waitForMcpReady(
 			exitPromise,
 		]);
 		if (result === processDied) return "died";
-		if (result !== null) return "ready";
+		if (typeof result === "number" && result >= 200 && result < 300) return "ready";
 		await Bun.sleep(500);
 	}
 	/* oxlint-enable no-await-in-loop */

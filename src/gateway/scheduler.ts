@@ -2,9 +2,15 @@
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
+import { z } from "zod";
+
 import type { AiAgent } from "../agent/router.ts";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../core/config.ts";
-import { evaluateDueReminders, withTimeout } from "../core/functions.ts";
+import {
+	createDefaultHeartbeatConfig,
+	evaluateDueReminders,
+	withTimeout,
+} from "../core/functions.ts";
 import type {
 	DueReminder,
 	HeartbeatConfig,
@@ -12,8 +18,24 @@ import type {
 	MemoryConsolidator,
 	MetricsCollector,
 } from "../core/types.ts";
-import { createDefaultHeartbeatConfig } from "../core/types.ts";
 import { METRIC } from "../observability/metrics.ts";
+
+const heartbeatConfigSchema = z.object({
+	baseIntervalMinutes: z.number(),
+	reminders: z.array(
+		z.object({
+			id: z.string(),
+			description: z.string(),
+			schedule: z.union([
+				z.object({ type: z.literal("interval"), minutes: z.number() }),
+				z.object({ type: z.literal("daily"), hour: z.number(), minute: z.number() }),
+			]),
+			lastExecutedAt: z.string().nullable(),
+			enabled: z.boolean(),
+			guildId: z.string().optional(),
+		}),
+	),
+});
 
 function delayResolve<T>(ms: number, value: T): Promise<T> {
 	return new Promise((_resolve) => {
@@ -41,7 +63,8 @@ class JsonHeartbeatConfigRepository implements HeartbeatConfigRepository {
 		}
 		try {
 			const raw = readFileSync(this.filePath, "utf-8");
-			return Promise.resolve(JSON.parse(raw) as HeartbeatConfig);
+			const parsed = heartbeatConfigSchema.parse(JSON.parse(raw));
+			return Promise.resolve(parsed as HeartbeatConfig);
 		} catch {
 			return Promise.resolve(createDefaultHeartbeatConfig());
 		}

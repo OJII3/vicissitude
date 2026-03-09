@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { createDefaultHeartbeatConfig } from "./types.ts";
+import { createDefaultHeartbeatConfig } from "./functions.ts";
 
 describe("createDefaultHeartbeatConfig", () => {
 	it("has expected default values", () => {

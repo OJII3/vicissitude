@@ -11,10 +11,6 @@ export class SessionStore {
 		return this.getRow(agentName, sessionKey)?.sessionId;
 	}
 
-	getCreatedAt(agentName: string, sessionKey: string): number | undefined {
-		return this.getRow(agentName, sessionKey)?.createdAt;
-	}
-
 	getRow(
 		agentName: string,
 		sessionKey: string,

@@ -28,6 +28,10 @@ export function closeDb(db: StoreDb): void {
 	}
 }
 
+/**
+ * NOTE: この SQL と store/schema.ts の Drizzle スキーマ定義は常に同期させること。
+ * カラム追加・変更時は両方を更新する必要がある。
+ */
 export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS sessions (
 	key TEXT PRIMARY KEY,

@@ -48,7 +48,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 	server.tool(
 		"wait_for_events",
 		"イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す。",
-		{ timeout_seconds: z.number().min(1).max(120).default(60) },
+		{ timeout_seconds: z.number().min(1).max(172800).default(60) },
 		async ({ timeout_seconds }) => {
 			const immediate = consumeEvents(db, guildId);
 			if (immediate.length > 0) {
