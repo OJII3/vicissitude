@@ -55,6 +55,12 @@ export function incrementEmoji(db: StoreDb, guildId: string, emojiName: string):
 		.run();
 }
 
+/** event_buffer に該当ギルドのイベントが存在するか確認する */
+export function hasEvents(db: StoreDb, guildId: string): boolean {
+	const row = db.select({ id: eventBuffer.id }).from(eventBuffer).where(eq(eventBuffer.guildId, guildId)).limit(1).get();
+	return row !== undefined;
+}
+
 /** 使用頻度トップ N の絵文字を返す */
 export function getTopEmojis(
 	db: StoreDb,

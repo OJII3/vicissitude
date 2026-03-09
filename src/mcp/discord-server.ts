@@ -5,7 +5,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Client, GatewayIntentBits } from "discord.js";
 import { z } from "zod";
 
-import { filterImageUrls } from "../infrastructure/discord/discord-attachment-mapper.ts";
+import { filterImageUrls } from "../gateway/discord-attachment-mapper.ts";
 
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 

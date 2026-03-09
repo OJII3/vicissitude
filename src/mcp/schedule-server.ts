@@ -5,8 +5,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-import { DEFAULT_HEARTBEAT_CONFIG } from "../domain/entities/heartbeat-config.ts";
-import type { HeartbeatConfig, HeartbeatReminder } from "../domain/entities/heartbeat-config.ts";
+import type { HeartbeatConfig, HeartbeatReminder } from "../core/types.ts";
+import { DEFAULT_HEARTBEAT_CONFIG } from "../core/types.ts";
 
 const CONFIG_PATH = resolve(import.meta.dirname, "../../data/heartbeat-config.json");
 
