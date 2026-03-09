@@ -1,11 +1,18 @@
+/* oxlint-disable max-classes-per-file, max-lines -- scheduler module consolidates HeartbeatScheduler + ConsolidationScheduler */
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
-import type { DueReminder, HeartbeatConfig, Logger, MemoryConsolidator, MetricsCollector } from "../core/types.ts";
-import { DEFAULT_HEARTBEAT_CONFIG } from "../core/types.ts";
-import { evaluateDueReminders, withTimeout } from "../core/functions.ts";
-import { METRIC } from "../observability/metrics.ts";
 import type { AiAgent } from "../agent/router.ts";
+import { evaluateDueReminders, withTimeout } from "../core/functions.ts";
+import type {
+	DueReminder,
+	HeartbeatConfig,
+	Logger,
+	MemoryConsolidator,
+	MetricsCollector,
+} from "../core/types.ts";
+import { DEFAULT_HEARTBEAT_CONFIG } from "../core/types.ts";
+import { METRIC } from "../observability/metrics.ts";
 
 // ─── HeartbeatConfigRepository (local) ──────────────────────────
 

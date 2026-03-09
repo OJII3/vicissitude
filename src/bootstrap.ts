@@ -1,23 +1,25 @@
-/* oxlint-disable max-dependencies -- bootstrap file naturally requires many imports for DI wiring */
+/* oxlint-disable max-dependencies, max-classes-per-file, max-lines -- bootstrap file naturally requires many imports, classes, and lines for DI wiring */
 import { existsSync } from "fs";
 import { resolve } from "path";
 
 import { spawn, type Subprocess } from "bun";
 
-import type {
-	BufferedEvent,
-	ConversationMessage,
-	IncomingMessage,
-	Logger,
-} from "./core/types.ts";
-import { loadConfig } from "./core/config.ts";
 import { ContextBuilder } from "./agent/context-builder.ts";
-import { SessionStore } from "./agent/session-store.ts";
-import { AgentRunner, type EventBuffer } from "./agent/runner.ts";
-import { GuildRouter, type AiAgent } from "./agent/router.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
+import { GuildRouter, type AiAgent } from "./agent/router.ts";
+import { AgentRunner, type EventBuffer } from "./agent/runner.ts";
+import { SessionStore } from "./agent/session-store.ts";
+import { loadConfig } from "./core/config.ts";
+import type { BufferedEvent, ConversationMessage, IncomingMessage, Logger } from "./core/types.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
+import { CompositeLLMAdapter } from "./infrastructure/fenghuang/composite-llm-adapter.ts";
+import { FenghuangChatAdapter } from "./infrastructure/fenghuang/fenghuang-chat-adapter.ts";
+import { FenghuangConversationRecorder } from "./infrastructure/fenghuang/fenghuang-conversation-recorder.ts";
+// infrastructure imports that will be cleaned up in M11:
+import { FenghuangFactReader } from "./infrastructure/fenghuang/fenghuang-fact-reader.ts";
+import { OllamaEmbeddingAdapter } from "./infrastructure/ollama/ollama-embedding-adapter.ts";
+import { mcpServerConfigs } from "./infrastructure/opencode/mcp-config.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -27,13 +29,6 @@ import {
 } from "./observability/metrics.ts";
 import { createDb, type StoreDb } from "./store/db.ts";
 import { appendEvent, hasEvents, incrementEmoji } from "./store/queries.ts";
-// infrastructure imports that will be cleaned up in M11:
-import { FenghuangFactReader } from "./infrastructure/fenghuang/fenghuang-fact-reader.ts";
-import { FenghuangChatAdapter } from "./infrastructure/fenghuang/fenghuang-chat-adapter.ts";
-import { FenghuangConversationRecorder } from "./infrastructure/fenghuang/fenghuang-conversation-recorder.ts";
-import { CompositeLLMAdapter } from "./infrastructure/fenghuang/composite-llm-adapter.ts";
-import { OllamaEmbeddingAdapter } from "./infrastructure/ollama/ollama-embedding-adapter.ts";
-import { mcpServerConfigs } from "./infrastructure/opencode/mcp-config.ts";
 
 // ─── Channel Config Loader ──────────────────────────────────────
 
@@ -90,6 +85,7 @@ class SqliteEventBuffer implements EventBuffer {
 	}
 
 	waitForEvents(signal: AbortSignal): Promise<void> {
+		// oxlint-disable-next-line no-shadow -- Promise parameter shadows `resolve` import, intentional
 		return new Promise((resolve) => {
 			const poll = () => {
 				if (signal.aborted) {
@@ -163,10 +159,7 @@ async function setupLtmRecording(
 		);
 		await chatAdapter.initialize();
 
-		const ollama = new OllamaEmbeddingAdapter(
-			config.ltm.ollamaBaseUrl,
-			config.ltm.embeddingModel,
-		);
+		const ollama = new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 		const recorder = new FenghuangConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(recorder, logger, metricsCollector);
@@ -210,11 +203,7 @@ function recordLtmMessage(
 
 // ─── Event Handlers ─────────────────────────────────────────────
 
-function bufferIncomingMessage(
-	db: StoreDb,
-	msg: IncomingMessage,
-	logger: Logger,
-): void {
+function bufferIncomingMessage(db: StoreDb, msg: IncomingMessage, logger: Logger): void {
 	if (!msg.content && msg.attachments.length === 0) return;
 	if (!msg.guildId) {
 		logger.warn(`[bootstrap] No guildId for message, dropping event`);
@@ -248,19 +237,21 @@ function setupEventHandlers(
 	logger: Logger,
 	metricsCollector: PrometheusCollector,
 ): void {
-	gateway.onHomeChannelMessage(async (msg) => {
+	gateway.onHomeChannelMessage((msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
 		bufferIncomingMessage(db, msg, logger);
 		if (ltmResources) {
 			recordLtmMessage(ltmResources.recorder, msg, logger);
 		}
+		return Promise.resolve();
 	});
 
-	gateway.onMessage(async (msg) => {
+	gateway.onMessage((msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			channel_type: "mention",
 		});
 		bufferIncomingMessage(db, msg, logger);
+		return Promise.resolve();
 	});
 }
 
@@ -333,8 +324,7 @@ function startSessionGauge(
 	sessionStore: SessionStore,
 	metricsCollector: PrometheusCollector,
 ): ReturnType<typeof setInterval> {
-	const update = () =>
-		metricsCollector.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessionStore.count());
+	const update = () => metricsCollector.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessionStore.count());
 	update();
 	return setInterval(update, 30_000);
 }
