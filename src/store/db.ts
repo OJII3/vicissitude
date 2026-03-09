@@ -71,6 +71,7 @@ export function createDb(dataDir: string): StoreDb {
 	const dbPath = join(dataDir, "vicissitude.db");
 	const sqlite = new Database(dbPath);
 	sqlite.exec("PRAGMA journal_mode = WAL");
+	sqlite.exec("PRAGMA busy_timeout = 5000");
 	sqlite.exec(CREATE_TABLES_SQL);
 	const db = drizzle(sqlite, { schema });
 	dbInstances.set(db, sqlite);

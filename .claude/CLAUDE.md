@@ -84,4 +84,4 @@ src/
 
 ### MCP サーバー
 
-`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。3 プロセス構成: core（統合）、code-exec、minecraft。
+`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-sub-bridge（サブブレイン用ブリッジ）。

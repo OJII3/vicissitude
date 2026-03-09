@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { LtmFactReader } from "../core/types.ts";
+import type { ContextBuilderPort, LtmFactReader } from "../core/types.ts";
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -18,7 +18,7 @@ const MEMORY_FILES = ["MEMORY.md", "LESSONS.md"] as const;
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
 
-export class ContextBuilder {
+export class ContextBuilder implements ContextBuilderPort {
 	constructor(
 		private readonly overlayDir: string,
 		private readonly baseDir: string,

@@ -2,10 +2,23 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
+import type { BridgeEvent } from "../../store/mc-bridge.ts";
 import { consumeBridgeEvents, insertBridgeEvent, peekBridgeEvents } from "../../store/mc-bridge.ts";
+
+const MAX_BRIDGE_MESSAGE_CHARS = 10_000;
 
 export interface McBridgeDeps {
 	db: StoreDb;
+}
+
+function formatBridgeEvents(events: BridgeEvent[]): string {
+	const formatted = events.map((e) => ({
+		id: e.id,
+		type: e.type,
+		payload: e.payload,
+		createdAt: new Date(e.createdAt).toISOString(),
+	}));
+	return JSON.stringify(formatted, null, 2);
 }
 
 /** メインブレイン側のブリッジツールを登録する */
@@ -15,7 +28,9 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 	server.tool(
 		"minecraft_delegate",
 		"Minecraft サブブレインに指示を送る。サブブレインが次のポーリングで受け取る。",
-		{ command: z.string().describe("サブブレインへの指示内容") },
+		{
+			command: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("サブブレインへの指示内容"),
+		},
 		({ command }) => {
 			insertBridgeEvent(db, "to_sub", "command", command);
 			return {
@@ -35,14 +50,8 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					content: [{ type: "text" as const, text: "レポートはありません。" }],
 				};
 			}
-			const formatted = events.map((e) => ({
-				id: e.id,
-				type: e.type,
-				payload: e.payload,
-				createdAt: new Date(e.createdAt).toISOString(),
-			}));
 			return {
-				content: [{ type: "text" as const, text: JSON.stringify(formatted, null, 2) }],
+				content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
 			};
 		},
 	);
@@ -58,14 +67,8 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					content: [{ type: "text" as const, text: "新しいレポートはありません。" }],
 				};
 			}
-			const formatted = events.map((e) => ({
-				id: e.id,
-				type: e.type,
-				payload: e.payload,
-				createdAt: new Date(e.createdAt).toISOString(),
-			}));
 			return {
-				content: [{ type: "text" as const, text: JSON.stringify(formatted, null, 2) }],
+				content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
 			};
 		},
 	);
@@ -79,7 +82,7 @@ export function registerSubBrainBridgeTools(server: McpServer, deps: McBridgeDep
 		"mc_report",
 		"メインブレインにレポートを送信する。",
 		{
-			message: z.string().describe("レポート内容"),
+			message: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("レポート内容"),
 			importance: z
 				.enum(["low", "normal", "high", "critical"])
 				.default("normal")
@@ -101,14 +104,8 @@ export function registerSubBrainBridgeTools(server: McpServer, deps: McBridgeDep
 				content: [{ type: "text" as const, text: "新しい指示はありません。" }],
 			};
 		}
-		const formatted = events.map((e) => ({
-			id: e.id,
-			type: e.type,
-			payload: e.payload,
-			createdAt: new Date(e.createdAt).toISOString(),
-		}));
 		return {
-			content: [{ type: "text" as const, text: JSON.stringify(formatted, null, 2) }],
+			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
 		};
 	});
 }

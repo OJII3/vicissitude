@@ -28,15 +28,15 @@ export class MinecraftEventBuffer implements EventBuffer {
 				resolve();
 			};
 
-			const timer = setTimeout(done, this.intervalMs);
-			signal.addEventListener(
-				"abort",
-				() => {
-					clearTimeout(timer);
-					done();
-				},
-				{ once: true },
-			);
+			const abortHandler = () => {
+				clearTimeout(timer);
+				done();
+			};
+			const timer = setTimeout(() => {
+				signal.removeEventListener("abort", abortHandler);
+				done();
+			}, this.intervalMs);
+			signal.addEventListener("abort", abortHandler, { once: true });
 		});
 	}
 }

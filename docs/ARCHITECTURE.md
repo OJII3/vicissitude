@@ -41,9 +41,11 @@ src/
 │   ├── router.ts            # GuildRouter（ギルド ID ベースのルーティング）
 │   ├── context-builder.ts   # システムプロンプト構築（LTM ファクト注入含む）
 │   ├── session-store.ts     # セッション永続化（SQLite）
-│   ├── mcp-config.ts        # MCP サーバー設定（core / code-exec / minecraft）
+│   ├── mcp-config.ts        # MCP サーバー設定（core / code-exec / minecraft / mc-sub-bridge）
+│   ├── minecraft-context-builder.ts  # Minecraft サブブレイン専用コンテキスト構築
 │   └── profiles/
-│       └── conversation.ts  # 会話エージェントプロファイル
+│       ├── conversation.ts  # 会話エージェントプロファイル
+│       └── minecraft.ts     # Minecraft サブブレインプロファイル
 │
 ├── gateway/                 # 外部世界との接点
 │   ├── discord.ts           # DiscordGateway
@@ -52,8 +54,9 @@ src/
 │   └── scheduler.ts         # HeartbeatScheduler + ConsolidationScheduler
 │
 ├── mcp/                     # MCP サーバー（独立プロセス、レイヤー外）
-│   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm）
+│   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm + mc-bridge）
 │   ├── code-exec-server.ts  # コード実行（Podman サンドボックス）
+│   ├── mc-sub-server.ts     # Minecraft サブブレイン専用 MCP サーバー（mc-bridge ツールのみ）
 │   ├── memory-helpers.ts    # メモリツール用ヘルパー関数
 │   ├── minecraft/           # Minecraft（StreamableHTTP、MC_HOST 設定時のみ）
 │   │   └── ...
@@ -62,12 +65,15 @@ src/
 │       ├── memory.ts
 │       ├── schedule.ts
 │       ├── event-buffer.ts
-│       └── ltm.ts
+│       ├── ltm.ts
+│       └── mc-bridge.ts
 │
 ├── store/                   # SQLite 統一永続化（Drizzle ORM）
 │   ├── db.ts                # Drizzle クライアント初期化
 │   ├── schema.ts            # 全テーブル定義
-│   └── queries.ts           # 共通クエリヘルパー
+│   ├── queries.ts           # 共通クエリヘルパー
+│   ├── mc-bridge.ts         # MC ブリッジクエリ関数
+│   └── mc-sub-event-buffer.ts  # Minecraft サブブレイン用タイマーベース EventBuffer
 │
 ├── observability/           # ログ・メトリクス
 │   ├── logger.ts            # ConsoleLogger（NDJSON 構造化ログ）
@@ -99,8 +105,10 @@ src/
 - `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
 - `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
-- `mcp-config.ts`: `mcpServerConfigs()` — MCP サーバー設定を返す。`core`（統合サーバー）、`code-exec`、`minecraft`（条件付き）の 3 エントリ
+- `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core / code-exec / minecraft）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
+- `minecraft-context-builder.ts`: `MinecraftContextBuilder` — Minecraft サブブレイン専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
 - `profiles/conversation.ts`: 会話エージェントプロファイル
+- `profiles/minecraft.ts`: Minecraft サブブレインプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
 
 ### 4.3 gateway/ — 外部世界との接点
 
@@ -110,23 +118,28 @@ src/
 
 ### 4.4 mcp/ — MCP サーバー（独立プロセス）
 
-MCP サーバーは 3 プロセス構成:
+MCP サーバーは 4 プロセス構成:
 
-1. **core-server.ts** (`type: "local"`): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM を統合した単一プロセス
+1. **core-server.ts** (`type: "local"`): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM + MC ブリッジ（メインブレイン側）を統合した単一プロセス
    - `tools/discord.ts`: `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
    - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
    - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
    - `tools/event-buffer.ts`: `wait_for_events` — SQLite ベース
    - `tools/ltm.ts`: `ltm_retrieve`, `ltm_consolidate`, `ltm_get_facts`
+   - `tools/mc-bridge.ts`（メイン側）: `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
    - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
+4. **mc-sub-server.ts** (`type: "local"`、サブブレイン専用): Minecraft サブブレイン用ブリッジ MCP サーバー
+   - `tools/mc-bridge.ts`（サブ側）: `mc_report`, `mc_read_commands`
 
 ### 4.5 store/ — SQLite 統一永続化
 
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
-- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage）
+- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events）
 - `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `consumeEvents`, `incrementEmoji` 等）
+- `mc-bridge.ts`: MC ブリッジクエリ（`insertBridgeEvent`, `consumeBridgeEvents`, `peekBridgeEvents`, `hasBridgeEvents`）
+- `mc-sub-event-buffer.ts`: `MinecraftEventBuffer` — タイマーベースの EventBuffer 実装（30秒間隔ポーリング用）
 
 ### 4.6 observability/ — ログ・メトリクス
 
@@ -151,6 +164,7 @@ MCP サーバーは 3 プロセス構成:
 - ギルドごとに `AgentRunner` + `SqliteEventBuffer` を生成し、`GuildRouter` でラップ
 - LTM 記録、Heartbeat スケジューラ、Consolidation スケジューラを起動
 - Minecraft MCP を子プロセスとして起動（`MC_HOST` 設定時のみ）
+- Minecraft サブブレイン（`AgentRunner` + `MinecraftEventBuffer`）を起動（`config.minecraft` 存在時のみ）
 - Graceful shutdown（SIGINT/SIGTERM）実装済み
 
 ### 4.10 OpenCode 組み込みツール
@@ -237,6 +251,7 @@ MCP サーバーは 3 プロセス構成:
 - `sessions`: セッション永続化（key, sessionId, createdAt）
 - `event_buffer`: イベントバッファ（guildId, payload, createdAt）
 - `emoji_usage`: 絵文字使用カウント（guildId, emojiName, count）
+- `mc_bridge_events`: MC ブリッジイベント（direction, type, payload, createdAt, consumed）
 
 ### JSON ファイル
 
@@ -340,7 +355,7 @@ MCP サーバーは 3 プロセス構成:
 
 1. 責務別フラットモジュール構成を採用する（Clean Architecture からの移行完了）。
 2. DI は手動コンストラクタ注入のみ（Pure DI）。
-3. MCP サーバーは独立プロセスとして 3 プロセス構成（core / code-exec / minecraft）。
+3. MCP サーバーは独立プロセスとして 4 プロセス構成（core / code-exec / minecraft / mc-sub-bridge）。
 4. セッション永続化は SQLite を使用する。
 5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` -> `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。

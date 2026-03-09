@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
 import { mcBridgeEvents } from "./schema.ts";
@@ -7,7 +7,7 @@ export type BridgeDirection = "to_main" | "to_sub";
 
 export interface BridgeEvent {
 	id: number;
-	direction: string;
+	direction: BridgeDirection;
 	type: string;
 	payload: string;
 	createdAt: number;
@@ -33,14 +33,13 @@ export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): Br
 			.all();
 
 		if (rows.length > 0) {
-			for (const row of rows) {
-				tx.update(mcBridgeEvents).set({ consumed: 1 }).where(eq(mcBridgeEvents.id, row.id)).run();
-			}
+			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
+			tx.update(mcBridgeEvents).set({ consumed: 1 }).where(inArray(mcBridgeEvents.id, ids)).run();
 		}
 
 		return rows.map((r) => ({
 			id: r.id ?? 0,
-			direction: r.direction,
+			direction: r.direction as BridgeDirection,
 			type: r.type,
 			payload: r.payload,
 			createdAt: r.createdAt,
@@ -57,7 +56,7 @@ export function peekBridgeEvents(db: StoreDb, direction: BridgeDirection): Bridg
 		.all()
 		.map((r) => ({
 			id: r.id ?? 0,
-			direction: r.direction,
+			direction: r.direction as BridgeDirection,
 			type: r.type,
 			payload: r.payload,
 			createdAt: r.createdAt,

@@ -13,6 +13,7 @@ import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { loadConfig } from "./core/config.ts";
+import { MC_SUB_BRAIN_GUILD_ID } from "./core/constants.ts";
 import type { AiAgent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
@@ -310,7 +311,7 @@ export async function bootstrap(): Promise<void> {
 		});
 		mcSubBrainRunner = new AgentRunner({
 			profile: mcProfile,
-			guildId: "__minecraft__",
+			guildId: MC_SUB_BRAIN_GUILD_ID,
 			sessionStore,
 			contextBuilder: mcContextBuilder,
 			logger,
