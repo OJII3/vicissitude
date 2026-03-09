@@ -42,19 +42,29 @@ function savePngBuffer(buffer: Buffer): string {
 // Module-level cache for dynamic imports (initialized once)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic import cache; typed at usage site
 let cachedModules: Record<string, any> | null = null;
+let loadFailed = false;
 
 async function loadModules() {
+	if (loadFailed)
+		throw new Error(
+			"スクリーンショット依存モジュールは利用できません（canvas ネイティブモジュール非互換）",
+		);
 	if (cachedModules) return cachedModules;
 
-	const THREE = await import("three");
-	const { createCanvas } = await import("node-canvas-webgl");
-	const { Viewer, WorldView, getBufferFromStream } = await import("prismarine-viewer/viewer");
+	try {
+		const THREE = await import("three");
+		const { createCanvas } = await import("node-canvas-webgl");
+		const { Viewer, WorldView, getBufferFromStream } = await import("prismarine-viewer/viewer");
 
-	// @ts-expect-error prismarine-viewer requires global THREE
-	global.THREE = THREE;
+		// @ts-expect-error prismarine-viewer requires global THREE
+		global.THREE = THREE;
 
-	cachedModules = { THREE, createCanvas, Viewer, WorldView, getBufferFromStream };
-	return cachedModules;
+		cachedModules = { THREE, createCanvas, Viewer, WorldView, getBufferFromStream };
+		return cachedModules;
+	} catch (err) {
+		loadFailed = true;
+		throw err;
+	}
 }
 
 // eslint-disable-next-line max-lines-per-function -- rendering setup requires sequential steps
