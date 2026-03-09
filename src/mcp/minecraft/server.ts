@@ -54,8 +54,8 @@ function createServer(): McpServer {
 	return server;
 }
 
-connection.start();
 const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, MC_MCP_PORT);
+connection.start();
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 const shutdown = (): void => {
