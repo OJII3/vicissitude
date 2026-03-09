@@ -12,7 +12,7 @@ import type {
 	MemoryConsolidator,
 	MetricsCollector,
 } from "../core/types.ts";
-import { DEFAULT_HEARTBEAT_CONFIG } from "../core/types.ts";
+import { createDefaultHeartbeatConfig } from "../core/types.ts";
 import { METRIC } from "../observability/metrics.ts";
 
 function delayResolve<T>(ms: number, value: T): Promise<T> {
@@ -37,13 +37,13 @@ class JsonHeartbeatConfigRepository implements HeartbeatConfigRepository {
 
 	load(): Promise<HeartbeatConfig> {
 		if (!existsSync(this.filePath)) {
-			return Promise.resolve(structuredClone(DEFAULT_HEARTBEAT_CONFIG));
+			return Promise.resolve(createDefaultHeartbeatConfig());
 		}
 		try {
 			const raw = readFileSync(this.filePath, "utf-8");
 			return Promise.resolve(JSON.parse(raw) as HeartbeatConfig);
 		} catch {
-			return Promise.resolve(structuredClone(DEFAULT_HEARTBEAT_CONFIG));
+			return Promise.resolve(createDefaultHeartbeatConfig());
 		}
 	}
 

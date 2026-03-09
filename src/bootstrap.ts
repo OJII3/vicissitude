@@ -272,11 +272,14 @@ async function startMinecraftMcp(
 		return null;
 	}
 	if (status === "timeout") {
-		logger.error("[bootstrap] Minecraft MCP server failed to start within timeout");
-	} else {
-		logger.info("[bootstrap] Minecraft MCP server started");
+		logger.error(
+			"[bootstrap] Minecraft MCP server failed to start within timeout, killing process",
+		);
+		mcProcess.kill();
+		return null;
 	}
 
+	logger.info("[bootstrap] Minecraft MCP server started");
 	return mcProcess;
 }
 

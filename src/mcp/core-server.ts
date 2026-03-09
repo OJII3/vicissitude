@@ -9,7 +9,7 @@ import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang
 import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
-import { createDb } from "../store/db.ts";
+import { closeDb, createDb } from "../store/db.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerLtmTools } from "./tools/ltm.ts";
@@ -83,7 +83,12 @@ function getOrCreateFenghuang(guildId: string): Fenghuang {
 	}
 
 	const existing = fenghuangInstances.get(guildId);
-	if (existing) return existing;
+	if (existing) {
+		// LRU: 再挿入して最新アクセスとして記録
+		fenghuangInstances.delete(guildId);
+		fenghuangInstances.set(guildId, existing);
+		return existing;
+	}
 
 	// Evict oldest entry if at capacity
 	if (fenghuangInstances.size >= MAX_FENGHUANG_INSTANCES) {
@@ -124,11 +129,12 @@ async function shutdown() {
 	fenghuangInstances.clear();
 	fenghuangStorages.clear();
 	await chatAdapter.close();
+	closeDb(db);
 	process.exit(0);
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => void shutdown());
+process.on("SIGTERM", () => void shutdown());
 
 // --- Start server ---
 

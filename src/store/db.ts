@@ -14,8 +14,16 @@ const dbInstances = new WeakMap<StoreDb, Database>();
 export function closeDb(db: StoreDb): void {
 	const sqlite = dbInstances.get(db);
 	if (sqlite) {
-		sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)");
-		sqlite.close();
+		try {
+			sqlite.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+		} catch {
+			// WAL checkpoint may fail if DB is in an error state; proceed with close
+		}
+		try {
+			sqlite.close();
+		} catch {
+			// close may fail if already closed
+		}
 		dbInstances.delete(db);
 	}
 }

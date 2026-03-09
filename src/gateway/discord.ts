@@ -46,6 +46,10 @@ export class DiscordGateway {
 	}
 
 	async start(): Promise<void> {
+		if (this.client) {
+			this.logger.warn("[discord] start() called while already running, ignoring");
+			return;
+		}
 		const client = new Client({
 			intents: [
 				GatewayIntentBits.Guilds,
@@ -124,12 +128,16 @@ export class DiscordGateway {
 
 	private registerReactionHandler(client: Client): void {
 		client.on(Events.MessageReactionAdd, (reaction, user) => {
-			if (user.bot) return;
-			// Unicode 絵文字は無視
-			if (!reaction.emoji.id) return;
-			const guildId = reaction.message.guildId;
-			if (!guildId || !reaction.emoji.name) return;
-			this.emojiUsedHandler?.(guildId, reaction.emoji.name);
+			try {
+				if (user.bot) return;
+				// Unicode 絵文字は無視
+				if (!reaction.emoji.id) return;
+				const guildId = reaction.message.guildId;
+				if (!guildId || !reaction.emoji.name) return;
+				this.emojiUsedHandler?.(guildId, reaction.emoji.name);
+			} catch (err) {
+				this.logger.error("[discord] reactionAdd handler error:", err);
+			}
 		});
 	}
 

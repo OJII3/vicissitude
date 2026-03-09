@@ -46,5 +46,9 @@ export class GuildRouter implements AiAgent {
 		for (const agent of this.agents.values()) {
 			agent.stop();
 		}
+		// defaultAgent が agents Map に含まれていない場合のみ停止
+		if (this.defaultAgent && ![...this.agents.values()].includes(this.defaultAgent)) {
+			this.defaultAgent.stop();
+		}
 	}
 }

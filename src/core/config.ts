@@ -55,7 +55,7 @@ export function loadConfig(
 	env: Record<string, string | undefined> = process.env,
 	root?: string,
 ): AppConfig {
-	const resolvedRoot = root ?? resolve(import.meta.dirname, "..");
+	const resolvedRoot = root ?? resolve(import.meta.dirname, "../..");
 
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
 

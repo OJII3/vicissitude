@@ -6,16 +6,16 @@ import { z } from "zod";
 
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../../core/config.ts";
 import type { HeartbeatConfig, HeartbeatReminder } from "../../core/types.ts";
-import { DEFAULT_HEARTBEAT_CONFIG } from "../../core/types.ts";
+import { createDefaultHeartbeatConfig } from "../../core/types.ts";
 
 const CONFIG_PATH = resolve(import.meta.dirname, "../../..", HEARTBEAT_CONFIG_RELATIVE_PATH);
 
 function loadConfig(): HeartbeatConfig {
-	if (!existsSync(CONFIG_PATH)) return structuredClone(DEFAULT_HEARTBEAT_CONFIG);
+	if (!existsSync(CONFIG_PATH)) return createDefaultHeartbeatConfig();
 	try {
 		return JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as HeartbeatConfig;
 	} catch {
-		return structuredClone(DEFAULT_HEARTBEAT_CONFIG);
+		return createDefaultHeartbeatConfig();
 	}
 }
 

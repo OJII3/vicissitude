@@ -1,4 +1,3 @@
-import { existsSync } from "fs";
 import { resolve } from "path";
 
 import type { LtmFactReader } from "../core/types.ts";
@@ -79,7 +78,9 @@ export class ContextBuilder {
 		sections: string[],
 		totalLength: number,
 	): Promise<number> {
-		const today = new Date().toISOString().slice(0, 10);
+		const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+		const jstNow = new Date(Date.now() + JST_OFFSET_MS);
+		const today = jstNow.toISOString().slice(0, 10);
 		const dailyLog = await this.readDailyLog(today, guildId);
 		if (dailyLog) {
 			const section = `<daily-log date="${today}">\n${dailyLog}\n</daily-log>`;
@@ -150,15 +151,17 @@ export class ContextBuilder {
 	}
 
 	private async readContextFile(filepath: string): Promise<string | null> {
-		if (!existsSync(filepath)) return null;
+		try {
+			const content = await Bun.file(filepath).text();
+			const trimmed = content.trim();
+			if (!trimmed) return null;
 
-		const content = await Bun.file(filepath).text();
-		const trimmed = content.trim();
-		if (!trimmed) return null;
-
-		if (trimmed.length > PER_FILE_MAX) {
-			return trimmed.slice(0, PER_FILE_MAX) + "\n\n[...truncated]";
+			if (trimmed.length > PER_FILE_MAX) {
+				return trimmed.slice(0, PER_FILE_MAX) + "\n\n[...truncated]";
+			}
+			return trimmed;
+		} catch {
+			return null;
 		}
-		return trimmed;
 	}
 }

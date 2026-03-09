@@ -16,7 +16,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 function formatEvents(rows: { payload: string }[]): string {
-	const events = rows.map((r) => JSON.parse(r.payload));
+	const events = rows.map((r) => {
+		try {
+			return JSON.parse(r.payload);
+		} catch {
+			return { _raw: r.payload, _error: "invalid JSON" };
+		}
+	});
 	return JSON.stringify(events, null, 2);
 }
 

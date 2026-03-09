@@ -63,7 +63,7 @@ export class AgentRunner implements AiAgent {
 		await this.eventBuffer.append({
 			ts: new Date().toISOString(),
 			channelId: "system",
-			guildId,
+			guildId: guildId ?? this.guildId,
 			authorId: "system",
 			authorName: "system",
 			messageId: `send-${Date.now()}`,
@@ -97,6 +97,8 @@ export class AgentRunner implements AiAgent {
 				// eslint-disable-next-line no-await-in-loop -- session rotation must happen sequentially
 				await this.rotateSessionIfExpired();
 				delay = INITIAL_RECONNECT_DELAY_MS;
+				// skip backoff delay on normal session completion
+				continue;
 			} catch (err) {
 				if (this.abortController.signal.aborted) return;
 				this.logger.error(

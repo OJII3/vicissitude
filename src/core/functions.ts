@@ -9,6 +9,7 @@ const DEFAULT_MAX_LENGTH = 2000;
  * 行の区切りで分割を試み、無理なら maxLength で切る。
  */
 export function splitMessage(text: string, maxLength = DEFAULT_MAX_LENGTH): string[] {
+	if (maxLength <= 0) throw new Error("maxLength must be positive");
 	if (text.length <= maxLength) return [text];
 
 	const chunks: string[] = [];
@@ -78,6 +79,10 @@ function evaluateInterval(
 	}
 
 	const lastTime = new Date(lastExecutedAt).getTime();
+	// treat invalid date as never executed
+	if (Number.isNaN(lastTime)) {
+		return intervalMinutes;
+	}
 	const elapsedMinutes = (now.getTime() - lastTime) / (1000 * 60);
 
 	if (elapsedMinutes >= intervalMinutes) {
@@ -115,7 +120,12 @@ function evaluateDaily(
 	}
 
 	// lastExecutedAt も JST 空間に変換して比較
-	const lastJstMs = new Date(lastExecutedAt).getTime() + JST_OFFSET_MS;
+	const lastRawMs = new Date(lastExecutedAt).getTime();
+	if (Number.isNaN(lastRawMs)) {
+		const overdueMinutes = (nowJstMs - todayTarget.getTime()) / (1000 * 60);
+		return Math.floor(overdueMinutes);
+	}
+	const lastJstMs = lastRawMs + JST_OFFSET_MS;
 	if (lastJstMs >= todayTarget.getTime()) {
 		return null;
 	}

@@ -101,6 +101,7 @@ export function registerMemoryTools(server: McpServer): void {
 			const logPath = resolve(memoryDir, `${targetDate}.md`);
 			const existing = readWithFallback(logPath);
 
+			// overhead: existing ? "\n- [HH:MM:SS] " (17 chars) : "# YYYY-MM-DD\n\n- [HH:MM:SS] " (30 chars)
 			const overhead = existing ? 17 : 30;
 			if (existing.length + entry.length + overhead > MAX_DAILY_LOG_CHARS) {
 				return {

@@ -6,7 +6,8 @@ export class OllamaEmbeddingAdapter {
 	) {}
 
 	async embed(text: string): Promise<number[]> {
-		const response = await fetch(`${this.baseUrl}/api/embed`, {
+		const url = new URL("/api/embed", this.baseUrl);
+		const response = await fetch(url, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ model: this.model, input: text }),
