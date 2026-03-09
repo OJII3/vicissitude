@@ -20,7 +20,9 @@ src/mcp/minecraft/
 └── actions/
     ├── movement.ts        # follow_player, go_to, collect_block, stop
     ├── interaction.ts     # send_chat, equip_item, place_block
-    └── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
+    ├── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
+    ├── survival.ts        # eat_food, flee_from_entity, find_shelter（サバイバル本能）
+    └── shared.ts          # 共通ヘルパー（collectBedIds, ensureMovements 等）
 ```
 
 ### 提供ツール
@@ -40,6 +42,9 @@ src/mcp/minecraft/
 | `equip_item`        | 行動 | アイテム装備                              |
 | `place_block`       | 行動 | ブロック設置                              |
 | `send_chat`         | 行動 | ゲーム内チャット送信                      |
+| `eat_food`          | 行動 | インベントリから食料を選んで食べる        |
+| `flee_from_entity`  | 行動 | 指定エンティティから逃走（非同期ジョブ）  |
+| `find_shelter`      | 行動 | 安全な避難場所を探して移動                |
 
 ### 環境変数
 
@@ -140,14 +145,15 @@ Event Bridge（`store/mc-bridge.ts`）を介した非同期メッセージング
 Guild に依存しない、Minecraft 専用の記憶空間:
 
 ```
-data/context/minecraft/
-├── MINECRAFT-MEMORY.md    # 世界の状況メモ（拠点位置、探索記録等）
-├── MINECRAFT-GOALS.md     # 目標管理（現在・達成済み）
-└── MINECRAFT-SKILLS.md    # 学習済みスキル・知識
+context/minecraft/              # git 管理（ベース）
+├── MINECRAFT-IDENTITY.md       # サブブレインの行動指針
+├── MINECRAFT-KNOWLEDGE.md      # Minecraft 基礎知識
+├── MINECRAFT-GOALS.md          # 目標管理テンプレート
+└── MINECRAFT-SKILLS.md         # スキルライブラリテンプレート
 
-context/minecraft/
-├── MINECRAFT-IDENTITY.md  # サブブレインの行動指針（git 管理）
-└── MINECRAFT-KNOWLEDGE.md # Minecraft 基礎知識（git 管理）
+data/context/minecraft/          # オーバーレイ（ランタイム書き込み先）
+├── MINECRAFT-GOALS.md           # 目標管理（現在・達成済み）
+└── MINECRAFT-SKILLS.md          # 学習済みスキル・知識
 ```
 
 ### 実装フェーズ
@@ -163,7 +169,7 @@ M12b と M12c は並行着手可能。
 
 ### このディレクトリへの影響
 
-M12 ではこのディレクトリ（`src/mcp/minecraft/`）の既存コードは**変更しない**。サブブレインは既存の MCP ツールをリモートクライアントとして利用する。追加ツール（`flee_from_entity`, `eat_food` 等）が必要になった場合は、既存の `actions/` パターンに従って追加する。
+サブブレインは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival.ts`（`eat_food`, `flee_from_entity`, `find_shelter`）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
 
 ### 先行研究
 

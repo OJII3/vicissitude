@@ -20,16 +20,19 @@ export interface McMemoryDeps {
 	dataDir: string;
 }
 
-function baseMinecraftDir(): string {
+/** @internal テスト用にもエクスポート */
+export function baseMinecraftDir(): string {
 	return resolve(BASE_CONTEXT_DIR, "minecraft");
 }
 
-function readOverlay(dataDir: string, filename: string): string {
+/** @internal テスト用にもエクスポート */
+export function readOverlay(dataDir: string, filename: string): string {
 	const overlayPath = resolve(dataDir, filename);
 	return readWithFallbackFrom(overlayPath, dataDir, baseMinecraftDir());
 }
 
-function writeOverlay(dataDir: string, filename: string, content: string): void {
+/** @internal テスト用にもエクスポート */
+export function writeOverlay(dataDir: string, filename: string, content: string): void {
 	ensureDir(dataDir);
 	const overlayPath = resolve(dataDir, filename);
 	createBackup(overlayPath);
@@ -89,7 +92,8 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		({ name, description }) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME);
-			const entry = `\n## ${name}\n\n${description}\n`;
+			const safeName = name.replaceAll(/[\r\n]/g, " ");
+			const entry = `\n## ${safeName}\n\n${description}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			writeOverlay(dataDir, SKILLS_FILENAME, updated);
 			return {

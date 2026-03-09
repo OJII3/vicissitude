@@ -383,7 +383,7 @@ M7 (core/ + store/)
    - サブブレイン → メインブレイン: レポート（「ダイヤモンド見つけた！」「夜になったから寝る」等）
 3. `mcp/tools/mc-bridge.ts` — ブリッジ MCP ツール
    - メインブレイン側: `minecraft_delegate(command)`, `minecraft_status()`, `minecraft_read_reports()`
-   - サブブレイン側: `mc_report(message, importance)`, `mc_read_commands()`, `mc_wait_for_trigger(timeout)`
+   - サブブレイン側: `mc_report(message, importance)`, `mc_read_commands()`
 4. `context/minecraft/` — Minecraft コンテキスト（グローバル、Guild 非依存）
    - `MINECRAFT-IDENTITY.md`: サブブレインの行動指針
    - `MINECRAFT-KNOWLEDGE.md`: Minecraft の基礎知識（昼夜サイクル、敵 mob、クラフトレシピ等）

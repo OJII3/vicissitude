@@ -78,7 +78,11 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 		"flee_from_entity",
 		"指定エンティティから逃走する（非同期ジョブ: 即座に jobId を返す）",
 		{
-			entityName: z.string().describe('逃走対象のエンティティ名（例: "creeper", "warden"）'),
+			entityName: z
+				.string()
+				.min(1)
+				.max(64)
+				.describe('逃走対象のエンティティ名（例: "creeper", "warden"）'),
 			distance: z
 				.number()
 				.min(8)
