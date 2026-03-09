@@ -4,7 +4,7 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: feat/minecraft-tools-5
+- ブランチ: refactor/containerfile-remove-mise-x
 
 ## 2. 現在の真実（Project Truth）
 
@@ -18,13 +18,13 @@
 - セッションは `data/sessions.json` に JSON で永続化している。**セッション自動ローテーション: 48 時間（`SESSION_MAX_AGE_HOURS` で変更可）経過後にセッションを削除・再作成し、トークン蓄積を防止。**
 - ブートストラップコンテキストはオーバーレイ方式で読込む: `data/context/` → `context/` のフォールバック。書き込みは常に `data/context/` に行う。
 - チャンネル設定は `data/context/channels.json` → `context/channels.json` のフォールバックで管理する。
-- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）、`minecraft-server.ts`（Minecraft 操作、`MC_HOST` 設定時のみ）の 7 つ。
+- MCP サーバーは `discord-server.ts`（Discord 操作）、`code-exec-server.ts`（コード実行）、`schedule-server.ts`（Heartbeat スケジュール管理）、`memory-server.ts`（メモリ・人格管理）、`event-buffer-server.ts`（イベントバッファ）、`ltm-server.ts`（長期記憶）の 6 つが `type: "local"` で起動。`minecraft-server.ts`（Minecraft 操作、`MC_HOST` 設定時のみ）は `type: "remote"` で独立 HTTP プロセスとして接続。
 - **Heartbeat 自律行動システム: 1分間隔チェックループで due なリマインダーを検知し、AI セッションを起動して自律行動する。**
 - **memory MCP サーバーで MEMORY.md / SOUL.md（読み取り専用） / LESSONS.md / 日次ログの構造化された読み書きが可能。**
 - **`evolve_soul` ツールを廃止し、LESSONS.md に一本化。** SOUL.md はペルソナ定義に専念させ、「学んだこと」セクションを削除。既存エントリは guild LESSONS.md にマイグレーション済み。
 - **Guild 跨ぎコンテキスト分離: 人格は全 Guild 共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごとに分離。**
 - **OpenCode SDK 組み込みの `webfetch` / `websearch` ツールを有効化済み。**
-- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。**
+- **`composition-root.ts` をリファクタリングし、`bootstrap-context.ts`（共有型）、`bootstrap-helpers.ts`（共有ヘルパー）、`bootstrap-agents.ts`（エージェントブートストラップ）に分割。** `bootstrap-agents.ts` は minecraft MCP プロセスの事前起動も担当。
 - **`llm_busy_sessions` ゲージメトリクスを追加。** `InstrumentedAiAgent.send()` でインフライトリクエスト数を `agent_type` ラベル付きでトラッキング。
 - **Ollama をコンテナ化。** `compose.yaml` で `ollama` サービスを追加し、`vicissitude-net` ネットワークで `bot` と通信。初回起動時に `embeddinggemma` モデルを自動プル。`OLLAMA_BASE_URL` のデフォルトを `http://ollama:11434` に変更。
 - **記憶システムマイグレーション方針を策定。** ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（fenghuang Episodes/SemanticFacts）の責任範囲を段階的に整理する計画を文書化（M5: 記憶システム統合）。
@@ -35,7 +35,7 @@
 - **LTM 自動統合スケジューラ（ハイブリッド方式）。** 30 分間隔で未統合エピソードからファクトを自動抽出する `IntervalConsolidationScheduler` を追加。初回は 5 分遅延、タイムアウト 10 分。手動 MCP ツール `ltm_consolidate` もそのまま残す。`FenghuangConversationRecorder` に `MemoryConsolidator` ポートを実装。consolidation は `record()` のロックとは独立して実行（SQLite WAL モードで DB 側が直列化を保証）。タイムアウト後も内部処理完了まで `running` フラグを保持しゾンビ処理との並走を防止。`Executable` ドメインポートで CA 依存方向ルールを遵守。
 - **LTM ファクト抽出に話者名を構造化フィールドで渡すように変更。** fenghuang の `ChatMessage.name` 対応に合わせ、`content` への著者名埋め込み（`"authorName: content"`）を廃止し、`ConversationMessage.name` フィールドで渡すように変更。fenghuang 側で `role(name)` 形式の話者表示とファクト抽出時の明示的な主語付与が有効になり、LTM ファクトの品質が向上。
 - **ドキュメント方針を Minecraft 拡張前提に更新。** `PLAN.md` を全面更新し、`SPEC.md` / `ARCHITECTURE.md` に「既存人格維持 + Minecraft MCP 追加 + 要約/イベント駆動」の方針を反映。
-- **Minecraft MCP サーバー（最小土台）。** mineflayer + mineflayer-pathfinder を使用し、`observe_state`（状態要約）と `get_recent_events`（イベントログ）の 2 ツールを提供。`MC_HOST` 環境変数設定時のみ有効化。オフラインモード接続、指数バックオフ自動再接続、インメモリリングバッファ（最大100件）でイベント蓄積。
+- **Minecraft MCP サーバー（永続 HTTP プロセス）。** mineflayer + mineflayer-pathfinder を使用し、`observe_state`（状態要約）と `get_recent_events`（イベントログ）等のツールを提供。`MC_HOST` 環境変数設定時のみ有効化。オフラインモード接続、指数バックオフ自動再接続、インメモリリングバッファ（最大100件）でイベント蓄積。**Stdio → StreamableHTTP に変更し、bootstrap 時に子プロセスとして永続起動。opencode セッション終了後もボット接続を維持。** opencode からは `type: "remote"` (`http://localhost:{MC_MCP_PORT}/mcp`) で接続。
 - **Minecraft ゲームサーバーをコンテナ化。** `compose.yaml` に `itzg/minecraft-server:java21` ベースの `minecraft` サービスを追加。オフラインモード、メモリ 1GB 制限、`mc-health` ヘルスチェック、`minecraft-data` ボリュームでワールド永続化。`MC_HOST=minecraft` で bot から DNS 解決可能。
 - **Minecraft MCP サーバーに行動ツールを追加。** `follow_player`（プレイヤー追従）、`go_to`（座標移動）、`collect_block`（ブロック採集）、`stop`（移動停止）の 4 ツールを `minecraft-actions.ts` に実装。mineflayer-pathfinder の GoalFollow/GoalNear/GoalGetToBlock を使用。
 - **Minecraft 状態要約レイヤーとイベントログ整備。** `observe_state` が自然言語要約テキストを返すように変更（体力♥バー、hostile mob ⚠ 表示、インベントリ1行要約）。BotEvent に `importance` フィールド（low/medium/high）を追加し、health イベントをスロットリング（体力変化5以上 or 体力5以下のみ記録）。playerJoined/playerLeft/timeChange/weatherChange の新イベント種別を追加。`get_recent_events` に importance フィルタを追加しテキスト形式で出力。アクション状態（idle/following/moving/collecting）をトラッキング。要約関数は `minecraft-state-summary.ts`、ヘルパーは `minecraft-helpers.ts` に分離しテスト完備。
@@ -77,6 +77,8 @@
 6. ~~`take_screenshot` ツール実装（`prismarine-viewer` ヘッドレスレンダリング、Bun 互換性検証含む）~~ **完了**
 7. ~~Discord MCP サーバーに画像添付送信機能を追加~~ **完了**
 8. ~~`craft_item` / `place_block` / `equip_item` / `sleep_in_bed` / `send_chat` の実装~~ **完了**
+9. ~~Minecraft MCP サーバーを永続 HTTP プロセス化（Stdio → StreamableHTTP、セッション終了後もボット接続維持）~~ **完了**
+10. ~~Containerfile を簡素化（mise shims 活用）~~ **完了**
 
 ## 6. ブロッカー
 
