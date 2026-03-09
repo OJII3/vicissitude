@@ -30,11 +30,11 @@ describe("OllamaEmbeddingAdapter", () => {
 	});
 
 	it("should call correct URL with correct body", async () => {
-		let capturedUrl = "";
+		let capturedUrl: string | URL = "";
 		let capturedInit: RequestInit | undefined;
 
 		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-			capturedUrl = input as string;
+			capturedUrl = input as string | URL;
 			capturedInit = init;
 			return Promise.resolve({
 				ok: true,
@@ -47,7 +47,7 @@ describe("OllamaEmbeddingAdapter", () => {
 		const adapter = new OllamaEmbeddingAdapter("http://localhost:11434", "nomic-embed-text");
 		await adapter.embed("test input");
 
-		expect(capturedUrl).toBe("http://localhost:11434/api/embed");
+		expect(capturedUrl.toString()).toBe("http://localhost:11434/api/embed");
 		expect(capturedInit?.method).toBe("POST");
 		expect(capturedInit?.headers).toEqual({ "Content-Type": "application/json" });
 		expect(JSON.parse(capturedInit?.body as string)).toEqual({
