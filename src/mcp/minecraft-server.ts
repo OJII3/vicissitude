@@ -299,8 +299,10 @@ const sessionCleanupTimer = setInterval(() => {
 	}
 }, SESSION_CLEANUP_INTERVAL_MS);
 
+// MCP StreamableHTTP は長時間接続を維持するため、アイドルタイムアウトを最大値に設定
 Bun.serve({
 	port: MC_MCP_PORT,
+	idleTimeout: 255,
 	async fetch(req) {
 		if (new URL(req.url).pathname !== "/mcp") return new Response("Not Found", { status: 404 });
 		const sessionId = req.headers.get("mcp-session-id");
