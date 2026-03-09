@@ -1,6 +1,8 @@
 /* oxlint-disable max-dependencies -- bootstrap file naturally requires many imports for DI wiring */
 import { resolve } from "path";
 
+import { spawn, type Subprocess } from "bun";
+
 import { BufferEventUseCase } from "../../application/use-cases/buffer-event.use-case.ts";
 import { RecordConversationUseCase } from "../../application/use-cases/record-conversation.use-case.ts";
 import type { BootstrapContext } from "../../bootstrap-context.ts";
@@ -115,8 +117,50 @@ async function setupLtmRecording(ctx: BootstrapContext): Promise<LtmResources | 
 	}
 }
 
+let minecraftProcess: Subprocess | null = null;
+
+async function startMinecraftMcp(ctx: BootstrapContext): Promise<void> {
+	if (!process.env.MC_HOST) return;
+
+	const mcEnv: Record<string, string> = {
+		...(process.env as Record<string, string>),
+		MC_HOST: process.env.MC_HOST,
+	};
+	if (process.env.MC_PORT) mcEnv.MC_PORT = process.env.MC_PORT;
+	if (process.env.MC_USERNAME) mcEnv.MC_USERNAME = process.env.MC_USERNAME;
+	if (process.env.MC_VERSION) mcEnv.MC_VERSION = process.env.MC_VERSION;
+	if (process.env.MC_MCP_PORT) mcEnv.MC_MCP_PORT = process.env.MC_MCP_PORT;
+
+	minecraftProcess = spawn({
+		cmd: ["bun", "run", resolve(ctx.root, "src/mcp/minecraft-server.ts")],
+		env: mcEnv,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+
+	// サーバーの起動待ち（HTTP ヘルスチェック — 逐次ポーリングが意図的）
+	const port = process.env.MC_MCP_PORT ?? "3001";
+	const maxRetries = 30;
+	/* oxlint-disable no-await-in-loop -- intentional sequential polling */
+	for (let i = 0; i < maxRetries; i++) {
+		try {
+			const res = await fetch(`http://localhost:${port}/mcp`, { method: "GET" });
+			// GET on /mcp returns 405 (Method Not Allowed) or similar when server is up
+			if (res.status !== 0) break;
+		} catch {
+			// サーバーがまだ起動していない
+		}
+		await Bun.sleep(500);
+	}
+	/* oxlint-enable no-await-in-loop */
+	ctx.logger.info("[bootstrap] Minecraft MCP server started");
+}
+
 export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 	const { gateway, channelConfig, logger, metrics, metricsServer, sessions } = ctx;
+
+	await startMinecraftMcp(ctx);
+
 	const guildIds = channelConfig.getGuildIds();
 	const { agents, bufferUseCases } = createGuildAgents(ctx, guildIds);
 
@@ -149,6 +193,7 @@ export async function bootstrapAgents(ctx: BootstrapContext): Promise<void> {
 		ltmResources?.recorder,
 		ctx.ltmFactReader,
 		ltmResources?.consolidationScheduler,
+		minecraftProcess,
 	);
 
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);

@@ -54,6 +54,7 @@ export function setupShutdown(
 	ltmRecorder?: { close(): void },
 	ltmFactReader?: { close(): Promise<void> },
 	consolidationScheduler?: { stop(): void },
+	minecraftProcess?: { kill(): void } | null,
 ): void {
 	let shuttingDown = false;
 	const shutdown = () => {
@@ -69,6 +70,7 @@ export function setupShutdown(
 		ltmRecorder?.close();
 		ltmChatAdapter?.close();
 		void ltmFactReader?.close();
+		minecraftProcess?.kill();
 		void emojiUsageRepo.flush().finally(() => setTimeout(() => process.exit(0), 1000));
 	};
 	process.on("SIGINT", shutdown);

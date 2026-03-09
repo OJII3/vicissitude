@@ -1,5 +1,6 @@
+/* oxlint-disable max-lines -- standalone MCP server process, splitting would reduce readability */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
@@ -273,14 +274,42 @@ server.tool(
 	},
 );
 
-// ── Startup ──────────────────────────────────────────────────────────────────
+// ── HTTP Server ──────────────────────────────────────────────────────────────
 bot = createBot();
+const MC_MCP_PORT = Number(process.env.MC_MCP_PORT ?? "3001");
+const transports = new Map<string, WebStandardStreamableHTTPServerTransport>();
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+Bun.serve({
+	port: MC_MCP_PORT,
+	async fetch(req) {
+		if (new URL(req.url).pathname !== "/mcp") return new Response("Not Found", { status: 404 });
+		const sessionId = req.headers.get("mcp-session-id");
+		const existing = sessionId ? transports.get(sessionId) : undefined;
+		if (existing) return existing.handleRequest(req);
+		if (req.method === "POST" && !sessionId) {
+			const t = new WebStandardStreamableHTTPServerTransport({
+				sessionIdGenerator: () => crypto.randomUUID(),
+				onsessioninitialized: (id) => {
+					transports.set(id, t);
+				},
+				onsessionclosed: (id) => {
+					transports.delete(id);
+				},
+			});
+			/* oxlint-disable-next-line prefer-add-event-listener -- SDK callback property */
+			t.onclose = () => {
+				const id = t.sessionId;
+				if (id) transports.delete(id);
+			};
+			await server.connect(t);
+			return t.handleRequest(req);
+		}
+		return new Response("Bad Request", { status: 400 });
+	},
+});
+console.error(`[minecraft] MCP server listening on port ${MC_MCP_PORT}`);
 
-// ── Graceful shutdown ────────────────────────────────────────────────────────
-function shutdown(): void {
+const shutdown = (): void => {
 	shuttingDown = true;
 	if (reconnectTimer) {
 		clearTimeout(reconnectTimer);
@@ -292,7 +321,6 @@ function shutdown(): void {
 	}
 	server.close().catch(() => {});
 	process.exit(0);
-}
-
+};
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);

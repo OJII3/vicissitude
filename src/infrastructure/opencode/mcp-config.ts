@@ -3,7 +3,9 @@ import { resolve } from "path";
 export const BASE_PORT = 4096;
 const GUILD_ID_REGEX = /^\d+$/;
 
-type McpServerConfig = { type: "local"; command: string[]; environment?: Record<string, string> };
+type McpServerConfig =
+	| { type: "local"; command: string[]; environment?: Record<string, string> }
+	| { type: "remote"; url: string };
 
 interface McpConfigOptions {
 	includeEventBuffer?: boolean;
@@ -56,14 +58,10 @@ export function mcpServerConfigs(options?: McpConfigOptions) {
 	const configs = coreConfigs(root);
 
 	if (process.env.MC_HOST) {
-		const mcEnv: Record<string, string> = { MC_HOST: process.env.MC_HOST };
-		if (process.env.MC_PORT) mcEnv.MC_PORT = process.env.MC_PORT;
-		if (process.env.MC_USERNAME) mcEnv.MC_USERNAME = process.env.MC_USERNAME;
-		if (process.env.MC_VERSION) mcEnv.MC_VERSION = process.env.MC_VERSION;
+		const mcMcpPort = process.env.MC_MCP_PORT ?? "3001";
 		configs.minecraft = {
-			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/minecraft-server.ts")],
-			environment: mcEnv,
+			type: "remote",
+			url: `http://localhost:${mcMcpPort}/mcp`,
 		};
 	}
 
