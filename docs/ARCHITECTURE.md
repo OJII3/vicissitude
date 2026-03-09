@@ -16,7 +16,7 @@
 ## 3. システム境界
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
-- コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）
+- コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, SKILLS）
 - データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
@@ -56,7 +56,7 @@ src/
 ├── mcp/                     # MCP サーバー（独立プロセス、レイヤー外）
 │   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm + mc-bridge）
 │   ├── code-exec-server.ts  # コード実行（Podman サンドボックス）
-│   ├── mc-sub-server.ts     # Minecraft サブブレイン専用 MCP サーバー（mc-bridge ツールのみ）
+│   ├── mc-sub-server.ts     # Minecraft サブブレイン専用 MCP サーバー（mc-bridge + mc-memory）
 │   ├── memory-helpers.ts    # メモリツール用ヘルパー関数
 │   ├── minecraft/           # Minecraft（StreamableHTTP、MC_HOST 設定時のみ）
 │   │   └── ...
@@ -66,7 +66,8 @@ src/
 │       ├── schedule.ts
 │       ├── event-buffer.ts
 │       ├── ltm.ts
-│       └── mc-bridge.ts
+│       ├── mc-bridge.ts
+│       └── mc-memory.ts
 │
 ├── store/                   # SQLite 統一永続化（Drizzle ORM）
 │   ├── db.ts                # Drizzle クライアント初期化
@@ -130,8 +131,9 @@ MCP サーバーは 4 プロセス構成:
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
    - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`
-4. **mc-sub-server.ts** (`type: "local"`、サブブレイン専用): Minecraft サブブレイン用ブリッジ MCP サーバー
+4. **mc-sub-server.ts** (`type: "local"`、サブブレイン専用): Minecraft サブブレイン用ブリッジ + メモリ MCP サーバー
    - `tools/mc-bridge.ts`（サブ側）: `mc_report`, `mc_read_commands`
+   - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
 ### 4.5 store/ — SQLite 統一永続化
 

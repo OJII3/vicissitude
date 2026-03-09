@@ -1,8 +1,11 @@
+import { resolve } from "path";
+
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { closeDb, createDb } from "../store/db.ts";
 import { registerSubBrainBridgeTools } from "./tools/mc-bridge.ts";
+import { registerMcMemoryTools } from "./tools/mc-memory.ts";
 
 // --- Configuration from environment ---
 
@@ -17,6 +20,7 @@ const db = createDb(DATA_DIR);
 const server = new McpServer({ name: "mc-sub-bridge", version: "1.0.0" });
 
 registerSubBrainBridgeTools(server, { db });
+registerMcMemoryTools(server, { dataDir: resolve(DATA_DIR, "context/minecraft") });
 
 // --- Graceful Shutdown ---
 

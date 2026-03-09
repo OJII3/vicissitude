@@ -2,7 +2,12 @@ import { resolve } from "path";
 
 import type { ContextBuilderPort } from "../core/types.ts";
 
-const CONTEXT_FILES = ["MINECRAFT-IDENTITY.md", "MINECRAFT-KNOWLEDGE.md"] as const;
+const CONTEXT_FILES = [
+	"MINECRAFT-IDENTITY.md",
+	"MINECRAFT-KNOWLEDGE.md",
+	"MINECRAFT-GOALS.md",
+	"MINECRAFT-SKILLS.md",
+] as const;
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
