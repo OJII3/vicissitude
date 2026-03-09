@@ -84,8 +84,8 @@ export function registerSubBrainBridgeTools(server: McpServer, deps: McBridgeDep
 		{
 			message: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("レポート内容"),
 			importance: z
-				.enum(["low", "normal", "high", "critical"])
-				.default("normal")
+				.enum(["low", "medium", "high", "critical"])
+				.default("medium")
 				.describe("重要度"),
 		},
 		({ message, importance }) => {

@@ -57,10 +57,10 @@
 
 1. golden_apple（+4 吸収ハート付き）
 2. cooked_beef / cooked_porkchop（+8）
-3. cooked_mutton / cooked_salmon（+6）
-4. bread / cooked_chicken / cooked_cod（+5）
-5. baked_potato / cooked_rabbit（+5）
-6. apple / melon_slice（+4 / +2）
+3. cooked_mutton / cooked_salmon / cooked_chicken / golden_carrot（+6）
+4. bread / cooked_cod / baked_potato / cooked_rabbit（+5）
+5. apple（+4）
+6. carrot（+3）/ melon_slice（+2）
 
 - 常に食料を6個以上携帯する
 - golden_apple は緊急時専用

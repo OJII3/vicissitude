@@ -129,7 +129,7 @@ MCP サーバーは 4 プロセス構成:
    - `tools/mc-bridge.ts`（メイン側）: `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
-   - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`
+   - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`
 4. **mc-sub-server.ts** (`type: "local"`、サブブレイン専用): Minecraft サブブレイン用ブリッジ MCP サーバー
    - `tools/mc-bridge.ts`（サブ側）: `mc_report`, `mc_read_commands`
 

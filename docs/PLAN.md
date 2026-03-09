@@ -5,7 +5,7 @@
 - OpenCode SDK を AI ランタイムとして維持しつつ、周辺設計を洗練する。
 - Clean Architecture の過剰な儀式（14 ポート、5 ユースケース）を廃止し、責務別フラットモジュールに移行。
 - 永続化を SQLite（Drizzle ORM）に統一し、JSON/JSONL の脆弱性を解消。
-- MCP サーバーを 3 プロセスに統合（core / code-exec / minecraft）。
+- MCP サーバーを 4 プロセスに統合（core / code-exec / minecraft / mc-sub-bridge）。
 - AgentProfile + AgentRunner でエージェント種の抽象化と将来のオーケストレーションに備える。
 - ブートストラップを 1 ファイルに集約し、SIGINT/SIGTERM ハンドリングでライフサイクル管理。
 

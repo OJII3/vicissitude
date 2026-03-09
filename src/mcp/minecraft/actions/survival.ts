@@ -12,7 +12,7 @@ import {
 	textResult,
 } from "./shared.ts";
 
-/** 食料アイテムと回復量のマップ（回復量降順でソート済み） */
+/** 食料アイテムと回復量のマップ（緊急用が先頭、残りは回復量降順） */
 const FOOD_ITEMS: [string, number][] = [
 	["golden_apple", 4],
 	["enchanted_golden_apple", 4],
@@ -20,17 +20,17 @@ const FOOD_ITEMS: [string, number][] = [
 	["cooked_porkchop", 8],
 	["cooked_mutton", 6],
 	["cooked_salmon", 6],
-	["bread", 5],
 	["cooked_chicken", 6],
+	["golden_carrot", 6],
+	["bread", 5],
 	["cooked_cod", 5],
 	["baked_potato", 5],
 	["cooked_rabbit", 5],
-	["golden_carrot", 6],
 	["apple", 4],
 	["carrot", 3],
-	["potato", 1],
 	["melon_slice", 2],
 	["sweet_berries", 2],
+	["potato", 1],
 	["dried_kelp", 1],
 ];
 
@@ -111,24 +111,24 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 
 /** 緊急シェルター: 足元を3ブロック掘り下げて待機 */
 async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Promise<void> {
-	const pos = bot.entity.position.floored();
-	for (let dy = 0; dy > -3; dy--) {
+	for (let i = 0; i < 3; i++) {
 		if (signal.aborted) return;
-		const block = bot.blockAt(pos.offset(0, dy, 0));
-		if (block && block.name !== "air" && block.name !== "cave_air") {
-			const tool = bot.pathfinder.bestHarvestTool(block);
-			// eslint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
-			if (tool) await bot.equip(tool, "hand");
-			// eslint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
-			await bot.dig(block);
-		}
+		// 落下後の位置を毎回再取得する
+		const pos = bot.entity.position.floored();
+		const block = bot.blockAt(pos.offset(0, -1, 0));
+		if (!block || block.name === "air" || block.name === "cave_air") break;
+		const tool = bot.pathfinder.bestHarvestTool(block);
+		// eslint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
+		if (tool) await bot.equip(tool, "hand");
+		// eslint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
+		await bot.dig(block);
 	}
 }
 
 function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
 	server.tool(
 		"find_shelter",
-		"安全な避難場所を探して移動する（ベッド検索 → 緊急シェルター）",
+		"安全な避難場所を探して移動する（ベッド検索 → ベッド付近に移動、なければ足元を掘って緊急シェルター構築）",
 		{
 			maxDistance: z
 				.number()
