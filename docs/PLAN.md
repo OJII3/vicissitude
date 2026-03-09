@@ -55,7 +55,6 @@ src/
 ├── store/                   # SQLite 統一永続化
 │   ├── db.ts                # Drizzle クライアント初期化
 │   ├── schema.ts            # 全テーブル定義
-│   ├── migrations/          # マイグレーションファイル
 │   └── queries.ts           # 共通クエリヘルパー
 │
 ├── observability/           # ログ・メトリクス
@@ -80,10 +79,9 @@ src/
 1. `core/types.ts` — Branded types（`GuildId`, `SessionKey`, `ChannelId`）と全エンティティ型を集約
 2. `core/config.ts` — Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す
 3. `core/functions.ts` — `splitMessage()`, `evaluateDueReminders()` を移動
-4. `store/schema.ts` — Drizzle スキーマ定義（sessions, reminders, emoji_usage, event_buffer, episodes, semantic_facts）
-5. `store/db.ts` — DB 初期化 + マイグレーション
+4. `store/schema.ts` — Drizzle スキーマ定義（sessions, reminders, emoji_usage, event_buffer, heartbeat_config）
+5. `store/db.ts` — DB 初期化（`CREATE TABLE IF NOT EXISTS` による自動作成）
 6. `store/queries.ts` — 共通クエリヘルパー
-7. `store/migrations/` — 初期マイグレーション
 
 **依存追加**: `drizzle-orm`, `drizzle-kit` (devDependency)
 

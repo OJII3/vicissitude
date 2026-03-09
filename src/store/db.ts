@@ -8,7 +8,7 @@ import * as schema from "./schema.ts";
 
 export type StoreDb = ReturnType<typeof drizzle<typeof schema>>;
 
-const CREATE_TABLES_SQL = `
+export const CREATE_TABLES_SQL = `
 CREATE TABLE IF NOT EXISTS sessions (
 	key TEXT PRIMARY KEY,
 	session_id TEXT NOT NULL,

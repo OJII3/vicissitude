@@ -1,7 +1,4 @@
-import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-
-import { drizzle } from "drizzle-orm/bun-sqlite";
 
 import {
 	appendEvent,
@@ -12,46 +9,7 @@ import {
 	incrementEmoji,
 	saveSession,
 } from "./queries.ts";
-import * as schema from "./schema.ts";
-
-function createTestDb() {
-	const sqlite = new Database(":memory:");
-	sqlite.exec("PRAGMA journal_mode = WAL");
-	sqlite.exec(`
-		CREATE TABLE sessions (
-			key TEXT PRIMARY KEY,
-			session_id TEXT NOT NULL,
-			created_at INTEGER NOT NULL
-		);
-		CREATE TABLE reminders (
-			id TEXT PRIMARY KEY,
-			guild_id TEXT,
-			description TEXT NOT NULL,
-			schedule_type TEXT NOT NULL,
-			schedule_value TEXT NOT NULL,
-			last_executed_at TEXT,
-			enabled INTEGER NOT NULL DEFAULT 1
-		);
-		CREATE TABLE emoji_usage (
-			guild_id TEXT NOT NULL,
-			emoji_name TEXT NOT NULL,
-			count INTEGER NOT NULL DEFAULT 0,
-			PRIMARY KEY (guild_id, emoji_name)
-		);
-		CREATE TABLE event_buffer (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			guild_id TEXT NOT NULL,
-			payload TEXT NOT NULL,
-			created_at INTEGER NOT NULL
-		);
-		CREATE TABLE heartbeat_config (
-			key TEXT PRIMARY KEY DEFAULT 'default',
-			base_interval_minutes INTEGER NOT NULL DEFAULT 1
-		);
-		CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
-	`);
-	return drizzle(sqlite, { schema });
-}
+import { createTestDb } from "./test-helpers.ts";
 
 describe("store", () => {
 	describe("table creation", () => {

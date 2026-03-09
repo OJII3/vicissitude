@@ -61,7 +61,7 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "MEMORY.md", "global memory");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("guild-123");
+			const result = await builder.build("123456789");
 
 			expect(result).toContain("global memory");
 		});
@@ -69,10 +69,10 @@ describe("ContextBuilder", () => {
 		it("Guild 固有ファイルがあればそちらが優先される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			writeFile(baseDir, "MEMORY.md", "global memory");
-			writeFile(overlayDir, "guilds/guild-123/MEMORY.md", "guild memory");
+			writeFile(overlayDir, "guilds/123456789/MEMORY.md", "guild memory");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("guild-123");
+			const result = await builder.build("123456789");
 
 			expect(result).toContain("guild memory");
 			expect(result).not.toContain("global memory");
@@ -89,12 +89,12 @@ describe("ContextBuilder", () => {
 			const reader = createMockLtmReader(facts);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			const result = await builder.build("guild-123");
+			const result = await builder.build("123456789");
 
 			expect(result).toContain("<ltm-facts>");
 			expect(result).toContain("[preference] ユーザーAは猫が好き");
 			expect(result).toContain("[fact] サーバー名はテスト鯖");
-			expect(reader.getFacts).toHaveBeenCalledWith("guild-123");
+			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
 		});
 
 		it("guildId なしの場合は LTM ファクトが注入されない", async () => {
@@ -122,7 +122,7 @@ describe("ContextBuilder", () => {
 			};
 
 			const builder = new ContextBuilder(overlayDir, baseDir, failingReader);
-			const result = await builder.build("guild-123");
+			const result = await builder.build("123456789");
 
 			// エラーがスローされずに結果が返る
 			expect(result).toContain("identity content");
@@ -163,15 +163,36 @@ describe("ContextBuilder", () => {
 		});
 	});
 
+	describe("guildId バリデーション", () => {
+		it("不正な guildId（パストラバーサル）でエラーをスローする", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			await expect(builder.build("../../../etc")).rejects.toThrow("Invalid guildId");
+		});
+
+		it("不正な guildId（英字）でエラーをスローする", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			await expect(builder.build("abc")).rejects.toThrow("Invalid guildId");
+		});
+
+		it("正しい guildId（数字のみ）は通る", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build("123456789");
+			expect(result).toContain("current_guild_id: 123456789");
+		});
+	});
+
 	describe("guild-context セクション", () => {
 		it("guildId ありの場合に guild-context が付与される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("guild-456");
+			const result = await builder.build("987654321");
 
 			expect(result).toContain("<guild-context>");
-			expect(result).toContain("current_guild_id: guild-456");
+			expect(result).toContain("current_guild_id: 987654321");
 		});
 
 		it("guildId なしの場合は guild-context が付与されない", async () => {

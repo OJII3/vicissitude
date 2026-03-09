@@ -3,6 +3,8 @@ import { resolve } from "path";
 
 import type { LtmFactReader } from "../core/types.ts";
 
+const GUILD_ID_REGEX = /^\d+$/;
+
 const SHARED_FILES = [
 	"IDENTITY.md",
 	"SOUL.md",
@@ -25,6 +27,10 @@ export class ContextBuilder {
 	) {}
 
 	async build(guildId?: string): Promise<string> {
+		if (guildId !== undefined && !GUILD_ID_REGEX.test(guildId)) {
+			throw new Error(`Invalid guildId: ${guildId}`);
+		}
+
 		const sections: string[] = [];
 		let totalLength = 0;
 

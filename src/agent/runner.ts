@@ -196,8 +196,8 @@ export class AgentRunner implements AiAgent {
 		}
 
 		if (realId) {
-			this.sessionCreatedAt =
-				this.sessionStore.getCreatedAt(this.profile.name, sessionKey) ?? Date.now();
+			const row = this.sessionStore.getRow(this.profile.name, sessionKey);
+			this.sessionCreatedAt = row?.createdAt ?? Date.now();
 		} else {
 			const created = await oc.session.create({
 				title: `ふあ:${this.profile.name}:${this.guildId}`,

@@ -43,7 +43,7 @@ src/
 ├── agent/              # OpenCode エージェント基盤
 │   ├── profiles/       # エージェントプロファイル定義
 │   └── mcp-config.ts   # MCP サーバー設定
-├── gateway/            # Discord ゲートウェイ + スケジューラ
+├── gateway/            # Discord ゲートウェイ + メッセージハンドラ + スケジューラ
 ├── mcp/                # MCP サーバー（独立プロセス）
 │   ├── core-server.ts  # 統合エントリポイント
 │   ├── code-exec-server.ts

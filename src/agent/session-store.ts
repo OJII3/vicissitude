@@ -8,13 +8,20 @@ export class SessionStore {
 	constructor(private readonly db: StoreDb) {}
 
 	get(agentName: string, sessionKey: string): string | undefined {
-		const row = getSession(this.db, this.makeKey(agentName, sessionKey));
-		return row?.sessionId;
+		return this.getRow(agentName, sessionKey)?.sessionId;
 	}
 
 	getCreatedAt(agentName: string, sessionKey: string): number | undefined {
+		return this.getRow(agentName, sessionKey)?.createdAt;
+	}
+
+	getRow(
+		agentName: string,
+		sessionKey: string,
+	): { sessionId: string; createdAt: number } | undefined {
 		const row = getSession(this.db, this.makeKey(agentName, sessionKey));
-		return row?.createdAt;
+		if (!row) return undefined;
+		return { sessionId: row.sessionId, createdAt: row.createdAt };
 	}
 
 	save(agentName: string, sessionKey: string, sessionId: string): void {

@@ -53,7 +53,13 @@ const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 
 const fenghuangInstances = new Map<string, Fenghuang>();
 
+const GUILD_ID_REGEX = /^\d+$/;
+
 function getOrCreateFenghuang(guildId: string): Fenghuang {
+	if (!GUILD_ID_REGEX.test(guildId)) {
+		throw new Error(`Invalid guildId: ${guildId}`);
+	}
+
 	const existing = fenghuangInstances.get(guildId);
 	if (existing) return existing;
 

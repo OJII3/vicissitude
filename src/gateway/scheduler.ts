@@ -141,8 +141,9 @@ export class HeartbeatScheduler {
 
 		this.running = true;
 		const start = performance.now();
+		const execution = this.executeTick();
 		try {
-			await withTimeout(this.executeTick(), HEARTBEAT_TICK_TIMEOUT_MS, "heartbeat tick timed out");
+			await withTimeout(execution, HEARTBEAT_TICK_TIMEOUT_MS, "heartbeat tick timed out");
 			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "success" });
 		} catch (error) {
 			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "error" });
@@ -150,8 +151,11 @@ export class HeartbeatScheduler {
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
-			this.running = false;
 		}
+
+		// タイムアウト後も内部処理が完了するまで running を保持し、次の tick との並走を防ぐ
+		await execution.catch(() => {});
+		this.running = false;
 	}
 
 	private async executeTick(): Promise<void> {

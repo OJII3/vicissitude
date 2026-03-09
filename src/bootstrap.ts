@@ -87,18 +87,32 @@ class SqliteEventBuffer implements EventBuffer {
 	waitForEvents(signal: AbortSignal): Promise<void> {
 		// oxlint-disable-next-line no-shadow -- Promise parameter shadows `resolve` import, intentional
 		return new Promise((resolve) => {
+			let timer: ReturnType<typeof setTimeout> | undefined;
+			let resolved = false;
+			const done = () => {
+				if (resolved) return;
+				resolved = true;
+				resolve();
+			};
 			const poll = () => {
 				if (signal.aborted) {
-					resolve();
+					done();
 					return;
 				}
 				if (hasEvents(this.db, this.guildId)) {
-					resolve();
+					done();
 					return;
 				}
-				setTimeout(poll, 1000);
+				timer = setTimeout(poll, 1000);
 			};
-			signal.addEventListener("abort", () => resolve(), { once: true });
+			signal.addEventListener(
+				"abort",
+				() => {
+					if (timer) clearTimeout(timer);
+					done();
+				},
+				{ once: true },
+			);
 			poll();
 		});
 	}
