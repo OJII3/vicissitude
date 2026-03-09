@@ -5,8 +5,10 @@ import { resolve } from "path";
 import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/context-builder.ts";
-import { mcpServerConfigs } from "./agent/mcp-config.ts";
+import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
+import { MinecraftContextBuilder } from "./agent/minecraft-context-builder.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
+import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
@@ -31,6 +33,7 @@ import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
+import { MinecraftEventBuffer } from "./store/mc-sub-event-buffer.ts";
 import { incrementEmoji } from "./store/queries.ts";
 
 // ─── Helper Functions ───────────────────────────────────────────
@@ -292,6 +295,31 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft MCP
 	const mcProcess = await mcReady;
 
+	// Minecraft sub-brain
+	let mcSubBrainRunner: AgentRunner | undefined;
+	if (config.minecraft) {
+		const mcEventBuffer = new MinecraftEventBuffer(30_000);
+		const mcContextBuilder = new MinecraftContextBuilder(
+			resolve(root, "data/context/minecraft"),
+			resolve(root, "context/minecraft"),
+		);
+		const mcProfile = createMinecraftProfile({
+			providerId: config.opencode.providerId,
+			modelId: config.opencode.modelId,
+			mcpServers: mcpMinecraftSubBrainConfigs(),
+		});
+		mcSubBrainRunner = new AgentRunner({
+			profile: mcProfile,
+			guildId: "__minecraft__",
+			sessionStore,
+			contextBuilder: mcContextBuilder,
+			logger,
+			port: config.opencode.basePort + guildIds.length,
+			eventBuffer: mcEventBuffer,
+			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+		});
+	}
+
 	// Graceful shutdown
 	let shuttingDown = false;
 	const shutdown = async () => {
@@ -305,6 +333,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
+			mcSubBrainRunner?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await ltmResources?.chatAdapter.close();
@@ -330,5 +359,12 @@ export async function bootstrap(): Promise<void> {
 		runner.startPollingLoop().catch((err) => {
 			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
 		});
+	}
+
+	if (mcSubBrainRunner) {
+		mcSubBrainRunner.startPollingLoop().catch((err) => {
+			logger.error("[bootstrap] minecraft sub-brain polling loop unexpectedly rejected", err);
+		});
+		logger.info("[bootstrap] Minecraft sub-brain started");
 	}
 }

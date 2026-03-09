@@ -13,6 +13,7 @@ import { closeDb, createDb } from "../store/db.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerLtmTools } from "./tools/ltm.ts";
+import { registerMainBrainBridgeTools } from "./tools/mc-bridge.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 
@@ -117,6 +118,7 @@ registerMemoryTools(server);
 registerScheduleTools(server);
 registerEventBufferTools(server, { db, guildId: GUILD_ID });
 registerLtmTools(server, { getOrCreateFenghuang });
+registerMainBrainBridgeTools(server, { db });
 
 // --- Graceful Shutdown ---
 

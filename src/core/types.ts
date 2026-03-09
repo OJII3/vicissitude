@@ -175,6 +175,12 @@ export interface AiAgent {
 	stop(): void;
 }
 
+// ─── Context Builder Port ────────────────────────────────────────
+
+export interface ContextBuilderPort {
+	build(guildId?: string): Promise<string>;
+}
+
 // ─── LTM Fact Reader ─────────────────────────────────────────────
 
 export interface LtmFactReader {

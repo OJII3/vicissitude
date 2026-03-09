@@ -25,3 +25,14 @@ export const eventBuffer = sqliteTable("event_buffer", {
 	payload: text("payload").notNull(),
 	createdAt: integer("created_at").notNull(),
 });
+
+/** MC ブリッジイベントテーブル */
+export const mcBridgeEvents = sqliteTable("mc_bridge_events", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	/** 'to_main' | 'to_sub' */
+	direction: text("direction").notNull(),
+	type: text("type").notNull(),
+	payload: text("payload").notNull(),
+	createdAt: integer("created_at").notNull(),
+	consumed: integer("consumed").notNull().default(0),
+});

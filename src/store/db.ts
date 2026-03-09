@@ -54,6 +54,16 @@ CREATE TABLE IF NOT EXISTS event_buffer (
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
+
+CREATE TABLE IF NOT EXISTS mc_bridge_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	direction TEXT NOT NULL,
+	type TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	consumed INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_mc_bridge_direction ON mc_bridge_events(direction, consumed);
 `;
 
 export function createDb(dataDir: string): StoreDb {

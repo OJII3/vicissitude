@@ -4,13 +4,14 @@
 
 - 2026-03-09
 - 更新者: claude-code
-- ブランチ: docs/mc-subbrain-plan
+- ブランチ: feat/m12a-minecraft-sub-brain
 
 ## 2. 現在の真実（Project Truth）
 
 - **モジュール構成移行完了（M7-M11）。** `core/` `agent/` `gateway/` `observability/` `store/` `fenghuang/` `ollama/` `mcp/` の機能別構成。DI は `bootstrap.ts` に集約。
 - **ポーリングモード一本化。** `AgentRunner` が SQLite `event_buffer` にイベントを書き込み、AI が MCP ツールで消費。セッション自動ローテーション（デフォルト 48h、`SESSION_MAX_AGE_HOURS` で変更可）。
-- **MCP サーバー 3 プロセス構成。** core（Discord + メモリ + スケジュール + イベントバッファ + LTM）、code-exec、minecraft（`MC_HOST` 設定時のみ）。
+- **MCP サーバー 4 プロセス構成。** core（Discord + メモリ + スケジュール + イベントバッファ + LTM + MC ブリッジ）、code-exec、minecraft（`MC_HOST` 設定時のみ）、mc-sub-bridge（サブブレイン用ブリッジ）。
+- **Minecraft サブブレイン（M12a）。** メインブレインとは独立した AgentRunner で動作。30秒間隔ポーリング。SQLite ベースの Event Bridge でメインブレインと通信。`config.minecraft` 存在時のみ起動。
 - **Heartbeat 自律行動。** 1 分間隔チェックで due リマインダーを検知し AI セッションを起動。
 - **LTM（fenghuang）。** ホームチャンネルのみ記録。30 分間隔自動統合。ファクトをシステムプロンプトに注入。
 - **Guild コンテキスト分離。** 人格は共通、記憶（MEMORY, LESSONS, 日次ログ）は Guild ごと。
@@ -24,7 +25,7 @@
 
 1. 人格名は「ふあ」。TypeScript + Bun ランタイム。
 2. 責務別フラットモジュール構成（Pure DI、コンテナなし）。
-3. MCP サーバーは独立プロセス 3 構成（core / code-exec / minecraft）。
+3. MCP サーバーは独立プロセス 4 構成（core / code-exec / minecraft / mc-sub-bridge）。
 4. AI がイベントバッファをポーリングし自律応答（ポーリングモード一本化）。
 5. Heartbeat で定期自律行動（interval / daily）。スケジュールは MCP ツール経由で変更可。
 6. メモリ管理は MCP 経由。安全策（バックアップ、サイズ上限、append-only）適用。
@@ -42,8 +43,9 @@
 
 - M7-M11 全完了。PR #93 マージ済み。
 - Minecraft MCP ライフサイクル修正完了（PR #94）: `/health` エンドポイント追加、起動順序変更、タイムアウト時の kill 廃止。
+- M12a Minecraft サブブレイン基盤完了: ContextBuilderPort 抽象化、MC Bridge テーブル、MCP ブリッジツール、サブブレイン専用 MCP サーバー、Minecraft エージェントプロファイル、タイマーベース EventBuffer、MinecraftContextBuilder、Bootstrap 統合。
 - 未移植テストの追加。
-- M12 Minecraft サブブレイン計画策定中。
+- M12b 以降: サブブレインの高度な行動パターン、メインブレインとの連携強化。
 
 ## 6. ブロッカー
 
