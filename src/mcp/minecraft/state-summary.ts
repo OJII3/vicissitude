@@ -4,8 +4,8 @@ import {
 	formatEquipmentText,
 	formatHealthBar,
 	formatInventoryText,
-} from "./minecraft-helpers.ts";
-import type { ActionState, Importance, JobInfo } from "./minecraft-helpers.ts";
+} from "./helpers.ts";
+import type { ActionState, Importance, JobInfo } from "./helpers.ts";
 
 export interface BotStateInput {
 	position: { x: number; y: number; z: number };

@@ -155,7 +155,7 @@ async function startMinecraftMcp(ctx: BootstrapContext): Promise<void> {
 	if (process.env.MC_MCP_PORT) mcEnv.MC_MCP_PORT = process.env.MC_MCP_PORT;
 
 	minecraftProcess = spawn({
-		cmd: ["bun", "run", resolve(ctx.root, "src/mcp/minecraft-server.ts")],
+		cmd: ["bun", "run", resolve(ctx.root, "src/mcp/minecraft/server.ts")],
 		env: mcEnv,
 		stdout: "inherit",
 		stderr: "inherit",

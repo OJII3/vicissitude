@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ActionState, Importance } from "./minecraft-helpers.ts";
-import { JobManager } from "./minecraft-job-manager.ts";
-import type { JobExecutor } from "./minecraft-job-manager.ts";
+import type { ActionState, Importance } from "./helpers.ts";
+import { JobManager } from "./job-manager.ts";
+import type { JobExecutor } from "./job-manager.ts";
 
 function setup() {
 	const events: { kind: string; description: string; importance: Importance }[] = [];

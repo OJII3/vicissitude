@@ -4,7 +4,7 @@ import { goals } from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
-import type { JobManager } from "../minecraft-job-manager.ts";
+import type { JobManager } from "../job-manager.ts";
 import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
 
 const MAX_COLLECT_COUNT = 64;

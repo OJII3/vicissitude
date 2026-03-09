@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import type { JobInfo } from "./minecraft-helpers.ts";
-import { formatEvents, formatJobStatus, summarizeState } from "./minecraft-state-summary.ts";
-import type { BotEventInput, BotStateInput } from "./minecraft-state-summary.ts";
+import type { JobInfo } from "./helpers.ts";
+import { formatEvents, formatJobStatus, summarizeState } from "./state-summary.ts";
+import type { BotEventInput, BotStateInput } from "./state-summary.ts";
 
 function makeState(overrides: Partial<BotStateInput> = {}): BotStateInput {
 	return {

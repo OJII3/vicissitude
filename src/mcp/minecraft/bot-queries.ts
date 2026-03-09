@@ -1,8 +1,8 @@
 import type mineflayer from "mineflayer";
 
-// minecraft-helpers.ts から server.ts で使う名前を re-export
-export { IMPORTANCE_ORDER, getTimePeriod } from "./minecraft-helpers.ts";
-export type { ActionState, Importance } from "./minecraft-helpers.ts";
+// helpers.ts から server.ts で使う名前を re-export
+export { IMPORTANCE_ORDER, getTimePeriod } from "./helpers.ts";
+export type { ActionState, Importance } from "./helpers.ts";
 
 export function getWeather(b: mineflayer.Bot): string {
 	if (b.thunderState > 0) return "雷雨";

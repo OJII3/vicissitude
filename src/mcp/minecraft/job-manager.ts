@@ -1,4 +1,4 @@
-import type { ActionState, Importance, JobInfo, JobStatus } from "./minecraft-helpers.ts";
+import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
 type SetActionState = (state: ActionState) => void;
