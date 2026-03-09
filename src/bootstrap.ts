@@ -34,7 +34,7 @@ import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
-import { consumeBridgeEventsByType } from "./store/mc-bridge.ts";
+import { clearSessionLock, consumeBridgeEventsByType } from "./store/mc-bridge.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { MinecraftEventBuffer } from "./store/mc-sub-event-buffer.ts";
 import { incrementEmoji } from "./store/queries.ts";
@@ -227,9 +227,9 @@ class McSubBrainManager {
 
 	constructor(private readonly deps: McSubBrainManagerDeps) {}
 
-	/** 初期起動（自動的にランナーを開始し、lifecycle ポーリングも開始） */
+	/** 初期起動（lifecycle ポーリングを開始。ランナーは minecraft_start_session がトリガー） */
 	start(): void {
-		this.startRunner();
+		clearSessionLock(this.deps.db);
 		this.pollTimer = setInterval(() => this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
 	}
 

@@ -118,7 +118,7 @@ registerMemoryTools(server);
 registerScheduleTools(server);
 registerEventBufferTools(server, { db, guildId: GUILD_ID });
 registerLtmTools(server, { getOrCreateFenghuang });
-registerMainBrainBridgeTools(server, { db });
+registerMainBrainBridgeTools(server, { db, guildId: GUILD_ID });
 
 // --- Graceful Shutdown ---
 

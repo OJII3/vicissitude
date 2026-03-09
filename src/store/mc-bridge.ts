@@ -1,7 +1,7 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
-import { mcBridgeEvents } from "./schema.ts";
+import { mcBridgeEvents, mcSessionLock } from "./schema.ts";
 
 export type BridgeDirection = "to_main" | "to_sub";
 export type BridgeEventType = "command" | "report" | "lifecycle";
@@ -111,4 +111,53 @@ export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolea
 		.limit(1)
 		.get();
 	return row !== undefined;
+}
+
+// ─── MC セッション排他ロック ─────────────────────────────────────
+
+export type LockResult = { ok: true } | { ok: false; holder: string };
+
+/** ロックタイムアウト（2時間） */
+const LOCK_TIMEOUT_MS = 2 * 60 * 60 * 1000;
+
+/** セッションロックの取得を試みる */
+export function tryAcquireSessionLock(db: StoreDb, guildId: string): LockResult {
+	return db.transaction((tx) => {
+		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+
+		if (!existing) {
+			tx.insert(mcSessionLock).values({ id: 1, guildId, acquiredAt: Date.now() }).run();
+			return { ok: true as const };
+		}
+
+		if (existing.guildId === guildId) {
+			tx.update(mcSessionLock).set({ acquiredAt: Date.now() }).where(eq(mcSessionLock.id, 1)).run();
+			return { ok: true as const };
+		}
+
+		if (Date.now() - existing.acquiredAt > LOCK_TIMEOUT_MS) {
+			tx.update(mcSessionLock)
+				.set({ guildId, acquiredAt: Date.now() })
+				.where(eq(mcSessionLock.id, 1))
+				.run();
+			return { ok: true as const };
+		}
+
+		return { ok: false as const, holder: existing.guildId };
+	});
+}
+
+/** セッションロックを解放する。自分のロックでなければ false を返す。 */
+export function releaseSessionLock(db: StoreDb, guildId: string): boolean {
+	return db.transaction((tx) => {
+		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+		if (!existing || existing.guildId !== guildId) return false;
+		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
+		return true;
+	});
+}
+
+/** セッションロックを強制クリアする（プロセス再起動時用） */
+export function clearSessionLock(db: StoreDb): void {
+	db.delete(mcSessionLock).run();
 }

@@ -26,6 +26,13 @@ export const eventBuffer = sqliteTable("event_buffer", {
 	createdAt: integer("created_at").notNull(),
 });
 
+/** MC セッション排他ロックテーブル（最大1行） */
+export const mcSessionLock = sqliteTable("mc_session_lock", {
+	id: integer("id").primaryKey(),
+	guildId: text("guild_id").notNull(),
+	acquiredAt: integer("acquired_at").notNull(),
+});
+
 /** MC ブリッジイベントテーブル */
 export const mcBridgeEvents = sqliteTable("mc_bridge_events", {
 	id: integer("id").primaryKey({ autoIncrement: true }),

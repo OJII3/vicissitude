@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS mc_bridge_events (
 	consumed INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_mc_bridge_direction ON mc_bridge_events(direction, consumed);
+
+CREATE TABLE IF NOT EXISTS mc_session_lock (
+	id INTEGER PRIMARY KEY CHECK (id = 1),
+	guild_id TEXT NOT NULL,
+	acquired_at INTEGER NOT NULL
+);
 `;
 
 export function createDb(dataDir: string): StoreDb {

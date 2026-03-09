@@ -3,12 +3,19 @@ import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
 import type { BridgeEvent } from "../../store/mc-bridge.ts";
-import { consumeBridgeEvents, insertBridgeEvent, peekBridgeEvents } from "../../store/mc-bridge.ts";
+import {
+	consumeBridgeEvents,
+	insertBridgeEvent,
+	peekBridgeEvents,
+	releaseSessionLock,
+	tryAcquireSessionLock,
+} from "../../store/mc-bridge.ts";
 
 const MAX_BRIDGE_MESSAGE_CHARS = 10_000;
 
 export interface McBridgeDeps {
 	db: StoreDb;
+	guildId: string;
 }
 
 function formatBridgeEvents(events: BridgeEvent[]): string {
@@ -23,7 +30,7 @@ function formatBridgeEvents(events: BridgeEvent[]): string {
 
 /** メインブレイン側のブリッジツールを登録する */
 export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDeps): void {
-	const { db } = deps;
+	const { db, guildId } = deps;
 
 	server.tool(
 		"minecraft_delegate",
@@ -78,6 +85,17 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 		"Minecraft サブブレインのセッションを開始する。サブブレインが起動していない場合に使用。",
 		{},
 		() => {
+			const lock = tryAcquireSessionLock(db, guildId);
+			if (!lock.ok) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `セッション開始に失敗しました。現在ギルド ${lock.holder} が使用中です。`,
+						},
+					],
+				};
+			}
 			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
 			return {
 				content: [
@@ -95,6 +113,17 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 		"Minecraft サブブレインのセッションを停止する。",
 		{},
 		() => {
+			const released = releaseSessionLock(db, guildId);
+			if (!released) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "ロック解放に失敗しました。このギルドはセッションを保持していません。",
+						},
+					],
+				};
+			}
 			insertBridgeEvent(db, "to_sub", "lifecycle", "stop");
 			return {
 				content: [
@@ -109,7 +138,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 }
 
 /** サブブレイン側のブリッジツールを登録する */
-export function registerSubBrainBridgeTools(server: McpServer, deps: McBridgeDeps): void {
+export function registerSubBrainBridgeTools(server: McpServer, deps: { db: StoreDb }): void {
 	const { db } = deps;
 
 	server.tool(
