@@ -1,5 +1,6 @@
+/* oxlint-disable max-lines -- standalone MCP server process, splitting would reduce readability */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
@@ -273,15 +274,67 @@ server.tool(
 	},
 );
 
-// ── Startup ──────────────────────────────────────────────────────────────────
+// ── HTTP Server ──────────────────────────────────────────────────────────────
 bot = createBot();
+const MC_MCP_PORT = Number(process.env.MC_MCP_PORT ?? "3001");
+// 30 分
+const SESSION_TTL_MS = 30 * 60 * 1000;
+// 5 分ごとに掃除
+const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
-const transport = new StdioServerTransport();
-await server.connect(transport);
+interface SessionEntry {
+	transport: WebStandardStreamableHTTPServerTransport;
+	lastAccess: number;
+}
+const sessions = new Map<string, SessionEntry>();
 
-// ── Graceful shutdown ────────────────────────────────────────────────────────
-function shutdown(): void {
+// 孤立セッションの定期クリーンアップ
+const sessionCleanupTimer = setInterval(() => {
+	const now = Date.now();
+	for (const [id, entry] of sessions) {
+		if (now - entry.lastAccess > SESSION_TTL_MS) {
+			entry.transport.close().catch(() => {});
+			sessions.delete(id);
+		}
+	}
+}, SESSION_CLEANUP_INTERVAL_MS);
+
+Bun.serve({
+	port: MC_MCP_PORT,
+	async fetch(req) {
+		if (new URL(req.url).pathname !== "/mcp") return new Response("Not Found", { status: 404 });
+		const sessionId = req.headers.get("mcp-session-id");
+		const entry = sessionId ? sessions.get(sessionId) : undefined;
+		if (entry) {
+			entry.lastAccess = Date.now();
+			return entry.transport.handleRequest(req);
+		}
+		if (req.method === "POST" && !sessionId) {
+			const t = new WebStandardStreamableHTTPServerTransport({
+				sessionIdGenerator: () => crypto.randomUUID(),
+				onsessioninitialized: (id) => {
+					sessions.set(id, { transport: t, lastAccess: Date.now() });
+				},
+				onsessionclosed: (id) => {
+					sessions.delete(id);
+				},
+			});
+			/* oxlint-disable-next-line prefer-add-event-listener -- SDK callback property */
+			t.onclose = () => {
+				const id = t.sessionId;
+				if (id) sessions.delete(id);
+			};
+			await server.connect(t);
+			return t.handleRequest(req);
+		}
+		return new Response("Bad Request", { status: 400 });
+	},
+});
+console.error(`[minecraft] MCP server listening on port ${MC_MCP_PORT}`);
+
+const shutdown = (): void => {
 	shuttingDown = true;
+	clearInterval(sessionCleanupTimer);
 	if (reconnectTimer) {
 		clearTimeout(reconnectTimer);
 		reconnectTimer = null;
@@ -292,7 +345,6 @@ function shutdown(): void {
 	}
 	server.close().catch(() => {});
 	process.exit(0);
-}
-
+};
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
