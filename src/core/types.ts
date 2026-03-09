@@ -15,10 +15,16 @@ export function channelId(raw: string): ChannelId {
 }
 
 export function createSessionKey(platform: string, chId: string, userId: string): SessionKey {
+	if (!platform || !chId || !userId) {
+		throw new Error("createSessionKey: platform, chId, userId must be non-empty strings");
+	}
 	return `${platform}:${chId}:${userId}` as SessionKey;
 }
 
 export function createChannelSessionKey(platform: string, chId: string): SessionKey {
+	if (!platform || !chId) {
+		throw new Error("createChannelSessionKey: platform, chId must be non-empty strings");
+	}
 	return `${platform}:${chId}:_channel` as SessionKey;
 }
 

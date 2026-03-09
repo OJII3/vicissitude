@@ -375,24 +375,31 @@ export async function bootstrap(): Promise<void> {
 
 	// Graceful shutdown
 	let shuttingDown = false;
-	const shutdown = () => {
+	const shutdown = async () => {
 		if (shuttingDown) return;
 		shuttingDown = true;
 		logger.info("Shutting down...");
-		clearInterval(sessionGaugeTimer);
-		ltmResources?.consolidationScheduler.stop();
-		heartbeatScheduler.stop();
-		gateway.stop();
-		routingAgent.stop();
-		metrics.server.stop();
-		ltmResources?.chatAdapter.close();
-		ltmResources?.recorder.close();
-		void ltmFactReader.close();
-		mcProcess?.kill();
-		setTimeout(() => process.exit(0), 1000);
+		// Force exit after 5 seconds if graceful shutdown hangs
+		const forceTimer = setTimeout(() => process.exit(1), 5000);
+		try {
+			clearInterval(sessionGaugeTimer);
+			ltmResources?.consolidationScheduler.stop();
+			heartbeatScheduler.stop();
+			gateway.stop();
+			routingAgent.stop();
+			metrics.server.stop();
+			await ltmResources?.chatAdapter.close();
+			await ltmResources?.recorder.close();
+			await ltmFactReader.close();
+			mcProcess?.kill();
+		} catch (err) {
+			logger.error("Error during shutdown:", err);
+		}
+		clearTimeout(forceTimer);
+		process.exit(0);
 	};
-	process.on("SIGINT", shutdown);
-	process.on("SIGTERM", shutdown);
+	process.on("SIGINT", () => void shutdown());
+	process.on("SIGTERM", () => void shutdown());
 
 	// Start
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);

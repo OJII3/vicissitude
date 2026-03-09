@@ -4,10 +4,11 @@ import { dirname, resolve } from "path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../../core/config.ts";
 import type { HeartbeatConfig, HeartbeatReminder } from "../../core/types.ts";
 import { DEFAULT_HEARTBEAT_CONFIG } from "../../core/types.ts";
 
-const CONFIG_PATH = resolve(import.meta.dirname, "../../../data/heartbeat-config.json");
+const CONFIG_PATH = resolve(import.meta.dirname, "../../..", HEARTBEAT_CONFIG_RELATIVE_PATH);
 
 function loadConfig(): HeartbeatConfig {
 	if (!existsSync(CONFIG_PATH)) return structuredClone(DEFAULT_HEARTBEAT_CONFIG);

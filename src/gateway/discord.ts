@@ -84,29 +84,33 @@ export class DiscordGateway {
 
 	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
-			if (!client.user) return;
+			try {
+				if (!client.user) return;
 
-			// bot 自身のメッセージ: ホームチャンネルなら LTM 記録用にハンドラへ流す
-			if (message.author.id === client.user.id) {
-				if (this.isHomeMessage(message) && this.homeChannelHandler) {
-					const adapted = this.adaptMessage(message, false, message.channel.isThread());
-					await this.homeChannelHandler(adapted, this.adaptChannel(message));
+				// bot 自身のメッセージ: ホームチャンネルなら LTM 記録用にハンドラへ流す
+				if (message.author.id === client.user.id) {
+					if (this.isHomeMessage(message) && this.homeChannelHandler) {
+						const adapted = this.adaptMessage(message, false, message.channel.isThread());
+						await this.homeChannelHandler(adapted, this.adaptChannel(message));
+					}
+					return;
 				}
-				return;
+
+				this.trackEmojiUsage(message);
+
+				const isMentioned = message.mentions.has(client.user);
+				const adapted = this.adaptMessage(message, isMentioned, message.channel.isThread());
+				const channel = this.adaptChannel(message);
+
+				if (this.isHomeMessage(message)) {
+					if (this.homeChannelHandler) await this.homeChannelHandler(adapted, channel);
+					return;
+				}
+
+				if (isMentioned && this.handler) await this.handler(adapted, channel);
+			} catch (err) {
+				this.logger.error("[discord] messageCreate handler error:", err);
 			}
-
-			this.trackEmojiUsage(message);
-
-			const isMentioned = message.mentions.has(client.user);
-			const adapted = this.adaptMessage(message, isMentioned, message.channel.isThread());
-			const channel = this.adaptChannel(message);
-
-			if (this.isHomeMessage(message)) {
-				if (this.homeChannelHandler) await this.homeChannelHandler(adapted, channel);
-				return;
-			}
-
-			if (isMentioned && this.handler) await this.handler(adapted, channel);
 		});
 	}
 

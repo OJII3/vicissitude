@@ -20,10 +20,8 @@ describe("store", () => {
 				.all() as { name: string }[];
 			const tableNames = tables.map((t) => t.name);
 			expect(tableNames).toContain("sessions");
-			expect(tableNames).toContain("reminders");
 			expect(tableNames).toContain("emoji_usage");
 			expect(tableNames).toContain("event_buffer");
-			expect(tableNames).toContain("heartbeat_config");
 		});
 	});
 

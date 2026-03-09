@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import type { AiAgent } from "../agent/router.ts";
+import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../core/config.ts";
 import { evaluateDueReminders, withTimeout } from "../core/functions.ts";
 import type {
 	DueReminder,
@@ -114,7 +115,7 @@ export class HeartbeatScheduler {
 		root: string,
 	) {
 		this.configRepo = new JsonHeartbeatConfigRepository(
-			resolve(root, "data/heartbeat-config.json"),
+			resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH),
 		);
 	}
 

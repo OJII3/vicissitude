@@ -29,13 +29,15 @@ export class GuildRouter implements AiAgent {
 		const { guildId } = options;
 		if (!guildId) {
 			if (!this.defaultAgent) {
-				throw new Error("GuildRouter requires guildId in SendOptions (no defaultAgent configured)");
+				return Promise.reject(
+					new Error("GuildRouter requires guildId in SendOptions (no defaultAgent configured)"),
+				);
 			}
 			return this.defaultAgent.send(options);
 		}
 		const agent = this.agents.get(guildId);
 		if (!agent) {
-			throw new Error(`No agent registered for guildId: ${guildId}`);
+			return Promise.reject(new Error(`No agent registered for guildId: ${guildId}`));
 		}
 		return agent.send(options);
 	}

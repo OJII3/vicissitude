@@ -7,17 +7,6 @@ export const sessions = sqliteTable("sessions", {
 	createdAt: integer("created_at").notNull(),
 });
 
-/** Heartbeat リマインダーテーブル */
-export const reminders = sqliteTable("reminders", {
-	id: text("id").primaryKey(),
-	guildId: text("guild_id"),
-	description: text("description").notNull(),
-	scheduleType: text("schedule_type").notNull(),
-	scheduleValue: text("schedule_value").notNull(),
-	lastExecutedAt: text("last_executed_at"),
-	enabled: integer("enabled").notNull().default(1),
-});
-
 /** 絵文字使用カウントテーブル */
 export const emojiUsage = sqliteTable(
 	"emoji_usage",
@@ -35,12 +24,4 @@ export const eventBuffer = sqliteTable("event_buffer", {
 	guildId: text("guild_id").notNull(),
 	payload: text("payload").notNull(),
 	createdAt: integer("created_at").notNull(),
-});
-
-/** Heartbeat 基本設定テーブル */
-export const heartbeatConfig = sqliteTable("heartbeat_config", {
-	key: text("key")
-		.primaryKey()
-		.$defaultFn(() => "default"),
-	baseIntervalMinutes: integer("base_interval_minutes").notNull().default(1),
 });

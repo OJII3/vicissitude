@@ -15,16 +15,6 @@ CREATE TABLE IF NOT EXISTS sessions (
 	created_at INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS reminders (
-	id TEXT PRIMARY KEY,
-	guild_id TEXT,
-	description TEXT NOT NULL,
-	schedule_type TEXT NOT NULL,
-	schedule_value TEXT NOT NULL,
-	last_executed_at TEXT,
-	enabled INTEGER NOT NULL DEFAULT 1
-);
-
 CREATE TABLE IF NOT EXISTS emoji_usage (
 	guild_id TEXT NOT NULL,
 	emoji_name TEXT NOT NULL,
@@ -37,11 +27,6 @@ CREATE TABLE IF NOT EXISTS event_buffer (
 	guild_id TEXT NOT NULL,
 	payload TEXT NOT NULL,
 	created_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS heartbeat_config (
-	key TEXT PRIMARY KEY DEFAULT 'default',
-	base_interval_minutes INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);

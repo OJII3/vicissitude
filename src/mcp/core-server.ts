@@ -27,6 +27,16 @@ const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/fenghuang";
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 const GUILD_ID = process.env.GUILD_ID ?? "";
 
+if (!GUILD_ID) {
+	console.error("[core-server] GUILD_ID environment variable is required");
+	process.exit(1);
+}
+
+if (!process.env.DISCORD_TOKEN) {
+	console.error("[core-server] DISCORD_TOKEN environment variable is required");
+	process.exit(1);
+}
+
 // --- Discord Client ---
 
 const discordClient = new Client({

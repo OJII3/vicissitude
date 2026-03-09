@@ -2,15 +2,27 @@ import { resolve } from "path";
 
 import { z } from "zod";
 
+// ─── Constants ───────────────────────────────────────────────────
+
+/** Heartbeat config JSON の相対パス（プロジェクトルート起点） */
+export const HEARTBEAT_CONFIG_RELATIVE_PATH = "data/heartbeat-config.json";
+
 // ─── Schemas ─────────────────────────────────────────────────────
+
+/** NaN を拒否する整数バリデーション */
+const safeInt = z
+	.number()
+	.int()
+	.refine((n) => !Number.isNaN(n), "must be a valid integer");
+const safeNumber = z.number().refine((n) => !Number.isNaN(n), "must be a valid number");
 
 const minecraftSchema = z.object({
 	host: z.string(),
-	port: z.number(),
+	port: safeInt,
 	username: z.string(),
 	version: z.string().optional(),
-	mcpPort: z.number(),
-	viewerPort: z.number(),
+	mcpPort: safeInt,
+	viewerPort: safeInt,
 });
 
 const appConfigSchema = z.object({
@@ -18,8 +30,8 @@ const appConfigSchema = z.object({
 	opencode: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
-		basePort: z.number(),
-		sessionMaxAgeHours: z.number(),
+		basePort: safeInt,
+		sessionMaxAgeHours: safeNumber,
 	}),
 	ltm: z.object({
 		providerId: z.string(),
