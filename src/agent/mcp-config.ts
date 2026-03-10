@@ -28,16 +28,16 @@ export function mcpServerConfigs() {
 }
 
 /**
- * Minecraft サブブレイン用 MCP サーバー設定を返す。
- * mc-sub-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
+ * Minecraft エージェント用 MCP サーバー設定を返す。
+ * mc-bridge-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
  */
-export function mcpMinecraftSubBrainConfigs(): Record<string, McpServerConfig> {
+export function mcpMinecraftConfigs(): Record<string, McpServerConfig> {
 	const root = resolve(import.meta.dirname, "../..");
 
 	const configs: Record<string, McpServerConfig> = {
 		"mc-bridge": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/minecraft/mc-sub-server.ts")],
+			command: ["bun", "run", resolve(root, "src/mcp/minecraft/mc-bridge-server.ts")],
 			environment: {
 				DATA_DIR: resolve(root, "data"),
 			},

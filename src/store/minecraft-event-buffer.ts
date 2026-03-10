@@ -1,14 +1,14 @@
 import type { BufferedEvent, EventBuffer } from "../core/types.ts";
 
 /**
- * Minecraft サブブレイン用 EventBuffer。
+ * Minecraft エージェント用 EventBuffer。
  * 固定間隔で resolve するタイマーベースの実装。
  * AgentRunner のコード変更なしで周期ポーリングを実現する。
  */
 export class MinecraftEventBuffer implements EventBuffer {
 	constructor(private readonly intervalMs: number) {}
 
-	/** サブブレインは Discord イベントを受けないため no-op */
+	/** Minecraft エージェントは Discord イベントを受けないため no-op */
 	append(_event: BufferedEvent): void {
 		// no-op
 	}

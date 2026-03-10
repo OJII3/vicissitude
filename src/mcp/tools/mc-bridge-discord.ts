@@ -15,8 +15,8 @@ export interface McBridgeDeps {
 	db: StoreDb;
 }
 
-/** メインブレイン側のブリッジツールを登録する */
-export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDeps): void {
+/** Discord 側のブリッジツールを登録する */
+export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps): void {
 	const { db } = deps;
 
 	server.tool(
@@ -26,7 +26,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 			command: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("マイクラでやること"),
 		},
 		({ command }) => {
-			insertBridgeEvent(db, "to_sub", "command", command);
+			insertBridgeEvent(db, "to_minecraft", "command", command);
 			return {
 				content: [{ type: "text" as const, text: "指示を出した。あとでやっとく。" }],
 			};
@@ -34,7 +34,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 	);
 
 	server.tool("minecraft_status", "マイクラでの最近の出来事を確認する（消費しない）。", {}, () => {
-		const events = peekBridgeEvents(db, "to_main", 50);
+		const events = peekBridgeEvents(db, "to_discord", 50);
 		if (events.length === 0) {
 			return {
 				content: [{ type: "text" as const, text: "特に何もなかった。" }],
@@ -46,7 +46,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 	});
 
 	server.tool("minecraft_read_reports", "マイクラでの出来事を確認済みにして読む。", {}, () => {
-		const events = consumeBridgeEventsByType(db, "to_main", "report");
+		const events = consumeBridgeEventsByType(db, "to_discord", "report");
 		if (events.length === 0) {
 			return {
 				content: [{ type: "text" as const, text: "新しい出来事はなかった。" }],
@@ -75,7 +75,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					],
 				};
 			}
-			insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+			insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
 			return {
 				content: [
 					{

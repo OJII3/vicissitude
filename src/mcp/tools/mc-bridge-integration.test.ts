@@ -12,24 +12,24 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 	test("メイン→サブ→メインのラウンドトリップ", () => {
 		const db = createTestDb();
 
-		// メイン側: command を挿入（to_sub）
-		insertBridgeEvent(db, "to_sub", "command", "木を伐採して");
+		// Discord 側: command を挿入（to_minecraft）
+		insertBridgeEvent(db, "to_minecraft", "command", "木を伐採して");
 
 		// サブ側: command を消費
-		const commands = consumeBridgeEventsByType(db, "to_sub", "command");
+		const commands = consumeBridgeEventsByType(db, "to_minecraft", "command");
 		expect(commands).toHaveLength(1);
 		expect(commands.at(0)?.payload).toBe("木を伐採して");
 
-		// サブ側: report を挿入（to_main）
+		// Minecraft 側: report を挿入（to_discord）
 		insertBridgeEvent(
 			db,
-			"to_main",
+			"to_discord",
 			"report",
 			JSON.stringify({ message: "木を5本伐採した", importance: "medium" }),
 		);
 
 		// メイン側: report を消費
-		const reports = consumeBridgeEventsByType(db, "to_main", "report");
+		const reports = consumeBridgeEventsByType(db, "to_discord", "report");
 		expect(reports).toHaveLength(1);
 		const payload = JSON.parse(reports.at(0)?.payload ?? "{}");
 		expect(payload.message).toBe("木を5本伐採した");
@@ -44,10 +44,10 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		expect(lock).toEqual({ ok: true });
 
 		// start イベント挿入
-		insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
 
 		// サブ側で start を検知
-		const startEvents = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+		const startEvents = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
 		expect(startEvents).toHaveLength(1);
 		expect(startEvents.at(0)?.payload).toBe("start");
 
@@ -56,7 +56,7 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		expect(released).toBe(true);
 
 		// サブ側で stop を検知
-		const stopEvents = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+		const stopEvents = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
 		expect(stopEvents).toHaveLength(1);
 		expect(stopEvents.at(0)?.payload).toBe("stop");
 	});
@@ -64,11 +64,11 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 	test("コマンド順序保持: 複数コマンドが id 昇順で返る", () => {
 		const db = createTestDb();
 
-		insertBridgeEvent(db, "to_sub", "command", "first");
-		insertBridgeEvent(db, "to_sub", "command", "second");
-		insertBridgeEvent(db, "to_sub", "command", "third");
+		insertBridgeEvent(db, "to_minecraft", "command", "first");
+		insertBridgeEvent(db, "to_minecraft", "command", "second");
+		insertBridgeEvent(db, "to_minecraft", "command", "third");
 
-		const commands = consumeBridgeEventsByType(db, "to_sub", "command");
+		const commands = consumeBridgeEventsByType(db, "to_minecraft", "command");
 		expect(commands).toHaveLength(3);
 		expect(commands.at(0)?.payload).toBe("first");
 		expect(commands.at(1)?.payload).toBe("second");
@@ -82,18 +82,18 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		expect(id1).toBeLessThan(id2);
 	});
 
-	test("方向の独立性: to_sub の消費が to_main に影響しない", () => {
+	test("方向の独立性: to_minecraft の消費が to_discord に影響しない", () => {
 		const db = createTestDb();
 
-		insertBridgeEvent(db, "to_sub", "command", "sub向け");
-		insertBridgeEvent(db, "to_main", "report", "main向け");
+		insertBridgeEvent(db, "to_minecraft", "command", "sub向け");
+		insertBridgeEvent(db, "to_discord", "report", "main向け");
 
-		// to_sub だけ消費
-		const subEvents = consumeBridgeEventsByType(db, "to_sub", "command");
+		// to_minecraft だけ消費
+		const subEvents = consumeBridgeEventsByType(db, "to_minecraft", "command");
 		expect(subEvents).toHaveLength(1);
 
-		// to_main は未消費のまま
-		const mainEvents = consumeBridgeEventsByType(db, "to_main", "report");
+		// to_discord は未消費のまま
+		const mainEvents = consumeBridgeEventsByType(db, "to_discord", "report");
 		expect(mainEvents).toHaveLength(1);
 		expect(mainEvents.at(0)?.payload).toBe("main向け");
 	});

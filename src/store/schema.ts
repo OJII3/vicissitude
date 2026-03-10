@@ -36,7 +36,7 @@ export const mcSessionLock = sqliteTable("mc_session_lock", {
 /** MC ブリッジイベントテーブル */
 export const mcBridgeEvents = sqliteTable("mc_bridge_events", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
-	/** 'to_main' | 'to_sub' */
+	/** 'to_discord' | 'to_minecraft' */
 	direction: text("direction").notNull(),
 	type: text("type").notNull(),
 	payload: text("payload").notNull(),

@@ -7,9 +7,9 @@ import { spawn, type Subprocess } from "bun";
 import { ContextBuilder } from "./agent/discord/context-builder.ts";
 import { createConversationProfile } from "./agent/discord/profile.ts";
 import { GuildRouter } from "./agent/discord/router.ts";
-import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
+import { mcpServerConfigs, mcpMinecraftConfigs } from "./agent/mcp-config.ts";
+import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
 import { createMinecraftProfile } from "./agent/minecraft/profile.ts";
-import { McSubBrainManager } from "./agent/minecraft/sub-brain-manager.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
@@ -413,28 +413,28 @@ export async function bootstrap(): Promise<void> {
 	const coreProcess = await coreReady;
 	const mcProcess = await mcReady;
 
-	// Minecraft sub-brain manager
-	let mcSubBrainManager: McSubBrainManager | undefined;
+	// Minecraft brain manager
+	let mcBrainManager: McBrainManager | undefined;
 	if (config.minecraft) {
 		const mcProfile = createMinecraftProfile({
-			providerId: config.mcSubBrain.providerId,
-			modelId: config.mcSubBrain.modelId,
-			mcpServers: mcpMinecraftSubBrainConfigs(),
+			providerId: config.mcBrain.providerId,
+			modelId: config.mcBrain.modelId,
+			mcpServers: mcpMinecraftConfigs(),
 		});
-		mcSubBrainManager = new McSubBrainManager({
+		mcBrainManager = new McBrainManager({
 			db,
 			sessionStore,
 			logger,
 			root,
 			createSessionPort: () =>
 				new OpencodeSessionAdapter({
-					// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
+					// ギルドエージェントが basePort + 0..N-1 を使うため、Minecraft エージェントは basePort + N を使用
 					port: config.opencode.basePort + guildIds.length,
 					mcpServers: mcProfile.mcpServers,
 					builtinTools: mcProfile.builtinTools,
 				}),
-			providerId: config.mcSubBrain.providerId,
-			modelId: config.mcSubBrain.modelId,
+			providerId: config.mcBrain.providerId,
+			modelId: config.mcBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 		});
 	}
@@ -452,7 +452,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
-			await mcSubBrainManager?.stop();
+			await mcBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await ltmResources?.chatAdapter.close();
@@ -481,7 +481,7 @@ export async function bootstrap(): Promise<void> {
 		});
 	}
 
-	if (mcSubBrainManager) {
-		mcSubBrainManager.start();
+	if (mcBrainManager) {
+		mcBrainManager.start();
 	}
 }

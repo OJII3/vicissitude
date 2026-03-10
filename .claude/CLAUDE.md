@@ -47,9 +47,9 @@ src/
 ├── mcp/                # MCP サーバー（独立プロセス）
 │   ├── core-server.ts  # 統合エントリポイント
 │   ├── code-exec-server.ts
-│   ├── minecraft/      # Minecraft MCP + サブブレイン用ブリッジ
-│   │   └── mc-sub-server.ts
-│   └── tools/          # ツール定義（mc-bridge-main/sub/shared）
+│   ├── minecraft/      # Minecraft MCP + ブリッジ
+│   │   └── mc-bridge-server.ts
+│   └── tools/          # ツール定義（mc-bridge-discord/minecraft/shared）
 ├── store/              # SQLite 統一永続化（Drizzle ORM）
 ├── observability/      # ログ + メトリクス
 ├── opencode/           # OpenCode SDK 抽象化（Port/Adapter）
@@ -90,4 +90,4 @@ src/
 
 ### MCP サーバー
 
-`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-sub-bridge（サブブレイン用ブリッジ）。
+`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-bridge（Minecraft ブリッジ）。

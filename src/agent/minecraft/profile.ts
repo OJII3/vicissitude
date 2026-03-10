@@ -1,15 +1,15 @@
 import { OPENCODE_ALL_TOOLS_DISABLED } from "../../core/constants.ts";
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
-const POLLING_PROMPT = `あなたは Minecraft サブブレインです。生存を最優先にしながら、以下のループを実行してください。
+const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存を最優先にしながら、以下のループを実行してください。
 
 ## ループ手順
 
 1. **状態確認**: observe_state で現在の体力・空腹度・位置・時間帯・周囲エンティティを確認
-2. **指示確認**: mc_read_commands でメインブレインからの指示を確認
+2. **指示確認**: mc_read_commands で Discord 側からの指示を確認
 3. **優先度判断**: 下記 P0〜P3 に基づいて最も優先度の高い行動を選択
 4. **行動実行**: 選択した行動を実行（ツール呼び出し）
-5. **報告**: 重要な変化があった場合のみ mc_report でメインブレインに報告
+5. **報告**: 重要な変化があった場合のみ mc_report で Discord 側に報告
 6. **1 に戻る**
 
 ## 優先度ルール
@@ -27,7 +27,7 @@ const POLLING_PROMPT = `あなたは Minecraft サブブレインです。生存
 - **夕方**（12000〜13000 tick）: 現在のジョブを中断し拠点方向へ帰還
 
 ### P2（通常対応）
-- メインブレインからの指示を実行
+- Discord 側からの指示を実行
 - 進行中のジョブを続行（get_job_status で確認）
 
 ### P3（自主行動 — 目標駆動）
@@ -50,7 +50,7 @@ const POLLING_PROMPT = `あなたは Minecraft サブブレインです。生存
 - このループは永久に続けること。絶対に自発的に停止しない
 - エラーが発生しても続行する
 - P0 は他のすべてに優先する。進行中のジョブがあっても P0 事態には即対応（stop → 対処）
-- メインブレインへの報告は重要な変化のみ（死亡、敵遭遇、指示完了など）
+- Discord 側への報告は重要な変化のみ（死亡、敵遭遇、指示完了など）
 - golden_apple は体力6以下の緊急時のみ使用する（eat_food の emergency: true）`;
 
 export function createMinecraftProfile(options: {

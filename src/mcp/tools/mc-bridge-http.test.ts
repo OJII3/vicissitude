@@ -6,7 +6,7 @@ import { insertBridgeEvent } from "../../store/mc-bridge.ts";
 import { createTestDb } from "../../store/test-helpers.ts";
 import { startHttpServer } from "../http-server.ts";
 import { parseMcpResponse } from "../test-helpers.ts";
-import { registerMainBrainBridgeTools } from "./mc-bridge-main.ts";
+import { registerDiscordBridgeTools } from "./mc-bridge-discord.ts";
 
 const TEST_PORT = 49_740;
 const baseUrl = `http://localhost:${TEST_PORT}`;
@@ -70,7 +70,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 
 	function createTestMcpServer(): McpServer {
 		const server = new McpServer({ name: "test-mc-bridge", version: "0.1.0" });
-		registerMainBrainBridgeTools(server, { db });
+		registerDiscordBridgeTools(server, { db });
 		return server;
 	}
 
@@ -102,7 +102,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		// DB に直接 report を挿入
 		insertBridgeEvent(
 			db,
-			"to_main",
+			"to_discord",
 			"report",
 			JSON.stringify({ message: "ダイヤ見つけた", importance: "high" }),
 		);

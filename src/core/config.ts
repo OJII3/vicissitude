@@ -40,7 +40,7 @@ const appConfigSchema = z.object({
 		ollamaBaseUrl: z.string(),
 		embeddingModel: z.string(),
 	}),
-	mcSubBrain: z.object({
+	mcBrain: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
 	}),
@@ -81,7 +81,7 @@ export function loadConfig(
 			ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://ollama:11434",
 			embeddingModel: env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
 		},
-		mcSubBrain: {
+		mcBrain: {
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
 		},

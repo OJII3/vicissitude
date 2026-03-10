@@ -28,7 +28,7 @@ describe("SqliteMcStatusProvider", () => {
 		const db = createTestDb();
 		insertBridgeEvent(
 			db,
-			"to_main",
+			"to_discord",
 			"report",
 			JSON.stringify({ message: "ダイヤ発見", importance: "high" }),
 		);
@@ -44,7 +44,7 @@ describe("SqliteMcStatusProvider", () => {
 
 	test("falls back to raw payload for non-report events", async () => {
 		const db = createTestDb();
-		insertBridgeEvent(db, "to_main", "command", "raw payload");
+		insertBridgeEvent(db, "to_discord", "command", "raw payload");
 		const provider = new SqliteMcStatusProvider(
 			db,
 			"/nonexistent/overlay.md",
@@ -57,7 +57,7 @@ describe("SqliteMcStatusProvider", () => {
 
 	test("falls back to raw payload for malformed JSON reports", async () => {
 		const db = createTestDb();
-		insertBridgeEvent(db, "to_main", "report", "not json");
+		insertBridgeEvent(db, "to_discord", "report", "not json");
 		const provider = new SqliteMcStatusProvider(
 			db,
 			"/nonexistent/overlay.md",
@@ -73,7 +73,7 @@ describe("SqliteMcStatusProvider", () => {
 		for (let i = 0; i < 8; i++) {
 			insertBridgeEvent(
 				db,
-				"to_main",
+				"to_discord",
 				"report",
 				JSON.stringify({ message: `report-${String(i)}`, importance: "low" }),
 			);
@@ -127,7 +127,7 @@ describe("SqliteMcStatusProvider", () => {
 		const db = createTestDb();
 		insertBridgeEvent(
 			db,
-			"to_main",
+			"to_discord",
 			"report",
 			JSON.stringify({ message: "found cave", importance: "medium" }),
 		);

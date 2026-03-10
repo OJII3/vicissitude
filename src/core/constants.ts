@@ -1,5 +1,5 @@
-/** Minecraft サブブレイン用の仮想 Guild ID */
-export const MC_SUB_BRAIN_GUILD_ID = "__minecraft__";
+/** Minecraft エージェント用の仮想 Guild ID */
+export const MC_BRAIN_GUILD_ID = "__minecraft__";
 
 /** OpenCode の全ビルトインツールを無効化する設定 */
 export const OPENCODE_ALL_TOOLS_DISABLED: Record<string, boolean> = {
