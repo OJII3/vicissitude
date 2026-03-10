@@ -12,7 +12,7 @@ import type { SessionStore } from "../session-store.ts";
 import { MinecraftContextBuilder } from "./context-builder.ts";
 import { createMinecraftProfile } from "./profile.ts";
 
-const MC_LIFECYCLE_POLL_MS = 10_000;
+const DEFAULT_LIFECYCLE_POLL_MS = 10_000;
 
 export interface McSubBrainManagerDeps {
 	db: StoreDb;
@@ -23,6 +23,8 @@ export interface McSubBrainManagerDeps {
 	providerId: string;
 	modelId: string;
 	sessionMaxAgeMs: number;
+	/** ライフサイクルポーリング間隔（ms）。デフォルト 10_000 */
+	lifecyclePollMs?: number;
 }
 
 /**
@@ -39,8 +41,11 @@ export class McSubBrainManager {
 	private pollTimer: ReturnType<typeof setTimeout> | undefined;
 	private stopping = false;
 	private pollCount = 0;
+	private readonly pollMs: number;
 
-	constructor(private readonly deps: McSubBrainManagerDeps) {}
+	constructor(private readonly deps: McSubBrainManagerDeps) {
+		this.pollMs = deps.lifecyclePollMs ?? DEFAULT_LIFECYCLE_POLL_MS;
+	}
 
 	/** 初期起動（lifecycle ポーリングを開始。ランナーは minecraft_start_session がトリガー） */
 	start(): void {
@@ -48,7 +53,9 @@ export class McSubBrainManager {
 		clearSessionLock(this.deps.db);
 		this.pollCount = 0;
 		this.schedulePoll();
-		this.deps.logger.info("[McSubBrainManager] lifecycle polling started (interval=10s)");
+		this.deps.logger.info(
+			`[McSubBrainManager] lifecycle polling started (interval=${this.pollMs}ms)`,
+		);
 	}
 
 	async stop(): Promise<void> {
@@ -74,7 +81,7 @@ export class McSubBrainManager {
 			if (!this.stopping && this.pollTimer !== undefined) {
 				this.schedulePoll();
 			}
-		}, MC_LIFECYCLE_POLL_MS);
+		}, this.pollMs);
 	}
 
 	private startRunner(): void {

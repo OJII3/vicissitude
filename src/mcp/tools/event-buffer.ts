@@ -29,6 +29,7 @@ export async function pollEvents(
 	db: StoreDb,
 	guildId: string,
 	deadlineMs: number,
+	pollIntervalMs = 1000,
 ): Promise<string | null> {
 	while (Date.now() < deadlineMs) {
 		if (hasEvents(db, guildId)) {
@@ -36,7 +37,7 @@ export async function pollEvents(
 			if (rows.length > 0) return formatEvents(rows);
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
-		await sleep(1000);
+		await sleep(pollIntervalMs);
 	}
 	return null;
 }
