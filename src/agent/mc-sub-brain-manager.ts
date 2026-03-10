@@ -29,15 +29,20 @@ export interface McSubBrainManagerDeps {
  * Minecraft サブブレインの生成・起動・停止を管理する。
  * ブリッジテーブルの lifecycle イベントを定期ポーリングし、
  * start/stop 指示に応じてランナーを制御する。
+ *
+ * 前提: シングルプロセス構成。複数プロセスが同一 DB を共有する場合は
+ * clearSessionLock やポート管理の見直しが必要。
  */
 export class McSubBrainManager {
 	private runner: AgentRunner | undefined;
 	private pollTimer: ReturnType<typeof setInterval> | undefined;
+	private stopping = false;
 
 	constructor(private readonly deps: McSubBrainManagerDeps) {}
 
 	/** 初期起動（lifecycle ポーリングを開始。ランナーは minecraft_start_session がトリガー） */
 	start(): void {
+		// シングルプロセス前提: 再起動時に残存ロックを強制クリア
 		clearSessionLock(this.deps.db);
 		this.pollTimer = setInterval(() => this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
 	}
@@ -51,7 +56,7 @@ export class McSubBrainManager {
 	}
 
 	private startRunner(): void {
-		if (this.runner) return;
+		if (this.runner || this.stopping) return;
 
 		const { root, sessionStore, logger, port, providerId, modelId, sessionMaxAgeMs } = this.deps;
 		const mcEventBuffer = new MinecraftEventBuffer(30_000);
@@ -82,9 +87,11 @@ export class McSubBrainManager {
 
 	private stopRunner(): void {
 		if (!this.runner) return;
+		this.stopping = true;
 		this.runner.stop();
 		this.runner = undefined;
 		this.deps.logger.info("[McSubBrainManager] sub-brain stopped");
+		this.stopping = false;
 	}
 
 	private checkLifecycleEvents(): void {

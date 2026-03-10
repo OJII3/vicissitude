@@ -114,15 +114,44 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 	);
 }
 
-/** インベントリから設置可能なブロックを1つ見つける */
+/** 天井を塞ぐのに適したソリッドブロックの候補（優先度順） */
+const SHELTER_BLOCK_NAMES = new Set([
+	"cobblestone",
+	"dirt",
+	"stone",
+	"deepslate",
+	"cobbled_deepslate",
+	"netherrack",
+	"sand",
+	"gravel",
+	"oak_planks",
+	"spruce_planks",
+	"birch_planks",
+	"jungle_planks",
+	"acacia_planks",
+	"dark_oak_planks",
+	"mangrove_planks",
+	"cherry_planks",
+	"bamboo_planks",
+	"crimson_planks",
+	"warped_planks",
+]);
+
+/** インベントリからシェルター構築に適したソリッドブロックを1つ見つける */
 function findPlaceableBlock(bot: mineflayer.Bot) {
+	// 優先候補から探す
+	const preferred = bot.inventory.items().find((item) => SHELTER_BLOCK_NAMES.has(item.name));
+	if (preferred) return preferred;
+
+	// 候補にない場合は、設置可能なソリッドブロックを探す（ツールや非ソリッドを除外）
 	return bot.inventory.items().find((item) => {
 		const blockDef = bot.registry.blocksByName[item.name];
 		return (
 			blockDef &&
 			blockDef.hardness !== null &&
 			blockDef.hardness !== undefined &&
-			blockDef.hardness >= 0
+			blockDef.hardness >= 0 &&
+			blockDef.boundingBox === "block"
 		);
 	});
 }
@@ -151,7 +180,7 @@ async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Pr
 		const pos = bot.entity.position.floored();
 		const block = bot.blockAt(pos.offset(0, -1, 0));
 		if (!block || block.name === "air" || block.name === "cave_air") break;
-		if (block.hardness < 0) break;
+		if (block.hardness === null || block.hardness === undefined || block.hardness < 0) break;
 		const tool = bot.pathfinder.bestHarvestTool(block);
 		try {
 			// oxlint-disable-next-line no-await-in-loop -- 装備は順次実行が必須

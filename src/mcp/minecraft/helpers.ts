@@ -1,4 +1,4 @@
-export type Importance = "low" | "medium" | "high";
+export type Importance = "low" | "medium" | "high" | "critical";
 
 export interface ActionState {
 	type:
@@ -27,7 +27,12 @@ export interface JobInfo {
 	error?: string;
 }
 
-export const IMPORTANCE_ORDER: Record<Importance, number> = { low: 1, medium: 2, high: 3 };
+export const IMPORTANCE_ORDER: Record<Importance, number> = {
+	low: 1,
+	medium: 2,
+	high: 3,
+	critical: 4,
+};
 
 /** Minecraft のゲーム内時間 (0–23999) から時間帯を返す */
 export function getTimePeriod(timeOfDay: number): string {

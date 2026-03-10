@@ -25,7 +25,11 @@ export function baseMinecraftDir(): string {
 	return resolve(BASE_CONTEXT_DIR, "minecraft");
 }
 
-/** @internal テスト用にもエクスポート */
+/**
+ * dataDir → context/minecraft/ のフォールバック読み込み。
+ * dataDir 内のファイルを優先し、なければ base（context/minecraft/）から読む。
+ * @internal テスト用にもエクスポート
+ */
 export function readOverlay(dataDir: string, filename: string): string {
 	const overlayPath = resolve(dataDir, filename);
 	return readWithFallbackFrom(overlayPath, dataDir, baseMinecraftDir());
@@ -98,7 +102,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		({ name, description }) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME);
-			const safeName = name.replaceAll(/[\r\n]/g, " ");
+			const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
 			const safeDescription = description.replaceAll(/^#{1,6}\s/gm, "");
 			const entry = `\n## ${safeName}\n\n${safeDescription}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;

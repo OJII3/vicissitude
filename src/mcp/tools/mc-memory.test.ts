@@ -63,18 +63,26 @@ describe("writeOverlay", () => {
 });
 
 describe("mc_record_skill の name サニタイズ", () => {
-	it("改行を含む name からスペースに変換される", () => {
+	it("改行と # を含む name からスペースに変換される", () => {
 		// mc_record_skill のロジックを再現してテスト
 		const name = "スキル名\n## 偽セクション";
-		const safeName = name.replaceAll(/[\r\n]/g, " ");
-		expect(safeName).toBe("スキル名 ## 偽セクション");
+		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
+		expect(safeName).toBe("スキル名    偽セクション");
 		expect(safeName).not.toContain("\n");
+		expect(safeName).not.toContain("#");
 	});
 
 	it("CR+LF も正しく処理される", () => {
 		const name = "foo\r\nbar";
-		const safeName = name.replaceAll(/[\r\n]/g, " ");
+		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
 		expect(safeName).toBe("foo  bar");
+	});
+
+	it("# のみの name はスペースに変換される", () => {
+		const name = "# 危険な名前";
+		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
+		expect(safeName).not.toContain("#");
+		expect(safeName).toBe("危険な名前");
 	});
 });
 
