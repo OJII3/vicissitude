@@ -5,15 +5,13 @@ import { resolve } from "path";
 import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/context-builder.ts";
-import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
-import { MinecraftContextBuilder } from "./agent/minecraft-context-builder.ts";
+import { McSubBrainManager } from "./agent/mc-sub-brain-manager.ts";
+import { mcpServerConfigs } from "./agent/mcp-config.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
-import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { loadConfig } from "./core/config.ts";
-import { MC_SUB_BRAIN_GUILD_ID } from "./core/constants.ts";
 import type { AiAgent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
@@ -34,9 +32,7 @@ import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
-import { clearSessionLock, consumeBridgeEventsByType } from "./store/mc-bridge.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
-import { MinecraftEventBuffer } from "./store/mc-sub-event-buffer.ts";
 import { incrementEmoji } from "./store/queries.ts";
 
 // ─── Helper Functions ───────────────────────────────────────────
@@ -199,101 +195,6 @@ async function startMinecraftMcp(
 
 	logger.info("[bootstrap] Minecraft MCP server started");
 	return mcProcess;
-}
-
-// ─── McSubBrainManager ──────────────────────────────────────────
-
-const MC_LIFECYCLE_POLL_MS = 10_000;
-
-interface McSubBrainManagerDeps {
-	db: StoreDb;
-	sessionStore: SessionStore;
-	logger: Logger;
-	root: string;
-	port: number;
-	providerId: string;
-	modelId: string;
-	sessionMaxAgeMs: number;
-}
-
-/**
- * Minecraft サブブレインの生成・起動・停止を管理する。
- * ブリッジテーブルの lifecycle イベントを定期ポーリングし、
- * start/stop 指示に応じてランナーを制御する。
- */
-class McSubBrainManager {
-	private runner: AgentRunner | undefined;
-	private pollTimer: ReturnType<typeof setInterval> | undefined;
-
-	constructor(private readonly deps: McSubBrainManagerDeps) {}
-
-	/** 初期起動（lifecycle ポーリングを開始。ランナーは minecraft_start_session がトリガー） */
-	start(): void {
-		clearSessionLock(this.deps.db);
-		this.pollTimer = setInterval(() => this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
-	}
-
-	stop(): void {
-		if (this.pollTimer) {
-			clearInterval(this.pollTimer);
-			this.pollTimer = undefined;
-		}
-		this.stopRunner();
-	}
-
-	private startRunner(): void {
-		if (this.runner) return;
-
-		const { root, sessionStore, logger, port, providerId, modelId, sessionMaxAgeMs } = this.deps;
-		const mcEventBuffer = new MinecraftEventBuffer(30_000);
-		const mcContextBuilder = new MinecraftContextBuilder(
-			resolve(root, "data/context/minecraft"),
-			resolve(root, "context/minecraft"),
-		);
-		const mcProfile = createMinecraftProfile({
-			providerId,
-			modelId,
-			mcpServers: mcpMinecraftSubBrainConfigs(),
-		});
-		this.runner = new AgentRunner({
-			profile: mcProfile,
-			guildId: MC_SUB_BRAIN_GUILD_ID,
-			sessionStore,
-			contextBuilder: mcContextBuilder,
-			logger,
-			port,
-			eventBuffer: mcEventBuffer,
-			sessionMaxAgeMs,
-		});
-		this.runner.startPollingLoop().catch((err) => {
-			logger.error("[McSubBrainManager] polling loop unexpectedly rejected", err);
-		});
-		logger.info("[McSubBrainManager] sub-brain started");
-	}
-
-	private stopRunner(): void {
-		if (!this.runner) return;
-		this.runner.stop();
-		this.runner = undefined;
-		this.deps.logger.info("[McSubBrainManager] sub-brain stopped");
-	}
-
-	private checkLifecycleEvents(): void {
-		try {
-			const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
-			for (const event of events) {
-				if (event.payload === "start") {
-					this.deps.logger.info("[McSubBrainManager] received lifecycle start");
-					this.startRunner();
-				} else if (event.payload === "stop") {
-					this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
-					this.stopRunner();
-				}
-			}
-		} catch (err) {
-			this.deps.logger.error("[McSubBrainManager] lifecycle check error", err);
-		}
-	}
 }
 
 // ─── Session Gauge ──────────────────────────────────────────────

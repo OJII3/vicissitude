@@ -106,4 +106,16 @@ describe("formatActionState", () => {
 		expect(
 			formatActionState({ type: "fleeing", target: "creeper", progress: "32ブロック逃走中" }),
 		).toBe("creeper から逃走中 (32ブロック逃走中)"));
+	test("sheltering", () =>
+		expect(formatActionState({ type: "sheltering", target: "避難場所" })).toBe(
+			"避難場所 へ避難中",
+		));
+	test("sheltering with progress", () =>
+		expect(
+			formatActionState({
+				type: "sheltering",
+				target: "避難場所",
+				progress: "緊急シェルター構築中",
+			}),
+		).toBe("避難場所 へ避難中 (緊急シェルター構築中)"));
 });

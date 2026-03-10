@@ -17,6 +17,7 @@ describe("createDefaultHeartbeatConfig", () => {
 		expect(first?.id).toBe("home-check");
 		expect(second?.id).toBe("memory-update");
 		expect(third?.id).toBe("mc-check");
+		expect(third?.enabled).toBe(false);
 	});
 
 	it("returns independent instances", () => {

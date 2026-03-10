@@ -21,15 +21,15 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: true,
 			},
-			// config.minecraft 未設定時でも含める（AI が <minecraft-status> セクション不在を見て何もしない）。
-			// heartbeat-config.json に永続化されるため、条件付き追加は設定の不整合を招く。
+			// config.minecraft 未設定時でも含める（heartbeat-config.json に永続化されるため条件付き追加は不整合を招く）。
+			// デフォルト無効。config.minecraft 設定時に有効化される想定。
 			{
 				id: "mc-check",
 				description:
 					"Minecraft サブブレインの状態を確認する。<minecraft-status> を確認し、重要レポートがあればホームチャンネルに自然に共有する",
 				schedule: { type: "interval", minutes: 15 },
 				lastExecutedAt: null,
-				enabled: true,
+				enabled: false,
 			},
 		],
 	};

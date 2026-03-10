@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import { goals } from "mineflayer-pathfinder";
+import { Vec3 } from "vec3";
 import { z } from "zod";
 
 import type { JobManager } from "../job-manager.ts";
@@ -113,15 +114,43 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 	);
 }
 
-/** 緊急シェルター: 足元を3ブロック掘り下げて待機 */
+/** インベントリから設置可能なブロックを1つ見つける */
+function findPlaceableBlock(bot: mineflayer.Bot) {
+	return bot.inventory.items().find((item) => {
+		const blockDef = bot.registry.blocksByName[item.name];
+		return (
+			blockDef &&
+			blockDef.hardness !== null &&
+			blockDef.hardness !== undefined &&
+			blockDef.hardness >= 0
+		);
+	});
+}
+
+/** 穴の入口（頭上）をブロックで塞ぐ */
+async function sealShelterCeiling(bot: mineflayer.Bot, ceilPos: Vec3): Promise<void> {
+	const ceilBlock = bot.blockAt(ceilPos);
+	if (!ceilBlock || (ceilBlock.name !== "air" && ceilBlock.name !== "cave_air")) return;
+
+	const placeableBlock = findPlaceableBlock(bot);
+	if (!placeableBlock) return;
+
+	await bot.equip(placeableBlock, "hand");
+	const referenceBlock = bot.blockAt(ceilPos.offset(0, -1, 0));
+	if (referenceBlock && referenceBlock.name !== "air" && referenceBlock.name !== "cave_air") {
+		await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+	}
+}
+
+/** 緊急シェルター: 足元を3ブロック掘り下げ、頭上をブロックで塞いで待機 */
 async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Promise<void> {
+	const startPos = bot.entity.position.floored();
+
 	for (let i = 0; i < 3; i++) {
 		if (signal.aborted) return;
-		// 落下後の位置を毎回再取得する
 		const pos = bot.entity.position.floored();
 		const block = bot.blockAt(pos.offset(0, -1, 0));
 		if (!block || block.name === "air" || block.name === "cave_air") break;
-		// 破壊不可能ブロック（bedrock 等）はスキップ
 		if (block.hardness < 0) break;
 		const tool = bot.pathfinder.bestHarvestTool(block);
 		try {
@@ -132,6 +161,13 @@ async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Pr
 		} catch {
 			break;
 		}
+	}
+
+	if (signal.aborted) return;
+	try {
+		await sealShelterCeiling(bot, startPos.offset(0, -1, 0));
+	} catch {
+		// 設置失敗は許容（掘削だけでも最低限の効果あり）
 	}
 }
 
@@ -151,7 +187,7 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const jobId = jobManager.startJob("moving", "避難場所", async (signal) => {
+			const jobId = jobManager.startJob("sheltering", "避難場所", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 
