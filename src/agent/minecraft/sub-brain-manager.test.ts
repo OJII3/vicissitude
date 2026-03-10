@@ -18,6 +18,9 @@ function createMockSessionPort(): OpencodeSessionPort {
 	};
 }
 
+/** テスト用ポーリング間隔（50ms で十分高速） */
+const TEST_POLL_MS = 50;
+
 /** テスト用の最小限の deps を作成する */
 function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainManagerDeps {
 	return {
@@ -34,6 +37,7 @@ function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainM
 		providerId: "test-provider",
 		modelId: "test-model",
 		sessionMaxAgeMs: 3_600_000,
+		lifecyclePollMs: TEST_POLL_MS,
 		...overrides,
 	};
 }
@@ -101,8 +105,8 @@ describe("McSubBrainManager", () => {
 		// lifecycle start イベントを挿入
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
 
-		// ポーリングが発火するのを待つ（11秒 > 10秒ポーリング間隔）
-		await Bun.sleep(11_000);
+		// ポーリングが発火するのを待つ
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// startRunner が呼ばれたことをログで確認
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
@@ -110,25 +114,25 @@ describe("McSubBrainManager", () => {
 			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain started"),
 		);
 		expect(startedLog).toBe(true);
-	}, 15_000);
+	});
 
 	test("lifecycle stop event triggers stopRunner (via log)", async () => {
 		manager.start();
 
 		// まず start して runner を起動
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
-		await Bun.sleep(11_000);
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// 次に stop イベント
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "stop");
-		await Bun.sleep(11_000);
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
 		const stoppedLog = infoCalls.some(
 			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain stopped"),
 		);
 		expect(stoppedLog).toBe(true);
-	}, 25_000);
+	});
 
 	test("startRunner is no-op when runner already exists", async () => {
 		manager.start();
@@ -136,7 +140,7 @@ describe("McSubBrainManager", () => {
 		// 2回連続の start イベント
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
-		await Bun.sleep(11_000);
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// "sub-brain started" ログは1回だけ
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
@@ -144,19 +148,19 @@ describe("McSubBrainManager", () => {
 			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain started"),
 		).length;
 		expect(startedCount).toBe(1);
-	}, 15_000);
+	});
 
 	test("startRunner is no-op when stopping is in progress", async () => {
 		manager.start();
 
 		// start → stop を即時に挿入
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
-		await Bun.sleep(11_000);
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// stop と同時に start を挿入
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "stop");
 		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
-		await Bun.sleep(11_000);
+		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// stop 中に start が来ても安全に処理される（クラッシュしない）
 		const errorCalls = (deps.logger.error as ReturnType<typeof mock>).mock.calls;
@@ -164,5 +168,5 @@ describe("McSubBrainManager", () => {
 			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("lifecycle check error"),
 		);
 		expect(lifecycleErrors).toHaveLength(0);
-	}, 25_000);
+	});
 });

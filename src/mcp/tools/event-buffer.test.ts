@@ -44,8 +44,8 @@ describe("pollEvents", () => {
 	test("タイムアウト時は null を返す", async () => {
 		const db = createTestDb();
 
-		const deadline = Date.now() + 1500;
-		const result = await pollEvents(db, "guild-1", deadline);
+		const deadline = Date.now() + 150;
+		const result = await pollEvents(db, "guild-1", deadline, 50);
 
 		expect(result).toBeNull();
 	});
@@ -53,13 +53,13 @@ describe("pollEvents", () => {
 	test("イベントが遅れて到着しても検出する", async () => {
 		const db = createTestDb();
 
-		// 500ms 後にイベントを挿入
+		// 50ms 後にイベントを挿入
 		setTimeout(() => {
 			appendEvent(db, "guild-1", '{"content":"delayed"}');
-		}, 500);
+		}, 50);
 
-		const deadline = Date.now() + 5000;
-		const result = await pollEvents(db, "guild-1", deadline);
+		const deadline = Date.now() + 500;
+		const result = await pollEvents(db, "guild-1", deadline, 30);
 
 		expect(result).not.toBeNull();
 		const parsed = JSON.parse(result ?? "[]");
