@@ -28,7 +28,7 @@
 
 ## 4. モジュール構成
 
-> 自動生成される依存関係グラフも参照: [`docs/DEPS.md`](./DEPS.md)（`nr deps:graph` で再生成）
+> 自動生成される依存関係グラフも参照: [`docs/DEPS.md`](./DEPS.md)（commit 時に自動再生成）
 
 ```
 src/
