@@ -45,7 +45,7 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 			}
 			return `- [${ts}] (${e.type}) ${e.payload}`;
 		});
-		return `## 直近のレポート\n${lines.join("\n")}`;
+		return `## マイクラでの最近の出来事\n${lines.join("\n")}`;
 	}
 
 	private parseReportPayload(payload: string): { message: string; importance: string } | null {

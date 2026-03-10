@@ -34,55 +34,45 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 
 	server.tool(
 		"minecraft_delegate",
-		"Minecraft サブブレインに指示を送る。サブブレインが次のポーリングで受け取る。",
+		"マイクラの自分に指示を出す。次のポーリングで反映される。",
 		{
-			command: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("サブブレインへの指示内容"),
+			command: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("マイクラでやること"),
 		},
 		({ command }) => {
 			insertBridgeEvent(db, "to_sub", "command", command);
 			return {
-				content: [{ type: "text" as const, text: "指示をサブブレインに送信しました。" }],
+				content: [{ type: "text" as const, text: "指示を出した。あとでやっとく。" }],
 			};
 		},
 	);
 
-	server.tool(
-		"minecraft_status",
-		"Minecraft サブブレインからのレポートを覗き見する（消費しない）。",
-		{},
-		() => {
-			const events = peekBridgeEvents(db, "to_main");
-			if (events.length === 0) {
-				return {
-					content: [{ type: "text" as const, text: "レポートはありません。" }],
-				};
-			}
+	server.tool("minecraft_status", "マイクラでの最近の出来事を確認する（消費しない）。", {}, () => {
+		const events = peekBridgeEvents(db, "to_main");
+		if (events.length === 0) {
 			return {
-				content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+				content: [{ type: "text" as const, text: "特に何もなかった。" }],
 			};
-		},
-	);
+		}
+		return {
+			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+		};
+	});
 
-	server.tool(
-		"minecraft_read_reports",
-		"Minecraft サブブレインからのレポートを消費して読む。",
-		{},
-		() => {
-			const events = consumeBridgeEventsByType(db, "to_main", "report");
-			if (events.length === 0) {
-				return {
-					content: [{ type: "text" as const, text: "新しいレポートはありません。" }],
-				};
-			}
+	server.tool("minecraft_read_reports", "マイクラでの出来事を確認済みにして読む。", {}, () => {
+		const events = consumeBridgeEventsByType(db, "to_main", "report");
+		if (events.length === 0) {
 			return {
-				content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+				content: [{ type: "text" as const, text: "新しい出来事はなかった。" }],
 			};
-		},
-	);
+		}
+		return {
+			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+		};
+	});
 
 	server.tool(
 		"minecraft_start_session",
-		"Minecraft サブブレインのセッションを開始する。サブブレインが起動していない場合に使用。",
+		"マイクラのセッションを開始する。マイクラが停止中のときに使う。",
 		{},
 		() => {
 			const lock = tryAcquireSessionLock(db, guildId);
@@ -91,7 +81,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					content: [
 						{
 							type: "text" as const,
-							text: "セッション開始に失敗しました。別のセッションが使用中です。",
+							text: "セッション開始に失敗した。別のセッションが動いてる。",
 						},
 					],
 				};
@@ -101,39 +91,34 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 				content: [
 					{
 						type: "text" as const,
-						text: "サブブレインに開始指示を送信しました。起動まで少し時間がかかる場合があります。",
+						text: "マイクラ起動するね。ちょっと待って。",
 					},
 				],
 			};
 		},
 	);
 
-	server.tool(
-		"minecraft_stop_session",
-		"Minecraft サブブレインのセッションを停止する。",
-		{},
-		() => {
-			const released = releaseSessionLockAndStop(db, guildId);
-			if (!released) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "ロック解放に失敗しました。このギルドはセッションを保持していません。",
-						},
-					],
-				};
-			}
+	server.tool("minecraft_stop_session", "マイクラのセッションを停止する。", {}, () => {
+		const released = releaseSessionLockAndStop(db, guildId);
+		if (!released) {
 			return {
 				content: [
 					{
 						type: "text" as const,
-						text: "サブブレインに停止指示を送信しました。",
+						text: "停止に失敗した。セッションが動いてないみたい。",
 					},
 				],
 			};
-		},
-	);
+		}
+		return {
+			content: [
+				{
+					type: "text" as const,
+					text: "マイクラ止めた。",
+				},
+			],
+		};
+	});
 }
 
 /** サブブレイン側のブリッジツールを登録する */

@@ -26,7 +26,7 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 			{
 				id: "mc-check",
 				description:
-					"Minecraft サブブレインの状態を確認する。<minecraft-status> を確認し、重要レポートがあればホームチャンネルに自然に共有する",
+					"マイクラの様子を確認する。<minecraft-status> を見て、話したいことがあればホームチャンネルで話す",
 				schedule: { type: "interval", minutes: 15 },
 				lastExecutedAt: null,
 				enabled: false,

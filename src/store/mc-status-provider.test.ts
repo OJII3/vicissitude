@@ -135,7 +135,7 @@ describe("SqliteMcStatusProvider", () => {
 		const provider = new SqliteMcStatusProvider(db, goalsPath, "/nonexistent/base.md");
 
 		const summary = await provider.getStatusSummary();
-		expect(summary).toContain("## 直近のレポート");
+		expect(summary).toContain("## マイクラでの最近の出来事");
 		expect(summary).toContain("## 現在の目標");
 		expect(summary).toContain("found cave");
 		expect(summary).toContain("find diamonds");
