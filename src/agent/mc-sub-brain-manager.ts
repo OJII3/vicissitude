@@ -35,6 +35,7 @@ export interface McSubBrainManagerDeps {
  */
 export class McSubBrainManager {
 	private runner: AgentRunner | undefined;
+	private runningPromise: Promise<void> | undefined;
 	private pollTimer: ReturnType<typeof setInterval> | undefined;
 	private stopping = false;
 
@@ -44,15 +45,15 @@ export class McSubBrainManager {
 	start(): void {
 		// シングルプロセス前提: 再起動時に残存ロックを強制クリア
 		clearSessionLock(this.deps.db);
-		this.pollTimer = setInterval(() => this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
+		this.pollTimer = setInterval(() => void this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
 	}
 
-	stop(): void {
+	async stop(): Promise<void> {
 		if (this.pollTimer) {
 			clearInterval(this.pollTimer);
 			this.pollTimer = undefined;
 		}
-		this.stopRunner();
+		await this.stopRunner();
 	}
 
 	private startRunner(): void {
@@ -79,22 +80,27 @@ export class McSubBrainManager {
 			eventBuffer: mcEventBuffer,
 			sessionMaxAgeMs,
 		});
-		this.runner.startPollingLoop().catch((err) => {
+		this.runningPromise = this.runner.startPollingLoop().catch((err) => {
 			logger.error("[McSubBrainManager] polling loop unexpectedly rejected", err);
 		});
 		logger.info("[McSubBrainManager] sub-brain started");
 	}
 
-	private stopRunner(): void {
+	private async stopRunner(): Promise<void> {
 		if (!this.runner) return;
 		this.stopping = true;
 		this.runner.stop();
 		this.runner = undefined;
+		if (this.runningPromise) {
+			await this.runningPromise;
+			this.runningPromise = undefined;
+		}
 		this.deps.logger.info("[McSubBrainManager] sub-brain stopped");
 		this.stopping = false;
 	}
 
-	private checkLifecycleEvents(): void {
+	private async checkLifecycleEvents(): Promise<void> {
+		if (this.stopping) return;
 		try {
 			const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
 			for (const event of events) {
@@ -103,7 +109,8 @@ export class McSubBrainManager {
 					this.startRunner();
 				} else if (event.payload === "stop") {
 					this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
-					this.stopRunner();
+					// oxlint-disable-next-line no-await-in-loop -- lifecycle events must be processed sequentially
+					await this.stopRunner();
 				}
 			}
 		} catch (err) {

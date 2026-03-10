@@ -12,6 +12,7 @@ import {
 } from "../memory-helpers.ts";
 
 const MAX_GOALS_CHARS = 20_000;
+const MAX_SKILLS_CHARS = 50_000;
 
 const GOALS_FILENAME = "MINECRAFT-GOALS.md";
 const SKILLS_FILENAME = "MINECRAFT-SKILLS.md";
@@ -106,6 +107,16 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 			const safeDescription = description.replaceAll(/^#{1,6}\s/gm, "");
 			const entry = `\n## ${safeName}\n\n${safeDescription}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
+			if (updated.length > MAX_SKILLS_CHARS) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: `スキルライブラリのサイズ上限（${String(MAX_SKILLS_CHARS)} 文字）に達しました。不要なスキルを整理してください。`,
+						},
+					],
+				};
+			}
 			writeOverlay(dataDir, SKILLS_FILENAME, updated);
 			return {
 				content: [{ type: "text" as const, text: `スキル「${name}」を記録しました` }],

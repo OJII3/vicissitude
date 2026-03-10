@@ -53,8 +53,10 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 				content: [{ type: "text" as const, text: "特に何もなかった。" }],
 			};
 		}
+		// 直近50件に制限してコンテキスト過負荷を防止
+		const recent = events.slice(-50);
 		return {
-			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+			content: [{ type: "text" as const, text: formatBridgeEvents(recent) }],
 		};
 	});
 

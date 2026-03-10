@@ -331,7 +331,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
-			mcSubBrainManager?.stop();
+			await mcSubBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await ltmResources?.chatAdapter.close();

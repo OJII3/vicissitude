@@ -87,12 +87,13 @@ export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): Br
 	);
 }
 
-/** 未消費のブリッジイベントを消費せず覗き見する */
+/** 未消費のブリッジイベントを消費せず覗き見する（id 昇順） */
 export function peekBridgeEvents(db: StoreDb, direction: BridgeDirection): BridgeEvent[] {
 	return db
 		.select()
 		.from(mcBridgeEvents)
 		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
+		.orderBy(mcBridgeEvents.id)
 		.all()
 		.map((r) => toBridgeEvent(r));
 }

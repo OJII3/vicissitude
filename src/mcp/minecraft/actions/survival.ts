@@ -156,7 +156,7 @@ function findPlaceableBlock(bot: mineflayer.Bot) {
 	});
 }
 
-/** 穴の入口（頭上）をブロックで塞ぐ */
+/** 穴の入口（頭上）をブロックで塞ぐ。隣接するソリッドブロックを参照に設置する */
 async function sealShelterCeiling(bot: mineflayer.Bot, ceilPos: Vec3): Promise<void> {
 	const ceilBlock = bot.blockAt(ceilPos);
 	if (!ceilBlock || (ceilBlock.name !== "air" && ceilBlock.name !== "cave_air")) return;
@@ -165,16 +165,28 @@ async function sealShelterCeiling(bot: mineflayer.Bot, ceilPos: Vec3): Promise<v
 	if (!placeableBlock) return;
 
 	await bot.equip(placeableBlock, "hand");
-	const referenceBlock = bot.blockAt(ceilPos.offset(0, -1, 0));
-	if (referenceBlock && referenceBlock.name !== "air" && referenceBlock.name !== "cave_air") {
-		await bot.placeBlock(referenceBlock, new Vec3(0, 1, 0));
+
+	// 隣接ブロックから参照可能なソリッドブロックを探す（縦穴では壁ブロックが参照になる）
+	const directions = [
+		new Vec3(1, 0, 0),
+		new Vec3(-1, 0, 0),
+		new Vec3(0, 0, 1),
+		new Vec3(0, 0, -1),
+		new Vec3(0, -1, 0),
+		new Vec3(0, 1, 0),
+	];
+	for (const dir of directions) {
+		const refBlock = bot.blockAt(ceilPos.plus(dir));
+		if (refBlock && refBlock.name !== "air" && refBlock.name !== "cave_air") {
+			// oxlint-disable-next-line no-await-in-loop -- 最初に見つかった参照で即 return
+			await bot.placeBlock(refBlock, dir.scaled(-1));
+			return;
+		}
 	}
 }
 
 /** 緊急シェルター: 足元を3ブロック掘り下げ、頭上をブロックで塞いで待機 */
 async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Promise<void> {
-	const startPos = bot.entity.position.floored();
-
 	for (let i = 0; i < 3; i++) {
 		if (signal.aborted) return;
 		const pos = bot.entity.position.floored();
@@ -194,7 +206,9 @@ async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Pr
 
 	if (signal.aborted) return;
 	try {
-		await sealShelterCeiling(bot, startPos.offset(0, -1, 0));
+		// ボットは 2 ブロック高。掘削後の実際の位置から天井位置を算出する
+		const currentPos = bot.entity.position.floored();
+		await sealShelterCeiling(bot, currentPos.offset(0, 2, 0));
 	} catch {
 		// 設置失敗は許容（掘削だけでも最低限の効果あり）
 	}

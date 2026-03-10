@@ -340,6 +340,11 @@ MCP サーバーは 4 プロセス構成:
 - `MC_USERNAME`: bot ユーザー名（デフォルト: `fua`）
 - `MC_VERSION`: Minecraft バージョン指定（省略可、mineflayer 自動検出）
 
+### Minecraft サブブレイン設定（`MC_HOST` 設定時のみ有効）
+
+- `MC_PROVIDER_ID`: サブブレイン用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` -> `"github-copilot"`）
+- `MC_MODEL_ID`: サブブレイン用モデル ID（フォールバック: `OPENCODE_MODEL_ID` -> `"big-pickle"`）
+
 ### ディレクトリ
 
 - データディレクトリ: `{project-root}/data/`

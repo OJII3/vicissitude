@@ -64,6 +64,7 @@ CREATE TABLE IF NOT EXISTS mc_bridge_events (
 	consumed INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_mc_bridge_direction ON mc_bridge_events(direction, consumed);
+CREATE INDEX IF NOT EXISTS idx_mc_bridge_dir_type ON mc_bridge_events(direction, type, consumed);
 
 CREATE TABLE IF NOT EXISTS mc_session_lock (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
