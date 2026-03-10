@@ -23,7 +23,7 @@
 				"hooks": [
 					{
 						"type": "command",
-						"command": "FILE=$(jq -r '.tool_input.file_path') && case \"$FILE\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.md) oxfmt \"$FILE\" ;; esac"
+						"command": "FILE=$(jq -r '.tool_input.file_path' 2>/dev/null) && case \"$FILE\" in *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.md) oxfmt \"$FILE\" 2>/dev/null ;; esac; exit 0"
 					}
 				]
 			}
