@@ -47,9 +47,9 @@ src/
 ├── mcp/                # MCP サーバー（独立プロセス）
 │   ├── core-server.ts  # 統合エントリポイント
 │   ├── code-exec-server.ts
-│   ├── mc-sub-server.ts # サブブレイン用ブリッジ
-│   ├── minecraft/
-│   └── tools/          # ツール定義
+│   ├── minecraft/      # Minecraft MCP + ブリッジ
+│   │   └── mc-bridge-server.ts
+│   └── tools/          # ツール定義（mc-bridge-discord/minecraft/shared）
 ├── store/              # SQLite 統一永続化（Drizzle ORM）
 ├── observability/      # ログ + メトリクス
 ├── opencode/           # OpenCode SDK 抽象化（Port/Adapter）
@@ -86,8 +86,8 @@ src/
 
 ### DEPS.md（依存関係グラフ）
 
-- `docs/DEPS.md` および `src/*/DEPS.md` は commit 時に pre-commit フックで自動生成される（手動実行不要）
+- `docs/DEPS.md` および `src/*/DEPS.md` は commit 時に lefthook の pre-commit フックで自動生成される（手動実行不要）
 
 ### MCP サーバー
 
-`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-sub-bridge（サブブレイン用ブリッジ）。
+`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-bridge（Minecraft ブリッジ）。

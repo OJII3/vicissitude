@@ -3,7 +3,7 @@ import { and, eq, inArray, lt } from "drizzle-orm";
 import type { StoreDb } from "./db.ts";
 import { mcBridgeEvents, mcSessionLock } from "./schema.ts";
 
-export type BridgeDirection = "to_main" | "to_sub";
+export type BridgeDirection = "to_discord" | "to_minecraft";
 export type BridgeEventType = "command" | "report" | "lifecycle";
 
 export interface BridgeEvent {
@@ -212,7 +212,12 @@ export function releaseSessionLockAndStop(db: StoreDb, guildId: string): boolean
 		if (!existing || existing.guildId !== guildId) return false;
 		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
 		tx.insert(mcBridgeEvents)
-			.values({ direction: "to_sub", type: "lifecycle", payload: "stop", createdAt: Date.now() })
+			.values({
+				direction: "to_minecraft",
+				type: "lifecycle",
+				payload: "stop",
+				createdAt: Date.now(),
+			})
 			.run();
 		return true;
 	});

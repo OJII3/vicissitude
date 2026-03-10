@@ -3,13 +3,13 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { closeDb, createDb } from "../store/db.ts";
-import { registerSubBrainBridgeTools } from "./tools/mc-bridge.ts";
-import { registerMcMemoryTools } from "./tools/mc-memory.ts";
+import { closeDb, createDb } from "../../store/db.ts";
+import { registerMinecraftBridgeTools } from "../tools/mc-bridge-minecraft.ts";
+import { registerMcMemoryTools } from "../tools/mc-memory.ts";
 
 // --- Configuration from environment ---
 
-const DATA_DIR = process.env.DATA_DIR ?? resolve(import.meta.dirname, "../../data");
+const DATA_DIR = process.env.DATA_DIR ?? resolve(import.meta.dirname, "../../../data");
 
 // --- Drizzle DB ---
 
@@ -17,9 +17,9 @@ const db = createDb(DATA_DIR);
 
 // --- MCP Server ---
 
-const server = new McpServer({ name: "mc-sub-bridge", version: "1.0.0" });
+const server = new McpServer({ name: "mc-bridge", version: "1.0.0" });
 
-registerSubBrainBridgeTools(server, { db });
+registerMinecraftBridgeTools(server, { db });
 registerMcMemoryTools(server, { dataDir: resolve(DATA_DIR, "context/minecraft") });
 
 // --- Graceful Shutdown ---

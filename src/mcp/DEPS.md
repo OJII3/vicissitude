@@ -11,12 +11,10 @@ graph LR
   core_server["core-server"] --> tools_discord["tools/discord"]
   core_server["core-server"] --> tools_event_buffer["tools/event-buffer"]
   core_server["core-server"] --> tools_ltm["tools/ltm"]
-  core_server["core-server"] --> tools_mc_bridge["tools/mc-bridge"]
+  core_server["core-server"] --> tools_mc_bridge_discord["tools/mc-bridge-discord"]
   core_server["core-server"] --> tools_memory["tools/memory"]
   core_server["core-server"] --> tools_schedule["tools/schedule"]
   http_server["http-server"]
-  mc_sub_server["mc-sub-server"] --> tools_mc_bridge["tools/mc-bridge"]
-  mc_sub_server["mc-sub-server"] --> tools_mc_memory["tools/mc-memory"]
   memory_helpers["memory-helpers"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_interaction["minecraft/actions/interaction"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_jobs["minecraft/actions/jobs"]
@@ -40,6 +38,8 @@ graph LR
   minecraft_helpers["minecraft/helpers"]
   minecraft_http_server["minecraft/http-server"] --> http_server["http-server"]
   minecraft_job_manager["minecraft/job-manager"] --> minecraft_helpers["minecraft/helpers"]
+  minecraft_mc_bridge_server["minecraft/mc-bridge-server"] --> tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"]
+  minecraft_mc_bridge_server["minecraft/mc-bridge-server"] --> tools_mc_memory["tools/mc-memory"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_actions_index["minecraft/actions/index"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_bot_queries["minecraft/bot-queries"]
@@ -54,7 +54,9 @@ graph LR
   tools_discord["tools/discord"]
   tools_event_buffer["tools/event-buffer"]
   tools_ltm["tools/ltm"]
-  tools_mc_bridge["tools/mc-bridge"]
+  tools_mc_bridge_discord["tools/mc-bridge-discord"] --> tools_mc_bridge_shared["tools/mc-bridge-shared"]
+  tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_mc_bridge_shared["tools/mc-bridge-shared"]
+  tools_mc_bridge_shared["tools/mc-bridge-shared"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
   tools_memory["tools/memory"] --> memory_helpers["memory-helpers"]
   tools_schedule["tools/schedule"]
@@ -68,19 +70,13 @@ graph LR
 
 ### core-server.ts
 
-- モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge, tools/memory, tools/schedule
+- モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
 - 他モジュール依存: core/, fenghuang/, ollama/, opencode/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fenghuang, fs, path
 
 ### http-server.ts
 
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js
-
-### mc-sub-server.ts
-
-- モジュール内依存: tools/mc-bridge, tools/mc-memory
-- 他モジュール依存: store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 
 ### memory-helpers.ts
 
@@ -142,6 +138,12 @@ graph LR
 
 - モジュール内依存: minecraft/helpers
 
+### minecraft/mc-bridge-server.ts
+
+- モジュール内依存: tools/mc-bridge-minecraft, tools/mc-memory
+- 他モジュール依存: store/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
+
 ### minecraft/mcp-tools.ts
 
 - モジュール内依存: minecraft/actions/index, minecraft/bot-context, minecraft/bot-queries, minecraft/job-manager, minecraft/state-summary
@@ -170,10 +172,21 @@ graph LR
 
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fenghuang, zod
 
-### tools/mc-bridge.ts
+### tools/mc-bridge-discord.ts
 
+- モジュール内依存: tools/mc-bridge-shared
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+
+### tools/mc-bridge-minecraft.ts
+
+- モジュール内依存: tools/mc-bridge-shared
+- 他モジュール依存: store/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+
+### tools/mc-bridge-shared.ts
+
+- 他モジュール依存: store/
 
 ### tools/mc-memory.ts
 

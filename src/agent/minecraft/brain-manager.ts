@@ -1,12 +1,12 @@
 /* oxlint-disable max-dependencies -- manager requires multiple DI dependencies */
 import { resolve } from "path";
 
-import { MC_SUB_BRAIN_GUILD_ID } from "../../core/constants.ts";
+import { MC_BRAIN_GUILD_ID } from "../../core/constants.ts";
 import type { Logger, OpencodeSessionPort } from "../../core/types.ts";
 import type { StoreDb } from "../../store/db.ts";
 import { clearSessionLock, consumeBridgeEventsByType } from "../../store/mc-bridge.ts";
-import { MinecraftEventBuffer } from "../../store/mc-sub-event-buffer.ts";
-import { mcpMinecraftSubBrainConfigs } from "../mcp-config.ts";
+import { MinecraftEventBuffer } from "../../store/minecraft-event-buffer.ts";
+import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
 import type { SessionStore } from "../session-store.ts";
 import { MinecraftContextBuilder } from "./context-builder.ts";
@@ -14,7 +14,7 @@ import { createMinecraftProfile } from "./profile.ts";
 
 const DEFAULT_LIFECYCLE_POLL_MS = 10_000;
 
-export interface McSubBrainManagerDeps {
+export interface McBrainManagerDeps {
 	db: StoreDb;
 	sessionStore: SessionStore;
 	logger: Logger;
@@ -28,14 +28,14 @@ export interface McSubBrainManagerDeps {
 }
 
 /**
- * Minecraft サブブレインの生成・起動・停止を管理する。
+ * Minecraft エージェントの生成・起動・停止を管理する。
  * ブリッジテーブルの lifecycle イベントを定期ポーリングし、
  * start/stop 指示に応じてランナーを制御する。
  *
  * 前提: シングルプロセス構成。複数プロセスが同一 DB を共有する場合は
  * clearSessionLock やポート管理の見直しが必要。
  */
-export class McSubBrainManager {
+export class McBrainManager {
 	private runner: AgentRunner | undefined;
 	private runningPromise: Promise<void> | undefined;
 	private pollTimer: ReturnType<typeof setTimeout> | undefined;
@@ -43,7 +43,7 @@ export class McSubBrainManager {
 	private pollCount = 0;
 	private readonly pollMs: number;
 
-	constructor(private readonly deps: McSubBrainManagerDeps) {
+	constructor(private readonly deps: McBrainManagerDeps) {
 		this.pollMs = deps.lifecyclePollMs ?? DEFAULT_LIFECYCLE_POLL_MS;
 	}
 
@@ -53,14 +53,12 @@ export class McSubBrainManager {
 		clearSessionLock(this.deps.db);
 		this.pollCount = 0;
 		this.schedulePoll();
-		this.deps.logger.info(
-			`[McSubBrainManager] lifecycle polling started (interval=${this.pollMs}ms)`,
-		);
+		this.deps.logger.info(`[McBrainManager] lifecycle polling started (interval=${this.pollMs}ms)`);
 	}
 
 	async stop(): Promise<void> {
 		if (this.pollTimer) {
-			this.deps.logger.info("[McSubBrainManager] stopping lifecycle polling");
+			this.deps.logger.info("[McBrainManager] stopping lifecycle polling");
 			clearTimeout(this.pollTimer);
 			this.pollTimer = undefined;
 		}
@@ -74,7 +72,7 @@ export class McSubBrainManager {
 			if (this.pollCount % 30 === 0) {
 				const runnerState = this.runner ? "running" : "idle";
 				this.deps.logger.info(
-					`[McSubBrainManager] alive (polls=${this.pollCount}, runner=${runnerState})`,
+					`[McBrainManager] alive (polls=${this.pollCount}, runner=${runnerState})`,
 				);
 			}
 			await this.checkLifecycleEvents();
@@ -97,11 +95,11 @@ export class McSubBrainManager {
 		const mcProfile = createMinecraftProfile({
 			providerId,
 			modelId,
-			mcpServers: mcpMinecraftSubBrainConfigs(),
+			mcpServers: mcpMinecraftConfigs(),
 		});
 		this.runner = new AgentRunner({
 			profile: mcProfile,
-			guildId: MC_SUB_BRAIN_GUILD_ID,
+			guildId: MC_BRAIN_GUILD_ID,
 			sessionStore,
 			contextBuilder: mcContextBuilder,
 			logger,
@@ -110,9 +108,9 @@ export class McSubBrainManager {
 			sessionMaxAgeMs,
 		});
 		this.runningPromise = this.runner.startPollingLoop().catch((err) => {
-			logger.error("[McSubBrainManager] polling loop unexpectedly rejected", err);
+			logger.error("[McBrainManager] polling loop unexpectedly rejected", err);
 		});
-		logger.info("[McSubBrainManager] sub-brain started");
+		logger.info("[McBrainManager] minecraft brain started");
 	}
 
 	private async stopRunner(): Promise<void> {
@@ -124,26 +122,26 @@ export class McSubBrainManager {
 			await this.runningPromise;
 			this.runningPromise = undefined;
 		}
-		this.deps.logger.info("[McSubBrainManager] sub-brain stopped");
+		this.deps.logger.info("[McBrainManager] minecraft brain stopped");
 		this.stopping = false;
 	}
 
 	private async checkLifecycleEvents(): Promise<void> {
 		if (this.stopping) return;
 		try {
-			const events = consumeBridgeEventsByType(this.deps.db, "to_sub", "lifecycle");
+			const events = consumeBridgeEventsByType(this.deps.db, "to_minecraft", "lifecycle");
 			for (const event of events) {
 				if (event.payload === "start") {
-					this.deps.logger.info("[McSubBrainManager] received lifecycle start");
+					this.deps.logger.info("[McBrainManager] received lifecycle start");
 					this.startRunner();
 				} else if (event.payload === "stop") {
-					this.deps.logger.info("[McSubBrainManager] received lifecycle stop");
+					this.deps.logger.info("[McBrainManager] received lifecycle stop");
 					// oxlint-disable-next-line no-await-in-loop -- lifecycle events must be processed sequentially
 					await this.stopRunner();
 				}
 			}
 		} catch (err) {
-			this.deps.logger.error("[McSubBrainManager] lifecycle check error", err);
+			this.deps.logger.error("[McBrainManager] lifecycle check error", err);
 		}
 	}
 }

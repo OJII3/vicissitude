@@ -19,7 +19,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "test-embedding",
 		},
-		mcSubBrain: {
+		mcBrain: {
 			providerId: "test-provider",
 			modelId: "test-model",
 		},

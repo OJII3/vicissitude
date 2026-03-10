@@ -1,4 +1,4 @@
-# Minecraft MCP サーバー + サブブレイン計画
+# Minecraft MCP サーバー + Minecraft エージェント計画
 
 ## 現在の構成
 
@@ -62,13 +62,13 @@ src/mcp/minecraft/
 
 ---
 
-## サブブレイン計画（M12）
+## Minecraft エージェント計画（M12）
 
 ### 動機
 
-現状はメインブレイン（会話エージェント）が Minecraft ツールを直接使うが、以下の問題がある:
+現状は Discord 側（会話エージェント）が Minecraft ツールを直接使うが、以下の問題がある:
 
-1. **リソース競合** — Minecraft 常時監視がメインブレインの Discord 応答を圧迫する
+1. **リソース競合** — Minecraft 常時監視が Discord 側の応答を圧迫する
 2. **反応性の欠如** — ポーリング間隔に依存し、敵接近等の即時対応が困難
 3. **記憶の断裂** — Guild ごとの記憶分離により、Minecraft 世界の連続性が失われる
 4. **自律感の不足** — ユーザーが話しかけないと何もしない
@@ -77,7 +77,7 @@ src/mcp/minecraft/
 
 ```
 ┌─────────────────────────────┐
-│        Main Brain           │
+│       Discord Agent          │
 │    (conversation agent)     │
 │                             │
 │  minecraft_delegate()       │
@@ -87,7 +87,7 @@ src/mcp/minecraft/
            │ Event Bridge (SQLite)
            │ mc_bridge_events テーブル
 ┌──────────▼──────────────────┐
-│     Minecraft Sub-brain     │
+│    Minecraft Agent          │
 │    (minecraft agent profile)│
 │                             │
 │  独自 AgentRunner           │
@@ -106,20 +106,20 @@ src/mcp/minecraft/
 └─────────────────────────────┘
 ```
 
-### サブブレインの責務
+### Minecraft エージェントの責務
 
 #### Reactive Layer — 生存本能
 
 - 敵 mob 接近時の回避行動
 - 夜間の自動就寝
 - 体力・空腹が低い時の対応（食事、退避）
-- 危険イベントのメインブレインへの即時報告
+- 危険イベントの Discord 側への即時報告
 
 #### Goal Planner — 自動カリキュラム
 
 - 現在の装備・進捗から次の達成目標を自動発見（tech tree ベース）
 - 目標に向けたサブゴール分解と段階的実行
-- 達成時の記録とメインブレインへの報告
+- 達成時の記録と Discord 側への報告
 
 #### Skill Memory — 学習記録
 
@@ -127,18 +127,18 @@ src/mcp/minecraft/
 - 例: 「鉄鉱石は Y=16 以下で多い」「クリーパーは距離を取る」
 - 記録はファイルベース（`data/context/minecraft/MINECRAFT-SKILLS.md`）
 
-### メインブレインとの通信
+### Discord 側との通信
 
 Event Bridge（`store/mc-bridge.ts`）を介した非同期メッセージング:
 
-| 方向       | ツール                           | 用途                               |
-| ---------- | -------------------------------- | ---------------------------------- |
-| Main → Sub | `minecraft_delegate(command)`    | 高レベル指示（「ダイヤ探して」等） |
-| Main → Sub | `minecraft_start_session()`      | サブブレイン起動                   |
-| Main → Sub | `minecraft_stop_session()`       | サブブレイン停止                   |
-| Sub → Main | `mc_report(message, importance)` | 状況報告（発見、達成、危険等）     |
-| Main ← Sub | `minecraft_status()`             | 現在状態の要約取得                 |
-| Main ← Sub | `minecraft_read_reports()`       | 未読レポート取得                   |
+| 方向         | ツール                           | 用途                               |
+| ------------ | -------------------------------- | ---------------------------------- |
+| Discord → MC | `minecraft_delegate(command)`    | 高レベル指示（「ダイヤ探して」等） |
+| Discord → MC | `minecraft_start_session()`      | Minecraft エージェント起動         |
+| Discord → MC | `minecraft_stop_session()`       | Minecraft エージェント停止         |
+| MC → Discord | `mc_report(message, importance)` | 状況報告（発見、達成、危険等）     |
+| Discord ← MC | `minecraft_status()`             | 現在状態の要約取得                 |
+| Discord ← MC | `minecraft_read_reports()`       | 未読レポート取得                   |
 
 ### Minecraft グローバル記憶
 
@@ -146,7 +146,7 @@ Guild に依存しない、Minecraft 専用の記憶空間:
 
 ```
 context/minecraft/              # git 管理（ベース）
-├── MINECRAFT-IDENTITY.md       # サブブレインの行動指針
+├── MINECRAFT-IDENTITY.md       # Minecraft エージェントの行動指針
 ├── MINECRAFT-KNOWLEDGE.md      # Minecraft 基礎知識
 ├── MINECRAFT-GOALS.md          # 目標管理テンプレート
 └── MINECRAFT-SKILLS.md         # スキルライブラリテンプレート
@@ -158,18 +158,18 @@ data/context/minecraft/          # オーバーレイ（ランタイム書き込
 
 ### 実装フェーズ
 
-| フェーズ | 概要                                                 | 依存 |
-| -------- | ---------------------------------------------------- | ---- |
-| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶   | なし |
-| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事）       | M12a |
-| **M12c** | 目標管理: 自動カリキュラム + スキル記録              | M12a |
-| **M12d** | メインブレイン統合: delegate、状態注入、Discord 共有 | M12c |
+| フェーズ | 概要                                               | 依存 |
+| -------- | -------------------------------------------------- | ---- |
+| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶 | なし |
+| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事）     | M12a |
+| **M12c** | 目標管理: 自動カリキュラム + スキル記録            | M12a |
+| **M12d** | Discord 側統合: delegate、状態注入、Discord 共有   | M12c |
 
 M12b と M12c は並行着手可能。
 
 ### このディレクトリへの影響
 
-サブブレインは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival.ts`（`eat_food`, `flee_from_entity`, `find_shelter`）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
+Minecraft エージェントは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival.ts`（`eat_food`, `flee_from_entity`, `find_shelter`）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
 
 ### 先行研究
 

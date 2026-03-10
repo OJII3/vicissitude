@@ -5,7 +5,7 @@ import { peekBridgeEvents } from "./mc-bridge.ts";
 const MAX_RECENT_REPORTS = 5;
 
 /**
- * SQLite ブリッジテーブルと MINECRAFT-GOALS.md からメインブレイン用の
+ * SQLite ブリッジテーブルと MINECRAFT-GOALS.md から Discord 側の
  * Minecraft 状態サマリーを生成する。
  */
 export class SqliteMcStatusProvider implements McStatusProvider {
@@ -31,7 +31,7 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 	}
 
 	private buildReportSection(): string | null {
-		const events = peekBridgeEvents(this.db, "to_main", MAX_RECENT_REPORTS);
+		const events = peekBridgeEvents(this.db, "to_discord", MAX_RECENT_REPORTS);
 		if (events.length === 0) return null;
 
 		const recent = events;

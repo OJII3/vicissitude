@@ -13,7 +13,7 @@ const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
 
 /**
- * Minecraft サブブレイン専用コンテキストビルダー。
+ * Minecraft エージェント専用コンテキストビルダー。
  * オーバーレイ方式（data/context/minecraft/ → context/minecraft/）で
  * Minecraft 用コンテキストファイルを読み込む。
  * Guild 非依存（guildId 引数は無視）。

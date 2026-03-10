@@ -1,10 +1,14 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
 import type { OpencodeSessionPort } from "../../core/types.ts";
-import { insertBridgeEvent, tryAcquireSessionLock } from "../../store/mc-bridge.ts";
+import {
+	insertBridgeEvent,
+	releaseSessionLockAndStop,
+	tryAcquireSessionLock,
+} from "../../store/mc-bridge.ts";
 import { createTestDb } from "../../store/test-helpers.ts";
-import type { McSubBrainManagerDeps } from "./sub-brain-manager.ts";
-import { McSubBrainManager } from "./sub-brain-manager.ts";
+import type { McBrainManagerDeps } from "./brain-manager.ts";
+import { McBrainManager } from "./brain-manager.ts";
 
 function createMockSessionPort(): OpencodeSessionPort {
 	return {
@@ -22,7 +26,7 @@ function createMockSessionPort(): OpencodeSessionPort {
 const TEST_POLL_MS = 50;
 
 /** テスト用の最小限の deps を作成する */
-function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainManagerDeps {
+function createTestDeps(overrides?: Partial<McBrainManagerDeps>): McBrainManagerDeps {
 	return {
 		db: createTestDb(),
 		// oxlint-disable-next-line no-explicit-any -- テスト用の最小モック
@@ -42,13 +46,13 @@ function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainM
 	};
 }
 
-describe("McSubBrainManager", () => {
-	let manager: McSubBrainManager;
-	let deps: McSubBrainManagerDeps;
+describe("McBrainManager", () => {
+	let manager: McBrainManager;
+	let deps: McBrainManagerDeps;
 
 	beforeEach(() => {
 		deps = createTestDeps();
-		manager = new McSubBrainManager(deps);
+		manager = new McBrainManager(deps);
 	});
 
 	afterEach(async () => {
@@ -103,7 +107,7 @@ describe("McSubBrainManager", () => {
 		manager.start();
 
 		// lifecycle start イベントを挿入
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
 
 		// ポーリングが発火するのを待つ
 		await Bun.sleep(TEST_POLL_MS * 3);
@@ -111,7 +115,8 @@ describe("McSubBrainManager", () => {
 		// startRunner が呼ばれたことをログで確認
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
 		const startedLog = infoCalls.some(
-			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain started"),
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain started"),
 		);
 		expect(startedLog).toBe(true);
 	});
@@ -120,16 +125,17 @@ describe("McSubBrainManager", () => {
 		manager.start();
 
 		// まず start して runner を起動
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
 		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// 次に stop イベント
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "stop");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "stop");
 		await Bun.sleep(TEST_POLL_MS * 3);
 
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
 		const stoppedLog = infoCalls.some(
-			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain stopped"),
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain stopped"),
 		);
 		expect(stoppedLog).toBe(true);
 	});
@@ -138,28 +144,75 @@ describe("McSubBrainManager", () => {
 		manager.start();
 
 		// 2回連続の start イベント
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
 		await Bun.sleep(TEST_POLL_MS * 3);
 
-		// "sub-brain started" ログは1回だけ
+		// "minecraft brain started" ログは1回だけ
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
 		const startedCount = infoCalls.filter(
-			(call: unknown[]) => typeof call[0] === "string" && call[0].includes("sub-brain started"),
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain started"),
 		).length;
 		expect(startedCount).toBe(1);
+	});
+
+	test("releaseSessionLockAndStop → manager が stop を検知して runner を停止", async () => {
+		const guildId = "test-guild-stop";
+		manager.start();
+
+		// ロック取得 + start
+		tryAcquireSessionLock(deps.db, guildId);
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		// メイン側 API: releaseSessionLockAndStop（ロック解放 + stop イベント挿入）
+		const released = releaseSessionLockAndStop(deps.db, guildId);
+		expect(released).toBe(true);
+
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
+		const stoppedLog = infoCalls.some(
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain stopped"),
+		);
+		expect(stoppedLog).toBe(true);
+	});
+
+	test("stop → 再 start サイクルで minecraft brain started ログが 2 回出力", async () => {
+		manager.start();
+
+		// 1回目: start
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		// stop
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "stop");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		// 2回目: start
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
+		const startedCount = infoCalls.filter(
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain started"),
+		).length;
+		expect(startedCount).toBe(2);
 	});
 
 	test("startRunner is no-op when stopping is in progress", async () => {
 		manager.start();
 
 		// start → stop を即時に挿入
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
 		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// stop と同時に start を挿入
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "stop");
-		insertBridgeEvent(deps.db, "to_sub", "lifecycle", "start");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "stop");
+		insertBridgeEvent(deps.db, "to_minecraft", "lifecycle", "start");
 		await Bun.sleep(TEST_POLL_MS * 3);
 
 		// stop 中に start が来ても安全に処理される（クラッシュしない）

@@ -1,0 +1,4 @@
+pre-commit:
+  commands:
+    deps-graph:
+      run: nr deps:graph >/dev/null 2>&1 && git add docs/DEPS.md src/*/DEPS.md 2>/dev/null; true

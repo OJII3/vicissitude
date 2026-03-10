@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { BufferedEvent } from "../core/types.ts";
-import { MinecraftEventBuffer } from "./mc-sub-event-buffer.ts";
+import { MinecraftEventBuffer } from "./minecraft-event-buffer.ts";
 
 describe("MinecraftEventBuffer", () => {
 	test("append is a no-op (does not throw)", () => {
