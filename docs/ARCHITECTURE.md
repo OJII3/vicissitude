@@ -156,7 +156,7 @@ MCP サーバーは 4 プロセス構成:
    - `tools/mc-bridge-discord.ts`（Discord 側）: `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
-   - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`
+   - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`, `attack_entity`
 4. **minecraft/mc-bridge-server.ts** (`type: "local"`、Minecraft 側専用): Minecraft ブリッジ + メモリ MCP サーバー
    - `tools/mc-bridge-minecraft.ts`（Minecraft 側）: `mc_report`, `mc_read_commands`
    - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
