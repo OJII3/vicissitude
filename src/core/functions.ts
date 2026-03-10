@@ -7,7 +7,12 @@ import type { DueReminder, HeartbeatConfig, MetricsCollector, TokenUsage } from 
 export function labelsToKey(labels: Record<string, string>): string {
 	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
 	if (entries.length === 0) return "";
-	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
+	return `{${entries.map(([k, v]) => `${k}="${escapeLabel(v)}"`).join(",")}}`;
+}
+
+/** Prometheus テキストフォーマット用のラベル値エスケープ */
+function escapeLabel(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
 }
 
 // ─── Token Metrics Helper ───────────────────────────────────────

@@ -64,6 +64,16 @@ describe("PrometheusCollector counter", () => {
 		c.addCounter("unregistered_total", 100);
 		expect(c.serialize()).toBe("");
 	});
+
+	it("addCounter() で 0 や負値は無視される", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 100);
+		c.addCounter("tokens_total", 0);
+		c.addCounter("tokens_total", -50);
+		const output = c.serialize();
+		expect(output).toContain("tokens_total 100");
+	});
 });
 
 // ─── Gauge ───────────────────────────────────────────────────────

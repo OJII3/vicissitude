@@ -133,7 +133,7 @@ function classifyEvent(
 	tokensByMessage: Map<string, TokenUsage>,
 ): OpencodeSessionEvent | null {
 	if (typed.type === "message.updated") {
-		accumulateTokens(typed as EventMessageUpdated, tokensByMessage);
+		accumulateTokens(typed as EventMessageUpdated, sessionId, tokensByMessage);
 		return null;
 	}
 	if (typed.type === "session.idle") {
@@ -155,13 +155,14 @@ function classifyEvent(
 	return null;
 }
 
-/** message.updated イベントから AssistantMessage のトークンを蓄積する */
+/** message.updated イベントから AssistantMessage のトークンを蓄積する（対象セッションのみ） */
 function accumulateTokens(
 	typed: EventMessageUpdated,
+	sessionId: string,
 	tokensByMessage: Map<string, TokenUsage>,
 ): void {
 	const info = typed.properties.info;
-	if (info.role === "assistant") {
+	if (info.role === "assistant" && info.sessionID === sessionId) {
 		tokensByMessage.set(info.id, {
 			input: info.tokens.input,
 			output: info.tokens.output,

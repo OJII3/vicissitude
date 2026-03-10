@@ -64,7 +64,7 @@ export function createMcMetrics(): { collector: McMetricsCollector; server: McMe
 
 	const server: McMetricsServer = {
 		start() {
-			const hostname = "0.0.0.0";
+			const hostname = process.env.MC_METRICS_HOST ?? "0.0.0.0";
 			bunServer = Bun.serve({
 				port,
 				hostname,
