@@ -14,7 +14,7 @@ function sleep(ms: number): Promise<void> {
 	});
 }
 
-function formatEvents(rows: { payload: string }[]): string {
+export function formatEvents(rows: { payload: string }[]): string {
 	const events = rows.map((r) => {
 		try {
 			return JSON.parse(r.payload);
@@ -25,7 +25,7 @@ function formatEvents(rows: { payload: string }[]): string {
 	return JSON.stringify(events, null, 2);
 }
 
-async function pollEvents(
+export async function pollEvents(
 	db: StoreDb,
 	guildId: string,
 	deadlineMs: number,
