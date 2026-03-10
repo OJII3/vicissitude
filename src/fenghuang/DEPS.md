@@ -1,15 +1,15 @@
 # fenghuang/ 依存関係（自動生成）
 
-> `nr deps:graph` で再生成。手動編集禁止。
+> commit 時に自動再生成。手動編集禁止。
 
 ## ファイル依存関係図
 
 ```mermaid
 graph LR
-  composite-llm-adapter --> fenghuang-chat-adapter
-  fenghuang-chat-adapter
-  fenghuang-conversation-recorder
-  fenghuang-fact-reader
+  composite_llm_adapter["composite-llm-adapter"] --> fenghuang_chat_adapter["fenghuang-chat-adapter"]
+  fenghuang_chat_adapter["fenghuang-chat-adapter"]
+  fenghuang_conversation_recorder["fenghuang-conversation-recorder"]
+  fenghuang_fact_reader["fenghuang-fact-reader"]
 ```
 
 ## ファイル別依存一覧

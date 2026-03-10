@@ -1,15 +1,15 @@
 # gateway/ 依存関係（自動生成）
 
-> `nr deps:graph` で再生成。手動編集禁止。
+> commit 時に自動再生成。手動編集禁止。
 
 ## ファイル依存関係図
 
 ```mermaid
 graph LR
-  channel-config-loader
-  discord --> discord-attachment-mapper
-  discord-attachment-mapper
-  message-handlers
+  channel_config_loader["channel-config-loader"]
+  discord --> discord_attachment_mapper["discord-attachment-mapper"]
+  discord_attachment_mapper["discord-attachment-mapper"]
+  message_handlers["message-handlers"]
   scheduler
 ```
 

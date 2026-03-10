@@ -135,7 +135,7 @@ function generateTopLevelDeps(data: DepcruiseOutput): string {
 	const modules = analyzeModules(data);
 	return `# 依存関係グラフ（自動生成）
 
-> \`nr deps:graph\` で再生成。手動編集禁止。
+> commit 時に自動再生成。手動編集禁止。
 
 ## モジュール依存関係図
 
@@ -221,10 +221,11 @@ function generateModuleMermaid(files: Map<string, FileInfo>): string {
 	return lines.join("\n");
 }
 
-/** Mermaid のノード ID: スラッシュを含む場合は ["label"] 形式にする */
+/** Mermaid のノード ID: スラッシュやハイフンを含む場合は安全な ID + ["label"] 形式にする */
 function mermaidId(name: string): string {
-	if (name.includes("/")) {
-		return `${name.replaceAll("/", "_")}["${name}"]`;
+	if (name.includes("/") || name.includes("-")) {
+		const safeId = name.replaceAll("/", "_").replaceAll("-", "_");
+		return `${safeId}["${name}"]`;
 	}
 	return name;
 }
@@ -268,7 +269,7 @@ function generateModuleDeps(data: DepcruiseOutput, moduleName: string): string {
 
 	return `# ${moduleName}/ 依存関係（自動生成）
 
-> \`nr deps:graph\` で再生成。手動編集禁止。
+> commit 時に自動再生成。手動編集禁止。
 
 ## ファイル依存関係図
 

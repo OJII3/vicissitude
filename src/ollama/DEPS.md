@@ -1,12 +1,12 @@
 # ollama/ 依存関係（自動生成）
 
-> `nr deps:graph` で再生成。手動編集禁止。
+> commit 時に自動再生成。手動編集禁止。
 
 ## ファイル依存関係図
 
 ```mermaid
 graph LR
-  ollama-embedding-adapter
+  ollama_embedding_adapter["ollama-embedding-adapter"]
 ```
 
 ## ファイル別依存一覧
