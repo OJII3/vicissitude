@@ -35,14 +35,6 @@ export function mcpServerConfigs(options?: { guildId?: string }) {
 		},
 	};
 
-	if (process.env.MC_HOST) {
-		const mcMcpPort = process.env.MC_MCP_PORT ?? "3001";
-		configs.minecraft = {
-			type: "remote",
-			url: `http://localhost:${mcMcpPort}/mcp`,
-		};
-	}
-
 	return configs;
 }
 
