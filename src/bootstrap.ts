@@ -4,12 +4,12 @@ import { resolve } from "path";
 
 import { spawn, type Subprocess } from "bun";
 
-import { ContextBuilder } from "./agent/context-builder.ts";
-import { McSubBrainManager } from "./agent/mc-sub-brain-manager.ts";
+import { ContextBuilder } from "./agent/discord/context-builder.ts";
+import { createConversationProfile } from "./agent/discord/profile.ts";
+import { GuildRouter } from "./agent/discord/router.ts";
 import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
-import { createConversationProfile } from "./agent/profiles/conversation.ts";
-import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
-import { GuildRouter } from "./agent/router.ts";
+import { createMinecraftProfile } from "./agent/minecraft/profile.ts";
+import { McSubBrainManager } from "./agent/minecraft/sub-brain-manager.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";

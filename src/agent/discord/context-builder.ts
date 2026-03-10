@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { ContextBuilderPort, LtmFactReader, McStatusProvider } from "../core/types.ts";
+import type { ContextBuilderPort, LtmFactReader, McStatusProvider } from "../../core/types.ts";
 
 const GUILD_ID_REGEX = /^\d+$/;
 

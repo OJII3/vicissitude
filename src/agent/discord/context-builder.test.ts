@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import type { LtmFact, LtmFactReader } from "../core/types.ts";
+import type { LtmFact, LtmFactReader } from "../../core/types.ts";
 import { ContextBuilder } from "./context-builder.ts";
 
 // ─── ヘルパー ────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import { MinecraftContextBuilder } from "./minecraft-context-builder.ts";
+import { MinecraftContextBuilder } from "./context-builder.ts";
 
 function createTmpDirs(): { baseDir: string; overlayDir: string } {
 	const baseDir = mkdtempSync(join(os.tmpdir(), "mc-ctx-base-"));

@@ -1,16 +1,16 @@
 /* oxlint-disable max-dependencies -- manager requires multiple DI dependencies */
 import { resolve } from "path";
 
-import { MC_SUB_BRAIN_GUILD_ID } from "../core/constants.ts";
-import type { Logger, OpencodeSessionPort } from "../core/types.ts";
-import type { StoreDb } from "../store/db.ts";
-import { clearSessionLock, consumeBridgeEventsByType } from "../store/mc-bridge.ts";
-import { MinecraftEventBuffer } from "../store/mc-sub-event-buffer.ts";
-import { mcpMinecraftSubBrainConfigs } from "./mcp-config.ts";
-import { MinecraftContextBuilder } from "./minecraft-context-builder.ts";
-import { createMinecraftProfile } from "./profiles/minecraft.ts";
-import { AgentRunner } from "./runner.ts";
-import type { SessionStore } from "./session-store.ts";
+import { MC_SUB_BRAIN_GUILD_ID } from "../../core/constants.ts";
+import type { Logger, OpencodeSessionPort } from "../../core/types.ts";
+import type { StoreDb } from "../../store/db.ts";
+import { clearSessionLock, consumeBridgeEventsByType } from "../../store/mc-bridge.ts";
+import { MinecraftEventBuffer } from "../../store/mc-sub-event-buffer.ts";
+import { mcpMinecraftSubBrainConfigs } from "../mcp-config.ts";
+import { AgentRunner } from "../runner.ts";
+import type { SessionStore } from "../session-store.ts";
+import { MinecraftContextBuilder } from "./context-builder.ts";
+import { createMinecraftProfile } from "./profile.ts";
 
 const MC_LIFECYCLE_POLL_MS = 10_000;
 
