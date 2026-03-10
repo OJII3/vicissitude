@@ -81,9 +81,13 @@ src/
 │   ├── logger.ts            # ConsoleLogger（NDJSON 構造化ログ）
 │   └── metrics.ts           # PrometheusCollector + Server + InstrumentedAiAgent
 │
+├── opencode/                # OpenCode SDK 抽象化（Port/Adapter）
+│   ├── session-port.ts      # OpencodeSessionPort インターフェース
+│   └── session-adapter.ts   # OpencodeSessionAdapter（SDK 依存はここに集約）
+│
 ├── fenghuang/               # fenghuang LTM アダプタ
 │   ├── composite-llm-adapter.ts       # CompositeLLMAdapter（chat + embed の合成）
-│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpenCode SDK 経由）
+│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpencodeSessionPort 経由）
 │   ├── fenghuang-conversation-recorder.ts  # FenghuangConversationRecorder（会話記録 + 統合）
 │   └── fenghuang-fact-reader.ts       # FenghuangFactReader（SQLite 読み取り専用）
 │
@@ -103,7 +107,7 @@ src/
 ### 4.2 agent/ — OpenCode エージェント基盤
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
-- `runner.ts`: `AgentRunner` — `AgentProfile` を受け取って `promptAsync()` でポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
+- `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取ってポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
 - `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
 - `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
@@ -151,18 +155,23 @@ MCP サーバーは 4 プロセス構成:
 - `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
 - `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent` + `METRIC` 定数
 
-### 4.7 fenghuang/ — LTM アダプタ
+### 4.7 opencode/ — OpenCode SDK 抽象化
+
+- `session-port.ts`: `OpencodeSessionPort` — OpenCode SDK のセッション操作を抽象化する Port インターフェース。`createSession`, `prompt`, `promptAsync`, `waitForSessionIdle`, `deleteSession` 等を定義
+- `session-adapter.ts`: `OpencodeSessionAdapter` — `@opencode-ai/sdk/v2` の `createOpencode` を使う唯一のファイル。遅延初期化パターンで、最初のメソッド呼び出し時にサーバープロセスを起動
+
+### 4.8 fenghuang/ — LTM アダプタ
 
 - `composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲
-- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って fenghuang の LLMPort 用 chat/chatStructured を提供
+- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — `OpencodeSessionPort` 経由で fenghuang の LLMPort 用 chat/chatStructured を提供
 - `fenghuang-conversation-recorder.ts`: `FenghuangConversationRecorder` — Guild ごとの会話記録 + メモリ統合。`ConversationRecorder` + `MemoryConsolidator` インターフェースを実装
 - `fenghuang-fact-reader.ts`: `FenghuangFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得。WAL モードで安全に同時アクセス
 
-### 4.8 ollama/ — 埋め込みアダプタ
+### 4.9 ollama/ — 埋め込みアダプタ
 
 - `ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得（30 秒タイムアウト）
 
-### 4.9 bootstrap.ts — DI 配線
+### 4.10 bootstrap.ts — DI 配線
 
 - `bootstrap()` — DI 配線のエントリポイント
 - 全モジュールをインスタンス化し、イベントハンドラをバインド

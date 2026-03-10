@@ -52,6 +52,7 @@ src/
 │   └── tools/          # ツール定義
 ├── store/              # SQLite 統一永続化（Drizzle ORM）
 ├── observability/      # ログ + メトリクス
+├── opencode/           # OpenCode SDK 抽象化（Port/Adapter）
 ├── fenghuang/          # fenghuang LTM アダプタ
 ├── ollama/             # Ollama 埋め込みアダプタ
 ├── bootstrap.ts        # DI 配線エントリポイント
