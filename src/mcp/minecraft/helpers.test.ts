@@ -118,4 +118,14 @@ describe("formatActionState", () => {
 				progress: "緊急シェルター構築中",
 			}),
 		).toBe("避難場所 へ避難中 (緊急シェルター構築中)"));
+	test("attacking", () =>
+		expect(formatActionState({ type: "attacking", target: "zombie" })).toBe("zombie を攻撃中"));
+	test("attacking with progress", () =>
+		expect(
+			formatActionState({
+				type: "attacking",
+				target: "zombie",
+				progress: "3/20 攻撃 (武器: iron_sword)",
+			}),
+		).toBe("zombie を攻撃中 (3/20 攻撃 (武器: iron_sword))"));
 });

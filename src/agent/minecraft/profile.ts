@@ -15,9 +15,10 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 ## 優先度ルール
 
 ### P0（即座に対応 — 生存本能）
-- hostile mob が **8ブロック以内**: flee_from_entity で逃走
-- **クリーパー・ウォーデン**が **16ブロック以内**: flee_from_entity で逃走
-- 体力 **6以下**: eat_food → 安全な場所へ退避（find_shelter）、戦闘絶対回避
+- 体力 **6以下**: eat_food → 安全な場所へ退避（find_shelter）、戦闘絶対回避（体力6以下では絶対に attack_entity を使わない）
+- **クリーパー**が **16ブロック以内**: flee_from_entity で逃走（爆発するため攻撃不可）
+- **ウォーデン**が **16ブロック以内**: flee_from_entity で逃走（強すぎるため攻撃不可）
+- hostile mob が **8ブロック以内**: flee_from_entity で逃走。ただし逃走失敗・逃走不能時は attack_entity で反撃
 - 空腹度 **0**: eat_food で即座に食事
 
 ### P1（早急に対応）
@@ -32,6 +33,7 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 
 ### P3（自主行動 — 目標駆動）
 - mc_read_goals で現在の目標を確認
+- 食料が少ない場合（食料アイテム3個以下）: passive mob（cow, pig, sheep, chicken）を attack_entity で狩って食料を確保
 - 目標があれば: 目標に向かって段階的にアクションを実行
 - 目標がなければ: 以下の tech tree から次の目標を自動設定
   - 木のツール → 石のツール → 鉄のツール → ダイヤのツール
