@@ -61,9 +61,9 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 				const item = inventory.find((i) => i.name === foodName);
 				if (!item) continue;
 
-				// eslint-disable-next-line no-await-in-loop -- 最初に見つかった食料で即 return
+				// oxlint-disable-next-line no-await-in-loop -- 最初に見つかった食料で即 return
 				await bot.equip(item, "hand");
-				// eslint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
+				// oxlint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
 				await bot.consume();
 				return textResult(`${foodName} を食べました（空腹度: ${String(bot.food)}/20）`);
 			}
@@ -125,9 +125,9 @@ async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Pr
 		if (block.hardness < 0) break;
 		const tool = bot.pathfinder.bestHarvestTool(block);
 		try {
-			// eslint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
+			// oxlint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
 			if (tool) await bot.equip(tool, "hand");
-			// eslint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
+			// oxlint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
 			await bot.dig(block);
 		} catch {
 			break;

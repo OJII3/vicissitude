@@ -21,6 +21,8 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: true,
 			},
+			// config.minecraft 未設定時でも含める（AI が <minecraft-status> セクション不在を見て何もしない）。
+			// heartbeat-config.json に永続化されるため、条件付き追加は設定の不整合を招く。
 			{
 				id: "mc-check",
 				description:

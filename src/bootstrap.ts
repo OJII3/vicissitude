@@ -409,6 +409,7 @@ export async function bootstrap(): Promise<void> {
 			sessionStore,
 			logger,
 			root,
+			// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
 			port: config.opencode.basePort + guildIds.length,
 			providerId: config.mcSubBrain.providerId,
 			modelId: config.mcSubBrain.modelId,

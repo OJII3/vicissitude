@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { StoreDb } from "../../store/db.ts";
 import type { BridgeEvent } from "../../store/mc-bridge.ts";
 import {
-	consumeBridgeEvents,
+	consumeBridgeEventsByType,
 	insertBridgeEvent,
 	peekBridgeEvents,
 	releaseSessionLockAndStop,
@@ -68,7 +68,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 		"Minecraft サブブレインからのレポートを消費して読む。",
 		{},
 		() => {
-			const events = consumeBridgeEvents(db, "to_main");
+			const events = consumeBridgeEventsByType(db, "to_main", "report");
 			if (events.length === 0) {
 				return {
 					content: [{ type: "text" as const, text: "新しいレポートはありません。" }],
@@ -160,7 +160,7 @@ export function registerSubBrainBridgeTools(server: McpServer, deps: { db: Store
 	);
 
 	server.tool("mc_read_commands", "メインブレインからの指示を消費して読む。", {}, () => {
-		const events = consumeBridgeEvents(db, "to_sub");
+		const events = consumeBridgeEventsByType(db, "to_sub", "command");
 		if (events.length === 0) {
 			return {
 				content: [{ type: "text" as const, text: "新しい指示はありません。" }],
