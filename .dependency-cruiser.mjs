@@ -1,5 +1,5 @@
 /** @type {import('dependency-cruiser').IConfiguration} */
-module.exports = {
+const config = {
 	options: {
 		doNotFollow: {
 			path: "node_modules",
@@ -10,3 +10,5 @@ module.exports = {
 		},
 	},
 };
+
+export default config;
