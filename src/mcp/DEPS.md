@@ -127,6 +127,7 @@ graph LR
 ### minecraft/bot-context.ts
 
 - モジュール内依存: minecraft/helpers
+- 他モジュール依存: core/, observability/
 - 外部依存: mineflayer
 
 ### minecraft/bot-queries.ts
@@ -145,6 +146,7 @@ graph LR
 ### minecraft/job-manager.ts
 
 - モジュール内依存: minecraft/helpers
+- 他モジュール依存: core/, observability/
 
 ### minecraft/mc-bridge-server.ts
 
@@ -155,11 +157,13 @@ graph LR
 ### minecraft/mcp-tools.ts
 
 - モジュール内依存: minecraft/actions/index, minecraft/bot-context, minecraft/bot-queries, minecraft/job-manager, minecraft/state-summary
+- 他モジュール依存: core/, observability/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### minecraft/server.ts
 
 - モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mcp-tools
+- 他モジュール依存: observability/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/state-summary.ts

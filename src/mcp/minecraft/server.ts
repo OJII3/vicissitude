@@ -1,5 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { ConsoleLogger } from "../../observability/logger.ts";
+import { PrometheusCollector, PrometheusServer, METRIC } from "../../observability/metrics.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
 import { startHttpServer } from "./http-server.ts";
@@ -33,8 +35,18 @@ if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 }
 const MC_MCP_PORT = mcpPortRaw;
 
+// ── Metrics ───────────────────────────────────────────────────────────────────
+const mcMetricsPort = Number(process.env.MC_METRICS_PORT) || 9092;
+const mcLogger = new ConsoleLogger();
+const mcCollector = new PrometheusCollector();
+mcCollector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
+mcCollector.registerCounter(METRIC.MC_BOT_EVENTS, "Minecraft bot events total");
+mcCollector.registerCounter(METRIC.MC_MCP_TOOL_CALLS, "Minecraft MCP tool calls total");
+const mcMetricsServer = new PrometheusServer(mcCollector, mcLogger, mcMetricsPort);
+mcMetricsServer.start();
+
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-const ctx = createBotContext();
+const ctx = createBotContext(mcCollector);
 const connection = createBotConnection(
 	{
 		host: MC_HOST,
@@ -46,11 +58,11 @@ const connection = createBotConnection(
 	ctx,
 );
 
-const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState);
+const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState, mcCollector);
 
 function createServer(): McpServer {
 	const server = new McpServer({ name: "minecraft", version: "0.1.0" });
-	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT);
+	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT, mcCollector);
 	return server;
 }
 
@@ -61,6 +73,7 @@ connection.start();
 const shutdown = (): void => {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
+	mcMetricsServer.stop();
 	connection.shutdown();
 	process.exit(0);
 };

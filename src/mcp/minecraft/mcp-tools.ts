@@ -1,6 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "../../observability/metrics.ts";
 import { registerActionTools } from "./actions/index.ts";
 import type { BotContext } from "./bot-context.ts";
 import {
@@ -107,15 +109,42 @@ function registerViewerUrlTool(server: McpServer, ctx: BotContext, viewerPort: n
 	});
 }
 
+/**
+ * server.tool() 呼び出しをインターセプトし、各ツールのハンドラ実行時にメトリクスを記録する
+ * Proxy を使って McpServer を薄くラップすることで、個々のツール登録関数を変更せずに全ツールを計測できる
+ */
+function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): McpServer {
+	return new Proxy(server, {
+		get(target, prop, receiver) {
+			if (prop !== "tool") return Reflect.get(target, prop, receiver);
+			// oxlint-disable-next-line no-explicit-any -- McpServer.tool() は複数オーバーロードを持つため any で受ける
+			return (name: string, ...args: any[]) => {
+				const lastIdx = args.length - 1;
+				const originalHandler = args[lastIdx];
+				if (typeof originalHandler === "function") {
+					// oxlint-disable-next-line no-explicit-any -- handler の引数型はオーバーロードごとに異なる
+					args[lastIdx] = (...handlerArgs: any[]) => {
+						metrics.incrementCounter(METRIC.MC_MCP_TOOL_CALLS, { tool: name });
+						return originalHandler(...handlerArgs);
+					};
+				}
+				return (target.tool as Function).call(target, name, ...args);
+			};
+		},
+	});
+}
+
 export function registerMinecraftTools(
 	server: McpServer,
 	ctx: BotContext,
 	jobManager: JobManager,
 	viewerPort: number,
+	metrics?: MetricsCollector,
 ): void {
-	registerObserveStateTool(server, ctx);
-	registerRecentEventsTool(server, ctx);
-	registerActionTools(server, () => ctx.getBot(), jobManager);
-	registerJobStatusTool(server, jobManager);
-	registerViewerUrlTool(server, ctx, viewerPort);
+	const s = metrics ? wrapServerWithMetrics(server, metrics) : server;
+	registerObserveStateTool(s, ctx);
+	registerRecentEventsTool(s, ctx);
+	registerActionTools(s, () => ctx.getBot(), jobManager);
+	registerJobStatusTool(s, jobManager);
+	registerViewerUrlTool(s, ctx, viewerPort);
 }

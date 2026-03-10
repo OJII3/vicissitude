@@ -18,6 +18,7 @@ graph LR
   mcp --> core
   mcp --> fenghuang
   mcp --> gateway
+  mcp --> observability
   mcp --> ollama
   mcp --> opencode
   mcp --> store
@@ -57,7 +58,7 @@ graph LR
 
 ### mcp/
 
-- 内部依存: core/, fenghuang/, gateway/, ollama/, opencode/, store/
+- 内部依存: core/, fenghuang/, gateway/, observability/, ollama/, opencode/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fenghuang, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
 - ファイル数: 30
 

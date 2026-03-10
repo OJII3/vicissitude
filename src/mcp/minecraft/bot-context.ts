@@ -1,5 +1,7 @@
 import type mineflayer from "mineflayer";
 
+import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "../../observability/metrics.ts";
 import type { ActionState, Importance } from "./helpers.ts";
 
 export interface BotEvent {
@@ -20,7 +22,9 @@ export interface BotContext {
 	setActionState(state: ActionState): void;
 }
 
-export function createBotContext(): BotContext {
+const BOT_EVENT_KINDS = new Set(["spawn", "death", "kicked", "disconnect"]);
+
+export function createBotContext(metrics?: MetricsCollector): BotContext {
 	let bot: mineflayer.Bot | null = null;
 	const events: BotEvent[] = [];
 	const actionState: ActionState = { type: "idle" };
@@ -34,6 +38,9 @@ export function createBotContext(): BotContext {
 		pushEvent: (kind, description, importance) => {
 			events.push({ timestamp: new Date().toISOString(), kind, description, importance });
 			if (events.length > MAX_EVENTS) events.shift();
+			if (metrics && BOT_EVENT_KINDS.has(kind)) {
+				metrics.incrementCounter(METRIC.MC_BOT_EVENTS, { kind });
+			}
 		},
 		getActionState: () => actionState,
 		setActionState: (state) => {
