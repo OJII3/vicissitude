@@ -50,6 +50,17 @@ describe("McSubBrainManager", () => {
 		expect(result).toEqual({ ok: true });
 	});
 
+	test("start() logs lifecycle polling started", () => {
+		manager.start();
+
+		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
+		const pollingStartedLog = infoCalls.some(
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("lifecycle polling started"),
+		);
+		expect(pollingStartedLog).toBe(true);
+	});
+
 	test("stop() is safe to call without start()", async () => {
 		await expect(manager.stop()).resolves.toBeUndefined();
 	});
