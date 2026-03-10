@@ -1,4 +1,32 @@
-import type { DueReminder, HeartbeatConfig } from "./types.ts";
+import { METRIC } from "./constants.ts";
+import type { DueReminder, HeartbeatConfig, MetricsCollector, TokenUsage } from "./types.ts";
+
+// ─── labelsToKey ─────────────────────────────────────────────────
+
+/** Prometheus ラベルを `{k1="v1",k2="v2"}` 形式のキーに変換する */
+export function labelsToKey(labels: Record<string, string>): string {
+	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
+	if (entries.length === 0) return "";
+	return `{${entries.map(([k, v]) => `${k}="${escapeLabel(v)}"`).join(",")}}`;
+}
+
+/** Prometheus テキストフォーマット用のラベル値エスケープ */
+function escapeLabel(value: string): string {
+	return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"').replaceAll("\n", "\\n");
+}
+
+// ─── Token Metrics Helper ───────────────────────────────────────
+
+export function recordTokenMetrics(
+	metrics: MetricsCollector,
+	tokens: TokenUsage,
+	labels: Record<string, string>,
+): void {
+	if (tokens.input > 0) metrics.addCounter(METRIC.LLM_INPUT_TOKENS, tokens.input, labels);
+	if (tokens.output > 0) metrics.addCounter(METRIC.LLM_OUTPUT_TOKENS, tokens.output, labels);
+	if (tokens.cacheRead > 0)
+		metrics.addCounter(METRIC.LLM_CACHE_READ_TOKENS, tokens.cacheRead, labels);
+}
 
 // ─── createDefaultHeartbeatConfig ────────────────────────────────
 

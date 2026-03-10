@@ -3,6 +3,7 @@
 export interface AgentResponse {
 	text: string;
 	sessionId: string;
+	tokens?: TokenUsage;
 }
 
 // ─── Attachment ──────────────────────────────────────────────────
@@ -122,10 +123,26 @@ export interface LtmFact {
 	createdAt: string;
 }
 
+// ─── Token Usage ────────────────────────────────────────────────
+
+export interface TokenUsage {
+	input: number;
+	output: number;
+	cacheRead: number;
+}
+
+// ─── Prompt Result ──────────────────────────────────────────────
+
+export interface PromptResult {
+	text: string;
+	tokens?: TokenUsage;
+}
+
 // ─── Metrics Collector ───────────────────────────────────────────
 
 export interface MetricsCollector {
 	incrementCounter(name: string, labels?: Record<string, string>): void;
+	addCounter(name: string, value: number, labels?: Record<string, string>): void;
 	setGauge(name: string, value: number, labels?: Record<string, string>): void;
 	incrementGauge(name: string, labels?: Record<string, string>): void;
 	decrementGauge(name: string, labels?: Record<string, string>): void;
@@ -205,7 +222,7 @@ export interface OpencodePromptParams {
 }
 
 export type OpencodeSessionEvent =
-	| { type: "idle" }
+	| { type: "idle"; tokens?: TokenUsage }
 	| { type: "compacted" }
 	| { type: "cancelled" }
 	| { type: "error"; message: string };
@@ -213,7 +230,7 @@ export type OpencodeSessionEvent =
 export interface OpencodeSessionPort {
 	createSession(title: string): Promise<string>;
 	sessionExists(sessionId: string): Promise<boolean>;
-	prompt(params: OpencodePromptParams): Promise<string>;
+	prompt(params: OpencodePromptParams): Promise<PromptResult>;
 	promptAsync(params: OpencodePromptParams): Promise<void>;
 	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
 	deleteSession(sessionId: string): Promise<void>;

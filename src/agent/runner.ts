@@ -1,9 +1,11 @@
+import { recordTokenMetrics } from "../core/functions.ts";
 import type {
 	AgentResponse,
 	AiAgent,
 	ContextBuilderPort,
 	EventBuffer,
 	Logger,
+	MetricsCollector,
 	OpencodeSessionPort,
 	SendOptions,
 } from "../core/types.ts";
@@ -22,6 +24,7 @@ export interface RunnerDeps {
 	sessionPort: OpencodeSessionPort;
 	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
+	metrics?: MetricsCollector;
 }
 
 export class AgentRunner implements AiAgent {
@@ -37,6 +40,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionPort: OpencodeSessionPort;
 	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
+	private readonly metrics?: MetricsCollector;
 
 	constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
@@ -47,6 +51,7 @@ export class AgentRunner implements AiAgent {
 		this.sessionPort = deps.sessionPort;
 		this.eventBuffer = deps.eventBuffer;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
+		this.metrics = deps.metrics;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -142,6 +147,12 @@ export class AgentRunner implements AiAgent {
 			// abort による中断、ログ不要
 		} else if (event.type === "idle") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session went idle, will restart`);
+			if (event.tokens && this.metrics) {
+				recordTokenMetrics(this.metrics, event.tokens, {
+					agent_type: "polling",
+					trigger: "polling",
+				});
+			}
 		} else if (event.type === "compacted") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
 		} else if (event.type === "error") {

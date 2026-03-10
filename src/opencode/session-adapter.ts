@@ -1,6 +1,7 @@
 import {
 	createOpencode,
 	type Event,
+	type EventMessageUpdated,
 	type EventSessionCompacted,
 	type EventSessionError,
 	type EventSessionIdle,
@@ -14,6 +15,8 @@ import type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
+	PromptResult,
+	TokenUsage,
 } from "../core/types.ts";
 
 export interface OpencodeSessionAdapterConfig {
@@ -46,7 +49,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return !result.error && !!result.data;
 	}
 
-	async prompt(params: OpencodePromptParams): Promise<string> {
+	async prompt(params: OpencodePromptParams): Promise<PromptResult> {
 		const oc = await this.getClient();
 		const result = await oc.session.prompt({
 			sessionID: params.sessionId,
@@ -58,7 +61,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		if (result.error || !result.data) {
 			throw new Error(`Prompt failed: ${JSON.stringify(result.error)}`);
 		}
-		return extractText(result.data.parts);
+		const text = extractText(result.data.parts);
+		const tokens = extractTokens(result.data.info);
+		return { text, tokens };
 	}
 
 	async promptAsync(params: OpencodePromptParams): Promise<void> {
@@ -77,30 +82,13 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	async waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent> {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();
+		const tokensByMessage = new Map<string, TokenUsage>();
 
 		try {
 			for await (const event of stream) {
 				if (signal?.aborted) return { type: "cancelled" };
-
-				const typed = event as Event;
-				if (typed.type === "session.idle") {
-					const idle = typed as EventSessionIdle;
-					if (idle.properties.sessionID === sessionId) {
-						return { type: "idle" };
-					}
-				}
-				if (typed.type === "session.compacted") {
-					const compacted = typed as EventSessionCompacted;
-					if (compacted.properties.sessionID === sessionId) {
-						return { type: "compacted" };
-					}
-				}
-				if (typed.type === "session.error") {
-					const err = typed as EventSessionError;
-					if (err.properties.sessionID === sessionId) {
-						return { type: "error", message: JSON.stringify(err.properties) };
-					}
-				}
+				const result = classifyEvent(event as Event, sessionId, tokensByMessage);
+				if (result) return result;
 			}
 		} finally {
 			// oxlint-disable-next-line no-useless-undefined -- AsyncIterator.return requires an argument
@@ -138,9 +126,78 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	}
 }
 
+/** イベントを分類し、セッション終了イベントなら OpencodeSessionEvent を返す */
+function classifyEvent(
+	typed: Event,
+	sessionId: string,
+	tokensByMessage: Map<string, TokenUsage>,
+): OpencodeSessionEvent | null {
+	if (typed.type === "message.updated") {
+		accumulateTokens(typed as EventMessageUpdated, sessionId, tokensByMessage);
+		return null;
+	}
+	if (typed.type === "session.idle") {
+		const idle = typed as EventSessionIdle;
+		if (idle.properties.sessionID === sessionId) {
+			return { type: "idle", tokens: sumTokens(tokensByMessage) };
+		}
+	}
+	if (typed.type === "session.compacted") {
+		const compacted = typed as EventSessionCompacted;
+		if (compacted.properties.sessionID === sessionId) return { type: "compacted" };
+	}
+	if (typed.type === "session.error") {
+		const err = typed as EventSessionError;
+		if (err.properties.sessionID === sessionId) {
+			return { type: "error", message: JSON.stringify(err.properties) };
+		}
+	}
+	return null;
+}
+
+/** message.updated イベントから AssistantMessage のトークンを蓄積する（対象セッションのみ） */
+function accumulateTokens(
+	typed: EventMessageUpdated,
+	sessionId: string,
+	tokensByMessage: Map<string, TokenUsage>,
+): void {
+	const info = typed.properties.info;
+	if (info.role === "assistant" && info.sessionID === sessionId) {
+		tokensByMessage.set(info.id, {
+			input: info.tokens.input,
+			output: info.tokens.output,
+			cacheRead: info.tokens.cache?.read ?? 0,
+		});
+	}
+}
+
 function extractText(parts: Part[]): string {
 	return parts
 		.filter((p): p is Part & { type: "text" } => p.type === "text")
 		.map((p) => p.text)
 		.join("");
+}
+
+function extractTokens(info: {
+	tokens?: { input: number; output: number; cache?: { read: number } };
+}): TokenUsage | undefined {
+	if (!info.tokens) return undefined;
+	return {
+		input: info.tokens.input,
+		output: info.tokens.output,
+		cacheRead: info.tokens.cache?.read ?? 0,
+	};
+}
+
+function sumTokens(tokensByMessage: Map<string, TokenUsage>): TokenUsage | undefined {
+	if (tokensByMessage.size === 0) return undefined;
+	let input = 0;
+	let output = 0;
+	let cacheRead = 0;
+	for (const t of tokensByMessage.values()) {
+		input += t.input;
+		output += t.output;
+		cacheRead += t.cacheRead;
+	}
+	return { input, output, cacheRead };
 }

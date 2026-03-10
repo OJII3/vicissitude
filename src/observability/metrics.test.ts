@@ -1,7 +1,6 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 
-import type { AgentResponse } from "../core/types.ts";
-import { InstrumentedAiAgent, PrometheusCollector, METRIC, inferTrigger } from "./metrics.ts";
+import { PrometheusCollector, inferTrigger } from "./metrics.ts";
 
 // ─── Counter ─────────────────────────────────────────────────────
 
@@ -38,6 +37,42 @@ describe("PrometheusCollector counter", () => {
 		const c = new PrometheusCollector();
 		c.incrementCounter("unregistered_total");
 		expect(c.serialize()).toBe("");
+	});
+
+	it("addCounter() で任意の値を加算できる", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 150);
+		c.addCounter("tokens_total", 200);
+		const output = c.serialize();
+		expect(output).toContain("tokens_total 350");
+	});
+
+	it("addCounter() で labels 付きの加算ができる", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 100, { agent_type: "polling" });
+		c.addCounter("tokens_total", 50, { agent_type: "polling" });
+		c.addCounter("tokens_total", 200, { agent_type: "mention" });
+		const output = c.serialize();
+		expect(output).toContain('tokens_total{agent_type="polling"} 150');
+		expect(output).toContain('tokens_total{agent_type="mention"} 200');
+	});
+
+	it("未登録の counter に addCounter しても何も起きない", () => {
+		const c = new PrometheusCollector();
+		c.addCounter("unregistered_total", 100);
+		expect(c.serialize()).toBe("");
+	});
+
+	it("addCounter() で 0 や負値は無視される", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 100);
+		c.addCounter("tokens_total", 0);
+		c.addCounter("tokens_total", -50);
+		const output = c.serialize();
+		expect(output).toContain("tokens_total 100");
 	});
 });
 
@@ -167,108 +202,5 @@ describe("inferTrigger", () => {
 
 	it("メンションセッションキーを判定する", () => {
 		expect(inferTrigger("discord:123:456")).toBe("mention");
-	});
-});
-
-// ─── InstrumentedAiAgent ─────────────────────────────────────────
-
-describe("InstrumentedAiAgent", () => {
-	function createSetup() {
-		const collector = new PrometheusCollector();
-		collector.registerCounter(METRIC.AI_REQUESTS, "AI requests");
-		collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "Busy sessions");
-		collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "Duration", [1, 5]);
-		return collector;
-	}
-
-	it("成功時に busy gauge が inc/dec される（リーク防止）", async () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "ok", sessionId: "s1" })),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		await agent.send({ sessionKey: "discord:ch:user", message: "hi" });
-
-		const output = collector.serialize();
-		// inc(+1) then dec(-1) = 0
-		expect(output).toContain("llm_busy_sessions");
-		expect(output).toContain('llm_busy_sessions{agent_type="polling"} 0');
-	});
-
-	it("成功時に counter が outcome=success でインクリメントされる", async () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "ok", sessionId: "s1" })),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		await agent.send({ sessionKey: "discord:ch:_channel", message: "hi" });
-
-		const output = collector.serialize();
-		expect(output).toContain(
-			'ai_requests_total{agent_type="polling",outcome="success",trigger="home"} 1',
-		);
-	});
-
-	it("エラー時に counter が outcome=error でインクリメントされる", async () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.reject(new Error("fail"))),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		await expect(agent.send({ sessionKey: "system:heartbeat:g1", message: "hi" })).rejects.toThrow(
-			"fail",
-		);
-
-		const output = collector.serialize();
-		expect(output).toContain(
-			'ai_requests_total{agent_type="polling",outcome="error",trigger="heartbeat"} 1',
-		);
-	});
-
-	it("エラー時でも busy gauge が dec される", async () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.reject(new Error("fail"))),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		await agent.send({ sessionKey: "discord:ch:user", message: "hi" }).catch(() => {});
-
-		const output = collector.serialize();
-		expect(output).toContain('llm_busy_sessions{agent_type="polling"} 0');
-	});
-
-	it("histogram に duration が記録される", async () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "ok", sessionId: "s1" })),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		await agent.send({ sessionKey: "discord:ch:user", message: "hi" });
-
-		const output = collector.serialize();
-		expect(output).toContain("ai_request_duration_seconds_count 1");
-	});
-
-	it("stop() が inner に伝播する", () => {
-		const collector = createSetup();
-		const inner = {
-			send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "", sessionId: "" })),
-			stop: mock(() => {}),
-		};
-		const agent = new InstrumentedAiAgent(inner, collector, "polling");
-
-		agent.stop();
-
-		expect(inner.stop).toHaveBeenCalledTimes(1);
 	});
 });

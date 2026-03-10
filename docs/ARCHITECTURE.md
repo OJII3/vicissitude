@@ -35,7 +35,7 @@ src/
 ├── core/                    # 型定義・設定・純粋関数（外部依存なし）
 │   ├── types.ts             # 型定義、値オブジェクト、インターフェース（OpencodeSessionPort 含む）
 │   ├── config.ts            # Zod スキーマによる設定バリデーション
-│   ├── constants.ts         # 共有定数（MC_BRAIN_GUILD_ID, OPENCODE_ALL_TOOLS_DISABLED）
+│   ├── constants.ts         # 共有定数（MC_BRAIN_GUILD_ID, METRIC, OPENCODE_ALL_TOOLS_DISABLED）
 │   └── functions.ts         # splitMessage, evaluateDueReminders 等
 │
 ├── agent/                   # OpenCode エージェント基盤
@@ -70,6 +70,7 @@ src/
 │   ├── memory-helpers.ts    # メモリツール用ヘルパー関数
 │   ├── minecraft/           # Minecraft（StreamableHTTP、MC_HOST 設定時のみ）+ ブリッジ MCP
 │   │   ├── mc-bridge-server.ts # Minecraft ブリッジ MCP サーバー（mc-bridge + mc-memory）
+│   │   ├── mc-metrics.ts    # MC プロセス専用 McMetricsCollector + Prometheus サーバー
 │   │   └── ...
 │   └── tools/               # ツール定義（registerXxxTools 関数）
 │       ├── discord.ts
@@ -115,8 +116,8 @@ src/
 
 - `types.ts`: 全エンティティ型、インターフェース（`OpencodeSessionPort`, `ConversationRecorder`, `MemoryConsolidator`, `LtmFactReader` 等）
 - `config.ts`: Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す。`coreMcpPort` を含む
-- `constants.ts`: 共有定数（`MC_BRAIN_GUILD_ID`, `OPENCODE_ALL_TOOLS_DISABLED`）
-- `functions.ts`: `splitMessage()`, `evaluateDueReminders()` 等の純粋関数
+- `constants.ts`: 共有定数（`MC_BRAIN_GUILD_ID`, `METRIC`, `OPENCODE_ALL_TOOLS_DISABLED`）
+- `functions.ts`: `splitMessage()`, `evaluateDueReminders()`, `labelsToKey()`, `recordTokenMetrics()` 等の純粋関数
 
 ### 4.2 agent/ — OpenCode エージェント基盤
 
@@ -174,7 +175,31 @@ MCP サーバーは 4 プロセス構成:
 ### 4.7 observability/ — ログ・メトリクス
 
 - `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
-- `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent` + `METRIC` 定数
+- `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent`（`METRIC` は `core/constants.ts` から re-export）
+
+メトリクス一覧（17個）:
+
+| 名前                                      | 型        | ラベル                             | 説明                                               |
+| ----------------------------------------- | --------- | ---------------------------------- | -------------------------------------------------- |
+| `discord_messages_received_total`         | Counter   | `channel_type`                     | Discord メッセージ受信数                           |
+| `ai_requests_total`                       | Counter   | `agent_type`, `trigger`, `outcome` | AI リクエスト数                                    |
+| `heartbeat_ticks_total`                   | Counter   | `outcome`                          | Heartbeat tick 数                                  |
+| `heartbeat_reminders_executed_total`      | Counter   | —                                  | Heartbeat リマインダー実行数                       |
+| `bot_info`                                | Gauge     | `bot_name`                         | Bot 情報                                           |
+| `ai_request_duration_seconds`             | Histogram | —                                  | AI リクエスト所要時間                              |
+| `heartbeat_tick_duration_seconds`         | Histogram | —                                  | Heartbeat tick 所要時間                            |
+| `llm_active_sessions`                     | Gauge     | —                                  | アクティブ LLM セッション数                        |
+| `llm_busy_sessions`                       | Gauge     | `agent_type`                       | 処理中 LLM セッション数                            |
+| `ltm_consolidation_ticks_total`           | Counter   | `outcome`                          | LTM 統合 tick 数                                   |
+| `ltm_consolidation_tick_duration_seconds` | Histogram | —                                  | LTM 統合 tick 所要時間                             |
+| `llm_input_tokens_total`                  | Counter   | `agent_type`, `trigger`            | LLM 入力トークン累計                               |
+| `llm_output_tokens_total`                 | Counter   | `agent_type`, `trigger`            | LLM 出力トークン累計                               |
+| `llm_cache_read_tokens_total`             | Counter   | `agent_type`, `trigger`            | LLM キャッシュ読取トークン累計                     |
+| `mc_jobs_total`                           | Counter   | `type`, `status`                   | MC ジョブ完了/失敗/キャンセル数                    |
+| `mc_bot_events_total`                     | Counter   | `kind`                             | MC ボットイベント（spawn/death/kicked/disconnect） |
+| `mc_mcp_tool_calls_total`                 | Counter   | `tool`                             | MC MCP ツール呼び出し数                            |
+
+トークンメトリクスはメインプロセス（ポート 9091）、MC メトリクスは MC MCP プロセス（ポート 9092、`MC_METRICS_PORT` で変更可）で公開される。
 
 ### 4.8 opencode/ — OpenCode SDK 抽象化
 
@@ -221,6 +246,7 @@ MCP サーバーは 4 プロセス構成:
 
 - `text: string`
 - `sessionId: string`
+- `tokens?: TokenUsage` — トークン使用量（`{ input, output, cacheRead }`）
 
 ### SessionKey
 

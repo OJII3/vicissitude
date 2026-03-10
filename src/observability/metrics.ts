@@ -1,4 +1,6 @@
 /* oxlint-disable max-classes-per-file -- metrics module consolidates related classes */
+import { METRIC } from "../core/constants.ts";
+import { labelsToKey, recordTokenMetrics } from "../core/functions.ts";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -7,21 +9,7 @@ import type {
 	SendOptions,
 } from "../core/types.ts";
 
-// ─── Metric Names ───────────────────────────────────────────────
-
-export const METRIC = {
-	DISCORD_MESSAGES_RECEIVED: "discord_messages_received_total",
-	AI_REQUESTS: "ai_requests_total",
-	HEARTBEAT_TICKS: "heartbeat_ticks_total",
-	HEARTBEAT_REMINDERS_EXECUTED: "heartbeat_reminders_executed_total",
-	BOT_INFO: "bot_info",
-	AI_REQUEST_DURATION: "ai_request_duration_seconds",
-	HEARTBEAT_TICK_DURATION: "heartbeat_tick_duration_seconds",
-	LLM_ACTIVE_SESSIONS: "llm_active_sessions",
-	LLM_BUSY_SESSIONS: "llm_busy_sessions",
-	LTM_CONSOLIDATION_TICKS: "ltm_consolidation_ticks_total",
-	LTM_CONSOLIDATION_TICK_DURATION: "ltm_consolidation_tick_duration_seconds",
-} as const;
+export { METRIC } from "../core/constants.ts";
 
 // ─── Prometheus Collector ───────────────────────────────────────
 
@@ -35,12 +23,6 @@ interface HistogramConfig {
 }
 
 const DEFAULT_DURATION_BUCKETS = [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120];
-
-function labelsToKey(labels: Record<string, string>): string {
-	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
-	if (entries.length === 0) return "";
-	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
-}
 
 function mergeLabels(
 	base: Record<string, string> | undefined,
@@ -97,6 +79,14 @@ export class PrometheusCollector implements MetricsCollector {
 		const map = this.counters.get(name);
 		if (!map) return;
 		map.set(key, (map.get(key) ?? 0) + 1);
+	}
+
+	addCounter(name: string, value: number, labels?: Record<string, string>): void {
+		if (value <= 0) return;
+		const key = labelsToKey(labels ?? {});
+		const map = this.counters.get(name);
+		if (!map) return;
+		map.set(key, (map.get(key) ?? 0) + value);
 	}
 
 	setGauge(name: string, value: number, labels?: Record<string, string>): void {
@@ -205,8 +195,9 @@ export class PrometheusServer {
 	constructor(
 		private readonly collector: PrometheusCollector,
 		private readonly logger: Logger,
+		port?: number,
 	) {
-		this.port = Number(process.env.METRICS_PORT) || DEFAULT_METRICS_PORT;
+		this.port = port ?? (Number(process.env.METRICS_PORT) || DEFAULT_METRICS_PORT);
 	}
 
 	start(): void {
@@ -270,6 +261,9 @@ export class InstrumentedAiAgent implements AiAgent {
 		try {
 			const response = await this.inner.send(options);
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "success" });
+			if (response.tokens) {
+				recordTokenMetrics(this.metrics, response.tokens, labels);
+			}
 			return response;
 		} catch (error) {
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "error" });

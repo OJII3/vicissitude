@@ -1,3 +1,5 @@
+import { METRIC } from "../../core/constants.ts";
+import type { MetricsCollector } from "../../core/types.ts";
 import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
@@ -19,10 +21,12 @@ export class JobManager {
 	private nextJobId = 1;
 	private readonly pushEvent: PushEvent;
 	private readonly setActionState: SetActionState;
+	private readonly metrics?: MetricsCollector;
 
-	constructor(pushEvent: PushEvent, setActionState: SetActionState) {
+	constructor(pushEvent: PushEvent, setActionState: SetActionState, metrics?: MetricsCollector) {
 		this.pushEvent = pushEvent;
 		this.setActionState = setActionState;
+		this.metrics = metrics;
 	}
 
 	private generateJobId(): string {
@@ -108,6 +112,8 @@ export class JobManager {
 
 		this.currentJob = null;
 		this.setActionState({ type: "idle" });
+
+		this.metrics?.incrementCounter(METRIC.MC_JOBS, { type: info.type, status });
 
 		const description = this.formatFinishDescription(info);
 		const importance: Importance = status === "cancelled" ? "low" : "medium";

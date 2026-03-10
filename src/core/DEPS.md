@@ -8,6 +8,7 @@
 graph LR
   config
   constants
+  functions --> constants
   functions --> types
   types
 ```
@@ -24,7 +25,7 @@ graph LR
 
 ### functions.ts
 
-- モジュール内依存: types
+- モジュール内依存: constants, types
 
 ### types.ts
 
