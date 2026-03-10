@@ -68,6 +68,7 @@ function watchEntityGone(
 		() => {
 			bot.removeListener("entityDead", onGone);
 			bot.removeListener("entityGone", onGone);
+			dead = true;
 		},
 		{ once: true },
 	);
