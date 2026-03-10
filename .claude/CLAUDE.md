@@ -86,7 +86,7 @@ src/
 
 ### DEPS.md（依存関係グラフ）
 
-- `docs/DEPS.md` および `src/*/DEPS.md` は commit 時に pre-commit フックで自動生成される（手動実行不要）
+- `docs/DEPS.md` および `src/*/DEPS.md` は commit 時に lefthook の pre-commit フックで自動生成される（手動実行不要）
 
 ### MCP サーバー
 
