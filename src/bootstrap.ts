@@ -12,9 +12,9 @@ import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
-import { HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
+import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
-import type { AiAgent, Logger } from "./core/types.ts";
+import type { AiAgent, ContextBuilderPort, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
 import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
@@ -39,6 +39,98 @@ import { SqliteEventBuffer } from "./store/event-buffer.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { incrementEmoji } from "./store/queries.ts";
 
+// ─── Store Layer ────────────────────────────────────────────────
+
+export function createStoreLayer(config: AppConfig) {
+	const db = createDb(config.dataDir);
+	const sessionStore = new SessionStore(db);
+	return { db, sessionStore };
+}
+
+// ─── Context Layer ──────────────────────────────────────────────
+
+export function createContextLayer(config: AppConfig, root: string, db: StoreDb) {
+	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
+	const mcStatusProvider = config.minecraft
+		? new SqliteMcStatusProvider(
+				db,
+				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
+				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
+			)
+		: undefined;
+	const contextBuilder = new ContextBuilder(
+		resolve(root, "data/context"),
+		resolve(root, "context"),
+		ltmFactReader,
+		mcStatusProvider,
+	);
+	return { ltmFactReader, mcStatusProvider, contextBuilder };
+}
+
+// ─── Guild Agents ───────────────────────────────────────────────
+
+export function createGuildAgents(
+	config: AppConfig,
+	guildIds: string[],
+	deps: {
+		db: StoreDb;
+		sessionStore: SessionStore;
+		contextBuilder: ContextBuilderPort;
+		logger: Logger;
+	},
+): Map<string, AgentRunner> {
+	const agents = new Map<string, AgentRunner>();
+
+	for (const [index, guildId] of guildIds.entries()) {
+		const eventBuffer = new SqliteEventBuffer(deps.db, guildId);
+		const profile = createConversationProfile({
+			providerId: config.opencode.providerId,
+			modelId: config.opencode.modelId,
+			mcpServers: mcpServerConfigs(),
+		});
+		const sessionPort = new OpencodeSessionAdapter({
+			port: config.opencode.basePort + index,
+			mcpServers: profile.mcpServers,
+			builtinTools: profile.builtinTools,
+		});
+		const runner = new AgentRunner({
+			profile,
+			guildId,
+			sessionStore: deps.sessionStore,
+			contextBuilder: deps.contextBuilder,
+			logger: deps.logger,
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+		});
+		agents.set(guildId, runner);
+	}
+
+	return agents;
+}
+
+// ─── Metrics ────────────────────────────────────────────────────
+
+export function createMetrics(logger: Logger) {
+	const collector = new PrometheusCollector();
+	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
+	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
+	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
+	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
+	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
+	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
+	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
+	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
+	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
+	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
+	collector.registerHistogram(
+		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
+		"LTM consolidation tick duration in seconds",
+	);
+	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
+	return { collector, server: new PrometheusServer(collector, logger) };
+}
+
 // ─── mc-check Reminder Sync ─────────────────────────────────────
 
 /** config.minecraft の有無に応じて mc-check リマインダーの enabled を同期する */
@@ -60,7 +152,7 @@ function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logg
 	}
 }
 
-// ─── Helper Functions ───────────────────────────────────────────
+// ─── Channel Config ─────────────────────────────────────────────
 
 async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 	const overlayChannels = resolve(root, "data/context/channels.json");
@@ -71,26 +163,6 @@ async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 	return new ChannelConfigLoader(channelsJson as ChannelConfigData);
 }
 
-function createMetrics(logger: Logger) {
-	const collector = new PrometheusCollector();
-	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
-	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
-	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
-	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
-	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
-	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
-	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
-	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
-	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
-	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
-	collector.registerHistogram(
-		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
-		"LTM consolidation tick duration in seconds",
-	);
-	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
-	return { collector, server: new PrometheusServer(collector, logger) };
-}
-
 // ─── LTM Recording ─────────────────────────────────────────────
 
 interface LtmResources {
@@ -99,8 +171,8 @@ interface LtmResources {
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-function setupLtmRecording(
-	config: ReturnType<typeof loadConfig>,
+export function setupLtmRecording(
+	config: AppConfig,
 	logger: Logger,
 	metricsCollector?: PrometheusCollector,
 ): LtmResources | undefined {
@@ -184,11 +256,7 @@ async function waitForMcpReady(
 	return "timeout";
 }
 
-async function startCoreMcp(
-	config: ReturnType<typeof loadConfig>,
-	root: string,
-	logger: Logger,
-): Promise<Subprocess> {
+async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Promise<Subprocess> {
 	const coreEnv: Record<string, string> = {
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
@@ -225,7 +293,7 @@ async function startCoreMcp(
 }
 
 async function startMinecraftMcp(
-	config: ReturnType<typeof loadConfig>,
+	config: AppConfig,
 	root: string,
 	logger: Logger,
 ): Promise<Subprocess | null> {
@@ -285,24 +353,10 @@ export async function bootstrap(): Promise<void> {
 	const logger = new ConsoleLogger();
 
 	// Store
-	const db = createDb(config.dataDir);
-	const sessionStore = new SessionStore(db);
+	const { db, sessionStore } = createStoreLayer(config);
 
-	// LTM
-	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
-	const mcStatusProvider = config.minecraft
-		? new SqliteMcStatusProvider(
-				db,
-				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
-				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
-			)
-		: undefined;
-	const contextBuilder = new ContextBuilder(
-		resolve(root, "data/context"),
-		resolve(root, "context"),
-		ltmFactReader,
-		mcStatusProvider,
-	);
+	// Context
+	const { ltmFactReader, contextBuilder } = createContextLayer(config, root, db);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -321,32 +375,12 @@ export async function bootstrap(): Promise<void> {
 
 	// Guild agents
 	const guildIds = channelConfig.getGuildIds();
-	const agents = new Map<string, AgentRunner>();
-
-	for (const [index, guildId] of guildIds.entries()) {
-		const eventBuffer = new SqliteEventBuffer(db, guildId);
-		const profile = createConversationProfile({
-			providerId: config.opencode.providerId,
-			modelId: config.opencode.modelId,
-			mcpServers: mcpServerConfigs(),
-		});
-		const sessionPort = new OpencodeSessionAdapter({
-			port: config.opencode.basePort + index,
-			mcpServers: profile.mcpServers,
-			builtinTools: profile.builtinTools,
-		});
-		const runner = new AgentRunner({
-			profile,
-			guildId,
-			sessionStore,
-			contextBuilder,
-			logger,
-			sessionPort,
-			eventBuffer,
-			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
-		});
-		agents.set(guildId, runner);
-	}
+	const agents = createGuildAgents(config, guildIds, {
+		db,
+		sessionStore,
+		contextBuilder,
+		logger,
+	});
 
 	// LTM recording
 	const ltmResources = setupLtmRecording(config, logger, metrics.collector);
