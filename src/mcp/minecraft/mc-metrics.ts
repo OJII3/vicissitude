@@ -1,14 +1,9 @@
 import { METRIC } from "../../core/constants.ts";
+import { labelsToKey } from "../../core/functions.ts";
 import type { MetricsCollector } from "../../core/types.ts";
 
 // ─── Lightweight Prometheus Collector for MC MCP process ────────
 // observability/ への依存を避けるため、MC プロセス専用の最小限実装
-
-function labelsToKey(labels: Record<string, string>): string {
-	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
-	if (entries.length === 0) return "";
-	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
-}
 
 export class McMetricsCollector implements MetricsCollector {
 	private counters = new Map<string, { help: string; values: Map<string, number> }>();
@@ -27,6 +22,7 @@ export class McMetricsCollector implements MetricsCollector {
 	}
 
 	addCounter(name: string, value: number, labels?: Record<string, string>): void {
+		if (value <= 0) return;
 		const entry = this.counters.get(name);
 		if (!entry) return;
 		const key = labelsToKey(labels ?? {});
@@ -34,10 +30,10 @@ export class McMetricsCollector implements MetricsCollector {
 	}
 
 	// MetricsCollector の他メソッドは MC では不使用だが、インターフェース充足のため定義
-	setGauge(): void {}
-	incrementGauge(): void {}
-	decrementGauge(): void {}
-	observeHistogram(): void {}
+	setGauge(_name: string, _value: number, _labels?: Record<string, string>): void {}
+	incrementGauge(_name: string, _labels?: Record<string, string>): void {}
+	decrementGauge(_name: string, _labels?: Record<string, string>): void {}
+	observeHistogram(_name: string, _value: number, _labels?: Record<string, string>): void {}
 
 	serialize(): string {
 		const lines: string[] = [];

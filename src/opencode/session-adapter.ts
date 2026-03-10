@@ -1,6 +1,7 @@
 import {
 	createOpencode,
 	type Event,
+	type EventMessageUpdated,
 	type EventSessionCompacted,
 	type EventSessionError,
 	type EventSessionIdle,
@@ -132,7 +133,7 @@ function classifyEvent(
 	tokensByMessage: Map<string, TokenUsage>,
 ): OpencodeSessionEvent | null {
 	if (typed.type === "message.updated") {
-		accumulateTokens(typed, tokensByMessage);
+		accumulateTokens(typed as EventMessageUpdated, tokensByMessage);
 		return null;
 	}
 	if (typed.type === "session.idle") {
@@ -155,14 +156,12 @@ function classifyEvent(
 }
 
 /** message.updated イベントから AssistantMessage のトークンを蓄積する */
-function accumulateTokens(typed: Event, tokensByMessage: Map<string, TokenUsage>): void {
-	type MsgInfo = {
-		id: string;
-		role: string;
-		tokens?: { input: number; output: number; cache?: { read: number } };
-	};
-	const info = (typed as { properties: { info: MsgInfo } }).properties.info;
-	if (info.role === "assistant" && info.tokens) {
+function accumulateTokens(
+	typed: EventMessageUpdated,
+	tokensByMessage: Map<string, TokenUsage>,
+): void {
+	const info = typed.properties.info;
+	if (info.role === "assistant") {
 		tokensByMessage.set(info.id, {
 			input: info.tokens.input,
 			output: info.tokens.output,

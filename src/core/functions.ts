@@ -1,6 +1,15 @@
 import { METRIC } from "./constants.ts";
 import type { DueReminder, HeartbeatConfig, MetricsCollector, TokenUsage } from "./types.ts";
 
+// ─── labelsToKey ─────────────────────────────────────────────────
+
+/** Prometheus ラベルを `{k1="v1",k2="v2"}` 形式のキーに変換する */
+export function labelsToKey(labels: Record<string, string>): string {
+	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
+	if (entries.length === 0) return "";
+	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
+}
+
 // ─── Token Metrics Helper ───────────────────────────────────────
 
 export function recordTokenMetrics(

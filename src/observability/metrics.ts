@@ -1,6 +1,6 @@
 /* oxlint-disable max-classes-per-file -- metrics module consolidates related classes */
 import { METRIC } from "../core/constants.ts";
-import { recordTokenMetrics } from "../core/functions.ts";
+import { labelsToKey, recordTokenMetrics } from "../core/functions.ts";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -23,12 +23,6 @@ interface HistogramConfig {
 }
 
 const DEFAULT_DURATION_BUCKETS = [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120];
-
-function labelsToKey(labels: Record<string, string>): string {
-	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
-	if (entries.length === 0) return "";
-	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
-}
 
 function mergeLabels(
 	base: Record<string, string> | undefined,
@@ -88,6 +82,7 @@ export class PrometheusCollector implements MetricsCollector {
 	}
 
 	addCounter(name: string, value: number, labels?: Record<string, string>): void {
+		if (value <= 0) return;
 		const key = labelsToKey(labels ?? {});
 		const map = this.counters.get(name);
 		if (!map) return;
@@ -284,5 +279,3 @@ export class InstrumentedAiAgent implements AiAgent {
 		this.inner.stop();
 	}
 }
-
-export { recordTokenMetrics } from "../core/functions.ts";
