@@ -6,21 +6,21 @@
 
 ```mermaid
 graph LR
-  discord_context-builder["discord/context-builder"]
+  discord_context_builder["discord/context-builder"]
   discord_profile["discord/profile"] --> profile
   discord_router["discord/router"]
-  mcp-config --> profile
-  minecraft_context-builder["minecraft/context-builder"]
+  mcp_config["mcp-config"] --> profile
+  minecraft_context_builder["minecraft/context-builder"]
   minecraft_profile["minecraft/profile"] --> profile
-  minecraft_sub-brain-manager["minecraft/sub-brain-manager"] --> mcp-config
-  minecraft_sub-brain-manager["minecraft/sub-brain-manager"] --> minecraft_context-builder["minecraft/context-builder"]
-  minecraft_sub-brain-manager["minecraft/sub-brain-manager"] --> minecraft_profile["minecraft/profile"]
-  minecraft_sub-brain-manager["minecraft/sub-brain-manager"] --> runner
-  minecraft_sub-brain-manager["minecraft/sub-brain-manager"] --> session-store
+  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> mcp_config["mcp-config"]
+  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> minecraft_context_builder["minecraft/context-builder"]
+  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> minecraft_profile["minecraft/profile"]
+  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> runner
+  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> session_store["session-store"]
   profile
   runner --> profile
-  runner --> session-store
-  session-store
+  runner --> session_store["session-store"]
+  session_store["session-store"]
 ```
 
 ## ファイル別依存一覧

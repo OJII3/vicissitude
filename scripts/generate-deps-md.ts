@@ -221,10 +221,11 @@ function generateModuleMermaid(files: Map<string, FileInfo>): string {
 	return lines.join("\n");
 }
 
-/** Mermaid のノード ID: スラッシュを含む場合は ["label"] 形式にする */
+/** Mermaid のノード ID: スラッシュやハイフンを含む場合は安全な ID + ["label"] 形式にする */
 function mermaidId(name: string): string {
-	if (name.includes("/")) {
-		return `${name.replaceAll("/", "_")}["${name}"]`;
+	if (name.includes("/") || name.includes("-")) {
+		const safeId = name.replaceAll("/", "_").replaceAll("-", "_");
+		return `${safeId}["${name}"]`;
 	}
 	return name;
 }

@@ -6,7 +6,7 @@
 
 ```mermaid
 graph LR
-  ollama-embedding-adapter
+  ollama_embedding_adapter["ollama-embedding-adapter"]
 ```
 
 ## ファイル別依存一覧

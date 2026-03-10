@@ -7,13 +7,13 @@
 ```mermaid
 graph LR
   db --> schema
-  event-buffer --> db
-  event-buffer --> queries
-  mc-bridge --> db
-  mc-bridge --> schema
-  mc-status-provider --> db
-  mc-status-provider --> mc-bridge
-  mc-sub-event-buffer
+  event_buffer["event-buffer"] --> db
+  event_buffer["event-buffer"] --> queries
+  mc_bridge["mc-bridge"] --> db
+  mc_bridge["mc-bridge"] --> schema
+  mc_status_provider["mc-status-provider"] --> db
+  mc_status_provider["mc-status-provider"] --> mc_bridge["mc-bridge"]
+  mc_sub_event_buffer["mc-sub-event-buffer"]
   queries --> db
   queries --> schema
   schema

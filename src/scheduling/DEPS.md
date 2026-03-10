@@ -6,9 +6,9 @@
 
 ```mermaid
 graph LR
-  consolidation-scheduler
-  heartbeat-config
-  heartbeat-scheduler --> heartbeat-config
+  consolidation_scheduler["consolidation-scheduler"]
+  heartbeat_config["heartbeat-config"]
+  heartbeat_scheduler["heartbeat-scheduler"] --> heartbeat_config["heartbeat-config"]
 ```
 
 ## ファイル別依存一覧

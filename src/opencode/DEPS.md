@@ -6,8 +6,8 @@
 
 ```mermaid
 graph LR
-  session-adapter
-  session-port
+  session_adapter["session-adapter"]
+  session_port["session-port"]
 ```
 
 ## ファイル別依存一覧

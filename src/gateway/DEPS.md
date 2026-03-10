@@ -6,10 +6,10 @@
 
 ```mermaid
 graph LR
-  channel-config-loader
-  discord --> discord-attachment-mapper
-  discord-attachment-mapper
-  message-handlers
+  channel_config_loader["channel-config-loader"]
+  discord --> discord_attachment_mapper["discord-attachment-mapper"]
+  discord_attachment_mapper["discord-attachment-mapper"]
+  message_handlers["message-handlers"]
   scheduler
 ```
 
