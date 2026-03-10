@@ -1,7 +1,6 @@
-import type { Part } from "@opencode-ai/sdk/v2";
 import type { ChatMessage } from "fenghuang";
 
-import type { OpencodeSessionPort } from "../opencode/session-port.ts";
+import type { OpencodeSessionPort } from "../core/types.ts";
 
 const JSON_INSTRUCTION =
 	"IMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.";
@@ -78,13 +77,6 @@ export function separateMessages(messages: ChatMessage[]): {
 		system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
 		userContent: userParts.join("\n"),
 	};
-}
-
-export function extractText(parts: Part[]): string {
-	return parts
-		.filter((p): p is Part & { type: "text" } => p.type === "text")
-		.map((p) => p.text)
-		.join("");
 }
 
 export function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {

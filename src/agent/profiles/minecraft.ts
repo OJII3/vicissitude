@@ -1,3 +1,4 @@
+import { OPENCODE_ALL_TOOLS_DISABLED } from "../../core/constants.ts";
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
 const POLLING_PROMPT = `あなたは Minecraft サブブレインです。生存を最優先にしながら、以下のループを実行してください。
@@ -60,20 +61,7 @@ export function createMinecraftProfile(options: {
 	return {
 		name: "minecraft",
 		mcpServers: options.mcpServers,
-		builtinTools: {
-			webfetch: false,
-			websearch: false,
-			question: false,
-			read: false,
-			glob: false,
-			grep: false,
-			edit: false,
-			write: false,
-			bash: false,
-			task: false,
-			todowrite: false,
-			skill: false,
-		},
+		builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		pollingPrompt: POLLING_PROMPT,
 		model: { providerId: options.providerId, modelId: options.modelId },
 	};

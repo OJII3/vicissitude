@@ -6,6 +6,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Client, GatewayIntentBits } from "discord.js";
 import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang";
 
+import { OPENCODE_ALL_TOOLS_DISABLED } from "../core/constants.ts";
 import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
@@ -65,20 +66,7 @@ const db = createDb(DATA_DIR);
 const ltmSessionPort = new OpencodeSessionAdapter({
 	port: LTM_OPENCODE_PORT,
 	mcpServers: {},
-	builtinTools: {
-		question: false,
-		read: false,
-		glob: false,
-		grep: false,
-		edit: false,
-		write: false,
-		bash: false,
-		webfetch: false,
-		websearch: false,
-		task: false,
-		todowrite: false,
-		skill: false,
-	},
+	builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 });
 const chatAdapter = new FenghuangChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { OpencodeSessionPort } from "../opencode/session-port.ts";
+import type { OpencodeSessionPort } from "../core/types.ts";
 import { insertBridgeEvent } from "../store/mc-bridge.ts";
 import { createTestDb } from "../store/test-helpers.ts";
 import type { McSubBrainManagerDeps } from "./mc-sub-brain-manager.ts";

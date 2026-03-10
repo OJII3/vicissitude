@@ -2,8 +2,7 @@
 import { resolve } from "path";
 
 import { MC_SUB_BRAIN_GUILD_ID } from "../core/constants.ts";
-import type { Logger } from "../core/types.ts";
-import type { OpencodeSessionPort } from "../opencode/session-port.ts";
+import type { Logger, OpencodeSessionPort } from "../core/types.ts";
 import type { StoreDb } from "../store/db.ts";
 import { clearSessionLock, consumeBridgeEventsByType } from "../store/mc-bridge.ts";
 import { MinecraftEventBuffer } from "../store/mc-sub-event-buffer.ts";

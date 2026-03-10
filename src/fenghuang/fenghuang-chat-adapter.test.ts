@@ -1,12 +1,10 @@
 import { describe, expect, it } from "bun:test";
 
-import type { Part } from "@opencode-ai/sdk/v2";
 import type { ChatMessage } from "fenghuang";
 
 import {
 	appendJsonInstruction,
 	cleanJsonResponse,
-	extractText,
 	separateMessages,
 } from "./fenghuang-chat-adapter.ts";
 
@@ -63,31 +61,6 @@ describe("separateMessages", () => {
 
 		expect(result.system).toBe("System only");
 		expect(result.userContent).toBe("");
-	});
-});
-
-describe("extractText", () => {
-	it("should extract text from text parts", () => {
-		const parts = [
-			{ type: "text" as const, text: "Hello " },
-			{ type: "text" as const, text: "World" },
-		] as unknown as Part[];
-
-		expect(extractText(parts)).toBe("Hello World");
-	});
-
-	it("should skip non-text parts", () => {
-		const parts: Part[] = [
-			{ type: "text" as const, text: "Hello" },
-			{ type: "tool" as const, toolCallId: "1", name: "test", state: "running" as const },
-			{ type: "text" as const, text: " World" },
-		] as unknown as Part[];
-
-		expect(extractText(parts)).toBe("Hello World");
-	});
-
-	it("should return empty string for no text parts", () => {
-		expect(extractText([])).toBe("");
 	});
 });
 

@@ -13,6 +13,7 @@ import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
 import type { AiAgent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
@@ -109,20 +110,7 @@ function setupLtmRecording(
 		const ltmSessionPort = new OpencodeSessionAdapter({
 			port: ltmPort,
 			mcpServers: {},
-			builtinTools: {
-				question: false,
-				read: false,
-				glob: false,
-				grep: false,
-				edit: false,
-				write: false,
-				bash: false,
-				webfetch: false,
-				websearch: false,
-				task: false,
-				todowrite: false,
-				skill: false,
-			},
+			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		});
 		const chatAdapter = new FenghuangChatAdapter(
 			ltmSessionPort,

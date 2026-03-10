@@ -14,7 +14,7 @@ import type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
-} from "./session-port.ts";
+} from "../core/types.ts";
 
 export interface OpencodeSessionAdapterConfig {
 	port: number;

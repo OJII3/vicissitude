@@ -84,8 +84,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama|core)/",
-								"message": "opencode/ は他の内部モジュールに依存できません"
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama)/",
+								"message": "opencode/ は core/ のみに依存できます"
 							}
 						]
 					}
