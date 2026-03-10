@@ -173,6 +173,22 @@
 			}
 		},
 		{
+			"files": ["**/scheduling/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama|opencode)/",
+								"message": "scheduling/ は core/, observability/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
 			"files": ["**/gateway/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [

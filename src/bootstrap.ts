@@ -22,7 +22,6 @@ import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { recordLtmMessage, bufferIncomingMessage } from "./gateway/message-handlers.ts";
-import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -32,6 +31,8 @@ import {
 } from "./observability/metrics.ts";
 import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
 import { OpencodeSessionAdapter } from "./opencode/session-adapter.ts";
+import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts";
+import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
