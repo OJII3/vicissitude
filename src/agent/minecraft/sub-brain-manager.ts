@@ -41,11 +41,10 @@ export class McSubBrainManager {
 	private pollTimer: ReturnType<typeof setTimeout> | undefined;
 	private stopping = false;
 	private pollCount = 0;
+	private readonly pollMs: number;
 
-	constructor(private readonly deps: McSubBrainManagerDeps) {}
-
-	private get pollMs(): number {
-		return this.deps.lifecyclePollMs ?? DEFAULT_LIFECYCLE_POLL_MS;
+	constructor(private readonly deps: McSubBrainManagerDeps) {
+		this.pollMs = deps.lifecyclePollMs ?? DEFAULT_LIFECYCLE_POLL_MS;
 	}
 
 	/** 初期起動（lifecycle ポーリングを開始。ランナーは minecraft_start_session がトリガー） */

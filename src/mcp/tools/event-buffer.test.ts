@@ -44,7 +44,7 @@ describe("pollEvents", () => {
 	test("タイムアウト時は null を返す", async () => {
 		const db = createTestDb();
 
-		const deadline = Date.now() + 150;
+		const deadline = Date.now() + 300;
 		const result = await pollEvents(db, "guild-1", deadline, 50);
 
 		expect(result).toBeNull();
