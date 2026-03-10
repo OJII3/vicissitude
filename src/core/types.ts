@@ -175,6 +175,18 @@ export interface AiAgent {
 	stop(): void;
 }
 
+// ─── Context Builder Port ────────────────────────────────────────
+
+export interface ContextBuilderPort {
+	build(guildId?: string): Promise<string>;
+}
+
+// ─── Minecraft Status Provider ───────────────────────────────────
+
+export interface McStatusProvider {
+	getStatusSummary(): Promise<string | null>;
+}
+
 // ─── LTM Fact Reader ─────────────────────────────────────────────
 
 export interface LtmFactReader {

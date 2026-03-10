@@ -1,7 +1,15 @@
-export type Importance = "low" | "medium" | "high";
+export type Importance = "low" | "medium" | "high" | "critical";
 
 export interface ActionState {
-	type: "idle" | "following" | "moving" | "collecting" | "crafting" | "sleeping";
+	type:
+		| "idle"
+		| "following"
+		| "moving"
+		| "collecting"
+		| "crafting"
+		| "sleeping"
+		| "fleeing"
+		| "sheltering";
 	target?: string;
 	jobId?: string;
 	progress?: string;
@@ -19,7 +27,12 @@ export interface JobInfo {
 	error?: string;
 }
 
-export const IMPORTANCE_ORDER: Record<Importance, number> = { low: 1, medium: 2, high: 3 };
+export const IMPORTANCE_ORDER: Record<Importance, number> = {
+	low: 1,
+	medium: 2,
+	high: 3,
+	critical: 4,
+};
 
 /** Minecraft のゲーム内時間 (0–23999) から時間帯を返す */
 export function getTimePeriod(timeOfDay: number): string {
@@ -132,6 +145,12 @@ export function formatActionState(action: ActionState): string {
 			break;
 		case "sleeping":
 			base = `${action.target ?? "?"} で就寝中`;
+			break;
+		case "fleeing":
+			base = `${action.target ?? "?"} から逃走中`;
+			break;
+		case "sheltering":
+			base = `${action.target ?? "?"} へ避難中`;
 			break;
 	}
 	if (action.progress) base += ` (${action.progress})`;

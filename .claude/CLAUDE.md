@@ -47,6 +47,7 @@ src/
 ├── mcp/                # MCP サーバー（独立プロセス）
 │   ├── core-server.ts  # 統合エントリポイント
 │   ├── code-exec-server.ts
+│   ├── mc-sub-server.ts # サブブレイン用ブリッジ
 │   ├── minecraft/
 │   └── tools/          # ツール定義
 ├── store/              # SQLite 統一永続化（Drizzle ORM）
@@ -84,4 +85,4 @@ src/
 
 ### MCP サーバー
 
-`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。3 プロセス構成: core（統合）、code-exec、minecraft。
+`src/mcp/` は独立プロセスとして起動されるため、通常のモジュール構成の対象外。4 プロセス構成: core（統合）、code-exec、minecraft、mc-sub-bridge（サブブレイン用ブリッジ）。

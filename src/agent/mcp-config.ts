@@ -45,3 +45,31 @@ export function mcpServerConfigs(options?: { guildId?: string }) {
 
 	return configs;
 }
+
+/**
+ * Minecraft サブブレイン用 MCP サーバー設定を返す。
+ * mc-sub-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
+ */
+export function mcpMinecraftSubBrainConfigs(): Record<string, McpServerConfig> {
+	const root = resolve(import.meta.dirname, "../..");
+
+	const configs: Record<string, McpServerConfig> = {
+		"mc-bridge": {
+			type: "local",
+			command: ["bun", "run", resolve(root, "src/mcp/mc-sub-server.ts")],
+			environment: {
+				DATA_DIR: resolve(root, "data"),
+			},
+		},
+	};
+
+	if (process.env.MC_HOST) {
+		const mcMcpPort = process.env.MC_MCP_PORT ?? "3001";
+		configs.minecraft = {
+			type: "remote",
+			url: `http://localhost:${mcMcpPort}/mcp`,
+		};
+	}
+
+	return configs;
+}

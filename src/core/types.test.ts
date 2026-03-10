@@ -6,14 +6,18 @@ describe("createDefaultHeartbeatConfig", () => {
 	it("has expected default values", () => {
 		const config = createDefaultHeartbeatConfig();
 		expect(config.baseIntervalMinutes).toBe(1);
-		expect(config.reminders).toHaveLength(2);
+		expect(config.reminders).toHaveLength(3);
 
 		const first = config.reminders[0];
 		const second = config.reminders[1];
+		const third = config.reminders[2];
 		expect(first).toBeDefined();
 		expect(second).toBeDefined();
+		expect(third).toBeDefined();
 		expect(first?.id).toBe("home-check");
 		expect(second?.id).toBe("memory-update");
+		expect(third?.id).toBe("mc-check");
+		expect(third?.enabled).toBe(false);
 	});
 
 	it("returns independent instances", () => {

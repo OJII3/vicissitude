@@ -25,3 +25,21 @@ export const eventBuffer = sqliteTable("event_buffer", {
 	payload: text("payload").notNull(),
 	createdAt: integer("created_at").notNull(),
 });
+
+/** MC セッション排他ロックテーブル（最大1行） */
+export const mcSessionLock = sqliteTable("mc_session_lock", {
+	id: integer("id").primaryKey(),
+	guildId: text("guild_id").notNull(),
+	acquiredAt: integer("acquired_at").notNull(),
+});
+
+/** MC ブリッジイベントテーブル */
+export const mcBridgeEvents = sqliteTable("mc_bridge_events", {
+	id: integer("id").primaryKey({ autoIncrement: true }),
+	/** 'to_main' | 'to_sub' */
+	direction: text("direction").notNull(),
+	type: text("type").notNull(),
+	payload: text("payload").notNull(),
+	createdAt: integer("created_at").notNull(),
+	consumed: integer("consumed").notNull().default(0),
+});

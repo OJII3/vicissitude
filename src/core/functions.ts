@@ -21,6 +21,16 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: true,
 			},
+			// config.minecraft 未設定時でも含める（heartbeat-config.json に永続化されるため条件付き追加は不整合を招く）。
+			// デフォルト無効。config.minecraft 設定時に有効化される想定。
+			{
+				id: "mc-check",
+				description:
+					"マイクラの様子を確認する。<minecraft-status> を見て、話したいことがあればホームチャンネルで話す",
+				schedule: { type: "interval", minutes: 15 },
+				lastExecutedAt: null,
+				enabled: false,
+			},
 		],
 	};
 }

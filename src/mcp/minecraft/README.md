@@ -20,26 +20,31 @@ src/mcp/minecraft/
 └── actions/
     ├── movement.ts        # follow_player, go_to, collect_block, stop
     ├── interaction.ts     # send_chat, equip_item, place_block
-    └── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
+    ├── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
+    ├── survival.ts        # eat_food, flee_from_entity, find_shelter（サバイバル本能）
+    └── shared.ts          # 共通ヘルパー（collectBedIds, ensureMovements 等）
 ```
 
 ### 提供ツール
 
-| ツール | 種別 | 説明 |
-|---|---|---|
-| `observe_state` | 観察 | 現在状態の自然言語要約 |
+| ツール              | 種別 | 説明                                      |
+| ------------------- | ---- | ----------------------------------------- |
+| `observe_state`     | 観察 | 現在状態の自然言語要約                    |
 | `get_recent_events` | 観察 | 直近イベント取得（importance フィルタ可） |
-| `get_job_status` | 観察 | 現在・履歴ジョブ |
-| `get_viewer_url` | 観察 | prismarine-viewer URL |
-| `follow_player` | 行動 | プレイヤー追従 |
-| `go_to` | 行動 | 座標移動 |
-| `collect_block` | 行動 | ブロック採集 |
-| `stop` | 行動 | 移動/追従停止 |
-| `craft_item` | 行動 | クラフト（ジョブ） |
-| `sleep_in_bed` | 行動 | 就寝試行（ジョブ） |
-| `equip_item` | 行動 | アイテム装備 |
-| `place_block` | 行動 | ブロック設置 |
-| `send_chat` | 行動 | ゲーム内チャット送信 |
+| `get_job_status`    | 観察 | 現在・履歴ジョブ                          |
+| `get_viewer_url`    | 観察 | prismarine-viewer URL                     |
+| `follow_player`     | 行動 | プレイヤー追従                            |
+| `go_to`             | 行動 | 座標移動                                  |
+| `collect_block`     | 行動 | ブロック採集                              |
+| `stop`              | 行動 | 移動/追従停止                             |
+| `craft_item`        | 行動 | クラフト（ジョブ）                        |
+| `sleep_in_bed`      | 行動 | 就寝試行（ジョブ）                        |
+| `equip_item`        | 行動 | アイテム装備                              |
+| `place_block`       | 行動 | ブロック設置                              |
+| `send_chat`         | 行動 | ゲーム内チャット送信                      |
+| `eat_food`          | 行動 | インベントリから食料を選んで食べる        |
+| `flee_from_entity`  | 行動 | 指定エンティティから逃走（非同期ジョブ）  |
+| `find_shelter`      | 行動 | 安全な避難場所を探して移動                |
 
 ### 環境変数
 
@@ -104,17 +109,20 @@ src/mcp/minecraft/
 ### サブブレインの責務
 
 #### Reactive Layer — 生存本能
+
 - 敵 mob 接近時の回避行動
 - 夜間の自動就寝
 - 体力・空腹が低い時の対応（食事、退避）
 - 危険イベントのメインブレインへの即時報告
 
 #### Goal Planner — 自動カリキュラム
+
 - 現在の装備・進捗から次の達成目標を自動発見（tech tree ベース）
 - 目標に向けたサブゴール分解と段階的実行
 - 達成時の記録とメインブレインへの報告
 
 #### Skill Memory — 学習記録
+
 - 成功した行動パターンの自然言語記録
 - 例: 「鉄鉱石は Y=16 以下で多い」「クリーパーは距離を取る」
 - 記録はファイルベース（`data/context/minecraft/MINECRAFT-SKILLS.md`）
@@ -123,44 +131,45 @@ src/mcp/minecraft/
 
 Event Bridge（`store/mc-bridge.ts`）を介した非同期メッセージング:
 
-| 方向 | ツール | 用途 |
-|---|---|---|
-| Main → Sub | `minecraft_delegate(command)` | 高レベル指示（「ダイヤ探して」等） |
-| Main → Sub | `minecraft_start_session()` | サブブレイン起動 |
-| Main → Sub | `minecraft_stop_session()` | サブブレイン停止 |
-| Sub → Main | `mc_report(message, importance)` | 状況報告（発見、達成、危険等） |
-| Main ← Sub | `minecraft_status()` | 現在状態の要約取得 |
-| Main ← Sub | `minecraft_read_reports()` | 未読レポート取得 |
+| 方向       | ツール                           | 用途                               |
+| ---------- | -------------------------------- | ---------------------------------- |
+| Main → Sub | `minecraft_delegate(command)`    | 高レベル指示（「ダイヤ探して」等） |
+| Main → Sub | `minecraft_start_session()`      | サブブレイン起動                   |
+| Main → Sub | `minecraft_stop_session()`       | サブブレイン停止                   |
+| Sub → Main | `mc_report(message, importance)` | 状況報告（発見、達成、危険等）     |
+| Main ← Sub | `minecraft_status()`             | 現在状態の要約取得                 |
+| Main ← Sub | `minecraft_read_reports()`       | 未読レポート取得                   |
 
 ### Minecraft グローバル記憶
 
 Guild に依存しない、Minecraft 専用の記憶空間:
 
 ```
-data/context/minecraft/
-├── MINECRAFT-MEMORY.md    # 世界の状況メモ（拠点位置、探索記録等）
-├── MINECRAFT-GOALS.md     # 目標管理（現在・達成済み）
-└── MINECRAFT-SKILLS.md    # 学習済みスキル・知識
+context/minecraft/              # git 管理（ベース）
+├── MINECRAFT-IDENTITY.md       # サブブレインの行動指針
+├── MINECRAFT-KNOWLEDGE.md      # Minecraft 基礎知識
+├── MINECRAFT-GOALS.md          # 目標管理テンプレート
+└── MINECRAFT-SKILLS.md         # スキルライブラリテンプレート
 
-context/minecraft/
-├── MINECRAFT-IDENTITY.md  # サブブレインの行動指針（git 管理）
-└── MINECRAFT-KNOWLEDGE.md # Minecraft 基礎知識（git 管理）
+data/context/minecraft/          # オーバーレイ（ランタイム書き込み先）
+├── MINECRAFT-GOALS.md           # 目標管理（現在・達成済み）
+└── MINECRAFT-SKILLS.md          # 学習済みスキル・知識
 ```
 
 ### 実装フェーズ
 
-| フェーズ | 概要 | 依存 |
-|---|---|---|
-| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶 | なし |
-| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事） | M12a |
-| **M12c** | 目標管理: 自動カリキュラム + スキル記録 | M12a |
+| フェーズ | 概要                                                 | 依存 |
+| -------- | ---------------------------------------------------- | ---- |
+| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶   | なし |
+| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事）       | M12a |
+| **M12c** | 目標管理: 自動カリキュラム + スキル記録              | M12a |
 | **M12d** | メインブレイン統合: delegate、状態注入、Discord 共有 | M12c |
 
 M12b と M12c は並行着手可能。
 
 ### このディレクトリへの影響
 
-M12 ではこのディレクトリ（`src/mcp/minecraft/`）の既存コードは**変更しない**。サブブレインは既存の MCP ツールをリモートクライアントとして利用する。追加ツール（`flee_from_entity`, `eat_food` 等）が必要になった場合は、既存の `actions/` パターンに従って追加する。
+サブブレインは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival.ts`（`eat_food`, `flee_from_entity`, `find_shelter`）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
 
 ### 先行研究
 

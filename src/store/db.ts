@@ -54,6 +54,23 @@ CREATE TABLE IF NOT EXISTS event_buffer (
 );
 
 CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
+
+CREATE TABLE IF NOT EXISTS mc_bridge_events (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	direction TEXT NOT NULL,
+	type TEXT NOT NULL,
+	payload TEXT NOT NULL,
+	created_at INTEGER NOT NULL,
+	consumed INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_mc_bridge_direction ON mc_bridge_events(direction, consumed);
+CREATE INDEX IF NOT EXISTS idx_mc_bridge_dir_type ON mc_bridge_events(direction, type, consumed);
+
+CREATE TABLE IF NOT EXISTS mc_session_lock (
+	id INTEGER PRIMARY KEY CHECK (id = 1),
+	guild_id TEXT NOT NULL,
+	acquired_at INTEGER NOT NULL
+);
 `;
 
 export function createDb(dataDir: string): StoreDb {
@@ -61,6 +78,7 @@ export function createDb(dataDir: string): StoreDb {
 	const dbPath = join(dataDir, "vicissitude.db");
 	const sqlite = new Database(dbPath);
 	sqlite.exec("PRAGMA journal_mode = WAL");
+	sqlite.exec("PRAGMA busy_timeout = 5000");
 	sqlite.exec(CREATE_TABLES_SQL);
 	const db = drizzle(sqlite, { schema });
 	dbInstances.set(db, sqlite);

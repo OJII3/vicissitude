@@ -6,8 +6,7 @@ import {
 	type OpencodeClient,
 } from "@opencode-ai/sdk/v2";
 
-import type { AgentResponse, EventBuffer, Logger } from "../core/types.ts";
-import type { ContextBuilder } from "./context-builder.ts";
+import type { AgentResponse, ContextBuilderPort, EventBuffer, Logger } from "../core/types.ts";
 import type { AgentProfile } from "./profile.ts";
 import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
@@ -19,7 +18,7 @@ export interface RunnerDeps {
 	profile: AgentProfile;
 	guildId: string;
 	sessionStore: SessionStore;
-	contextBuilder: ContextBuilder;
+	contextBuilder: ContextBuilderPort;
 	logger: Logger;
 	port: number;
 	eventBuffer: EventBuffer;
@@ -36,7 +35,7 @@ export class AgentRunner implements AiAgent {
 	private readonly profile: AgentProfile;
 	private readonly guildId: string;
 	private readonly sessionStore: SessionStore;
-	private readonly contextBuilder: ContextBuilder;
+	private readonly contextBuilder: ContextBuilderPort;
 	private readonly logger: Logger;
 	private readonly port: number;
 	private readonly eventBuffer: EventBuffer;
