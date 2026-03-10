@@ -11,32 +11,11 @@ interface DepcruiseModule {
 	dependencies: Array<{
 		module: string;
 		resolved: string;
-		moduleSystem: string;
-		circular?: boolean;
-		valid: boolean;
-		rules?: Array<{ name: string; severity: string }>;
 	}>;
-	valid: boolean;
-	rules?: Array<{ name: string; severity: string }>;
 }
 
 interface DepcruiseOutput {
 	modules: DepcruiseModule[];
-	summary: {
-		violations: Array<{
-			type: string;
-			from: string;
-			to: string;
-			rule: { name: string; severity: string };
-			cycle?: string[];
-		}>;
-		totalCruised: number;
-		totalDependenciesCruised: number;
-		error: number;
-		warn: number;
-		info: number;
-		optionalDependencies: number;
-	};
 }
 
 const SRC_PREFIX = "src/";
@@ -144,27 +123,10 @@ function generateModuleDetails(modules: Map<string, ModuleInfo>): string {
 	return sections.join("\n\n");
 }
 
-function generateViolations(data: DepcruiseOutput): string {
-	const violations = data.summary.violations;
-	if (violations.length === 0) return "なし";
-
-	const lines: string[] = [];
-	for (const v of violations) {
-		if (v.cycle) {
-			lines.push(`- **${v.rule.name}** (${v.rule.severity}): ${v.cycle.join(" → ")}`);
-		} else {
-			lines.push(`- **${v.rule.name}** (${v.rule.severity}): ${v.from} → ${v.to}`);
-		}
-	}
-	return lines.join("\n");
-}
-
 function main() {
 	const input = readFileSync("/dev/stdin", "utf-8");
 	const data: DepcruiseOutput = JSON.parse(input);
 	const modules = analyze(data);
-
-	const now = new Date().toISOString();
 
 	const output = `# 依存関係グラフ（自動生成）
 
@@ -179,13 +141,6 @@ ${generateMermaid(modules)}
 ## モジュール別依存一覧
 
 ${generateModuleDetails(modules)}
-
-## ルール違反
-
-${generateViolations(data)}
-
----
-Generated at: ${now}
 `;
 
 	process.stdout.write(output);
