@@ -1,4 +1,18 @@
-import type { DueReminder, HeartbeatConfig } from "./types.ts";
+import { METRIC } from "./constants.ts";
+import type { DueReminder, HeartbeatConfig, MetricsCollector, TokenUsage } from "./types.ts";
+
+// ─── Token Metrics Helper ───────────────────────────────────────
+
+export function recordTokenMetrics(
+	metrics: MetricsCollector,
+	tokens: TokenUsage,
+	labels: Record<string, string>,
+): void {
+	if (tokens.input > 0) metrics.addCounter(METRIC.LLM_INPUT_TOKENS, tokens.input, labels);
+	if (tokens.output > 0) metrics.addCounter(METRIC.LLM_OUTPUT_TOKENS, tokens.output, labels);
+	if (tokens.cacheRead > 0)
+		metrics.addCounter(METRIC.LLM_CACHE_READ_TOKENS, tokens.cacheRead, labels);
+}
 
 // ─── createDefaultHeartbeatConfig ────────────────────────────────
 

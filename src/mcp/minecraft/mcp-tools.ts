@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
-import { METRIC } from "../../observability/metrics.ts";
 import { registerActionTools } from "./actions/index.ts";
 import type { BotContext } from "./bot-context.ts";
 import {
@@ -128,7 +128,8 @@ function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): Mc
 						return originalHandler(...handlerArgs);
 					};
 				}
-				return (target.tool as Function).call(target, name, ...args);
+				// oxlint-disable-next-line no-unsafe-function-type, ban-types -- target.tool の型を正確に表現できないため
+				return (target.tool as (...a: unknown[]) => unknown).call(target, name, ...args);
 			};
 		},
 	});

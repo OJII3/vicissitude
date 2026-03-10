@@ -81,47 +81,13 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	async waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent> {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();
-
-		// messageId → latest tokens の Map（ストリーミング更新による重複防止）
 		const tokensByMessage = new Map<string, TokenUsage>();
 
 		try {
 			for await (const event of stream) {
 				if (signal?.aborted) return { type: "cancelled" };
-
-				const typed = event as Event;
-
-				// AssistantMessage のトークンを蓄積
-				if (typed.type === "message.updated") {
-					const info = (typed as { properties: { info: { id: string; role: string; tokens?: { input: number; output: number; cache?: { read: number } } }; sessionID?: string } }).properties.info;
-					if (info.role === "assistant" && info.tokens) {
-						tokensByMessage.set(info.id, {
-							input: info.tokens.input,
-							output: info.tokens.output,
-							cacheRead: info.tokens.cache?.read ?? 0,
-						});
-					}
-				}
-
-				if (typed.type === "session.idle") {
-					const idle = typed as EventSessionIdle;
-					if (idle.properties.sessionID === sessionId) {
-						const tokens = sumTokens(tokensByMessage);
-						return { type: "idle", tokens };
-					}
-				}
-				if (typed.type === "session.compacted") {
-					const compacted = typed as EventSessionCompacted;
-					if (compacted.properties.sessionID === sessionId) {
-						return { type: "compacted" };
-					}
-				}
-				if (typed.type === "session.error") {
-					const err = typed as EventSessionError;
-					if (err.properties.sessionID === sessionId) {
-						return { type: "error", message: JSON.stringify(err.properties) };
-					}
-				}
+				const result = classifyEvent(event as Event, sessionId, tokensByMessage);
+				if (result) return result;
 			}
 		} finally {
 			// oxlint-disable-next-line no-useless-undefined -- AsyncIterator.return requires an argument
@@ -159,6 +125,52 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	}
 }
 
+/** イベントを分類し、セッション終了イベントなら OpencodeSessionEvent を返す */
+function classifyEvent(
+	typed: Event,
+	sessionId: string,
+	tokensByMessage: Map<string, TokenUsage>,
+): OpencodeSessionEvent | null {
+	if (typed.type === "message.updated") {
+		accumulateTokens(typed, tokensByMessage);
+		return null;
+	}
+	if (typed.type === "session.idle") {
+		const idle = typed as EventSessionIdle;
+		if (idle.properties.sessionID === sessionId) {
+			return { type: "idle", tokens: sumTokens(tokensByMessage) };
+		}
+	}
+	if (typed.type === "session.compacted") {
+		const compacted = typed as EventSessionCompacted;
+		if (compacted.properties.sessionID === sessionId) return { type: "compacted" };
+	}
+	if (typed.type === "session.error") {
+		const err = typed as EventSessionError;
+		if (err.properties.sessionID === sessionId) {
+			return { type: "error", message: JSON.stringify(err.properties) };
+		}
+	}
+	return null;
+}
+
+/** message.updated イベントから AssistantMessage のトークンを蓄積する */
+function accumulateTokens(typed: Event, tokensByMessage: Map<string, TokenUsage>): void {
+	type MsgInfo = {
+		id: string;
+		role: string;
+		tokens?: { input: number; output: number; cache?: { read: number } };
+	};
+	const info = (typed as { properties: { info: MsgInfo } }).properties.info;
+	if (info.role === "assistant" && info.tokens) {
+		tokensByMessage.set(info.id, {
+			input: info.tokens.input,
+			output: info.tokens.output,
+			cacheRead: info.tokens.cache?.read ?? 0,
+		});
+	}
+}
+
 function extractText(parts: Part[]): string {
 	return parts
 		.filter((p): p is Part & { type: "text" } => p.type === "text")
@@ -166,7 +178,9 @@ function extractText(parts: Part[]): string {
 		.join("");
 }
 
-function extractTokens(info: { tokens?: { input: number; output: number; cache?: { read: number } } }): TokenUsage | undefined {
+function extractTokens(info: {
+	tokens?: { input: number; output: number; cache?: { read: number } };
+}): TokenUsage | undefined {
 	if (!info.tokens) return undefined;
 	return {
 		input: info.tokens.input,

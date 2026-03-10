@@ -1,11 +1,10 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { ConsoleLogger } from "../../observability/logger.ts";
-import { PrometheusCollector, PrometheusServer, METRIC } from "../../observability/metrics.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
 import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
+import { createMcMetrics } from "./mc-metrics.ts";
 import { registerMinecraftTools } from "./mcp-tools.ts";
 
 // ── Environment ──────────────────────────────────────────────────────────────
@@ -36,13 +35,7 @@ if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 const MC_MCP_PORT = mcpPortRaw;
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
-const mcMetricsPort = Number(process.env.MC_METRICS_PORT) || 9092;
-const mcLogger = new ConsoleLogger();
-const mcCollector = new PrometheusCollector();
-mcCollector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
-mcCollector.registerCounter(METRIC.MC_BOT_EVENTS, "Minecraft bot events total");
-mcCollector.registerCounter(METRIC.MC_MCP_TOOL_CALLS, "Minecraft MCP tool calls total");
-const mcMetricsServer = new PrometheusServer(mcCollector, mcLogger, mcMetricsPort);
+const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics();
 mcMetricsServer.start();
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────

@@ -1,0 +1,98 @@
+import { METRIC } from "../../core/constants.ts";
+import type { MetricsCollector } from "../../core/types.ts";
+
+// ─── Lightweight Prometheus Collector for MC MCP process ────────
+// observability/ への依存を避けるため、MC プロセス専用の最小限実装
+
+function labelsToKey(labels: Record<string, string>): string {
+	const entries = Object.entries(labels).toSorted(([a], [b]) => a.localeCompare(b));
+	if (entries.length === 0) return "";
+	return `{${entries.map(([k, v]) => `${k}="${v}"`).join(",")}}`;
+}
+
+export class McMetricsCollector implements MetricsCollector {
+	private counters = new Map<string, { help: string; values: Map<string, number> }>();
+
+	registerCounter(name: string, help: string): void {
+		if (!this.counters.has(name)) {
+			this.counters.set(name, { help, values: new Map() });
+		}
+	}
+
+	incrementCounter(name: string, labels?: Record<string, string>): void {
+		const entry = this.counters.get(name);
+		if (!entry) return;
+		const key = labelsToKey(labels ?? {});
+		entry.values.set(key, (entry.values.get(key) ?? 0) + 1);
+	}
+
+	addCounter(name: string, value: number, labels?: Record<string, string>): void {
+		const entry = this.counters.get(name);
+		if (!entry) return;
+		const key = labelsToKey(labels ?? {});
+		entry.values.set(key, (entry.values.get(key) ?? 0) + value);
+	}
+
+	// MetricsCollector の他メソッドは MC では不使用だが、インターフェース充足のため定義
+	setGauge(): void {}
+	incrementGauge(): void {}
+	decrementGauge(): void {}
+	observeHistogram(): void {}
+
+	serialize(): string {
+		const lines: string[] = [];
+		for (const [name, { help, values }] of this.counters) {
+			lines.push(`# HELP ${name} ${help}`);
+			lines.push(`# TYPE ${name} counter`);
+			for (const [key, value] of values) {
+				lines.push(`${name}${key} ${value}`);
+			}
+		}
+		return lines.length > 0 ? `${lines.join("\n")}\n` : "";
+	}
+}
+
+export interface McMetricsServer {
+	start(): void;
+	stop(): void;
+}
+
+export function createMcMetrics(): { collector: McMetricsCollector; server: McMetricsServer } {
+	const port = Number(process.env.MC_METRICS_PORT) || 9092;
+	const collector = new McMetricsCollector();
+	collector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
+	collector.registerCounter(METRIC.MC_BOT_EVENTS, "Minecraft bot events total");
+	collector.registerCounter(METRIC.MC_MCP_TOOL_CALLS, "Minecraft MCP tool calls total");
+
+	let bunServer: ReturnType<typeof Bun.serve> | null = null;
+
+	const server: McMetricsServer = {
+		start() {
+			const hostname = "0.0.0.0";
+			bunServer = Bun.serve({
+				port,
+				hostname,
+				fetch: (req) => {
+					const url = new URL(req.url);
+					if (url.pathname === "/metrics") {
+						return new Response(collector.serialize(), {
+							headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
+						});
+					}
+					if (url.pathname === "/health") return new Response("ok");
+					return new Response("Not Found", { status: 404 });
+				},
+			});
+			console.error(`[mc-metrics] Prometheus server listening on ${hostname}:${String(port)}`);
+		},
+		stop() {
+			if (bunServer) {
+				bunServer.stop();
+				bunServer = null;
+				console.error("[mc-metrics] Prometheus server stopped");
+			}
+		},
+	};
+
+	return { collector, server };
+}

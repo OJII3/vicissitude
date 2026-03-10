@@ -176,6 +176,30 @@ MCP サーバーは 4 プロセス構成:
 - `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
 - `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent` + `METRIC` 定数
 
+メトリクス一覧（17個）:
+
+| 名前                                      | 型        | ラベル                             | 説明                                               |
+| ----------------------------------------- | --------- | ---------------------------------- | -------------------------------------------------- |
+| `discord_messages_received_total`         | Counter   | `channel_type`                     | Discord メッセージ受信数                           |
+| `ai_requests_total`                       | Counter   | `agent_type`, `trigger`, `outcome` | AI リクエスト数                                    |
+| `heartbeat_ticks_total`                   | Counter   | —                                  | Heartbeat tick 数                                  |
+| `heartbeat_reminders_executed_total`      | Counter   | —                                  | Heartbeat リマインダー実行数                       |
+| `bot_info`                                | Gauge     | `bot_name`                         | Bot 情報                                           |
+| `ai_request_duration_seconds`             | Histogram | —                                  | AI リクエスト所要時間                              |
+| `heartbeat_tick_duration_seconds`         | Histogram | —                                  | Heartbeat tick 所要時間                            |
+| `llm_active_sessions`                     | Gauge     | —                                  | アクティブ LLM セッション数                        |
+| `llm_busy_sessions`                       | Gauge     | `agent_type`                       | 処理中 LLM セッション数                            |
+| `ltm_consolidation_ticks_total`           | Counter   | —                                  | LTM 統合 tick 数                                   |
+| `ltm_consolidation_tick_duration_seconds` | Histogram | —                                  | LTM 統合 tick 所要時間                             |
+| `llm_input_tokens_total`                  | Counter   | `agent_type`, `trigger`            | LLM 入力トークン累計                               |
+| `llm_output_tokens_total`                 | Counter   | `agent_type`, `trigger`            | LLM 出力トークン累計                               |
+| `llm_cache_read_tokens_total`             | Counter   | `agent_type`, `trigger`            | LLM キャッシュ読取トークン累計                     |
+| `mc_jobs_total`                           | Counter   | `type`, `status`                   | MC ジョブ完了/失敗/キャンセル数                    |
+| `mc_bot_events_total`                     | Counter   | `kind`                             | MC ボットイベント（spawn/death/kicked/disconnect） |
+| `mc_mcp_tool_calls_total`                 | Counter   | `tool`                             | MC MCP ツール呼び出し数                            |
+
+トークンメトリクスはメインプロセス（ポート 9091）、MC メトリクスは MC MCP プロセス（ポート 9092、`MC_METRICS_PORT` で変更可）で公開される。
+
 ### 4.8 opencode/ — OpenCode SDK 抽象化
 
 - `session-port.ts`: `core/types.ts` の `OpencodeSessionPort` 型を re-export（後方互換用）。Port 定義の正本は `core/types.ts`
@@ -221,6 +245,7 @@ MCP サーバーは 4 プロセス構成:
 
 - `text: string`
 - `sessionId: string`
+- `tokens?: TokenUsage` — トークン使用量（`{ input, output, cacheRead }`）
 
 ### SessionKey
 

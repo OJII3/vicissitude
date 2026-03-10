@@ -43,6 +43,7 @@ graph LR
   minecraft_job_manager["minecraft/job-manager"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_mc_bridge_server["minecraft/mc-bridge-server"] --> tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"]
   minecraft_mc_bridge_server["minecraft/mc-bridge-server"] --> tools_mc_memory["tools/mc-memory"]
+  minecraft_mc_metrics["minecraft/mc-metrics"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_actions_index["minecraft/actions/index"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_bot_queries["minecraft/bot-queries"]
@@ -52,6 +53,7 @@ graph LR
   minecraft_server["minecraft/server"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_server["minecraft/server"] --> minecraft_http_server["minecraft/http-server"]
   minecraft_server["minecraft/server"] --> minecraft_job_manager["minecraft/job-manager"]
+  minecraft_server["minecraft/server"] --> minecraft_mc_metrics["minecraft/mc-metrics"]
   minecraft_server["minecraft/server"] --> minecraft_mcp_tools["minecraft/mcp-tools"]
   minecraft_state_summary["minecraft/state-summary"] --> minecraft_helpers["minecraft/helpers"]
   tools_discord["tools/discord"]
@@ -127,7 +129,7 @@ graph LR
 ### minecraft/bot-context.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: core/, observability/
+- 他モジュール依存: core/
 - 外部依存: mineflayer
 
 ### minecraft/bot-queries.ts
@@ -146,7 +148,7 @@ graph LR
 ### minecraft/job-manager.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: core/, observability/
+- 他モジュール依存: core/
 
 ### minecraft/mc-bridge-server.ts
 
@@ -154,16 +156,19 @@ graph LR
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 
+### minecraft/mc-metrics.ts
+
+- 他モジュール依存: core/
+
 ### minecraft/mcp-tools.ts
 
 - モジュール内依存: minecraft/actions/index, minecraft/bot-context, minecraft/bot-queries, minecraft/job-manager, minecraft/state-summary
-- 他モジュール依存: core/, observability/
+- 他モジュール依存: core/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### minecraft/server.ts
 
-- モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mcp-tools
-- 他モジュール依存: observability/
+- モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/state-summary.ts

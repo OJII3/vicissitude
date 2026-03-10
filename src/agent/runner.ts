@@ -1,3 +1,4 @@
+import { recordTokenMetrics } from "../core/functions.ts";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -8,7 +9,6 @@ import type {
 	OpencodeSessionPort,
 	SendOptions,
 } from "../core/types.ts";
-import { METRIC, recordTokenMetrics } from "../observability/metrics.ts";
 import type { AgentProfile } from "./profile.ts";
 import type { SessionStore } from "./session-store.ts";
 
@@ -148,7 +148,10 @@ export class AgentRunner implements AiAgent {
 		} else if (event.type === "idle") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session went idle, will restart`);
 			if (event.tokens && this.metrics) {
-				recordTokenMetrics(this.metrics, event.tokens, { agent_type: "polling", trigger: "polling" });
+				recordTokenMetrics(this.metrics, event.tokens, {
+					agent_type: "polling",
+					trigger: "polling",
+				});
 			}
 		} else if (event.type === "compacted") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);

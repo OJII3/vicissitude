@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { PrometheusCollector, METRIC } from "../../observability/metrics.ts";
+import { METRIC } from "../../core/constants.ts";
 import type { ActionState, Importance } from "./helpers.ts";
 import { JobManager } from "./job-manager.ts";
 import type { JobExecutor } from "./job-manager.ts";
+import { McMetricsCollector } from "./mc-metrics.ts";
 
 function setup() {
 	const events: { kind: string; description: string; importance: Importance }[] = [];
@@ -240,7 +241,7 @@ describe("JobManager with metrics", () => {
 		const setActionState = (state: ActionState) => {
 			states.push({ ...state });
 		};
-		const collector = new PrometheusCollector();
+		const collector = new McMetricsCollector();
 		collector.registerCounter(METRIC.MC_JOBS, "MC jobs");
 		const manager = new JobManager(pushEvent, setActionState, collector);
 		return { manager, collector };

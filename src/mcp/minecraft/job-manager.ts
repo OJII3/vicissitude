@@ -1,5 +1,5 @@
+import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
-import { METRIC } from "../../observability/metrics.ts";
 import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
