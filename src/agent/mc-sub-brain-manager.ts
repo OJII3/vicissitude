@@ -52,8 +52,8 @@ export class McSubBrainManager {
 	}
 
 	async stop(): Promise<void> {
-		this.deps.logger.info("[McSubBrainManager] stopping lifecycle polling");
 		if (this.pollTimer) {
+			this.deps.logger.info("[McSubBrainManager] stopping lifecycle polling");
 			clearTimeout(this.pollTimer);
 			this.pollTimer = undefined;
 		}
