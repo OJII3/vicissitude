@@ -3,6 +3,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { startHttpServer } from "../http-server.ts";
+import { parseMcpResponse } from "../test-helpers.ts";
 import { createBotContext } from "./bot-context.ts";
 import { JobManager } from "./job-manager.ts";
 import { registerMinecraftTools } from "./mcp-tools.ts";
@@ -30,24 +31,6 @@ describe("BotContext — bot null 時の安全性", () => {
 		expect(ctx.getActionState()).toEqual({ type: "idle" });
 	});
 });
-
-/** SSE またはプレーン JSON のレスポンスを解析 */
-async function parseResponse(res: Response): Promise<Record<string, unknown>> {
-	const contentType = res.headers.get("content-type") ?? "";
-	if (contentType.includes("text/event-stream")) {
-		const text = await res.text();
-		const lines = text.split("\n");
-		let lastData: string | undefined;
-		for (const line of lines) {
-			if (line.startsWith("data: ")) {
-				lastData = line.slice(6);
-			}
-		}
-		if (!lastData) throw new Error("No SSE data found");
-		return JSON.parse(lastData) as Record<string, unknown>;
-	}
-	return res.json() as Promise<Record<string, unknown>>;
-}
 
 describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 	const TEST_PORT = 49_741;
@@ -114,7 +97,7 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 		});
 		expect(toolRes.status).toBe(200);
 
-		const result = (await parseResponse(toolRes)) as {
+		const result = (await parseMcpResponse(toolRes)) as {
 			result?: { content: { type: string; text: string }[] };
 		};
 		expect(result.result).toBeDefined();

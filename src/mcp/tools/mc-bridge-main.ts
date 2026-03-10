@@ -9,9 +9,7 @@ import {
 	releaseSessionLockAndStop,
 	tryAcquireSessionLock,
 } from "../../store/mc-bridge.ts";
-import { formatBridgeEvents } from "./mc-bridge-shared.ts";
-
-const MAX_BRIDGE_MESSAGE_CHARS = 10_000;
+import { MAX_BRIDGE_MESSAGE_CHARS, formatBridgeEvents } from "./mc-bridge-shared.ts";
 
 export interface McBridgeDeps {
 	db: StoreDb;

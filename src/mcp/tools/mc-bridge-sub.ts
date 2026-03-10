@@ -3,9 +3,7 @@ import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
 import { consumeBridgeEventsByType, insertBridgeEvent } from "../../store/mc-bridge.ts";
-import { formatBridgeEvents } from "./mc-bridge-shared.ts";
-
-const MAX_BRIDGE_MESSAGE_CHARS = 10_000;
+import { MAX_BRIDGE_MESSAGE_CHARS, formatBridgeEvents } from "./mc-bridge-shared.ts";
 
 /** サブブレイン側のブリッジツールを登録する */
 export function registerSubBrainBridgeTools(server: McpServer, deps: { db: StoreDb }): void {

@@ -2,10 +2,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import type { StoreDb } from "../../store/db.ts";
 import { insertBridgeEvent } from "../../store/mc-bridge.ts";
 import { createTestDb } from "../../store/test-helpers.ts";
 import { startHttpServer } from "../http-server.ts";
+import { parseMcpResponse } from "../test-helpers.ts";
 import { registerMainBrainBridgeTools } from "./mc-bridge-main.ts";
 
 const TEST_PORT = 49_740;
@@ -26,25 +26,6 @@ const MCP_INIT_BODY = JSON.stringify({
 		clientInfo: { name: "test", version: "0.1.0" },
 	},
 });
-
-/** SSE またはプレーン JSON のレスポンスを解析して JSON-RPC レスポンスを返す */
-async function parseResponse(res: Response): Promise<Record<string, unknown>> {
-	const contentType = res.headers.get("content-type") ?? "";
-	if (contentType.includes("text/event-stream")) {
-		const text = await res.text();
-		// SSE: "data: {...}\n\n" 形式の最後の JSON-RPC レスポンスを取得
-		const lines = text.split("\n");
-		let lastData: string | undefined;
-		for (const line of lines) {
-			if (line.startsWith("data: ")) {
-				lastData = line.slice(6);
-			}
-		}
-		if (!lastData) throw new Error("No SSE data found");
-		return JSON.parse(lastData) as Record<string, unknown>;
-	}
-	return res.json() as Promise<Record<string, unknown>>;
-}
 
 /** セッション初期化して sessionId を返す */
 async function initSession(): Promise<string> {
@@ -81,20 +62,18 @@ async function callTool(
 		}),
 	});
 	expect(res.status).toBe(200);
-	return parseResponse(res) as Promise<ToolResult>;
-}
-
-// 共有 DB — 全テストで同じ DB を使用（HTTP サーバーは createServer 単位で DB を参照）
-let sharedDb: StoreDb;
-
-function createTestMcpServer(): McpServer {
-	const server = new McpServer({ name: "test-mc-bridge", version: "0.1.0" });
-	registerMainBrainBridgeTools(server, { db: sharedDb });
-	return server;
+	return parseMcpResponse(res) as Promise<ToolResult>;
 }
 
 describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
-	sharedDb = createTestDb();
+	const db = createTestDb();
+
+	function createTestMcpServer(): McpServer {
+		const server = new McpServer({ name: "test-mc-bridge", version: "0.1.0" });
+		registerMainBrainBridgeTools(server, { db });
+		return server;
+	}
+
 	const { cleanupTimer, closeAllSessions } = startHttpServer(
 		createTestMcpServer,
 		TEST_PORT,
@@ -122,7 +101,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 	test("minecraft_status が未消費イベントを返す", async () => {
 		// DB に直接 report を挿入
 		insertBridgeEvent(
-			sharedDb,
+			db,
 			"to_main",
 			"report",
 			JSON.stringify({ message: "ダイヤ見つけた", importance: "high" }),
