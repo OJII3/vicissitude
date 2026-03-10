@@ -24,7 +24,7 @@ if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
 	process.exit(1);
 }
 const MC_PORT = portRaw;
-const MC_USERNAME = process.env.MC_USERNAME ?? "fua";
+const MC_USERNAME = process.env.MC_USERNAME ?? "hua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
 const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
 if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {

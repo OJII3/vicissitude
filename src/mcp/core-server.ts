@@ -107,12 +107,10 @@ function getOrCreateFenghuang(guildId: string): Fenghuang {
 
 // --- MCP Server Factory ---
 
-let discordCleanup: (() => void) | undefined;
-
 function createServer(): McpServer {
 	const server = new McpServer({ name: "core", version: "1.0.0" });
 
-	discordCleanup = registerDiscordTools(server, { discordClient });
+	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
 	registerScheduleTools(server);
 	registerEventBufferTools(server, { db });
@@ -131,7 +129,7 @@ const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, CORE_MC
 async function shutdown() {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
-	discordCleanup?.();
+	discordClient.destroy();
 	for (const storage of fenghuangStorages.values()) {
 		storage.close();
 	}

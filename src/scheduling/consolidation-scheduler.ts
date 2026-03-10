@@ -1,12 +1,6 @@
-import { withTimeout } from "../core/functions.ts";
+import { delayResolve, withTimeout } from "../core/functions.ts";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "../core/types.ts";
 import { METRIC } from "../observability/metrics.ts";
-
-function delayResolve<T>(ms: number, value: T): Promise<T> {
-	return new Promise((_resolve) => {
-		setTimeout(() => _resolve(value), ms);
-	});
-}
 
 /** 30 minutes */
 const CONSOLIDATION_TICK_INTERVAL_MS = 30 * 60_000;

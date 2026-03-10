@@ -207,6 +207,7 @@ export interface OpencodePromptParams {
 export type OpencodeSessionEvent =
 	| { type: "idle" }
 	| { type: "compacted" }
+	| { type: "cancelled" }
 	| { type: "error"; message: string };
 
 export interface OpencodeSessionPort {

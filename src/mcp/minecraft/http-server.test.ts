@@ -101,12 +101,12 @@ describe("MCP HTTP Server ライフサイクル", () => {
 			expect(res.status).toBe(200);
 		});
 
-		test("存在しないセッション ID は 400 を返す", async () => {
+		test("存在しないセッション ID は 404 を返す", async () => {
 			const res = await fetch(`${baseUrl}/mcp`, {
 				method: "GET",
 				headers: { "mcp-session-id": "nonexistent-session-id" },
 			});
-			expect(res.status).toBe(400);
+			expect(res.status).toBe(404);
 		});
 	});
 });

@@ -31,7 +31,8 @@ function createFetchHandler(
 			entry.lastAccess = Date.now();
 			return entry.transport.handleRequest(req);
 		}
-		if (req.method === "POST" && !sessionId) {
+		if (sessionId) return new Response("Session Not Found", { status: 404 });
+		if (req.method === "POST") {
 			let server: McpServer;
 			try {
 				server = createServer();

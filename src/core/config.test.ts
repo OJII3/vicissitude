@@ -85,7 +85,7 @@ describe("loadConfig", () => {
 			expect(config.minecraft).toBeDefined();
 			expect(config.minecraft?.host).toBe("mc.example.com");
 			expect(config.minecraft?.port).toBe(25565);
-			expect(config.minecraft?.username).toBe("fua");
+			expect(config.minecraft?.username).toBe("hua");
 			expect(config.minecraft?.version).toBeUndefined();
 			expect(config.minecraft?.mcpPort).toBe(3001);
 			expect(config.minecraft?.viewerPort).toBe(3007);

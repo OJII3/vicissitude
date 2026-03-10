@@ -364,7 +364,7 @@ MCP サーバーは 4 プロセス構成:
 
 - `MC_HOST`: Minecraft サーバーホスト（必須）
 - `MC_PORT`: ポート（デフォルト: `25565`）
-- `MC_USERNAME`: bot ユーザー名（デフォルト: `fua`）
+- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）
 - `MC_VERSION`: Minecraft バージョン指定（省略可、mineflayer 自動検出）
 
 ### Minecraft サブブレイン設定（`MC_HOST` 設定時のみ有効）

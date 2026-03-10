@@ -284,8 +284,8 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		throw new Error(`[bootstrap] Core MCP process exited with code ${coreProcess.exitCode}`);
 	}
 	if (status === "timeout") {
-		logger.warn("[bootstrap] Core MCP server health check timed out, but keeping process alive");
-		return coreProcess;
+		coreProcess.kill();
+		throw new Error("[bootstrap] Core MCP server health check timed out");
 	}
 
 	logger.info(`[bootstrap] Core MCP server started (port=${config.coreMcpPort})`);

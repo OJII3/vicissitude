@@ -1,7 +1,7 @@
 import { resolve } from "path";
 
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../core/config.ts";
-import { evaluateDueReminders, withTimeout } from "../core/functions.ts";
+import { delayResolve, evaluateDueReminders, withTimeout } from "../core/functions.ts";
 import type {
 	AiAgent,
 	DueReminder,
@@ -11,12 +11,6 @@ import type {
 } from "../core/types.ts";
 import { METRIC } from "../observability/metrics.ts";
 import { JsonHeartbeatConfigRepository } from "./heartbeat-config.ts";
-
-function delayResolve<T>(ms: number, value: T): Promise<T> {
-	return new Promise((_resolve) => {
-		setTimeout(() => _resolve(value), ms);
-	});
-}
 
 // ─── Heartbeat prompt builder ───────────────────────────────────
 

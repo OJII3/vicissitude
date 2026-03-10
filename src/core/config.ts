@@ -89,7 +89,7 @@ export function loadConfig(
 			? {
 					host: env.MC_HOST,
 					port: Number(env.MC_PORT ?? "25565"),
-					username: env.MC_USERNAME ?? "fua",
+					username: env.MC_USERNAME ?? "hua",
 					version: env.MC_VERSION,
 					mcpPort: Number(env.MC_MCP_PORT ?? "3001"),
 					viewerPort: Number(env.MC_VIEWER_PORT ?? "3007"),

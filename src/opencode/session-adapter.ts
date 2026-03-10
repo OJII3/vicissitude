@@ -18,6 +18,7 @@ import type {
 
 export interface OpencodeSessionAdapterConfig {
 	port: number;
+	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
 	mcpServers: Record<string, McpLocalConfig | McpRemoteConfig | { enabled: boolean }>;
 	builtinTools: Record<string, boolean>;
 }
@@ -79,7 +80,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 		try {
 			for await (const event of stream) {
-				if (signal?.aborted) return { type: "idle" };
+				if (signal?.aborted) return { type: "cancelled" };
 
 				const typed = event as Event;
 				if (typed.type === "session.idle") {

@@ -137,7 +137,9 @@ export class AgentRunner implements AiAgent {
 			this.abortController?.signal,
 		);
 
-		if (event.type === "idle") {
+		if (event.type === "cancelled") {
+			// abort による中断、ログ不要
+		} else if (event.type === "idle") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session went idle, will restart`);
 		} else if (event.type === "compacted") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
