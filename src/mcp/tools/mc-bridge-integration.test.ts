@@ -9,13 +9,13 @@ import {
 import { createTestDb } from "../../store/test-helpers.ts";
 
 describe("mc-bridge ラウンドトリップ結合テスト", () => {
-	test("メイン→サブ→メインのラウンドトリップ", () => {
+	test("Discord→Minecraft→Discord のラウンドトリップ", () => {
 		const db = createTestDb();
 
 		// Discord 側: command を挿入（to_minecraft）
 		insertBridgeEvent(db, "to_minecraft", "command", "木を伐採して");
 
-		// サブ側: command を消費
+		// Minecraft 側: command を消費
 		const commands = consumeBridgeEventsByType(db, "to_minecraft", "command");
 		expect(commands).toHaveLength(1);
 		expect(commands.at(0)?.payload).toBe("木を伐採して");
@@ -28,7 +28,7 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 			JSON.stringify({ message: "木を5本伐採した", importance: "medium" }),
 		);
 
-		// メイン側: report を消費
+		// Discord 側: report を消費
 		const reports = consumeBridgeEventsByType(db, "to_discord", "report");
 		expect(reports).toHaveLength(1);
 		const payload = JSON.parse(reports.at(0)?.payload ?? "{}");
@@ -46,16 +46,16 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		// start イベント挿入
 		insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
 
-		// サブ側で start を検知
+		// Minecraft 側で start を検知
 		const startEvents = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
 		expect(startEvents).toHaveLength(1);
 		expect(startEvents.at(0)?.payload).toBe("start");
 
-		// メイン側: releaseSessionLockAndStop（ロック解放 + stop イベント挿入）
+		// Discord 側: releaseSessionLockAndStop（ロック解放 + stop イベント挿入）
 		const released = releaseSessionLockAndStop(db, guildId);
 		expect(released).toBe(true);
 
-		// サブ側で stop を検知
+		// Minecraft 側で stop を検知
 		const stopEvents = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
 		expect(stopEvents).toHaveLength(1);
 		expect(stopEvents.at(0)?.payload).toBe("stop");
@@ -85,8 +85,8 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 	test("方向の独立性: to_minecraft の消費が to_discord に影響しない", () => {
 		const db = createTestDb();
 
-		insertBridgeEvent(db, "to_minecraft", "command", "sub向け");
-		insertBridgeEvent(db, "to_discord", "report", "main向け");
+		insertBridgeEvent(db, "to_minecraft", "command", "minecraft向け");
+		insertBridgeEvent(db, "to_discord", "report", "discord向け");
 
 		// to_minecraft だけ消費
 		const subEvents = consumeBridgeEventsByType(db, "to_minecraft", "command");
@@ -95,6 +95,6 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		// to_discord は未消費のまま
 		const mainEvents = consumeBridgeEventsByType(db, "to_discord", "report");
 		expect(mainEvents).toHaveLength(1);
-		expect(mainEvents.at(0)?.payload).toBe("main向け");
+		expect(mainEvents.at(0)?.payload).toBe("discord向け");
 	});
 });

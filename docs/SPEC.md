@@ -59,7 +59,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
-6. **MC ブリッジ**（core-server 内、メイン側）: Minecraft サブブレインとの通信
+6. **MC ブリッジ**（core-server 内、Discord 側）: Minecraft エージェントとの通信
    - `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
 7. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
    - `observe_state`: 現在状態の要約を取得（実装済み）
@@ -78,8 +78,8 @@ OpenCode が使用する MCP サーバーを提供する。
    - `eat_food`: 食料を食べる（実装済み）
    - `flee_from_entity`: 指定エンティティから逃走（実装済み）
    - `find_shelter`: 安全な避難場所を探す（実装済み）
-8. **mc-sub-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft サブブレイン専用 MCP サーバー
-   - サブブレイン側ブリッジ: `mc_report`, `mc_read_commands`
+8. **mc-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft エージェント専用 MCP サーバー
+   - Minecraft 側ブリッジ: `mc_report`, `mc_read_commands`
    - メモリツール: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
 #### OpenCode SDK 組み込みツール
@@ -153,13 +153,13 @@ OpenCode が使用する MCP サーバーを提供する。
 - `prismarine-viewer` を HTTP サーバーとして起動し、ブラウザベースのビューアーを提供する。
 - `get_viewer_url` ツールでビューアー URL を取得し、Discord で共有可能にする。
 
-### 3.11 Minecraft サブブレイン
+### 3.11 Minecraft エージェント
 
-- メインブレインとは独立した AgentRunner で動作する Minecraft 専用エージェント。
+- Discord 側とは独立した AgentRunner で動作する Minecraft 専用エージェント。
 - 30秒間隔のポーリングループで自律行動。危険回避（P0-P1）、基本行動（P2）、目標管理（P3）の優先度で判断。
-- メインブレイン↔サブブレイン間は SQLite ベースの Event Bridge（`mc_bridge_events` テーブル）で通信。
-- サブブレインの記憶（`MINECRAFT-GOALS.md`, `MINECRAFT-SKILLS.md`）は Guild 非依存のグローバルオーバーレイ方式。
-- `minecraft_start_session` / `minecraft_stop_session` でメインブレインからライフサイクルを制御。
+- Discord 側↔Minecraft エージェント間は SQLite ベースの Event Bridge（`mc_bridge_events` テーブル）で通信。
+- Minecraft エージェントの記憶（`MINECRAFT-GOALS.md`, `MINECRAFT-SKILLS.md`）は Guild 非依存のグローバルオーバーレイ方式。
+- `minecraft_start_session` / `minecraft_stop_session` で Discord 側からライフサイクルを制御。
 
 ## 4. 非機能要件
 
@@ -171,8 +171,8 @@ OpenCode が使用する MCP サーバーを提供する。
 
 - `DISCORD_TOKEN`: 必須（`.env` から読込）
 - `OPENCODE_MODEL_ID`: AI モデル ID（デフォルト: `big-pickle`）
-- `MC_PROVIDER_ID`: サブブレイン用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
-- `MC_MODEL_ID`: サブブレイン用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
+- `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
+- `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 
 ## 6. 受け入れ条件
 

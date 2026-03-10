@@ -17,7 +17,7 @@ const db = createDb(DATA_DIR);
 
 // --- MCP Server ---
 
-const server = new McpServer({ name: "mc-sub-bridge", version: "1.0.0" });
+const server = new McpServer({ name: "mc-bridge", version: "1.0.0" });
 
 registerMinecraftBridgeTools(server, { db });
 registerMcMemoryTools(server, { dataDir: resolve(DATA_DIR, "context/minecraft") });

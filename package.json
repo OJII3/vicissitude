@@ -20,7 +20,8 @@
 		"deploy": "podman-compose up -d && echo 'Deployed: nr deploy:logs to follow logs'",
 		"deploy:rebuild": "podman-compose down && bun run container:build:bot && podman-compose up -d && echo 'Rebuilt and deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman-compose logs -f",
-		"deploy:stop": "podman-compose down"
+		"deploy:stop": "podman-compose down",
+		"prepare": "bash scripts/install-hooks.sh"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",

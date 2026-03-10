@@ -10,13 +10,13 @@ graph LR
   discord_profile["discord/profile"] --> profile
   discord_router["discord/router"]
   mcp_config["mcp-config"] --> profile
+  minecraft_brain_manager["minecraft/brain-manager"] --> mcp_config["mcp-config"]
+  minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_context_builder["minecraft/context-builder"]
+  minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_profile["minecraft/profile"]
+  minecraft_brain_manager["minecraft/brain-manager"] --> runner
+  minecraft_brain_manager["minecraft/brain-manager"] --> session_store["session-store"]
   minecraft_context_builder["minecraft/context-builder"]
   minecraft_profile["minecraft/profile"] --> profile
-  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> mcp_config["mcp-config"]
-  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> minecraft_context_builder["minecraft/context-builder"]
-  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> minecraft_profile["minecraft/profile"]
-  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> runner
-  minecraft_sub_brain_manager["minecraft/sub-brain-manager"] --> session_store["session-store"]
   profile
   runner --> profile
   runner --> session_store["session-store"]
@@ -44,6 +44,12 @@ graph LR
 - モジュール内依存: profile
 - 外部依存: path
 
+### minecraft/brain-manager.ts
+
+- モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
+- 他モジュール依存: core/, store/
+- 外部依存: path
+
 ### minecraft/context-builder.ts
 
 - 他モジュール依存: core/
@@ -53,12 +59,6 @@ graph LR
 
 - モジュール内依存: profile
 - 他モジュール依存: core/
-
-### minecraft/sub-brain-manager.ts
-
-- モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
-- 他モジュール依存: core/, store/
-- 外部依存: path
 
 ### profile.ts
 
