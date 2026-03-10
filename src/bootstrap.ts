@@ -410,8 +410,8 @@ export async function bootstrap(): Promise<void> {
 			logger,
 			root,
 			port: config.opencode.basePort + guildIds.length,
-			providerId: config.opencode.providerId,
-			modelId: config.opencode.modelId,
+			providerId: config.mcSubBrain.providerId,
+			modelId: config.mcSubBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 		});
 	}

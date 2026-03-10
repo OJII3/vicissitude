@@ -39,6 +39,10 @@ const appConfigSchema = z.object({
 		ollamaBaseUrl: z.string(),
 		embeddingModel: z.string(),
 	}),
+	mcSubBrain: z.object({
+		providerId: z.string(),
+		modelId: z.string(),
+	}),
 	minecraft: minecraftSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
@@ -72,6 +76,10 @@ export function loadConfig(
 			modelId: env.LTM_MODEL_ID ?? "gpt-4o",
 			ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://ollama:11434",
 			embeddingModel: env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
+		},
+		mcSubBrain: {
+			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
+			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
 		},
 		minecraft: env.MC_HOST
 			? {
