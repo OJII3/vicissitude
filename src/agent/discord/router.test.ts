@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse } from "../../core/types.ts";
-import { GuildRouter, type AiAgent, type SendOptions } from "./router.ts";
+import type { AgentResponse, AiAgent, SendOptions } from "../../core/types.ts";
+import { GuildRouter } from "./router.ts";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 

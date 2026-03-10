@@ -1,7 +1,5 @@
 import type { AgentResponse, AiAgent, SendOptions } from "../../core/types.ts";
 
-export type { AiAgent, SendOptions } from "../../core/types.ts";
-
 /**
  * ギルドIDに基づいて適切なギルド固有エージェントにルーティングするファサード。
  * guildId が未指定の場合は defaultAgent にフォールバックする。
