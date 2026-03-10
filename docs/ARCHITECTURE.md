@@ -107,7 +107,7 @@ src/
 - `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
 - `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
-- `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core / code-exec / minecraft）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
+- `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core / code-exec）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
 - `minecraft-context-builder.ts`: `MinecraftContextBuilder` — Minecraft サブブレイン専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
 - `profiles/conversation.ts`: 会話エージェントプロファイル
 - `profiles/minecraft.ts`: Minecraft サブブレインプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
