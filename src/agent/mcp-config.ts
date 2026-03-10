@@ -6,28 +6,17 @@ const DEFAULT_BASE_PORT = 4096;
 
 /**
  * MCP サーバー設定を返す。
- * core-server.ts が discord / memory / schedule / event-buffer / ltm を統合。
+ * core MCP は HTTP サーバーとして全 guild で共有。
  */
-export function mcpServerConfigs(options?: { guildId?: string }) {
+export function mcpServerConfigs() {
 	const root = resolve(import.meta.dirname, "../..");
 	const basePort = Number(process.env.OPENCODE_BASE_PORT ?? String(DEFAULT_BASE_PORT));
+	const coreMcpPort = Number(process.env.CORE_MCP_PORT ?? String(basePort - 1));
 
 	const configs: Record<string, McpServerConfig> = {
 		core: {
-			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/core-server.ts")],
-			environment: {
-				DISCORD_TOKEN: process.env.DISCORD_TOKEN ?? "",
-				LTM_OPENCODE_PORT: String(basePort - 1),
-				LTM_PROVIDER_ID:
-					process.env.LTM_PROVIDER_ID ?? process.env.OPENCODE_PROVIDER_ID ?? "github-copilot",
-				LTM_MODEL_ID: process.env.LTM_MODEL_ID ?? "gpt-4o",
-				OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL ?? "http://ollama:11434",
-				LTM_EMBEDDING_MODEL: process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
-				LTM_DATA_DIR: resolve(root, "data/fenghuang"),
-				DATA_DIR: resolve(root, "data"),
-				GUILD_ID: options?.guildId ?? "",
-			},
+			type: "remote",
+			url: `http://localhost:${coreMcpPort}/mcp`,
 		},
 		"code-exec": {
 			type: "local",

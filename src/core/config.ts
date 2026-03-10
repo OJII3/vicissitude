@@ -33,6 +33,7 @@ const appConfigSchema = z.object({
 		basePort: safeInt,
 		sessionMaxAgeHours: safeNumber,
 	}),
+	coreMcpPort: safeInt,
 	ltm: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
@@ -63,14 +64,17 @@ export function loadConfig(
 
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
 
+	const basePort = Number(env.OPENCODE_BASE_PORT ?? "4096");
+
 	const raw = {
 		discordToken: env.DISCORD_TOKEN ?? "",
 		opencode: {
 			providerId: openCodeProviderId,
 			modelId: env.OPENCODE_MODEL_ID ?? "big-pickle",
-			basePort: Number(env.OPENCODE_BASE_PORT ?? "4096"),
+			basePort,
 			sessionMaxAgeHours: Number(env.SESSION_MAX_AGE_HOURS ?? "48"),
 		},
+		coreMcpPort: Number(env.CORE_MCP_PORT ?? String(basePort - 1)),
 		ltm: {
 			providerId: env.LTM_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.LTM_MODEL_ID ?? "gpt-4o",

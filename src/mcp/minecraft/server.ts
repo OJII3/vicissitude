@@ -54,7 +54,7 @@ function createServer(): McpServer {
 	return server;
 }
 
-const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, MC_MCP_PORT);
+const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, MC_MCP_PORT, "minecraft");
 connection.start();
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────

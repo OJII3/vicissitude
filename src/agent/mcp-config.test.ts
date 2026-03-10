@@ -16,6 +16,11 @@ describe("mcpServerConfigs", () => {
 		expect(Object.keys(configs).toSorted()).toEqual(["code-exec", "core"]);
 	});
 
+	it("core は remote 型", () => {
+		const configs = mcpServerConfigs();
+		expect(configs.core?.type).toBe("remote");
+	});
+
 	it("MC_HOST が設定されていても minecraft を含まない", () => {
 		process.env.MC_HOST = "localhost";
 		process.env.MC_MCP_PORT = "3001";

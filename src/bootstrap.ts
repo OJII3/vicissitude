@@ -158,7 +158,7 @@ function setupEventHandlers(
 	});
 }
 
-// ─── Minecraft MCP ──────────────────────────────────────────────
+// ─── MCP Process Management ─────────────────────────────────────
 
 async function waitForMcpReady(
 	proc: Subprocess,
@@ -181,6 +181,46 @@ async function waitForMcpReady(
 	}
 	/* oxlint-enable no-await-in-loop */
 	return "timeout";
+}
+
+async function startCoreMcp(
+	config: ReturnType<typeof loadConfig>,
+	root: string,
+	logger: Logger,
+): Promise<Subprocess> {
+	const coreEnv: Record<string, string> = {
+		PATH: process.env.PATH ?? "",
+		HOME: process.env.HOME ?? "",
+		DISCORD_TOKEN: config.discordToken,
+		CORE_MCP_PORT: String(config.coreMcpPort),
+		LTM_OPENCODE_PORT: String(config.opencode.basePort - 2),
+		LTM_PROVIDER_ID: config.ltm.providerId,
+		LTM_MODEL_ID: config.ltm.modelId,
+		OLLAMA_BASE_URL: config.ltm.ollamaBaseUrl,
+		LTM_EMBEDDING_MODEL: config.ltm.embeddingModel,
+		LTM_DATA_DIR: resolve(config.dataDir, "fenghuang"),
+		DATA_DIR: resolve(root, "data"),
+	};
+
+	const coreProcess = spawn({
+		cmd: ["bun", "run", resolve(root, "src/mcp/core-server.ts")],
+		env: coreEnv,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+
+	const port = String(config.coreMcpPort);
+	const status = await waitForMcpReady(coreProcess, port);
+	if (status === "died") {
+		throw new Error(`[bootstrap] Core MCP process exited with code ${coreProcess.exitCode}`);
+	}
+	if (status === "timeout") {
+		logger.warn("[bootstrap] Core MCP server health check timed out, but keeping process alive");
+		return coreProcess;
+	}
+
+	logger.info(`[bootstrap] Core MCP server started (port=${config.coreMcpPort})`);
+	return coreProcess;
 }
 
 async function startMinecraftMcp(
@@ -274,7 +314,8 @@ export async function bootstrap(): Promise<void> {
 	const gateway = new DiscordGateway(config.discordToken, logger);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
 
-	// Minecraft MCP (start in parallel)
+	// Core MCP + Minecraft MCP (start in parallel)
+	const coreReady = startCoreMcp(config, root, logger);
 	const mcReady = startMinecraftMcp(config, root, logger);
 
 	// Guild agents
@@ -286,7 +327,7 @@ export async function bootstrap(): Promise<void> {
 		const profile = createConversationProfile({
 			providerId: config.opencode.providerId,
 			modelId: config.opencode.modelId,
-			mcpServers: mcpServerConfigs({ guildId }),
+			mcpServers: mcpServerConfigs(),
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: config.opencode.basePort + index,
@@ -333,7 +374,8 @@ export async function bootstrap(): Promise<void> {
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
 
-	// Minecraft MCP
+	// MCP processes
+	const coreProcess = await coreReady;
 	const mcProcess = await mcReady;
 
 	// Minecraft sub-brain manager
@@ -381,6 +423,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.chatAdapter.close();
 			await ltmResources?.recorder.close();
 			await ltmFactReader.close();
+			coreProcess.kill();
 			mcProcess?.kill();
 			closeDb(db);
 		} catch (err) {
