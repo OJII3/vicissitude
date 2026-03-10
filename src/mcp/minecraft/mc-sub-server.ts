@@ -3,13 +3,13 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { closeDb, createDb } from "../store/db.ts";
-import { registerSubBrainBridgeTools } from "./tools/mc-bridge.ts";
-import { registerMcMemoryTools } from "./tools/mc-memory.ts";
+import { closeDb, createDb } from "../../store/db.ts";
+import { registerSubBrainBridgeTools } from "../tools/mc-bridge-sub.ts";
+import { registerMcMemoryTools } from "../tools/mc-memory.ts";
 
 // --- Configuration from environment ---
 
-const DATA_DIR = process.env.DATA_DIR ?? resolve(import.meta.dirname, "../../data");
+const DATA_DIR = process.env.DATA_DIR ?? resolve(import.meta.dirname, "../../../data");
 
 // --- Drizzle DB ---
 

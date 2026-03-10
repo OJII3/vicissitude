@@ -1,0 +1,100 @@
+import { describe, expect, test } from "bun:test";
+
+import {
+	consumeBridgeEventsByType,
+	insertBridgeEvent,
+	releaseSessionLockAndStop,
+	tryAcquireSessionLock,
+} from "../../store/mc-bridge.ts";
+import { createTestDb } from "../../store/test-helpers.ts";
+
+describe("mc-bridge ラウンドトリップ結合テスト", () => {
+	test("メイン→サブ→メインのラウンドトリップ", () => {
+		const db = createTestDb();
+
+		// メイン側: command を挿入（to_sub）
+		insertBridgeEvent(db, "to_sub", "command", "木を伐採して");
+
+		// サブ側: command を消費
+		const commands = consumeBridgeEventsByType(db, "to_sub", "command");
+		expect(commands).toHaveLength(1);
+		expect(commands.at(0)?.payload).toBe("木を伐採して");
+
+		// サブ側: report を挿入（to_main）
+		insertBridgeEvent(
+			db,
+			"to_main",
+			"report",
+			JSON.stringify({ message: "木を5本伐採した", importance: "medium" }),
+		);
+
+		// メイン側: report を消費
+		const reports = consumeBridgeEventsByType(db, "to_main", "report");
+		expect(reports).toHaveLength(1);
+		const payload = JSON.parse(reports.at(0)?.payload ?? "{}");
+		expect(payload.message).toBe("木を5本伐採した");
+	});
+
+	test("lifecycle start → stop の完全フロー", () => {
+		const db = createTestDb();
+		const guildId = "test-guild-123";
+
+		// ロック取得
+		const lock = tryAcquireSessionLock(db, guildId);
+		expect(lock).toEqual({ ok: true });
+
+		// start イベント挿入
+		insertBridgeEvent(db, "to_sub", "lifecycle", "start");
+
+		// サブ側で start を検知
+		const startEvents = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+		expect(startEvents).toHaveLength(1);
+		expect(startEvents.at(0)?.payload).toBe("start");
+
+		// メイン側: releaseSessionLockAndStop（ロック解放 + stop イベント挿入）
+		const released = releaseSessionLockAndStop(db, guildId);
+		expect(released).toBe(true);
+
+		// サブ側で stop を検知
+		const stopEvents = consumeBridgeEventsByType(db, "to_sub", "lifecycle");
+		expect(stopEvents).toHaveLength(1);
+		expect(stopEvents.at(0)?.payload).toBe("stop");
+	});
+
+	test("コマンド順序保持: 複数コマンドが id 昇順で返る", () => {
+		const db = createTestDb();
+
+		insertBridgeEvent(db, "to_sub", "command", "first");
+		insertBridgeEvent(db, "to_sub", "command", "second");
+		insertBridgeEvent(db, "to_sub", "command", "third");
+
+		const commands = consumeBridgeEventsByType(db, "to_sub", "command");
+		expect(commands).toHaveLength(3);
+		expect(commands.at(0)?.payload).toBe("first");
+		expect(commands.at(1)?.payload).toBe("second");
+		expect(commands.at(2)?.payload).toBe("third");
+
+		// id が昇順であることを確認
+		const id0 = commands.at(0)?.id ?? 0;
+		const id1 = commands.at(1)?.id ?? 0;
+		const id2 = commands.at(2)?.id ?? 0;
+		expect(id0).toBeLessThan(id1);
+		expect(id1).toBeLessThan(id2);
+	});
+
+	test("方向の独立性: to_sub の消費が to_main に影響しない", () => {
+		const db = createTestDb();
+
+		insertBridgeEvent(db, "to_sub", "command", "sub向け");
+		insertBridgeEvent(db, "to_main", "report", "main向け");
+
+		// to_sub だけ消費
+		const subEvents = consumeBridgeEventsByType(db, "to_sub", "command");
+		expect(subEvents).toHaveLength(1);
+
+		// to_main は未消費のまま
+		const mainEvents = consumeBridgeEventsByType(db, "to_main", "report");
+		expect(mainEvents).toHaveLength(1);
+		expect(mainEvents.at(0)?.payload).toBe("main向け");
+	});
+});

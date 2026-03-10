@@ -15,7 +15,7 @@ import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerLtmTools } from "./tools/ltm.ts";
-import { registerMainBrainBridgeTools } from "./tools/mc-bridge.ts";
+import { registerMainBrainBridgeTools } from "./tools/mc-bridge-main.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 

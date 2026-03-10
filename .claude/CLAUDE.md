@@ -47,9 +47,9 @@ src/
 ├── mcp/                # MCP サーバー（独立プロセス）
 │   ├── core-server.ts  # 統合エントリポイント
 │   ├── code-exec-server.ts
-│   ├── mc-sub-server.ts # サブブレイン用ブリッジ
-│   ├── minecraft/
-│   └── tools/          # ツール定義
+│   ├── minecraft/      # Minecraft MCP + サブブレイン用ブリッジ
+│   │   └── mc-sub-server.ts
+│   └── tools/          # ツール定義（mc-bridge-main/sub/shared）
 ├── store/              # SQLite 統一永続化（Drizzle ORM）
 ├── observability/      # ログ + メトリクス
 ├── opencode/           # OpenCode SDK 抽象化（Port/Adapter）

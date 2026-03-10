@@ -37,7 +37,7 @@ export function mcpMinecraftSubBrainConfigs(): Record<string, McpServerConfig> {
 	const configs: Record<string, McpServerConfig> = {
 		"mc-bridge": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/mc-sub-server.ts")],
+			command: ["bun", "run", resolve(root, "src/mcp/minecraft/mc-sub-server.ts")],
 			environment: {
 				DATA_DIR: resolve(root, "data"),
 			},
