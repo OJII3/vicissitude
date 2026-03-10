@@ -52,27 +52,74 @@ function watchEntityGone(
 	bot: mineflayer.Bot,
 	target: Entity,
 	signal: AbortSignal,
-): { isDead: () => boolean } {
+): { isDead: () => boolean; cleanup: () => void } {
 	let dead = false;
+	const cleanup = () => {
+		bot.removeListener("entityDead", onGone);
+		bot.removeListener("entityGone", onGone);
+		dead = true;
+	};
 	const onGone = (e: { id: number }) => {
-		if (e.id === target.id) {
-			bot.removeListener("entityDead", onGone);
-			bot.removeListener("entityGone", onGone);
-			dead = true;
-		}
+		if (e.id === target.id) cleanup();
 	};
 	bot.on("entityDead", onGone);
 	bot.on("entityGone", onGone);
-	signal.addEventListener(
-		"abort",
-		() => {
-			bot.removeListener("entityDead", onGone);
-			bot.removeListener("entityGone", onGone);
-			dead = true;
-		},
-		{ once: true },
-	);
-	return { isDead: () => dead };
+	signal.addEventListener("abort", cleanup, { once: true });
+	return { isDead: () => dead, cleanup };
+}
+
+/** ターゲットに接近する。到達できなかった場合は false を返す */
+async function approachTarget(
+	bot: mineflayer.Bot,
+	target: Entity,
+	shouldStop: () => boolean,
+): Promise<boolean> {
+	try {
+		await bot.pathfinder.goto(new goals.GoalFollow(target, ATTACK_RANGE - 1));
+		return true;
+	} catch {
+		if (!shouldStop()) await sleep(ATTACK_COOLDOWN_MS);
+		return false;
+	}
+}
+
+/** 攻撃ループ本体 */
+async function attackLoop(
+	bot: mineflayer.Bot,
+	target: Entity,
+	maxHits: number,
+	signal: AbortSignal,
+	watcher: { isDead: () => boolean },
+	weapon: string,
+	updateProgress: (progress: string) => void,
+): Promise<void> {
+	const shouldStop = () => watcher.isDead() || signal.aborted;
+	let hits = 0;
+
+	while (hits < maxHits && !shouldStop()) {
+		if (bot.entity.position.distanceTo(target.position) > ATTACK_RANGE) {
+			// oxlint-disable-next-line no-await-in-loop -- 接近は順次実行が必須
+			const reached = await approachTarget(bot, target, shouldStop);
+			if (!reached) continue;
+		}
+
+		if (shouldStop()) break;
+		if (bot.entity.position.distanceTo(target.position) > ATTACK_RANGE) continue;
+
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- 攻撃は順次実行が必須
+			await bot.attack(target);
+			hits++;
+			updateProgress(`${String(hits)}/${String(maxHits)} 攻撃 (武器: ${weapon})`);
+		} catch {
+			// 攻撃失敗は無視して続行
+		}
+
+		if (hits < maxHits && !shouldStop()) {
+			// oxlint-disable-next-line no-await-in-loop -- クールダウン待機
+			await sleep(ATTACK_COOLDOWN_MS);
+		}
+	}
 }
 
 /** 攻撃ジョブの executor: 接近 → 攻撃を繰り返す */
@@ -90,39 +137,10 @@ async function executeAttack(
 	updateProgress(`武器: ${weapon}`);
 
 	const watcher = watchEntityGone(bot, target, signal);
-	let hits = 0;
-
-	while (hits < maxHits && !signal.aborted && !watcher.isDead()) {
-		const dist = bot.entity.position.distanceTo(target.position);
-		if (dist > ATTACK_RANGE) {
-			try {
-				// oxlint-disable-next-line no-await-in-loop -- 接近は順次実行が必須
-				await bot.pathfinder.goto(new goals.GoalFollow(target, ATTACK_RANGE - 1));
-			} catch {
-				if (!watcher.isDead() && !signal.aborted) {
-					// oxlint-disable-next-line no-await-in-loop -- リトライ待機
-					await sleep(ATTACK_COOLDOWN_MS);
-					continue;
-				}
-				break;
-			}
-		}
-
-		if (signal.aborted || watcher.isDead()) break;
-
-		try {
-			// oxlint-disable-next-line no-await-in-loop -- 攻撃は順次実行が必須
-			await bot.attack(target);
-			hits++;
-			updateProgress(`${String(hits)}/${String(maxHits)} 攻撃 (武器: ${weapon})`);
-		} catch {
-			// 攻撃失敗は無視して続行
-		}
-
-		if (hits < maxHits && !signal.aborted && !watcher.isDead()) {
-			// oxlint-disable-next-line no-await-in-loop -- クールダウン待機
-			await sleep(ATTACK_COOLDOWN_MS);
-		}
+	try {
+		await attackLoop(bot, target, maxHits, signal, watcher, weapon, updateProgress);
+	} finally {
+		watcher.cleanup();
 	}
 }
 

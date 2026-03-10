@@ -34,6 +34,10 @@
 - **Minecraft エージェント（M12a-M12d）** — PR #96、デプロイ済み 2026-03-10
   - レビュー修正 5 回: setInterval → 再帰 setTimeout、peekBridgeEvents SQL LIMIT、insertBridgeEvent 自動パージ、eat_food/find_shelter エラーハンドリング、サニタイズ関数切り出し、mc-check 自動有効化、ドキュメント整合性修正、McBrainManager テスト追加
 
+- **attack_entity MCP ツール追加** — PR #108
+  - モブ攻撃アクション（ジョブベース非同期実行、最適武器自動装備、エンティティ死亡検知）
+  - プロファイル優先度ルール更新（P0: 逃走失敗時の反撃、P3: 食料狩り）
+
 - **mc-bridge 分割 + discord/minecraft 命名統一** — PR #106
   - mc-bridge.ts を discord/minecraft/shared の 3 ファイルに分割
   - main/sub 命名を discord/minecraft に統一

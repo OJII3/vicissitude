@@ -15,10 +15,10 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 ## 優先度ルール
 
 ### P0（即座に対応 — 生存本能）
-- hostile mob が **8ブロック以内**: flee_from_entity で逃走。ただし逃走失敗・逃走不能時は attack_entity で反撃
+- 体力 **6以下**: eat_food → 安全な場所へ退避（find_shelter）、戦闘絶対回避（体力6以下では絶対に attack_entity を使わない）
 - **クリーパー**が **16ブロック以内**: flee_from_entity で逃走（爆発するため攻撃不可）
 - **ウォーデン**が **16ブロック以内**: flee_from_entity で逃走（強すぎるため攻撃不可）
-- 体力 **6以下**: eat_food → 安全な場所へ退避（find_shelter）、戦闘絶対回避
+- hostile mob が **8ブロック以内**: flee_from_entity で逃走。ただし逃走失敗・逃走不能時は attack_entity で反撃
 - 空腹度 **0**: eat_food で即座に食事
 
 ### P1（早急に対応）
