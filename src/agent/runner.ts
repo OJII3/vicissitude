@@ -1,12 +1,13 @@
 import type {
 	AgentResponse,
+	AiAgent,
 	ContextBuilderPort,
 	EventBuffer,
 	Logger,
 	OpencodeSessionPort,
+	SendOptions,
 } from "../core/types.ts";
 import type { AgentProfile } from "./profile.ts";
-import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
 
 const MAX_RECONNECT_DELAY_MS = 30_000;

@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { OpencodeSessionPort } from "../core/types.ts";
-import { insertBridgeEvent } from "../store/mc-bridge.ts";
-import { createTestDb } from "../store/test-helpers.ts";
-import type { McSubBrainManagerDeps } from "./mc-sub-brain-manager.ts";
-import { McSubBrainManager } from "./mc-sub-brain-manager.ts";
+import type { OpencodeSessionPort } from "../../core/types.ts";
+import { insertBridgeEvent, tryAcquireSessionLock } from "../../store/mc-bridge.ts";
+import { createTestDb } from "../../store/test-helpers.ts";
+import type { McSubBrainManagerDeps } from "./sub-brain-manager.ts";
+import { McSubBrainManager } from "./sub-brain-manager.ts";
 
 function createMockSessionPort(): OpencodeSessionPort {
 	return {
@@ -53,7 +53,6 @@ describe("McSubBrainManager", () => {
 
 	test("start() clears existing session lock", () => {
 		// ロック挿入
-		const { tryAcquireSessionLock } = require("../store/mc-bridge.ts");
 		tryAcquireSessionLock(deps.db, "old-guild");
 
 		manager.start();

@@ -1,6 +1,4 @@
-import type { AgentResponse, AiAgent, SendOptions } from "../core/types.ts";
-
-export type { AiAgent, SendOptions } from "../core/types.ts";
+import type { AgentResponse, AiAgent, SendOptions } from "../../core/types.ts";
 
 /**
  * ギルドIDに基づいて適切なギルド固有エージェントにルーティングするファサード。

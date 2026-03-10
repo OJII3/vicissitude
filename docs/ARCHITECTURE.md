@@ -41,14 +41,16 @@ src/
 ├── agent/                   # OpenCode エージェント基盤
 │   ├── profile.ts           # AgentProfile 型定義
 │   ├── runner.ts            # AgentRunner（ポーリングループ）
-│   ├── router.ts            # GuildRouter（ギルド ID ベースのルーティング）
-│   ├── context-builder.ts   # システムプロンプト構築（LTM ファクト注入含む）
 │   ├── session-store.ts     # セッション永続化（SQLite）
 │   ├── mcp-config.ts        # MCP サーバー設定（core / code-exec / minecraft / mc-sub-bridge）
-│   ├── minecraft-context-builder.ts  # Minecraft サブブレイン専用コンテキスト構築
-│   └── profiles/
-│       ├── conversation.ts  # 会話エージェントプロファイル
-│       └── minecraft.ts     # Minecraft サブブレインプロファイル
+│   ├── discord/             # Discord/会話エージェント固有
+│   │   ├── context-builder.ts   # システムプロンプト構築（LTM ファクト注入含む）
+│   │   ├── profile.ts           # 会話エージェントプロファイル
+│   │   └── router.ts            # GuildRouter（ギルド ID ベースのルーティング）
+│   └── minecraft/           # Minecraft サブブレイン固有
+│       ├── context-builder.ts   # Minecraft サブブレイン専用コンテキスト構築
+│       ├── profile.ts           # Minecraft サブブレインプロファイル
+│       └── sub-brain-manager.ts # サブブレイン生成・起動・停止管理
 │
 ├── gateway/                 # 外部世界との接点
 │   ├── discord.ts           # DiscordGateway
@@ -118,13 +120,14 @@ src/
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
 - `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取ってポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
-- `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
-- `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
 - `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core: remote, code-exec: local）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
-- `minecraft-context-builder.ts`: `MinecraftContextBuilder` — Minecraft サブブレイン専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
-- `profiles/conversation.ts`: 会話エージェントプロファイル
-- `profiles/minecraft.ts`: Minecraft サブブレインプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
+- `discord/router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
+- `discord/context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
+- `discord/profile.ts`: 会話エージェントプロファイル
+- `minecraft/context-builder.ts`: `MinecraftContextBuilder` — Minecraft サブブレイン専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
+- `minecraft/profile.ts`: Minecraft サブブレインプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
+- `minecraft/sub-brain-manager.ts`: `McSubBrainManager` — サブブレインの生成・起動・停止を管理（ブリッジ lifecycle ポーリング）
 
 ### 4.3 gateway/ — 外部世界との接点
 
