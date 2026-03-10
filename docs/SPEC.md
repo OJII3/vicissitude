@@ -59,8 +59,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
-   - MC ブリッジ（メイン側）: `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
-6. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
+6. **MC ブリッジ**（core-server 内、メイン側）: Minecraft サブブレインとの通信
+   - `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
+7. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
    - `observe_state`: 現在状態の要約を取得（実装済み）
    - `get_recent_events`: 直近重要イベント取得（実装済み）
    - `follow_player`: 指定プレイヤーへ追従（実装済み）
@@ -77,7 +78,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `eat_food`: 食料を食べる（実装済み）
    - `flee_from_entity`: 指定エンティティから逃走（実装済み）
    - `find_shelter`: 安全な避難場所を探す（実装済み）
-7. **mc-sub-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft サブブレイン専用 MCP サーバー
+8. **mc-sub-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft サブブレイン専用 MCP サーバー
    - サブブレイン側ブリッジ: `mc_report`, `mc_read_commands`
    - メモリツール: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 

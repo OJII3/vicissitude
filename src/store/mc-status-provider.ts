@@ -31,10 +31,10 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 	}
 
 	private buildReportSection(): string | null {
-		const events = peekBridgeEvents(this.db, "to_main");
+		const events = peekBridgeEvents(this.db, "to_main", MAX_RECENT_REPORTS);
 		if (events.length === 0) return null;
 
-		const recent = events.slice(-MAX_RECENT_REPORTS);
+		const recent = events;
 		const lines = recent.map((e) => {
 			const ts = new Date(e.createdAt).toISOString();
 			if (e.type === "report") {

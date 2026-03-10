@@ -3,7 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import os from "os";
 import { join } from "path";
 
-import { readOverlay, writeOverlay } from "./mc-memory.ts";
+import {
+	readOverlay,
+	sanitizeSkillDescription,
+	sanitizeSkillName,
+	writeOverlay,
+} from "./mc-memory.ts";
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));
@@ -62,27 +67,35 @@ describe("writeOverlay", () => {
 	});
 });
 
-describe("mc_record_skill の name サニタイズ", () => {
+describe("sanitizeSkillName", () => {
 	it("改行と # を含む name からスペースに変換される", () => {
-		// mc_record_skill のロジックを再現してテスト
-		const name = "スキル名\n## 偽セクション";
-		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
+		const safeName = sanitizeSkillName("スキル名\n## 偽セクション");
 		expect(safeName).toBe("スキル名    偽セクション");
 		expect(safeName).not.toContain("\n");
 		expect(safeName).not.toContain("#");
 	});
 
 	it("CR+LF も正しく処理される", () => {
-		const name = "foo\r\nbar";
-		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
+		const safeName = sanitizeSkillName("foo\r\nbar");
 		expect(safeName).toBe("foo  bar");
 	});
 
 	it("# のみの name はスペースに変換される", () => {
-		const name = "# 危険な名前";
-		const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
+		const safeName = sanitizeSkillName("# 危険な名前");
 		expect(safeName).not.toContain("#");
 		expect(safeName).toBe("危険な名前");
+	});
+});
+
+describe("sanitizeSkillDescription", () => {
+	it("行頭の Markdown ヘッダーを除去する", () => {
+		const result = sanitizeSkillDescription("## セクション\nテキスト\n### サブセクション");
+		expect(result).toBe("セクション\nテキスト\nサブセクション");
+	});
+
+	it("行頭以外の # は保持する", () => {
+		const result = sanitizeSkillDescription("C# の使い方");
+		expect(result).toBe("C# の使い方");
 	});
 });
 

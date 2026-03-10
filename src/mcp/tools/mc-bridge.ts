@@ -47,16 +47,14 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 	);
 
 	server.tool("minecraft_status", "マイクラでの最近の出来事を確認する（消費しない）。", {}, () => {
-		const events = peekBridgeEvents(db, "to_main");
+		const events = peekBridgeEvents(db, "to_main", 50);
 		if (events.length === 0) {
 			return {
 				content: [{ type: "text" as const, text: "特に何もなかった。" }],
 			};
 		}
-		// 直近50件に制限してコンテキスト過負荷を防止
-		const recent = events.slice(-50);
 		return {
-			content: [{ type: "text" as const, text: formatBridgeEvents(recent) }],
+			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
 		};
 	});
 

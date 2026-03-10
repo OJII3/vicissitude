@@ -1,5 +1,5 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { existsSync } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { spawn, type Subprocess } from "bun";
@@ -11,7 +11,7 @@ import { createConversationProfile } from "./agent/profiles/conversation.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
-import { loadConfig } from "./core/config.ts";
+import { HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
 import type { AiAgent, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
@@ -34,6 +34,27 @@ import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { incrementEmoji } from "./store/queries.ts";
+
+// ─── mc-check Reminder Sync ─────────────────────────────────────
+
+/** config.minecraft の有無に応じて mc-check リマインダーの enabled を同期する */
+function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logger: Logger): void {
+	if (!existsSync(configPath)) return;
+	try {
+		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
+			reminders?: { id: string; enabled: boolean }[];
+		};
+		const mcCheck = raw.reminders?.find((r) => r.id === "mc-check");
+		if (!mcCheck || mcCheck.enabled === minecraftEnabled) return;
+		mcCheck.enabled = minecraftEnabled;
+		writeFileSync(configPath, JSON.stringify(raw, null, 2));
+		logger.info(
+			`[bootstrap] mc-check reminder ${minecraftEnabled ? "enabled" : "disabled"} (synced with config.minecraft)`,
+		);
+	} catch {
+		// パース失敗時はスキップ（HeartbeatScheduler がデフォルト設定で初期化する）
+	}
+}
 
 // ─── Helper Functions ───────────────────────────────────────────
 
@@ -293,7 +314,8 @@ export async function bootstrap(): Promise<void> {
 		"polling",
 	);
 
-	// Heartbeat
+	// Heartbeat — mc-check リマインダーの自動有効化/無効化
+	syncMcCheckReminder(resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH), !!config.minecraft, logger);
 	const heartbeatScheduler = new HeartbeatScheduler(routingAgent, logger, metrics.collector, root);
 
 	// Session gauge

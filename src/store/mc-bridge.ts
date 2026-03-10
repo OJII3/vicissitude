@@ -14,7 +14,10 @@ export interface BridgeEvent {
 	createdAt: number;
 }
 
-/** ブリッジイベントを挿入する */
+/** 未消費レコードの自動パージ閾値 */
+const AUTO_PURGE_THRESHOLD = 100;
+
+/** ブリッジイベントを挿入する。未消費レコードが閾値を超えた場合は古いものを自動消費済みにする。 */
 export function insertBridgeEvent(
 	db: StoreDb,
 	direction: BridgeDirection,
@@ -22,6 +25,33 @@ export function insertBridgeEvent(
 	payload: string,
 ): void {
 	db.insert(mcBridgeEvents).values({ direction, type, payload, createdAt: Date.now() }).run();
+
+	// 未消費レコードの肥大化を防止: 閾値超過分を消費済みにマーク
+	const now = Date.now();
+	if (now - lastPurgeTime > PURGE_INTERVAL_MS) {
+		lastPurgeTime = now;
+		db.delete(mcBridgeEvents)
+			.where(and(eq(mcBridgeEvents.consumed, 1), lt(mcBridgeEvents.createdAt, now - PURGE_AGE_MS)))
+			.run();
+	}
+
+	// 方向ごとの未消費レコード数を確認し、閾値を超えたら古いものを消費済みにする
+	const unconsumedIds = db
+		.select({ id: mcBridgeEvents.id })
+		.from(mcBridgeEvents)
+		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
+		.orderBy(mcBridgeEvents.id)
+		.all()
+		.map((r) => r.id)
+		.filter((id): id is number => id !== null);
+
+	if (unconsumedIds.length > AUTO_PURGE_THRESHOLD) {
+		const idsToMark = unconsumedIds.slice(0, unconsumedIds.length - AUTO_PURGE_THRESHOLD);
+		db.update(mcBridgeEvents)
+			.set({ consumed: 1 })
+			.where(inArray(mcBridgeEvents.id, idsToMark))
+			.run();
+	}
 }
 
 /** 消費済みレコードを保持する期間（24時間） */
@@ -87,15 +117,21 @@ export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): Br
 	);
 }
 
-/** 未消費のブリッジイベントを消費せず覗き見する（id 昇順） */
-export function peekBridgeEvents(db: StoreDb, direction: BridgeDirection): BridgeEvent[] {
-	return db
+/** 未消費のブリッジイベントを消費せず覗き見する（id 昇順、limit で件数制限可能） */
+export function peekBridgeEvents(
+	db: StoreDb,
+	direction: BridgeDirection,
+	limit?: number,
+): BridgeEvent[] {
+	let query = db
 		.select()
 		.from(mcBridgeEvents)
 		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
-		.orderBy(mcBridgeEvents.id)
-		.all()
-		.map((r) => toBridgeEvent(r));
+		.orderBy(mcBridgeEvents.id);
+	if (limit !== undefined) {
+		query = query.limit(limit) as typeof query;
+	}
+	return query.all().map((r) => toBridgeEvent(r));
 }
 
 /** 未消費の特定タイプのブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */

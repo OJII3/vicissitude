@@ -62,11 +62,17 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 				const item = inventory.find((i) => i.name === foodName);
 				if (!item) continue;
 
-				// oxlint-disable-next-line no-await-in-loop -- 最初に見つかった食料で即 return
-				await bot.equip(item, "hand");
-				// oxlint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
-				await bot.consume();
-				return textResult(`${foodName} を食べました（空腹度: ${String(bot.food)}/20）`);
+				try {
+					// oxlint-disable-next-line no-await-in-loop -- 最初に見つかった食料で即 return
+					await bot.equip(item, "hand");
+					// oxlint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
+					await bot.consume();
+					return textResult(`${foodName} を食べました（空腹度: ${String(bot.food)}/20）`);
+				} catch {
+					return textResult(
+						`${foodName} を食べようとしましたが中断されました（空腹度: ${String(bot.food)}/20）`,
+					);
+				}
 			}
 
 			return textResult("インベントリに食料がありません");
@@ -240,14 +246,18 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 					bedIds.length > 0 ? bot.findBlock({ matching: bedIds, maxDistance }) : null;
 
 				if (bedBlock) {
-					const { x, y, z: bz } = bedBlock.position;
-					await bot.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));
-					return;
+					try {
+						const { x, y, z: bz } = bedBlock.position;
+						await bot.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));
+						return;
+					} catch {
+						// ベッドに到達できなかった場合は緊急シェルターにフォールバック
+					}
 				}
 
 				if (signal.aborted) return;
 
-				// 2. ベッドなし → 緊急シェルター
+				// 2. ベッドなしまたは到達不能 → 緊急シェルター
 				await digEmergencyShelter(bot, signal);
 			});
 

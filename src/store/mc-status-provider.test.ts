@@ -86,10 +86,10 @@ describe("SqliteMcStatusProvider", () => {
 
 		const summary = await provider.getStatusSummary();
 		expect(summary).not.toBeNull();
-		// Should contain reports 3-7 (last 5)
-		expect(summary).toContain("report-3");
-		expect(summary).toContain("report-7");
-		expect(summary).not.toContain("report-2");
+		// SQL LIMIT 5 で先頭5件（id 昇順）が返る
+		expect(summary).toContain("report-0");
+		expect(summary).toContain("report-4");
+		expect(summary).not.toContain("report-5");
 	});
 
 	test("reads goals from overlay path first", async () => {

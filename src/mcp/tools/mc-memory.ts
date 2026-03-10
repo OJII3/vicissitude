@@ -44,6 +44,16 @@ export function writeOverlay(dataDir: string, filename: string, content: string)
 	writeFileSync(overlayPath, content, "utf-8");
 }
 
+/** スキル名のサニタイズ（改行と # を除去） */
+export function sanitizeSkillName(name: string): string {
+	return name.replaceAll(/[\r\n#]/g, " ").trim();
+}
+
+/** スキル説明のサニタイズ（Markdown ヘッダーを除去） */
+export function sanitizeSkillDescription(description: string): string {
+	return description.replaceAll(/^#{1,6}\s/gm, "");
+}
+
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
 	const { dataDir } = deps;
 
@@ -103,8 +113,8 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		({ name, description }) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME);
-			const safeName = name.replaceAll(/[\r\n#]/g, " ").trim();
-			const safeDescription = description.replaceAll(/^#{1,6}\s/gm, "");
+			const safeName = sanitizeSkillName(name);
+			const safeDescription = sanitizeSkillDescription(description);
 			const entry = `\n## ${safeName}\n\n${safeDescription}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			if (updated.length > MAX_SKILLS_CHARS) {

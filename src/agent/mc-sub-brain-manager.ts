@@ -36,7 +36,7 @@ export interface McSubBrainManagerDeps {
 export class McSubBrainManager {
 	private runner: AgentRunner | undefined;
 	private runningPromise: Promise<void> | undefined;
-	private pollTimer: ReturnType<typeof setInterval> | undefined;
+	private pollTimer: ReturnType<typeof setTimeout> | undefined;
 	private stopping = false;
 
 	constructor(private readonly deps: McSubBrainManagerDeps) {}
@@ -45,15 +45,25 @@ export class McSubBrainManager {
 	start(): void {
 		// シングルプロセス前提: 再起動時に残存ロックを強制クリア
 		clearSessionLock(this.deps.db);
-		this.pollTimer = setInterval(() => void this.checkLifecycleEvents(), MC_LIFECYCLE_POLL_MS);
+		this.schedulePoll();
 	}
 
 	async stop(): Promise<void> {
 		if (this.pollTimer) {
-			clearInterval(this.pollTimer);
+			clearTimeout(this.pollTimer);
 			this.pollTimer = undefined;
 		}
 		await this.stopRunner();
+	}
+
+	/** 前回の処理完了後に次のポーリングをスケジュールする（setInterval の代わりに再帰 setTimeout） */
+	private schedulePoll(): void {
+		this.pollTimer = setTimeout(async () => {
+			await this.checkLifecycleEvents();
+			if (!this.stopping && this.pollTimer !== undefined) {
+				this.schedulePoll();
+			}
+		}, MC_LIFECYCLE_POLL_MS);
 	}
 
 	private startRunner(): void {
