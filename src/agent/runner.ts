@@ -1,6 +1,7 @@
 import {
 	createOpencode,
 	type Event,
+	type EventSessionCompacted,
 	type EventSessionError,
 	type EventSessionIdle,
 	type OpencodeClient,
@@ -161,6 +162,12 @@ export class AgentRunner implements AiAgent {
 							`[${this.profile.name}:${this.guildId}] session went idle, will restart`,
 						);
 						return;
+					}
+				}
+				if (typed.type === "session.compacted") {
+					const compacted = typed as EventSessionCompacted;
+					if (compacted.properties.sessionID === sessionId) {
+						this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
 					}
 				}
 				if (typed.type === "session.error") {

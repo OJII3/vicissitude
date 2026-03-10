@@ -38,6 +38,7 @@ export class McSubBrainManager {
 	private runningPromise: Promise<void> | undefined;
 	private pollTimer: ReturnType<typeof setTimeout> | undefined;
 	private stopping = false;
+	private pollCount = 0;
 
 	constructor(private readonly deps: McSubBrainManagerDeps) {}
 
@@ -45,11 +46,14 @@ export class McSubBrainManager {
 	start(): void {
 		// シングルプロセス前提: 再起動時に残存ロックを強制クリア
 		clearSessionLock(this.deps.db);
+		this.pollCount = 0;
 		this.schedulePoll();
+		this.deps.logger.info("[McSubBrainManager] lifecycle polling started (interval=10s)");
 	}
 
 	async stop(): Promise<void> {
 		if (this.pollTimer) {
+			this.deps.logger.info("[McSubBrainManager] stopping lifecycle polling");
 			clearTimeout(this.pollTimer);
 			this.pollTimer = undefined;
 		}
@@ -59,6 +63,13 @@ export class McSubBrainManager {
 	/** 前回の処理完了後に次のポーリングをスケジュールする（setInterval の代わりに再帰 setTimeout） */
 	private schedulePoll(): void {
 		this.pollTimer = setTimeout(async () => {
+			this.pollCount++;
+			if (this.pollCount % 30 === 0) {
+				const runnerState = this.runner ? "running" : "idle";
+				this.deps.logger.info(
+					`[McSubBrainManager] alive (polls=${this.pollCount}, runner=${runnerState})`,
+				);
+			}
 			await this.checkLifecycleEvents();
 			if (!this.stopping && this.pollTimer !== undefined) {
 				this.schedulePoll();
