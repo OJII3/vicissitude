@@ -6,8 +6,9 @@ import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/context-builder.ts";
 import { McSubBrainManager } from "./agent/mc-sub-brain-manager.ts";
-import { mcpServerConfigs } from "./agent/mcp-config.ts";
+import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
+import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
@@ -29,6 +30,7 @@ import {
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
 import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
+import { OpencodeSessionAdapter } from "./opencode/session-adapter.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
@@ -95,21 +97,38 @@ interface LtmResources {
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-async function setupLtmRecording(
+function setupLtmRecording(
 	config: ReturnType<typeof loadConfig>,
 	logger: Logger,
 	metricsCollector?: PrometheusCollector,
-): Promise<LtmResources | undefined> {
+): LtmResources | undefined {
 	const ltmPort = config.opencode.basePort - 2;
 	const dataDir = resolve(config.dataDir, "fenghuang");
 
 	try {
+		const ltmSessionPort = new OpencodeSessionAdapter({
+			port: ltmPort,
+			mcpServers: {},
+			builtinTools: {
+				question: false,
+				read: false,
+				glob: false,
+				grep: false,
+				edit: false,
+				write: false,
+				bash: false,
+				webfetch: false,
+				websearch: false,
+				task: false,
+				todowrite: false,
+				skill: false,
+			},
+		});
 		const chatAdapter = new FenghuangChatAdapter(
-			ltmPort,
+			ltmSessionPort,
 			config.ltm.providerId,
 			config.ltm.modelId,
 		);
-		await chatAdapter.initialize();
 
 		const ollama = new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
@@ -281,13 +300,18 @@ export async function bootstrap(): Promise<void> {
 			modelId: config.opencode.modelId,
 			mcpServers: mcpServerConfigs({ guildId }),
 		});
+		const sessionPort = new OpencodeSessionAdapter({
+			port: config.opencode.basePort + index,
+			mcpServers: profile.mcpServers,
+			builtinTools: profile.builtinTools,
+		});
 		const runner = new AgentRunner({
 			profile,
 			guildId,
 			sessionStore,
 			contextBuilder,
 			logger,
-			port: config.opencode.basePort + index,
+			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 		});
@@ -295,7 +319,7 @@ export async function bootstrap(): Promise<void> {
 	}
 
 	// LTM recording
-	const ltmResources = await setupLtmRecording(config, logger, metrics.collector);
+	const ltmResources = setupLtmRecording(config, logger, metrics.collector);
 
 	// Event handlers
 	setupEventHandlers(gateway, db, ltmResources, logger, metrics.collector);
@@ -327,13 +351,23 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft sub-brain manager
 	let mcSubBrainManager: McSubBrainManager | undefined;
 	if (config.minecraft) {
+		const mcProfile = createMinecraftProfile({
+			providerId: config.mcSubBrain.providerId,
+			modelId: config.mcSubBrain.modelId,
+			mcpServers: mcpMinecraftSubBrainConfigs(),
+		});
 		mcSubBrainManager = new McSubBrainManager({
 			db,
 			sessionStore,
 			logger,
 			root,
-			// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
-			port: config.opencode.basePort + guildIds.length,
+			createSessionPort: () =>
+				new OpencodeSessionAdapter({
+					// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
+					port: config.opencode.basePort + guildIds.length,
+					mcpServers: mcProfile.mcpServers,
+					builtinTools: mcProfile.builtinTools,
+				}),
 			providerId: config.mcSubBrain.providerId,
 			modelId: config.mcSubBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,

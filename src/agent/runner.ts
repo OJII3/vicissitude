@@ -1,13 +1,5 @@
-import {
-	createOpencode,
-	type Event,
-	type EventSessionCompacted,
-	type EventSessionError,
-	type EventSessionIdle,
-	type OpencodeClient,
-} from "@opencode-ai/sdk/v2";
-
 import type { AgentResponse, ContextBuilderPort, EventBuffer, Logger } from "../core/types.ts";
+import type { OpencodeSessionPort } from "../opencode/session-port.ts";
 import type { AgentProfile } from "./profile.ts";
 import type { AiAgent, SendOptions } from "./router.ts";
 import type { SessionStore } from "./session-store.ts";
@@ -21,14 +13,12 @@ export interface RunnerDeps {
 	sessionStore: SessionStore;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
-	port: number;
+	sessionPort: OpencodeSessionPort;
 	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 }
 
 export class AgentRunner implements AiAgent {
-	private client: OpencodeClient | null = null;
-	private closeServer: (() => void) | null = null;
 	private abortController: AbortController | null = null;
 	private running = false;
 	private sessionCreatedAt: number | null = null;
@@ -38,7 +28,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionStore: SessionStore;
 	private readonly contextBuilder: ContextBuilderPort;
 	private readonly logger: Logger;
-	private readonly port: number;
+	private readonly sessionPort: OpencodeSessionPort;
 	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
 
@@ -48,7 +38,7 @@ export class AgentRunner implements AiAgent {
 		this.sessionStore = deps.sessionStore;
 		this.contextBuilder = deps.contextBuilder;
 		this.logger = deps.logger;
-		this.port = deps.port;
+		this.sessionPort = deps.sessionPort;
 		this.eventBuffer = deps.eventBuffer;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 	}
@@ -115,14 +105,11 @@ export class AgentRunner implements AiAgent {
 		this.running = false;
 		this.abortController?.abort();
 		this.abortController = null;
-		this.closeServer?.();
-		this.client = null;
-		this.closeServer = null;
+		this.sessionPort.close();
 	}
 
 	private async runPollingSession(): Promise<void> {
-		const oc = await this.getClient();
-		const sessionId = await this.resolveSessionId(oc);
+		const sessionId = await this.resolveSessionId();
 
 		const system = await this.contextBuilder.build(this.guildId);
 
@@ -130,70 +117,40 @@ export class AgentRunner implements AiAgent {
 			`[${this.profile.name}:${this.guildId}] starting polling prompt on session ${sessionId}`,
 		);
 
-		const result = await oc.session.promptAsync({
-			sessionID: sessionId,
-			parts: [{ type: "text", text: this.profile.pollingPrompt }],
+		await this.sessionPort.promptAsync({
+			sessionId,
+			text: this.profile.pollingPrompt,
 			model: {
-				providerID: this.profile.model.providerId,
-				modelID: this.profile.model.modelId,
+				providerId: this.profile.model.providerId,
+				modelId: this.profile.model.modelId,
 			},
 			system,
 		});
 
-		if (result.error) {
-			throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
-		}
+		const event = await this.sessionPort.waitForSessionIdle(
+			sessionId,
+			this.abortController?.signal,
+		);
 
-		await this.monitorSession(oc, sessionId);
-	}
-
-	private async monitorSession(oc: OpencodeClient, sessionId: string): Promise<void> {
-		const { stream } = await oc.event.subscribe();
-
-		try {
-			for await (const event of stream) {
-				if (this.abortController?.signal.aborted) return;
-
-				const typed = event as Event;
-				if (typed.type === "session.idle") {
-					const idle = typed as EventSessionIdle;
-					if (idle.properties.sessionID === sessionId) {
-						this.logger.info(
-							`[${this.profile.name}:${this.guildId}] session went idle, will restart`,
-						);
-						return;
-					}
-				}
-				if (typed.type === "session.compacted") {
-					const compacted = typed as EventSessionCompacted;
-					if (compacted.properties.sessionID === sessionId) {
-						this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
-					}
-				}
-				if (typed.type === "session.error") {
-					const err = typed as EventSessionError;
-					if (err.properties.sessionID === sessionId) {
-						this.logger.error(
-							`[${this.profile.name}:${this.guildId}] session error event`,
-							err.properties,
-						);
-						return;
-					}
-				}
-			}
-		} finally {
-			// eslint-disable-next-line unicorn/no-useless-undefined -- AsyncIterator.return requires an argument
-			await stream.return?.(undefined);
+		if (event.type === "idle") {
+			this.logger.info(`[${this.profile.name}:${this.guildId}] session went idle, will restart`);
+		} else if (event.type === "compacted") {
+			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
+		} else if (event.type === "error") {
+			this.logger.error(
+				`[${this.profile.name}:${this.guildId}] session error event`,
+				event.message,
+			);
 		}
 	}
 
-	private async resolveSessionId(oc: OpencodeClient): Promise<string> {
+	private async resolveSessionId(): Promise<string> {
 		const sessionKey = `__polling__:${this.guildId}`;
 		let realId = this.sessionStore.get(this.profile.name, sessionKey);
 
 		if (realId) {
-			const result = await oc.session.get({ sessionID: realId });
-			if (result.error || !result.data) {
+			const exists = await this.sessionPort.sessionExists(realId);
+			if (!exists) {
 				realId = undefined;
 			}
 		}
@@ -202,15 +159,7 @@ export class AgentRunner implements AiAgent {
 			const row = this.sessionStore.getRow(this.profile.name, sessionKey);
 			this.sessionCreatedAt = row?.createdAt ?? Date.now();
 		} else {
-			const created = await oc.session.create({
-				title: `ふあ:${this.profile.name}:${this.guildId}`,
-			});
-			if (created.error || !created.data) {
-				throw new Error(
-					`Failed to create session: ${created.error ? JSON.stringify(created.error) : "no data returned"}`,
-				);
-			}
-			realId = created.data.id;
+			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.guildId}`);
 			this.sessionStore.save(this.profile.name, sessionKey, realId);
 			this.sessionCreatedAt = Date.now();
 		}
@@ -227,9 +176,8 @@ export class AgentRunner implements AiAgent {
 		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
 		if (!sessionId) return;
 
-		const oc = await this.getClient();
 		try {
-			await oc.session.delete({ sessionID: sessionId });
+			await this.sessionPort.deleteSession(sessionId);
 		} catch (err) {
 			this.logger.error(
 				`[${this.profile.name}:${this.guildId}] failed to delete OpenCode session`,
@@ -242,22 +190,6 @@ export class AgentRunner implements AiAgent {
 
 		const hours = Math.round(age / 3_600_000);
 		this.logger.info(`[${this.profile.name}:${this.guildId}] session rotated after ${hours}h`);
-	}
-
-	private async getClient(): Promise<OpencodeClient> {
-		if (this.client) return this.client;
-
-		const result = await createOpencode({
-			port: this.port,
-			config: {
-				mcp: this.profile.mcpServers,
-				tools: this.profile.builtinTools,
-			},
-		});
-
-		this.client = result.client;
-		this.closeServer = result.server.close;
-		return this.client;
 	}
 
 	private sleep(ms: number): Promise<void> {

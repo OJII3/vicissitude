@@ -9,6 +9,7 @@ import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang
 import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
+import { OpencodeSessionAdapter } from "../opencode/session-adapter.ts";
 import { closeDb, createDb } from "../store/db.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
@@ -61,13 +62,25 @@ const db = createDb(DATA_DIR);
 
 // --- Fenghuang (LTM) ---
 
-const chatAdapter = new FenghuangChatAdapter(LTM_OPENCODE_PORT, LTM_PROVIDER_ID, LTM_MODEL_ID);
-try {
-	await chatAdapter.initialize();
-} catch (err) {
-	console.error("[core-server] Failed to initialize FenghuangChatAdapter:", err);
-	process.exit(1);
-}
+const ltmSessionPort = new OpencodeSessionAdapter({
+	port: LTM_OPENCODE_PORT,
+	mcpServers: {},
+	builtinTools: {
+		question: false,
+		read: false,
+		glob: false,
+		grep: false,
+		edit: false,
+		write: false,
+		bash: false,
+		webfetch: false,
+		websearch: false,
+		task: false,
+		todowrite: false,
+		skill: false,
+	},
+});
+const chatAdapter = new FenghuangChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 const llm = new CompositeLLMAdapter(chatAdapter, ollama);
