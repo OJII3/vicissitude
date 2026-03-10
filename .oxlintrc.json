@@ -40,6 +40,13 @@
 	},
 	"overrides": [
 		{
+			"files": ["scripts/**/*.ts"],
+			"rules": {
+				"eslint/max-lines": "off",
+				"eslint/max-lines-per-function": "off"
+			}
+		},
+		{
 			"files": ["**/bootstrap.ts"],
 			"rules": {
 				"import/max-dependencies": "off",
