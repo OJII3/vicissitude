@@ -7,6 +7,7 @@
 ```mermaid
 graph LR
   agent --> core
+  agent --> observability
   agent --> store
   core
   fenghuang --> core
@@ -32,7 +33,7 @@ graph LR
 
 ### agent/
 
-- 内部依存: core/, store/
+- 内部依存: core/, observability/, store/
 - 外部依存: drizzle-orm, path
 - ファイル数: 10
 

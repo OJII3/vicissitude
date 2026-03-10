@@ -5,6 +5,7 @@ import type {
 	Logger,
 	MetricsCollector,
 	SendOptions,
+	TokenUsage,
 } from "../core/types.ts";
 
 // ─── Metric Names ───────────────────────────────────────────────
@@ -21,6 +22,14 @@ export const METRIC = {
 	LLM_BUSY_SESSIONS: "llm_busy_sessions",
 	LTM_CONSOLIDATION_TICKS: "ltm_consolidation_ticks_total",
 	LTM_CONSOLIDATION_TICK_DURATION: "ltm_consolidation_tick_duration_seconds",
+	// Token metrics
+	LLM_INPUT_TOKENS: "llm_input_tokens_total",
+	LLM_OUTPUT_TOKENS: "llm_output_tokens_total",
+	LLM_CACHE_READ_TOKENS: "llm_cache_read_tokens_total",
+	// Minecraft metrics
+	MC_JOBS: "mc_jobs_total",
+	MC_BOT_EVENTS: "mc_bot_events_total",
+	MC_MCP_TOOL_CALLS: "mc_mcp_tool_calls_total",
 } as const;
 
 // ─── Prometheus Collector ───────────────────────────────────────
@@ -97,6 +106,13 @@ export class PrometheusCollector implements MetricsCollector {
 		const map = this.counters.get(name);
 		if (!map) return;
 		map.set(key, (map.get(key) ?? 0) + 1);
+	}
+
+	addCounter(name: string, value: number, labels?: Record<string, string>): void {
+		const key = labelsToKey(labels ?? {});
+		const map = this.counters.get(name);
+		if (!map) return;
+		map.set(key, (map.get(key) ?? 0) + value);
 	}
 
 	setGauge(name: string, value: number, labels?: Record<string, string>): void {
@@ -205,8 +221,9 @@ export class PrometheusServer {
 	constructor(
 		private readonly collector: PrometheusCollector,
 		private readonly logger: Logger,
+		port?: number,
 	) {
-		this.port = Number(process.env.METRICS_PORT) || DEFAULT_METRICS_PORT;
+		this.port = port ?? (Number(process.env.METRICS_PORT) || DEFAULT_METRICS_PORT);
 	}
 
 	start(): void {
@@ -270,6 +287,9 @@ export class InstrumentedAiAgent implements AiAgent {
 		try {
 			const response = await this.inner.send(options);
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "success" });
+			if (response.tokens) {
+				recordTokenMetrics(this.metrics, response.tokens, labels);
+			}
 			return response;
 		} catch (error) {
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "error" });
@@ -284,4 +304,16 @@ export class InstrumentedAiAgent implements AiAgent {
 	stop(): void {
 		this.inner.stop();
 	}
+}
+
+// ─── Token Metrics Helper ───────────────────────────────────────
+
+export function recordTokenMetrics(
+	metrics: MetricsCollector,
+	tokens: TokenUsage,
+	labels: Record<string, string>,
+): void {
+	if (tokens.input > 0) metrics.addCounter(METRIC.LLM_INPUT_TOKENS, tokens.input, labels);
+	if (tokens.output > 0) metrics.addCounter(METRIC.LLM_OUTPUT_TOKENS, tokens.output, labels);
+	if (tokens.cacheRead > 0) metrics.addCounter(METRIC.LLM_CACHE_READ_TOKENS, tokens.cacheRead, labels);
 }

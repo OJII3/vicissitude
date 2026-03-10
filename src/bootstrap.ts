@@ -14,7 +14,7 @@ import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
-import type { AiAgent, ContextBuilderPort, Logger } from "./core/types.ts";
+import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
 import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
@@ -77,6 +77,7 @@ export function createGuildAgents(
 		sessionStore: SessionStore;
 		contextBuilder: ContextBuilderPort;
 		logger: Logger;
+		metrics?: MetricsCollector;
 	},
 ): Map<string, AgentRunner> {
 	const agents = new Map<string, AgentRunner>();
@@ -102,6 +103,7 @@ export function createGuildAgents(
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+			metrics: deps.metrics,
 		});
 		agents.set(guildId, runner);
 	}
@@ -127,6 +129,10 @@ export function createMetrics(logger: Logger) {
 		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
 		"LTM consolidation tick duration in seconds",
 	);
+	// Token metrics
+	collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "LLM input tokens total");
+	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "LLM output tokens total");
+	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "LLM cache read tokens total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
 }
@@ -380,6 +386,7 @@ export async function bootstrap(): Promise<void> {
 		sessionStore,
 		contextBuilder,
 		logger,
+		metrics: metrics.collector,
 	});
 
 	// LTM recording

@@ -23,13 +23,14 @@ export class FenghuangChatAdapter {
 		const sessionId = await this.sessionPort.createSession("fenghuang-chat");
 
 		try {
-			return await this.sessionPort.prompt({
+			const result = await this.sessionPort.prompt({
 				sessionId,
 				text: userContent,
 				model: { providerId: this.providerId, modelId: this.modelId },
 				system,
 				tools: {},
 			});
+			return result.text;
 		} finally {
 			try {
 				await this.sessionPort.deleteSession(sessionId);

@@ -14,6 +14,8 @@ import type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
+	PromptResult,
+	TokenUsage,
 } from "../core/types.ts";
 
 export interface OpencodeSessionAdapterConfig {
@@ -46,7 +48,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return !result.error && !!result.data;
 	}
 
-	async prompt(params: OpencodePromptParams): Promise<string> {
+	async prompt(params: OpencodePromptParams): Promise<PromptResult> {
 		const oc = await this.getClient();
 		const result = await oc.session.prompt({
 			sessionID: params.sessionId,
@@ -58,7 +60,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		if (result.error || !result.data) {
 			throw new Error(`Prompt failed: ${JSON.stringify(result.error)}`);
 		}
-		return extractText(result.data.parts);
+		const text = extractText(result.data.parts);
+		const tokens = extractTokens(result.data.info);
+		return { text, tokens };
 	}
 
 	async promptAsync(params: OpencodePromptParams): Promise<void> {
@@ -78,15 +82,32 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();
 
+		// messageId → latest tokens の Map（ストリーミング更新による重複防止）
+		const tokensByMessage = new Map<string, TokenUsage>();
+
 		try {
 			for await (const event of stream) {
 				if (signal?.aborted) return { type: "cancelled" };
 
 				const typed = event as Event;
+
+				// AssistantMessage のトークンを蓄積
+				if (typed.type === "message.updated") {
+					const info = (typed as { properties: { info: { id: string; role: string; tokens?: { input: number; output: number; cache?: { read: number } } }; sessionID?: string } }).properties.info;
+					if (info.role === "assistant" && info.tokens) {
+						tokensByMessage.set(info.id, {
+							input: info.tokens.input,
+							output: info.tokens.output,
+							cacheRead: info.tokens.cache?.read ?? 0,
+						});
+					}
+				}
+
 				if (typed.type === "session.idle") {
 					const idle = typed as EventSessionIdle;
 					if (idle.properties.sessionID === sessionId) {
-						return { type: "idle" };
+						const tokens = sumTokens(tokensByMessage);
+						return { type: "idle", tokens };
 					}
 				}
 				if (typed.type === "session.compacted") {
@@ -143,4 +164,26 @@ function extractText(parts: Part[]): string {
 		.filter((p): p is Part & { type: "text" } => p.type === "text")
 		.map((p) => p.text)
 		.join("");
+}
+
+function extractTokens(info: { tokens?: { input: number; output: number; cache?: { read: number } } }): TokenUsage | undefined {
+	if (!info.tokens) return undefined;
+	return {
+		input: info.tokens.input,
+		output: info.tokens.output,
+		cacheRead: info.tokens.cache?.read ?? 0,
+	};
+}
+
+function sumTokens(tokensByMessage: Map<string, TokenUsage>): TokenUsage | undefined {
+	if (tokensByMessage.size === 0) return undefined;
+	let input = 0;
+	let output = 0;
+	let cacheRead = 0;
+	for (const t of tokensByMessage.values()) {
+		input += t.input;
+		output += t.output;
+		cacheRead += t.cacheRead;
+	}
+	return { input, output, cacheRead };
 }
