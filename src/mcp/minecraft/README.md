@@ -50,7 +50,7 @@ src/mcp/minecraft/
 
 - `MC_HOST`: Minecraft サーバーホスト（必須）
 - `MC_PORT`: ポート（デフォルト: `25565`）
-- `MC_USERNAME`: bot ユーザー名（デフォルト: `fua`）
+- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）
 - `MC_VERSION`: バージョン指定（省略可）
 - `MC_MCP_PORT`: MCP HTTP ポート（デフォルト: `3001`）
 

@@ -6,13 +6,15 @@ import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/context-builder.ts";
 import { McSubBrainManager } from "./agent/mc-sub-brain-manager.ts";
-import { mcpServerConfigs } from "./agent/mcp-config.ts";
+import { mcpServerConfigs, mcpMinecraftSubBrainConfigs } from "./agent/mcp-config.ts";
 import { createConversationProfile } from "./agent/profiles/conversation.ts";
+import { createMinecraftProfile } from "./agent/profiles/minecraft.ts";
 import { GuildRouter } from "./agent/router.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
-import { HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
-import type { AiAgent, Logger } from "./core/types.ts";
+import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
+import type { AiAgent, ContextBuilderPort, Logger } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
 import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
@@ -20,7 +22,6 @@ import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { recordLtmMessage, bufferIncomingMessage } from "./gateway/message-handlers.ts";
-import { HeartbeatScheduler, ConsolidationScheduler } from "./gateway/scheduler.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -29,11 +30,106 @@ import {
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
 import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
+import { OpencodeSessionAdapter } from "./opencode/session-adapter.ts";
+import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts";
+import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
 import { SqliteEventBuffer } from "./store/event-buffer.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { incrementEmoji } from "./store/queries.ts";
+
+// ─── Store Layer ────────────────────────────────────────────────
+
+export function createStoreLayer(config: AppConfig) {
+	const db = createDb(config.dataDir);
+	const sessionStore = new SessionStore(db);
+	return { db, sessionStore };
+}
+
+// ─── Context Layer ──────────────────────────────────────────────
+
+export function createContextLayer(config: AppConfig, root: string, db: StoreDb) {
+	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
+	const mcStatusProvider = config.minecraft
+		? new SqliteMcStatusProvider(
+				db,
+				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
+				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
+			)
+		: undefined;
+	const contextBuilder = new ContextBuilder(
+		resolve(root, "data/context"),
+		resolve(root, "context"),
+		ltmFactReader,
+		mcStatusProvider,
+	);
+	return { ltmFactReader, mcStatusProvider, contextBuilder };
+}
+
+// ─── Guild Agents ───────────────────────────────────────────────
+
+export function createGuildAgents(
+	config: AppConfig,
+	guildIds: string[],
+	deps: {
+		db: StoreDb;
+		sessionStore: SessionStore;
+		contextBuilder: ContextBuilderPort;
+		logger: Logger;
+	},
+): Map<string, AgentRunner> {
+	const agents = new Map<string, AgentRunner>();
+
+	for (const [index, guildId] of guildIds.entries()) {
+		const eventBuffer = new SqliteEventBuffer(deps.db, guildId);
+		const profile = createConversationProfile({
+			providerId: config.opencode.providerId,
+			modelId: config.opencode.modelId,
+			mcpServers: mcpServerConfigs(),
+		});
+		const sessionPort = new OpencodeSessionAdapter({
+			port: config.opencode.basePort + index,
+			mcpServers: profile.mcpServers,
+			builtinTools: profile.builtinTools,
+		});
+		const runner = new AgentRunner({
+			profile,
+			guildId,
+			sessionStore: deps.sessionStore,
+			contextBuilder: deps.contextBuilder,
+			logger: deps.logger,
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+		});
+		agents.set(guildId, runner);
+	}
+
+	return agents;
+}
+
+// ─── Metrics ────────────────────────────────────────────────────
+
+export function createMetrics(logger: Logger) {
+	const collector = new PrometheusCollector();
+	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
+	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
+	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
+	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
+	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
+	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
+	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
+	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
+	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
+	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
+	collector.registerHistogram(
+		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
+		"LTM consolidation tick duration in seconds",
+	);
+	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
+	return { collector, server: new PrometheusServer(collector, logger) };
+}
 
 // ─── mc-check Reminder Sync ─────────────────────────────────────
 
@@ -56,7 +152,7 @@ function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logg
 	}
 }
 
-// ─── Helper Functions ───────────────────────────────────────────
+// ─── Channel Config ─────────────────────────────────────────────
 
 async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 	const overlayChannels = resolve(root, "data/context/channels.json");
@@ -67,26 +163,6 @@ async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 	return new ChannelConfigLoader(channelsJson as ChannelConfigData);
 }
 
-function createMetrics(logger: Logger) {
-	const collector = new PrometheusCollector();
-	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
-	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
-	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
-	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
-	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
-	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
-	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
-	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
-	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
-	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
-	collector.registerHistogram(
-		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
-		"LTM consolidation tick duration in seconds",
-	);
-	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
-	return { collector, server: new PrometheusServer(collector, logger) };
-}
-
 // ─── LTM Recording ─────────────────────────────────────────────
 
 interface LtmResources {
@@ -95,21 +171,25 @@ interface LtmResources {
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-async function setupLtmRecording(
-	config: ReturnType<typeof loadConfig>,
+export function setupLtmRecording(
+	config: AppConfig,
 	logger: Logger,
 	metricsCollector?: PrometheusCollector,
-): Promise<LtmResources | undefined> {
+): LtmResources | undefined {
 	const ltmPort = config.opencode.basePort - 2;
 	const dataDir = resolve(config.dataDir, "fenghuang");
 
 	try {
+		const ltmSessionPort = new OpencodeSessionAdapter({
+			port: ltmPort,
+			mcpServers: {},
+			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
+		});
 		const chatAdapter = new FenghuangChatAdapter(
-			ltmPort,
+			ltmSessionPort,
 			config.ltm.providerId,
 			config.ltm.modelId,
 		);
-		await chatAdapter.initialize();
 
 		const ollama = new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
@@ -151,7 +231,7 @@ function setupEventHandlers(
 	});
 }
 
-// ─── Minecraft MCP ──────────────────────────────────────────────
+// ─── MCP Process Management ─────────────────────────────────────
 
 async function waitForMcpReady(
 	proc: Subprocess,
@@ -176,8 +256,44 @@ async function waitForMcpReady(
 	return "timeout";
 }
 
+async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Promise<Subprocess> {
+	const coreEnv: Record<string, string> = {
+		PATH: process.env.PATH ?? "",
+		HOME: process.env.HOME ?? "",
+		DISCORD_TOKEN: config.discordToken,
+		CORE_MCP_PORT: String(config.coreMcpPort),
+		LTM_OPENCODE_PORT: String(config.opencode.basePort - 2),
+		LTM_PROVIDER_ID: config.ltm.providerId,
+		LTM_MODEL_ID: config.ltm.modelId,
+		OLLAMA_BASE_URL: config.ltm.ollamaBaseUrl,
+		LTM_EMBEDDING_MODEL: config.ltm.embeddingModel,
+		LTM_DATA_DIR: resolve(config.dataDir, "fenghuang"),
+		DATA_DIR: resolve(root, "data"),
+	};
+
+	const coreProcess = spawn({
+		cmd: ["bun", "run", resolve(root, "src/mcp/core-server.ts")],
+		env: coreEnv,
+		stdout: "inherit",
+		stderr: "inherit",
+	});
+
+	const port = String(config.coreMcpPort);
+	const status = await waitForMcpReady(coreProcess, port);
+	if (status === "died") {
+		throw new Error(`[bootstrap] Core MCP process exited with code ${coreProcess.exitCode}`);
+	}
+	if (status === "timeout") {
+		coreProcess.kill();
+		throw new Error("[bootstrap] Core MCP server health check timed out");
+	}
+
+	logger.info(`[bootstrap] Core MCP server started (port=${config.coreMcpPort})`);
+	return coreProcess;
+}
+
 async function startMinecraftMcp(
-	config: ReturnType<typeof loadConfig>,
+	config: AppConfig,
 	root: string,
 	logger: Logger,
 ): Promise<Subprocess | null> {
@@ -237,24 +353,10 @@ export async function bootstrap(): Promise<void> {
 	const logger = new ConsoleLogger();
 
 	// Store
-	const db = createDb(config.dataDir);
-	const sessionStore = new SessionStore(db);
+	const { db, sessionStore } = createStoreLayer(config);
 
-	// LTM
-	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
-	const mcStatusProvider = config.minecraft
-		? new SqliteMcStatusProvider(
-				db,
-				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
-				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
-			)
-		: undefined;
-	const contextBuilder = new ContextBuilder(
-		resolve(root, "data/context"),
-		resolve(root, "context"),
-		ltmFactReader,
-		mcStatusProvider,
-	);
+	// Context
+	const { ltmFactReader, contextBuilder } = createContextLayer(config, root, db);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -267,35 +369,21 @@ export async function bootstrap(): Promise<void> {
 	const gateway = new DiscordGateway(config.discordToken, logger);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
 
-	// Minecraft MCP (start in parallel)
+	// Core MCP + Minecraft MCP (start in parallel)
+	const coreReady = startCoreMcp(config, root, logger);
 	const mcReady = startMinecraftMcp(config, root, logger);
 
 	// Guild agents
 	const guildIds = channelConfig.getGuildIds();
-	const agents = new Map<string, AgentRunner>();
-
-	for (const [index, guildId] of guildIds.entries()) {
-		const eventBuffer = new SqliteEventBuffer(db, guildId);
-		const profile = createConversationProfile({
-			providerId: config.opencode.providerId,
-			modelId: config.opencode.modelId,
-			mcpServers: mcpServerConfigs({ guildId }),
-		});
-		const runner = new AgentRunner({
-			profile,
-			guildId,
-			sessionStore,
-			contextBuilder,
-			logger,
-			port: config.opencode.basePort + index,
-			eventBuffer,
-			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
-		});
-		agents.set(guildId, runner);
-	}
+	const agents = createGuildAgents(config, guildIds, {
+		db,
+		sessionStore,
+		contextBuilder,
+		logger,
+	});
 
 	// LTM recording
-	const ltmResources = await setupLtmRecording(config, logger, metrics.collector);
+	const ltmResources = setupLtmRecording(config, logger, metrics.collector);
 
 	// Event handlers
 	setupEventHandlers(gateway, db, ltmResources, logger, metrics.collector);
@@ -321,19 +409,30 @@ export async function bootstrap(): Promise<void> {
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
 
-	// Minecraft MCP
+	// MCP processes
+	const coreProcess = await coreReady;
 	const mcProcess = await mcReady;
 
 	// Minecraft sub-brain manager
 	let mcSubBrainManager: McSubBrainManager | undefined;
 	if (config.minecraft) {
+		const mcProfile = createMinecraftProfile({
+			providerId: config.mcSubBrain.providerId,
+			modelId: config.mcSubBrain.modelId,
+			mcpServers: mcpMinecraftSubBrainConfigs(),
+		});
 		mcSubBrainManager = new McSubBrainManager({
 			db,
 			sessionStore,
 			logger,
 			root,
-			// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
-			port: config.opencode.basePort + guildIds.length,
+			createSessionPort: () =>
+				new OpencodeSessionAdapter({
+					// ギルドエージェントが basePort + 0..N-1 を使うため、サブブレインは basePort + N を使用
+					port: config.opencode.basePort + guildIds.length,
+					mcpServers: mcProfile.mcpServers,
+					builtinTools: mcProfile.builtinTools,
+				}),
 			providerId: config.mcSubBrain.providerId,
 			modelId: config.mcSubBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
@@ -359,6 +458,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.chatAdapter.close();
 			await ltmResources?.recorder.close();
 			await ltmFactReader.close();
+			coreProcess.kill();
 			mcProcess?.kill();
 			closeDb(db);
 		} catch (err) {

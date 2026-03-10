@@ -2,14 +2,16 @@ import { mkdirSync } from "fs";
 import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Client, GatewayIntentBits } from "discord.js";
 import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang";
 
+import { OPENCODE_ALL_TOOLS_DISABLED } from "../core/constants.ts";
 import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
+import { OpencodeSessionAdapter } from "../opencode/session-adapter.ts";
 import { closeDb, createDb } from "../store/db.ts";
+import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerLtmTools } from "./tools/ltm.ts";
@@ -19,19 +21,14 @@ import { registerScheduleTools } from "./tools/schedule.ts";
 
 // --- Configuration from environment ---
 
-const LTM_OPENCODE_PORT = Number(process.env.LTM_OPENCODE_PORT ?? "4095");
+const CORE_MCP_PORT = Number(process.env.CORE_MCP_PORT ?? "4095");
+const LTM_OPENCODE_PORT = Number(process.env.LTM_OPENCODE_PORT ?? "4094");
 const LTM_PROVIDER_ID = process.env.LTM_PROVIDER_ID ?? "github-copilot";
 const LTM_MODEL_ID = process.env.LTM_MODEL_ID ?? "gpt-4o";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 const LTM_EMBEDDING_MODEL = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
 const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/fenghuang";
 const DATA_DIR = process.env.DATA_DIR ?? "data";
-const GUILD_ID = process.env.GUILD_ID ?? "";
-
-if (!GUILD_ID) {
-	console.error("[core-server] GUILD_ID environment variable is required");
-	process.exit(1);
-}
 
 if (!process.env.DISCORD_TOKEN) {
 	console.error("[core-server] DISCORD_TOKEN environment variable is required");
@@ -61,13 +58,12 @@ const db = createDb(DATA_DIR);
 
 // --- Fenghuang (LTM) ---
 
-const chatAdapter = new FenghuangChatAdapter(LTM_OPENCODE_PORT, LTM_PROVIDER_ID, LTM_MODEL_ID);
-try {
-	await chatAdapter.initialize();
-} catch (err) {
-	console.error("[core-server] Failed to initialize FenghuangChatAdapter:", err);
-	process.exit(1);
-}
+const ltmSessionPort = new OpencodeSessionAdapter({
+	port: LTM_OPENCODE_PORT,
+	mcpServers: {},
+	builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
+});
+const chatAdapter = new FenghuangChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 const llm = new CompositeLLMAdapter(chatAdapter, ollama);
@@ -109,22 +105,31 @@ function getOrCreateFenghuang(guildId: string): Fenghuang {
 	return instance;
 }
 
-// --- MCP Server ---
+// --- MCP Server Factory ---
 
-const server = new McpServer({ name: "core", version: "1.0.0" });
+function createServer(): McpServer {
+	const server = new McpServer({ name: "core", version: "1.0.0" });
 
-const discordCleanup = registerDiscordTools(server, { discordClient });
-registerMemoryTools(server);
-registerScheduleTools(server);
-registerEventBufferTools(server, { db, guildId: GUILD_ID });
-registerLtmTools(server, { getOrCreateFenghuang });
-registerMainBrainBridgeTools(server, { db, guildId: GUILD_ID });
+	registerDiscordTools(server, { discordClient });
+	registerMemoryTools(server);
+	registerScheduleTools(server);
+	registerEventBufferTools(server, { db });
+	registerLtmTools(server, { getOrCreateFenghuang });
+	registerMainBrainBridgeTools(server, { db });
+
+	return server;
+}
+
+// --- Start HTTP Server ---
+
+const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, CORE_MCP_PORT, "core");
 
 // --- Graceful Shutdown ---
 
 async function shutdown() {
-	await server.close();
-	discordCleanup();
+	clearInterval(cleanupTimer);
+	closeAllSessions();
+	discordClient.destroy();
 	for (const storage of fenghuangStorages.values()) {
 		storage.close();
 	}
@@ -137,8 +142,3 @@ async function shutdown() {
 
 process.on("SIGINT", () => void shutdown());
 process.on("SIGTERM", () => void shutdown());
-
-// --- Start server ---
-
-const transport = new StdioServerTransport();
-await server.connect(transport);

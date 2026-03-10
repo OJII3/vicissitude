@@ -68,8 +68,24 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama)/",
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama|opencode)/",
 								"message": "core/ は他の内部モジュールに依存できません"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/opencode/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama)/",
+								"message": "opencode/ は core/ のみに依存できます"
 							}
 						]
 					}
@@ -84,7 +100,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama)/",
+								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama|opencode)/",
 								"message": "observability/ は core/ のみに依存できます"
 							}
 						]
@@ -100,7 +116,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang)/",
+								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|opencode)/",
 								"message": "ollama/ は core/ のみに依存できます"
 							}
 						]
@@ -116,7 +132,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|observability|fenghuang|ollama)/",
+								"regex": "/(agent|gateway|mcp|observability|fenghuang|ollama|opencode)/",
 								"message": "store/ は core/ のみに依存できます"
 							}
 						]
@@ -133,7 +149,7 @@
 						"patterns": [
 							{
 								"regex": "/(gateway|mcp|observability|fenghuang|ollama)/",
-								"message": "agent/ は core/, store/ のみに依存できます"
+								"message": "agent/ は core/, store/, opencode/ のみに依存できます"
 							}
 						]
 					}
@@ -149,7 +165,23 @@
 						"patterns": [
 							{
 								"regex": "/(agent|gateway|mcp|store|observability)/",
-								"message": "fenghuang/ は core/, ollama/ のみに依存できます"
+								"message": "fenghuang/ は core/, ollama/, opencode/ のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["**/scheduling/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama|opencode)/",
+								"message": "scheduling/ は core/, observability/ のみに依存できます"
 							}
 						]
 					}
@@ -164,7 +196,7 @@
 					{
 						"patterns": [
 							{
-								"regex": "/(mcp|fenghuang|ollama)/",
+								"regex": "/(mcp|fenghuang|ollama|opencode)/",
 								"message": "gateway/ は core/, agent/, store/, observability/ のみに依存できます"
 							}
 						]

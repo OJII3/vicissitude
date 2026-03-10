@@ -1,9 +1,22 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import type { OpencodeSessionPort } from "../core/types.ts";
 import { insertBridgeEvent } from "../store/mc-bridge.ts";
 import { createTestDb } from "../store/test-helpers.ts";
 import type { McSubBrainManagerDeps } from "./mc-sub-brain-manager.ts";
 import { McSubBrainManager } from "./mc-sub-brain-manager.ts";
+
+function createMockSessionPort(): OpencodeSessionPort {
+	return {
+		createSession: mock(() => Promise.resolve("mock-session-id")),
+		sessionExists: mock(() => Promise.resolve(false)),
+		prompt: mock(() => Promise.resolve("")),
+		promptAsync: mock(() => Promise.resolve()),
+		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
+		deleteSession: mock(() => Promise.resolve()),
+		close: mock(() => {}),
+	};
+}
 
 /** テスト用の最小限の deps を作成する */
 function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainManagerDeps {
@@ -17,7 +30,7 @@ function createTestDeps(overrides?: Partial<McSubBrainManagerDeps>): McSubBrainM
 			error: mock(() => {}),
 		},
 		root: "/tmp/test-mc-sub",
-		port: 9999,
+		createSessionPort: () => createMockSessionPort(),
 		providerId: "test-provider",
 		modelId: "test-model",
 		sessionMaxAgeMs: 3_600_000,

@@ -31,8 +31,9 @@
 ```
 src/
 ├── core/                    # 型定義・設定・純粋関数（外部依存なし）
-│   ├── types.ts             # 型定義、値オブジェクト、インターフェース
+│   ├── types.ts             # 型定義、値オブジェクト、インターフェース（OpencodeSessionPort 含む）
 │   ├── config.ts            # Zod スキーマによる設定バリデーション
+│   ├── constants.ts         # 共有定数（MC_SUB_BRAIN_GUILD_ID, OPENCODE_ALL_TOOLS_DISABLED）
 │   └── functions.ts         # splitMessage, evaluateDueReminders 等
 │
 ├── agent/                   # OpenCode エージェント基盤
@@ -51,10 +52,16 @@ src/
 │   ├── discord.ts           # DiscordGateway
 │   ├── discord-attachment-mapper.ts  # 添付ファイルマッピング
 │   ├── message-handlers.ts  # bufferIncomingMessage + recordLtmMessage
-│   └── scheduler.ts         # HeartbeatScheduler + ConsolidationScheduler
+│   └── scheduler.ts         # re-export（後方互換）
+│
+├── scheduling/              # スケジューラ（アプリ層）
+│   ├── heartbeat-scheduler.ts       # HeartbeatScheduler
+│   ├── consolidation-scheduler.ts   # ConsolidationScheduler
+│   └── heartbeat-config.ts          # JsonHeartbeatConfigRepository
 │
 ├── mcp/                     # MCP サーバー（独立プロセス、レイヤー外）
-│   ├── core-server.ts       # 統合エントリポイント（discord + memory + schedule + event-buffer + ltm + mc-bridge）
+│   ├── http-server.ts       # 共通 StreamableHTTP サーバー
+│   ├── core-server.ts       # 統合 HTTP サーバー（discord + memory + schedule + event-buffer + ltm + mc-bridge）
 │   ├── code-exec-server.ts  # コード実行（Podman サンドボックス）
 │   ├── mc-sub-server.ts     # Minecraft サブブレイン専用 MCP サーバー（mc-bridge + mc-memory）
 │   ├── memory-helpers.ts    # メモリツール用ヘルパー関数
@@ -81,9 +88,13 @@ src/
 │   ├── logger.ts            # ConsoleLogger（NDJSON 構造化ログ）
 │   └── metrics.ts           # PrometheusCollector + Server + InstrumentedAiAgent
 │
+├── opencode/                # OpenCode SDK 抽象化（Port/Adapter）
+│   ├── session-port.ts      # OpencodeSessionPort インターフェース
+│   └── session-adapter.ts   # OpencodeSessionAdapter（SDK 依存はここに集約）
+│
 ├── fenghuang/               # fenghuang LTM アダプタ
 │   ├── composite-llm-adapter.ts       # CompositeLLMAdapter（chat + embed の合成）
-│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpenCode SDK 経由）
+│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpencodeSessionPort 経由）
 │   ├── fenghuang-conversation-recorder.ts  # FenghuangConversationRecorder（会話記録 + 統合）
 │   └── fenghuang-fact-reader.ts       # FenghuangFactReader（SQLite 読み取り専用）
 │
@@ -96,18 +107,19 @@ src/
 
 ### 4.1 core/ — 型・設定・純粋関数
 
-- `types.ts`: 全エンティティ型、インターフェース（`ConversationRecorder`, `MemoryConsolidator`, `LtmFactReader` 等）
-- `config.ts`: Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す
+- `types.ts`: 全エンティティ型、インターフェース（`OpencodeSessionPort`, `ConversationRecorder`, `MemoryConsolidator`, `LtmFactReader` 等）
+- `config.ts`: Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す。`coreMcpPort` を含む
+- `constants.ts`: 共有定数（`MC_SUB_BRAIN_GUILD_ID`, `OPENCODE_ALL_TOOLS_DISABLED`）
 - `functions.ts`: `splitMessage()`, `evaluateDueReminders()` 等の純粋関数
 
 ### 4.2 agent/ — OpenCode エージェント基盤
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
-- `runner.ts`: `AgentRunner` — `AgentProfile` を受け取って `promptAsync()` でポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
+- `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取ってポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
 - `router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
 - `context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
-- `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core / code-exec）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
+- `mcp-config.ts`: `mcpServerConfigs()` — メインブレイン用 MCP サーバー設定（core: remote, code-exec: local）。`mcpMinecraftSubBrainConfigs()` — サブブレイン用 MCP サーバー設定（mc-bridge / minecraft）
 - `minecraft-context-builder.ts`: `MinecraftContextBuilder` — Minecraft サブブレイン専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
 - `profiles/conversation.ts`: 会話エージェントプロファイル
 - `profiles/minecraft.ts`: Minecraft サブブレインプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
@@ -116,13 +128,19 @@ src/
 
 - `discord.ts`: `DiscordGateway` — discord.js Client でメッセージ受信。ルーティング: メンション/スレッド -> onMessage、ホームチャンネル -> onHomeChannelMessage。`onEmojiUsed()` でカスタム絵文字トラッキング
 - `message-handlers.ts`: `bufferIncomingMessage()` — 受信メッセージをイベントバッファに追加。`recordLtmMessage()` — LTM に会話を記録
-- `scheduler.ts`: `HeartbeatScheduler`（1 分間隔）+ `ConsolidationScheduler`（30 分間隔、初回 5 分遅延）
+- `scheduler.ts`: 後方互換用 re-export のみ。実体は `scheduling/` に移動済み
 
-### 4.4 mcp/ — MCP サーバー（独立プロセス）
+### 4.4 scheduling/ — スケジューラ（アプリ層）
+
+- `heartbeat-scheduler.ts`: `HeartbeatScheduler` — 1 分間隔で `tick()` を実行し、due なリマインダーを検知して AI セッションを起動。`buildHeartbeatPrompt()`, `groupByGuild()` ヘルパーを含む
+- `consolidation-scheduler.ts`: `ConsolidationScheduler` — 30 分間隔（初回 5 分遅延）で LTM メモリ統合を実行
+- `heartbeat-config.ts`: `JsonHeartbeatConfigRepository` — `data/heartbeat-config.json` の読み書きを管理
+
+### 4.5 mcp/ — MCP サーバー（独立プロセス）
 
 MCP サーバーは 4 プロセス構成:
 
-1. **core-server.ts** (`type: "local"`): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM + MC ブリッジ（メインブレイン側）を統合した単一プロセス
+1. **core-server.ts** (`type: "remote"`, StreamableHTTP): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM + MC ブリッジ（メインブレイン側）を統合した HTTP サーバー。全 guild で 1 プロセスを共有し、guild_id はツールパラメータで指定する
    - `tools/discord.ts`: `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
    - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
    - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
@@ -136,7 +154,7 @@ MCP サーバーは 4 プロセス構成:
    - `tools/mc-bridge.ts`（サブ側）: `mc_report`, `mc_read_commands`
    - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
-### 4.5 store/ — SQLite 統一永続化
+### 4.6 store/ — SQLite 統一永続化
 
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
 - `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）
@@ -146,33 +164,42 @@ MCP サーバーは 4 プロセス構成:
 - `mc-status-provider.ts`: `SqliteMcStatusProvider` — ブリッジレポート + MINECRAFT-GOALS.md からメインブレイン用 MC 状態サマリーを生成
 - `mc-sub-event-buffer.ts`: `MinecraftEventBuffer` — タイマーベースの EventBuffer 実装（30秒間隔ポーリング用）
 
-### 4.6 observability/ — ログ・メトリクス
+### 4.7 observability/ — ログ・メトリクス
 
 - `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
 - `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent` + `METRIC` 定数
 
-### 4.7 fenghuang/ — LTM アダプタ
+### 4.8 opencode/ — OpenCode SDK 抽象化
+
+- `session-port.ts`: `core/types.ts` の `OpencodeSessionPort` 型を re-export（後方互換用）。Port 定義の正本は `core/types.ts`
+- `session-adapter.ts`: `OpencodeSessionAdapter` — `@opencode-ai/sdk/v2` の `createOpencode` を使う唯一のファイル。遅延初期化パターンで、最初のメソッド呼び出し時にサーバープロセスを起動
+
+### 4.9 fenghuang/ — LTM アダプタ
 
 - `composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲
-- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — OpenCode SDK を使って fenghuang の LLMPort 用 chat/chatStructured を提供
+- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — `OpencodeSessionPort` 経由で fenghuang の LLMPort 用 chat/chatStructured を提供
 - `fenghuang-conversation-recorder.ts`: `FenghuangConversationRecorder` — Guild ごとの会話記録 + メモリ統合。`ConversationRecorder` + `MemoryConsolidator` インターフェースを実装
 - `fenghuang-fact-reader.ts`: `FenghuangFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得。WAL モードで安全に同時アクセス
 
-### 4.8 ollama/ — 埋め込みアダプタ
+### 4.10 ollama/ — 埋め込みアダプタ
 
 - `ollama-embedding-adapter.ts`: `OllamaEmbeddingAdapter` — Ollama HTTP API でテキスト埋め込みベクトルを取得（30 秒タイムアウト）
 
-### 4.9 bootstrap.ts — DI 配線
+### 4.11 bootstrap.ts — DI 配線
 
-- `bootstrap()` — DI 配線のエントリポイント
-- 全モジュールをインスタンス化し、イベントハンドラをバインド
-- ギルドごとに `AgentRunner` + `SqliteEventBuffer` を生成し、`GuildRouter` でラップ
+- `bootstrap()` — DI 配線のエントリポイント。内部は独立テスト可能な factory 関数に分解:
+  - `createStoreLayer()` — DB + SessionStore の初期化
+  - `createContextLayer()` — LtmFactReader + McStatusProvider + ContextBuilder の構築
+  - `createGuildAgents()` — ギルドごとに `AgentRunner` を生成し `GuildRouter` でラップ
+  - `createMetrics()` — PrometheusCollector + Server の初期化
+  - `setupLtmRecording()` — fenghuang LTM 記録の構成
+  - `startCoreMcp()` — core MCP HTTP プロセスの起動 + health check
 - LTM 記録、Heartbeat スケジューラ、Consolidation スケジューラを起動
-- Minecraft MCP を子プロセスとして起動（`MC_HOST` 設定時のみ）
+- core MCP と Minecraft MCP を子プロセスとして起動（Minecraft は `MC_HOST` 設定時のみ）
 - Minecraft サブブレイン（`AgentRunner` + `MinecraftEventBuffer`）を起動（`config.minecraft` 存在時のみ）
 - Graceful shutdown（SIGINT/SIGTERM）実装済み
 
-### 4.10 OpenCode 組み込みツール
+### 4.12 OpenCode 組み込みツール
 
 `AgentRunner` では以下の OpenCode SDK 組み込みツールを有効化している:
 
@@ -337,7 +364,7 @@ MCP サーバーは 4 プロセス構成:
 
 - `MC_HOST`: Minecraft サーバーホスト（必須）
 - `MC_PORT`: ポート（デフォルト: `25565`）
-- `MC_USERNAME`: bot ユーザー名（デフォルト: `fua`）
+- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）
 - `MC_VERSION`: Minecraft バージョン指定（省略可、mineflayer 自動検出）
 
 ### Minecraft サブブレイン設定（`MC_HOST` 設定時のみ有効）
@@ -367,7 +394,7 @@ MCP サーバーは 4 プロセス構成:
 
 1. 責務別フラットモジュール構成を採用する（Clean Architecture からの移行完了）。
 2. DI は手動コンストラクタ注入のみ（Pure DI）。
-3. MCP サーバーは独立プロセスとして 4 プロセス構成（core / code-exec / minecraft / mc-sub-bridge）。
+3. MCP サーバーは独立プロセスとして 4 プロセス構成（core（HTTP、全 guild 共有） / code-exec / minecraft / mc-sub-bridge）。
 4. セッション永続化は SQLite を使用する。
 5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` -> `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。

@@ -1,5 +1,6 @@
-import { createOpencode, type OpencodeClient, type Part } from "@opencode-ai/sdk/v2";
 import type { ChatMessage } from "fenghuang";
+
+import type { OpencodeSessionPort } from "../core/types.ts";
 
 const JSON_INSTRUCTION =
 	"IMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.";
@@ -8,69 +9,30 @@ interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** Adapter that uses OpenCode SDK for fenghuang chat / chatStructured */
+/** Adapter that uses OpencodeSessionPort for fenghuang chat / chatStructured */
 export class FenghuangChatAdapter {
-	private client: OpencodeClient | null = null;
-	private closeServer: (() => void) | null = null;
-
 	constructor(
-		private readonly port: number,
+		private readonly sessionPort: OpencodeSessionPort,
 		private readonly providerId: string,
 		private readonly modelId: string,
 	) {}
 
-	async initialize(): Promise<void> {
-		const result = await createOpencode({
-			port: this.port,
-			config: {
-				mcp: {},
-				tools: {
-					question: false,
-					read: false,
-					glob: false,
-					grep: false,
-					edit: false,
-					write: false,
-					bash: false,
-					webfetch: false,
-					websearch: false,
-					task: false,
-					todowrite: false,
-					skill: false,
-				},
-			},
-		});
-		this.client = result.client;
-		this.closeServer = result.server.close;
-	}
-
 	async chat(messages: ChatMessage[]): Promise<string> {
-		const oc = this.getClient();
 		const { system, userContent } = separateMessages(messages);
 
-		const session = await oc.session.create({ title: "fenghuang-chat" });
-		if (session.error || !session.data) {
-			throw new Error(`Failed to create session: ${JSON.stringify(session.error)}`);
-		}
-		const sessionId = session.data.id;
+		const sessionId = await this.sessionPort.createSession("fenghuang-chat");
 
 		try {
-			const result = await oc.session.prompt({
-				sessionID: sessionId,
-				parts: [{ type: "text", text: userContent }],
-				model: { providerID: this.providerId, modelID: this.modelId },
+			return await this.sessionPort.prompt({
+				sessionId,
+				text: userContent,
+				model: { providerId: this.providerId, modelId: this.modelId },
 				system,
 				tools: {},
 			});
-
-			if (result.error || !result.data) {
-				throw new Error(`Prompt failed: ${JSON.stringify(result.error)}`);
-			}
-
-			return extractText(result.data.parts);
 		} finally {
 			try {
-				await oc.session.delete({ sessionID: sessionId });
+				await this.sessionPort.deleteSession(sessionId);
 			} catch (e) {
 				console.error("Failed to delete session:", e);
 			}
@@ -92,16 +54,7 @@ export class FenghuangChatAdapter {
 	}
 
 	close(): void {
-		this.closeServer?.();
-		this.client = null;
-		this.closeServer = null;
-	}
-
-	private getClient(): OpencodeClient {
-		if (!this.client) {
-			throw new Error("FenghuangChatAdapter not initialized — call initialize() first");
-		}
-		return this.client;
+		this.sessionPort.close();
 	}
 }
 
@@ -124,13 +77,6 @@ export function separateMessages(messages: ChatMessage[]): {
 		system: systemParts.length > 0 ? systemParts.join("\n\n") : undefined,
 		userContent: userParts.join("\n"),
 	};
-}
-
-export function extractText(parts: Part[]): string {
-	return parts
-		.filter((p): p is Part & { type: "text" } => p.type === "text")
-		.map((p) => p.text)
-		.join("");
 }
 
 export function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {

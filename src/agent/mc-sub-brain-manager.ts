@@ -2,7 +2,7 @@
 import { resolve } from "path";
 
 import { MC_SUB_BRAIN_GUILD_ID } from "../core/constants.ts";
-import type { Logger } from "../core/types.ts";
+import type { Logger, OpencodeSessionPort } from "../core/types.ts";
 import type { StoreDb } from "../store/db.ts";
 import { clearSessionLock, consumeBridgeEventsByType } from "../store/mc-bridge.ts";
 import { MinecraftEventBuffer } from "../store/mc-sub-event-buffer.ts";
@@ -19,7 +19,7 @@ export interface McSubBrainManagerDeps {
 	sessionStore: SessionStore;
 	logger: Logger;
 	root: string;
-	port: number;
+	createSessionPort: () => OpencodeSessionPort;
 	providerId: string;
 	modelId: string;
 	sessionMaxAgeMs: number;
@@ -80,7 +80,8 @@ export class McSubBrainManager {
 	private startRunner(): void {
 		if (this.runner || this.stopping) return;
 
-		const { root, sessionStore, logger, port, providerId, modelId, sessionMaxAgeMs } = this.deps;
+		const { root, sessionStore, logger, createSessionPort, providerId, modelId, sessionMaxAgeMs } =
+			this.deps;
 		const mcEventBuffer = new MinecraftEventBuffer(30_000);
 		const mcContextBuilder = new MinecraftContextBuilder(
 			resolve(root, "data/context/minecraft"),
@@ -97,7 +98,7 @@ export class McSubBrainManager {
 			sessionStore,
 			contextBuilder: mcContextBuilder,
 			logger,
-			port,
+			sessionPort: createSessionPort(),
 			eventBuffer: mcEventBuffer,
 			sessionMaxAgeMs,
 		});

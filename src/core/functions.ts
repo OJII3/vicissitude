@@ -192,6 +192,15 @@ export function formatTime(date: Date): string {
 	return `${h}:${mi}`;
 }
 
+// ─── delayResolve ────────────────────────────────────────────────
+
+/** 指定ミリ秒後に値を返す Promise を生成する */
+export function delayResolve<T>(ms: number, value: T): Promise<T> {
+	return new Promise((_resolve) => {
+		setTimeout(() => _resolve(value), ms);
+	});
+}
+
 // ─── withTimeout ─────────────────────────────────────────────────
 
 export async function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {

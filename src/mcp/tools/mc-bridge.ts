@@ -15,7 +15,6 @@ const MAX_BRIDGE_MESSAGE_CHARS = 10_000;
 
 export interface McBridgeDeps {
 	db: StoreDb;
-	guildId: string;
 }
 
 function formatBridgeEvents(events: BridgeEvent[]): string {
@@ -30,7 +29,7 @@ function formatBridgeEvents(events: BridgeEvent[]): string {
 
 /** メインブレイン側のブリッジツールを登録する */
 export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDeps): void {
-	const { db, guildId } = deps;
+	const { db } = deps;
 
 	server.tool(
 		"minecraft_delegate",
@@ -73,9 +72,11 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 	server.tool(
 		"minecraft_start_session",
 		"マイクラのセッションを開始する。マイクラが停止中のときに使う。",
-		{},
-		() => {
-			const lock = tryAcquireSessionLock(db, guildId);
+		{
+			guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+		},
+		({ guild_id }) => {
+			const lock = tryAcquireSessionLock(db, guild_id);
 			if (!lock.ok) {
 				return {
 					content: [
@@ -98,27 +99,34 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 		},
 	);
 
-	server.tool("minecraft_stop_session", "マイクラのセッションを停止する。", {}, () => {
-		const released = releaseSessionLockAndStop(db, guildId);
-		if (!released) {
+	server.tool(
+		"minecraft_stop_session",
+		"マイクラのセッションを停止する。",
+		{
+			guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+		},
+		({ guild_id }) => {
+			const released = releaseSessionLockAndStop(db, guild_id);
+			if (!released) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "停止に失敗した。セッションが動いてないみたい。",
+						},
+					],
+				};
+			}
 			return {
 				content: [
 					{
 						type: "text" as const,
-						text: "停止に失敗した。セッションが動いてないみたい。",
+						text: "マイクラ止めた。",
 					},
 				],
 			};
-		}
-		return {
-			content: [
-				{
-					type: "text" as const,
-					text: "マイクラ止めた。",
-				},
-			],
-		};
-	});
+		},
+	);
 }
 
 /** サブブレイン側のブリッジツールを登録する */

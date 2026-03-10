@@ -6,7 +6,6 @@ import { consumeEvents, hasEvents } from "../../store/queries.ts";
 
 export interface EventBufferDeps {
 	db: StoreDb;
-	guildId: string;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -15,7 +14,7 @@ function sleep(ms: number): Promise<void> {
 	});
 }
 
-function formatEvents(rows: { payload: string }[]): string {
+export function formatEvents(rows: { payload: string }[]): string {
 	const events = rows.map((r) => {
 		try {
 			return JSON.parse(r.payload);
@@ -26,7 +25,7 @@ function formatEvents(rows: { payload: string }[]): string {
 	return JSON.stringify(events, null, 2);
 }
 
-async function pollEvents(
+export async function pollEvents(
 	db: StoreDb,
 	guildId: string,
 	deadlineMs: number,
@@ -43,14 +42,17 @@ async function pollEvents(
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, guildId } = deps;
+	const { db } = deps;
 
 	server.tool(
 		"wait_for_events",
 		"イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す。",
-		{ timeout_seconds: z.number().min(1).max(172800).default(60) },
-		async ({ timeout_seconds }) => {
-			const immediate = consumeEvents(db, guildId);
+		{
+			guild_id: z.string().min(1).describe("対象の guild ID"),
+			timeout_seconds: z.number().min(1).max(172800).default(60),
+		},
+		async ({ guild_id, timeout_seconds }) => {
+			const immediate = consumeEvents(db, guild_id);
 			if (immediate.length > 0) {
 				return {
 					content: [{ type: "text" as const, text: formatEvents(immediate) }],
@@ -58,7 +60,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			}
 
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, guildId, deadline);
+			const result = await pollEvents(db, guild_id, deadline);
 			return { content: [{ type: "text" as const, text: result ?? "[]" }] };
 		},
 	);

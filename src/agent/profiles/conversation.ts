@@ -1,3 +1,4 @@
+import { OPENCODE_ALL_TOOLS_DISABLED } from "../../core/constants.ts";
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
 const POLLING_PROMPT = `あなたは Discord bot「ふあ」です。以下のループを実行してください:
@@ -30,18 +31,9 @@ export function createConversationProfile(options: {
 		name: "conversation",
 		mcpServers: options.mcpServers,
 		builtinTools: {
+			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
 			websearch: true,
-			question: false,
-			read: false,
-			glob: false,
-			grep: false,
-			edit: false,
-			write: false,
-			bash: false,
-			task: false,
-			todowrite: false,
-			skill: false,
 		},
 		pollingPrompt: POLLING_PROMPT,
 		model: { providerId: options.providerId, modelId: options.modelId },
