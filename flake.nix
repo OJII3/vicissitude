@@ -19,6 +19,7 @@
           devShells.default = pkgs.mkShell {
             packages = with pkgs; [
               bun
+              jq
               nodejs-slim
               opencode
               podman
