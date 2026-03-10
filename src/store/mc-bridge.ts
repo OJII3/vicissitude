@@ -27,6 +27,12 @@ export function insertBridgeEvent(
 /** 消費済みレコードを保持する期間（24時間） */
 const PURGE_AGE_MS = 24 * 60 * 60 * 1000;
 
+/** パージ間隔（1時間） */
+const PURGE_INTERVAL_MS = 60 * 60 * 1000;
+
+/** 最後にパージを実行した時刻 */
+let lastPurgeTime = 0;
+
 /** DB 行を BridgeEvent に変換するヘルパー */
 function toBridgeEvent(r: {
 	id: number | null;
@@ -44,28 +50,29 @@ function toBridgeEvent(r: {
 	};
 }
 
-/** 未消費イベントをアトミックに消費し、古い消費済みレコードをパージする共通処理 */
+/** 未消費イベントをアトミックに消費する共通処理。パージは別途スロットリングして実行。 */
 function consumeAndPurge(db: StoreDb, whereConditions: ReturnType<typeof and>): BridgeEvent[] {
-	return db.transaction((tx) => {
-		const rows = tx.select().from(mcBridgeEvents).where(whereConditions).all();
+	const rows = db.transaction((tx) => {
+		const selected = tx.select().from(mcBridgeEvents).where(whereConditions).all();
 
-		if (rows.length > 0) {
-			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
+		if (selected.length > 0) {
+			const ids = selected.map((r) => r.id).filter((id): id is number => id !== null);
 			tx.update(mcBridgeEvents).set({ consumed: 1 }).where(inArray(mcBridgeEvents.id, ids)).run();
 		}
 
-		// 24時間以上前の消費済みレコードをパージ
-		tx.delete(mcBridgeEvents)
-			.where(
-				and(
-					eq(mcBridgeEvents.consumed, 1),
-					lt(mcBridgeEvents.createdAt, Date.now() - PURGE_AGE_MS),
-				),
-			)
-			.run();
-
-		return rows.map((r) => toBridgeEvent(r));
+		return selected;
 	});
+
+	// 1時間に1回、消費済みの古いレコードをパージ
+	const now = Date.now();
+	if (now - lastPurgeTime > PURGE_INTERVAL_MS) {
+		lastPurgeTime = now;
+		db.delete(mcBridgeEvents)
+			.where(and(eq(mcBridgeEvents.consumed, 1), lt(mcBridgeEvents.createdAt, now - PURGE_AGE_MS)))
+			.run();
+	}
+
+	return rows.map((r) => toBridgeEvent(r));
 }
 
 /** 未消費のブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
@@ -153,6 +160,19 @@ export function releaseSessionLock(db: StoreDb, guildId: string): boolean {
 		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
 		if (!existing || existing.guildId !== guildId) return false;
 		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
+		return true;
+	});
+}
+
+/** セッションロック解放 + lifecycle stop イベント挿入をアトミックに実行する */
+export function releaseSessionLockAndStop(db: StoreDb, guildId: string): boolean {
+	return db.transaction((tx) => {
+		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+		if (!existing || existing.guildId !== guildId) return false;
+		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
+		tx.insert(mcBridgeEvents)
+			.values({ direction: "to_sub", type: "lifecycle", payload: "stop", createdAt: Date.now() })
+			.run();
 		return true;
 	});
 }

@@ -12,26 +12,26 @@ import {
 	textResult,
 } from "./shared.ts";
 
-/** 食料アイテムと回復量のマップ（緊急用が先頭、残りは回復量降順） */
-const FOOD_ITEMS: [string, number][] = [
-	["golden_apple", 4],
-	["enchanted_golden_apple", 4],
-	["cooked_beef", 8],
-	["cooked_porkchop", 8],
-	["cooked_mutton", 6],
-	["cooked_salmon", 6],
-	["cooked_chicken", 6],
-	["golden_carrot", 6],
-	["bread", 5],
-	["cooked_cod", 5],
-	["baked_potato", 5],
-	["cooked_rabbit", 5],
-	["apple", 4],
-	["carrot", 3],
-	["melon_slice", 2],
-	["sweet_berries", 2],
-	["potato", 1],
-	["dried_kelp", 1],
+/** 食料アイテム（緊急用が先頭、残りは回復量降順） */
+const FOOD_ITEMS: string[] = [
+	"golden_apple",
+	"enchanted_golden_apple",
+	"cooked_beef",
+	"cooked_porkchop",
+	"cooked_mutton",
+	"cooked_salmon",
+	"cooked_chicken",
+	"golden_carrot",
+	"bread",
+	"cooked_cod",
+	"baked_potato",
+	"cooked_rabbit",
+	"apple",
+	"carrot",
+	"melon_slice",
+	"sweet_berries",
+	"potato",
+	"dried_kelp",
 ];
 
 /** golden_apple 系は緊急時専用 */
@@ -55,7 +55,7 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 
 			const inventory = bot.inventory.items();
 
-			for (const [foodName] of FOOD_ITEMS) {
+			for (const foodName of FOOD_ITEMS) {
 				if (!emergency && EMERGENCY_ONLY_FOODS.has(foodName)) continue;
 
 				const item = inventory.find((i) => i.name === foodName);
@@ -121,11 +121,17 @@ async function digEmergencyShelter(bot: mineflayer.Bot, signal: AbortSignal): Pr
 		const pos = bot.entity.position.floored();
 		const block = bot.blockAt(pos.offset(0, -1, 0));
 		if (!block || block.name === "air" || block.name === "cave_air") break;
+		// 破壊不可能ブロック（bedrock 等）はスキップ
+		if (block.hardness < 0) break;
 		const tool = bot.pathfinder.bestHarvestTool(block);
-		// eslint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
-		if (tool) await bot.equip(tool, "hand");
-		// eslint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
-		await bot.dig(block);
+		try {
+			// eslint-disable-next-line no-await-in-loop -- 装備は順次実行が必須
+			if (tool) await bot.equip(tool, "hand");
+			// eslint-disable-next-line no-await-in-loop -- 掘削は順次実行が必須
+			await bot.dig(block);
+		} catch {
+			break;
+		}
 	}
 }
 

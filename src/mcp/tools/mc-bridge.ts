@@ -7,7 +7,7 @@ import {
 	consumeBridgeEvents,
 	insertBridgeEvent,
 	peekBridgeEvents,
-	releaseSessionLock,
+	releaseSessionLockAndStop,
 	tryAcquireSessionLock,
 } from "../../store/mc-bridge.ts";
 
@@ -91,7 +91,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					content: [
 						{
 							type: "text" as const,
-							text: `セッション開始に失敗しました。現在ギルド ${lock.holder} が使用中です。`,
+							text: "セッション開始に失敗しました。別のセッションが使用中です。",
 						},
 					],
 				};
@@ -113,7 +113,7 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 		"Minecraft サブブレインのセッションを停止する。",
 		{},
 		() => {
-			const released = releaseSessionLock(db, guildId);
+			const released = releaseSessionLockAndStop(db, guildId);
 			if (!released) {
 				return {
 					content: [
@@ -124,7 +124,6 @@ export function registerMainBrainBridgeTools(server: McpServer, deps: McBridgeDe
 					],
 				};
 			}
-			insertBridgeEvent(db, "to_sub", "lifecycle", "stop");
 			return {
 				content: [
 					{

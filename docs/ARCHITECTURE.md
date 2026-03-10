@@ -17,7 +17,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, SKILLS）
-- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -139,7 +139,8 @@ MCP サーバーは 4 プロセス構成:
 ### 4.5 store/ — SQLite 統一永続化
 
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
-- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events）
+- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）
+- `event-buffer.ts`: `SqliteEventBuffer` — Guild 別イベントバッファ（`EventBuffer` インターフェース実装）
 - `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `consumeEvents`, `incrementEmoji` 等）
 - `mc-bridge.ts`: MC ブリッジクエリ（`insertBridgeEvent`, `consumeBridgeEvents`, `consumeBridgeEventsByType`, `peekBridgeEvents`, `hasBridgeEvents`）
 - `mc-status-provider.ts`: `SqliteMcStatusProvider` — ブリッジレポート + MINECRAFT-GOALS.md からメインブレイン用 MC 状態サマリーを生成
@@ -256,6 +257,7 @@ MCP サーバーは 4 プロセス構成:
 - `event_buffer`: イベントバッファ（guildId, payload, createdAt）
 - `emoji_usage`: 絵文字使用カウント（guildId, emojiName, count）
 - `mc_bridge_events`: MC ブリッジイベント（direction, type, payload, createdAt, consumed）
+- `mc_session_lock`: MC セッション排他ロック（id=1 固定、guildId, acquiredAt）— 最大1行、2時間タイムアウト
 
 ### JSON ファイル
 

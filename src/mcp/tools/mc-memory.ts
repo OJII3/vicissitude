@@ -42,36 +42,42 @@ export function writeOverlay(dataDir: string, filename: string, content: string)
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
 	const { dataDir } = deps;
 
-	// --- Goals ---
+	// --- Goals / Progress (shared handlers) ---
 
-	server.tool("mc_read_goals", "Minecraft 目標ファイルを読む", {}, () => {
+	const readGoalsHandler = () => {
 		const content = readOverlay(dataDir, GOALS_FILENAME);
 		return {
 			content: [{ type: "text" as const, text: content || "(目標ファイルは空です)" }],
 		};
-	});
+	};
+
+	const updateGoalsSchema = {
+		content: z
+			.string()
+			.min(1)
+			.max(MAX_GOALS_CHARS)
+			.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
+	};
+
+	const updateGoalsHandler = ({ content }: { content: string }) => {
+		writeOverlay(dataDir, GOALS_FILENAME, content);
+		return {
+			content: [
+				{
+					type: "text" as const,
+					text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
+				},
+			],
+		};
+	};
+
+	server.tool("mc_read_goals", "Minecraft 目標ファイルを読む", {}, readGoalsHandler);
 
 	server.tool(
 		"mc_update_goals",
 		"Minecraft 目標ファイルを上書き更新する（バックアップ自動作成）",
-		{
-			content: z
-				.string()
-				.min(1)
-				.max(MAX_GOALS_CHARS)
-				.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
-		},
-		({ content }) => {
-			writeOverlay(dataDir, GOALS_FILENAME, content);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
-					},
-				],
-			};
-		},
+		updateGoalsSchema,
+		updateGoalsHandler,
 	);
 
 	// --- Skills ---
@@ -109,34 +115,13 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		"mc_read_progress",
 		"Minecraft 目標の進捗を読む（mc_read_goals のエイリアス）",
 		{},
-		() => {
-			const content = readOverlay(dataDir, GOALS_FILENAME);
-			return {
-				content: [{ type: "text" as const, text: content || "(目標ファイルは空です)" }],
-			};
-		},
+		readGoalsHandler,
 	);
 
 	server.tool(
 		"mc_update_progress",
 		"Minecraft 目標の進捗を更新する（mc_update_goals のエイリアス、バックアップ自動作成）",
-		{
-			content: z
-				.string()
-				.min(1)
-				.max(MAX_GOALS_CHARS)
-				.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
-		},
-		({ content }) => {
-			writeOverlay(dataDir, GOALS_FILENAME, content);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
-					},
-				],
-			};
-		},
+		updateGoalsSchema,
+		updateGoalsHandler,
 	);
 }
