@@ -39,6 +39,32 @@ describe("PrometheusCollector counter", () => {
 		c.incrementCounter("unregistered_total");
 		expect(c.serialize()).toBe("");
 	});
+
+	it("addCounter() で任意の値を加算できる", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 150);
+		c.addCounter("tokens_total", 200);
+		const output = c.serialize();
+		expect(output).toContain("tokens_total 350");
+	});
+
+	it("addCounter() で labels 付きの加算ができる", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter("tokens_total", "token counter");
+		c.addCounter("tokens_total", 100, { agent_type: "polling" });
+		c.addCounter("tokens_total", 50, { agent_type: "polling" });
+		c.addCounter("tokens_total", 200, { agent_type: "mention" });
+		const output = c.serialize();
+		expect(output).toContain('tokens_total{agent_type="polling"} 150');
+		expect(output).toContain('tokens_total{agent_type="mention"} 200');
+	});
+
+	it("未登録の counter に addCounter しても何も起きない", () => {
+		const c = new PrometheusCollector();
+		c.addCounter("unregistered_total", 100);
+		expect(c.serialize()).toBe("");
+	});
 });
 
 // ─── Gauge ───────────────────────────────────────────────────────
@@ -178,6 +204,9 @@ describe("InstrumentedAiAgent", () => {
 		collector.registerCounter(METRIC.AI_REQUESTS, "AI requests");
 		collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "Busy sessions");
 		collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "Duration", [1, 5]);
+		collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "Input tokens");
+		collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "Output tokens");
+		collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "Cache read tokens");
 		return collector;
 	}
 
@@ -257,6 +286,51 @@ describe("InstrumentedAiAgent", () => {
 
 		const output = collector.serialize();
 		expect(output).toContain("ai_request_duration_seconds_count 1");
+	});
+
+	it("成功時にトークンメトリクスが記録される", async () => {
+		const collector = createSetup();
+		const inner = {
+			send: mock(
+				(): Promise<AgentResponse> =>
+					Promise.resolve({
+						text: "ok",
+						sessionId: "s1",
+						tokens: { input: 150, output: 80, cacheRead: 50 },
+					}),
+			),
+			stop: mock(() => {}),
+		};
+		const agent = new InstrumentedAiAgent(inner, collector, "polling");
+
+		await agent.send({ sessionKey: "discord:ch:_channel", message: "hi" });
+
+		const output = collector.serialize();
+		expect(output).toContain(
+			'llm_input_tokens_total{agent_type="polling",trigger="home"} 150',
+		);
+		expect(output).toContain(
+			'llm_output_tokens_total{agent_type="polling",trigger="home"} 80',
+		);
+		expect(output).toContain(
+			'llm_cache_read_tokens_total{agent_type="polling",trigger="home"} 50',
+		);
+	});
+
+	it("トークン情報がない場合はトークンメトリクスのデータ行が記録されない", async () => {
+		const collector = createSetup();
+		const inner = {
+			send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "ok", sessionId: "s1" })),
+			stop: mock(() => {}),
+		};
+		const agent = new InstrumentedAiAgent(inner, collector, "polling");
+
+		await agent.send({ sessionKey: "discord:ch:user", message: "hi" });
+
+		const output = collector.serialize();
+		// HELP/TYPE 行は存在するがデータ行は存在しない
+		expect(output).not.toContain('llm_input_tokens_total{');
+		expect(output).not.toContain('llm_output_tokens_total{');
 	});
 
 	it("stop() が inner に伝播する", () => {

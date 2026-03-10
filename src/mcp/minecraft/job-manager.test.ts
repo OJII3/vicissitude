@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { PrometheusCollector, METRIC } from "../../observability/metrics.ts";
 import type { ActionState, Importance } from "./helpers.ts";
 import { JobManager } from "./job-manager.ts";
 import type { JobExecutor } from "./job-manager.ts";
@@ -224,5 +225,48 @@ describe("JobManager", () => {
 		const jobEvents = events.filter((e) => e.kind === "job");
 		expect(jobEvents).toHaveLength(1);
 		expect(jobEvents[0]?.description).toContain("キャンセル");
+	});
+});
+
+// ─── JobManager with Metrics ────────────────────────────────────
+
+describe("JobManager with metrics", () => {
+	function setupWithMetrics() {
+		const events: { kind: string; description: string; importance: Importance }[] = [];
+		const states: ActionState[] = [];
+		const pushEvent = (kind: string, description: string, importance: Importance) => {
+			events.push({ kind, description, importance });
+		};
+		const setActionState = (state: ActionState) => {
+			states.push({ ...state });
+		};
+		const collector = new PrometheusCollector();
+		collector.registerCounter(METRIC.MC_JOBS, "MC jobs");
+		const manager = new JobManager(pushEvent, setActionState, collector);
+		return { manager, collector };
+	}
+
+	test("ジョブ完了時に mc_jobs_total が記録される", async () => {
+		const { manager, collector } = setupWithMetrics();
+		manager.startJob("moving", "(10, 64, -20)", noopExecutor);
+		await flushPromises();
+		const output = collector.serialize();
+		expect(output).toContain('mc_jobs_total{status="completed",type="moving"} 1');
+	});
+
+	test("ジョブ失敗時に mc_jobs_total が status=failed で記録される", async () => {
+		const { manager, collector } = setupWithMetrics();
+		manager.startJob("moving", "(10, 64, -20)", failingExecutor);
+		await flushPromises();
+		const output = collector.serialize();
+		expect(output).toContain('mc_jobs_total{status="failed",type="moving"} 1');
+	});
+
+	test("ジョブキャンセル時に mc_jobs_total が status=cancelled で記録される", () => {
+		const { manager, collector } = setupWithMetrics();
+		manager.startJob("following", "ojii3", hangingExecutor);
+		manager.cancelCurrentJob();
+		const output = collector.serialize();
+		expect(output).toContain('mc_jobs_total{status="cancelled",type="following"} 1');
 	});
 });
