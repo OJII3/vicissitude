@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-10
+- 2026-03-11
 - 更新者: claude-code
-- ブランチ: feat/opencode-session-port-adapter（PR 未作成）
+- ブランチ: main（PR #106 マージ後）
 
 ## 2. 現在の真実（Project Truth）
 
@@ -54,9 +54,14 @@
   - Phase 4-A: bootstrap 分解 — 420 行の bootstrap() を独立テスト可能な factory 関数群に分解
   - Phase 4-B: テスト追加 — session-store, event-buffer, bootstrap の 16 テスト追加（計 320 テスト pass）
 
+- mc-bridge 分割 + discord/minecraft 命名統一 + 結合テスト追加（PR #106）。
+  - mc-bridge.ts を discord/minecraft/shared の 3 ファイルに分割
+  - main/sub 命名を discord/minecraft に統一（BridgeDirection, クラス名, 設定キー, ドキュメント）
+  - 結合テスト 12 件追加（計 332 テスト pass）
+  - lefthook で git pre-commit hook を管理（DEPS.md 自動再生成）
+
 ### 次のタスク
 
-- アーキテクチャリファクタリング PR 作成・マージ。
 - 未移植テストの追加（旧 Guild テスト、InstrumentedAiAgent テスト等）。
 - 運用観察: Minecraft エージェントの実際の動作確認・チューニング。
 
