@@ -24,6 +24,7 @@
               opencode
               podman
               podman-compose
+              python311
             ];
           };
         };
