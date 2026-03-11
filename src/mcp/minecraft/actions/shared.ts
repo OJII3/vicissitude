@@ -1,6 +1,8 @@
 import type mineflayer from "mineflayer";
 import { Movements } from "mineflayer-pathfinder";
 
+import type { JobExecutor, JobManager } from "../job-manager.ts";
+
 export type GetBot = () => mineflayer.Bot | null;
 export type TextResult = { content: { type: "text"; text: string }[] };
 
@@ -39,4 +41,18 @@ export function collectBedIds(bot: mineflayer.Bot): number[] {
 		if (bed) ids.push(bed.id);
 	}
 	return ids;
+}
+
+export function tryStartJob(
+	jobManager: JobManager,
+	type: Parameters<JobManager["startJob"]>[0],
+	target: string,
+	executor: JobExecutor,
+): { ok: true; jobId: string } | { ok: false; result: TextResult } {
+	try {
+		return { ok: true, jobId: jobManager.startJob(type, target, executor) };
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		return { ok: false, result: textResult(message) };
+	}
 }

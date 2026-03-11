@@ -1,4 +1,86 @@
 import type mineflayer from "mineflayer";
+import type { Entity } from "prismarine-entity";
+import type { Vec3 } from "vec3";
+
+const DIRECT_AWARENESS_DISTANCE = 4;
+const DEFAULT_BLOCK_CANDIDATE_COUNT = 24;
+const BOT_EYE_HEIGHT = 1.62;
+type VisibleBlock = NonNullable<ReturnType<mineflayer.Bot["blockAt"]>>;
+
+function distanceToBot(bot: mineflayer.Bot, position: Vec3): number {
+	return position.distanceTo(bot.entity.position);
+}
+
+function isImmediatelyPerceivable(bot: mineflayer.Bot, position: Vec3): boolean {
+	return distanceToBot(bot, position) <= DIRECT_AWARENESS_DISTANCE;
+}
+
+function isOccludingBlock(block: { boundingBox?: string }): boolean {
+	return block.boundingBox === "block";
+}
+
+export async function canPerceiveEntity(bot: mineflayer.Bot, entity: Entity): Promise<boolean> {
+	if (!bot.entity || !entity.position) return false;
+	if (isImmediatelyPerceivable(bot, entity.position)) return true;
+
+	const eyePosition = bot.entity.position.offset(0, BOT_EYE_HEIGHT, 0);
+	const targetHeight = Math.max(0.9, Math.min(entity.height ?? 1.6, 1.6));
+	const targetPosition = entity.position.offset(0, targetHeight, 0);
+	const direction = targetPosition.minus(eyePosition);
+	const range = direction.norm();
+	if (range <= 0) return true;
+
+	const blocker = await bot.world.raycast(eyePosition, direction.normalize(), range, isOccludingBlock);
+	return blocker === null;
+}
+
+export async function findPerceivedEntityByName(
+	bot: mineflayer.Bot,
+	name: string,
+	maxDistance = 32,
+): Promise<Entity | null> {
+	const lowerName = name.toLowerCase();
+	const matches = Object.values(bot.entities)
+		.filter(
+			(entity) =>
+				entity !== bot.entity &&
+				entity.position &&
+				entity.name?.toLowerCase() === lowerName &&
+				distanceToBot(bot, entity.position) <= maxDistance,
+		)
+		.toSorted((left, right) => distanceToBot(bot, left.position) - distanceToBot(bot, right.position));
+
+	for (const entity of matches) {
+		// oxlint-disable-next-line no-await-in-loop -- 近い順に最初に知覚できる対象を採用する
+		if (await canPerceiveEntity(bot, entity)) return entity;
+	}
+
+	return null;
+}
+
+export function canPerceiveBlock(bot: mineflayer.Bot, block: VisibleBlock): boolean {
+	if (!bot.entity) return false;
+	if (isImmediatelyPerceivable(bot, block.position)) return true;
+	return bot.canSeeBlock(block);
+}
+
+export function findPerceivedBlock(
+	bot: mineflayer.Bot,
+	options: Parameters<mineflayer.Bot["findBlocks"]>[0] & { count?: number },
+): VisibleBlock | null {
+	const positions = bot.findBlocks({
+		...options,
+		count: options.count ?? DEFAULT_BLOCK_CANDIDATE_COUNT,
+	});
+
+	for (const position of positions) {
+		const block = bot.blockAt(position);
+		if (!block) continue;
+		if (canPerceiveBlock(bot, block)) return block;
+	}
+
+	return null;
+}
 
 // helpers.ts の名前を mcp-tools.ts / bot-connection.ts 向けに re-export
 export { IMPORTANCE_ORDER, getTimePeriod } from "./helpers.ts";
@@ -10,19 +92,27 @@ export function getWeather(b: mineflayer.Bot): string {
 	return "晴れ";
 }
 
-export function getNearbyEntities(
+export async function getNearbyEntities(
 	b: mineflayer.Bot,
 	limit: number,
-): { name: string; distance: number; type: string }[] {
-	return Object.values(b.entities)
+): Promise<{ name: string; distance: number; type: string }[]> {
+	const nearby = Object.values(b.entities)
 		.filter((e) => e !== b.entity && e.position)
-		.map((e) => ({
-			name: e.username ?? e.displayName ?? e.name ?? "unknown",
-			distance: Math.round(e.position.distanceTo(b.entity.position)),
-			type: e.type,
-		}))
-		.toSorted((x, y) => x.distance - y.distance)
-		.slice(0, limit);
+		.toSorted((left, right) => distanceToBot(b, left.position) - distanceToBot(b, right.position));
+
+	const visible: { name: string; distance: number; type: string }[] = [];
+	for (const entity of nearby) {
+		// oxlint-disable-next-line no-await-in-loop -- 近い順に limit 件だけ集めたい
+		if (!(await canPerceiveEntity(b, entity))) continue;
+		visible.push({
+			name: entity.username ?? entity.displayName ?? entity.name ?? "unknown",
+			distance: Math.round(distanceToBot(b, entity.position)),
+			type: entity.type,
+		});
+		if (visible.length >= limit) break;
+	}
+
+	return visible;
 }
 
 export function getInventorySummary(b: mineflayer.Bot): {

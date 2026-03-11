@@ -4,8 +4,9 @@ import { goals } from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
+import { canPerceiveEntity, findPerceivedBlock } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
+import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
 
 const MAX_COLLECT_COUNT = 64;
 
@@ -16,7 +17,7 @@ async function digOneBlock(
 	signal: AbortSignal,
 ): Promise<boolean> {
 	if (signal.aborted) return false;
-	const block = b.findBlock({ matching: blockId, maxDistance });
+	const block = findPerceivedBlock(b, { matching: blockId, maxDistance, count: 24 });
 	if (!block) return false;
 	const { x, y, z: bz } = block.position;
 	await b.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));
@@ -31,6 +32,27 @@ async function digOneBlock(
 	if (tool) await b.equip(tool, "hand");
 	await b.dig(current);
 	return true;
+}
+
+async function executeCollectBlock(
+	bot: mineflayer.Bot,
+	blockId: number,
+	count: number,
+	maxDistance: number,
+	signal: AbortSignal,
+	updateProgress: (progress: string) => void,
+): Promise<void> {
+	ensureMovements(bot);
+	registerAbortHandler(bot, signal);
+	let collected = 0;
+	while (collected < count) {
+		if (signal.aborted) break;
+		// eslint-disable-next-line no-await-in-loop -- ブロック採掘は順次実行が必須
+		const dug = await digOneBlock(bot, blockId, maxDistance, signal);
+		if (!dug) break;
+		collected++;
+		updateProgress(`${String(collected)}/${String(count)} 採集済み`);
+	}
 }
 
 /** 追従ジョブの executor: プレイヤーが離脱するか abort されるまで追従し続ける */
@@ -80,21 +102,22 @@ export function registerFollowPlayer(
 			username: z.string().describe("追従対象のプレイヤー名"),
 			range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
 		},
-		({ username, range }) => {
+		async ({ username, range }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
 			const entity = bot.players[username]?.entity;
-			if (!entity) {
+			if (!entity || !(await canPerceiveEntity(bot, entity))) {
 				return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
 			}
 
-			const jobId = jobManager.startJob("following", username, (signal) =>
+			const started = tryStartJob(jobManager, "following", username, (signal) =>
 				executeFollow(bot, entity, username, range, signal),
 			);
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${username} への追従を開始しました（jobId: ${jobId}, range: ${String(range)}）`,
+				`${username} への追従を開始しました（jobId: ${started.jobId}, range: ${String(range)}）`,
 			);
 		},
 	);
@@ -116,13 +139,14 @@ export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobM
 
 			const coord = `(${String(x)}, ${String(y)}, ${String(zCoord)})`;
 
-			const jobId = jobManager.startJob("moving", coord, async (signal) => {
+			const started = tryStartJob(jobManager, "moving", coord, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 				await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
 			});
+			if (!started.ok) return started.result;
 
-			return textResult(`${coord} への移動を開始しました（jobId: ${jobId}）`);
+			return textResult(`${coord} への移動を開始しました（jobId: ${started.jobId}）`);
 		},
 	);
 }
@@ -153,22 +177,13 @@ export function registerCollectBlock(
 			const blockType = bot.registry.blocksByName[blockName];
 			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
-			const jobId = jobManager.startJob("collecting", blockName, async (signal, updateProgress) => {
-				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
-				let collected = 0;
-				while (collected < count) {
-					if (signal.aborted) break;
-					// eslint-disable-next-line no-await-in-loop -- ブロック採掘は順次実行が必須
-					const dug = await digOneBlock(bot, blockType.id, maxDistance, signal);
-					if (!dug) break;
-					collected++;
-					updateProgress(`${String(collected)}/${String(count)} 採集済み`);
-				}
-			});
+			const started = tryStartJob(jobManager, "collecting", blockName, (signal, updateProgress) =>
+				executeCollectBlock(bot, blockType.id, count, maxDistance, signal, updateProgress),
+			);
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${blockName} の採集を開始しました（jobId: ${jobId}, 目標: ${String(count)} 個）`,
+				`${blockName} の採集を開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個）`,
 			);
 		},
 	);

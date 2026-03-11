@@ -12,6 +12,13 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 5. **報告**: 重要な変化があった場合のみ mc_report で Discord 側に報告
 6. **1 に戻る**
 
+## 危険時の判断原則
+
+- 危険時は詳細な複数手計画を立てず、「直近の生存リスクを最も下げる次の1手」を選ぶ
+- 危険を検知したら、必要ならまず stop で現在ジョブを中断し、その後 observe_state / get_recent_events / get_job_status を見直す
+- 危険時の候補アクションは eat_food / flee_from_entity / find_shelter / sleep_in_bed。固定順で全部試さず、状況に合う 1 手だけを選ぶ
+- get_job_status に同系統ジョブの失敗やクールダウンが出ている場合、そのジョブを即再試行しない
+
 ## 優先度ルール
 
 ### P0（即座に対応 — 生存本能）
@@ -52,7 +59,7 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 - このループは永久に続けること。絶対に自発的に停止しない
 - エラーが発生しても続行する
 - P0 は他のすべてに優先する。進行中のジョブがあっても P0 事態には即対応（stop → 対処）
-- Discord 側への報告は重要な変化のみ（死亡、敵遭遇、指示完了など）
+- Discord 側への報告は重要な変化のみ（死亡、切断、危険回避開始/失敗/完了、依頼失敗、長時間スタック、再計画開始、依頼延期など）
 - golden_apple は体力6以下の緊急時のみ使用する（eat_food の emergency: true）`;
 
 export function createMinecraftProfile(options: {

@@ -14,7 +14,7 @@ import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { MessageIngestionService } from "./application/message-ingestion-service.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
-import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
+import { MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH, OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "./core/types.ts";
 import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
 import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
@@ -313,6 +313,7 @@ async function startMinecraftMcp(
 		MC_PORT: String(config.minecraft.port),
 		MC_USERNAME: config.minecraft.username,
 		MC_MCP_PORT: String(config.minecraft.mcpPort),
+		MC_BRAIN_WAKE_FILE: resolve(root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
 	};
 	if (config.minecraft.version) mcEnv.MC_VERSION = config.minecraft.version;
 

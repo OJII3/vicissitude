@@ -20,7 +20,7 @@ export type JobStatus = "running" | "completed" | "failed" | "cancelled";
 
 export interface JobInfo {
 	id: string;
-	type: ActionState["type"];
+	type: Exclude<ActionState["type"], "idle">;
 	target: string;
 	status: JobStatus;
 	startedAt: Date;

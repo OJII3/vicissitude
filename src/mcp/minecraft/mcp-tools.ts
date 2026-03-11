@@ -17,7 +17,7 @@ import type { JobManager } from "./job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./state-summary.ts";
 
 function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
-	server.tool("observe_state", "Minecraft ボットの現在の状態を自然言語要約で取得する", {}, () => {
+	server.tool("observe_state", "Minecraft ボットの現在の状態を自然言語要約で取得する", {}, async () => {
 		const bot = ctx.getBot();
 		if (!bot || !bot.entity) {
 			return { content: [{ type: "text", text: "ボット未接続" }] };
@@ -32,7 +32,7 @@ function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
 			timePeriod: timeOfDay === undefined ? "不明" : getTimePeriod(timeOfDay),
 			weather: getWeather(bot),
 			action: { ...ctx.getActionState() },
-			nearbyEntities: getNearbyEntities(bot, 5),
+			nearbyEntities: await getNearbyEntities(bot, 5),
 			inventory: getInventorySummary(bot),
 			equipment: getEquipment(bot),
 			recentEvents: ctx.getEvents().slice(-10),
@@ -86,7 +86,7 @@ function registerJobStatusTool(server: McpServer, jobManager: JobManager): void 
 		({ limit }) => {
 			const current = jobManager.getCurrentJob();
 			const recent = jobManager.getRecentJobs(limit);
-			const text = formatJobStatus(current, recent);
+			const text = formatJobStatus(current, recent, jobManager.getCooldowns());
 			return { content: [{ type: "text", text }] };
 		},
 	);

@@ -5,12 +5,66 @@ import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
 type SetActionState = (state: ActionState) => void;
 
+interface CooldownInfo {
+	type: Exclude<ActionState["type"], "idle">;
+	until: Date;
+}
+
+interface JobManagerOptions {
+	cooldownMs?: number;
+}
+
+type CancellationReason = "manual" | "superseded";
+
 export type JobExecutor = (
 	signal: AbortSignal,
 	updateProgress: (progress: string) => void,
 ) => Promise<void>;
 
 const MAX_RECENT_JOBS = 20;
+const DEFAULT_COOLDOWN_MS = 60_000;
+const FAILURE_STREAK_FOR_COOLDOWN = 2;
+
+function classifyFailure(error?: string): string {
+	if (!error) return "unknown failure";
+	const normalized = error.toLowerCase();
+	if (
+		normalized.includes("材料") ||
+		normalized.includes("recipe") ||
+		normalized.includes("レシピ") ||
+		normalized.includes("食料") ||
+		normalized.includes("作業台")
+	) {
+		return "resource shortage";
+	}
+	if (
+		normalized.includes("path") ||
+		normalized.includes("到達") ||
+		normalized.includes("goal") ||
+		normalized.includes("パス")
+	) {
+		return "pathfinding failure";
+	}
+	if (
+		normalized.includes("見つかりません") ||
+		normalized.includes("ベッド") ||
+		normalized.includes("プレイヤー") ||
+		normalized.includes("エンティティ") ||
+		normalized.includes("ブロック") ||
+		normalized.includes("なくな") ||
+		normalized.includes("離脱")
+	) {
+		return "target missing";
+	}
+	if (
+		normalized.includes("disconnect") ||
+		normalized.includes("接続") ||
+		normalized.includes("kicked")
+	) {
+		return "connection failure";
+	}
+	return "survival failure";
+}
 
 export class JobManager {
 	private currentJob: {
@@ -19,14 +73,23 @@ export class JobManager {
 	} | null = null;
 	private recentJobs: JobInfo[] = [];
 	private nextJobId = 1;
+	private readonly cooldowns = new Map<Exclude<ActionState["type"], "idle">, Date>();
+	private readonly failureStreaks = new Map<Exclude<ActionState["type"], "idle">, number>();
 	private readonly pushEvent: PushEvent;
 	private readonly setActionState: SetActionState;
 	private readonly metrics?: MetricsCollector;
+	private readonly cooldownMs: number;
 
-	constructor(pushEvent: PushEvent, setActionState: SetActionState, metrics?: MetricsCollector) {
+	constructor(
+		pushEvent: PushEvent,
+		setActionState: SetActionState,
+		metrics?: MetricsCollector,
+		options?: JobManagerOptions,
+	) {
 		this.pushEvent = pushEvent;
 		this.setActionState = setActionState;
 		this.metrics = metrics;
+		this.cooldownMs = options?.cooldownMs ?? DEFAULT_COOLDOWN_MS;
 	}
 
 	private generateJobId(): string {
@@ -39,9 +102,10 @@ export class JobManager {
 		target: string,
 		executor: JobExecutor,
 	): string {
+		this.ensureJobNotCoolingDown(type);
 		// 既存ジョブを自動キャンセル
 		if (this.currentJob) {
-			this.cancelCurrentJob();
+			this.cancelCurrentJob("superseded");
 		}
 
 		const id = this.generateJobId();
@@ -81,7 +145,7 @@ export class JobManager {
 	}
 
 	/** 現在のジョブをキャンセルする */
-	cancelCurrentJob(): boolean {
+	cancelCurrentJob(_reason: CancellationReason = "manual"): boolean {
 		if (!this.currentJob) return false;
 		const { info, abortController } = this.currentJob;
 		abortController.abort();
@@ -99,13 +163,43 @@ export class JobManager {
 		return this.recentJobs.slice(-limit);
 	}
 
-	private finishJob(jobId: string, status: JobStatus, error?: string): void {
+	getCooldowns(): CooldownInfo[] {
+		const now = Date.now();
+		for (const [type, until] of this.cooldowns.entries()) {
+			if (until.getTime() <= now) this.cooldowns.delete(type);
+		}
+		return [...this.cooldowns.entries()]
+			.toSorted((a, b) => a[1].getTime() - b[1].getTime())
+			.map(([type, until]) => ({ type, until }));
+	}
+
+	private ensureJobNotCoolingDown(type: Exclude<ActionState["type"], "idle">): void {
+		const until = this.cooldowns.get(type);
+		if (!until) return;
+		const remainingMs = until.getTime() - Date.now();
+		if (remainingMs <= 0) {
+			this.cooldowns.delete(type);
+			this.failureStreaks.delete(type);
+			return;
+		}
+		const seconds = Math.ceil(remainingMs / 1000);
+		throw new Error(`${type} はクールダウン中です（残り ${String(seconds)} 秒）`);
+	}
+
+	private finishJob(
+		jobId: string,
+		status: JobStatus,
+		error?: string,
+	): void {
 		if (this.currentJob?.info.id !== jobId) return;
 
 		const { info } = this.currentJob;
 		info.status = status;
 		info.finishedAt = new Date();
-		if (error) info.error = error;
+		if (error) {
+			info.error =
+				status === "failed" ? `${classifyFailure(error)}: ${error}` : error;
+		}
 
 		this.recentJobs.push({ ...info });
 		if (this.recentJobs.length > MAX_RECENT_JOBS) this.recentJobs.shift();
@@ -114,10 +208,36 @@ export class JobManager {
 		this.setActionState({ type: "idle" });
 
 		this.metrics?.incrementCounter(METRIC.MC_JOBS, { type: info.type, status });
+		this.updateCooldownState(info.type, status);
 
 		const description = this.formatFinishDescription(info);
 		const importance: Importance = status === "cancelled" ? "low" : "medium";
 		this.pushEvent("job", description, importance);
+	}
+
+	private updateCooldownState(type: Exclude<ActionState["type"], "idle">, status: JobStatus): void {
+		if (status === "completed") {
+			this.failureStreaks.delete(type);
+			this.cooldowns.delete(type);
+			return;
+		}
+		if (status === "cancelled") {
+			this.failureStreaks.delete(type);
+			return;
+		}
+		if (status !== "failed") return;
+
+		const streak = (this.failureStreaks.get(type) ?? 0) + 1;
+		this.failureStreaks.set(type, streak);
+		if (streak < FAILURE_STREAK_FOR_COOLDOWN) return;
+
+		const until = new Date(Date.now() + this.cooldownMs);
+		this.cooldowns.set(type, until);
+		this.pushEvent(
+			"job",
+			`クールダウン開始: ${type} を ${String(Math.ceil(this.cooldownMs / 1000))} 秒停止`,
+			"medium",
+		);
 	}
 
 	private formatFinishDescription(info: JobInfo): string {

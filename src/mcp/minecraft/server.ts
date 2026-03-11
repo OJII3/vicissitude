@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
 import { startHttpServer } from "./http-server.ts";
@@ -33,13 +34,25 @@ if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 	process.exit(1);
 }
 const MC_MCP_PORT = mcpPortRaw;
+const MC_BRAIN_WAKE_FILE = process.env.MC_BRAIN_WAKE_FILE;
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics();
 mcMetricsServer.start();
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-const ctx = createBotContext(mcCollector);
+const wakeNotifier = MC_BRAIN_WAKE_FILE
+	? createMinecraftBrainWakeNotifier(MC_BRAIN_WAKE_FILE)
+	: undefined;
+const ctx = createBotContext({
+	metrics: mcCollector,
+	urgentEventNotifier: (kind, description, importance) => {
+		if (!wakeNotifier) return;
+		if (shouldWakeMinecraftBrain(kind, importance, description)) {
+			wakeNotifier();
+		}
+	},
+});
 const connection = createBotConnection(
 	{
 		host: MC_HOST,

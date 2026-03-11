@@ -4,6 +4,7 @@ import { goals } from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
 import { z } from "zod";
 
+import { findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -11,32 +12,44 @@ import {
 	ensureMovements,
 	registerAbortHandler,
 	textResult,
+	tryStartJob,
 } from "./shared.ts";
 
-/** 食料アイテム（緊急用が先頭、残りは回復量降順） */
-const FOOD_ITEMS: string[] = [
-	"golden_apple",
-	"enchanted_golden_apple",
-	"cooked_beef",
-	"cooked_porkchop",
-	"cooked_mutton",
-	"cooked_salmon",
-	"cooked_chicken",
-	"golden_carrot",
-	"bread",
-	"cooked_cod",
-	"baked_potato",
-	"cooked_rabbit",
-	"apple",
-	"carrot",
-	"melon_slice",
-	"sweet_berries",
-	"potato",
-	"dried_kelp",
-];
+interface FoodInfo {
+	name: string;
+	foodPoints: number;
+	effectiveQuality: number;
+	saturation: number;
+}
 
 /** golden_apple 系は緊急時専用 */
 const EMERGENCY_ONLY_FOODS = new Set(["golden_apple", "enchanted_golden_apple"]);
+const HARMFUL_FOODS = new Set(["rotten_flesh", "spider_eye", "poisonous_potato", "pufferfish", "chicken"]);
+
+function getFoodsByName(bot: mineflayer.Bot): Record<string, FoodInfo> {
+	return (bot.registry as mineflayer.Bot["registry"] & {
+		foodsByName?: Record<string, FoodInfo>;
+	}).foodsByName ?? {};
+}
+
+export function listEdibleFoods(bot: mineflayer.Bot, emergency: boolean): FoodInfo[] {
+	const foodsByName = getFoodsByName(bot);
+	return Object.values(foodsByName)
+		.filter((food) => emergency || !EMERGENCY_ONLY_FOODS.has(food.name))
+		.filter((food) => emergency || !HARMFUL_FOODS.has(food.name))
+		.toSorted((a, b) => {
+			if (EMERGENCY_ONLY_FOODS.has(a.name) !== EMERGENCY_ONLY_FOODS.has(b.name)) {
+				return EMERGENCY_ONLY_FOODS.has(a.name) ? -1 : 1;
+			}
+			if (a.effectiveQuality !== b.effectiveQuality) {
+				return b.effectiveQuality - a.effectiveQuality;
+			}
+			if (a.foodPoints !== b.foodPoints) {
+				return b.foodPoints - a.foodPoints;
+			}
+			return a.name.localeCompare(b.name);
+		});
+}
 
 function registerEatFood(server: McpServer, getBot: GetBot): void {
 	server.tool(
@@ -56,10 +69,8 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 
 			const inventory = bot.inventory.items();
 
-			for (const foodName of FOOD_ITEMS) {
-				if (!emergency && EMERGENCY_ONLY_FOODS.has(foodName)) continue;
-
-				const item = inventory.find((i) => i.name === foodName);
+			for (const food of listEdibleFoods(bot, emergency)) {
+				const item = inventory.find((i) => i.name === food.name);
 				if (!item) continue;
 
 				try {
@@ -67,10 +78,10 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 					await bot.equip(item, "hand");
 					// oxlint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
 					await bot.consume();
-					return textResult(`${foodName} を食べました（空腹度: ${String(bot.food)}/20）`);
+					return textResult(`${food.name} を食べました（空腹度: ${String(bot.food)}/20）`);
 				} catch {
 					return textResult(
-						`${foodName} を食べようとしましたが中断されました（空腹度: ${String(bot.food)}/20）`,
+						`${food.name} を食べようとしましたが中断されました（空腹度: ${String(bot.food)}/20）`,
 					);
 				}
 			}
@@ -97,24 +108,24 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 				.default(32)
 				.describe("逃走距離（デフォルト: 32ブロック）"),
 		},
-		({ entityName, distance }) => {
+		async ({ entityName, distance }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const lowerName = entityName.toLowerCase();
-			const target = Object.values(bot.entities).find((e) => e.name?.toLowerCase() === lowerName);
+			const target = await findPerceivedEntityByName(bot, entityName, distance + 16);
 			if (!target) {
-				return textResult(`"${entityName}" が周囲に見つかりません。すでに安全かもしれません`);
+				return textResult(`"${entityName}" が近距離または視界内に見つかりません。すでに安全かもしれません`);
 			}
 
-			const jobId = jobManager.startJob("fleeing", entityName, async (signal) => {
+			const started = tryStartJob(jobManager, "fleeing", entityName, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 				await bot.pathfinder.goto(new goals.GoalInvert(new goals.GoalFollow(target, distance)));
 			});
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${entityName} からの逃走を開始しました（jobId: ${jobId}, 距離: ${String(distance)}）`,
+				`${entityName} からの逃走を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
 			);
 		},
 	);
@@ -236,14 +247,13 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const jobId = jobManager.startJob("sheltering", "避難場所", async (signal) => {
+			const started = tryStartJob(jobManager, "sheltering", "避難場所", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 
 				// 1. ベッドを検索
 				const bedIds = collectBedIds(bot);
-				const bedBlock =
-					bedIds.length > 0 ? bot.findBlock({ matching: bedIds, maxDistance }) : null;
+				const bedBlock = bedIds.length > 0 ? bot.findBlock({ matching: bedIds, maxDistance }) : null;
 
 				if (bedBlock) {
 					try {
@@ -260,8 +270,9 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 				// 2. ベッドなしまたは到達不能 → 緊急シェルター
 				await digEmergencyShelter(bot, signal);
 			});
+			if (!started.ok) return started.result;
 
-			return textResult(`避難場所の検索を開始しました（jobId: ${jobId}）`);
+			return textResult(`避難場所の検索を開始しました（jobId: ${started.jobId}）`);
 		},
 	);
 }

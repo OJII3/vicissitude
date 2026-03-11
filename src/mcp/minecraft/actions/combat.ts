@@ -4,8 +4,9 @@ import { goals } from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
+import { findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
+import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
 
 /** 武器の優先度リスト（上位ほど優先） */
 const WEAPON_PRIORITY: string[] = [
@@ -166,22 +167,22 @@ export function registerAttackEntity(
 				.default(20)
 				.describe("最大攻撃回数（デフォルト: 20、安全弁）"),
 		},
-		({ entityName, maxHits }) => {
+		async ({ entityName, maxHits }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const lowerName = entityName.toLowerCase();
-			const target = Object.values(bot.entities).find((e) => e.name?.toLowerCase() === lowerName);
+			const target = await findPerceivedEntityByName(bot, entityName);
 			if (!target) {
-				return textResult(`"${entityName}" が周囲に見つかりません`);
+				return textResult(`"${entityName}" が近距離または視界内に見つかりません`);
 			}
 
-			const jobId = jobManager.startJob("attacking", entityName, (signal, updateProgress) =>
+			const started = tryStartJob(jobManager, "attacking", entityName, (signal, updateProgress) =>
 				executeAttack(bot, target, maxHits, signal, updateProgress),
 			);
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${entityName} への攻撃を開始しました（jobId: ${jobId}, 最大攻撃回数: ${String(maxHits)}）`,
+				`${entityName} への攻撃を開始しました（jobId: ${started.jobId}, 最大攻撃回数: ${String(maxHits)}）`,
 			);
 		},
 	);
