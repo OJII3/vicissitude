@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-11
+- 2026-03-12
 - 更新者: codex
-- ブランチ: feat/m13c-safety-implementation
+- ブランチ: feat/test-quality-grafana
 
 ## 2. 現在の状態
 
@@ -16,6 +16,11 @@
 - M13c 実行安全性ルールを整理。危険時プリエンプション、ジョブ再試行制限、失敗分類、Discord 通知条件をドキュメント化。
 - M13c 実装を開始。Minecraft MCP 側の高優先度イベントでメイン brain を早期 wake するファイル通知経路、ジョブ失敗クールダウン、`get_job_status` へのクールダウン表示を追加。
 - `nr validate` 通過。計 342 テスト pass。
+- テスト品質評価の土台として `docs/TEST_QUALITY.md` を追加し、`nr test:quality` で JUnit + LCOV からサマリを生成できるようにした。
+- `nr test:quality:flake` を追加し、`bun test --rerun-each` ベースで flake rate を集計できるようにした。
+- `monitoring/grafana-dashboard.json` に Test Quality セクションを追加し、`component="test-quality"` の Loki JSON ログで failure rate / coverage / flake rate / duration を可視化できるようにした。
+- `actions/survival/` へ責務分割し、`survival.ts` の max-lines 問題を解消した。
+- `nr test:quality` / `nr test:quality:flake` の終了コード処理と入力分離を修正し、失敗時でもサマリ生成を継続しつつ broken build を見逃さないようにした。
 
 ## 3. 既知のバグ・要修正事項
 
@@ -25,6 +30,8 @@
 - 旧テスト（Guild 部分成功/失敗、`InstrumentedAiAgent`、`GuildRoutingAgent`）が新構成に未移植。
 - 危険時再判断は wake file による早期再開まで実装。完全なイベント直結ではなく、ファイルポーリングに依存する。
 - stuck 判定、再試行制御の詳細メトリクス、Discord 通知自動化はまだ未実装。
+- テスト品質は失敗率・時間・行/関数カバレッジ・フレーク率までは自動集計済みだが、本番流出率は未導入。
+- Grafana 上の Test Quality 可視化はダッシュボード JSON まで更新済みだが、実際の Loki 取り込み設定は環境側確認が必要。
 
 ## 4. 直近タスク
 
@@ -32,6 +39,8 @@
 - `M13c` 継続: stuck 判定、再試行制御、失敗分類に応じた Discord 通知をコードへ反映する。
 - クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。
 - 未移植テストの追加（旧 Guild テスト、InstrumentedAiAgent テスト等）。
+- `nr test:quality` / `nr test:quality:flake` の履歴蓄積導線を作り、重要シナリオ網羅率へ拡張する。
+- Grafana サーバーへ更新済みダッシュボード JSON を反映し、Test Quality パネルの Loki クエリが環境ラベルで動くか確認する。
 - 運用観察: Minecraft エージェントの実際の動作確認・チューニング。
 - 更新後の Grafana ダッシュボードをインポートし、Prometheus の MC metrics scrape（既定 `:9092`）を確認する。
 

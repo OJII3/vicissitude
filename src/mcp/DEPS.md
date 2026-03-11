@@ -24,7 +24,7 @@ graph LR
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_jobs["minecraft/actions/jobs"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_movement["minecraft/actions/movement"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_shared["minecraft/actions/shared"]
-  minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_survival["minecraft/actions/survival"]
+  minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_survival_index["minecraft/actions/survival/index"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_interaction["minecraft/actions/interaction"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_actions_shared["minecraft/actions/shared"]
@@ -33,9 +33,17 @@ graph LR
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_shared["minecraft/actions/shared"] --> minecraft_job_manager["minecraft/job-manager"]
-  minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_actions_shared["minecraft/actions/shared"]
-  minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_bot_queries["minecraft/bot-queries"]
-  minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_job_manager["minecraft/job-manager"]
+  minecraft_actions_survival_escape["minecraft/actions/survival/escape"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_survival_escape["minecraft/actions/survival/escape"] --> minecraft_bot_queries["minecraft/bot-queries"]
+  minecraft_actions_survival_escape["minecraft/actions/survival/escape"] --> minecraft_job_manager["minecraft/job-manager"]
+  minecraft_actions_survival_food["minecraft/actions/survival/food"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_actions_survival_escape["minecraft/actions/survival/escape"]
+  minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_actions_survival_food["minecraft/actions/survival/food"]
+  minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_actions_survival_shelter["minecraft/actions/survival/shelter"]
+  minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_job_manager["minecraft/job-manager"]
+  minecraft_actions_survival_shelter["minecraft/actions/survival/shelter"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_survival_shelter["minecraft/actions/survival/shelter"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_helpers["minecraft/helpers"]
@@ -99,7 +107,7 @@ graph LR
 
 ### minecraft/actions/index.ts
 
-- モジュール内依存: minecraft/actions/combat, minecraft/actions/interaction, minecraft/actions/jobs, minecraft/actions/movement, minecraft/actions/shared, minecraft/actions/survival, minecraft/job-manager
+- モジュール内依存: minecraft/actions/combat, minecraft/actions/interaction, minecraft/actions/jobs, minecraft/actions/movement, minecraft/actions/shared, minecraft/actions/survival/index, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/actions/interaction.ts
@@ -122,9 +130,24 @@ graph LR
 - モジュール内依存: minecraft/job-manager
 - 外部依存: mineflayer, mineflayer-pathfinder
 
-### minecraft/actions/survival.ts
+### minecraft/actions/survival/escape.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer-pathfinder, zod
+
+### minecraft/actions/survival/food.ts
+
+- モジュール内依存: minecraft/actions/shared
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, zod
+
+### minecraft/actions/survival/index.ts
+
+- モジュール内依存: minecraft/actions/shared, minecraft/actions/survival/escape, minecraft/actions/survival/food, minecraft/actions/survival/shelter, minecraft/job-manager
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js
+
+### minecraft/actions/survival/shelter.ts
+
+- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, vec3, zod
 
 ### minecraft/bot-connection.ts

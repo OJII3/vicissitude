@@ -64,6 +64,7 @@ function createFetchHandler(
 export interface HttpServerHandle {
 	cleanupTimer: ReturnType<typeof setInterval>;
 	closeAllSessions: () => void;
+	stopServer: () => void;
 }
 
 export function startHttpServer(
@@ -72,6 +73,11 @@ export function startHttpServer(
 	label = "mcp",
 ): HttpServerHandle {
 	const sessions = new Map<string, SessionEntry>();
+	const httpServer = Bun.serve({
+		port,
+		idleTimeout: 255,
+		fetch: createFetchHandler(createServer, sessions, label),
+	});
 
 	const closeAllSessions = (): void => {
 		for (const [id, entry] of sessions) {
@@ -79,6 +85,10 @@ export function startHttpServer(
 			entry.transport.close().catch(() => {});
 			sessions.delete(id);
 		}
+	};
+
+	const stopServer = (): void => {
+		httpServer.stop(true);
 	};
 
 	const cleanupTimer = setInterval(() => {
@@ -92,14 +102,7 @@ export function startHttpServer(
 		}
 	}, SESSION_CLEANUP_INTERVAL_MS);
 
-	// MCP StreamableHTTP は長時間接続を維持するため、アイドルタイムアウトを最大値に設定
-	Bun.serve({
-		port,
-		idleTimeout: 255,
-		fetch: createFetchHandler(createServer, sessions, label),
-	});
-
 	console.error(`[${label}] MCP server listening on port ${port}`);
 
-	return { cleanupTimer, closeAllSessions };
+	return { cleanupTimer, closeAllSessions, stopServer };
 }

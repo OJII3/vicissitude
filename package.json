@@ -12,6 +12,8 @@
 		"fmt": "oxfmt .",
 		"fmt:check": "oxfmt --check .",
 		"test": "bun test",
+		"test:quality": "bun scripts/test-quality.ts",
+		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"deps:graph": "depcruise src --config .dependency-cruiser.mjs --output-type json | bun scripts/generate-deps-md.ts && oxfmt docs/DEPS.md 'src/*/DEPS.md'",
 		"validate": "bun run fmt:check && bun run lint && bun run check",
 		"container:build": "podman build -t vicissitude-code-exec containers/code-exec",

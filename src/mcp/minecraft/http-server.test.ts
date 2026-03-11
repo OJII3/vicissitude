@@ -29,12 +29,16 @@ function createTestServer(): McpServer {
 }
 
 describe("MCP HTTP Server ライフサイクル", () => {
-	const { cleanupTimer, closeAllSessions } = startHttpServer(createTestServer, TEST_PORT);
+	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+		createTestServer,
+		TEST_PORT,
+	);
 	const baseUrl = `http://localhost:${TEST_PORT}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);
 		closeAllSessions();
+		stopServer();
 	});
 
 	describe("GET /health — readiness check", () => {
@@ -116,12 +120,16 @@ function createFailingServer(): McpServer {
 }
 
 describe("createServer 例外ハンドリング", () => {
-	const { cleanupTimer, closeAllSessions } = startHttpServer(createFailingServer, TEST_PORT_ERROR);
+	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+		createFailingServer,
+		TEST_PORT_ERROR,
+	);
 	const baseUrl = `http://localhost:${TEST_PORT_ERROR}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);
 		closeAllSessions();
+		stopServer();
 	});
 
 	test("createServer が例外をスローすると 500 を返す", async () => {

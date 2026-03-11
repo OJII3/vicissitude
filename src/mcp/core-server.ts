@@ -122,13 +122,18 @@ function createServer(): McpServer {
 
 // --- Start HTTP Server ---
 
-const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, CORE_MCP_PORT, "core");
+const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+	createServer,
+	CORE_MCP_PORT,
+	"core",
+);
 
 // --- Graceful Shutdown ---
 
 async function shutdown() {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
+	stopServer();
 	discordClient.destroy();
 	for (const storage of fenghuangStorages.values()) {
 		storage.close();

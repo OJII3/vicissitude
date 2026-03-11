@@ -74,7 +74,7 @@ graph LR
 
 - 内部依存: core/, fenghuang/, infrastructure/, ollama/, opencode/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fenghuang, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
-- ファイル数: 32
+- ファイル数: 35
 
 ### observability/
 

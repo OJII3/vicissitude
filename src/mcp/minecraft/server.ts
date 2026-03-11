@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
+import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
 import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
 import { createMcMetrics } from "./mc-metrics.ts";
@@ -72,13 +72,18 @@ function createServer(): McpServer {
 	return server;
 }
 
-const { cleanupTimer, closeAllSessions } = startHttpServer(createServer, MC_MCP_PORT, "minecraft");
+const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+	createServer,
+	MC_MCP_PORT,
+	"minecraft",
+);
 connection.start();
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 const shutdown = (): void => {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
+	stopServer();
 	mcMetricsServer.stop();
 	connection.shutdown();
 	process.exit(0);
