@@ -85,6 +85,7 @@ describe("MessageIngestionService", () => {
 				content: "ボットの応答",
 				attachments: [{ url: "https://example.com/file", filename: "cap.png" }],
 			}),
+			{ recordConversation: true },
 		);
 
 		await Promise.resolve();
@@ -97,5 +98,19 @@ describe("MessageIngestionService", () => {
 				content: "ボットの応答 [添付: cap.png]",
 			}),
 		);
+	});
+
+	test("recordConversation 未指定なら LTM 記録しない", async () => {
+		const eventStore: BufferedEventStore = { append: mock(() => {}) };
+		const recorder: ConversationRecorder = {
+			record: mock(() => Promise.resolve()),
+		};
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ eventStore, logger, recorder });
+
+		service.handleIncomingMessage(createMockMessage({ content: "mention only" }));
+		await Promise.resolve();
+
+		expect(recorder.record).not.toHaveBeenCalled();
 	});
 });

@@ -16,10 +16,14 @@ export interface MessageIngestionServiceDeps {
 	recorder?: ConversationRecorder;
 }
 
+export interface MessageIngestionOptions {
+	recordConversation?: boolean;
+}
+
 export class MessageIngestionService {
 	constructor(private readonly deps: MessageIngestionServiceDeps) {}
 
-	handleIncomingMessage(message: IncomingMessage): void {
+	handleIncomingMessage(message: IncomingMessage, options: MessageIngestionOptions = {}): void {
 		if (!message.content && message.attachments.length === 0) return;
 		if (!message.guildId) {
 			this.deps.logger.warn("[message-ingestion] No guildId for message, dropping event");
@@ -45,7 +49,9 @@ export class MessageIngestionService {
 			`[message-ingestion] buffered: ch=${message.channelId} author=${message.authorName} mentioned=${message.isMentioned}`,
 		);
 
-		this.recordConversation(message);
+		if (options.recordConversation) {
+			this.recordConversation(message);
+		}
 	}
 
 	private recordConversation(message: IncomingMessage): void {

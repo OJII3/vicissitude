@@ -80,13 +80,15 @@ export class HeartbeatScheduler {
 
 	private async executeTick(): Promise<void> {
 		const config = await this.configRepo.load();
-		await this.executeHeartbeat(config);
-		this.metrics?.incrementCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED);
+		const executed = await this.executeHeartbeat(config);
+		if (executed) {
+			this.metrics?.incrementCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED);
+		}
 	}
 
-	private async executeHeartbeat(config: HeartbeatConfig): Promise<void> {
+	private async executeHeartbeat(config: HeartbeatConfig): Promise<boolean> {
 		const dueReminders = evaluateDueReminders(config, new Date());
-		if (dueReminders.length === 0) return;
+		if (dueReminders.length === 0) return false;
 		this.logger.info(
 			`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
 		);
@@ -94,7 +96,7 @@ export class HeartbeatScheduler {
 		const succeededIds = await this.heartbeatService.execute(dueReminders);
 		if (succeededIds.size === 0) {
 			this.logger.info("[heartbeat] 成功した Guild なし、config 更新をスキップ");
-			return;
+			return true;
 		}
 
 		const executedAt = new Date().toISOString();
@@ -105,5 +107,6 @@ export class HeartbeatScheduler {
 		}
 		await this.configRepo.save(config);
 		this.logger.info("[heartbeat] 完了");
+		return true;
 	}
 }
