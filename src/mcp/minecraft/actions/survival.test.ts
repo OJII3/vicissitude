@@ -48,4 +48,31 @@ describe("listEdibleFoods", () => {
 		const foods = listEdibleFoods(bot, false).map((food) => food.name);
 		expect(foods).toEqual(["cooked_porkchop", "bread", "porkchop"]);
 	});
+
+	test("通常時は有害 food を除外する", () => {
+		const bot = makeBot({
+			rotten_flesh: {
+				name: "rotten_flesh",
+				foodPoints: 4,
+				effectiveQuality: 6.4,
+				saturation: 2.4,
+			},
+			bread: { name: "bread", foodPoints: 5, effectiveQuality: 11, saturation: 6 },
+		});
+		const foods = listEdibleFoods(bot, false).map((food) => food.name);
+		expect(foods).toEqual(["bread"]);
+	});
+
+	test("緊急時は有害 food も候補に戻す", () => {
+		const bot = makeBot({
+			rotten_flesh: {
+				name: "rotten_flesh",
+				foodPoints: 4,
+				effectiveQuality: 6.4,
+				saturation: 2.4,
+			},
+		});
+		const foods = listEdibleFoods(bot, true).map((food) => food.name);
+		expect(foods).toEqual(["rotten_flesh"]);
+	});
 });

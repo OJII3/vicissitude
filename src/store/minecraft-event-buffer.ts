@@ -52,6 +52,8 @@ function createSleepWait(ms: number): { promise: Promise<void>; cleanup: () => v
  * AgentRunner のコード変更なしで周期ポーリングを実現する。
  */
 export class MinecraftEventBuffer implements EventBuffer {
+	private lastHandledWakeStamp: string | null = null;
+
 	constructor(
 		private readonly intervalMs: number,
 		private readonly wakeSignalPath?: string,
@@ -66,6 +68,11 @@ export class MinecraftEventBuffer implements EventBuffer {
 	/** 固定間隔で resolve する */
 	waitForEvents(signal: AbortSignal): Promise<void> {
 		if (signal.aborted) return Promise.resolve();
+		const currentWakeStamp = readWakeStamp(this.wakeSignalPath);
+		if (currentWakeStamp !== null && currentWakeStamp !== this.lastHandledWakeStamp) {
+			this.lastHandledWakeStamp = currentWakeStamp;
+			return Promise.resolve();
+		}
 		const localController = new AbortController();
 		const forwardAbort = () => localController.abort();
 		signal.addEventListener("abort", forwardAbort, { once: true });
@@ -97,7 +104,10 @@ export class MinecraftEventBuffer implements EventBuffer {
 			}
 			if (signal.aborted) return;
 			const currentStamp = readWakeStamp(this.wakeSignalPath);
-			if (currentStamp !== null && currentStamp !== initialWakeStamp) return;
+			if (currentStamp !== null && currentStamp !== initialWakeStamp) {
+				this.lastHandledWakeStamp = currentStamp;
+				return;
+			}
 			return poll();
 		};
 		return poll();

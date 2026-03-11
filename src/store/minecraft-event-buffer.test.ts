@@ -87,4 +87,20 @@ describe("MinecraftEventBuffer", () => {
 
 		expect(elapsed).toBeLessThan(500);
 	});
+
+	test("待機開始前に更新済みの wake signal を即時消化する", async () => {
+		const tempDir = join(process.cwd(), "tmp");
+		mkdirSync(tempDir, { recursive: true });
+		const signalPath = join(tempDir, `minecraft-wake-pending-${String(Date.now())}.signal`);
+		writeFileSync(signalPath, "pending", "utf8");
+
+		const buffer = new MinecraftEventBuffer(10_000, signalPath, 20);
+		const controller = new AbortController();
+
+		const start = Date.now();
+		await buffer.waitForEvents(controller.signal);
+		const elapsed = Date.now() - start;
+
+		expect(elapsed).toBeLessThan(50);
+	});
 });

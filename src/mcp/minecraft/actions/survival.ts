@@ -23,6 +23,7 @@ interface FoodInfo {
 
 /** golden_apple 系は緊急時専用 */
 const EMERGENCY_ONLY_FOODS = new Set(["golden_apple", "enchanted_golden_apple"]);
+const HARMFUL_FOODS = new Set(["rotten_flesh", "spider_eye", "poisonous_potato", "pufferfish", "chicken"]);
 
 function getFoodsByName(bot: mineflayer.Bot): Record<string, FoodInfo> {
 	return (bot.registry as mineflayer.Bot["registry"] & {
@@ -34,6 +35,7 @@ export function listEdibleFoods(bot: mineflayer.Bot, emergency: boolean): FoodIn
 	const foodsByName = getFoodsByName(bot);
 	return Object.values(foodsByName)
 		.filter((food) => emergency || !EMERGENCY_ONLY_FOODS.has(food.name))
+		.filter((food) => emergency || !HARMFUL_FOODS.has(food.name))
 		.toSorted((a, b) => {
 			if (EMERGENCY_ONLY_FOODS.has(a.name) !== EMERGENCY_ONLY_FOODS.has(b.name)) {
 				return EMERGENCY_ONLY_FOODS.has(a.name) ? -1 : 1;

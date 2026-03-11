@@ -89,6 +89,17 @@ describe("JobManager cooldown", () => {
 		expect(manager.getCooldowns()).toHaveLength(0);
 	});
 
+	test("cancelled が挟まったら failure streak をリセットする", async () => {
+		const { manager } = createManager(1_000);
+		manager.startJob("moving", "A", failingExecutor);
+		await flushPromises();
+		manager.startJob("moving", "B", hangingExecutor);
+		manager.cancelCurrentJob();
+		manager.startJob("moving", "C", failingExecutor);
+		await flushPromises();
+		expect(manager.getCooldowns()).toHaveLength(0);
+	});
+
 	test("材料や作業台不足は resource shortage に分類される", async () => {
 		const { manager, events } = createManager(1_000);
 		manager.startJob("crafting", "stick", () =>

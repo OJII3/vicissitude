@@ -221,7 +221,10 @@ export class JobManager {
 			this.cooldowns.delete(type);
 			return;
 		}
-		if (status === "cancelled") return;
+		if (status === "cancelled") {
+			this.failureStreaks.delete(type);
+			return;
+		}
 		if (status !== "failed") return;
 
 		const streak = (this.failureStreaks.get(type) ?? 0) + 1;
