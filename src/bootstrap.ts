@@ -12,6 +12,7 @@ import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
 import { createMinecraftProfile } from "./agent/minecraft/profile.ts";
 import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
+import { MessageIngestionService } from "./application/message-ingestion-service.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "./core/types.ts";
@@ -21,7 +22,7 @@ import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversatio
 import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
-import { recordLtmMessage, bufferIncomingMessage } from "./gateway/message-handlers.ts";
+import { SqliteBufferedEventStore } from "./infrastructure/store/sqlite-buffered-event-store.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -214,17 +215,12 @@ export function setupLtmRecording(
 
 function setupEventHandlers(
 	gateway: DiscordGateway,
-	db: StoreDb,
-	ltmResources: LtmResources | undefined,
-	logger: Logger,
+	ingestionService: MessageIngestionService,
 	metricsCollector: PrometheusCollector,
 ): void {
 	gateway.onHomeChannelMessage((msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
-		bufferIncomingMessage(db, msg, logger);
-		if (ltmResources) {
-			recordLtmMessage(ltmResources.recorder, msg, logger);
-		}
+		ingestionService.handleIncomingMessage(msg);
 		return Promise.resolve();
 	});
 
@@ -232,7 +228,7 @@ function setupEventHandlers(
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			channel_type: "mention",
 		});
-		bufferIncomingMessage(db, msg, logger);
+		ingestionService.handleIncomingMessage(msg);
 		return Promise.resolve();
 	});
 }
@@ -391,9 +387,14 @@ export async function bootstrap(): Promise<void> {
 
 	// LTM recording
 	const ltmResources = setupLtmRecording(config, logger, metrics.collector);
+	const ingestionService = new MessageIngestionService({
+		eventStore: new SqliteBufferedEventStore(db),
+		logger,
+		recorder: ltmResources?.recorder,
+	});
 
 	// Event handlers
-	setupEventHandlers(gateway, db, ltmResources, logger, metrics.collector);
+	setupEventHandlers(gateway, ingestionService, metrics.collector);
 
 	// Emoji tracking
 	gateway.onEmojiUsed((guildId, emojiName) => incrementEmoji(db, guildId, emojiName));

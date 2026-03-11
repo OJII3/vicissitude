@@ -8,21 +8,25 @@
 graph LR
   agent --> core
   agent --> store
+  application --> core
   core
   fenghuang --> core
   fenghuang --> ollama
   gateway --> core
-  gateway --> scheduling
-  gateway --> store
+  gateway --> infrastructure
+  infrastructure --> application
+  infrastructure --> core
+  infrastructure --> store
   mcp --> core
   mcp --> fenghuang
-  mcp --> gateway
+  mcp --> infrastructure
   mcp --> ollama
   mcp --> opencode
   mcp --> store
   observability --> core
   ollama
   opencode --> core
+  scheduling --> application
   scheduling --> core
   scheduling --> observability
   store --> core
@@ -35,6 +39,12 @@ graph LR
 - 内部依存: core/, store/
 - 外部依存: drizzle-orm, path
 - ファイル数: 10
+
+### application/
+
+- 内部依存: core/
+- 外部依存: なし
+- ファイル数: 2
 
 ### core/
 
@@ -50,13 +60,19 @@ graph LR
 
 ### gateway/
 
-- 内部依存: core/, scheduling/, store/
+- 内部依存: core/, infrastructure/
 - 外部依存: discord.js
-- ファイル数: 5
+- ファイル数: 2
+
+### infrastructure/
+
+- 内部依存: application/, core/, store/
+- 外部依存: discord.js
+- ファイル数: 2
 
 ### mcp/
 
-- 内部依存: core/, fenghuang/, gateway/, ollama/, opencode/, store/
+- 内部依存: core/, fenghuang/, infrastructure/, ollama/, opencode/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fenghuang, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
 - ファイル数: 31
 
@@ -80,7 +96,7 @@ graph LR
 
 ### scheduling/
 
-- 内部依存: core/, observability/
+- 内部依存: application/, core/, observability/
 - 外部依存: fs, path, zod
 - ファイル数: 3
 

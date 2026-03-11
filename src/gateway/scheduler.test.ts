@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
+import { buildHeartbeatPrompt, groupByGuild } from "../application/heartbeat-service.ts";
 import type { DueReminder } from "../core/types.ts";
-import { buildHeartbeatPrompt, groupByGuild } from "./scheduler.ts";
 
 // ─── buildHeartbeatPrompt ────────────────────────────────────────
 

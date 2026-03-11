@@ -10,7 +10,7 @@
 
 - KISS: 小さい責務を明確な境界で分割する。
 - YAGNI: 現行要件に不要な機能は導入しない。
-- 責務別フラットモジュール構成を採用する（Clean Architecture からの移行完了）。
+- 軽量なレイヤード構成を採用する。`application` を中心に、`gateway`/`mcp` は interface adapter、`infrastructure` は外部依存 adapter とする。
 - 手動コンストラクタ注入（Pure DI）のみ使用し、DI コンテナは導入しない。
 
 ## 3. システム境界
@@ -32,6 +32,10 @@
 
 ```
 src/
+├── application/            # ユースケース
+│   ├── heartbeat-service.ts         # due reminder 実行ユースケース
+│   └── message-ingestion-service.ts # Discord 受信イベント取り込みユースケース
+│
 ├── core/                    # 型定義・設定・純粋関数（外部依存なし）
 │   ├── types.ts             # 型定義、値オブジェクト、インターフェース（OpencodeSessionPort 含む）
 │   ├── config.ts            # Zod スキーマによる設定バリデーション
@@ -52,13 +56,17 @@ src/
 │       ├── profile.ts           # Minecraft エージェントプロファイル
 │       └── brain-manager.ts     # Minecraft エージェント生成・起動・停止管理
 │
-├── gateway/                 # 外部世界との接点
+├── gateway/                 # 外部世界との接点（interface adapter）
 │   ├── discord.ts           # DiscordGateway
-│   ├── discord-attachment-mapper.ts  # 添付ファイルマッピング
-│   ├── message-handlers.ts  # bufferIncomingMessage + recordLtmMessage
-│   └── scheduler.ts         # re-export（後方互換）
+│   └── channel-config-loader.ts  # チャンネル設定読み込み
 │
-├── scheduling/              # スケジューラ（アプリ層）
+├── infrastructure/          # 外部依存 adapter
+│   ├── discord/
+│   │   └── attachment-mapper.ts   # Discord 添付→内部 Attachment 変換
+│   └── store/
+│       └── sqlite-buffered-event-store.ts # BufferedEventStore の SQLite 実装
+│
+├── scheduling/              # スケジューラ（application 起動制御）
 │   ├── heartbeat-scheduler.ts       # HeartbeatScheduler
 │   ├── consolidation-scheduler.ts   # ConsolidationScheduler
 │   └── heartbeat-config.ts          # JsonHeartbeatConfigRepository
@@ -132,19 +140,28 @@ src/
 - `minecraft/profile.ts`: Minecraft エージェントプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
 - `minecraft/brain-manager.ts`: `McBrainManager` — Minecraft エージェントの生成・起動・停止を管理（ブリッジ lifecycle ポーリング）
 
-### 4.3 gateway/ — 外部世界との接点
+### 4.3 application/ — ユースケース
+
+- `message-ingestion-service.ts`: `IncomingMessage` を `BufferedEvent` と LTM 会話記録に変換する
+- `heartbeat-service.ts`: due reminder を Guild 単位で実行し、成功した reminder ID を返す
+
+### 4.4 gateway/ — 外部世界との接点
 
 - `discord.ts`: `DiscordGateway` — discord.js Client でメッセージ受信。ルーティング: メンション/スレッド -> onMessage、ホームチャンネル -> onHomeChannelMessage。`onEmojiUsed()` でカスタム絵文字トラッキング
-- `message-handlers.ts`: `bufferIncomingMessage()` — 受信メッセージをイベントバッファに追加。`recordLtmMessage()` — LTM に会話を記録
-- `scheduler.ts`: 後方互換用 re-export のみ。実体は `scheduling/` に移動済み
+- `channel-config-loader.ts`: `channels.json` からホームチャンネル/Guild 対応を読み込む
 
-### 4.4 scheduling/ — スケジューラ（アプリ層）
+### 4.5 infrastructure/ — 外部依存 adapter
 
-- `heartbeat-scheduler.ts`: `HeartbeatScheduler` — 1 分間隔で `tick()` を実行し、due なリマインダーを検知して AI セッションを起動。`buildHeartbeatPrompt()`, `groupByGuild()` ヘルパーを含む
+- `discord/attachment-mapper.ts`: Discord.js の添付オブジェクトを内部 `Attachment` に変換
+- `store/sqlite-buffered-event-store.ts`: application の `BufferedEventStore` を SQLite に保存する
+
+### 4.6 scheduling/ — スケジューラ（application 起動制御）
+
+- `heartbeat-scheduler.ts`: `HeartbeatScheduler` — 1 分間隔で `tick()` を実行し、due なリマインダーを検知して `HeartbeatService` を起動する
 - `consolidation-scheduler.ts`: `ConsolidationScheduler` — 30 分間隔（初回 5 分遅延）で LTM メモリ統合を実行
 - `heartbeat-config.ts`: `JsonHeartbeatConfigRepository` — `data/heartbeat-config.json` の読み書きを管理
 
-### 4.5 mcp/ — MCP サーバー（独立プロセス）
+### 4.7 mcp/ — MCP サーバー（独立プロセス）
 
 MCP サーバーは 4 プロセス構成:
 
@@ -162,7 +179,7 @@ MCP サーバーは 4 プロセス構成:
    - `tools/mc-bridge-minecraft.ts`（Minecraft 側）: `mc_report`, `mc_read_commands`
    - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
-### 4.6 store/ — SQLite 統一永続化
+### 4.8 store/ — SQLite 統一永続化
 
 - `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
 - `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）

@@ -5,7 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Client } from "discord.js";
 import { z } from "zod";
 
-import { filterImageUrls } from "../../gateway/discord-attachment-mapper.ts";
+import { filterImageUrls } from "../../infrastructure/discord/attachment-mapper.ts";
 
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 

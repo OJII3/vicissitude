@@ -25,5 +25,5 @@ graph LR
 ### heartbeat-scheduler.ts
 
 - モジュール内依存: heartbeat-config
-- 他モジュール依存: core/, observability/
+- 他モジュール依存: application/, core/, observability/
 - 外部依存: path
