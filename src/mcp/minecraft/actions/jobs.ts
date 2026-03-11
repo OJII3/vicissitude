@@ -4,7 +4,6 @@ import { goals } from "mineflayer-pathfinder";
 import type { Recipe } from "prismarine-recipe";
 import { z } from "zod";
 
-import { findPerceivedBlock } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -71,10 +70,9 @@ async function executeCraft(
 
 	if (signal.aborted) return;
 
-	const table = findPerceivedBlock(bot, {
+	const table = bot.findBlock({
 		matching: bot.registry.blocksByName["crafting_table"]?.id ?? -1,
 		maxDistance: 32,
-		count: 16,
 	});
 	if (!table) throw new Error("近くに作業台が見つかりません（32 ブロック以内）");
 
@@ -91,7 +89,7 @@ async function executeSleep(
 	maxDistance: number,
 	signal: AbortSignal,
 ): Promise<void> {
-	const bedBlock = findPerceivedBlock(bot, { matching: bedIds, maxDistance, count: 32 });
+	const bedBlock = bot.findBlock({ matching: bedIds, maxDistance });
 	if (!bedBlock) throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません`);
 
 	const { x, y, z: bz } = bedBlock.position;

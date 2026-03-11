@@ -4,7 +4,7 @@ import { goals } from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
 import { z } from "zod";
 
-import { findPerceivedBlock, findPerceivedEntityByName } from "../bot-queries.ts";
+import { findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -253,10 +253,7 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 
 				// 1. ベッドを検索
 				const bedIds = collectBedIds(bot);
-				const bedBlock =
-					bedIds.length > 0
-						? findPerceivedBlock(bot, { matching: bedIds, maxDistance, count: 32 })
-						: null;
+				const bedBlock = bedIds.length > 0 ? bot.findBlock({ matching: bedIds, maxDistance }) : null;
 
 				if (bedBlock) {
 					try {

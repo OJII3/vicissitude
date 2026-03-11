@@ -28,7 +28,6 @@ graph LR
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_interaction["minecraft/actions/interaction"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_actions_shared["minecraft/actions/shared"]
-  minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_bot_queries["minecraft/bot-queries"]
@@ -110,7 +109,7 @@ graph LR
 
 ### minecraft/actions/jobs.ts
 
-- モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
+- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-recipe, zod
 
 ### minecraft/actions/movement.ts

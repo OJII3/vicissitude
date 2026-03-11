@@ -3,6 +3,8 @@ import { dirname } from "path";
 
 import type { Importance } from "./helpers.ts";
 
+let wakeSequence = 0;
+
 export function shouldWakeMinecraftBrain(kind: string, importance: Importance, description: string): boolean {
 	if (importance === "high" || importance === "critical") return true;
 	if (kind === "damage") return true;
@@ -14,6 +16,7 @@ export function shouldWakeMinecraftBrain(kind: string, importance: Importance, d
 export function createMinecraftBrainWakeNotifier(signalPath: string): (stamp?: string) => void {
 	return (stamp?: string) => {
 		mkdirSync(dirname(signalPath), { recursive: true });
-		writeFileSync(signalPath, stamp ?? new Date().toISOString(), "utf8");
+		wakeSequence += 1;
+		writeFileSync(signalPath, stamp ?? `${String(Date.now())}:${String(wakeSequence)}`, "utf8");
 	};
 }
