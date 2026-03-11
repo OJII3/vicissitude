@@ -49,8 +49,8 @@
 5. `nr fmt` — フォーマット
 6. `nr fmt:check` — フォーマット確認
 7. `nr validate` — fmt:check + lint + check 一括実行
-8. `nr test:quality` — JUnit + LCOV からテスト品質サマリを生成
-9. `nr test:quality:flake` — `bun test --rerun-each` でフレーク率を集計
+8. `nr test:quality` — JUnit + LCOV からテスト品質サマリを生成（テスト失敗時もサマリ生成までは継続し、コマンド自体は非 0 で終了）
+9. `nr test:quality:flake` — `bun test --rerun-each` でフレーク率を集計（flake 専用 JUnit のみを集計）
 
 ソースコードを変更した場合、`nr validate` を実行して問題がないことを確認してからコミットすること。
 テスト品質の観測が必要な変更では `nr test:quality` を実行し、`artifacts/test-quality/summary.md` を確認すること。

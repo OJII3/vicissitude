@@ -12,7 +12,7 @@
 		"fmt": "oxfmt .",
 		"fmt:check": "oxfmt --check .",
 		"test": "bun test",
-		"test:quality": "mkdir -p artifacts/test-quality/coverage && bun test --coverage --coverage-reporter=lcov --coverage-dir=artifacts/test-quality/coverage --reporter=junit --reporter-outfile=artifacts/test-quality/junit.xml && bun scripts/test-quality-report.ts",
+		"test:quality": "bun scripts/test-quality.ts",
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"deps:graph": "depcruise src --config .dependency-cruiser.mjs --output-type json | bun scripts/generate-deps-md.ts && oxfmt docs/DEPS.md 'src/*/DEPS.md'",
 		"validate": "bun run fmt:check && bun run lint && bun run check",

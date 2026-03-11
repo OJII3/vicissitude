@@ -77,8 +77,6 @@ interface TestQualitySummary {
 }
 
 const ARTIFACT_DIR = resolve("artifacts/test-quality");
-const DEFAULT_JUNIT_PATH = resolve(ARTIFACT_DIR, "junit.xml");
-const DEFAULT_LCOV_PATH = resolve(ARTIFACT_DIR, "coverage/lcov.info");
 const DEFAULT_SUMMARY_JSON_PATH = resolve(ARTIFACT_DIR, "summary.json");
 const DEFAULT_SUMMARY_MD_PATH = resolve(ARTIFACT_DIR, "summary.md");
 const DEFAULT_HISTORY_NDJSON_PATH = resolve(ARTIFACT_DIR, "history.ndjson");
@@ -101,8 +99,6 @@ function parseArgs(argv: string[]): {
 		flakeJunitPath?: string;
 		flakeRuns?: number;
 	} = {
-		junitPath: DEFAULT_JUNIT_PATH,
-		lcovPath: DEFAULT_LCOV_PATH,
 		summaryJsonPath: DEFAULT_SUMMARY_JSON_PATH,
 		summaryMdPath: DEFAULT_SUMMARY_MD_PATH,
 		historyNdjsonPath: DEFAULT_HISTORY_NDJSON_PATH,
@@ -186,7 +182,7 @@ function parseJunit(xml: string): { totals: JunitTotals; fileTimings: FileTiming
 		fileTimingsByFile.set(attrs.file, {
 			file: attrs.file,
 			tests: 0,
-			failures: parseNumber(attrs.failures),
+			failures: 0,
 			timeSeconds: 0,
 		});
 	}
@@ -518,4 +514,8 @@ function main(): void {
 	console.log(structuredLog);
 }
 
-main();
+if (import.meta.main) {
+	main();
+}
+
+export { parseArgs, parseJunit, parseLcov };

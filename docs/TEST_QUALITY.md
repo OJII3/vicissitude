@@ -49,6 +49,7 @@
 - `flaky_test_cases_top10` (`nr test:quality:flake` 実行時)
 
 これらは `nr test:quality` で生成する。
+`nr test:quality` はテストが失敗してもサマリ生成までは続行し、最後に非 0 で終了する。
 フレーク集計を行う場合は `nr test:quality:flake` を使う。
 
 出力先:
@@ -62,6 +63,7 @@
 
 `nr test:quality:flake` は `bun test --rerun-each=5` を使い、同じ `file + test name + line` の結果が pass/fail に揺れたものを flaky とみなす。
 回数は `TEST_FLAKE_RUNS` 環境変数で上書きできる。
+flake 専用サマリは `junit-flake.xml` だけを入力に使い、通常の `junit.xml` / `coverage/lcov.info` は混在させない。
 
 ## 4. まだ自動化しないが追うべき指標
 

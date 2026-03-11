@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 const ARTIFACT_DIR = resolve("artifacts/test-quality");
@@ -14,8 +14,19 @@ function parseRerunEach(): number {
 	return Number.isInteger(parsed) && parsed >= 2 ? parsed : DEFAULT_RERUN_EACH;
 }
 
+function resetArtifacts(): void {
+	for (const path of [FLAKE_JUNIT_PATH, FLAKE_SUMMARY_JSON_PATH, FLAKE_SUMMARY_MD_PATH]) {
+		rmSync(path, { force: true });
+	}
+}
+
+function resolveExitCode(testExitCode: number, reportExitCode: number): number {
+	return testExitCode === 0 ? reportExitCode : testExitCode;
+}
+
 async function main(): Promise<void> {
 	mkdirSync(ARTIFACT_DIR, { recursive: true });
+	resetArtifacts();
 
 	const rerunEach = parseRerunEach();
 	const testProc = Bun.spawn(
@@ -55,7 +66,11 @@ async function main(): Promise<void> {
 	);
 
 	const reportExitCode = await reportProc.exited;
-	process.exitCode = reportExitCode;
+	process.exitCode = resolveExitCode(exitCode, reportExitCode);
 }
 
-await main();
+if (import.meta.main) {
+	await main();
+}
+
+export { parseRerunEach, resolveExitCode };
