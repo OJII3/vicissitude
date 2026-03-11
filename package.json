@@ -21,12 +21,12 @@
 		"deploy:rebuild": "podman-compose down && bun run container:build:bot && podman-compose up -d && echo 'Rebuilt and deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman-compose logs -f",
 		"deploy:stop": "podman-compose down",
-		"prepare": "lefthook install"
+		"prepare": "command -v lefthook >/dev/null 2>&1 && lefthook install || true"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@opencode-ai/sdk": "^1.2.15",
-		"canvas": "^3.0.0-rc3",
+		"canvas": "^3.2.1",
 		"discord.js": "^14.25.1",
 		"drizzle-orm": "^0.45.1",
 		"fenghuang": "github:OJII3/fenghuang",
