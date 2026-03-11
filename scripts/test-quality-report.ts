@@ -366,19 +366,23 @@ function formatPercent(value: number | null): string {
 function renderMarkdown(summary: TestQualitySummary): string {
 	const lines = ["# Test Quality Summary", "", `- Generated: ${summary.generatedAt}`];
 
-	if (summary.tests && summary.coverage) {
+	if (summary.tests) {
 		lines.push(
 			`- Tests: ${String(summary.tests.total)} total / ${String(summary.tests.failures)} fail / ${String(summary.tests.skipped)} skipped`,
 			`- Assertions: ${String(summary.tests.assertions)}`,
 			`- Failure rate: ${formatPercent(summary.tests.failureRate)}`,
 			`- Pass rate: ${formatPercent(summary.tests.passRate)}`,
 			`- Duration: ${summary.tests.durationSeconds.toFixed(3)}s`,
-			`- Line coverage: ${formatPercent(summary.coverage.lineCoverage)} (${String(summary.coverage.linesHit)}/${String(summary.coverage.linesFound)})`,
-			`- Function coverage: ${formatPercent(summary.coverage.functionCoverage)} (${String(summary.coverage.functionsHit)}/${String(summary.coverage.functionsFound)})`,
-			"",
-			"## Slowest Test Files",
-			"",
 		);
+
+		if (summary.coverage) {
+			lines.push(
+				`- Line coverage: ${formatPercent(summary.coverage.lineCoverage)} (${String(summary.coverage.linesHit)}/${String(summary.coverage.linesFound)})`,
+				`- Function coverage: ${formatPercent(summary.coverage.functionCoverage)} (${String(summary.coverage.functionsHit)}/${String(summary.coverage.functionsFound)})`,
+			);
+		}
+
+		lines.push("", "## Slowest Test Files", "");
 
 		if (summary.slowestFiles.length === 0) {
 			lines.push("- none");
@@ -390,14 +394,16 @@ function renderMarkdown(summary: TestQualitySummary): string {
 			}
 		}
 
-		lines.push("", "## Lowest Line Coverage Files", "");
-		if (summary.lowestCoverageFiles.length === 0) {
-			lines.push("- none");
-		} else {
-			for (const file of summary.lowestCoverageFiles) {
-				lines.push(
-					`- ${file.file}: ${formatPercent(file.lineCoverage)} (${String(file.linesHit)}/${String(file.linesFound)})`,
-				);
+		if (summary.coverage) {
+			lines.push("", "## Lowest Line Coverage Files", "");
+			if (summary.lowestCoverageFiles.length === 0) {
+				lines.push("- none");
+			} else {
+				for (const file of summary.lowestCoverageFiles) {
+					lines.push(
+						`- ${file.file}: ${formatPercent(file.lineCoverage)} (${String(file.linesHit)}/${String(file.linesFound)})`,
+					);
+				}
 			}
 		}
 	}

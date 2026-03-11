@@ -98,11 +98,16 @@ describe("test-quality-report CLI", () => {
 			coverage?: unknown;
 			slowestFiles: Array<{ file: string; failures: number }>;
 		};
+		const summaryMd = readFileSync(summaryMdPath, "utf8");
 		expect(summary.tests?.total).toBe(2);
 		expect(summary.tests?.failures).toBe(1);
 		expect(summary.coverage).toBeUndefined();
 		expect(summary.slowestFiles[0]?.file).toBe("src/example.test.ts");
 		expect(summary.slowestFiles[0]?.failures).toBe(1);
+		expect(summaryMd).toContain("- Tests: 2 total / 1 fail / 0 skipped");
+		expect(summaryMd).toContain("## Slowest Test Files");
+		expect(summaryMd).toContain("src/example.test.ts: 0.500s, tests=2, failures=1");
+		expect(summaryMd).not.toContain("## Lowest Line Coverage Files");
 	});
 
 	test("flake JUnit が無くても空の flake summary を残す", async () => {
