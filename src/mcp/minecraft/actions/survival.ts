@@ -14,30 +14,39 @@ import {
 	tryStartJob,
 } from "./shared.ts";
 
-/** 食料アイテム（緊急用が先頭、残りは回復量降順） */
-const FOOD_ITEMS: string[] = [
-	"golden_apple",
-	"enchanted_golden_apple",
-	"cooked_beef",
-	"cooked_porkchop",
-	"cooked_mutton",
-	"cooked_salmon",
-	"cooked_chicken",
-	"golden_carrot",
-	"bread",
-	"cooked_cod",
-	"baked_potato",
-	"cooked_rabbit",
-	"apple",
-	"carrot",
-	"melon_slice",
-	"sweet_berries",
-	"potato",
-	"dried_kelp",
-];
+interface FoodInfo {
+	name: string;
+	foodPoints: number;
+	effectiveQuality: number;
+	saturation: number;
+}
 
 /** golden_apple 系は緊急時専用 */
 const EMERGENCY_ONLY_FOODS = new Set(["golden_apple", "enchanted_golden_apple"]);
+
+function getFoodsByName(bot: mineflayer.Bot): Record<string, FoodInfo> {
+	return (bot.registry as mineflayer.Bot["registry"] & {
+		foodsByName?: Record<string, FoodInfo>;
+	}).foodsByName ?? {};
+}
+
+export function listEdibleFoods(bot: mineflayer.Bot, emergency: boolean): FoodInfo[] {
+	const foodsByName = getFoodsByName(bot);
+	return Object.values(foodsByName)
+		.filter((food) => emergency || !EMERGENCY_ONLY_FOODS.has(food.name))
+		.toSorted((a, b) => {
+			if (EMERGENCY_ONLY_FOODS.has(a.name) !== EMERGENCY_ONLY_FOODS.has(b.name)) {
+				return EMERGENCY_ONLY_FOODS.has(a.name) ? -1 : 1;
+			}
+			if (a.effectiveQuality !== b.effectiveQuality) {
+				return b.effectiveQuality - a.effectiveQuality;
+			}
+			if (a.foodPoints !== b.foodPoints) {
+				return b.foodPoints - a.foodPoints;
+			}
+			return a.name.localeCompare(b.name);
+		});
+}
 
 function registerEatFood(server: McpServer, getBot: GetBot): void {
 	server.tool(
@@ -57,10 +66,8 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 
 			const inventory = bot.inventory.items();
 
-			for (const foodName of FOOD_ITEMS) {
-				if (!emergency && EMERGENCY_ONLY_FOODS.has(foodName)) continue;
-
-				const item = inventory.find((i) => i.name === foodName);
+			for (const food of listEdibleFoods(bot, emergency)) {
+				const item = inventory.find((i) => i.name === food.name);
 				if (!item) continue;
 
 				try {
@@ -68,10 +75,10 @@ function registerEatFood(server: McpServer, getBot: GetBot): void {
 					await bot.equip(item, "hand");
 					// oxlint-disable-next-line no-await-in-loop -- 食事は順次実行が必須
 					await bot.consume();
-					return textResult(`${foodName} を食べました（空腹度: ${String(bot.food)}/20）`);
+					return textResult(`${food.name} を食べました（空腹度: ${String(bot.food)}/20）`);
 				} catch {
 					return textResult(
-						`${foodName} を食べようとしましたが中断されました（空腹度: ${String(bot.food)}/20）`,
+						`${food.name} を食べようとしましたが中断されました（空腹度: ${String(bot.food)}/20）`,
 					);
 				}
 			}
