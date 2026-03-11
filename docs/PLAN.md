@@ -89,11 +89,11 @@ DoD:
 
 2026-03-11 時点の整理結果:
 
-- 危険時プリエンプションの標準手順は `stop` → 再観測 → `eat_food` / `flee_from_entity` / `find_shelter` / `sleep_in_bed` の 1 手選択とする。
+- 危険時プリエンプションの標準手順は `stop` → 再観測 → `eat_food` / `flee_from_entity` / `find_shelter` / `sleep_in_bed` から状況依存で次の 1 手を選択する。
 - `death`, `kicked`, `disconnect`, `damage`, 近距離 hostile、致命的低体力、空腹 0 を危険時再判断の主要トリガーとする。
 - 同系統ジョブが連続 2 回失敗またはキャンセルした場合はクールダウン対象とし、前提条件が変わらない限り即再試行しない。
 - 失敗原因は `survival failure`, `pathfinding failure`, `resource shortage`, `target missing`, `connection failure` に分類して扱う。
-- Discord 通知は即時通知と要約通知に分け、死亡・切断・依頼失敗・危険回避開始/失敗を優先通知対象とする。
+- Discord 通知は即時通知と要約通知に分け、死亡・切断・依頼失敗・危険回避開始/失敗に加え、危険回避完了・再計画開始・依頼延期・長時間スタックも対象とする。
 
 補強したい機能:
 
