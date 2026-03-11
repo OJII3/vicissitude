@@ -9,12 +9,36 @@ export function consumeEvents(
 	guildId: string,
 ): { id: number; payload: string; createdAt: number }[] {
 	return db.transaction((tx) => {
-		const rows = tx.select().from(eventBuffer).where(eq(eventBuffer.guildId, guildId)).all();
+		const rows = tx
+			.select()
+			.from(eventBuffer)
+			.where(eq(eventBuffer.guildId, guildId))
+			.orderBy(eventBuffer.id)
+			.all();
 		if (rows.length > 0) {
 			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
 			tx.delete(eventBuffer).where(inArray(eventBuffer.id, ids)).run();
 		}
 		return rows.map((r) => ({ id: r.id ?? 0, payload: r.payload, createdAt: r.createdAt }));
+	});
+}
+
+/** event_buffer から最古の 1 件を取得して削除する */
+export function consumeNextEvent(
+	db: StoreDb,
+	guildId: string,
+): { id: number; payload: string; createdAt: number } | null {
+	return db.transaction((tx) => {
+		const row = tx
+			.select()
+			.from(eventBuffer)
+			.where(eq(eventBuffer.guildId, guildId))
+			.orderBy(eventBuffer.id)
+			.limit(1)
+			.get();
+		if (!row) return null;
+		tx.delete(eventBuffer).where(eq(eventBuffer.id, row.id)).run();
+		return { id: row.id ?? 0, payload: row.payload, createdAt: row.createdAt };
 	});
 }
 

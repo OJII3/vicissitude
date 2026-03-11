@@ -100,6 +100,28 @@ describe("MessageIngestionService", () => {
 		);
 	});
 
+	test("bufferEvent=false なら LTM 記録だけ行い event buffer には積まない", async () => {
+		const eventStore: BufferedEventStore = { append: mock(() => {}) };
+		const recorder: ConversationRecorder = {
+			record: mock(() => Promise.resolve()),
+		};
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ eventStore, logger, recorder });
+
+		service.handleIncomingMessage(
+			createMockMessage({
+				isBot: true,
+				content: "自分の発言",
+			}),
+			{ recordConversation: true, bufferEvent: false },
+		);
+
+		await Promise.resolve();
+
+		expect(eventStore.append).not.toHaveBeenCalled();
+		expect(recorder.record).toHaveBeenCalledTimes(1);
+	});
+
 	test("recordConversation 未指定なら LTM 記録しない", async () => {
 		const eventStore: BufferedEventStore = { append: mock(() => {}) };
 		const recorder: ConversationRecorder = {

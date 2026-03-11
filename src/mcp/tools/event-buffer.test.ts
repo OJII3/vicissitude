@@ -31,6 +31,7 @@ describe("pollEvents", () => {
 	test("イベントが既にあれば即座に返す", async () => {
 		const db = createTestDb();
 		appendEvent(db, "guild-1", '{"content":"test"}');
+		appendEvent(db, "guild-1", '{"content":"next"}');
 
 		const deadline = Date.now() + 5000;
 		const result = await pollEvents(db, "guild-1", deadline);
