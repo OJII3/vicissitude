@@ -1,7 +1,7 @@
-import { mkdtempSync, readFileSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 
 import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
 

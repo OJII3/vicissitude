@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+
 import { Vec3 } from "vec3";
 
 import {
@@ -15,7 +16,10 @@ function keyOf(position: Vec3): string {
 function makeBot(options?: {
 	blocks?: { position: Vec3; name?: string; boundingBox?: "block" | "empty" }[];
 	findBlocks?: Vec3[];
-	entities?: Record<string, { id: number; name?: string; username?: string; type: string; position: Vec3; height?: number }>;
+	entities?: Record<
+		string,
+		{ id: number; name?: string; username?: string; type: string; position: Vec3; height?: number }
+	>;
 	raycast?: (from: Vec3, direction: Vec3, range: number) => Promise<unknown>;
 	canSeeBlock?: (block: { position: Vec3 }) => boolean;
 }) {
@@ -37,9 +41,7 @@ function makeBot(options?: {
 		},
 		entities: options?.entities ?? {},
 		world: {
-			raycast:
-				options?.raycast ??
-				(() => Promise.resolve(null)),
+			raycast: options?.raycast ?? (() => Promise.resolve(null)),
 		},
 		findBlocks: mock((_: unknown) => options?.findBlocks ?? []),
 		blockAt: mock((position: Vec3) => blockMap.get(keyOf(position)) ?? null),
@@ -77,7 +79,13 @@ describe("canPerceiveEntity", () => {
 	test("近距離エンティティは遮蔽判定なしで知覚できる", async () => {
 		const raycast = mock(() => Promise.resolve(null));
 		const bot = makeBot({ raycast });
-		const entity = { id: 1, name: "zombie", type: "mob", position: new Vec3(3, 64, 0), height: 1.95 };
+		const entity = {
+			id: 1,
+			name: "zombie",
+			type: "mob",
+			position: new Vec3(3, 64, 0),
+			height: 1.95,
+		};
 
 		await expect(canPerceiveEntity(bot, entity as never)).resolves.toBe(true);
 		expect(raycast).not.toHaveBeenCalled();
@@ -87,7 +95,13 @@ describe("canPerceiveEntity", () => {
 		const bot = makeBot({
 			raycast: () => Promise.resolve({ position: new Vec3(4, 64, 0), boundingBox: "block" }),
 		});
-		const entity = { id: 1, name: "zombie", type: "mob", position: new Vec3(8, 64, 0), height: 1.95 };
+		const entity = {
+			id: 1,
+			name: "zombie",
+			type: "mob",
+			position: new Vec3(8, 64, 0),
+			height: 1.95,
+		};
 
 		await expect(canPerceiveEntity(bot, entity as never)).resolves.toBe(false);
 	});
@@ -113,7 +127,13 @@ describe("getNearbyEntities", () => {
 		const bot = makeBot({
 			entities: {
 				hidden: { id: 1, name: "zombie", type: "mob", position: new Vec3(8, 64, 0), height: 1.95 },
-				visible: { id: 2, username: "ojii3", type: "player", position: new Vec3(3, 64, 0), height: 1.8 },
+				visible: {
+					id: 2,
+					username: "ojii3",
+					type: "player",
+					position: new Vec3(3, 64, 0),
+					height: 1.8,
+				},
 			},
 			raycast: (_from, direction) =>
 				Promise.resolve(

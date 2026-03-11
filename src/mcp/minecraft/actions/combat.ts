@@ -6,7 +6,13 @@ import { z } from "zod";
 
 import { findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
+import {
+	type GetBot,
+	ensureMovements,
+	registerAbortHandler,
+	textResult,
+	tryStartJob,
+} from "./shared.ts";
 
 /** 武器の優先度リスト（上位ほど優先） */
 const WEAPON_PRIORITY: string[] = [

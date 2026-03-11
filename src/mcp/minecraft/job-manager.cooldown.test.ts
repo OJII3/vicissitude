@@ -35,7 +35,9 @@ describe("JobManager cooldown", () => {
 
 		expect(manager.getCooldowns()).toHaveLength(1);
 		expect(() => manager.startJob("moving", "C", noopExecutor)).toThrow(/moving はクールダウン中/);
-		expect(events.some((event) => event.description.includes("クールダウン開始: moving"))).toBe(true);
+		expect(events.some((event) => event.description.includes("クールダウン開始: moving"))).toBe(
+			true,
+		);
 	});
 
 	test("ジョブ完了で同系統のクールダウンが解除される", async () => {

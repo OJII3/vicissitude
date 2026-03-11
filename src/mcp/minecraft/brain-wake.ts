@@ -5,7 +5,11 @@ import type { Importance } from "./helpers.ts";
 
 let wakeSequence = 0;
 
-export function shouldWakeMinecraftBrain(kind: string, importance: Importance, description: string): boolean {
+export function shouldWakeMinecraftBrain(
+	kind: string,
+	importance: Importance,
+	description: string,
+): boolean {
 	if (importance === "high" || importance === "critical") return true;
 	if (kind === "damage") return true;
 	if (kind === "health" && importance === "medium") return true;
