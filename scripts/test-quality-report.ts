@@ -160,6 +160,21 @@ function safeRate(hit: number, found: number): number | null {
 	return hit / found;
 }
 
+function createEmptyFlakeSummary(
+	rerunEach: number,
+	flakeJunitPath: string,
+): NonNullable<TestQualitySummary["flake"]> {
+	return {
+		junitPath: flakeJunitPath,
+		rerunEach,
+		testsAnalyzed: 0,
+		flakyTests: 0,
+		flakeRate: null,
+		flakyFiles: [],
+		flakyTestCases: [],
+	};
+}
+
 function parseJunit(xml: string): { totals: JunitTotals; fileTimings: FileTiming[] } {
 	const rootMatch = xml.match(/<testsuites\b([^>]*)>/);
 	if (!rootMatch) {
@@ -444,8 +459,6 @@ function renderStructuredLog(summary: TestQualitySummary): string {
 
 function main(): void {
 	const args = parseArgs(process.argv.slice(2));
-	let fileTimings: FileTiming[] = [];
-	let coverageFiles: Array<CoverageFileSummary & { lineCoverage: number | null }> = [];
 
 	const summary: TestQualitySummary = {
 		generatedAt: new Date().toISOString(),
@@ -455,14 +468,26 @@ function main(): void {
 		lowestCoverageFiles: [],
 	};
 
-	if (args.junitPath && args.lcovPath && existsSync(args.junitPath) && existsSync(args.lcovPath)) {
+	if (args.junitPath && existsSync(args.junitPath)) {
 		const junitXml = readText(args.junitPath);
-		const lcovText = readText(args.lcovPath);
-		const { totals, fileTimings: parsedFileTimings } = parseJunit(junitXml);
-		const { totals: coverageTotals, files: parsedCoverageFiles } = parseLcov(lcovText);
+		const { totals, fileTimings } = parseJunit(junitXml);
 
-		fileTimings = parsedFileTimings;
-		coverageFiles = parsedCoverageFiles
+		summary.tests = {
+			total: totals.tests,
+			assertions: totals.assertions,
+			failures: totals.failures,
+			skipped: totals.skipped,
+			failureRate: safeRate(totals.failures, totals.tests) ?? 0,
+			passRate: safeRate(totals.tests - totals.failures - totals.skipped, totals.tests) ?? 0,
+			durationSeconds: totals.timeSeconds,
+		};
+		summary.slowestFiles = fileTimings.slice(0, 10);
+	}
+
+	if (args.lcovPath && existsSync(args.lcovPath)) {
+		const lcovText = readText(args.lcovPath);
+		const { totals: coverageTotals, files: parsedCoverageFiles } = parseLcov(lcovText);
+		const coverageFiles = parsedCoverageFiles
 			.map((file) =>
 				Object.assign({}, file, {
 					lineCoverage: safeRate(file.linesHit, file.linesFound),
@@ -475,15 +500,6 @@ function main(): void {
 				return left - right || b.linesFound - a.linesFound || a.file.localeCompare(b.file);
 			});
 
-		summary.tests = {
-			total: totals.tests,
-			assertions: totals.assertions,
-			failures: totals.failures,
-			skipped: totals.skipped,
-			failureRate: safeRate(totals.failures, totals.tests) ?? 0,
-			passRate: safeRate(totals.tests - totals.failures - totals.skipped, totals.tests) ?? 0,
-			durationSeconds: totals.timeSeconds,
-		};
 		summary.coverage = {
 			linesFound: coverageTotals.linesFound,
 			linesHit: coverageTotals.linesHit,
@@ -492,16 +508,19 @@ function main(): void {
 			functionsHit: coverageTotals.functionsHit,
 			functionCoverage: safeRate(coverageTotals.functionsHit, coverageTotals.functionsFound),
 		};
-		summary.slowestFiles = fileTimings.slice(0, 10);
 		summary.lowestCoverageFiles = coverageFiles.slice(0, 10);
 	}
 
 	if (args.flakeJunitPath && args.flakeRuns) {
-		summary.flake = parseFlakeSummary(
-			readText(args.flakeJunitPath),
-			args.flakeRuns,
-			args.flakeJunitPath,
-		);
+		if (existsSync(args.flakeJunitPath)) {
+			summary.flake = parseFlakeSummary(
+				readText(args.flakeJunitPath),
+				args.flakeRuns,
+				args.flakeJunitPath,
+			);
+		} else {
+			summary.flake = createEmptyFlakeSummary(args.flakeRuns, args.flakeJunitPath);
+		}
 	}
 
 	mkdirSync(dirname(args.summaryJsonPath), { recursive: true });
