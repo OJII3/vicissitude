@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { listEdibleFoods } from "./survival.ts";
+import { listEdibleFoods } from "./survival/index.ts";
 
-function makeBot(foodsByName: Record<string, { name: string; foodPoints: number; effectiveQuality: number; saturation: number }>) {
+function makeBot(
+	foodsByName: Record<
+		string,
+		{ name: string; foodPoints: number; effectiveQuality: number; saturation: number }
+	>,
+) {
 	return {
 		registry: {
 			foodsByName,

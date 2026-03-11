@@ -48,7 +48,7 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 		return server;
 	}
 
-	const { cleanupTimer, closeAllSessions } = startHttpServer(
+	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createTestServer,
 		TEST_PORT,
 		"test-minecraft",
@@ -57,6 +57,7 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 	afterAll(() => {
 		clearInterval(cleanupTimer);
 		closeAllSessions();
+		stopServer();
 	});
 
 	const MCP_HEADERS = {

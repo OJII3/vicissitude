@@ -49,8 +49,12 @@
 5. `nr fmt` — フォーマット
 6. `nr fmt:check` — フォーマット確認
 7. `nr validate` — fmt:check + lint + check 一括実行
+8. `nr test:quality` — JUnit + LCOV からテスト品質サマリを生成
+9. `nr test:quality:flake` — `bun test --rerun-each` でフレーク率を集計
 
 ソースコードを変更した場合、`nr validate` を実行して問題がないことを確認してからコミットすること。
+テスト品質の観測が必要な変更では `nr test:quality` を実行し、`artifacts/test-quality/summary.md` を確認すること。
+不安定なテストを疑う変更では `nr test:quality:flake` も実行すること。
 
 ### 3.3 デプロイ操作
 
@@ -77,9 +81,11 @@ nr deploy:rebuild
   ```
 - **Grafana ダッシュボード** (`monitoring/grafana-dashboard.json`) の Logs セクションでも確認可能:
   - ダッシュボード JSON の置き場所は `monitoring/grafana-dashboard.json` を正本とする
-  - Overview / AI Performance / LTM / Heartbeat / LLM Sessions / Token Usage / Minecraft / Logs を含む
+  - Overview / AI Performance / LTM / Heartbeat / LLM Sessions / Token Usage / Minecraft / Test Quality / Logs を含む
   - Log Volume by Level: レベル別ログボリュームの推移
   - Log Volume by Component: コンポーネント別ログボリュームの推移
+  - Test Quality: `component="test-quality"` の JSON ログを Loki で可視化する
+  - `nr test:quality` / `nr test:quality:flake` は Markdown サマリに加えて 1 行の JSON サマリも stdout へ出力する
   - Errors & Warnings: error/warn レベルのログのみ表示
   - All Logs: 全ログの検索・閲覧
   - Loki データソースの設定が必要（インポート時にプロンプトが表示される）

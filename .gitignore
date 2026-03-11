@@ -3,5 +3,7 @@ node_modules/
 .env
 .env.local
 /PLAN.md
+/artifacts/
+/tmp/
 data/
 .direnv/

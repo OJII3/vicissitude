@@ -11,7 +11,7 @@ import {
 	registerStop,
 } from "./movement.ts";
 import type { GetBot } from "./shared.ts";
-import { registerSurvivalTools } from "./survival.ts";
+import { registerSurvivalTools } from "./survival/index.ts";
 
 export function registerActionTools(
 	server: McpServer,

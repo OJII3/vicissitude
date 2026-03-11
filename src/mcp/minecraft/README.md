@@ -21,7 +21,11 @@ src/mcp/minecraft/
     ├── movement.ts        # follow_player, go_to, collect_block, stop
     ├── interaction.ts     # send_chat, equip_item, place_block
     ├── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
-    ├── survival.ts        # eat_food, flee_from_entity, find_shelter（サバイバル本能）
+    ├── survival/
+    │   ├── food.ts        # eat_food + 食料優先度判定
+    │   ├── escape.ts      # flee_from_entity
+    │   ├── shelter.ts     # find_shelter + 緊急シェルター構築
+    │   └── index.ts       # サバイバル系ツールの集約
     └── shared.ts          # 共通ヘルパー（collectBedIds, ensureMovements 等）
 ```
 
@@ -169,7 +173,7 @@ M12b と M12c は並行着手可能。
 
 ### このディレクトリへの影響
 
-Minecraft エージェントは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival.ts`（`eat_food`, `flee_from_entity`, `find_shelter`）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
+Minecraft エージェントは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival/`（`eat_food`, `flee_from_entity`, `find_shelter` の責務別分割）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
 
 ### 先行研究
 

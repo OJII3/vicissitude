@@ -74,7 +74,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		return server;
 	}
 
-	const { cleanupTimer, closeAllSessions } = startHttpServer(
+	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createTestMcpServer,
 		TEST_PORT,
 		"test-mc-bridge",
@@ -83,6 +83,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 	afterAll(() => {
 		clearInterval(cleanupTimer);
 		closeAllSessions();
+		stopServer();
 	});
 
 	test("health check → セッション作成 → minecraft_delegate 実行で DB にイベントが入る", async () => {
