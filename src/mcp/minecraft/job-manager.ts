@@ -145,11 +145,11 @@ export class JobManager {
 	}
 
 	/** 現在のジョブをキャンセルする */
-	cancelCurrentJob(reason: CancellationReason = "manual"): boolean {
+	cancelCurrentJob(_reason: CancellationReason = "manual"): boolean {
 		if (!this.currentJob) return false;
 		const { info, abortController } = this.currentJob;
 		abortController.abort();
-		this.finishJob(info.id, "cancelled", undefined, reason);
+		this.finishJob(info.id, "cancelled");
 		return true;
 	}
 
@@ -190,7 +190,6 @@ export class JobManager {
 		jobId: string,
 		status: JobStatus,
 		error?: string,
-		cancellationReason: CancellationReason = "manual",
 	): void {
 		if (this.currentJob?.info.id !== jobId) return;
 
@@ -209,25 +208,21 @@ export class JobManager {
 		this.setActionState({ type: "idle" });
 
 		this.metrics?.incrementCounter(METRIC.MC_JOBS, { type: info.type, status });
-		this.updateCooldownState(info.type, status, cancellationReason);
+		this.updateCooldownState(info.type, status);
 
 		const description = this.formatFinishDescription(info);
 		const importance: Importance = status === "cancelled" ? "low" : "medium";
 		this.pushEvent("job", description, importance);
 	}
 
-	private updateCooldownState(
-		type: Exclude<ActionState["type"], "idle">,
-		status: JobStatus,
-		cancellationReason: CancellationReason,
-	): void {
+	private updateCooldownState(type: Exclude<ActionState["type"], "idle">, status: JobStatus): void {
 		if (status === "completed") {
 			this.failureStreaks.delete(type);
 			this.cooldowns.delete(type);
 			return;
 		}
-		if (status !== "failed" && status !== "cancelled") return;
-		if (status === "cancelled" && cancellationReason === "superseded") return;
+		if (status === "cancelled") return;
+		if (status !== "failed") return;
 
 		const streak = (this.failureStreaks.get(type) ?? 0) + 1;
 		this.failureStreaks.set(type, streak);

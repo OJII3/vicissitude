@@ -30,10 +30,20 @@ function createAbortWait(signal: AbortSignal): { promise: Promise<void>; cleanup
 	return { promise, cleanup };
 }
 
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
+function createSleepWait(ms: number): { promise: Promise<void>; cleanup: () => void } {
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	const cleanup = () => {
+		if (!timer) return;
+		clearTimeout(timer);
+		timer = undefined;
+	};
+	const promise = new Promise<void>((resolve) => {
+		timer = setTimeout(() => {
+			timer = undefined;
+			resolve();
+		}, ms);
 	});
+	return { promise, cleanup };
 }
 
 /**
@@ -60,13 +70,15 @@ export class MinecraftEventBuffer implements EventBuffer {
 		const forwardAbort = () => localController.abort();
 		signal.addEventListener("abort", forwardAbort, { once: true });
 		const abortWait = createAbortWait(signal);
+		const sleepWait = createSleepWait(this.intervalMs);
 
-		const waits: Promise<void>[] = [sleep(this.intervalMs), abortWait.promise];
+		const waits: Promise<void>[] = [sleepWait.promise, abortWait.promise];
 		if (this.wakeSignalPath) waits.push(this.waitForWakeSignal(localController.signal));
 
 		return Promise.race(waits).finally(() => {
 			localController.abort();
 			abortWait.cleanup();
+			sleepWait.cleanup();
 			signal.removeEventListener("abort", forwardAbort);
 		});
 	}
@@ -75,7 +87,15 @@ export class MinecraftEventBuffer implements EventBuffer {
 		const initialWakeStamp = readWakeStamp(this.wakeSignalPath);
 		const poll = async (): Promise<void> => {
 			if (signal.aborted) return;
-			await sleep(this.wakePollMs);
+			const sleepWait = createSleepWait(this.wakePollMs);
+			const abortWait = createAbortWait(signal);
+			try {
+				await Promise.race([sleepWait.promise, abortWait.promise]);
+			} finally {
+				sleepWait.cleanup();
+				abortWait.cleanup();
+			}
+			if (signal.aborted) return;
 			const currentStamp = readWakeStamp(this.wakeSignalPath);
 			if (currentStamp !== null && currentStamp !== initialWakeStamp) return;
 			return poll();

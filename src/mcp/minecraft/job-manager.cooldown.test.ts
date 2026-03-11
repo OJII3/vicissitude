@@ -80,6 +80,15 @@ describe("JobManager cooldown", () => {
 		expect(manager.getCooldowns()).toHaveLength(0);
 	});
 
+	test("manual stop もクールダウン対象に含めない", () => {
+		const { manager } = createManager(1_000);
+		manager.startJob("moving", "A", hangingExecutor);
+		manager.cancelCurrentJob();
+		manager.startJob("moving", "B", hangingExecutor);
+		manager.cancelCurrentJob();
+		expect(manager.getCooldowns()).toHaveLength(0);
+	});
+
 	test("材料や作業台不足は resource shortage に分類される", async () => {
 		const { manager, events } = createManager(1_000);
 		manager.startJob("crafting", "stick", () =>

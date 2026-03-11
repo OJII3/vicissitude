@@ -69,8 +69,9 @@ function registerCoreEvents(
 		const f = Math.round(b.food);
 		const healthDelta = Math.abs(h - tracking.lastHealth);
 		const droppedToLow = h <= 5 && tracking.lastHealth > 5;
-		if (tracking.lastHealth < 0 || healthDelta >= 5 || droppedToLow) {
-			const importance: Importance = h <= 5 ? "medium" : "low";
+		const droppedToStarving = f === 0 && tracking.lastFood > 0;
+		if (tracking.lastHealth < 0 || healthDelta >= 5 || droppedToLow || droppedToStarving) {
+			const importance: Importance = h <= 5 || droppedToStarving ? "medium" : "low";
 			tracking.lastHealth = h;
 			tracking.lastFood = f;
 			ctx.pushEvent("health", `Health: ${String(h)}, Food: ${String(f)}`, importance);
