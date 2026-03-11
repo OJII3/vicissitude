@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 interface JunitTotals {
@@ -81,12 +81,14 @@ const DEFAULT_JUNIT_PATH = resolve(ARTIFACT_DIR, "junit.xml");
 const DEFAULT_LCOV_PATH = resolve(ARTIFACT_DIR, "coverage/lcov.info");
 const DEFAULT_SUMMARY_JSON_PATH = resolve(ARTIFACT_DIR, "summary.json");
 const DEFAULT_SUMMARY_MD_PATH = resolve(ARTIFACT_DIR, "summary.md");
+const DEFAULT_HISTORY_NDJSON_PATH = resolve(ARTIFACT_DIR, "history.ndjson");
 
 function parseArgs(argv: string[]): {
 	junitPath?: string;
 	lcovPath?: string;
 	summaryJsonPath: string;
 	summaryMdPath: string;
+	historyNdjsonPath: string;
 	flakeJunitPath?: string;
 	flakeRuns?: number;
 } {
@@ -95,6 +97,7 @@ function parseArgs(argv: string[]): {
 		lcovPath?: string;
 		summaryJsonPath: string;
 		summaryMdPath: string;
+		historyNdjsonPath: string;
 		flakeJunitPath?: string;
 		flakeRuns?: number;
 	} = {
@@ -102,6 +105,7 @@ function parseArgs(argv: string[]): {
 		lcovPath: DEFAULT_LCOV_PATH,
 		summaryJsonPath: DEFAULT_SUMMARY_JSON_PATH,
 		summaryMdPath: DEFAULT_SUMMARY_MD_PATH,
+		historyNdjsonPath: DEFAULT_HISTORY_NDJSON_PATH,
 	};
 	for (const arg of argv) {
 		if (arg.startsWith("--junit=")) {
@@ -118,6 +122,10 @@ function parseArgs(argv: string[]): {
 		}
 		if (arg.startsWith("--summary-md=")) {
 			result.summaryMdPath = resolve(arg.slice("--summary-md=".length));
+			continue;
+		}
+		if (arg.startsWith("--history-ndjson=")) {
+			result.historyNdjsonPath = resolve(arg.slice("--history-ndjson=".length));
 			continue;
 		}
 		if (arg.startsWith("--flake-junit=")) {
@@ -419,6 +427,7 @@ function renderStructuredLog(summary: TestQualitySummary): string {
 	return JSON.stringify({
 		timestamp: summary.generatedAt,
 		component: "test-quality",
+		mode: summary.flake ? "flake" : "quality",
 		kind: "summary",
 		tests_total: summary.tests?.total,
 		assertions_total: summary.tests?.assertions,
@@ -503,8 +512,10 @@ function main(): void {
 	writeFileSync(args.summaryJsonPath, `${JSON.stringify(summary, null, 2)}\n`);
 	writeFileSync(args.summaryMdPath, renderMarkdown(summary));
 
+	const structuredLog = renderStructuredLog(summary);
+	appendFileSync(args.historyNdjsonPath, `${structuredLog}\n`);
 	console.log(renderMarkdown(summary).trimEnd());
-	console.log(renderStructuredLog(summary));
+	console.log(structuredLog);
 }
 
 main();

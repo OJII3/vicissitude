@@ -57,6 +57,7 @@
 - `artifacts/test-quality/coverage/lcov.info`
 - `artifacts/test-quality/summary.json`
 - `artifacts/test-quality/summary.md`
+- `artifacts/test-quality/history.ndjson`
 - `stdout` にも `component="test-quality"` の 1 行 JSON サマリを出力する（Grafana/Loki 用）
 
 `nr test:quality:flake` は `bun test --rerun-each=5` を使い、同じ `file + test name + line` の結果が pass/fail に揺れたものを flaky とみなす。
@@ -88,6 +89,7 @@ Grafana を使う場合:
 
 - `monitoring/grafana-dashboard.json` の Test Quality セクションをインポートする
 - Loki で `component="test-quality"` の JSON ログが見えることを確認する
+- 継続収集したい場合は `artifacts/test-quality/history.ndjson` を Loki/Promtail の収集対象へ入れる
 - 長期の推移は Loki 上の `failure_rate`, `line_coverage`, `function_coverage`, `flake_rate`, `duration_seconds` を見る
 
 ## 6. 解釈上の注意

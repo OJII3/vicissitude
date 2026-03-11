@@ -86,6 +86,7 @@ nr deploy:rebuild
   - Log Volume by Component: コンポーネント別ログボリュームの推移
   - Test Quality: `component="test-quality"` の JSON ログを Loki で可視化する
   - `nr test:quality` / `nr test:quality:flake` は Markdown サマリに加えて 1 行の JSON サマリも stdout へ出力する
+  - 継続計測する場合は `artifacts/test-quality/history.ndjson` を Loki の収集対象に含める
   - Errors & Warnings: error/warn レベルのログのみ表示
   - All Logs: 全ログの検索・閲覧
   - Loki データソースの設定が必要（インポート時にプロンプトが表示される）
