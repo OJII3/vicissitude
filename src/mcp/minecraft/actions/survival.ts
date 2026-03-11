@@ -4,6 +4,7 @@ import { goals } from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
 import { z } from "zod";
 
+import { findPerceivedBlock, findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -107,14 +108,13 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 				.default(32)
 				.describe("逃走距離（デフォルト: 32ブロック）"),
 		},
-		({ entityName, distance }) => {
+		async ({ entityName, distance }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const lowerName = entityName.toLowerCase();
-			const target = Object.values(bot.entities).find((e) => e.name?.toLowerCase() === lowerName);
+			const target = await findPerceivedEntityByName(bot, entityName, distance + 16);
 			if (!target) {
-				return textResult(`"${entityName}" が周囲に見つかりません。すでに安全かもしれません`);
+				return textResult(`"${entityName}" が近距離または視界内に見つかりません。すでに安全かもしれません`);
 			}
 
 			const started = tryStartJob(jobManager, "fleeing", entityName, async (signal) => {
@@ -254,7 +254,9 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 				// 1. ベッドを検索
 				const bedIds = collectBedIds(bot);
 				const bedBlock =
-					bedIds.length > 0 ? bot.findBlock({ matching: bedIds, maxDistance }) : null;
+					bedIds.length > 0
+						? findPerceivedBlock(bot, { matching: bedIds, maxDistance, count: 32 })
+						: null;
 
 				if (bedBlock) {
 					try {

@@ -17,6 +17,7 @@ graph LR
   http_server["http-server"]
   memory_helpers["memory-helpers"]
   minecraft_actions_combat["minecraft/actions/combat"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_combat["minecraft/actions/combat"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_combat["minecraft/actions/combat"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_combat["minecraft/actions/combat"]
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_actions_interaction["minecraft/actions/interaction"]
@@ -27,11 +28,14 @@ graph LR
   minecraft_actions_index["minecraft/actions/index"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_interaction["minecraft/actions/interaction"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_shared["minecraft/actions/shared"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_queries["minecraft/bot-queries"]
@@ -91,7 +95,7 @@ graph LR
 
 ### minecraft/actions/combat.ts
 
-- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
+- モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
 
 ### minecraft/actions/index.ts
@@ -106,12 +110,12 @@ graph LR
 
 ### minecraft/actions/jobs.ts
 
-- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
+- モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-recipe, zod
 
 ### minecraft/actions/movement.ts
 
-- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
+- モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
 
 ### minecraft/actions/shared.ts
@@ -121,7 +125,7 @@ graph LR
 
 ### minecraft/actions/survival.ts
 
-- モジュール内依存: minecraft/actions/shared, minecraft/job-manager
+- モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, vec3, zod
 
 ### minecraft/bot-connection.ts
@@ -138,7 +142,7 @@ graph LR
 ### minecraft/bot-queries.ts
 
 - モジュール内依存: minecraft/helpers
-- 外部依存: mineflayer
+- 外部依存: mineflayer, prismarine-entity, vec3
 
 ### minecraft/brain-wake.ts
 

@@ -4,6 +4,7 @@ import { goals } from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
+import { canPerceiveEntity, findPerceivedBlock } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
 import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
 
@@ -16,7 +17,7 @@ async function digOneBlock(
 	signal: AbortSignal,
 ): Promise<boolean> {
 	if (signal.aborted) return false;
-	const block = b.findBlock({ matching: blockId, maxDistance });
+	const block = findPerceivedBlock(b, { matching: blockId, maxDistance, count: 24 });
 	if (!block) return false;
 	const { x, y, z: bz } = block.position;
 	await b.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));
@@ -101,12 +102,12 @@ export function registerFollowPlayer(
 			username: z.string().describe("追従対象のプレイヤー名"),
 			range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
 		},
-		({ username, range }) => {
+		async ({ username, range }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
 			const entity = bot.players[username]?.entity;
-			if (!entity) {
+			if (!entity || !(await canPerceiveEntity(bot, entity))) {
 				return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
 			}
 
