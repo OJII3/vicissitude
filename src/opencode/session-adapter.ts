@@ -79,6 +79,38 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 	}
 
+	async promptAsyncAndWatchSession(
+		params: OpencodePromptParams,
+		signal?: AbortSignal,
+	): Promise<OpencodeSessionEvent> {
+		const oc = await this.getClient();
+		const { stream } = await oc.event.subscribe();
+		const tokensByMessage = new Map<string, TokenUsage>();
+
+		try {
+			const result = await oc.session.promptAsync({
+				sessionID: params.sessionId,
+				parts: [{ type: "text", text: params.text }],
+				model: { providerID: params.model.providerId, modelID: params.model.modelId },
+				system: params.system,
+			});
+			if (result.error) {
+				throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
+			}
+
+			for await (const event of stream) {
+				if (signal?.aborted) return { type: "cancelled" };
+				const classified = classifyEvent(event as Event, params.sessionId, tokensByMessage);
+				if (classified) return classified;
+			}
+		} finally {
+			// oxlint-disable-next-line no-useless-undefined -- AsyncIterator.return requires an argument
+			await stream.return?.(undefined);
+		}
+
+		return { type: "idle" };
+	}
+
 	async waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent> {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();

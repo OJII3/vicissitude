@@ -21,6 +21,7 @@
 - `monitoring/grafana-dashboard.json` に Test Quality セクションを追加し、`component="test-quality"` の Loki JSON ログで failure rate / coverage / flake rate / duration を可視化できるようにした。
 - `actions/survival/` へ責務分割し、`survival.ts` の max-lines 問題を解消した。
 - `nr test:quality` / `nr test:quality:flake` の終了コード処理と入力分離を修正し、失敗時でもサマリ生成を継続しつつ broken build を見逃さないようにした。
+- Discord / Minecraft の AgentRunner を、`promptAsync()` 完了待ちではなく長寿命セッションの終了監視型へ寄せる作業を開始。
 
 ## 3. 既知のバグ・要修正事項
 

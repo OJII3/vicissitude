@@ -6,6 +6,7 @@ import type {
 	EventBuffer,
 	Logger,
 	MetricsCollector,
+	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SendOptions,
 } from "../core/types.ts";
@@ -31,6 +32,8 @@ export class AgentRunner implements AiAgent {
 	private abortController: AbortController | null = null;
 	private running = false;
 	private sessionCreatedAt: number | null = null;
+	private sessionWatch: Promise<OpencodeSessionEvent> | null = null;
+	private hasStartedSession = false;
 
 	private readonly profile: AgentProfile;
 	private readonly guildId: string;
@@ -76,34 +79,43 @@ export class AgentRunner implements AiAgent {
 		if (this.running) return;
 		this.running = true;
 		this.abortController = new AbortController();
+		this.hasStartedSession = false;
+		const signal = this.abortController.signal;
 
 		let delay = INITIAL_RECONNECT_DELAY_MS;
 
-		while (this.running && !this.abortController.signal.aborted) {
+		while (this.running && !signal.aborted) {
 			try {
-				this.logger.info(`[${this.profile.name}:${this.guildId}] waiting for events...`);
-				// oxlint-disable-next-line no-await-in-loop -- must wait for events before starting session
-				await this.eventBuffer.waitForEvents(this.abortController.signal);
-				if (this.abortController.signal.aborted) return;
-				this.logger.info(
-					`[${this.profile.name}:${this.guildId}] events detected, starting session`,
-				);
-				// eslint-disable-next-line no-await-in-loop -- sequential restart is intentional
-				await this.runPollingSession();
-				// eslint-disable-next-line no-await-in-loop -- session rotation must happen sequentially
+				// eslint-disable-next-line no-await-in-loop -- startup/restart is sequential
+				await this.ensureSessionStarted(signal);
+				if (!this.sessionWatch) {
+					if (signal.aborted) return;
+					continue;
+				}
+
+				// eslint-disable-next-line no-await-in-loop -- monitor the active session until it ends
+				const event = await this.sessionWatch;
+				this.sessionWatch = null;
+				if (signal.aborted) return;
+				this.handleSessionEnd(event);
+				// eslint-disable-next-line no-await-in-loop -- rotation only happens after session end
 				await this.rotateSessionIfExpired();
-				delay = INITIAL_RECONNECT_DELAY_MS;
-				// skip backoff delay on normal session completion
-				continue;
+				if (event.type === "cancelled") return;
+
+				if (event.type !== "error") {
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					continue;
+				}
 			} catch (err) {
-				if (this.abortController.signal.aborted) return;
+				if (signal.aborted) return;
 				this.logger.error(
 					`[${this.profile.name}:${this.guildId}] session error, will restart`,
 					err,
 				);
+				this.sessionWatch = null;
 			}
 
-			if (this.abortController.signal.aborted) return;
+			if (signal.aborted) return;
 
 			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting in ${delay}ms...`);
 			// eslint-disable-next-line no-await-in-loop -- backoff delay between restarts
@@ -116,10 +128,11 @@ export class AgentRunner implements AiAgent {
 		this.running = false;
 		this.abortController?.abort();
 		this.abortController = null;
+		this.sessionWatch = null;
 		this.sessionPort.close();
 	}
 
-	private async runPollingSession(): Promise<void> {
+	private async startLongLivedSession(): Promise<void> {
 		const sessionId = await this.resolveSessionId();
 
 		const system = await this.contextBuilder.build(this.guildId);
@@ -128,39 +141,57 @@ export class AgentRunner implements AiAgent {
 			`[${this.profile.name}:${this.guildId}] starting polling prompt on session ${sessionId}`,
 		);
 
-		await this.sessionPort.promptAsync({
-			sessionId,
-			text: this.profile.pollingPrompt,
-			model: {
-				providerId: this.profile.model.providerId,
-				modelId: this.profile.model.modelId,
+		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
+			{
+				sessionId,
+				text: this.profile.pollingPrompt,
+				model: {
+					providerId: this.profile.model.providerId,
+					modelId: this.profile.model.modelId,
+				},
+				system,
 			},
-			system,
-		});
-
-		const event = await this.sessionPort.waitForSessionIdle(
-			sessionId,
 			this.abortController?.signal,
 		);
+	}
 
+	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
+		if (this.sessionWatch) return;
+		if (this.hasStartedSession) {
+			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting long-lived session`);
+			await this.startLongLivedSession();
+			return;
+		}
+
+		this.logger.info(`[${this.profile.name}:${this.guildId}] waiting for events...`);
+		await this.eventBuffer.waitForEvents(signal);
+		if (signal.aborted) return;
+		this.logger.info(`[${this.profile.name}:${this.guildId}] events detected, starting session`);
+		await this.startLongLivedSession();
+		this.hasStartedSession = true;
+	}
+
+	private handleSessionEnd(event: OpencodeSessionEvent): void {
 		if (event.type === "cancelled") {
-			// abort による中断、ログ不要
-		} else if (event.type === "idle") {
-			this.logger.info(`[${this.profile.name}:${this.guildId}] session went idle, will restart`);
+			return;
+		}
+		if (event.type === "idle") {
+			this.logger.info(
+				`[${this.profile.name}:${this.guildId}] long-lived session went idle, will restart`,
+			);
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(this.metrics, event.tokens, {
 					agent_type: "polling",
 					trigger: "polling",
 				});
 			}
-		} else if (event.type === "compacted") {
-			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
-		} else if (event.type === "error") {
-			this.logger.error(
-				`[${this.profile.name}:${this.guildId}] session error event`,
-				event.message,
-			);
+			return;
 		}
+		if (event.type === "compacted") {
+			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
+			return;
+		}
+		this.logger.error(`[${this.profile.name}:${this.guildId}] session error event`, event.message);
 	}
 
 	private async resolveSessionId(): Promise<string> {

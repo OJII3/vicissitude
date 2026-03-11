@@ -130,7 +130,7 @@ src/
 ### 4.2 agent/ — OpenCode エージェント基盤
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
-- `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取ってポーリングループを実行。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）を内蔵
+- `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取り、初回イベントで長寿命 `promptAsync()` セッションを起動し、以後はセッション終了イベントを監視して再起動する。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）は再起動契機時に適用
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
 - `mcp-config.ts`: `mcpServerConfigs()` — Discord エージェント用 MCP サーバー設定（core: remote, code-exec: local）。`mcpMinecraftConfigs()` — Minecraft エージェント用 MCP サーバー設定（mc-bridge / minecraft）
 - `discord/router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック

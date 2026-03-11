@@ -16,6 +16,7 @@ function createMockSessionPort(): OpencodeSessionPort {
 		sessionExists: mock(() => Promise.resolve(false)),
 		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
 		promptAsync: mock(() => Promise.resolve()),
+		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
 		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
