@@ -18,6 +18,7 @@ export interface MessageIngestionServiceDeps {
 
 export interface MessageIngestionOptions {
 	recordConversation?: boolean;
+	bufferEvent?: boolean;
 }
 
 export class MessageIngestionService {
@@ -44,10 +45,12 @@ export class MessageIngestionService {
 			isThread: message.isThread,
 		};
 
-		this.deps.eventStore.append(message.guildId, event);
-		this.deps.logger.info(
-			`[message-ingestion] buffered: ch=${message.channelId} author=${message.authorName} mentioned=${message.isMentioned}`,
-		);
+		if (options.bufferEvent ?? true) {
+			this.deps.eventStore.append(message.guildId, event);
+			this.deps.logger.info(
+				`[message-ingestion] buffered: ch=${message.channelId} author=${message.authorName} mentioned=${message.isMentioned}`,
+			);
+		}
 
 		if (options.recordConversation) {
 			this.recordConversation(message);

@@ -220,7 +220,10 @@ function setupEventHandlers(
 ): void {
 	gateway.onHomeChannelMessage((msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
-		ingestionService.handleIncomingMessage(msg, { recordConversation: true });
+		ingestionService.handleIncomingMessage(msg, {
+			recordConversation: true,
+			bufferEvent: !msg.isBot,
+		});
 		return Promise.resolve();
 	});
 

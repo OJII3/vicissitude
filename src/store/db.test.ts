@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	appendEvent,
+	consumeNextEvent,
 	consumeEvents,
 	deleteSession,
 	getSession,
@@ -92,6 +93,19 @@ describe("store", () => {
 			consumeEvents(db, "guild-1");
 			const guild2Events = consumeEvents(db, "guild-2");
 			expect(guild2Events).toHaveLength(1);
+		});
+
+		test("consumeNextEvent は最古の 1 件だけ消費する", () => {
+			const db = createTestDb();
+			appendEvent(db, "guild-1", JSON.stringify({ type: "first" }));
+			appendEvent(db, "guild-1", JSON.stringify({ type: "second" }));
+
+			const first = consumeNextEvent(db, "guild-1");
+			const remaining = consumeEvents(db, "guild-1");
+
+			expect(JSON.parse(first?.payload ?? "")).toEqual({ type: "first" });
+			expect(remaining).toHaveLength(1);
+			expect(JSON.parse(remaining[0]?.payload ?? "")).toEqual({ type: "second" });
 		});
 	});
 

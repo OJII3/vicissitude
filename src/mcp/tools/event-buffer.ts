@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
-import { consumeEvents, hasEvents } from "../../store/queries.ts";
+import { consumeNextEvent, hasEvents } from "../../store/queries.ts";
 
 export interface EventBufferDeps {
 	db: StoreDb;
@@ -25,6 +25,10 @@ export function formatEvents(rows: { payload: string }[]): string {
 	return JSON.stringify(events, null, 2);
 }
 
+function formatSingleEvent(row: { payload: string }): string {
+	return formatEvents([row]);
+}
+
 export async function pollEvents(
 	db: StoreDb,
 	guildId: string,
@@ -33,8 +37,8 @@ export async function pollEvents(
 ): Promise<string | null> {
 	while (Date.now() < deadlineMs) {
 		if (hasEvents(db, guildId)) {
-			const rows = consumeEvents(db, guildId);
-			if (rows.length > 0) return formatEvents(rows);
+			const row = consumeNextEvent(db, guildId);
+			if (row) return formatSingleEvent(row);
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
 		await sleep(pollIntervalMs);
@@ -53,10 +57,10 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			timeout_seconds: z.number().min(1).max(172800).default(60),
 		},
 		async ({ guild_id, timeout_seconds }) => {
-			const immediate = consumeEvents(db, guild_id);
-			if (immediate.length > 0) {
+			const immediate = consumeNextEvent(db, guild_id);
+			if (immediate) {
 				return {
-					content: [{ type: "text" as const, text: formatEvents(immediate) }],
+					content: [{ type: "text" as const, text: formatSingleEvent(immediate) }],
 				};
 			}
 
