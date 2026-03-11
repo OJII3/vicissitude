@@ -7,10 +7,7 @@
 ```mermaid
 graph LR
   channel_config_loader["channel-config-loader"]
-  discord --> discord_attachment_mapper["discord-attachment-mapper"]
-  discord_attachment_mapper["discord-attachment-mapper"]
-  message_handlers["message-handlers"]
-  scheduler
+  discord
 ```
 
 ## ファイル別依存一覧
@@ -21,19 +18,5 @@ graph LR
 
 ### discord.ts
 
-- モジュール内依存: discord-attachment-mapper
-- 他モジュール依存: core/
+- 他モジュール依存: core/, infrastructure/
 - 外部依存: discord.js
-
-### discord-attachment-mapper.ts
-
-- 他モジュール依存: core/
-- 外部依存: discord.js
-
-### message-handlers.ts
-
-- 他モジュール依存: core/, store/
-
-### scheduler.ts
-
-- 他モジュール依存: scheduling/

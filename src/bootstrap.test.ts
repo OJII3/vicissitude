@@ -23,7 +23,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			providerId: "test-provider",
 			modelId: "test-model",
 		},
-		dataDir: ":memory:",
+		dataDir: "/tmp/vicissitude-bootstrap-test",
 		contextDir: "/tmp/test-context",
 		...overrides,
 	};

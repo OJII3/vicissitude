@@ -177,7 +177,7 @@ graph LR
 
 ### tools/discord.ts
 
-- 他モジュール依存: gateway/
+- 他モジュール依存: infrastructure/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path, zod
 
 ### tools/event-buffer.ts

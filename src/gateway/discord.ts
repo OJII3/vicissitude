@@ -1,7 +1,7 @@
 import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
 import type { IncomingMessage, Logger, MessageChannel } from "../core/types.ts";
-import { mapAttachments } from "./discord-attachment-mapper.ts";
+import { mapAttachments } from "../infrastructure/discord/attachment-mapper.ts";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
