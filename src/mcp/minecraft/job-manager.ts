@@ -14,6 +14,8 @@ interface JobManagerOptions {
 	cooldownMs?: number;
 }
 
+type CancellationReason = "manual" | "superseded";
+
 export type JobExecutor = (
 	signal: AbortSignal,
 	updateProgress: (progress: string) => void,
@@ -98,7 +100,7 @@ export class JobManager {
 		this.ensureJobNotCoolingDown(type);
 		// 既存ジョブを自動キャンセル
 		if (this.currentJob) {
-			this.cancelCurrentJob();
+			this.cancelCurrentJob("superseded");
 		}
 
 		const id = this.generateJobId();
@@ -138,11 +140,11 @@ export class JobManager {
 	}
 
 	/** 現在のジョブをキャンセルする */
-	cancelCurrentJob(): boolean {
+	cancelCurrentJob(reason: CancellationReason = "manual"): boolean {
 		if (!this.currentJob) return false;
 		const { info, abortController } = this.currentJob;
 		abortController.abort();
-		this.finishJob(info.id, "cancelled");
+		this.finishJob(info.id, "cancelled", undefined, reason);
 		return true;
 	}
 
@@ -172,13 +174,19 @@ export class JobManager {
 		const remainingMs = until.getTime() - Date.now();
 		if (remainingMs <= 0) {
 			this.cooldowns.delete(type);
+			this.failureStreaks.delete(type);
 			return;
 		}
 		const seconds = Math.ceil(remainingMs / 1000);
 		throw new Error(`${type} はクールダウン中です（残り ${String(seconds)} 秒）`);
 	}
 
-	private finishJob(jobId: string, status: JobStatus, error?: string): void {
+	private finishJob(
+		jobId: string,
+		status: JobStatus,
+		error?: string,
+		cancellationReason: CancellationReason = "manual",
+	): void {
 		if (this.currentJob?.info.id !== jobId) return;
 
 		const { info } = this.currentJob;
@@ -196,20 +204,25 @@ export class JobManager {
 		this.setActionState({ type: "idle" });
 
 		this.metrics?.incrementCounter(METRIC.MC_JOBS, { type: info.type, status });
-		this.updateCooldownState(info.type, status);
+		this.updateCooldownState(info.type, status, cancellationReason);
 
 		const description = this.formatFinishDescription(info);
 		const importance: Importance = status === "cancelled" ? "low" : "medium";
 		this.pushEvent("job", description, importance);
 	}
 
-	private updateCooldownState(type: Exclude<ActionState["type"], "idle">, status: JobStatus): void {
+	private updateCooldownState(
+		type: Exclude<ActionState["type"], "idle">,
+		status: JobStatus,
+		cancellationReason: CancellationReason,
+	): void {
 		if (status === "completed") {
 			this.failureStreaks.delete(type);
 			this.cooldowns.delete(type);
 			return;
 		}
 		if (status !== "failed" && status !== "cancelled") return;
+		if (status === "cancelled" && cancellationReason === "superseded") return;
 
 		const streak = (this.failureStreaks.get(type) ?? 0) + 1;
 		this.failureStreaks.set(type, streak);

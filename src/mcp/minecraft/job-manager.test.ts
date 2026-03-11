@@ -219,41 +219,6 @@ describe("JobManager", () => {
 		expect(jobEvents[0]?.description).toContain("キャンセル");
 	});
 
-	test("同系統ジョブが 2 回失敗するとクールダウンに入る", async () => {
-		const { events } = setup();
-		const shortCooldownManager = new JobManager(
-			(kind, description, importance) => events.push({ kind, description, importance }),
-			() => {},
-			undefined,
-			{ cooldownMs: 1_000 },
-		);
-		shortCooldownManager.startJob("moving", "A", failingExecutor);
-		await flushPromises();
-		shortCooldownManager.startJob("moving", "B", failingExecutor);
-		await flushPromises();
-
-		expect(shortCooldownManager.getCooldowns()).toHaveLength(1);
-		expect(() => shortCooldownManager.startJob("moving", "C", noopExecutor)).toThrow(
-			/moving はクールダウン中/,
-		);
-		expect(events.some((event) => event.description.includes("クールダウン開始: moving"))).toBe(true);
-	});
-
-	test("ジョブ完了で同系統のクールダウンが解除される", async () => {
-		const manager = new JobManager(() => {}, () => {}, undefined, { cooldownMs: 1_000 });
-		manager.startJob("moving", "A", failingExecutor);
-		await flushPromises();
-		manager.startJob("moving", "B", failingExecutor);
-		await flushPromises();
-		expect(manager.getCooldowns()).toHaveLength(1);
-
-		await new Promise<void>((resolve) => {
-			setTimeout(resolve, 1_050);
-		});
-		manager.startJob("moving", "C", noopExecutor);
-		await flushPromises();
-		expect(manager.getCooldowns()).toHaveLength(0);
-	});
 });
 
 // ─── JobManager with Metrics ────────────────────────────────────

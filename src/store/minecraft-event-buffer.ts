@@ -45,9 +45,17 @@ export class MinecraftEventBuffer implements EventBuffer {
 	/** 固定間隔で resolve する */
 	waitForEvents(signal: AbortSignal): Promise<void> {
 		if (signal.aborted) return Promise.resolve();
+		const localController = new AbortController();
+		const forwardAbort = () => localController.abort();
+		signal.addEventListener("abort", forwardAbort, { once: true });
+
 		const waits: Promise<void>[] = [sleep(this.intervalMs), waitForAbort(signal)];
-		if (this.wakeSignalPath) waits.push(this.waitForWakeSignal(signal));
-		return Promise.race(waits);
+		if (this.wakeSignalPath) waits.push(this.waitForWakeSignal(localController.signal));
+
+		return Promise.race(waits).finally(() => {
+			localController.abort();
+			signal.removeEventListener("abort", forwardAbort);
+		});
 	}
 
 	private waitForWakeSignal(signal: AbortSignal): Promise<void> {
