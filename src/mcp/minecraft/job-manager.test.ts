@@ -83,8 +83,7 @@ describe("JobManager", () => {
 		await flushPromises();
 		expect(events).toContainEqual({
 			kind: "job",
-			description:
-				"ジョブ失敗: moving → (10, 64, -20) (pathfinding failure: パスが見つからない)",
+			description: "ジョブ失敗: moving → (10, 64, -20) (pathfinding failure: パスが見つからない)",
 			importance: "medium",
 		});
 	});
@@ -218,7 +217,6 @@ describe("JobManager", () => {
 		expect(jobEvents).toHaveLength(1);
 		expect(jobEvents[0]?.description).toContain("キャンセル");
 	});
-
 });
 
 // ─── JobManager with Metrics ────────────────────────────────────

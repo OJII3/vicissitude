@@ -6,7 +6,13 @@ import { z } from "zod";
 
 import { canPerceiveEntity, findPerceivedBlock } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
+import {
+	type GetBot,
+	ensureMovements,
+	registerAbortHandler,
+	textResult,
+	tryStartJob,
+} from "./shared.ts";
 
 const MAX_COLLECT_COUNT = 64;
 

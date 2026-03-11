@@ -17,29 +17,34 @@ import type { JobManager } from "./job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./state-summary.ts";
 
 function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
-	server.tool("observe_state", "Minecraft ボットの現在の状態を自然言語要約で取得する", {}, async () => {
-		const bot = ctx.getBot();
-		if (!bot || !bot.entity) {
-			return { content: [{ type: "text", text: "ボット未接続" }] };
-		}
+	server.tool(
+		"observe_state",
+		"Minecraft ボットの現在の状態を自然言語要約で取得する",
+		{},
+		async () => {
+			const bot = ctx.getBot();
+			if (!bot || !bot.entity) {
+				return { content: [{ type: "text", text: "ボット未接続" }] };
+			}
 
-		const pos = bot.entity.position;
-		const timeOfDay = bot.time?.timeOfDay;
-		const summary = summarizeState({
-			position: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
-			health: bot.health,
-			food: bot.food,
-			timePeriod: timeOfDay === undefined ? "不明" : getTimePeriod(timeOfDay),
-			weather: getWeather(bot),
-			action: { ...ctx.getActionState() },
-			nearbyEntities: await getNearbyEntities(bot, 5),
-			inventory: getInventorySummary(bot),
-			equipment: getEquipment(bot),
-			recentEvents: ctx.getEvents().slice(-10),
-		});
+			const pos = bot.entity.position;
+			const timeOfDay = bot.time?.timeOfDay;
+			const summary = summarizeState({
+				position: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
+				health: bot.health,
+				food: bot.food,
+				timePeriod: timeOfDay === undefined ? "不明" : getTimePeriod(timeOfDay),
+				weather: getWeather(bot),
+				action: { ...ctx.getActionState() },
+				nearbyEntities: await getNearbyEntities(bot, 5),
+				inventory: getInventorySummary(bot),
+				equipment: getEquipment(bot),
+				recentEvents: ctx.getEvents().slice(-10),
+			});
 
-		return { content: [{ type: "text", text: summary }] };
-	});
+			return { content: [{ type: "text", text: summary }] };
+		},
+	);
 }
 
 function registerRecentEventsTool(server: McpServer, ctx: BotContext): void {

@@ -186,19 +186,14 @@ export class JobManager {
 		throw new Error(`${type} はクールダウン中です（残り ${String(seconds)} 秒）`);
 	}
 
-	private finishJob(
-		jobId: string,
-		status: JobStatus,
-		error?: string,
-	): void {
+	private finishJob(jobId: string, status: JobStatus, error?: string): void {
 		if (this.currentJob?.info.id !== jobId) return;
 
 		const { info } = this.currentJob;
 		info.status = status;
 		info.finishedAt = new Date();
 		if (error) {
-			info.error =
-				status === "failed" ? `${classifyFailure(error)}: ${error}` : error;
+			info.error = status === "failed" ? `${classifyFailure(error)}: ${error}` : error;
 		}
 
 		this.recentJobs.push({ ...info });

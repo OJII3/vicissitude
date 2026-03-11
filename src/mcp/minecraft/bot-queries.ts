@@ -30,7 +30,12 @@ export async function canPerceiveEntity(bot: mineflayer.Bot, entity: Entity): Pr
 	const range = direction.norm();
 	if (range <= 0) return true;
 
-	const blocker = await bot.world.raycast(eyePosition, direction.normalize(), range, isOccludingBlock);
+	const blocker = await bot.world.raycast(
+		eyePosition,
+		direction.normalize(),
+		range,
+		isOccludingBlock,
+	);
 	return blocker === null;
 }
 
@@ -48,7 +53,9 @@ export async function findPerceivedEntityByName(
 				entity.name?.toLowerCase() === lowerName &&
 				distanceToBot(bot, entity.position) <= maxDistance,
 		)
-		.toSorted((left, right) => distanceToBot(bot, left.position) - distanceToBot(bot, right.position));
+		.toSorted(
+			(left, right) => distanceToBot(bot, left.position) - distanceToBot(bot, right.position),
+		);
 
 	for (const entity of matches) {
 		// oxlint-disable-next-line no-await-in-loop -- 近い順に最初に知覚できる対象を採用する

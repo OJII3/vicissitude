@@ -1,6 +1,6 @@
+import { describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
-import { describe, expect, test } from "bun:test";
 
 import type { BufferedEvent } from "../core/types.ts";
 import { MinecraftEventBuffer } from "./minecraft-event-buffer.ts";
