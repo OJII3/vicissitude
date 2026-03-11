@@ -219,10 +219,11 @@ function setupEventHandlers(
 	metricsCollector: PrometheusCollector,
 ): void {
 	gateway.onHomeChannelMessage((msg) => {
+		const selfUserId = gateway.getClient()?.user?.id;
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
 		ingestionService.handleIncomingMessage(msg, {
 			recordConversation: true,
-			bufferEvent: !msg.isBot,
+			bufferEvent: msg.authorId !== selfUserId,
 		});
 		return Promise.resolve();
 	});
