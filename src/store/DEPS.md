@@ -44,6 +44,7 @@ graph LR
 ### minecraft-event-buffer.ts
 
 - 他モジュール依存: core/
+- 外部依存: fs
 
 ### queries.ts
 

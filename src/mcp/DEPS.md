@@ -30,7 +30,7 @@ graph LR
   minecraft_actions_jobs["minecraft/actions/jobs"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_movement["minecraft/actions/movement"] --> minecraft_job_manager["minecraft/job-manager"]
-  minecraft_actions_shared["minecraft/actions/shared"]
+  minecraft_actions_shared["minecraft/actions/shared"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_survival["minecraft/actions/survival"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_context["minecraft/bot-context"]
@@ -38,6 +38,7 @@ graph LR
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_bot_context["minecraft/bot-context"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_bot_queries["minecraft/bot-queries"] --> minecraft_helpers["minecraft/helpers"]
+  minecraft_brain_wake["minecraft/brain-wake"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_helpers["minecraft/helpers"]
   minecraft_http_server["minecraft/http-server"] --> http_server["http-server"]
   minecraft_job_manager["minecraft/job-manager"] --> minecraft_helpers["minecraft/helpers"]
@@ -51,6 +52,7 @@ graph LR
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_state_summary["minecraft/state-summary"]
   minecraft_server["minecraft/server"] --> minecraft_bot_connection["minecraft/bot-connection"]
   minecraft_server["minecraft/server"] --> minecraft_bot_context["minecraft/bot-context"]
+  minecraft_server["minecraft/server"] --> minecraft_brain_wake["minecraft/brain-wake"]
   minecraft_server["minecraft/server"] --> minecraft_http_server["minecraft/http-server"]
   minecraft_server["minecraft/server"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_server["minecraft/server"] --> minecraft_mc_metrics["minecraft/mc-metrics"]
@@ -114,6 +116,7 @@ graph LR
 
 ### minecraft/actions/shared.ts
 
+- モジュール内依存: minecraft/job-manager
 - 外部依存: mineflayer, mineflayer-pathfinder
 
 ### minecraft/actions/survival.ts
@@ -136,6 +139,11 @@ graph LR
 
 - モジュール内依存: minecraft/helpers
 - 外部依存: mineflayer
+
+### minecraft/brain-wake.ts
+
+- モジュール内依存: minecraft/helpers
+- 外部依存: fs, path
 
 ### minecraft/helpers.ts
 
@@ -168,7 +176,7 @@ graph LR
 
 ### minecraft/server.ts
 
-- モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
+- モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/brain-wake, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/state-summary.ts

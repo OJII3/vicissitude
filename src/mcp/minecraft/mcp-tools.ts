@@ -86,7 +86,7 @@ function registerJobStatusTool(server: McpServer, jobManager: JobManager): void 
 		({ limit }) => {
 			const current = jobManager.getCurrentJob();
 			const recent = jobManager.getRecentJobs(limit);
-			const text = formatJobStatus(current, recent);
+			const text = formatJobStatus(current, recent, jobManager.getCooldowns());
 			return { content: [{ type: "text", text }] };
 		},
 	);

@@ -208,4 +208,12 @@ describe("formatJobStatus", () => {
 		const result = formatJobStatus(null, recent);
 		expect(result).toContain("キャンセル: moving → C");
 	});
+
+	test("クールダウン中ジョブを表示する", () => {
+		const result = formatJobStatus(null, [], [
+			{ type: "moving", until: new Date("2026-03-09T18:03:00Z") },
+		]);
+		expect(result).toContain("## クールダウン");
+		expect(result).toContain("moving: 18:03:00 まで停止");
+	});
 });

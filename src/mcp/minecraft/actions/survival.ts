@@ -11,6 +11,7 @@ import {
 	ensureMovements,
 	registerAbortHandler,
 	textResult,
+	tryStartJob,
 } from "./shared.ts";
 
 /** 食料アイテム（緊急用が先頭、残りは回復量降順） */
@@ -107,14 +108,15 @@ function registerFleeFromEntity(server: McpServer, getBot: GetBot, jobManager: J
 				return textResult(`"${entityName}" が周囲に見つかりません。すでに安全かもしれません`);
 			}
 
-			const jobId = jobManager.startJob("fleeing", entityName, async (signal) => {
+			const started = tryStartJob(jobManager, "fleeing", entityName, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 				await bot.pathfinder.goto(new goals.GoalInvert(new goals.GoalFollow(target, distance)));
 			});
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${entityName} からの逃走を開始しました（jobId: ${jobId}, 距離: ${String(distance)}）`,
+				`${entityName} からの逃走を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
 			);
 		},
 	);
@@ -236,7 +238,7 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
-			const jobId = jobManager.startJob("sheltering", "避難場所", async (signal) => {
+			const started = tryStartJob(jobManager, "sheltering", "避難場所", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 
@@ -260,8 +262,9 @@ function registerFindShelter(server: McpServer, getBot: GetBot, jobManager: JobM
 				// 2. ベッドなしまたは到達不能 → 緊急シェルター
 				await digEmergencyShelter(bot, signal);
 			});
+			if (!started.ok) return started.result;
 
-			return textResult(`避難場所の検索を開始しました（jobId: ${jobId}）`);
+			return textResult(`避難場所の検索を開始しました（jobId: ${started.jobId}）`);
 		},
 	);
 }

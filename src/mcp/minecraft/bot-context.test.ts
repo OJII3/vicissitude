@@ -49,6 +49,19 @@ describe("pushEvent", () => {
 		expect(events.at(0)?.description).toBe("event-1");
 		expect(events.at(99)?.description).toBe("event-100");
 	});
+
+	test("urgentEventNotifier がイベントを受け取る", () => {
+		const received: { kind: string; description: string; importance: string }[] = [];
+		const ctx = createBotContext({
+			urgentEventNotifier: (kind, description, importance) => {
+				received.push({ kind, description, importance });
+			},
+		});
+		ctx.pushEvent("damage", "Bot took damage", "medium");
+		expect(received).toEqual([
+			{ kind: "damage", description: "Bot took damage", importance: "medium" },
+		]);
+	});
 });
 
 describe("setActionState", () => {

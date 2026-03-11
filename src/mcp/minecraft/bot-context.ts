@@ -24,10 +24,17 @@ export interface BotContext {
 
 const BOT_EVENT_KINDS = new Set(["spawn", "death", "kicked", "disconnect"]);
 
-export function createBotContext(metrics?: MetricsCollector): BotContext {
+export interface CreateBotContextOptions {
+	metrics?: MetricsCollector;
+	urgentEventNotifier?: (kind: string, description: string, importance: Importance) => void;
+}
+
+export function createBotContext(options?: CreateBotContextOptions): BotContext {
 	let bot: mineflayer.Bot | null = null;
 	const events: BotEvent[] = [];
 	const actionState: ActionState = { type: "idle" };
+	const metrics = options?.metrics;
+	const urgentEventNotifier = options?.urgentEventNotifier;
 
 	return {
 		getBot: () => bot,
@@ -41,6 +48,7 @@ export function createBotContext(metrics?: MetricsCollector): BotContext {
 			if (metrics && BOT_EVENT_KINDS.has(kind)) {
 				metrics.incrementCounter(METRIC.MC_BOT_EVENTS, { kind });
 			}
+			urgentEventNotifier?.(kind, description, importance);
 		},
 		getActionState: () => actionState,
 		setActionState: (state) => {

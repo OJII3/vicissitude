@@ -1,7 +1,7 @@
 /* oxlint-disable max-dependencies -- manager requires multiple DI dependencies */
 import { resolve } from "path";
 
-import { MC_BRAIN_GUILD_ID } from "../../core/constants.ts";
+import { MC_BRAIN_GUILD_ID, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH } from "../../core/constants.ts";
 import type { Logger, OpencodeSessionPort } from "../../core/types.ts";
 import type { StoreDb } from "../../store/db.ts";
 import { clearSessionLock, consumeBridgeEventsByType } from "../../store/mc-bridge.ts";
@@ -87,7 +87,10 @@ export class McBrainManager {
 
 		const { root, sessionStore, logger, createSessionPort, providerId, modelId, sessionMaxAgeMs } =
 			this.deps;
-		const mcEventBuffer = new MinecraftEventBuffer(30_000);
+		const mcEventBuffer = new MinecraftEventBuffer(
+			30_000,
+			resolve(root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
+		);
 		const mcContextBuilder = new MinecraftContextBuilder(
 			resolve(root, "data/context/minecraft"),
 			resolve(root, "context/minecraft"),

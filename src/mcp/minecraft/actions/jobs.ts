@@ -11,6 +11,7 @@ import {
 	ensureMovements,
 	registerAbortHandler,
 	textResult,
+	tryStartJob,
 } from "./shared.ts";
 
 const MAX_CRAFT_COUNT = 64;
@@ -126,14 +127,15 @@ export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager:
 			const itemType = bot.registry.itemsByName[itemName];
 			if (!itemType) return textResult(`不明なアイテム名: "${itemName}"`);
 
-			const jobId = jobManager.startJob("crafting", itemName, async (signal) => {
+			const started = tryStartJob(jobManager, "crafting", itemName, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 				await executeCraft(bot, itemType.id, itemName, count, signal);
 			});
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${itemName} のクラフトを開始しました（jobId: ${jobId}, 目標: ${String(count)} 個）`,
+				`${itemName} のクラフトを開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個）`,
 			);
 		},
 	);
@@ -162,13 +164,14 @@ export function registerSleepInBed(
 			const bedIds = collectBedIds(bot);
 			if (bedIds.length === 0) return textResult("ベッドブロックの定義が見つかりません");
 
-			const jobId = jobManager.startJob("sleeping", "ベッド", async (signal) => {
+			const started = tryStartJob(jobManager, "sleeping", "ベッド", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
 				await executeSleep(bot, bedIds, maxDistance, signal);
 			});
+			if (!started.ok) return started.result;
 
-			return textResult(`就寝を開始しました（jobId: ${jobId}）`);
+			return textResult(`就寝を開始しました（jobId: ${started.jobId}）`);
 		},
 	);
 }

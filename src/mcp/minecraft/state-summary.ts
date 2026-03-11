@@ -7,6 +7,11 @@ import {
 } from "./helpers.ts";
 import type { ActionState, Importance, JobInfo } from "./helpers.ts";
 
+interface CooldownInfo {
+	type: string;
+	until: Date;
+}
+
 export interface BotStateInput {
 	position: { x: number; y: number; z: number };
 	health: number;
@@ -54,7 +59,7 @@ export function summarizeState(state: BotStateInput): string {
 
 	// 直近イベントセクション（medium 以上のみ）
 	const importantEvents = state.recentEvents.filter(
-		(e) => e.importance === "medium" || e.importance === "high",
+		(e) => e.importance === "medium" || e.importance === "high" || e.importance === "critical",
 	);
 	if (importantEvents.length > 0) {
 		lines.push("");
@@ -92,7 +97,11 @@ function formatJobLine(job: JobInfo): string {
 }
 
 /** ジョブステータスをテキスト形式で返す */
-export function formatJobStatus(current: JobInfo | null, recent: JobInfo[]): string {
+export function formatJobStatus(
+	current: JobInfo | null,
+	recent: JobInfo[],
+	cooldowns: CooldownInfo[] = [],
+): string {
 	const lines: string[] = ["## 現在のジョブ", current ? formatJobLine(current) : "なし"];
 
 	if (recent.length > 0) {
@@ -100,6 +109,14 @@ export function formatJobStatus(current: JobInfo | null, recent: JobInfo[]): str
 		lines.push("## ジョブ履歴");
 		for (const job of recent) {
 			lines.push(formatJobLine(job));
+		}
+	}
+
+	if (cooldowns.length > 0) {
+		lines.push("");
+		lines.push("## クールダウン");
+		for (const cooldown of cooldowns) {
+			lines.push(`- ${cooldown.type}: ${cooldown.until.toISOString().slice(11, 19)} まで停止`);
 		}
 	}
 

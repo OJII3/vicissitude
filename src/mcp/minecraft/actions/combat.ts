@@ -5,7 +5,7 @@ import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
 import type { JobManager } from "../job-manager.ts";
-import { type GetBot, ensureMovements, registerAbortHandler, textResult } from "./shared.ts";
+import { type GetBot, ensureMovements, registerAbortHandler, textResult, tryStartJob } from "./shared.ts";
 
 /** 武器の優先度リスト（上位ほど優先） */
 const WEAPON_PRIORITY: string[] = [
@@ -176,12 +176,13 @@ export function registerAttackEntity(
 				return textResult(`"${entityName}" が周囲に見つかりません`);
 			}
 
-			const jobId = jobManager.startJob("attacking", entityName, (signal, updateProgress) =>
+			const started = tryStartJob(jobManager, "attacking", entityName, (signal, updateProgress) =>
 				executeAttack(bot, target, maxHits, signal, updateProgress),
 			);
+			if (!started.ok) return started.result;
 
 			return textResult(
-				`${entityName} への攻撃を開始しました（jobId: ${jobId}, 最大攻撃回数: ${String(maxHits)}）`,
+				`${entityName} への攻撃を開始しました（jobId: ${started.jobId}, 最大攻撃回数: ${String(maxHits)}）`,
 			);
 		},
 	);
