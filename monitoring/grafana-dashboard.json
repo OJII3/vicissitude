@@ -58,7 +58,7 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(discord_messages_received_total[1h])",
+					"expr": "sum by (channel_type) (increase(discord_messages_received_total[1h]))",
 					"legendFormat": "{{channel_type}}"
 				}
 			],
@@ -91,7 +91,7 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(ai_requests_total[1h])",
+					"expr": "sum by (outcome) (increase(ai_requests_total[1h]))",
 					"legendFormat": "{{outcome}}"
 				}
 			],
@@ -161,15 +161,15 @@
 			},
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.50, rate(ai_request_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
 					"legendFormat": "p50"
 				},
 				{
-					"expr": "histogram_quantile(0.90, rate(ai_request_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
 					"legendFormat": "p90"
 				},
 				{
-					"expr": "histogram_quantile(0.99, rate(ai_request_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
 					"legendFormat": "p99"
 				}
 			],
@@ -235,7 +235,7 @@
 			},
 			"targets": [
 				{
-					"expr": "rate(ai_requests_total{outcome=\"error\"}[5m]) / (rate(ai_requests_total[5m]) > 0)",
+					"expr": "sum(increase(ai_requests_total{outcome=\"error\"}[5m])) / clamp_min(sum(increase(ai_requests_total[5m])), 1)",
 					"legendFormat": "error rate"
 				}
 			],
@@ -246,7 +246,7 @@
 			"collapsed": false,
 			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
 			"id": 300,
-			"title": "Judge",
+			"title": "LTM",
 			"type": "row"
 		},
 		{
@@ -268,7 +268,7 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 24, "x": 0, "y": 19 },
+			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
 			"id": 7,
 			"options": {
 				"legend": { "displayMode": "list", "placement": "bottom" },
@@ -276,11 +276,52 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(judge_requests_total[1h])",
-					"legendFormat": "{{action}}"
+					"expr": "sum by (outcome) (increase(ltm_consolidation_ticks_total[1h]))",
+					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "Judge Decisions (1h)",
+			"title": "LTM Consolidation Ticks (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "s"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+			"id": 18,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"legendFormat": "p50"
+				},
+				{
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"legendFormat": "p90"
+				},
+				{
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"legendFormat": "p99"
+				}
+			],
+			"title": "LTM Consolidation Latency",
 			"type": "timeseries"
 		},
 		{
@@ -349,15 +390,15 @@
 			},
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.50, rate(heartbeat_tick_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p50"
 				},
 				{
-					"expr": "histogram_quantile(0.90, rate(heartbeat_tick_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p90"
 				},
 				{
-					"expr": "histogram_quantile(0.99, rate(heartbeat_tick_duration_seconds_bucket[5m]))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p99"
 				}
 			],
@@ -467,7 +508,7 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(ai_requests_total[1h])",
+					"expr": "sum by (agent_type) (increase(ai_requests_total[1h]))",
 					"legendFormat": "{{agent_type}}"
 				}
 			],
@@ -501,7 +542,7 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(ai_requests_total[1h])",
+					"expr": "sum by (trigger) (increase(ai_requests_total[1h]))",
 					"legendFormat": "{{trigger}}"
 				}
 			],
@@ -511,6 +552,218 @@
 		{
 			"collapsed": false,
 			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+			"id": 700,
+			"title": "Token Usage",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 46 },
+			"id": 19,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (trigger) (increase(llm_input_tokens_total[1h]))",
+					"legendFormat": "{{trigger}}"
+				}
+			],
+			"title": "LLM Input Tokens (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 46 },
+			"id": 20,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (trigger) (increase(llm_output_tokens_total[1h]))",
+					"legendFormat": "{{trigger}}"
+				}
+			],
+			"title": "LLM Output Tokens (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 46 },
+			"id": 21,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (trigger) (increase(llm_cache_read_tokens_total[1h]))",
+					"legendFormat": "{{trigger}}"
+				}
+			],
+			"title": "LLM Cache Read Tokens (1h)",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 },
+			"id": 800,
+			"title": "Minecraft",
+			"type": "row"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 55 },
+			"id": 22,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (status) (increase(mc_jobs_total[1h]))",
+					"legendFormat": "{{status}}"
+				}
+			],
+			"title": "MC Jobs (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 55 },
+			"id": 23,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "sum by (kind) (increase(mc_bot_events_total[1h]))",
+					"legendFormat": "{{kind}}"
+				}
+			],
+			"title": "MC Bot Events (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"fieldConfig": {
+				"defaults": {
+					"color": { "mode": "palette-classic" },
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 55 },
+			"id": 24,
+			"options": {
+				"legend": { "displayMode": "list", "placement": "bottom" },
+				"tooltip": { "mode": "multi" }
+			},
+			"targets": [
+				{
+					"expr": "topk(10, sum by (tool) (increase(mc_mcp_tool_calls_total[1h])))",
+					"legendFormat": "{{tool}}"
+				}
+			],
+			"title": "MC MCP Tool Calls (1h)",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 },
 			"id": 600,
 			"title": "Logs",
 			"type": "row"
@@ -547,7 +800,7 @@
 					}
 				]
 			},
-			"gridPos": { "h": 6, "w": 12, "x": 0, "y": 46 },
+			"gridPos": { "h": 6, "w": 12, "x": 0, "y": 64 },
 			"id": 14,
 			"options": {
 				"legend": { "displayMode": "list", "placement": "bottom" },
@@ -581,7 +834,7 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 6, "w": 12, "x": 12, "y": 46 },
+			"gridPos": { "h": 6, "w": 12, "x": 12, "y": 64 },
 			"id": 15,
 			"options": {
 				"legend": { "displayMode": "list", "placement": "bottom" },
@@ -598,7 +851,7 @@
 		},
 		{
 			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 52 },
+			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 70 },
 			"id": 16,
 			"maxDataPoints": 200,
 			"options": {
@@ -613,7 +866,7 @@
 			},
 			"targets": [
 				{
-					"expr": "{job=\"vicissitude\"} | json | level =~ `error|warn`",
+					"expr": "{job=\"vicissitude\"} | json | level=~\"error|warn\"",
 					"legendFormat": ""
 				}
 			],
@@ -622,7 +875,7 @@
 		},
 		{
 			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 62 },
+			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 80 },
 			"id": 17,
 			"maxDataPoints": 500,
 			"options": {
