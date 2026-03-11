@@ -29,23 +29,28 @@ function classifyFailure(error?: string): string {
 	if (!error) return "unknown failure";
 	const normalized = error.toLowerCase();
 	if (
-		normalized.includes("path") ||
-		normalized.includes("到達") ||
-		normalized.includes("goal") ||
-		normalized.includes("見つからない")
-	) {
-		return "pathfinding failure";
-	}
-	if (
 		normalized.includes("材料") ||
 		normalized.includes("recipe") ||
+		normalized.includes("レシピ") ||
 		normalized.includes("食料") ||
 		normalized.includes("作業台")
 	) {
 		return "resource shortage";
 	}
 	if (
+		normalized.includes("path") ||
+		normalized.includes("到達") ||
+		normalized.includes("goal") ||
+		normalized.includes("パス")
+	) {
+		return "pathfinding failure";
+	}
+	if (
 		normalized.includes("見つかりません") ||
+		normalized.includes("ベッド") ||
+		normalized.includes("プレイヤー") ||
+		normalized.includes("エンティティ") ||
+		normalized.includes("ブロック") ||
 		normalized.includes("なくな") ||
 		normalized.includes("離脱")
 	) {

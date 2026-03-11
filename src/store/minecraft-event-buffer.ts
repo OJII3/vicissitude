@@ -13,10 +13,21 @@ function readWakeStamp(path: string | undefined): string | null {
 	}
 }
 
-function waitForAbort(signal: AbortSignal): Promise<void> {
-	return new Promise((resolve) => {
-		signal.addEventListener("abort", () => resolve(), { once: true });
+function createAbortWait(signal: AbortSignal): { promise: Promise<void>; cleanup: () => void } {
+	let onAbort: (() => void) | undefined;
+	const cleanup = () => {
+		if (!onAbort) return;
+		signal.removeEventListener("abort", onAbort);
+		onAbort = undefined;
+	};
+	const promise = new Promise<void>((resolve) => {
+		onAbort = () => {
+			cleanup();
+			resolve();
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
 	});
+	return { promise, cleanup };
 }
 
 function sleep(ms: number): Promise<void> {
@@ -48,12 +59,14 @@ export class MinecraftEventBuffer implements EventBuffer {
 		const localController = new AbortController();
 		const forwardAbort = () => localController.abort();
 		signal.addEventListener("abort", forwardAbort, { once: true });
+		const abortWait = createAbortWait(signal);
 
-		const waits: Promise<void>[] = [sleep(this.intervalMs), waitForAbort(signal)];
+		const waits: Promise<void>[] = [sleep(this.intervalMs), abortWait.promise];
 		if (this.wakeSignalPath) waits.push(this.waitForWakeSignal(localController.signal));
 
 		return Promise.race(waits).finally(() => {
 			localController.abort();
+			abortWait.cleanup();
 			signal.removeEventListener("abort", forwardAbort);
 		});
 	}

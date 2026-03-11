@@ -79,4 +79,13 @@ describe("JobManager cooldown", () => {
 		manager.startJob("following", "ojii4", hangingExecutor);
 		expect(manager.getCooldowns()).toHaveLength(0);
 	});
+
+	test("材料や作業台不足は resource shortage に分類される", async () => {
+		const { manager, events } = createManager(1_000);
+		manager.startJob("crafting", "stick", () =>
+			Promise.reject(new Error("stick のレシピが見つからないか、材料が足りません")),
+		);
+		await flushPromises();
+		expect(events.at(-1)?.description).toContain("resource shortage");
+	});
 });
