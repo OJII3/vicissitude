@@ -7,6 +7,8 @@ export interface AgentProfile {
 	builtinTools: Record<string, boolean>;
 	/** ポーリングプロンプト */
 	pollingPrompt: string;
+	/** セッション再起動前の待機方針 */
+	restartPolicy: "immediate" | "wait_for_events";
 	/** モデル設定 */
 	model: { providerId: string; modelId: string };
 }

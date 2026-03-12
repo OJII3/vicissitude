@@ -232,6 +232,10 @@ export interface OpencodeSessionPort {
 	sessionExists(sessionId: string): Promise<boolean>;
 	prompt(params: OpencodePromptParams): Promise<PromptResult>;
 	promptAsync(params: OpencodePromptParams): Promise<void>;
+	promptAsyncAndWatchSession(
+		params: OpencodePromptParams,
+		signal?: AbortSignal,
+	): Promise<OpencodeSessionEvent>;
 	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
 	deleteSession(sessionId: string): Promise<void>;
 	close(): void;

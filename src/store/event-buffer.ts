@@ -1,8 +1,11 @@
 import type { BufferedEvent, EventBuffer } from "../core/types.ts";
 import type { StoreDb } from "./db.ts";
+import { getLatestDiscordBridgeEventIdForGuild } from "./mc-bridge.ts";
 import { appendEvent, hasEvents } from "./queries.ts";
 
 export class SqliteEventBuffer implements EventBuffer {
+	private lastSeenDiscordBridgeEventId: number | null = null;
+
 	constructor(
 		private readonly db: StoreDb,
 		private readonly guildId: string,
@@ -32,6 +35,16 @@ export class SqliteEventBuffer implements EventBuffer {
 					return;
 				}
 				if (hasEvents(this.db, this.guildId)) {
+					done();
+					return;
+				}
+				const bridgeEventId = getLatestDiscordBridgeEventIdForGuild(this.db, this.guildId);
+				if (
+					bridgeEventId !== null &&
+					(this.lastSeenDiscordBridgeEventId === null ||
+						bridgeEventId > this.lastSeenDiscordBridgeEventId)
+				) {
+					this.lastSeenDiscordBridgeEventId = bridgeEventId;
 					done();
 					return;
 				}
