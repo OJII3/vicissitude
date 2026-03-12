@@ -246,6 +246,8 @@ function incrementResult(result: ConsolidationResult, action: ConsolidationActio
 
 const MAX_FACTS_PER_EPISODE = 30;
 const MAX_KEYWORDS_PER_FACT = 10;
+const MAX_FACT_LENGTH = 1000;
+const MAX_KEYWORD_LENGTH = 100;
 const VALID_ACTIONS = new Set<string>(CONSOLIDATION_ACTIONS);
 const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
 
@@ -260,6 +262,11 @@ function validateFactFields(obj: Record<string, unknown>, i: number): void {
 	}
 	if (typeof obj["fact"] !== "string" || obj["fact"] === "") {
 		throw new TypeError(`facts[${i}].fact: expected non-empty string`);
+	}
+	if ((obj["fact"] as string).length > MAX_FACT_LENGTH) {
+		throw new RangeError(
+			`facts[${i}].fact: too long (${(obj["fact"] as string).length} > ${MAX_FACT_LENGTH})`,
+		);
 	}
 }
 
@@ -276,6 +283,11 @@ function validateKeywords(obj: Record<string, unknown>, i: number): void {
 	for (let k = 0; k < keywords.length; k++) {
 		if (typeof keywords[k] !== "string") {
 			throw new TypeError(`facts[${i}].keywords[${k}]: expected string`);
+		}
+		if ((keywords[k] as string).length > MAX_KEYWORD_LENGTH) {
+			throw new RangeError(
+				`facts[${i}].keywords[${k}]: too long (${(keywords[k] as string).length} > ${MAX_KEYWORD_LENGTH})`,
+			);
 		}
 	}
 }

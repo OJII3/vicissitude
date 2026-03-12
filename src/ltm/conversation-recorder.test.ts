@@ -3,6 +3,7 @@ import { existsSync, rmSync } from "fs";
 
 import type { GuildInstance, GuildInstanceFactory } from "./conversation-recorder.ts";
 import { LtmConversationRecorder } from "./conversation-recorder.ts";
+import type { Episode } from "./episode.ts";
 import type { LtmLlmPort } from "./llm-port.ts";
 
 const TEMP_DIR = `/tmp/vicissitude-ltm-test-${process.pid}`;
@@ -13,7 +14,7 @@ afterEach(() => {
 	}
 });
 
-const mockAddMessage = mock(() => Promise.resolve());
+const mockAddMessage = mock((): Promise<Episode[]> => Promise.resolve([]));
 const mockConsolidate = mock(() =>
 	Promise.resolve({
 		processedEpisodes: 3,
@@ -72,15 +73,15 @@ describe("LtmConversationRecorder", () => {
 		mockAddMessage.mockImplementation(() => {
 			callCount++;
 			if (callCount === 1) {
-				return new Promise<void>((resolve) => {
+				return new Promise<Episode[]>((resolve) => {
 					resolveFirst = () => {
 						order.push(1);
-						resolve();
+						resolve([]);
 					};
 				});
 			}
 			order.push(2);
-			return Promise.resolve();
+			return Promise.resolve([]);
 		});
 
 		const recorder = createRecorder();
@@ -99,7 +100,7 @@ describe("LtmConversationRecorder", () => {
 
 	test("getActiveGuildIds() → 初期化済みギルドのみ返す", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		const recorder = createRecorder();
 
 		expect(recorder.getActiveGuildIds()).toEqual([]);
@@ -133,7 +134,7 @@ describe("LtmConversationRecorder", () => {
 
 	test("consolidate() で初期化済み guild → pipeline.consolidate 呼び出し", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		mockConsolidate.mockClear();
 		const recorder = createRecorder();
 
@@ -146,7 +147,7 @@ describe("LtmConversationRecorder", () => {
 
 	test("close() → 全ロック完了 + storage.close() 呼び出し", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		mockStorageClose.mockClear();
 		const recorder = createRecorder();
 

@@ -1,4 +1,4 @@
-/* oxlint-disable require-await, no-await-in-loop -- storage methods are async for API compatibility */
+/* oxlint-disable max-lines, require-await, no-await-in-loop -- storage methods are async for API compatibility */
 import { Database } from "bun:sqlite";
 
 import type { Episode } from "./episode.ts";
@@ -20,6 +20,13 @@ function escapeLike(s: string): string {
 function escapeFts5(query: string): string {
 	const sanitized = query.replaceAll("\0", "");
 	return `"${sanitized.replaceAll('"', '""')}"`;
+}
+
+/** Check if an error is an FTS5 query parse/match error (safe to fallback to LIKE) */
+function isFts5Error(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+	const msg = err.message.toLowerCase();
+	return msg.includes("fts5") || msg.includes("match") || msg.includes("no such table");
 }
 
 function clampLimit(limit: number): number {
@@ -235,7 +242,8 @@ export class LtmStorage {
 				)
 				.all(escapeFts5(query), userId, lim) as EpisodeRow[];
 			return rows.map((r) => rowToEpisode(r));
-		} catch {
+		} catch (err) {
+			if (!isFts5Error(err)) throw err;
 			const p = `%${escapeLike(query)}%`;
 			const rows = this.db
 				.prepare(
@@ -255,7 +263,8 @@ export class LtmStorage {
 				)
 				.all(escapeFts5(query), userId, lim) as FactRow[];
 			return rows.map((r) => rowToFact(r));
-		} catch {
+		} catch (err) {
+			if (!isFts5Error(err)) throw err;
 			const p = `%${escapeLike(query)}%`;
 			const rows = this.db
 				.prepare(
@@ -271,10 +280,26 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<Episode[]> {
-		const episodes = (
-			this.db.prepare("SELECT * FROM episodes WHERE user_id = ?").all(userId) as EpisodeRow[]
-		).map((r) => rowToEpisode(r));
-		return sortBySimilarity(episodes, embedding, clampLimit(limit));
+		const lim = clampLimit(limit);
+		// Fetch only id + embedding for similarity ranking, then load full rows for top-N
+		const candidates = this.db
+			.prepare("SELECT id, embedding FROM episodes WHERE user_id = ?")
+			.all(userId) as Pick<EpisodeRow, "id" | "embedding">[];
+		const topIds = sortBySimilarity(
+			candidates.map((r) => ({ id: r.id, embedding: JSON.parse(r.embedding) as number[] })),
+			embedding,
+			lim,
+		).map((r) => r.id);
+		if (topIds.length === 0) return [];
+		const placeholders = topIds.map(() => "?").join(",");
+		const rows = this.db
+			.prepare(`SELECT * FROM episodes WHERE id IN (${placeholders}) AND user_id = ?`)
+			.all(...topIds, userId) as EpisodeRow[];
+		return sortBySimilarity(
+			rows.map((r) => rowToEpisode(r)),
+			embedding,
+			lim,
+		);
 	}
 
 	async searchFactsByEmbedding(
@@ -282,11 +307,24 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<SemanticFact[]> {
-		const facts = (
-			this.db
-				.prepare("SELECT * FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
-				.all(userId) as FactRow[]
-		).map((r) => rowToFact(r));
-		return sortBySimilarity(facts, embedding, clampLimit(limit));
+		const lim = clampLimit(limit);
+		const candidates = this.db
+			.prepare("SELECT id, embedding FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
+			.all(userId) as Pick<FactRow, "id" | "embedding">[];
+		const topIds = sortBySimilarity(
+			candidates.map((r) => ({ id: r.id, embedding: JSON.parse(r.embedding) as number[] })),
+			embedding,
+			lim,
+		).map((r) => r.id);
+		if (topIds.length === 0) return [];
+		const placeholders = topIds.map(() => "?").join(",");
+		const rows = this.db
+			.prepare(`SELECT * FROM semantic_facts WHERE id IN (${placeholders}) AND user_id = ?`)
+			.all(...topIds, userId) as FactRow[];
+		return sortBySimilarity(
+			rows.map((r) => rowToFact(r)),
+			embedding,
+			lim,
+		);
 	}
 }

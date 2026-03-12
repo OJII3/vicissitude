@@ -8,6 +8,7 @@ import type {
 	MemoryConsolidator,
 } from "../core/types.ts";
 import { ConsolidationPipeline } from "./consolidation.ts";
+import type { Episode } from "./episode.ts";
 import type { LtmLlmPort } from "./llm-port.ts";
 import { LtmStorage } from "./ltm-storage.ts";
 import { Segmenter } from "./segmenter.ts";
@@ -15,7 +16,7 @@ import { Segmenter } from "./segmenter.ts";
 const GUILD_ID_RE = /^\d+$/;
 
 export interface GuildInstance {
-	segmenter: { addMessage(userId: string, msg: unknown): Promise<unknown> };
+	segmenter: { addMessage(userId: string, msg: unknown): Promise<Episode[]> };
 	storage: { close(): void };
 	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }

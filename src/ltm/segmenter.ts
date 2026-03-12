@@ -1,4 +1,4 @@
-/* oxlint-disable require-await, no-await-in-loop -- sequential processing required */
+/* oxlint-disable max-lines, require-await, no-await-in-loop -- sequential processing required */
 import type { Episode } from "./episode.ts";
 import { createEpisode } from "./episode.ts";
 import type { LtmLlmPort, Schema } from "./llm-port.ts";
@@ -56,9 +56,10 @@ export class Segmenter {
 	 */
 	async addMessage(userId: string, message: ChatMessage): Promise<Episode[]> {
 		validateUserId(userId);
+		const currentQueue = await this.storage.getMessageQueue(userId);
+		this.checkQueueSize(userId, currentQueue);
 		await this.storage.pushMessage(userId, message);
-		const queue = await this.storage.getMessageQueue(userId);
-		this.checkQueueSize(userId, queue);
+		const queue = [...currentQueue, message];
 
 		if (queue.length >= this.config.hardTrigger) {
 			return this.segment(userId, queue, true);
@@ -71,12 +72,12 @@ export class Segmenter {
 		return [];
 	}
 
-	/** Throw if the message queue exceeds the configured maximum size */
-	private checkQueueSize(userId: string, queue: ChatMessage[]): void {
+	/** Throw if adding one more message would exceed the configured maximum size */
+	private checkQueueSize(userId: string, currentQueue: ChatMessage[]): void {
 		const maxQueueSize = this.config.maxQueueSize ?? DEFAULT_MAX_QUEUE_SIZE;
-		if (queue.length > maxQueueSize) {
+		if (currentQueue.length + 1 > maxQueueSize) {
 			throw new Error(
-				`Message queue for user "${userId}" exceeds maximum size (${queue.length} > ${maxQueueSize})`,
+				`Message queue for user "${userId}" exceeds maximum size (${currentQueue.length + 1} > ${maxQueueSize})`,
 			);
 		}
 	}
@@ -220,39 +221,59 @@ Respond with JSON only: {"segments": [...]}`;
 				{ role: "system", content: systemPrompt },
 				{ role: "user", content: `<conversation>\n${formatted}\n</conversation>` },
 			],
-			segmentationSchema,
+			createSegmentationSchema(messages.length),
 		);
 	}
 }
 
-/** Schema validator for SegmentationOutput */
-const segmentationSchema: Schema<SegmentationOutput> = {
-	parse(data: unknown): SegmentationOutput {
-		if (typeof data !== "object" || data === null) {
-			throw new TypeError("Expected object");
-		}
-		const obj = data as Record<string, unknown>;
-		if (!Array.isArray(obj["segments"])) {
-			throw new TypeError("Expected segments array");
-		}
+/** Create a schema validator for SegmentationOutput with message count bounds checking */
+function createSegmentationSchema(messageCount: number): Schema<SegmentationOutput> {
+	return {
+		parse(data: unknown): SegmentationOutput {
+			if (typeof data !== "object" || data === null) {
+				throw new TypeError("Expected object");
+			}
+			const obj = data as Record<string, unknown>;
+			if (!Array.isArray(obj["segments"])) {
+				throw new TypeError("Expected segments array");
+			}
 
-		const segments = (obj["segments"] as unknown[]).map((s, i) => parseSegment(s, i));
-		return { segments };
-	},
-};
+			const segments = (obj["segments"] as unknown[]).map((s, i) =>
+				parseSegment(s, i, messageCount),
+			);
+			return { segments };
+		},
+	};
+}
 
 const VALID_SURPRISE = new Set<string>(["low", "high", "extremely_high"]);
+const MAX_TITLE_LENGTH = 200;
+const MAX_SUMMARY_LENGTH = 2000;
 
-function validateIndexBounds(startIndex: number, endIndex: number, i: number): void {
+function validateIndexBounds(
+	startIndex: number,
+	endIndex: number,
+	i: number,
+	messageCount: number,
+): void {
 	if (!Number.isInteger(startIndex) || startIndex < 0) {
 		throw new RangeError(`segments[${i}].startIndex: expected non-negative integer`);
 	}
 	if (!Number.isInteger(endIndex) || endIndex <= startIndex) {
 		throw new RangeError(`segments[${i}].endIndex: expected integer greater than startIndex`);
 	}
+	if (endIndex > messageCount) {
+		throw new RangeError(
+			`segments[${i}].endIndex: ${endIndex} exceeds message count ${messageCount}`,
+		);
+	}
 }
 
-function validateSegmentFields(seg: Record<string, unknown>, i: number): void {
+function validateSegmentFields(
+	seg: Record<string, unknown>,
+	i: number,
+	messageCount: number,
+): void {
 	const required = [
 		["startIndex", "number"],
 		["endIndex", "number"],
@@ -266,7 +287,18 @@ function validateSegmentFields(seg: Record<string, unknown>, i: number): void {
 		}
 	}
 
-	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i);
+	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i, messageCount);
+
+	const title = seg["title"] as string;
+	if (title.length > MAX_TITLE_LENGTH) {
+		throw new RangeError(`segments[${i}].title: too long (${title.length} > ${MAX_TITLE_LENGTH})`);
+	}
+	const summary = seg["summary"] as string;
+	if (summary.length > MAX_SUMMARY_LENGTH) {
+		throw new RangeError(
+			`segments[${i}].summary: too long (${summary.length} > ${MAX_SUMMARY_LENGTH})`,
+		);
+	}
 }
 
 /** Normalize surprise value from LLM output, falling back to "low" for invalid values */
@@ -277,12 +309,12 @@ function normalizeSurprise(value: unknown): SurpriseLevel {
 	return "low";
 }
 
-function parseSegment(s: unknown, i: number): SegmentResult {
+function parseSegment(s: unknown, i: number, messageCount: number): SegmentResult {
 	if (typeof s !== "object" || s === null) {
 		throw new TypeError(`segments[${i}]: expected object`);
 	}
 	const seg = s as Record<string, unknown>;
-	validateSegmentFields(seg, i);
+	validateSegmentFields(seg, i, messageCount);
 
 	return {
 		startIndex: seg["startIndex"] as number,
