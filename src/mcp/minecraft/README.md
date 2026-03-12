@@ -109,8 +109,6 @@ src/mcp/minecraft/
 
 - このプロセス自体は低レベル Minecraft 操作を提供する MCP サーバーであり、意思決定はしない。
 - 意思決定は別の Minecraft AgentRunner が担当し、SQLite ベースの bridge と `mc-bridge` MCP を介して Discord 側と連携する。
-- 2026-03-12 時点の全体方針は、単一 Minecraft エージェントを将来的に `Observer` / `Planner` / `Executor` / `Critic` / `Social` へ責務分割できる形へ進めることにある。
-- 現段階では常駐 subagent は未導入で、このディレクトリはその下位の実行基盤として維持されている。
 
 ## 関連ファイル
 
