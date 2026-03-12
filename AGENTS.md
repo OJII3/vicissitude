@@ -1,8 +1,8 @@
-# Vicissitude — CLAUDE.md
+# Vicissitude
 
 ## プロジェクト概要
 
-Discord bot「ふあ」のプロジェクト。TypeScript + Bun で動作する。
+Discord bot「ふあ(hua)」のプロジェクト。Bun, TypeScript, OpenCode で動作する。
 
 ## ドキュメント導線
 
