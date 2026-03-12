@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { Database } from "bun:sqlite";
 import { mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
 
-import { SQLiteStorageAdapter, createFact } from "fenghuang";
 import type { FactCategory } from "fenghuang";
 
 import { FenghuangFactReader } from "./fenghuang-fact-reader.ts";
@@ -10,21 +10,36 @@ import { FenghuangFactReader } from "./fenghuang-fact-reader.ts";
 const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";
 
-async function insertFact(
-	storage: SQLiteStorageAdapter,
+/**
+ * Insert a fact row directly via bun:sqlite to avoid depending on
+ * fenghuang's SQLiteStorageAdapter for test-data setup (CI compat).
+ */
+function insertFact(
+	db: Database,
 	userId: string,
 	category: FactCategory,
 	fact: string,
-): Promise<void> {
-	const f = createFact({
+): void {
+	db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
+		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
+		keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
+		valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL)`);
+	const now = Date.now();
+	db.prepare(
+		`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	).run(
+		crypto.randomUUID(),
 		userId,
 		category,
 		fact,
-		keywords: ["test"],
-		sourceEpisodicIds: ["ep1"],
-		embedding: [0.1],
-	});
-	await storage.saveFact(userId, f);
+		JSON.stringify(["test"]),
+		JSON.stringify(["ep1"]),
+		JSON.stringify([0.1]),
+		now,
+		null,
+		now,
+	);
 }
 
 beforeEach(() => {
@@ -38,10 +53,10 @@ afterEach(() => {
 describe("FenghuangFactReader", () => {
 	it("指定 guildId のファクトを返す", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
-		const storage = new SQLiteStorageAdapter(dbPath);
-		await insertFact(storage, GUILD_ID, "preference", "コーヒーが好き");
-		await insertFact(storage, GUILD_ID, "interest", "TypeScript が得意");
-		storage.close();
+		const db = new Database(dbPath);
+		insertFact(db, GUILD_ID, "preference", "コーヒーが好き");
+		insertFact(db, GUILD_ID, "interest", "TypeScript が得意");
+		db.close();
 
 		const reader = new FenghuangFactReader(TEST_DATA_DIR);
 		const facts = await reader.getFacts(GUILD_ID);
@@ -74,9 +89,9 @@ describe("FenghuangFactReader", () => {
 
 	it("close() で接続が解放される", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
-		const storage = new SQLiteStorageAdapter(dbPath);
-		await insertFact(storage, GUILD_ID, "identity", "テスト");
-		storage.close();
+		const db = new Database(dbPath);
+		insertFact(db, GUILD_ID, "identity", "テスト");
+		db.close();
 
 		const reader = new FenghuangFactReader(TEST_DATA_DIR);
 		await reader.getFacts(GUILD_ID);
