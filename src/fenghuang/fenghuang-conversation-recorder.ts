@@ -12,21 +12,34 @@ import type {
 
 const GUILD_ID_RE = /^\d+$/;
 
-interface GuildInstance {
-	segmenter: Segmenter;
-	storage: SQLiteStorageAdapter;
-	consolidation: ConsolidationPipeline;
+export interface GuildInstance {
+	segmenter: { addMessage(userId: string, msg: unknown): Promise<void> };
+	storage: { close(): void };
+	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }
+
+export type GuildInstanceFactory = (dbPath: string, llm: LLMPort) => GuildInstance;
+
+const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
+	const storage = new SQLiteStorageAdapter(dbPath);
+	const segmenter = new Segmenter(llm, storage);
+	const consolidation = new ConsolidationPipeline(llm, storage);
+	return { segmenter, storage, consolidation };
+};
 
 export class FenghuangConversationRecorder implements ConversationRecorder, MemoryConsolidator {
 	private readonly instances = new Map<string, GuildInstance>();
 	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
+	private readonly factory: GuildInstanceFactory;
 
 	constructor(
 		private readonly llm: LLMPort,
 		private readonly dataDir: string,
-	) {}
+		factory?: GuildInstanceFactory,
+	) {
+		this.factory = factory ?? defaultFactory;
+	}
 
 	async record(guildId: string, message: ConversationMessage): Promise<void> {
 		if (!GUILD_ID_RE.test(guildId)) {
@@ -93,10 +106,7 @@ export class FenghuangConversationRecorder implements ConversationRecorder, Memo
 
 		const dbDir = resolve(this.dataDir, "guilds", guildId);
 		mkdirSync(dbDir, { recursive: true });
-		const storage = new SQLiteStorageAdapter(resolve(dbDir, "memory.db"));
-		const segmenter = new Segmenter(this.llm, storage);
-		const consolidation = new ConsolidationPipeline(this.llm, storage);
-		const instance = { segmenter, storage, consolidation };
+		const instance = this.factory(resolve(dbDir, "memory.db"), this.llm);
 		this.instances.set(guildId, instance);
 		return instance;
 	}

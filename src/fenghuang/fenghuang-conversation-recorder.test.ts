@@ -1,10 +1,19 @@
-/* oxlint-disable max-classes-per-file -- mock module requires multiple inline classes */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
 import type { LLMPort } from "fenghuang";
 
-// fenghuang モジュールをモック（fs はモックしない: 他テストへの汚染を防ぐ）
+import type { GuildInstance, GuildInstanceFactory } from "./fenghuang-conversation-recorder.ts";
+import { FenghuangConversationRecorder } from "./fenghuang-conversation-recorder.ts";
+
+const TEMP_DIR = `/tmp/vicissitude-fenghuang-test-${process.pid}`;
+
+afterEach(() => {
+	if (existsSync(TEMP_DIR)) {
+		rmSync(TEMP_DIR, { recursive: true, force: true });
+	}
+});
+
 const mockAddMessage = mock(() => Promise.resolve());
 const mockConsolidate = mock(() =>
 	Promise.resolve({
@@ -17,31 +26,15 @@ const mockConsolidate = mock(() =>
 );
 const mockStorageClose = mock(() => {});
 
-mock.module("fenghuang", () => ({
-	Segmenter: class MockSegmenter {
-		addMessage = mockAddMessage;
-	},
-	SQLiteStorageAdapter: class MockSQLiteStorageAdapter {
-		close = mockStorageClose;
-	},
-	ConsolidationPipeline: class MockConsolidationPipeline {
-		consolidate = mockConsolidate;
-	},
-}));
-
-const { FenghuangConversationRecorder } = await import("./fenghuang-conversation-recorder.ts");
-
-const TEMP_DIR = `/tmp/vicissitude-fenghuang-test-${process.pid}`;
-
-afterEach(() => {
-	if (existsSync(TEMP_DIR)) {
-		rmSync(TEMP_DIR, { recursive: true, force: true });
-	}
+const mockFactory: GuildInstanceFactory = (): GuildInstance => ({
+	segmenter: { addMessage: mockAddMessage },
+	storage: { close: mockStorageClose },
+	consolidation: { consolidate: mockConsolidate },
 });
 
 function createRecorder() {
 	const llm = {} as LLMPort;
-	return new FenghuangConversationRecorder(llm, TEMP_DIR);
+	return new FenghuangConversationRecorder(llm, TEMP_DIR, mockFactory);
 }
 
 const sampleMessage = {
