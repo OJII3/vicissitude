@@ -227,4 +227,33 @@ describe("AgentRunner", () => {
 		secondSessionDone.resolve({ type: "cancelled" });
 		await loop;
 	});
+
+	test("起動準備中に stop されても abort 不能な監視セッションを開始しない", async () => {
+		const firstEvent = deferred<void>();
+		const buildDeferred = deferred<string>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => Promise.resolve({ type: "idle" }));
+		const contextBuilder: ContextBuilderPort = { build: mock(() => buildDeferred.promise) };
+		const runner = new AgentRunner({
+			profile: createProfile(),
+			guildId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		const loop = runner.startPollingLoop();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+
+		runner.stop();
+		buildDeferred.resolve("system prompt");
+		await loop;
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(0);
+	});
 });

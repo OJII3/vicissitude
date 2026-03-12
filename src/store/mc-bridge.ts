@@ -1,4 +1,4 @@
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
 import { mcBridgeEvents, mcSessionLock } from "./schema.ts";
@@ -159,6 +159,24 @@ export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolea
 		.limit(1)
 		.get();
 	return row !== undefined;
+}
+
+export function hasDiscordBridgeEventsForGuild(db: StoreDb, guildId: string): boolean {
+	const lock = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!lock || lock.guildId !== guildId) return false;
+	return hasBridgeEvents(db, "to_discord");
+}
+
+export function getLatestDiscordBridgeEventIdForGuild(db: StoreDb, guildId: string): number | null {
+	const lock = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!lock || lock.guildId !== guildId) return null;
+	const row = db
+		.select({ id: mcBridgeEvents.id })
+		.from(mcBridgeEvents)
+		.where(and(eq(mcBridgeEvents.direction, "to_discord"), eq(mcBridgeEvents.consumed, 0)))
+		.orderBy(desc(mcBridgeEvents.id))
+		.get();
+	return row?.id ?? null;
 }
 
 // ─── MC セッション排他ロック ─────────────────────────────────────

@@ -4,7 +4,7 @@
 
 - 2026-03-12
 - 更新者: codex
-- ブランチ: feat/test-quality-grafana
+- ブランチ: fix/opencode-session-watch-race
 
 ## 2. 現在の状態
 
@@ -15,13 +15,14 @@
 - M13a 要件整理を実施。現行の単一 Minecraft AgentRunner を、将来的にオーケストレータ + `Observer` / `Planner` / `Executor` / `Critic` / `Social` へ分割する方針をドキュメント化。
 - M13c 実行安全性ルールを整理。危険時プリエンプション、ジョブ再試行制限、失敗分類、Discord 通知条件をドキュメント化。
 - M13c 実装を開始。Minecraft MCP 側の高優先度イベントでメイン brain を早期 wake するファイル通知経路、ジョブ失敗クールダウン、`get_job_status` へのクールダウン表示を追加。
-- `nr validate` 通過。計 342 テスト pass。
+- `nr validate` 通過。`bun test` は 392 テスト pass。
 - テスト品質評価の土台として `docs/TEST_QUALITY.md` を追加し、`nr test:quality` で JUnit + LCOV からサマリを生成できるようにした。
 - `nr test:quality:flake` を追加し、`bun test --rerun-each` ベースで flake rate を集計できるようにした。
 - `monitoring/grafana-dashboard.json` に Test Quality セクションを追加し、`component="test-quality"` の Loki JSON ログで failure rate / coverage / flake rate / duration を可視化できるようにした。
 - `actions/survival/` へ責務分割し、`survival.ts` の max-lines 問題を解消した。
 - `nr test:quality` / `nr test:quality:flake` の終了コード処理と入力分離を修正し、失敗時でもサマリ生成を継続しつつ broken build を見逃さないようにした。
 - Discord / Minecraft の AgentRunner を、`promptAsync()` 完了待ちではなく長寿命セッションの終了監視型へ寄せる作業を開始。
+- OpenCode 長寿命セッション監視の停止ハングを修正。abort 時に購読ストリームを即時解除し、停止・再起動が次イベント待ちで詰まらないようにした。
 
 ## 3. 既知のバグ・要修正事項
 

@@ -132,10 +132,12 @@ export class AgentRunner implements AiAgent {
 		this.sessionPort.close();
 	}
 
-	private async startLongLivedSession(): Promise<void> {
+	private async startLongLivedSession(signal: AbortSignal): Promise<void> {
 		const sessionId = await this.resolveSessionId();
+		if (signal.aborted) return;
 
 		const system = await this.contextBuilder.build(this.guildId);
+		if (signal.aborted) return;
 
 		this.logger.info(
 			`[${this.profile.name}:${this.guildId}] starting polling prompt on session ${sessionId}`,
@@ -151,7 +153,7 @@ export class AgentRunner implements AiAgent {
 				},
 				system,
 			},
-			this.abortController?.signal,
+			signal,
 		);
 	}
 
@@ -159,7 +161,7 @@ export class AgentRunner implements AiAgent {
 		if (this.sessionWatch) return;
 		if (this.hasStartedSession && this.profile.restartPolicy === "immediate") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting long-lived session`);
-			await this.startLongLivedSession();
+			await this.startLongLivedSession(signal);
 			return;
 		}
 
@@ -167,7 +169,8 @@ export class AgentRunner implements AiAgent {
 		await this.eventBuffer.waitForEvents(signal);
 		if (signal.aborted) return;
 		this.logger.info(`[${this.profile.name}:${this.guildId}] events detected, starting session`);
-		await this.startLongLivedSession();
+		await this.startLongLivedSession(signal);
+		if (signal.aborted || !this.sessionWatch) return;
 		this.hasStartedSession = true;
 	}
 

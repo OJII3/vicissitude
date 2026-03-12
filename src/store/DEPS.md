@@ -8,6 +8,7 @@
 graph LR
   db --> schema
   event_buffer["event-buffer"] --> db
+  event_buffer["event-buffer"] --> mc_bridge["mc-bridge"]
   event_buffer["event-buffer"] --> queries
   mc_bridge["mc-bridge"] --> db
   mc_bridge["mc-bridge"] --> schema
@@ -28,7 +29,7 @@ graph LR
 
 ### event-buffer.ts
 
-- モジュール内依存: db, queries
+- モジュール内依存: db, mc-bridge, queries
 - 他モジュール依存: core/
 
 ### mc-bridge.ts
