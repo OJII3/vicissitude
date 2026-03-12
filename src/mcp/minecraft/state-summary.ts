@@ -23,9 +23,11 @@ export interface BotStateInput {
 	inventory: { items: { name: string; count: number }[]; emptySlots: number };
 	equipment: Record<string, string>;
 	recentEvents: { timestamp: string; kind: string; description: string; importance: Importance }[];
+	stuckWarning?: string;
 }
 
 /** ボット状態を自然言語要約テキストに変換する */
+// oxlint-disable-next-line max-lines-per-function
 export function summarizeState(state: BotStateInput): string {
 	const lines: string[] = [];
 
@@ -65,10 +67,16 @@ export function summarizeState(state: BotStateInput): string {
 		lines.push("");
 		lines.push("## 直近イベント");
 		for (const event of importantEvents) {
-			// HH:MM 部分を抽出
 			const time = event.timestamp.slice(11, 16);
 			lines.push(`[${time}] ${event.description}`);
 		}
+	}
+
+	// スタック警告セクション
+	if (state.stuckWarning) {
+		lines.push("");
+		lines.push("## スタック警告");
+		lines.push(state.stuckWarning);
 	}
 
 	return lines.join("\n");

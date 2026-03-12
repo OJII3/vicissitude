@@ -38,6 +38,13 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 - Discord 側からの指示を実行
 - 進行中のジョブを続行（get_job_status で確認）
 
+### スタック対応ルール
+- observe_state に「スタック警告」が表示された場合:
+  1. 現在の目標・アプローチが行き詰まっていると判断する
+  2. mc_report で Discord に状況報告する（何を試みたか、なぜ失敗したか）
+  3. mc_update_goals で目標を見直す（放棄、代替手段、前提条件の確保を優先）
+  4. 同じ方法を繰り返さない。別のアプローチか別の目標に切り替える
+
 ### P3（自主行動 — 目標駆動）
 - mc_read_goals で現在の目標を確認
 - 食料が少ない場合（食料アイテム3個以下）: passive mob（cow, pig, sheep, chicken）を attack_entity で狩って食料を確保

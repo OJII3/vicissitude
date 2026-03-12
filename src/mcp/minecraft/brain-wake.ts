@@ -14,6 +14,7 @@ export function shouldWakeMinecraftBrain(
 	if (kind === "damage") return true;
 	if (kind === "health" && importance === "medium") return true;
 	if (kind === "job" && description.startsWith("ジョブ失敗:")) return true;
+	if (kind === "stuck") return true;
 	return false;
 }
 

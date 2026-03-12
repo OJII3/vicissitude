@@ -16,7 +16,11 @@ import {
 import type { JobManager } from "./job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./state-summary.ts";
 
-function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
+function registerObserveStateTool(
+	server: McpServer,
+	ctx: BotContext,
+	jobManager: JobManager,
+): void {
 	server.tool(
 		"observe_state",
 		"Minecraft ボットの現在の状態を自然言語要約で取得する",
@@ -29,8 +33,11 @@ function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
 
 			const pos = bot.entity.position;
 			const timeOfDay = bot.time?.timeOfDay;
+			const roundedPos = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) };
+			jobManager.recordPositionSnapshot(roundedPos);
+			const stuckResult = jobManager.isStuck();
 			const summary = summarizeState({
-				position: { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) },
+				position: roundedPos,
 				health: bot.health,
 				food: bot.food,
 				timePeriod: timeOfDay === undefined ? "不明" : getTimePeriod(timeOfDay),
@@ -40,6 +47,7 @@ function registerObserveStateTool(server: McpServer, ctx: BotContext): void {
 				inventory: getInventorySummary(bot),
 				equipment: getEquipment(bot),
 				recentEvents: ctx.getEvents().slice(-10),
+				stuckWarning: stuckResult.stuck ? stuckResult.reason : undefined,
 			});
 
 			return { content: [{ type: "text", text: summary }] };
@@ -148,7 +156,7 @@ export function registerMinecraftTools(
 	metrics?: MetricsCollector,
 ): void {
 	const s = metrics ? wrapServerWithMetrics(server, metrics) : server;
-	registerObserveStateTool(s, ctx);
+	registerObserveStateTool(s, ctx, jobManager);
 	registerRecentEventsTool(s, ctx);
 	registerActionTools(s, () => ctx.getBot(), jobManager);
 	registerJobStatusTool(s, jobManager);

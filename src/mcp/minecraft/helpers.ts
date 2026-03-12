@@ -160,3 +160,58 @@ export function formatActionState(action: ActionState): string {
 	if (action.progress) base += ` (${action.progress})`;
 	return base;
 }
+
+export function classifyFailure(error?: string): string {
+	if (!error) return "unknown failure";
+	const normalized = error.toLowerCase();
+	if (
+		normalized.includes("材料") ||
+		normalized.includes("recipe") ||
+		normalized.includes("レシピ") ||
+		normalized.includes("食料") ||
+		normalized.includes("作業台")
+	) {
+		return "resource shortage";
+	}
+	if (
+		normalized.includes("path") ||
+		normalized.includes("到達") ||
+		normalized.includes("goal") ||
+		normalized.includes("パス")
+	) {
+		return "pathfinding failure";
+	}
+	if (
+		normalized.includes("見つかりません") ||
+		normalized.includes("ベッド") ||
+		normalized.includes("プレイヤー") ||
+		normalized.includes("エンティティ") ||
+		normalized.includes("ブロック") ||
+		normalized.includes("なくな") ||
+		normalized.includes("離脱")
+	) {
+		return "target missing";
+	}
+	if (
+		normalized.includes("disconnect") ||
+		normalized.includes("接続") ||
+		normalized.includes("kicked")
+	) {
+		return "connection failure";
+	}
+	return "survival failure";
+}
+
+export function totalTravelDistance(snapshots: { x: number; y: number; z: number }[]): number {
+	let total = 0;
+	for (let i = 1; i < snapshots.length; i++) {
+		const prev = snapshots.at(i - 1);
+		const curr = snapshots.at(i);
+		if (!prev || !curr) continue;
+		const dx = curr.x - prev.x;
+		const dy = curr.y - prev.y;
+		const dz = curr.z - prev.z;
+		total += Math.sqrt(dx * dx + dy * dy + dz * dz);
+	}
+	return total;
+}

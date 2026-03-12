@@ -24,6 +24,7 @@ export const METRIC = {
 	MC_JOBS: "mc_jobs_total",
 	MC_BOT_EVENTS: "mc_bot_events_total",
 	MC_MCP_TOOL_CALLS: "mc_mcp_tool_calls_total",
+	MC_STUCK: "mc_stuck_total",
 } as const;
 
 /** OpenCode の全ビルトインツールを無効化する設定 */
