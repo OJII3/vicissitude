@@ -1,6 +1,6 @@
 import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
-import { classifyFailure } from "./helpers.ts";
+import { classifyFailure, totalTravelDistance } from "./helpers.ts";
 import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
@@ -15,7 +15,6 @@ export interface PositionSnapshot {
 	x: number;
 	y: number;
 	z: number;
-	at: Date;
 }
 
 interface JobManagerOptions {
@@ -246,7 +245,7 @@ export class JobManager {
 
 	/** 位置スナップショットを記録する（リングバッファ） */
 	recordPositionSnapshot(pos: { x: number; y: number; z: number }): void {
-		this.positionSnapshots.push({ x: pos.x, y: pos.y, z: pos.z, at: new Date() });
+		this.positionSnapshots.push({ x: pos.x, y: pos.y, z: pos.z });
 		if (this.positionSnapshots.length > MAX_POSITION_SNAPSHOTS) {
 			this.positionSnapshots.shift();
 		}
@@ -264,32 +263,28 @@ export class JobManager {
 			return { stuck: false };
 		}
 
-		// A: 連続失敗 — 直近 N 件のジョブがすべて failed
+		// A: 連続失敗 — 直近 N 件のジョブがすべて同一タイプで failed
 		const recentN = this.recentJobs.slice(-this.stuckFailureThreshold);
+		const firstType = recentN.at(0)?.type;
 		const allFailed =
-			recentN.length >= this.stuckFailureThreshold && recentN.every((j) => j.status === "failed");
+			recentN.length >= this.stuckFailureThreshold &&
+			recentN.every((j) => j.status === "failed" && j.type === firstType);
 		if (allFailed) {
+			const mins = String(Math.round(timeSinceSuccess / 60_000));
 			return {
 				stuck: true,
-				reason: `直近 ${String(this.stuckFailureThreshold)} 件のジョブがすべて失敗。最後の成功から ${String(Math.round(timeSinceSuccess / 60_000))} 分経過`,
+				reason: `直近 ${String(this.stuckFailureThreshold)} 件のジョブがすべて失敗。最後の成功から ${mins} 分経過`,
 			};
 		}
 
-		// B: 位置停滞 — 過去 3 回のスナップショットで移動距離 < stuckPositionThreshold、かつ idle
-		const isIdle = this.currentJob === null;
-		if (isIdle && this.positionSnapshots.length >= 3) {
-			const snapshots = this.positionSnapshots.slice(-3);
-			const first = snapshots.at(0);
-			const last = snapshots.at(-1);
-			if (!first || !last) return { stuck: false };
-			const dx = last.x - first.x;
-			const dy = last.y - first.y;
-			const dz = last.z - first.z;
-			const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+		// B: 位置停滞 — 過去 3 回のスナップショットの総移動距離 < threshold、かつ idle
+		if (this.currentJob === null && this.positionSnapshots.length >= 3) {
+			const distance = totalTravelDistance(this.positionSnapshots.slice(-3));
 			if (distance < this.stuckPositionThreshold) {
+				const mins = String(Math.round(timeSinceSuccess / 60_000));
 				return {
 					stuck: true,
-					reason: `位置停滞: 移動距離 ${String(Math.round(distance * 10) / 10)} ブロック（閾値 ${String(this.stuckPositionThreshold)}）。最後の成功から ${String(Math.round(timeSinceSuccess / 60_000))} 分経過`,
+					reason: `位置停滞: 総移動距離 ${String(Math.round(distance * 10) / 10)} ブロック（閾値 ${String(this.stuckPositionThreshold)}）。最後の成功から ${mins} 分経過`,
 				};
 			}
 		}

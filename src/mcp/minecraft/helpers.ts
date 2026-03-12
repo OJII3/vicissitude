@@ -201,3 +201,17 @@ export function classifyFailure(error?: string): string {
 	}
 	return "survival failure";
 }
+
+export function totalTravelDistance(snapshots: { x: number; y: number; z: number }[]): number {
+	let total = 0;
+	for (let i = 1; i < snapshots.length; i++) {
+		const prev = snapshots.at(i - 1);
+		const curr = snapshots.at(i);
+		if (!prev || !curr) continue;
+		const dx = curr.x - prev.x;
+		const dy = curr.y - prev.y;
+		const dz = curr.z - prev.z;
+		total += Math.sqrt(dx * dx + dy * dy + dz * dz);
+	}
+	return total;
+}

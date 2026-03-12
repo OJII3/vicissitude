@@ -12,6 +12,7 @@ function flushPromises(): Promise<void> {
 
 const failingExecutor: JobExecutor = () => Promise.reject(new Error("失敗"));
 const noopExecutor: JobExecutor = async () => {};
+const hangingExecutor: JobExecutor = () => new Promise(() => {});
 
 async function runJobs(
 	manager: JobManager,
@@ -111,6 +112,41 @@ describe("JobManager stuck detection", () => {
 		manager.startJob("moving", "ok", noopExecutor);
 		await flushPromises();
 		await runJobs(manager, 4, "fail", failingExecutor);
+		const stuckEvents = events.filter((e) => e.kind === "stuck");
+		expect(stuckEvents).toHaveLength(0);
+	});
+
+	test("往復パターン（A→B→A）は stuck にならない", () => {
+		const { manager } = setup({ stuckPositionThreshold: 3 });
+		manager.recordPositionSnapshot({ x: 0, y: 64, z: 0 });
+		manager.recordPositionSnapshot({ x: 100, y: 64, z: 0 });
+		manager.recordPositionSnapshot({ x: 0, y: 64, z: 0 });
+
+		const result = manager.isStuck();
+		expect(result.stuck).toBe(false);
+	});
+
+	test("ジョブ実行中は位置停滞の判定がスキップされる", () => {
+		const { manager } = setup();
+		manager.recordPositionSnapshot({ x: 100, y: 64, z: -200 });
+		manager.recordPositionSnapshot({ x: 100, y: 64, z: -200 });
+		manager.recordPositionSnapshot({ x: 100, y: 64, z: -200 });
+		manager.startJob("moving", "somewhere", hangingExecutor);
+
+		const result = manager.isStuck();
+		expect(result.stuck).toBe(false);
+	});
+
+	test("異なるジョブタイプの連続失敗は stuck にならない", async () => {
+		const { manager, events } = setup();
+		manager.startJob("moving", "a", failingExecutor);
+		await flushPromises();
+		manager.startJob("crafting", "b", failingExecutor);
+		await flushPromises();
+		manager.startJob("collecting", "c", failingExecutor);
+		await flushPromises();
+		manager.startJob("attacking", "d", failingExecutor);
+		await flushPromises();
 		const stuckEvents = events.filter((e) => e.kind === "stuck");
 		expect(stuckEvents).toHaveLength(0);
 	});

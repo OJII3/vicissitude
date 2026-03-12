@@ -14,8 +14,8 @@ describe("shouldWakeMinecraftBrain", () => {
 		expect(shouldWakeMinecraftBrain("chat", "low", "<a> hi")).toBe(false);
 	});
 
-	test("stuck イベントで wake する", () => {
-		expect(shouldWakeMinecraftBrain("stuck", "high", "直近 4 件のジョブがすべて失敗")).toBe(true);
+	test("stuck イベントは importance に関わらず wake する", () => {
+		expect(shouldWakeMinecraftBrain("stuck", "low", "直近 4 件のジョブがすべて失敗")).toBe(true);
 	});
 });
 
