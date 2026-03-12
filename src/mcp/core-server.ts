@@ -3,11 +3,11 @@ import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, GatewayIntentBits } from "discord.js";
-import { type Fenghuang, SQLiteStorageAdapter, createFenghuang } from "fenghuang";
 
 import { OPENCODE_ALL_TOOLS_DISABLED } from "../core/constants.ts";
-import { CompositeLLMAdapter } from "../fenghuang/composite-llm-adapter.ts";
-import { FenghuangChatAdapter } from "../fenghuang/fenghuang-chat-adapter.ts";
+import { CompositeLLMAdapter } from "../ltm/composite-llm-adapter.ts";
+import { type Ltm, LtmStorage, createLtm } from "../ltm/index.ts";
+import { LtmChatAdapter } from "../ltm/ltm-chat-adapter.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
 import { OpencodeSessionAdapter } from "../opencode/session-adapter.ts";
 import { closeDb, createDb } from "../store/db.ts";
@@ -27,7 +27,7 @@ const LTM_PROVIDER_ID = process.env.LTM_PROVIDER_ID ?? "github-copilot";
 const LTM_MODEL_ID = process.env.LTM_MODEL_ID ?? "gpt-4o";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 const LTM_EMBEDDING_MODEL = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
-const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/fenghuang";
+const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/ltm";
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 
 if (!process.env.DISCORD_TOKEN) {
@@ -56,52 +56,52 @@ try {
 
 const db = createDb(DATA_DIR);
 
-// --- Fenghuang (LTM) ---
+// --- LTM ---
 
 const ltmSessionPort = new OpencodeSessionAdapter({
 	port: LTM_OPENCODE_PORT,
 	mcpServers: {},
 	builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 });
-const chatAdapter = new FenghuangChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
+const chatAdapter = new LtmChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 
-const MAX_FENGHUANG_INSTANCES = 50;
-const fenghuangInstances = new Map<string, Fenghuang>();
-const fenghuangStorages = new Map<string, SQLiteStorageAdapter>();
+const MAX_LTM_INSTANCES = 50;
+const ltmInstances = new Map<string, Ltm>();
+const ltmStorages = new Map<string, LtmStorage>();
 
 const GUILD_ID_REGEX = /^\d+$/;
 
-function getOrCreateFenghuang(guildId: string): Fenghuang {
+function getOrCreateLtm(guildId: string): Ltm {
 	if (!GUILD_ID_REGEX.test(guildId)) {
 		throw new Error(`Invalid guildId: ${guildId}`);
 	}
 
-	const existing = fenghuangInstances.get(guildId);
+	const existing = ltmInstances.get(guildId);
 	if (existing) {
 		// LRU: 再挿入して最新アクセスとして記録
-		fenghuangInstances.delete(guildId);
-		fenghuangInstances.set(guildId, existing);
+		ltmInstances.delete(guildId);
+		ltmInstances.set(guildId, existing);
 		return existing;
 	}
 
 	// Evict oldest entry if at capacity
-	if (fenghuangInstances.size >= MAX_FENGHUANG_INSTANCES) {
-		const oldestKey = fenghuangInstances.keys().next().value as string;
-		fenghuangInstances.delete(oldestKey);
-		const oldStorage = fenghuangStorages.get(oldestKey);
+	if (ltmInstances.size >= MAX_LTM_INSTANCES) {
+		const oldestKey = ltmInstances.keys().next().value as string;
+		ltmInstances.delete(oldestKey);
+		const oldStorage = ltmStorages.get(oldestKey);
 		oldStorage?.close();
-		fenghuangStorages.delete(oldestKey);
+		ltmStorages.delete(oldestKey);
 	}
 
 	const dbDir = resolve(LTM_DATA_DIR, "guilds", guildId);
 	mkdirSync(dbDir, { recursive: true });
-	const storage = new SQLiteStorageAdapter(resolve(dbDir, "memory.db"));
-	const instance = createFenghuang({ llm, storage });
-	fenghuangInstances.set(guildId, instance);
-	fenghuangStorages.set(guildId, storage);
+	const storage = new LtmStorage(resolve(dbDir, "memory.db"));
+	const instance = createLtm({ llm, storage });
+	ltmInstances.set(guildId, instance);
+	ltmStorages.set(guildId, storage);
 	return instance;
 }
 
@@ -114,7 +114,7 @@ function createServer(): McpServer {
 	registerMemoryTools(server);
 	registerScheduleTools(server);
 	registerEventBufferTools(server, { db });
-	registerLtmTools(server, { getOrCreateFenghuang });
+	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
 
 	return server;
@@ -135,11 +135,11 @@ async function shutdown() {
 	closeAllSessions();
 	stopServer();
 	discordClient.destroy();
-	for (const storage of fenghuangStorages.values()) {
+	for (const storage of ltmStorages.values()) {
 		storage.close();
 	}
-	fenghuangInstances.clear();
-	fenghuangStorages.clear();
+	ltmInstances.clear();
+	ltmStorages.clear();
 	await chatAdapter.close();
 	closeDb(db);
 	process.exit(0);

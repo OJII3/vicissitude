@@ -10,16 +10,16 @@ graph LR
   agent --> store
   application --> core
   core
-  fenghuang --> core
-  fenghuang --> ollama
   gateway --> core
   gateway --> infrastructure
   infrastructure --> application
   infrastructure --> core
   infrastructure --> store
+  ltm --> core
+  ltm --> ollama
   mcp --> core
-  mcp --> fenghuang
   mcp --> infrastructure
+  mcp --> ltm
   mcp --> ollama
   mcp --> opencode
   mcp --> store
@@ -52,12 +52,6 @@ graph LR
 - 外部依存: path, zod
 - ファイル数: 4
 
-### fenghuang/
-
-- 内部依存: core/, ollama/
-- 外部依存: fenghuang, fs, path
-- ファイル数: 4
-
 ### gateway/
 
 - 内部依存: core/, infrastructure/
@@ -70,10 +64,16 @@ graph LR
 - 外部依存: discord.js
 - ファイル数: 2
 
+### ltm/
+
+- 内部依存: core/, ollama/
+- 外部依存: bun:sqlite, fs, path
+- ファイル数: 21
+
 ### mcp/
 
-- 内部依存: core/, fenghuang/, infrastructure/, ollama/, opencode/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fenghuang, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
+- 内部依存: core/, infrastructure/, ltm/, ollama/, opencode/, store/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
 - ファイル数: 35
 
 ### observability/

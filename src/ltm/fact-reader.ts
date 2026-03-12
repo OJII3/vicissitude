@@ -1,14 +1,13 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
-import { SQLiteStorageAdapter } from "fenghuang";
-
 import type { LtmFact, LtmFactReader } from "../core/types.ts";
+import { LtmStorage } from "./ltm-storage.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 
-export class FenghuangFactReader implements LtmFactReader {
-	private readonly instances = new Map<string, SQLiteStorageAdapter>();
+export class LtmFactReaderImpl implements LtmFactReader {
+	private readonly instances = new Map<string, LtmStorage>();
 
 	constructor(private readonly dataDir: string) {}
 
@@ -39,11 +38,11 @@ export class FenghuangFactReader implements LtmFactReader {
 		return Promise.resolve();
 	}
 
-	private getOrCreate(guildId: string, dbPath: string): SQLiteStorageAdapter {
+	private getOrCreate(guildId: string, dbPath: string): LtmStorage {
 		const existing = this.instances.get(guildId);
 		if (existing) return existing;
 
-		const storage = new SQLiteStorageAdapter(dbPath);
+		const storage = new LtmStorage(dbPath);
 		this.instances.set(guildId, storage);
 		return storage;
 	}

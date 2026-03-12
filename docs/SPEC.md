@@ -54,7 +54,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `read_soul`: SOUL.md の読み取り
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
-5. **ltm**: 長期記憶（fenghuang ベース）
+5. **ltm**: 長期記憶（src/ltm/）
    - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
    - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
@@ -94,13 +94,13 @@ OpenCode が使用する MCP サーバーを提供する。
 - チャンネル設定: `channels.json`（ホームチャンネル一覧、guildId、guildName・channelName（人間用ラベル）、クールダウン設定）
 - 日次ログ: `memory/{YYYY-MM-DD}.md`
 - ファイル毎最大 20,000 文字、合計最大 150,000 文字。
-- **LTM ファクト注入**: `loadBootstrapContext()` 時に LTM（fenghuang）から蓄積済みファクト（SemanticFact）を読み取り、`<ltm-facts>` セクションとしてシステムプロンプトに注入する。これにより AI は過去の会話から抽出された意味記憶（ユーザー情報、関係性、嗜好等）を常時参照できる。
+- **LTM ファクト注入**: `loadBootstrapContext()` 時に LTM（src/ltm/）から蓄積済みファクト（SemanticFact）を読み取り、`<ltm-facts>` セクションとしてシステムプロンプトに注入する。これにより AI は過去の会話から抽出された意味記憶（ユーザー情報、関係性、嗜好等）を常時参照できる。
 
 ### 3.5 Guild 跨ぎコンテキスト分離
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全 Guild で共有。
 - 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `guilds/{guildId}/` で分離（オーバーレイ方式で `data/context/` → `context/` のフォールバック）。
-- LTM（fenghuang）も Guild ごとに `data/fenghuang/guilds/{guildId}/memory.db` で分離。
+- LTM も Guild ごとに `data/ltm/guilds/{guildId}/memory.db` で分離。
 - DM やフォールバック時はグローバルを使用。
 - MCP memory ツールでは `guild_id` パラメータで Guild 固有メモリにアクセス。
 - Guild 間で会話内容・メンバー情報・教訓が漏洩しない。

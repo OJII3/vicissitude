@@ -1,6 +1,5 @@
-import type { ChatMessage } from "fenghuang";
-
 import type { OpencodeSessionPort } from "../core/types.ts";
+import type { ChatMessage } from "./types.ts";
 
 const JSON_INSTRUCTION =
 	"IMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.";
@@ -9,8 +8,8 @@ interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** Adapter that uses OpencodeSessionPort for fenghuang chat / chatStructured */
-export class FenghuangChatAdapter {
+/** Adapter that uses OpencodeSessionPort for LTM chat / chatStructured */
+export class LtmChatAdapter {
 	constructor(
 		private readonly sessionPort: OpencodeSessionPort,
 		private readonly providerId: string,
@@ -20,7 +19,7 @@ export class FenghuangChatAdapter {
 	async chat(messages: ChatMessage[]): Promise<string> {
 		const { system, userContent } = separateMessages(messages);
 
-		const sessionId = await this.sessionPort.createSession("fenghuang-chat");
+		const sessionId = await this.sessionPort.createSession("ltm-chat");
 
 		try {
 			const result = await this.sessionPort.prompt({

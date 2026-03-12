@@ -1,40 +1,43 @@
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 
-import { ConsolidationPipeline, type LLMPort, SQLiteStorageAdapter, Segmenter } from "fenghuang";
-
 import type {
 	ConsolidationResult,
 	ConversationMessage,
 	ConversationRecorder,
 	MemoryConsolidator,
 } from "../core/types.ts";
+import { ConsolidationPipeline } from "./consolidation.ts";
+import type { Episode } from "./episode.ts";
+import type { LtmLlmPort } from "./llm-port.ts";
+import { LtmStorage } from "./ltm-storage.ts";
+import { Segmenter } from "./segmenter.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 
 export interface GuildInstance {
-	segmenter: { addMessage(userId: string, msg: unknown): Promise<void> };
+	segmenter: { addMessage(userId: string, msg: unknown): Promise<Episode[]> };
 	storage: { close(): void };
 	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }
 
-export type GuildInstanceFactory = (dbPath: string, llm: LLMPort) => GuildInstance;
+export type GuildInstanceFactory = (dbPath: string, llm: LtmLlmPort) => GuildInstance;
 
 const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
-	const storage = new SQLiteStorageAdapter(dbPath);
+	const storage = new LtmStorage(dbPath);
 	const segmenter = new Segmenter(llm, storage);
 	const consolidation = new ConsolidationPipeline(llm, storage);
 	return { segmenter, storage, consolidation };
 };
 
-export class FenghuangConversationRecorder implements ConversationRecorder, MemoryConsolidator {
+export class LtmConversationRecorder implements ConversationRecorder, MemoryConsolidator {
 	private readonly instances = new Map<string, GuildInstance>();
 	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
 	private readonly factory: GuildInstanceFactory;
 
 	constructor(
-		private readonly llm: LLMPort,
+		private readonly llm: LtmLlmPort,
 		private readonly dataDir: string,
 		factory?: GuildInstanceFactory,
 	) {

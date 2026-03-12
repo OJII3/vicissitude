@@ -17,13 +17,13 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, SKILLS）
-- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`fenghuang/guilds/{guildId}/memory.db`、`context/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`ltm/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
   - MCP SDK (`@modelcontextprotocol/sdk`)
   - Drizzle ORM (`drizzle-orm`) + `bun:sqlite`
-  - fenghuang（LTM: Episode/SemanticFact 管理）
+  - src/ltm/（LTM: Episode/SemanticFact 管理、モノレポ内蔵）
   - mineflayer + mineflayer-pathfinder（Minecraft 操作、`MC_HOST` 設定時のみ）
 
 ## 4. モジュール構成
@@ -107,11 +107,24 @@ src/
 │   ├── session-port.ts      # OpencodeSessionPort インターフェース
 │   └── session-adapter.ts   # OpencodeSessionAdapter（SDK 依存はここに集約）
 │
-├── fenghuang/               # fenghuang LTM アダプタ
+├── ltm/                     # LTM（長期記憶）— エピソード・意味記憶・FSRS・ハイブリッド検索
+│   ├── episode.ts                     # Episode 型 + createEpisode()
+│   ├── semantic-fact.ts               # SemanticFact 型 + createFact()
+│   ├── fsrs.ts                        # FSRS カード・retrievability・reviewCard
+│   ├── types.ts                       # ChatMessage, FactCategory, MessageRole 等
+│   ├── utils.ts                       # escapeXmlContent(), validateUserId()
+│   ├── segmenter.ts                   # Segmenter（会話分節化）
+│   ├── episodic.ts                    # EpisodicMemory
+│   ├── consolidation.ts              # ConsolidationPipeline（エピソード→ファクト抽出）
+│   ├── semantic-memory.ts             # SemanticMemory
+│   ├── retrieval.ts                   # Retrieval + reciprocalRankFusion（ハイブリッド検索）
+│   ├── ltm-storage.ts                 # LtmStorage（SQLite + FTS5 + ベクトル検索）
+│   ├── llm-port.ts                    # LtmLlmPort インターフェース
 │   ├── composite-llm-adapter.ts       # CompositeLLMAdapter（chat + embed の合成）
-│   ├── fenghuang-chat-adapter.ts      # FenghuangChatAdapter（OpencodeSessionPort 経由）
-│   ├── fenghuang-conversation-recorder.ts  # FenghuangConversationRecorder（会話記録 + 統合）
-│   └── fenghuang-fact-reader.ts       # FenghuangFactReader（SQLite 読み取り専用）
+│   ├── ltm-chat-adapter.ts            # LtmChatAdapter（OpencodeSessionPort 経由）
+│   ├── conversation-recorder.ts       # LtmConversationRecorder（会話記録 + 統合）
+│   ├── fact-reader.ts                 # LtmFactReaderImpl（SQLite 読み取り専用）
+│   └── index.ts                       # createLtm() + public exports
 │
 ├── ollama/                  # Ollama 埋め込みアダプタ
 │   └── ollama-embedding-adapter.ts    # OllamaEmbeddingAdapter（HTTP API）
@@ -223,12 +236,18 @@ MCP サーバーは 4 プロセス構成:
 - `session-port.ts`: `core/types.ts` の `OpencodeSessionPort` 型を re-export（後方互換用）。Port 定義の正本は `core/types.ts`
 - `session-adapter.ts`: `OpencodeSessionAdapter` — `@opencode-ai/sdk/v2` の `createOpencode` を使う唯一のファイル。遅延初期化パターンで、最初のメソッド呼び出し時にサーバープロセスを起動
 
-### 4.9 fenghuang/ — LTM アダプタ
+### 4.9 ltm/ — 長期記憶
 
-- `composite-llm-adapter.ts`: `CompositeLLMAdapter implements LLMPort` — chat を `FenghuangChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲
-- `fenghuang-chat-adapter.ts`: `FenghuangChatAdapter` — `OpencodeSessionPort` 経由で fenghuang の LLMPort 用 chat/chatStructured を提供
-- `fenghuang-conversation-recorder.ts`: `FenghuangConversationRecorder` — Guild ごとの会話記録 + メモリ統合。`ConversationRecorder` + `MemoryConsolidator` インターフェースを実装
-- `fenghuang-fact-reader.ts`: `FenghuangFactReader` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得。WAL モードで安全に同時アクセス
+旧 `fenghuang` 外部パッケージをモノレポに統合。StoragePort を廃止し SQLite（`bun:sqlite`）直接依存。
+
+- `ltm-storage.ts`: `LtmStorage` — SQLite + FTS5 テキスト検索 + コサイン類似度ベクトル検索。WAL モードで安全な同時アクセス
+- `segmenter.ts`: `Segmenter` — 会話メッセージキューを soft/hard トリガーで分節化し Episode を生成
+- `consolidation.ts`: `ConsolidationPipeline` — Episode から SemanticFact を LLM で抽出・統合
+- `retrieval.ts`: `Retrieval` — テキスト + ベクトル + FSRS の Reciprocal Rank Fusion ハイブリッド検索
+- `composite-llm-adapter.ts`: `CompositeLLMAdapter implements LtmLlmPort` — chat を `LtmChatAdapter`、embed を `OllamaEmbeddingAdapter` に委譲
+- `ltm-chat-adapter.ts`: `LtmChatAdapter` — `OpencodeSessionPort` 経由で LtmLlmPort 用 chat/chatStructured を提供
+- `conversation-recorder.ts`: `LtmConversationRecorder` — Guild ごとの会話記録 + メモリ統合。`ConversationRecorder` + `MemoryConsolidator` インターフェースを実装
+- `fact-reader.ts`: `LtmFactReaderImpl` — Guild ごとの SQLite DB から SemanticFact を読み取り専用で取得。WAL モードで安全に同時アクセス
 
 ### 4.10 ollama/ — 埋め込みアダプタ
 
@@ -241,7 +260,7 @@ MCP サーバーは 4 プロセス構成:
   - `createContextLayer()` — LtmFactReader + McStatusProvider + ContextBuilder の構築
   - `createGuildAgents()` — ギルドごとに `AgentRunner` を生成し `GuildRouter` でラップ
   - `createMetrics()` — PrometheusCollector + Server の初期化
-  - `setupLtmRecording()` — fenghuang LTM 記録の構成
+  - `setupLtmRecording()` — LTM 記録の構成
   - `startCoreMcp()` — core MCP HTTP プロセスの起動 + health check
 - LTM 記録、Heartbeat スケジューラ、Consolidation スケジューラを起動
 - core MCP と Minecraft MCP を子プロセスとして起動（Minecraft は `MC_HOST` 設定時のみ）
@@ -395,7 +414,7 @@ MCP サーバーは 4 プロセス構成:
 - `OPENCODE_PROVIDER_ID`: プロバイダ ID（デフォルト: `"github-copilot"`）
 - `OPENCODE_MODEL_ID`: モデル ID（デフォルト: `"big-pickle"`）
 
-### LTM プロバイダ設定（FenghuangChatAdapter 用）
+### LTM プロバイダ設定（LtmChatAdapter 用）
 
 - `LTM_PROVIDER_ID`: LTM 用プロバイダ ID（フォールバック: `OPENCODE_PROVIDER_ID` -> `"github-copilot"`）
 - `LTM_MODEL_ID`: LTM 用モデル ID（デフォルト: `"gpt-4o"`）
@@ -448,7 +467,7 @@ MCP サーバーは 4 プロセス構成:
 4. セッション永続化は SQLite を使用する。
 5. コンテキスト運用はオーバーレイ方式で行う: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` -> `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
-7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（fenghuang の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`ContextBuilder` は `LtmFactReader` を通じて LTM ファクトをシステムプロンプトに注入する。
+7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（src/ltm/ の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`ContextBuilder` は `LtmFactReader` を通じて LTM ファクトをシステムプロンプトに注入する。
 8. Minecraft 拡張は既存エージェント基盤の置換ではなく、MCP サーバー追加で実装する。人格は 1 つに維持し、Minecraft は内部で分業する。
 9. Minecraft 連携の意思決定はイベント駆動を目標とする。現行実装は 30 秒ポーリングをベースとしつつ、M13 で危険時即応と再計画経路を強化する。LLM への入力は要約優先でコンテキスト過負荷を防ぐ。
 
