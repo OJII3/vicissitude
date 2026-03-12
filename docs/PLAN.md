@@ -195,11 +195,65 @@ DoD:
 
 ## 5. 横断的な品質計測
 
-テスト品質はマイルストーン横断で継続観測する。
+テスト品質はマイルストーン横断で継続観測する。正本は `docs/TEST_QUALITY.md`。
 
-- 正本: `docs/TEST_QUALITY.md`
-- 初期自動化対象: 失敗率、実行時間、行/関数カバレッジ、遅いテスト上位、フレーク率
-- 後続追加対象: 重要シナリオ網羅率、本番流出率
+### 5.1 現状スナップショット（2026-03-12 計測）
+
+最新値は CI アーティファクト `artifacts/test-quality/summary.md` を参照。以下は計画策定時の基準値。
+
+| 指標 | 値 | 判定 |
+|------|-----|------|
+| テスト数 | 392 | - |
+| アサーション数 | 721 | - |
+| 失敗率 | 0.0% | 良好 |
+| 行カバレッジ | 59.5% | 改善余地あり |
+| 関数カバレッジ | 69.7% | 改善余地あり |
+| 実行時間 | 4.7s | 良好 |
+
+カバレッジが特に低いファイル（テストファイルが存在しない）:
+
+- `scheduling/consolidation-scheduler.ts` — 9.3%（タイマー制御・タイムアウト・排他実行ロジック）
+- `gateway/discord.ts` — 12.7%（discord.js 依存のため完全テストは困難だが adapter ロジックはテスト可能）
+- `fenghuang/fenghuang-conversation-recorder.ts` — 13.2%（guild 別ロック・getOrCreate）
+- `bootstrap.ts` — 14.2%（DI 配線。統合テストの範疇）
+- `observability/logger.ts` — 16.7%（JSON ログフォーマット）
+- `infrastructure/discord/attachment-mapper.ts` — 16.7%（純粋関数）
+
+### 5.2 改善方針
+
+テストの目的は「壊れた変更を検出し、原因が追いやすく、運用で回し続けられる」こと。
+カバレッジ数値を上げること自体は目標にせず、以下の優先順位で検出力を高める。
+
+**優先度 高 — テストが存在せず、ロジックが複雑なモジュール:**
+
+1. `ConsolidationScheduler` — タイマー制御、排他実行、タイムアウト、停止時の進行中タスク待ち。`HeartbeatScheduler` のテストパターンを踏襲し、fake timer で検証する。
+2. `FenghuangConversationRecorder` — guild 別直列化ロック、`getOrCreate` のインスタンス管理、`close()` 時の全ロック完了待ち。fenghuang ライブラリのモックで検証する。
+3. `ConsoleLogger` — `buildEntry` の JSON 構造化（component 抽出、Error シリアライズ、JSON.stringify 失敗フォールバック）。純粋関数なので低コスト。
+
+**優先度 中 — テストが存在せず、ロジックが比較的単純なモジュール:**
+
+4. `attachment-mapper` — 純粋な変換関数。入出力テストのみ。
+5. `DiscordGateway` — discord.js 依存の adapter 層。`isHomeMessage`、`trackEmojiUsage`、`adaptMessage` は private だがロジックを持つ。テスト方針: public API（`onMessage` + `start` で登録した handler）経由で discord.js の `Client` をモックして検証する。ロジックを export するためだけにメソッドを公開しない。
+
+**優先度 低 — 統合テストまたは将来対応:**
+
+6. `bootstrap.ts` — DI 配線の正しさは統合テストの領域。M13 でモジュール構成が変わる可能性があるため、現時点では深追いしない。
+7. 旧テスト未移植分（Guild 部分成功/失敗、`InstrumentedAiAgent`、`GuildRoutingAgent`）— 該当コードが現在使われているか確認し、使われているなら移植、不要なら STATUS.md から削除する。
+
+### 5.3 テスト品質の継続運用
+
+- `nr test:quality` の結果を PR ごとに確認する（CI で自動実行済み）
+- `nr test:quality:flake` を週次で確認する（CI スケジュール実行済み）
+- `lowest_line_coverage_files_top10` から「重要なのにテストがないモジュール」を定期的に拾い上げる
+- M13 の各マイルストーンで新規コードを書く際は、対応テストを同時に書く
+
+### 5.4 後続追加対象
+
+`TEST_QUALITY.md` §4 で定義済み。主要なもの:
+
+- `critical_scenario_coverage`（M13g で具体化）
+- `escaped_defect_rate`
+- `test_rework_cost`
 
 DoD 補足:
 
