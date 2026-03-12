@@ -1,5 +1,6 @@
 import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
+import { classifyFailure } from "./helpers.ts";
 import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 
 type PushEvent = (kind: string, description: string, importance: Importance) => void;
@@ -10,8 +11,18 @@ interface CooldownInfo {
 	until: Date;
 }
 
+export interface PositionSnapshot {
+	x: number;
+	y: number;
+	z: number;
+	at: Date;
+}
+
 interface JobManagerOptions {
 	cooldownMs?: number;
+	stuckFailureThreshold?: number;
+	stuckPositionThreshold?: number;
+	stuckTimeMsThreshold?: number;
 }
 
 type CancellationReason = "manual" | "superseded";
@@ -24,47 +35,10 @@ export type JobExecutor = (
 const MAX_RECENT_JOBS = 20;
 const DEFAULT_COOLDOWN_MS = 60_000;
 const FAILURE_STREAK_FOR_COOLDOWN = 2;
-
-function classifyFailure(error?: string): string {
-	if (!error) return "unknown failure";
-	const normalized = error.toLowerCase();
-	if (
-		normalized.includes("材料") ||
-		normalized.includes("recipe") ||
-		normalized.includes("レシピ") ||
-		normalized.includes("食料") ||
-		normalized.includes("作業台")
-	) {
-		return "resource shortage";
-	}
-	if (
-		normalized.includes("path") ||
-		normalized.includes("到達") ||
-		normalized.includes("goal") ||
-		normalized.includes("パス")
-	) {
-		return "pathfinding failure";
-	}
-	if (
-		normalized.includes("見つかりません") ||
-		normalized.includes("ベッド") ||
-		normalized.includes("プレイヤー") ||
-		normalized.includes("エンティティ") ||
-		normalized.includes("ブロック") ||
-		normalized.includes("なくな") ||
-		normalized.includes("離脱")
-	) {
-		return "target missing";
-	}
-	if (
-		normalized.includes("disconnect") ||
-		normalized.includes("接続") ||
-		normalized.includes("kicked")
-	) {
-		return "connection failure";
-	}
-	return "survival failure";
-}
+const DEFAULT_STUCK_FAILURE_THRESHOLD = 4;
+const DEFAULT_STUCK_POSITION_THRESHOLD = 3;
+const DEFAULT_STUCK_TIME_MS_THRESHOLD = 300_000;
+const MAX_POSITION_SNAPSHOTS = 5;
 
 export class JobManager {
 	private currentJob: {
@@ -79,6 +53,11 @@ export class JobManager {
 	private readonly setActionState: SetActionState;
 	private readonly metrics?: MetricsCollector;
 	private readonly cooldownMs: number;
+	private readonly stuckFailureThreshold: number;
+	private readonly stuckPositionThreshold: number;
+	private readonly stuckTimeMsThreshold: number;
+	private positionSnapshots: PositionSnapshot[] = [];
+	private stuckNotified = false;
 
 	constructor(
 		pushEvent: PushEvent,
@@ -90,6 +69,10 @@ export class JobManager {
 		this.setActionState = setActionState;
 		this.metrics = metrics;
 		this.cooldownMs = options?.cooldownMs ?? DEFAULT_COOLDOWN_MS;
+		this.stuckFailureThreshold = options?.stuckFailureThreshold ?? DEFAULT_STUCK_FAILURE_THRESHOLD;
+		this.stuckPositionThreshold =
+			options?.stuckPositionThreshold ?? DEFAULT_STUCK_POSITION_THRESHOLD;
+		this.stuckTimeMsThreshold = options?.stuckTimeMsThreshold ?? DEFAULT_STUCK_TIME_MS_THRESHOLD;
 	}
 
 	private generateJobId(): string {
@@ -205,9 +188,22 @@ export class JobManager {
 		this.metrics?.incrementCounter(METRIC.MC_JOBS, { type: info.type, status });
 		this.updateCooldownState(info.type, status);
 
+		if (status === "completed") {
+			this.stuckNotified = false;
+		}
+
 		const description = this.formatFinishDescription(info);
 		const importance: Importance = status === "cancelled" ? "low" : "medium";
 		this.pushEvent("job", description, importance);
+
+		if (status === "failed" && !this.stuckNotified) {
+			const result = this.isStuck();
+			if (result.stuck) {
+				this.stuckNotified = true;
+				this.metrics?.incrementCounter(METRIC.MC_STUCK, {});
+				this.pushEvent("stuck", result.reason ?? "", "high");
+			}
+		}
 	}
 
 	private updateCooldownState(type: Exclude<ActionState["type"], "idle">, status: JobStatus): void {
@@ -246,5 +242,58 @@ export class JobManager {
 			default:
 				return `ジョブ終了: ${info.type} → ${info.target}`;
 		}
+	}
+
+	/** 位置スナップショットを記録する（リングバッファ） */
+	recordPositionSnapshot(pos: { x: number; y: number; z: number }): void {
+		this.positionSnapshots.push({ x: pos.x, y: pos.y, z: pos.z, at: new Date() });
+		if (this.positionSnapshots.length > MAX_POSITION_SNAPSHOTS) {
+			this.positionSnapshots.shift();
+		}
+	}
+
+	/** stuck 状態かどうかを判定する */
+	isStuck(): { stuck: boolean; reason?: string } {
+		const now = Date.now();
+
+		// C: 時間条件 — 最後の成功ジョブから stuckTimeMsThreshold 以上経過
+		const lastSuccess = this.recentJobs.findLast((j) => j.status === "completed");
+		const lastSuccessAt = lastSuccess?.finishedAt?.getTime() ?? 0;
+		const timeSinceSuccess = now - lastSuccessAt;
+		if (timeSinceSuccess < this.stuckTimeMsThreshold) {
+			return { stuck: false };
+		}
+
+		// A: 連続失敗 — 直近 N 件のジョブがすべて failed
+		const recentN = this.recentJobs.slice(-this.stuckFailureThreshold);
+		const allFailed =
+			recentN.length >= this.stuckFailureThreshold && recentN.every((j) => j.status === "failed");
+		if (allFailed) {
+			return {
+				stuck: true,
+				reason: `直近 ${String(this.stuckFailureThreshold)} 件のジョブがすべて失敗。最後の成功から ${String(Math.round(timeSinceSuccess / 60_000))} 分経過`,
+			};
+		}
+
+		// B: 位置停滞 — 過去 3 回のスナップショットで移動距離 < stuckPositionThreshold、かつ idle
+		const isIdle = this.currentJob === null;
+		if (isIdle && this.positionSnapshots.length >= 3) {
+			const snapshots = this.positionSnapshots.slice(-3);
+			const first = snapshots.at(0);
+			const last = snapshots.at(-1);
+			if (!first || !last) return { stuck: false };
+			const dx = last.x - first.x;
+			const dy = last.y - first.y;
+			const dz = last.z - first.z;
+			const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
+			if (distance < this.stuckPositionThreshold) {
+				return {
+					stuck: true,
+					reason: `位置停滞: 移動距離 ${String(Math.round(distance * 10) / 10)} ブロック（閾値 ${String(this.stuckPositionThreshold)}）。最後の成功から ${String(Math.round(timeSinceSuccess / 60_000))} 分経過`,
+				};
+			}
+		}
+
+		return { stuck: false };
 	}
 }

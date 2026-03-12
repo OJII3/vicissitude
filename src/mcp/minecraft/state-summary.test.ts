@@ -112,6 +112,19 @@ describe("summarizeState", () => {
 		expect(result).toContain("[18:05] Bot died");
 	});
 
+	test("stuckWarning 設定時にスタック警告セクションが出力される", () => {
+		const result = summarizeState(
+			makeState({ stuckWarning: "直近 4 件のジョブがすべて失敗。最後の成功から 10 分経過" }),
+		);
+		expect(result).toContain("## スタック警告");
+		expect(result).toContain("直近 4 件のジョブがすべて失敗");
+	});
+
+	test("stuckWarning 未設定時はスタック警告セクションが省略される", () => {
+		const result = summarizeState(makeState());
+		expect(result).not.toContain("## スタック警告");
+	});
+
 	test("重要イベントがない場合はセクションを省略", () => {
 		const result = summarizeState(
 			makeState({
