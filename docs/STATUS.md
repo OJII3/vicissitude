@@ -16,7 +16,8 @@
 - M13c 実行安全性ルールを整理。危険時プリエンプション、ジョブ再試行制限、失敗分類、Discord 通知条件をドキュメント化。
 - M13c 実装を開始。Minecraft MCP 側の高優先度イベントでメイン brain を早期 wake するファイル通知経路、ジョブ失敗クールダウン、`get_job_status` へのクールダウン表示を追加。
 - `nr validate` 通過。`bun test` は 392 テスト pass。
-- テスト品質評価の土台として `docs/TEST_QUALITY.md` を追加し、`nr test:quality` で JUnit + LCOV からサマリを生成できるようにした。最新計測（2026-03-12）: 392 テスト / 721 アサーション / 行カバレッジ 59.5% / 関数カバレッジ 69.7% / 実行時間 4.7s。
+- テスト品質評価の土台として `docs/TEST_QUALITY.md` を追加し、`nr test:quality` で JUnit + LCOV からサマリを生成できるようにした。
+  - 最新計測値は CI アーティファクトまたは `PLAN.md` §5.1 を参照。
 - `nr test:quality:flake` を追加し、`bun test --rerun-each` ベースで flake rate を集計できるようにした。
 - `monitoring/grafana-dashboard.json` に Test Quality セクションを追加し、`component="test-quality"` の Loki JSON ログで failure rate / coverage / flake rate / duration を可視化できるようにした。
 - `actions/survival/` へ責務分割し、`survival.ts` の max-lines 問題を解消した。

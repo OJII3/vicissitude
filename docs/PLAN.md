@@ -199,10 +199,12 @@ DoD:
 
 ### 5.1 現状スナップショット（2026-03-12 計測）
 
+最新値は CI アーティファクト `artifacts/test-quality/summary.md` を参照。以下は計画策定時の基準値。
+
 | 指標 | 値 | 判定 |
 |------|-----|------|
 | テスト数 | 392 | - |
-| アサーション数 | 721（テストあたり 1.84） | 低め |
+| アサーション数 | 721 | - |
 | 失敗率 | 0.0% | 良好 |
 | 行カバレッジ | 59.5% | 改善余地あり |
 | 関数カバレッジ | 69.7% | 改善余地あり |
@@ -231,7 +233,7 @@ DoD:
 **優先度 中 — テストが存在せず、ロジックが比較的単純なモジュール:**
 
 4. `attachment-mapper` — 純粋な変換関数。入出力テストのみ。
-5. `DiscordGateway` — discord.js 依存の adapter 層。`adaptMessage`、`adaptChannel`、`isHomeMessage`、`trackEmojiUsage` は内部メソッドだがロジックを持つ。テスト可能な部分のみ抽出して検証する。
+5. `DiscordGateway` — discord.js 依存の adapter 層。`isHomeMessage`、`trackEmojiUsage`、`adaptMessage` は private だがロジックを持つ。テスト方針: public API（`onMessage` + `start` で登録した handler）経由で discord.js の `Client` をモックして検証する。ロジックを export するためだけにメソッドを公開しない。
 
 **優先度 低 — 統合テストまたは将来対応:**
 
@@ -247,9 +249,11 @@ DoD:
 
 ### 5.4 後続追加対象
 
-- `critical_scenario_coverage`: 主要シナリオ一覧と対応テストの紐付け（M13g で具体化）
-- `escaped_defect_rate`: バグ修正 PR ごとに事前テストで検出済みか記録
-- `test_rework_cost`: 機能変更 PR でテスト側 diff 量と壊れ方を観察
+`TEST_QUALITY.md` §4 で定義済み。主要なもの:
+
+- `critical_scenario_coverage`（M13g で具体化）
+- `escaped_defect_rate`
+- `test_rework_cost`
 
 DoD 補足:
 
