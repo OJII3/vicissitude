@@ -157,7 +157,7 @@ export class AgentRunner implements AiAgent {
 
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
-		if (this.hasStartedSession) {
+		if (this.hasStartedSession && this.profile.restartPolicy === "immediate") {
 			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting long-lived session`);
 			await this.startLongLivedSession();
 			return;

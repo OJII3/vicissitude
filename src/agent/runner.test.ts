@@ -20,12 +20,13 @@ function deferred<T>() {
 	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
 }
 
-function createProfile(): AgentProfile {
+function createProfile(restartPolicy: AgentProfile["restartPolicy"] = "immediate"): AgentProfile {
 	return {
 		name: "conversation",
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
+		restartPolicy,
 		model: { providerId: "test-provider", modelId: "test-model" },
 	};
 }
@@ -170,6 +171,57 @@ describe("AgentRunner", () => {
 
 		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
 		expect(eventBuffer.waitForEvents).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+		await loop;
+	});
+
+	test("wait_for_events ポリシーでは idle 後に再度 EventBuffer を待ってから再起動する", async () => {
+		const firstEvent = deferred<void>();
+		const secondEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let waitCount = 0;
+		const eventBuffer = createEventBuffer(() => {
+			waitCount += 1;
+			return waitCount === 1 ? firstEvent.promise : secondEvent.promise;
+		});
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+		const runner = new AgentRunner({
+			profile: createProfile("wait_for_events"),
+			guildId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		const loop = runner.startPollingLoop();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+		expect(eventBuffer.waitForEvents).toHaveBeenCalledTimes(1);
+
+		firstSessionDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+		expect(eventBuffer.waitForEvents).toHaveBeenCalledTimes(2);
+
+		secondEvent.resolve();
+		await Bun.sleep(0);
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });

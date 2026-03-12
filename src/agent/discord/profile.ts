@@ -39,6 +39,7 @@ export function createConversationProfile(options: {
 			websearch: true,
 		},
 		pollingPrompt: POLLING_PROMPT,
+		restartPolicy: "immediate",
 		model: { providerId: options.providerId, modelId: options.modelId },
 	};
 }
