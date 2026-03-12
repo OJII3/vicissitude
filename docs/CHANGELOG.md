@@ -24,6 +24,13 @@
 
 ## 主要タスク完了記録
 
+- **テスト品質基盤構築と未テストモジュール解消**（PR #124–#128）:
+  - `docs/TEST_QUALITY.md` でテスト品質の評価軸と自動集計指標を定義（PR #126）
+  - CI に Test Quality ワークフローを追加（PR ごと + main push + 週次 flake 検出）。GitHub Actions のハッシュピン留め適用（PR #124, #125）
+  - `PLAN.md` §5.2 で特定した優先度 高/中の未テストモジュール 4 件にユニットテスト 27 件追加（PR #127）: `ConsolidationScheduler`、`FenghuangConversationRecorder`、`ConsoleLogger`、`attachment-mapper`
+  - `mock.module("fenghuang")` によるプロセス全体のモジュールキャッシュ汚染を修正。`FenghuangConversationRecorder` にコンストラクタインジェクション（`GuildInstanceFactory`）を導入し `mock.module` を除去（PR #128）
+  - テスト数 392 → 419、行カバレッジ 59.5% → 62.7%、関数カバレッジ 69.7% → 72.9%
+
 - **アーキテクチャリファクタリング（5 Phase）**（ブランチ: feat/opencode-session-port-adapter）:
   - Phase 1: Port 統一 & SDK 依存除去
   - Phase 2: core-server HTTP 化（stdio → StreamableHTTP）
