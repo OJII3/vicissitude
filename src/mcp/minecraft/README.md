@@ -1,183 +1,121 @@
-# Minecraft MCP サーバー + Minecraft エージェント計画
+# Minecraft MCP サーバー
+
+`src/mcp/minecraft/` は mineflayer ベースの独立プロセスとして動作し、StreamableHTTP で Minecraft 操作用 MCP ツールを公開する。
+現行実装の正本はコード本体と [`docs/SPEC.md`](/home/ojii3/src/github.com/ojii3/vicissitude/docs/SPEC.md)、[`docs/ARCHITECTURE.md`](/home/ojii3/src/github.com/ojii3/vicissitude/docs/ARCHITECTURE.md)、[`docs/RUNBOOK.md`](/home/ojii3/src/github.com/ojii3/vicissitude/docs/RUNBOOK.md) であり、この README はその要約である。
 
 ## 現在の構成
 
-Minecraft MCP サーバーは mineflayer ベースの独立プロセスとして動作し、StreamableHTTP で MCP ツールを提供する。
-
 ### ファイル構成
 
-```
+```text
 src/mcp/minecraft/
-├── server.ts              # エントリポイント（HTTP MCP サーバー起動 + mineflayer 接続）
-├── http-server.ts         # StreamableHTTP トランスポート
-├── mcp-tools.ts           # MCP ツール登録（observe/action 統合）
+├── server.ts              # エントリポイント。接続、MCP、metrics、wake notifier を起動
+├── http-server.ts         # 共通 StreamableHTTP サーバーの re-export
+├── mcp-tools.ts           # observe/action ツール登録 + ツール呼び出しメトリクス
 ├── bot-connection.ts      # mineflayer 接続管理
-├── bot-context.ts         # BotContext（イベントバッファ + アクションステート）
-├── bot-queries.ts         # ボット状態クエリ（インベントリ、周辺、天気等）
-├── state-summary.ts       # 状態要約テキスト生成
-├── job-manager.ts         # バックグラウンドジョブ管理
-├── helpers.ts             # 共通ヘルパー（フォーマッタ、型定義）
+├── bot-context.ts         # BotContext（接続状態、イベントバッファ、行動状態）
+├── bot-queries.ts         # 状態観測ヘルパー
+├── state-summary.ts       # 観測結果・イベント・ジョブ状態の自然言語整形
+├── job-manager.ts         # 非同期ジョブ管理、失敗分類、再試行クールダウン
+├── brain-wake.ts          # 緊急イベント時の Minecraft brain wake file 通知
+├── mc-metrics.ts          # MC 専用の軽量 Prometheus エクスポータ
+├── helpers.ts             # 共有型・表示ヘルパー
 └── actions/
     ├── movement.ts        # follow_player, go_to, collect_block, stop
     ├── interaction.ts     # send_chat, equip_item, place_block
-    ├── jobs.ts            # craft_item, sleep_in_bed（ジョブ登録）
+    ├── jobs.ts            # craft_item, sleep_in_bed
+    ├── combat.ts          # attack_entity
     ├── survival/
-    │   ├── food.ts        # eat_food + 食料優先度判定
+    │   ├── food.ts        # eat_food
     │   ├── escape.ts      # flee_from_entity
-    │   ├── shelter.ts     # find_shelter + 緊急シェルター構築
-    │   └── index.ts       # サバイバル系ツールの集約
-    └── shared.ts          # 共通ヘルパー（collectBedIds, ensureMovements 等）
+    │   ├── shelter.ts     # find_shelter
+    │   └── index.ts       # survival 系ツール登録
+    └── shared.ts          # 共通ヘルパー
 ```
 
 ### 提供ツール
 
-| ツール              | 種別 | 説明                                      |
-| ------------------- | ---- | ----------------------------------------- |
-| `observe_state`     | 観察 | 現在状態の自然言語要約                    |
-| `get_recent_events` | 観察 | 直近イベント取得（importance フィルタ可） |
-| `get_job_status`    | 観察 | 現在・履歴ジョブ                          |
-| `get_viewer_url`    | 観察 | prismarine-viewer URL                     |
-| `follow_player`     | 行動 | プレイヤー追従                            |
-| `go_to`             | 行動 | 座標移動                                  |
-| `collect_block`     | 行動 | ブロック採集                              |
-| `stop`              | 行動 | 移動/追従停止                             |
-| `craft_item`        | 行動 | クラフト（ジョブ）                        |
-| `sleep_in_bed`      | 行動 | 就寝試行（ジョブ）                        |
-| `equip_item`        | 行動 | アイテム装備                              |
-| `place_block`       | 行動 | ブロック設置                              |
-| `send_chat`         | 行動 | ゲーム内チャット送信                      |
-| `eat_food`          | 行動 | インベントリから食料を選んで食べる        |
-| `flee_from_entity`  | 行動 | 指定エンティティから逃走（非同期ジョブ）  |
-| `find_shelter`      | 行動 | 安全な避難場所を探して移動                |
+| ツール | 種別 | 説明 |
+| --- | --- | --- |
+| `observe_state` | 観察 | 現在状態の自然言語要約 |
+| `get_recent_events` | 観察 | 直近イベント取得。`importance` でフィルタ可能 |
+| `get_job_status` | 観察 | 実行中ジョブ、履歴、クールダウン状態を取得 |
+| `get_viewer_url` | 観察 | prismarine-viewer の URL を返す |
+| `follow_player` | 行動 | プレイヤー追従 |
+| `go_to` | 行動 | 座標移動 |
+| `collect_block` | 行動 | ブロック採集 |
+| `stop` | 行動 | 現在の移動・追従・ジョブを停止 |
+| `craft_item` | 行動 | クラフトジョブを開始 |
+| `sleep_in_bed` | 行動 | 就寝ジョブを開始 |
+| `equip_item` | 行動 | アイテム装備 |
+| `place_block` | 行動 | ブロック設置 |
+| `send_chat` | 行動 | ゲーム内チャット送信 |
+| `eat_food` | 行動 | 手持ち食料から選んで食べる |
+| `flee_from_entity` | 行動 | 指定エンティティから逃走 |
+| `find_shelter` | 行動 | 近場の避難場所探索と退避 |
+| `attack_entity` | 行動 | 指定エンティティを攻撃 |
 
-### 環境変数
+## 実装上の挙動
 
-- `MC_HOST`: Minecraft サーバーホスト（必須）
-- `MC_PORT`: ポート（デフォルト: `25565`）
-- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）
-- `MC_VERSION`: バージョン指定（省略可）
-- `MC_MCP_PORT`: MCP HTTP ポート（デフォルト: `3001`）
+### 状態とイベント
 
-### 設計上の特徴
+- `BotContext` は mineflayer の bot インスタンス、現在行動、直近イベント最大 100 件を保持する。
+- `observe_state` は生の mineflayer オブジェクトを返さず、位置・体力・空腹・周辺エンティティ・装備・インベントリ・最近のイベントを自然言語要約へ変換して返す。
+- `get_recent_events` は `low` / `medium` / `high` / `critical` の重要度で絞り込める。
 
-- **イベントバッファ**: BotContext 内に最大 100 件のイベントを保持（importance: low/medium/high）
-- **ジョブシステム**: 長時間アクション（クラフト、睡眠等）を非同期ジョブとして管理。1 つだけ同時実行、新規開始時に既存を自動キャンセル
-- **状態要約**: 生データを LLM に渡さず、summarizeState() で自然言語に変換してからツール応答に使用
+### ジョブ管理
 
----
+- 長めのアクションは `JobManager` で非同期ジョブとして管理する。
+- 同時実行できるジョブは 1 件のみ。新規ジョブ開始時は既存ジョブを `superseded` 扱いでキャンセルする。
+- 同じ種類のジョブが 2 回連続で失敗した場合、その種類は既定 60 秒クールダウンされる。
+- 失敗理由は `resource shortage` / `pathfinding failure` / `target missing` / `connection failure` / `survival failure` に分類して履歴へ残す。
+- `get_job_status` は現在ジョブに加えて履歴とクールダウン中のジョブ種別を返す。
 
-## Minecraft エージェント計画（M12）
+### 緊急 wake 通知
 
-### 動機
+- `MC_BRAIN_WAKE_FILE` が設定されている場合、重要イベント時に wake file を更新して Minecraft brain 側のポーリングを早める。
+- 現在 wake 対象になるのは次の条件:
+  - `importance` が `high` または `critical`
+  - `damage`
+  - `health` かつ `importance=medium`
+  - `ジョブ失敗:` で始まる `job` イベント
 
-現状は Discord 側（会話エージェント）が Minecraft ツールを直接使うが、以下の問題がある:
+### 観測性
 
-1. **リソース競合** — Minecraft 常時監視が Discord 側の応答を圧迫する
-2. **反応性の欠如** — ポーリング間隔に依存し、敵接近等の即時対応が困難
-3. **記憶の断裂** — Guild ごとの記憶分離により、Minecraft 世界の連続性が失われる
-4. **自律感の不足** — ユーザーが話しかけないと何もしない
+- MC MCP プロセスは独立した Prometheus エンドポイントを持つ。
+- 現在のカウンタ:
+  - `mc_jobs_total`
+  - `mc_bot_events_total`
+  - `mc_mcp_tool_calls_total`
+- HTTP エンドポイント:
+  - `/metrics`
+  - `/health`
 
-### アーキテクチャ
+## 環境変数
 
-```
-┌─────────────────────────────┐
-│       Discord Agent          │
-│    (conversation agent)     │
-│                             │
-│  minecraft_delegate()       │
-│  minecraft_status()         │
-│  minecraft_read_reports()   │
-└──────────┬──────────────────┘
-           │ Event Bridge (SQLite)
-           │ mc_bridge_events テーブル
-┌──────────▼──────────────────┐
-│    Minecraft Agent          │
-│    (minecraft agent profile)│
-│                             │
-│  独自 AgentRunner           │
-│  独自ポーリングループ         │
-│  Minecraft グローバル記憶    │
-│                             │
-│  ┌────────┐ ┌─────┐ ┌────┐ │
-│  │Reactive│ │Goal │ │Skill│ │
-│  │Layer   │ │Plan │ │Mem │ │
-│  └────────┘ └─────┘ └────┘ │
-└──────────┬──────────────────┘
-           │ MCP (remote)
-┌──────────▼──────────────────┐
-│   Minecraft MCP Server      │
-│   (このディレクトリ)         │
-└─────────────────────────────┘
-```
+| 変数 | 必須 | 既定値 | 説明 |
+| --- | --- | --- | --- |
+| `MC_HOST` | yes | - | Minecraft サーバーホスト |
+| `MC_PORT` | no | `25565` | Minecraft サーバーポート |
+| `MC_USERNAME` | no | `hua` | bot ユーザー名 |
+| `MC_VERSION` | no | 自動 | mineflayer 接続バージョン |
+| `MC_MCP_PORT` | no | `3001` | MCP HTTP ポート |
+| `MC_VIEWER_PORT` | no | `3007` | prismarine-viewer ポート |
+| `MC_METRICS_PORT` | no | `9092` | Prometheus metrics ポート |
+| `MC_METRICS_HOST` | no | `0.0.0.0` | metrics bind host |
+| `MC_BRAIN_WAKE_FILE` | no | - | 緊急時に更新する wake file のパス |
 
-### Minecraft エージェントの責務
+## システム内での役割
 
-#### Reactive Layer — 生存本能
+- このプロセス自体は低レベル Minecraft 操作を提供する MCP サーバーであり、意思決定はしない。
+- 意思決定は別の Minecraft AgentRunner が担当し、SQLite ベースの bridge と `mc-bridge` MCP を介して Discord 側と連携する。
+- 2026-03-12 時点の全体方針は、単一 Minecraft エージェントを将来的に `Observer` / `Planner` / `Executor` / `Critic` / `Social` へ責務分割できる形へ進めることにある。
+- 現段階では常駐 subagent は未導入で、このディレクトリはその下位の実行基盤として維持されている。
 
-- 敵 mob 接近時の回避行動
-- 夜間の自動就寝
-- 体力・空腹が低い時の対応（食事、退避）
-- 危険イベントの Discord 側への即時報告
+## 関連ファイル
 
-#### Goal Planner — 自動カリキュラム
-
-- 現在の装備・進捗から次の達成目標を自動発見（tech tree ベース）
-- 目標に向けたサブゴール分解と段階的実行
-- 達成時の記録と Discord 側への報告
-
-#### Skill Memory — 学習記録
-
-- 成功した行動パターンの自然言語記録
-- 例: 「鉄鉱石は Y=16 以下で多い」「クリーパーは距離を取る」
-- 記録はファイルベース（`data/context/minecraft/MINECRAFT-SKILLS.md`）
-
-### Discord 側との通信
-
-Event Bridge（`store/mc-bridge.ts`）を介した非同期メッセージング:
-
-| 方向         | ツール                           | 用途                               |
-| ------------ | -------------------------------- | ---------------------------------- |
-| Discord → MC | `minecraft_delegate(command)`    | 高レベル指示（「ダイヤ探して」等） |
-| Discord → MC | `minecraft_start_session()`      | Minecraft エージェント起動         |
-| Discord → MC | `minecraft_stop_session()`       | Minecraft エージェント停止         |
-| MC → Discord | `mc_report(message, importance)` | 状況報告（発見、達成、危険等）     |
-| Discord ← MC | `minecraft_status()`             | 現在状態の要約取得                 |
-| Discord ← MC | `minecraft_read_reports()`       | 未読レポート取得                   |
-
-### Minecraft グローバル記憶
-
-Guild に依存しない、Minecraft 専用の記憶空間:
-
-```
-context/minecraft/              # git 管理（ベース）
-├── MINECRAFT-IDENTITY.md       # Minecraft エージェントの行動指針
-├── MINECRAFT-KNOWLEDGE.md      # Minecraft 基礎知識
-├── MINECRAFT-GOALS.md          # 目標管理テンプレート
-└── MINECRAFT-SKILLS.md         # スキルライブラリテンプレート
-
-data/context/minecraft/          # オーバーレイ（ランタイム書き込み先）
-├── MINECRAFT-GOALS.md           # 目標管理（現在・達成済み）
-└── MINECRAFT-SKILLS.md          # 学習済みスキル・知識
-```
-
-### 実装フェーズ
-
-| フェーズ | 概要                                               | 依存 |
-| -------- | -------------------------------------------------- | ---- |
-| **M12a** | 基盤: AgentProfile + Event Bridge + グローバル記憶 | なし |
-| **M12b** | リアクティブ行動: 生存本能（逃走、就寝、食事）     | M12a |
-| **M12c** | 目標管理: 自動カリキュラム + スキル記録            | M12a |
-| **M12d** | Discord 側統合: delegate、状態注入、Discord 共有   | M12c |
-
-M12b と M12c は並行着手可能。
-
-### このディレクトリへの影響
-
-Minecraft エージェントは既存の MCP ツールをリモートクライアントとして利用する。M12b で `actions/survival/`（`eat_food`, `flee_from_entity`, `find_shelter` の責務別分割）と `actions/shared.ts`（共通ヘルパー）を既存の `actions/` パターンに従って追加した。
-
-### 先行研究
-
-- [Voyager](https://voyager.minedojo.org/) — スキルライブラリ、自動カリキュラム、自己検証
-- [GITM (Ghost in the Minecraft)](https://openreview.net/pdf?id=cTOL99p5HL) — 階層的プランニング、テキストベース記憶
-- [Project Sid (PIANO)](https://arxiv.org/html/2411.00114v1) — マルチエージェント並行処理
-- [Mindcraft](https://github.com/mindcraft-bots/mindcraft) — 認知機能ごとの LLM モジュール分離
+- [`src/agent/minecraft/brain-manager.ts`](/home/ojii3/src/github.com/ojii3/vicissitude/src/agent/minecraft/brain-manager.ts)
+- [`src/mcp/minecraft/server.ts`](/home/ojii3/src/github.com/ojii3/vicissitude/src/mcp/minecraft/server.ts)
+- [`src/mcp/minecraft/mcp-tools.ts`](/home/ojii3/src/github.com/ojii3/vicissitude/src/mcp/minecraft/mcp-tools.ts)
+- [`src/mcp/minecraft/job-manager.ts`](/home/ojii3/src/github.com/ojii3/vicissitude/src/mcp/minecraft/job-manager.ts)
+- [`src/mcp/minecraft/brain-wake.ts`](/home/ojii3/src/github.com/ojii3/vicissitude/src/mcp/minecraft/brain-wake.ts)
