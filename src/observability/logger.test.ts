@@ -1,3 +1,4 @@
+/* oxlint-disable no-non-null-assertion -- test assertions */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { ConsoleLogger } from "./logger.ts";
@@ -39,7 +40,7 @@ describe("ConsoleLogger", () => {
 		logger.info("hello");
 
 		expect(stdoutCapture.calls).toHaveLength(1);
-		const entry = JSON.parse(stdoutCapture.calls[0]);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe("info");
 		expect(entry.message).toBe("hello");
 		expect(entry.timestamp).toBeDefined();
@@ -51,7 +52,7 @@ describe("ConsoleLogger", () => {
 		logger.error("oops");
 
 		expect(stderrCapture.calls).toHaveLength(1);
-		const entry = JSON.parse(stderrCapture.calls[0]);
+		const entry = JSON.parse(stderrCapture.calls[0]!);
 		expect(entry.level).toBe("error");
 		expect(entry.message).toBe("oops");
 	});
@@ -62,7 +63,7 @@ describe("ConsoleLogger", () => {
 		logger.warn("caution");
 
 		expect(stderrCapture.calls).toHaveLength(1);
-		const entry = JSON.parse(stderrCapture.calls[0]);
+		const entry = JSON.parse(stderrCapture.calls[0]!);
 		expect(entry.level).toBe("warn");
 		expect(entry.message).toBe("caution");
 	});
@@ -72,7 +73,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.info("[scheduler] tick done");
 
-		const entry = JSON.parse(stdoutCapture.calls[0]);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.component).toBe("scheduler");
 		expect(entry.message).toBe("tick done");
 	});
@@ -82,7 +83,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.info("plain message");
 
-		const entry = JSON.parse(stdoutCapture.calls[0]);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.component).toBeUndefined();
 		expect(entry.message).toBe("plain message");
 	});
@@ -93,7 +94,7 @@ describe("ConsoleLogger", () => {
 		const err = new Error("fail");
 		logger.error("something broke", err);
 
-		const entry = JSON.parse(stderrCapture.calls[0]);
+		const entry = JSON.parse(stderrCapture.calls[0]!);
 		expect(entry.extra).toEqual({
 			name: "Error",
 			message: "fail",
@@ -106,7 +107,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.info("multi", "a", 42);
 
-		const entry = JSON.parse(stdoutCapture.calls[0]);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.extra).toEqual(["a", 42]);
 	});
 
@@ -117,7 +118,7 @@ describe("ConsoleLogger", () => {
 		circular.self = circular;
 		logger.info("msg", circular);
 
-		const entry = JSON.parse(stdoutCapture.calls[0]);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe("info");
 		expect(entry.error).toBe("Failed to serialize log entry");
 	});

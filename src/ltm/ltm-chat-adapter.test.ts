@@ -1,12 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
-import type { ChatMessage } from "fenghuang";
-
-import {
-	appendJsonInstruction,
-	cleanJsonResponse,
-	separateMessages,
-} from "./fenghuang-chat-adapter.ts";
+import { appendJsonInstruction, cleanJsonResponse, separateMessages } from "./ltm-chat-adapter.ts";
+import type { ChatMessage } from "./types.ts";
 
 describe("separateMessages", () => {
 	it("should separate system messages from non-system messages", () => {

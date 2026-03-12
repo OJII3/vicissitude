@@ -1,25 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { Database } from "bun:sqlite";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
 
-import type { FactCategory } from "fenghuang";
-
-import { FenghuangFactReader } from "./fenghuang-fact-reader.ts";
+import { LtmFactReaderImpl } from "./fact-reader.ts";
+import type { FactCategory } from "./types.ts";
 
 const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";
 
-/**
- * Insert a fact row directly via bun:sqlite to avoid depending on
- * fenghuang's SQLiteStorageAdapter for test-data setup (CI compat).
- */
-function insertFact(
-	db: Database,
-	userId: string,
-	category: FactCategory,
-	fact: string,
-): void {
+function insertFact(db: Database, userId: string, category: FactCategory, fact: string): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
 		keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
@@ -50,7 +40,7 @@ afterEach(() => {
 	rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 
-describe("FenghuangFactReader", () => {
+describe("LtmFactReaderImpl", () => {
 	it("指定 guildId のファクトを返す", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
 		const db = new Database(dbPath);
@@ -58,7 +48,7 @@ describe("FenghuangFactReader", () => {
 		insertFact(db, GUILD_ID, "interest", "TypeScript が得意");
 		db.close();
 
-		const reader = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR);
 		const facts = await reader.getFacts(GUILD_ID);
 
 		expect(facts).toHaveLength(2);
@@ -72,7 +62,7 @@ describe("FenghuangFactReader", () => {
 	});
 
 	it("DB が存在しないギルドでは空配列を返す", async () => {
-		const reader = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR);
 		const facts = await reader.getFacts("999999");
 
 		expect(facts).toEqual([]);
@@ -80,7 +70,7 @@ describe("FenghuangFactReader", () => {
 	});
 
 	it("guildId なしでは空配列を返す", async () => {
-		const reader = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR);
 		const facts = await reader.getFacts();
 
 		expect(facts).toEqual([]);
@@ -93,19 +83,18 @@ describe("FenghuangFactReader", () => {
 		insertFact(db, GUILD_ID, "identity", "テスト");
 		db.close();
 
-		const reader = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR);
 		await reader.getFacts(GUILD_ID);
 		await reader.close();
 
-		// close 後に新しいインスタンスが問題なく開けることを確認
-		const reader2 = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader2 = new LtmFactReaderImpl(TEST_DATA_DIR);
 		const facts = await reader2.getFacts(GUILD_ID);
 		expect(facts).toHaveLength(1);
 		await reader2.close();
 	});
 
 	it("不正な guildId で例外をスローする", async () => {
-		const reader = new FenghuangFactReader(TEST_DATA_DIR);
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR);
 
 		expect(reader.getFacts("../malicious")).rejects.toThrow("Invalid guildId");
 		await reader.close();

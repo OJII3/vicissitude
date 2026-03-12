@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
-import type { LLMPort } from "fenghuang";
+import type { GuildInstance, GuildInstanceFactory } from "./conversation-recorder.ts";
+import { LtmConversationRecorder } from "./conversation-recorder.ts";
+import type { Episode } from "./episode.ts";
+import type { LtmLlmPort } from "./llm-port.ts";
 
-import type { GuildInstance, GuildInstanceFactory } from "./fenghuang-conversation-recorder.ts";
-import { FenghuangConversationRecorder } from "./fenghuang-conversation-recorder.ts";
-
-const TEMP_DIR = `/tmp/vicissitude-fenghuang-test-${process.pid}`;
+const TEMP_DIR = `/tmp/vicissitude-ltm-test-${process.pid}`;
 
 afterEach(() => {
 	if (existsSync(TEMP_DIR)) {
@@ -14,7 +14,7 @@ afterEach(() => {
 	}
 });
 
-const mockAddMessage = mock(() => Promise.resolve());
+const mockAddMessage = mock((): Promise<Episode[]> => Promise.resolve([]));
 const mockConsolidate = mock(() =>
 	Promise.resolve({
 		processedEpisodes: 3,
@@ -33,8 +33,8 @@ const mockFactory: GuildInstanceFactory = (): GuildInstance => ({
 });
 
 function createRecorder() {
-	const llm = {} as LLMPort;
-	return new FenghuangConversationRecorder(llm, TEMP_DIR, mockFactory);
+	const llm = {} as LtmLlmPort;
+	return new LtmConversationRecorder(llm, TEMP_DIR, mockFactory);
 }
 
 const sampleMessage = {
@@ -44,7 +44,7 @@ const sampleMessage = {
 	timestamp: new Date(),
 };
 
-describe("FenghuangConversationRecorder", () => {
+describe("LtmConversationRecorder", () => {
 	test("record() で guildId が非数字 → Error throw", async () => {
 		const recorder = createRecorder();
 		await expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");
@@ -73,26 +73,24 @@ describe("FenghuangConversationRecorder", () => {
 		mockAddMessage.mockImplementation(() => {
 			callCount++;
 			if (callCount === 1) {
-				return new Promise<void>((resolve) => {
+				return new Promise<Episode[]>((resolve) => {
 					resolveFirst = () => {
 						order.push(1);
-						resolve();
+						resolve([]);
 					};
 				});
 			}
 			order.push(2);
-			return Promise.resolve();
+			return Promise.resolve([]);
 		});
 
 		const recorder = createRecorder();
 		const p1 = recorder.record("111", sampleMessage);
-		// yield to allow p1 to start
 		await new Promise<void>((resolve) => {
 			setTimeout(resolve, 10);
 		});
 		const p2 = recorder.record("111", sampleMessage);
 
-		// 1 回目が完了するまで 2 回目はブロック
 		resolveFirst();
 		await p1;
 		await p2;
@@ -102,7 +100,7 @@ describe("FenghuangConversationRecorder", () => {
 
 	test("getActiveGuildIds() → 初期化済みギルドのみ返す", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		const recorder = createRecorder();
 
 		expect(recorder.getActiveGuildIds()).toEqual([]);
@@ -136,11 +134,10 @@ describe("FenghuangConversationRecorder", () => {
 
 	test("consolidate() で初期化済み guild → pipeline.consolidate 呼び出し", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		mockConsolidate.mockClear();
 		const recorder = createRecorder();
 
-		// まず record() でギルドを初期化
 		await recorder.record("555", sampleMessage);
 
 		const result = await recorder.consolidate("555");
@@ -150,7 +147,7 @@ describe("FenghuangConversationRecorder", () => {
 
 	test("close() → 全ロック完了 + storage.close() 呼び出し", async () => {
 		mockAddMessage.mockClear();
-		mockAddMessage.mockImplementation(() => Promise.resolve());
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		mockStorageClose.mockClear();
 		const recorder = createRecorder();
 
@@ -158,7 +155,6 @@ describe("FenghuangConversationRecorder", () => {
 		await recorder.close();
 
 		expect(mockStorageClose).toHaveBeenCalled();
-		// close 後は instances がクリアされる
 		expect(recorder.getActiveGuildIds()).toEqual([]);
 	});
 });

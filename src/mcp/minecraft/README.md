@@ -35,25 +35,25 @@ src/mcp/minecraft/
 
 ### 提供ツール
 
-| ツール | 種別 | 説明 |
-| --- | --- | --- |
-| `observe_state` | 観察 | 現在状態の自然言語要約 |
+| ツール              | 種別 | 説明                                          |
+| ------------------- | ---- | --------------------------------------------- |
+| `observe_state`     | 観察 | 現在状態の自然言語要約                        |
 | `get_recent_events` | 観察 | 直近イベント取得。`importance` でフィルタ可能 |
-| `get_job_status` | 観察 | 実行中ジョブ、履歴、クールダウン状態を取得 |
-| `get_viewer_url` | 観察 | prismarine-viewer の URL を返す |
-| `follow_player` | 行動 | プレイヤー追従 |
-| `go_to` | 行動 | 座標移動 |
-| `collect_block` | 行動 | ブロック採集 |
-| `stop` | 行動 | 現在の移動・追従・ジョブを停止 |
-| `craft_item` | 行動 | クラフトジョブを開始 |
-| `sleep_in_bed` | 行動 | 就寝ジョブを開始 |
-| `equip_item` | 行動 | アイテム装備 |
-| `place_block` | 行動 | ブロック設置 |
-| `send_chat` | 行動 | ゲーム内チャット送信 |
-| `eat_food` | 行動 | 手持ち食料から選んで食べる |
-| `flee_from_entity` | 行動 | 指定エンティティから逃走 |
-| `find_shelter` | 行動 | 近場の避難場所探索と退避 |
-| `attack_entity` | 行動 | 指定エンティティを攻撃 |
+| `get_job_status`    | 観察 | 実行中ジョブ、履歴、クールダウン状態を取得    |
+| `get_viewer_url`    | 観察 | prismarine-viewer の URL を返す               |
+| `follow_player`     | 行動 | プレイヤー追従                                |
+| `go_to`             | 行動 | 座標移動                                      |
+| `collect_block`     | 行動 | ブロック採集                                  |
+| `stop`              | 行動 | 現在の移動・追従・ジョブを停止                |
+| `craft_item`        | 行動 | クラフトジョブを開始                          |
+| `sleep_in_bed`      | 行動 | 就寝ジョブを開始                              |
+| `equip_item`        | 行動 | アイテム装備                                  |
+| `place_block`       | 行動 | ブロック設置                                  |
+| `send_chat`         | 行動 | ゲーム内チャット送信                          |
+| `eat_food`          | 行動 | 手持ち食料から選んで食べる                    |
+| `flee_from_entity`  | 行動 | 指定エンティティから逃走                      |
+| `find_shelter`      | 行動 | 近場の避難場所探索と退避                      |
+| `attack_entity`     | 行動 | 指定エンティティを攻撃                        |
 
 ## 実装上の挙動
 
@@ -93,17 +93,17 @@ src/mcp/minecraft/
 
 ## 環境変数
 
-| 変数 | 必須 | 既定値 | 説明 |
-| --- | --- | --- | --- |
-| `MC_HOST` | yes | - | Minecraft サーバーホスト |
-| `MC_PORT` | no | `25565` | Minecraft サーバーポート |
-| `MC_USERNAME` | no | `hua` | bot ユーザー名 |
-| `MC_VERSION` | no | 自動 | mineflayer 接続バージョン |
-| `MC_MCP_PORT` | no | `3001` | MCP HTTP ポート |
-| `MC_VIEWER_PORT` | no | `3007` | prismarine-viewer ポート |
-| `MC_METRICS_PORT` | no | `9092` | Prometheus metrics ポート |
-| `MC_METRICS_HOST` | no | `0.0.0.0` | metrics bind host |
-| `MC_BRAIN_WAKE_FILE` | no | - | 緊急時に更新する wake file のパス |
+| 変数                 | 必須 | 既定値    | 説明                              |
+| -------------------- | ---- | --------- | --------------------------------- |
+| `MC_HOST`            | yes  | -         | Minecraft サーバーホスト          |
+| `MC_PORT`            | no   | `25565`   | Minecraft サーバーポート          |
+| `MC_USERNAME`        | no   | `hua`     | bot ユーザー名                    |
+| `MC_VERSION`         | no   | 自動      | mineflayer 接続バージョン         |
+| `MC_MCP_PORT`        | no   | `3001`    | MCP HTTP ポート                   |
+| `MC_VIEWER_PORT`     | no   | `3007`    | prismarine-viewer ポート          |
+| `MC_METRICS_PORT`    | no   | `9092`    | Prometheus metrics ポート         |
+| `MC_METRICS_HOST`    | no   | `0.0.0.0` | metrics bind host                 |
+| `MC_BRAIN_WAKE_FILE` | no   | -         | 緊急時に更新する wake file のパス |
 
 ## システム内での役割
 

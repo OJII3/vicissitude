@@ -1,16 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Fenghuang, SemanticFact } from "fenghuang";
 import { z } from "zod";
+
+import type { Ltm, SemanticFact } from "../../ltm/index.ts";
 
 const GUILD_ID_REGEX = /^\d+$/;
 const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
 
 export interface LtmDeps {
-	getOrCreateFenghuang: (guildId: string) => Fenghuang;
+	getOrCreateLtm: (guildId: string) => Ltm;
 }
 
 export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
-	const { getOrCreateFenghuang } = deps;
+	const { getOrCreateLtm } = deps;
 
 	server.tool(
 		"ltm_retrieve",
@@ -22,8 +23,8 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 		async ({ guild_id, query, limit }) => {
 			try {
-				const feng = getOrCreateFenghuang(guild_id);
-				const result = await feng.retrieval.retrieve(guild_id, query, {
+				const ltm = getOrCreateLtm(guild_id);
+				const result = await ltm.retrieval.retrieve(guild_id, query, {
 					limit: limit ?? 10,
 				});
 
@@ -72,8 +73,8 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 		async ({ guild_id }) => {
 			try {
-				const feng = getOrCreateFenghuang(guild_id);
-				const result = await feng.consolidation.consolidate(guild_id);
+				const ltm = getOrCreateLtm(guild_id);
+				const result = await ltm.consolidation.consolidate(guild_id);
 
 				return {
 					content: [
@@ -125,10 +126,10 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 		async ({ guild_id, category }) => {
 			try {
-				const feng = getOrCreateFenghuang(guild_id);
+				const ltm = getOrCreateLtm(guild_id);
 				const facts = category
-					? await feng.semantic.getFactsByCategory(guild_id, category)
-					: await feng.semantic.getFacts(guild_id);
+					? await ltm.semantic.getFactsByCategory(guild_id, category)
+					: await ltm.semantic.getFacts(guild_id);
 
 				if (facts.length === 0) {
 					return {
