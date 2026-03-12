@@ -19,13 +19,13 @@ import {
 	OPENCODE_ALL_TOOLS_DISABLED,
 } from "./core/constants.ts";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "./core/types.ts";
-import { CompositeLLMAdapter } from "./fenghuang/composite-llm-adapter.ts";
-import { FenghuangChatAdapter } from "./fenghuang/fenghuang-chat-adapter.ts";
-import { FenghuangConversationRecorder } from "./fenghuang/fenghuang-conversation-recorder.ts";
-import { FenghuangFactReader } from "./fenghuang/fenghuang-fact-reader.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import { SqliteBufferedEventStore } from "./infrastructure/store/sqlite-buffered-event-store.ts";
+import { CompositeLLMAdapter } from "./ltm/composite-llm-adapter.ts";
+import { LtmConversationRecorder } from "./ltm/conversation-recorder.ts";
+import { LtmFactReaderImpl } from "./ltm/fact-reader.ts";
+import { LtmChatAdapter } from "./ltm/ltm-chat-adapter.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
 	PrometheusCollector,
@@ -54,7 +54,7 @@ export function createStoreLayer(config: AppConfig) {
 // ─── Context Layer ──────────────────────────────────────────────
 
 export function createContextLayer(config: AppConfig, root: string, db: StoreDb) {
-	const ltmFactReader = new FenghuangFactReader(resolve(config.dataDir, "fenghuang"));
+	const ltmFactReader = new LtmFactReaderImpl(resolve(config.dataDir, "ltm"));
 	const mcStatusProvider = config.minecraft
 		? new SqliteMcStatusProvider(
 				db,
@@ -176,8 +176,8 @@ async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 // ─── LTM Recording ─────────────────────────────────────────────
 
 interface LtmResources {
-	chatAdapter: FenghuangChatAdapter;
-	recorder: FenghuangConversationRecorder;
+	chatAdapter: LtmChatAdapter;
+	recorder: LtmConversationRecorder;
 	consolidationScheduler: ConsolidationScheduler;
 }
 
@@ -187,7 +187,7 @@ export function setupLtmRecording(
 	metricsCollector?: PrometheusCollector,
 ): LtmResources | undefined {
 	const ltmPort = config.opencode.basePort - 2;
-	const dataDir = resolve(config.dataDir, "fenghuang");
+	const dataDir = resolve(config.dataDir, "ltm");
 
 	try {
 		const ltmSessionPort = new OpencodeSessionAdapter({
@@ -195,7 +195,7 @@ export function setupLtmRecording(
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		});
-		const chatAdapter = new FenghuangChatAdapter(
+		const chatAdapter = new LtmChatAdapter(
 			ltmSessionPort,
 			config.ltm.providerId,
 			config.ltm.modelId,
@@ -203,7 +203,7 @@ export function setupLtmRecording(
 
 		const ollama = new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
-		const recorder = new FenghuangConversationRecorder(llm, dataDir);
+		const recorder = new LtmConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(recorder, logger, metricsCollector);
 
 		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
@@ -276,7 +276,7 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		LTM_MODEL_ID: config.ltm.modelId,
 		OLLAMA_BASE_URL: config.ltm.ollamaBaseUrl,
 		LTM_EMBEDDING_MODEL: config.ltm.embeddingModel,
-		LTM_DATA_DIR: resolve(config.dataDir, "fenghuang"),
+		LTM_DATA_DIR: resolve(config.dataDir, "ltm"),
 		DATA_DIR: resolve(root, "data"),
 	};
 

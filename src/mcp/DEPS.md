@@ -89,8 +89,8 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: core/, fenghuang/, ollama/, opencode/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fenghuang, fs, path
+- 他モジュール依存: core/, ltm/, ollama/, opencode/, store/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path
 
 ### http-server.ts
 
@@ -221,7 +221,8 @@ graph LR
 
 ### tools/ltm.ts
 
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fenghuang, zod
+- 他モジュール依存: ltm/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/mc-bridge-discord.ts
 

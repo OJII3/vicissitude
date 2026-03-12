@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
-import type { LLMPort } from "fenghuang";
+import type { GuildInstance, GuildInstanceFactory } from "./conversation-recorder.ts";
+import { LtmConversationRecorder } from "./conversation-recorder.ts";
+import type { LtmLlmPort } from "./llm-port.ts";
 
-import type { GuildInstance, GuildInstanceFactory } from "./fenghuang-conversation-recorder.ts";
-import { FenghuangConversationRecorder } from "./fenghuang-conversation-recorder.ts";
-
-const TEMP_DIR = `/tmp/vicissitude-fenghuang-test-${process.pid}`;
+const TEMP_DIR = `/tmp/vicissitude-ltm-test-${process.pid}`;
 
 afterEach(() => {
 	if (existsSync(TEMP_DIR)) {
@@ -33,8 +32,8 @@ const mockFactory: GuildInstanceFactory = (): GuildInstance => ({
 });
 
 function createRecorder() {
-	const llm = {} as LLMPort;
-	return new FenghuangConversationRecorder(llm, TEMP_DIR, mockFactory);
+	const llm = {} as LtmLlmPort;
+	return new LtmConversationRecorder(llm, TEMP_DIR, mockFactory);
 }
 
 const sampleMessage = {
@@ -44,7 +43,7 @@ const sampleMessage = {
 	timestamp: new Date(),
 };
 
-describe("FenghuangConversationRecorder", () => {
+describe("LtmConversationRecorder", () => {
 	test("record() で guildId が非数字 → Error throw", async () => {
 		const recorder = createRecorder();
 		await expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");
@@ -86,13 +85,11 @@ describe("FenghuangConversationRecorder", () => {
 
 		const recorder = createRecorder();
 		const p1 = recorder.record("111", sampleMessage);
-		// yield to allow p1 to start
 		await new Promise<void>((resolve) => {
 			setTimeout(resolve, 10);
 		});
 		const p2 = recorder.record("111", sampleMessage);
 
-		// 1 回目が完了するまで 2 回目はブロック
 		resolveFirst();
 		await p1;
 		await p2;
@@ -140,7 +137,6 @@ describe("FenghuangConversationRecorder", () => {
 		mockConsolidate.mockClear();
 		const recorder = createRecorder();
 
-		// まず record() でギルドを初期化
 		await recorder.record("555", sampleMessage);
 
 		const result = await recorder.consolidate("555");
@@ -158,7 +154,6 @@ describe("FenghuangConversationRecorder", () => {
 		await recorder.close();
 
 		expect(mockStorageClose).toHaveBeenCalled();
-		// close 後は instances がクリアされる
 		expect(recorder.getActiveGuildIds()).toEqual([]);
 	});
 });

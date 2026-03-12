@@ -2,7 +2,7 @@
 
 ## 1. 最終更新
 
-- 2026-03-12
+- 2026-03-13
 - 更新者: claude-code
 - ブランチ: main
 
@@ -17,13 +17,14 @@
 - M13c 実装（部分完了）:
   - 完了: 高優先度イベントでの brain wake 通知経路、ジョブ失敗分類（5 類型）、同系統ジョブ連続失敗時のクールダウン、`get_job_status` のクールダウン表示。
   - 未実装: stuck 判定、Discord 自動通知、クールダウン/再試行の詳細メトリクス。
-- `nr validate` 通過。`bun test` は 419 テスト pass（0 fail）。
+- fenghuang 外部パッケージを `src/ltm/` としてモノレポに統合完了。StoragePort 廃止、LLMPort→LtmLlmPort リネーム、全テスト移行済み。
+- `nr validate` 通過。`bun test` は 715 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。
   - `monitoring/grafana-dashboard.json` に Test Quality セクション追加済み。
   - GitHub Actions のハッシュピン留め適用済み（PR #124, #125）。
-  - 未テストモジュール 4 件にユニットテスト追加済み（PR #127: `ConsolidationScheduler`, `FenghuangConversationRecorder`, `ConsoleLogger`, `attachment-mapper` 計 27 件）。
+  - 未テストモジュール 4 件にユニットテスト追加済み（PR #127: `ConsolidationScheduler`, `LtmConversationRecorder`, `ConsoleLogger`, `attachment-mapper` 計 27 件）。
   - CI テスト汚染修正済み（PR #128: `mock.module` → コンストラクタインジェクション）。
 - 旧テスト移植:
   - `GuildRouter`: テスト完備（`router.test.ts` 8 件）。
