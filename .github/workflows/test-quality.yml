@@ -5,11 +5,11 @@ on:
   push:
     branches: [main]
   schedule:
-    # 毎週月曜 09:00 JST (日曜 24:00 UTC) にフレーク検出を実行
+    # 毎週月曜 09:00 JST (月曜 00:00 UTC) にフレーク検出を実行
     - cron: "0 0 * * 1"
 
 concurrency:
-  group: test-quality-${{ github.ref }}
+  group: test-quality-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
