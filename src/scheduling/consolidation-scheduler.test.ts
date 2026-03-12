@@ -1,6 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type { Logger, MemoryConsolidator, MetricsCollector } from "../core/types.ts";
+import type {
+	ConsolidationResult,
+	Logger,
+	MemoryConsolidator,
+	MetricsCollector,
+} from "../core/types.ts";
 import { ConsolidationScheduler } from "./consolidation-scheduler.ts";
 
 function createMockLogger(): Logger {
@@ -116,13 +121,7 @@ describe("ConsolidationScheduler", () => {
 			getActiveGuildIds: mock(() => ["999"]),
 			consolidate: mock(
 				() =>
-					new Promise<{
-						processedEpisodes: number;
-						newFacts: number;
-						reinforced: number;
-						updated: number;
-						invalidated: number;
-					}>((resolve) => {
+					new Promise<ConsolidationResult>((resolve) => {
 						resolveConsolidate = () =>
 							resolve({
 								processedEpisodes: 0,
@@ -161,13 +160,7 @@ describe("ConsolidationScheduler", () => {
 			getActiveGuildIds: mock(() => ["999"]),
 			consolidate: mock(
 				() =>
-					new Promise<{
-						processedEpisodes: number;
-						newFacts: number;
-						reinforced: number;
-						updated: number;
-						invalidated: number;
-					}>((resolve) => {
+					new Promise<ConsolidationResult>((resolve) => {
 						resolveConsolidate = () =>
 							resolve({
 								processedEpisodes: 0,

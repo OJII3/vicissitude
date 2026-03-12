@@ -21,6 +21,8 @@ describe("ConsoleLogger", () => {
 	let stdoutCapture: ReturnType<typeof captureWrite>;
 	let stderrCapture: ReturnType<typeof captureWrite>;
 
+	// beforeEach ではなく各テスト冒頭で呼ぶ: afterEach の restore() が
+	// 前のテストの capture を参照するため、初期化順を明示的に制御する
 	function setup() {
 		stdoutCapture = captureWrite("stdout");
 		stderrCapture = captureWrite("stderr");

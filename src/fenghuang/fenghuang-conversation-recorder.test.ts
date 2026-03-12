@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
+import type { LLMPort } from "fenghuang";
+
 // fenghuang モジュールをモック（fs はモックしない: 他テストへの汚染を防ぐ）
 const mockAddMessage = mock(() => Promise.resolve());
 const mockConsolidate = mock(() =>
@@ -38,11 +40,7 @@ afterEach(() => {
 });
 
 function createRecorder() {
-	const llm = {} as Parameters<
-		typeof FenghuangConversationRecorder extends new (llm: infer L, ...args: unknown[]) => unknown
-			? (...args: [L]) => void
-			: never
-	>[0];
+	const llm = {} as LLMPort;
 	return new FenghuangConversationRecorder(llm, TEMP_DIR);
 }
 
