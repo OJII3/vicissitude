@@ -17,7 +17,11 @@
 - M13c 実装（部分完了）:
   - 完了: 高優先度イベントでの brain wake 通知経路、ジョブ失敗分類（5 類型）、同系統ジョブ連続失敗時のクールダウン、`get_job_status` のクールダウン表示。
   - 未実装: stuck 判定、Discord 自動通知、クールダウン/再試行の詳細メトリクス。
-- fenghuang 外部パッケージを `src/ltm/` としてモノレポに統合完了。StoragePort 廃止、LLMPort→LtmLlmPort リネーム、全テスト移行済み。
+- M13d stuck 検知を実装（PR #132）。位置・インベントリ・体力の停滞検知 + 自動リカバリ。
+- fenghuang 外部パッケージを `src/ltm/` としてモノレポに統合完了（PR #134）。
+  - StoragePort 廃止 → SQLite 直接依存、LLMPort → LtmLlmPort リネーム、全テスト移行済み。
+  - レビュー指摘 6 件修正: 型安全性向上（`Promise<Episode[]>`）、セグメント index バリデーション強化、キューサイズ事前チェック、embedding 検索の 2 段階最適化、FTS5 フォールバック限定化、フィールド長制限追加。
+  - M14 LTM 強化ロードマップを PLAN.md に追加（FSRS 学習ループ、Fact 関連性フィルタリング、記憶システム統合、埋め込みロバスト性）。
 - `nr validate` 通過。`bun test` は 715 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
@@ -39,15 +43,24 @@
 - Ollama イメージタグ `latest` 固定。バージョン固定を将来検討。
 - `HeartbeatScheduler` / `ConsolidationScheduler` の二重タイムアウトで最悪 tick 時間が 2 倍（6 分 / 20 分）。
 - 危険時再判断は wake file による早期再開まで実装。完全なイベント直結ではなく、ファイルポーリングに依存する。
-- stuck 判定、再試行制御の詳細メトリクス、Discord 通知自動化はまだ未実装。
+- stuck 判定は実装済み（PR #132）。再試行制御の詳細メトリクス、Discord 通知自動化はまだ未実装。
+- LTM の既知の不足機能（M14 で対応予定）:
+  - FSRS `reviewCard()` が本番で呼ばれていない（`retrievability()` のみ使用）。学習ループ未構築。
+  - ContextBuilder が全 Fact を無条件注入。関連性フィルタリング未実装。
+  - 3 つの独立した記憶システム（LTM, MEMORY.md/LESSONS.md, 日次ログ）が未統合。
+  - 埋め込み次元のメタデータ管理なし。モデル変更時の互換性リスク。
+- `data/fenghuang/` → `data/ltm/` のデータディレクトリ移行手順が RUNBOOK に未記載。
 - テスト品質は失敗率・時間・行/関数カバレッジ・フレーク率までは自動集計済みだが、本番流出率は未導入。残りのテスト未実装モジュールは `DiscordGateway`（優先度 中）と `bootstrap.ts`（優先度 低）。
 - Grafana 上の Test Quality 可視化はダッシュボード JSON まで更新済みだが、実際の Loki 取り込み設定は環境側確認が必要。
 
 ## 4. 直近タスク
 
-- `M13c` 継続: stuck 判定、Discord 自動通知をコードへ反映する。
+- `M14a`: FSRS 学習ループ構築（retrieve 時に reviewCard 実行）。
+- `M14b`: Fact 注入時の関連性フィルタリング（ハイブリッド検索で上位 N 件のみ注入）。
+- `M13c` 継続: Discord 自動通知をコードへ反映する。
 - クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。
 - `M13e`: 正式アカウントログイン設計。
+- `data/fenghuang/` → `data/ltm/` 移行手順を RUNBOOK に追記。
 - テストが存在しない残りモジュールへのテスト追加（残: `DiscordGateway`）。
 - `nr test:quality` / `nr test:quality:flake` の履歴蓄積導線を作り、重要シナリオ網羅率へ拡張する。
 - Grafana サーバーへ更新済みダッシュボード JSON を反映し、Test Quality パネルの Loki クエリが環境ラベルで動くか確認する。
