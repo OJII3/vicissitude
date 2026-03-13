@@ -107,6 +107,22 @@ describe("store", () => {
 			expect(remaining).toHaveLength(1);
 			expect(JSON.parse(remaining[0]?.payload ?? "")).toEqual({ type: "second" });
 		});
+
+		test("consumeEvents with limit は指定件数だけ消費する", () => {
+			const db = createTestDb();
+			appendEvent(db, "guild-1", JSON.stringify({ type: "a" }));
+			appendEvent(db, "guild-1", JSON.stringify({ type: "b" }));
+			appendEvent(db, "guild-1", JSON.stringify({ type: "c" }));
+
+			const batch = consumeEvents(db, "guild-1", 2);
+			expect(batch).toHaveLength(2);
+			expect(JSON.parse(batch[0]?.payload ?? "")).toEqual({ type: "a" });
+			expect(JSON.parse(batch[1]?.payload ?? "")).toEqual({ type: "b" });
+
+			const remaining = consumeEvents(db, "guild-1");
+			expect(remaining).toHaveLength(1);
+			expect(JSON.parse(remaining[0]?.payload ?? "")).toEqual({ type: "c" });
+		});
 	});
 
 	describe("emoji_usage", () => {

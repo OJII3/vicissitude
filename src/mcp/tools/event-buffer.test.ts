@@ -28,7 +28,7 @@ describe("formatEvents", () => {
 });
 
 describe("pollEvents", () => {
-	test("イベントが既にあれば即座に返す", async () => {
+	test("イベントが既にあれば即座にまとめて返す", async () => {
 		const db = createTestDb();
 		appendEvent(db, "guild-1", '{"content":"test"}');
 		appendEvent(db, "guild-1", '{"content":"next"}');
@@ -38,8 +38,9 @@ describe("pollEvents", () => {
 
 		expect(result).not.toBeNull();
 		const parsed = JSON.parse(result ?? "[]");
-		expect(parsed).toHaveLength(1);
+		expect(parsed).toHaveLength(2);
 		expect(parsed[0].content).toBe("test");
+		expect(parsed[1].content).toBe("next");
 	});
 
 	test("タイムアウト時は null を返す", async () => {

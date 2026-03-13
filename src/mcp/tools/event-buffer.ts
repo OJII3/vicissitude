@@ -2,11 +2,14 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import type { StoreDb } from "../../store/db.ts";
-import { consumeNextEvent, hasEvents } from "../../store/queries.ts";
+import { consumeEvents, hasEvents } from "../../store/queries.ts";
 
 export interface EventBufferDeps {
 	db: StoreDb;
 }
+
+/** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
+const MAX_BATCH_SIZE = 10;
 
 function sleep(ms: number): Promise<void> {
 	return new Promise<void>((resolve) => {
@@ -25,10 +28,6 @@ export function formatEvents(rows: { payload: string }[]): string {
 	return JSON.stringify(events, null, 2);
 }
 
-function formatSingleEvent(row: { payload: string }): string {
-	return formatEvents([row]);
-}
-
 export async function pollEvents(
 	db: StoreDb,
 	guildId: string,
@@ -37,8 +36,8 @@ export async function pollEvents(
 ): Promise<string | null> {
 	while (Date.now() < deadlineMs) {
 		if (hasEvents(db, guildId)) {
-			const row = consumeNextEvent(db, guildId);
-			if (row) return formatSingleEvent(row);
+			const rows = consumeEvents(db, guildId, MAX_BATCH_SIZE);
+			if (rows.length > 0) return formatEvents(rows);
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
 		await sleep(pollIntervalMs);
@@ -51,16 +50,16 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 
 	server.tool(
 		"wait_for_events",
-		"イベントが届くまで待機し、届いたら消費して返す。タイムアウト時は空配列を返す。",
+		"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
 		{
 			guild_id: z.string().min(1).describe("対象の guild ID"),
 			timeout_seconds: z.number().min(1).max(172800).default(60),
 		},
 		async ({ guild_id, timeout_seconds }) => {
-			const immediate = consumeNextEvent(db, guild_id);
-			if (immediate) {
+			const immediate = consumeEvents(db, guild_id, MAX_BATCH_SIZE);
+			if (immediate.length > 0) {
 				return {
-					content: [{ type: "text" as const, text: formatSingleEvent(immediate) }],
+					content: [{ type: "text" as const, text: formatEvents(immediate) }],
 				};
 			}
 

@@ -7,14 +7,18 @@ import { emojiUsage, eventBuffer, sessions } from "./schema.ts";
 export function consumeEvents(
 	db: StoreDb,
 	guildId: string,
+	limit?: number,
 ): { id: number; payload: string; createdAt: number }[] {
 	return db.transaction((tx) => {
-		const rows = tx
+		let query = tx
 			.select()
 			.from(eventBuffer)
 			.where(eq(eventBuffer.guildId, guildId))
-			.orderBy(eventBuffer.id)
-			.all();
+			.orderBy(eventBuffer.id);
+		if (limit !== undefined) {
+			query = query.limit(limit) as typeof query;
+		}
+		const rows = query.all();
 		if (rows.length > 0) {
 			const ids = rows.map((r) => r.id).filter((id): id is number => id !== null);
 			tx.delete(eventBuffer).where(inArray(eventBuffer.id, ids)).run();
