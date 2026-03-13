@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { StoreDb } from "../../store/db.ts";
 import {
 	consumeBridgeEventsByType,
+	getMcConnectionStatus,
 	insertBridgeEvent,
 	peekBridgeEvents,
 	releaseSessionLockAndStop,
@@ -37,15 +38,20 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		},
 	);
 
-	server.tool("minecraft_status", "マイクラでの最近の出来事を確認する（消費しない）。", {}, () => {
+	server.tool("minecraft_status", "マイクラの最新状況を構造化して確認する（消費しない）。", {}, () => {
+		const parts: string[] = [];
+
+		const status = getMcConnectionStatus(db);
+		const label = status.connected ? "🟢 接続中" : "🔴 未接続";
+		parts.push(`接続状態: ${label}${status.since ? ` (${status.since})` : ""}`);
+
 		const events = peekBridgeEvents(db, "to_discord", 50);
-		if (events.length === 0) {
-			return {
-				content: [{ type: "text" as const, text: "特に何もなかった。" }],
-			};
+		if (events.length > 0) {
+			parts.push(formatStatusEvents(events));
 		}
+
 		return {
-			content: [{ type: "text" as const, text: formatStatusEvents(events) }],
+			content: [{ type: "text" as const, text: parts.join("\n\n") }],
 		};
 	});
 

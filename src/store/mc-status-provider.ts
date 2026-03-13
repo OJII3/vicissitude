@@ -1,6 +1,6 @@
 import type { McStatusProvider } from "../core/types.ts";
 import type { StoreDb } from "./db.ts";
-import { parseBridgeEvent, peekBridgeEvents } from "./mc-bridge.ts";
+import { getMcConnectionStatus, parseBridgeEvent, peekBridgeEvents } from "./mc-bridge.ts";
 
 const MAX_RECENT_REPORTS = 10;
 
@@ -22,6 +22,9 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 
 	async getStatusSummary(): Promise<string | null> {
 		const sections: string[] = [];
+
+		const connectionSection = this.buildConnectionSection();
+		if (connectionSection) sections.push(connectionSection);
 
 		const goalsSection = await this.buildGoalsSection();
 		if (goalsSection) sections.push(goalsSection);
@@ -77,6 +80,13 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 
 		const lines = pending.map((e) => `- ${e.payload}`);
 		return `## 未処理の指示\n${lines.join("\n")}`;
+	}
+
+	private buildConnectionSection(): string | null {
+		const status = getMcConnectionStatus(this.db);
+		if (status.since === null) return null;
+		const label = status.connected ? "🟢 接続中" : "🔴 未接続";
+		return `## 接続状態\n${label}（${status.since}）`;
 	}
 
 	private async buildGoalsSection(): Promise<string | null> {
