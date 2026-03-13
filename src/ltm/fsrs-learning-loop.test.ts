@@ -42,8 +42,7 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	beforeEach(() => {
 		storage = new LtmStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
-		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
-		retrieval.setEpisodicMemory(episodic);
+		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage, episodic);
 	});
 
 	afterEach(() => {
@@ -100,9 +99,8 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 		expect(rAfterSecond).toBeGreaterThan(rAfterFirst);
 	});
 
-	test("without episodic set, retrieve does not update FSRS", async () => {
+	test("without episodic, retrieve does not update FSRS", async () => {
 		const bareRetrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
-		// No setEpisodicMemory call
 
 		const ep = makeEpisode({ title: "TypeScript Bare" });
 		await storage.saveEpisode(userId, ep);

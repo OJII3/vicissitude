@@ -38,17 +38,11 @@ interface ActionContext {
 }
 /** Consolidation pipeline — converts episodes into semantic facts */
 export class ConsolidationPipeline {
-	private episodic: EpisodicMemory | null = null;
-
 	constructor(
 		protected llm: LtmLlmPort,
 		protected storage: LtmStorage,
+		private episodic: EpisodicMemory | null = null,
 	) {}
-
-	/** Set the EpisodicMemory instance for FSRS review during consolidation */
-	setEpisodicMemory(episodic: EpisodicMemory): void {
-		this.episodic = episodic;
-	}
 
 	/** Run consolidation for a user: extract facts from unconsolidated episodes */
 	async consolidate(userId: string): Promise<ConsolidationResult> {

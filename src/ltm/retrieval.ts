@@ -188,17 +188,11 @@ function rankResults(ctx: RankContext): RetrievalResult {
 
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
-	private episodic: EpisodicMemory | null = null;
-
 	constructor(
 		private llm: LtmLlmPort,
 		private storage: LtmStorage,
+		private episodic: EpisodicMemory | null = null,
 	) {}
-
-	/** Set the EpisodicMemory instance for automatic FSRS review on retrieve */
-	setEpisodicMemory(episodic: EpisodicMemory): void {
-		this.episodic = episodic;
-	}
 
 	/** Run all 4 searches in parallel */
 	private runSearches(
@@ -241,6 +235,9 @@ export class Retrieval {
 		return result;
 	}
 
+	/** Max episodes to auto-review per retrieve call to bound DB write cost */
+	private static readonly MAX_AUTO_REVIEW = 20;
+
 	/** Review retrieved episodes to update FSRS parameters (search hit = "good") */
 	private async reviewRetrievedEpisodes(
 		userId: string,
@@ -249,8 +246,9 @@ export class Retrieval {
 	): Promise<void> {
 		const { episodic } = this;
 		if (!episodic) return;
+		const toReview = episodes.slice(0, Retrieval.MAX_AUTO_REVIEW);
 		await Promise.all(
-			episodes.map((ep) => episodic.review(userId, ep.episode.id, { rating: "good", now })),
+			toReview.map((ep) => episodic.review(userId, ep.episode.id, { rating: "good", now })),
 		);
 	}
 }

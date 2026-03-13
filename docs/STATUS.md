@@ -4,7 +4,7 @@
 
 - 2026-03-13
 - 更新者: claude-code
-- ブランチ: feat/m14a-fsrs-learning-loop
+- ブランチ: main
 
 ## 2. 現在の状態
 

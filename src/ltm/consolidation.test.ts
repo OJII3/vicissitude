@@ -799,8 +799,7 @@ describe("ConsolidationPipeline — FSRS learning loop", () => {
 		expect(before!.lastReviewedAt).toBeNull();
 
 		const episodic = new EpisodicMemory(storage);
-		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
-		pipeline.setEpisodicMemory(episodic);
+		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage, episodic);
 		await pipeline.consolidate(userId);
 
 		// After: lastReviewedAt should be updated
@@ -813,7 +812,6 @@ describe("ConsolidationPipeline — FSRS learning loop", () => {
 		await storage.saveEpisode(userId, episode);
 
 		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
-		// No setEpisodicMemory call
 		await pipeline.consolidate(userId);
 
 		const after = await storage.getEpisodeById(userId, episode.id);
