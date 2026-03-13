@@ -21,7 +21,7 @@ COPY package.json bun.lock ./
 # TODO: gl パッケージが GCC 14+ 対応したらこのワークアラウンドを削除する
 ARG CXXFLAGS="-include cstdint"
 RUN bun install --frozen-lockfile --production
-RUN bun install -g opencode-ai@1.2.15 && \
+RUN bun install -g opencode-ai@1.2.24 && \
     cp /root/.bun/install/global/node_modules/opencode-ai/bin/.opencode /usr/local/bin/opencode && \
     chmod 755 /usr/local/bin/opencode && \
     rm -rf /root/.bun && \
