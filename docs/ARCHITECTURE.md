@@ -44,14 +44,16 @@ src/
 │
 ├── agent/                   # OpenCode エージェント基盤
 │   ├── profile.ts           # AgentProfile 型定義
-│   ├── runner.ts            # AgentRunner（ポーリングループ）
+│   ├── runner.ts            # AgentRunner（ポーリングループ基底クラス）
 │   ├── session-store.ts     # セッション永続化（SQLite）
 │   ├── mcp-config.ts        # MCP サーバー設定（core / code-exec / minecraft / mc-bridge）
 │   ├── discord/             # Discord/会話エージェント固有
+│   │   ├── discord-agent.ts     # DiscordAgent（AgentRunner サブクラス）
 │   │   ├── context-builder.ts   # システムプロンプト構築（LTM ファクト注入含む）
 │   │   ├── profile.ts           # 会話エージェントプロファイル
 │   │   └── router.ts            # GuildRouter（ギルド ID ベースのルーティング）
 │   └── minecraft/           # Minecraft エージェント固有
+│       ├── minecraft-agent.ts   # MinecraftAgent（AgentRunner サブクラス）
 │       ├── context-builder.ts   # Minecraft エージェント専用コンテキスト構築
 │       ├── profile.ts           # Minecraft エージェントプロファイル
 │       └── brain-manager.ts     # Minecraft エージェント生成・起動・停止管理
@@ -143,15 +145,17 @@ src/
 ### 4.2 agent/ — OpenCode エージェント基盤
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
-- `runner.ts`: `AgentRunner` — `AgentProfile` + `OpencodeSessionPort` を受け取り、初回イベントで長寿命 `promptAsync()` セッションを起動し、以後はセッション終了イベントを監視して再起動する。セッション自動ローテーション（`SESSION_MAX_AGE_HOURS`、デフォルト 48 時間）は再起動契機時に適用
+- `runner.ts`: `AgentRunner` — ポーリングループ・セッション管理の基底クラス（`AiAgent` 実装）。`protected constructor` により直接インスタンス化不可。`send()` でポーリング未起動なら自動起動（lazy start）。`DiscordAgent`・`MinecraftAgent` がサブクラスとして配線をカプセル化
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
 - `mcp-config.ts`: `mcpServerConfigs()` — Discord エージェント用 MCP サーバー設定（core: remote, code-exec: local）。`mcpMinecraftConfigs()` — Minecraft エージェント用 MCP サーバー設定（mc-bridge / minecraft）
 - `discord/router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
+- `discord/discord-agent.ts`: `DiscordAgent extends AgentRunner` — `SqliteEventBuffer` + 会話 Profile + `OpencodeSessionAdapter` を内部生成
 - `discord/context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `discord/profile.ts`: 会話エージェントプロファイル
+- `minecraft/minecraft-agent.ts`: `MinecraftAgent extends AgentRunner` — `MinecraftEventBuffer` + MC Profile + `MinecraftContextBuilder` + `OpencodeSessionAdapter` を内部生成
 - `minecraft/context-builder.ts`: `MinecraftContextBuilder` — Minecraft エージェント専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
 - `minecraft/profile.ts`: Minecraft エージェントプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
-- `minecraft/brain-manager.ts`: `McBrainManager` — Minecraft エージェントの生成・起動・停止を管理（ブリッジ lifecycle ポーリング）
+- `minecraft/brain-manager.ts`: `McBrainManager` — `MinecraftAgent` の生成・停止を管理（ブリッジ lifecycle ポーリング）
 
 ### 4.3 application/ — ユースケース
 
