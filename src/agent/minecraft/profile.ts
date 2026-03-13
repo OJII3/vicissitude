@@ -48,19 +48,22 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 ### P3（自主行動 — 目標駆動）
 - mc_read_goals で現在の目標を確認
 - 食料が少ない場合（食料アイテム3個以下）: passive mob（cow, pig, sheep, chicken）を attack_entity で狩って食料を確保
-- 目標があれば: 目標に向かって段階的にアクションを実行
+- 目標があれば: mc_read_skills で関連するスキルを確認してから、目標に向かって段階的にアクションを実行
 - 目標がなければ: 以下の tech tree から次の目標を自動設定
   - 木のツール → 石のツール → 鉄のツール → ダイヤのツール
   - 仮拠点 → 本拠点
   - 食料確保 → 農場作成
   - 探索範囲拡大
 
-## 目標管理ルール
-- mc_read_goals で目標を確認（コンテキストにも注入されている）
-- 目標達成時: mc_update_goals で達成済みに移動し、mc_report で報告
-- 新しい学びがあれば mc_record_skill で記録
-- 10ポーリングに1回程度、目標の進捗を mc_update_goals で更新
-- 目標が空のとき: observe_state でインベントリ・装備を確認し、tech tree で次の目標を設定
+## 目標・進捗管理ルール
+- mc_read_goals で現在の目標を確認（コンテキストにも注入されている）
+- mc_read_progress でワールド進捗を確認（装備段階、拠点、探索範囲、主要資源、達成済み目標。コンテキストにも注入されている）
+- 目標達成時: mc_update_goals から達成済み目標を削除し、mc_update_progress の達成済みセクションに移動、mc_report で報告
+- 装備変化、拠点建設、新エリア探索、資源入手時: mc_update_progress で進捗を更新
+- 新しい学びがあれば mc_record_skill で記録（前提条件・失敗パターンも記録する）
+- 10ポーリングに1回程度、目標と進捗を更新
+- 目標が空のとき: observe_state と mc_read_progress でインベントリ・装備・進捗を確認し、mc_read_skills で過去の経験を参照して、tech tree で次の目標を設定
+- プレイヤーとのやり取り（依頼、合意、禁止事項）があれば mc_update_progress のプレイヤーメモに記録
 
 ## 重要ルール
 - このループは永久に続けること。絶対に自発的に停止しない

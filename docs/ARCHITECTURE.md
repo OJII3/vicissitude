@@ -16,7 +16,7 @@
 ## 3. システム境界
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
-- コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, SKILLS）
+- コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, PROGRESS, SKILLS）
 - データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`ltm/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
@@ -190,7 +190,7 @@ MCP サーバーは 4 プロセス構成:
    - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`, `attack_entity`
 4. **minecraft/mc-bridge-server.ts** (`type: "local"`、Minecraft 側専用): Minecraft ブリッジ + メモリ MCP サーバー
    - `tools/mc-bridge-minecraft.ts`（Minecraft 側）: `mc_report`, `mc_read_commands`
-   - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
+   - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_progress`, `mc_update_progress`, `mc_read_skills`, `mc_record_skill`
 
 ### 4.8 store/ — SQLite 統一永続化
 
@@ -515,7 +515,7 @@ MCP サーバーは 4 プロセス構成:
 ### 11.6 M13a ギャップ分析
 
 - 即応性不足: 危険時のプリエンプションは wake file で部分対応済みだが、完全なイベント直結ではない。
-- 長期進捗不足: `MINECRAFT-GOALS.md` と `MINECRAFT-SKILLS.md` だけでは、拠点状態や技術段階、探索済み領域を保持しにくい。
+- ~~長期進捗不足~~: `MINECRAFT-PROGRESS.md` を新設し、装備段階・拠点・探索範囲・主要資源・達成済み目標・プレイヤーメモを分離管理（M13d で解消）。
 - 社会行動不足: Discord 依頼、緊急回避、自律目標の優先順位と説明責任が未整理である。
 - 安全機構: 失敗分類（5 類型）とクールダウンは実装済み。stuck 判定は実装済み。Discord 自動通知（death/kicked/disconnect）は実装済み。
 

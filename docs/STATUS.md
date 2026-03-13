@@ -19,6 +19,11 @@
   - Discord 自動通知: `death`/`kicked`/`disconnect` イベントを `AutoNotifier` がブリッジ DB に自動挿入（30 秒クールダウン付き）。
   - クールダウン/再試行メトリクス: `mc_cooldowns_total`, `mc_failure_streaks_total`, `mc_auto_notifications_total` を追加。
 - M13d stuck 検知を実装（PR #132）。位置・インベントリ・体力の停滞検知 + 自動リカバリ（連続失敗 / 位置停滞 + 時間条件）。
+- M13d 記憶再設計:
+  - `MINECRAFT-PROGRESS.md` 新設（装備段階、拠点、探索範囲、主要資源、達成済み目標、プレイヤーメモ）。
+  - `MINECRAFT-GOALS.md` を「現在の目標のみ」に簡素化。
+  - `MINECRAFT-SKILLS.md` に前提条件・失敗パターンフィールドを追加。常時注入から除外（必要時のみ読む）。
+  - `mc_read_progress`/`mc_update_progress` をエイリアスから独立ツールに変更。
 - fenghuang 外部パッケージを `src/ltm/` としてモノレポに統合完了（PR #134）。
   - StoragePort 廃止 → SQLite 直接依存、LLMPort → LtmLlmPort リネーム、全テスト移行済み。
   - レビュー指摘 6 件修正: 型安全性向上（`Promise<Episode[]>`）、セグメント index バリデーション強化、キューサイズ事前チェック、embedding 検索の 2 段階最適化、FTS5 フォールバック限定化、フィールド長制限追加。
@@ -27,7 +32,7 @@
   - `Retrieval.retrieve()` 実行時にヒットしたエピソードを自動で `review(rating: "good")` する。
   - `ConsolidationPipeline.consolidate()` でエピソード処理時に `review(rating: "good")` する。
   - `lastReviewedAt` が更新されることで、頻繁に参照されるエピソードの `retrievability` が高く維持される。
-- `nr validate` 通過。`bun test` は 729 テスト pass（0 fail）。
+- `nr validate` 通過。`bun test` は 738 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。

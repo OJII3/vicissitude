@@ -75,6 +75,29 @@ describe("MinecraftContextBuilder", () => {
 		expect(result).toContain("</MINECRAFT-KNOWLEDGE.md>");
 	});
 
+	it("MINECRAFT-PROGRESS.md が注入される", async () => {
+		const { baseDir, overlayDir } = createTmpDirs();
+		writeFile(baseDir, "MINECRAFT-PROGRESS.md", "progress content");
+
+		const builder = new MinecraftContextBuilder(overlayDir, baseDir);
+		const result = await builder.build();
+
+		expect(result).toContain("<MINECRAFT-PROGRESS.md>");
+		expect(result).toContain("progress content");
+		expect(result).toContain("</MINECRAFT-PROGRESS.md>");
+	});
+
+	it("MINECRAFT-SKILLS.md は注入されない（必要時のみツールで読む）", async () => {
+		const { baseDir, overlayDir } = createTmpDirs();
+		writeFile(baseDir, "MINECRAFT-SKILLS.md", "skills content");
+
+		const builder = new MinecraftContextBuilder(overlayDir, baseDir);
+		const result = await builder.build();
+
+		expect(result).not.toContain("MINECRAFT-SKILLS.md");
+		expect(result).not.toContain("skills content");
+	});
+
 	it("PER_FILE_MAX 超過時に切り詰める", async () => {
 		const { baseDir, overlayDir } = createTmpDirs();
 		const largeContent = "x".repeat(25_000);
