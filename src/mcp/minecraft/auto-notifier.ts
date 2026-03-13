@@ -27,7 +27,8 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 			try {
 				// spawn 時は古い未消費の report/command をクリアしてから lifecycle を挿入
 				if (kind === "spawn") {
-					markStaleEventsConsumedOnSpawn(db);
+					const cleared = markStaleEventsConsumedOnSpawn(db);
+					if (cleared > 0) console.log(`[auto-notifier] cleared ${cleared} stale events on spawn`);
 				}
 				insertBridgeEvent(db, "to_discord", "lifecycle", kind);
 			} catch (err) {
