@@ -12,4 +12,5 @@ graph LR
 ## ファイル別依存一覧
 
 ### ollama-embedding-adapter.ts
+
 - 依存なし

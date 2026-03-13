@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { OpencodeSessionPort } from "../../core/types.ts";
 import {
 	insertBridgeEvent,
 	releaseSessionLockAndStop,
@@ -9,19 +8,6 @@ import {
 import { createTestDb } from "../../store/test-helpers.ts";
 import type { McBrainManagerDeps } from "./brain-manager.ts";
 import { McBrainManager } from "./brain-manager.ts";
-
-function createMockSessionPort(): OpencodeSessionPort {
-	return {
-		createSession: mock(() => Promise.resolve("mock-session-id")),
-		sessionExists: mock(() => Promise.resolve(false)),
-		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-		promptAsync: mock(() => Promise.resolve()),
-		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
-		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
-		deleteSession: mock(() => Promise.resolve()),
-		close: mock(() => {}),
-	};
-}
 
 /** テスト用ポーリング間隔（50ms で十分高速） */
 const TEST_POLL_MS = 50;
@@ -38,7 +24,7 @@ function createTestDeps(overrides?: Partial<McBrainManagerDeps>): McBrainManager
 			error: mock(() => {}),
 		},
 		root: "/tmp/test-mc-sub",
-		createSessionPort: () => createMockSessionPort(),
+		opencodePort: 9999,
 		providerId: "test-provider",
 		modelId: "test-model",
 		sessionMaxAgeMs: 3_600_000,
@@ -56,8 +42,8 @@ describe("McBrainManager", () => {
 		manager = new McBrainManager(deps);
 	});
 
-	afterEach(async () => {
-		await manager.stop();
+	afterEach(() => {
+		manager.stop();
 	});
 
 	test("start() clears existing session lock", () => {
@@ -82,9 +68,9 @@ describe("McBrainManager", () => {
 		expect(pollingStartedLog).toBe(true);
 	});
 
-	test("stop() logs lifecycle polling stop when started", async () => {
+	test("stop() logs lifecycle polling stop when started", () => {
 		manager.start();
-		await manager.stop();
+		manager.stop();
 
 		const infoCalls = (deps.logger.info as ReturnType<typeof mock>).mock.calls;
 		const stoppingLog = infoCalls.some(
@@ -94,14 +80,14 @@ describe("McBrainManager", () => {
 		expect(stoppingLog).toBe(true);
 	});
 
-	test("stop() is safe to call without start()", async () => {
-		await expect(manager.stop()).resolves.toBeUndefined();
+	test("stop() is safe to call without start()", () => {
+		expect(() => manager.stop()).not.toThrow();
 	});
 
-	test("stop() is safe to call multiple times", async () => {
+	test("stop() is safe to call multiple times", () => {
 		manager.start();
-		await manager.stop();
-		await expect(manager.stop()).resolves.toBeUndefined();
+		manager.stop();
+		expect(() => manager.stop()).not.toThrow();
 	});
 
 	test("lifecycle start event triggers startRunner (via log)", async () => {

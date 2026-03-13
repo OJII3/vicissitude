@@ -31,21 +31,22 @@ export interface RunnerDeps {
 export class AgentRunner implements AiAgent {
 	private abortController: AbortController | null = null;
 	private running = false;
+	private pollingPromise: Promise<void> | null = null;
 	private sessionCreatedAt: number | null = null;
 	private sessionWatch: Promise<OpencodeSessionEvent> | null = null;
 	private hasStartedSession = false;
 
-	private readonly profile: AgentProfile;
-	private readonly guildId: string;
+	protected readonly profile: AgentProfile;
+	protected readonly guildId: string;
 	private readonly sessionStore: SessionStore;
 	private readonly contextBuilder: ContextBuilderPort;
-	private readonly logger: Logger;
+	protected readonly logger: Logger;
 	private readonly sessionPort: OpencodeSessionPort;
 	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
 
-	constructor(deps: RunnerDeps) {
+	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
 		this.guildId = deps.guildId;
 		this.sessionStore = deps.sessionStore;
@@ -72,10 +73,23 @@ export class AgentRunner implements AiAgent {
 			isMentioned: false,
 			isThread: false,
 		});
+		this.ensurePolling();
 		return Promise.resolve({ text: "", sessionId: "polling" });
 	}
 
-	async startPollingLoop(): Promise<void> {
+	/** ポーリングループが未起動なら起動する */
+	ensurePolling(): void {
+		if (!this.running) {
+			this.pollingPromise = this.startPollingLoop().catch((err) => {
+				this.logger.error(
+					`[${this.profile.name}:${this.guildId}] polling loop unexpectedly rejected`,
+					err,
+				);
+			});
+		}
+	}
+
+	protected async startPollingLoop(): Promise<void> {
 		if (this.running) return;
 		this.running = true;
 		this.abortController = new AbortController();
@@ -129,6 +143,7 @@ export class AgentRunner implements AiAgent {
 		this.abortController?.abort();
 		this.abortController = null;
 		this.sessionWatch = null;
+		this.pollingPromise = null;
 		this.sessionPort.close();
 	}
 

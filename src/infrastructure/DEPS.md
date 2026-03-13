@@ -13,8 +13,10 @@ graph LR
 ## ファイル別依存一覧
 
 ### discord/attachment-mapper.ts
+
 - 他モジュール依存: core/
 - 外部依存: discord.js
 
 ### store/sqlite-buffered-event-store.ts
+
 - 他モジュール依存: application/, core/, store/
