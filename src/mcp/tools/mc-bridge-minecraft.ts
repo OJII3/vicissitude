@@ -18,9 +18,15 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 				.enum(["low", "medium", "high", "critical"])
 				.default("medium")
 				.describe("重要度"),
+			category: z
+				.enum(["progress", "completion", "stuck", "danger", "discovery", "status"])
+				.default("status")
+				.describe(
+					"レポート種別: progress=作業中間報告, completion=目標達成, stuck=行き詰まり, danger=危険回避, discovery=新発見, status=一般状態",
+				),
 		},
-		({ message, importance }) => {
-			const payload = JSON.stringify({ message, importance });
+		({ message, importance, category }) => {
+			const payload = JSON.stringify({ message, importance, category });
 			insertBridgeEvent(db, "to_discord", "report", payload);
 			return {
 				content: [{ type: "text" as const, text: "レポートを Discord 側に送信しました。" }],

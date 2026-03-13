@@ -1,12 +1,24 @@
 import type { McStatusProvider } from "../core/types.ts";
 import type { StoreDb } from "./db.ts";
-import { peekBridgeEvents } from "./mc-bridge.ts";
+import { type BridgeEvent, peekBridgeEvents } from "./mc-bridge.ts";
 
-const MAX_RECENT_REPORTS = 5;
+const MAX_RECENT_REPORTS = 10;
+
+interface ParsedReport {
+	message: string;
+	importance: string;
+	category: string;
+	createdAt: string;
+}
 
 /**
  * SQLite ブリッジテーブルと MINECRAFT-GOALS.md から Discord 側の
  * Minecraft 状態サマリーを生成する。
+ *
+ * 出力構造:
+ * - 現在の目標（MINECRAFT-GOALS.md）
+ * - 最新状況（カテゴリ別: danger > stuck > progress > completion > discovery > status）
+ * - 未処理の指示（to_minecraft command）
  */
 export class SqliteMcStatusProvider implements McStatusProvider {
 	constructor(
@@ -18,13 +30,14 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 	async getStatusSummary(): Promise<string | null> {
 		const sections: string[] = [];
 
-		// 直近レポート
+		const goalsSection = await this.buildGoalsSection();
+		if (goalsSection) sections.push(goalsSection);
+
 		const reportSection = this.buildReportSection();
 		if (reportSection) sections.push(reportSection);
 
-		// 現在の目標
-		const goalsSection = await this.buildGoalsSection();
-		if (goalsSection) sections.push(goalsSection);
+		const pendingSection = this.buildPendingCommandsSection();
+		if (pendingSection) sections.push(pendingSection);
 
 		if (sections.length === 0) return null;
 		return sections.join("\n\n");
@@ -34,34 +47,76 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 		const events = peekBridgeEvents(this.db, "to_discord", MAX_RECENT_REPORTS);
 		if (events.length === 0) return null;
 
-		const recent = events;
-		const lines = recent.map((e) => {
-			const ts = new Date(e.createdAt).toISOString();
-			if (e.type === "report") {
-				const parsed = this.parseReportPayload(e.payload);
-				if (parsed) {
-					return `- [${ts}] [${parsed.importance}] ${parsed.message}`;
-				}
+		const reports = events
+			.map((e) => this.parseEvent(e))
+			.filter((r): r is ParsedReport => r !== null);
+
+		if (reports.length === 0) return null;
+
+		// カテゴリ別にグループ化（優先度順）
+		const dangerReports = reports.filter((r) => r.category === "danger");
+		const stuckReports = reports.filter((r) => r.category === "stuck");
+		const otherReports = reports.filter(
+			(r) => r.category !== "danger" && r.category !== "stuck",
+		);
+
+		const lines: string[] = [];
+
+		if (dangerReports.length > 0) {
+			lines.push("**⚠ 危険/緊急:**");
+			for (const r of dangerReports) lines.push(`- [${r.importance}] ${r.message}`);
+		}
+		if (stuckReports.length > 0) {
+			lines.push("**🔄 行き詰まり:**");
+			for (const r of stuckReports) lines.push(`- ${r.message}`);
+		}
+		if (otherReports.length > 0) {
+			lines.push("**直近の出来事:**");
+			for (const r of otherReports) {
+				const tag = r.category === "status" ? "" : `[${r.category}] `;
+				lines.push(`- ${tag}${r.message}`);
 			}
-			return `- [${ts}] (${e.type}) ${e.payload}`;
-		});
-		return `## マイクラでの最近の出来事\n${lines.join("\n")}`;
+		}
+
+		return `## 最新状況\n${lines.join("\n")}`;
 	}
 
-	private parseReportPayload(payload: string): { message: string; importance: string } | null {
-		try {
-			const parsed = JSON.parse(payload) as Record<string, unknown>;
-			if (typeof parsed.message === "string" && typeof parsed.importance === "string") {
-				return { message: parsed.message, importance: parsed.importance };
+	private buildPendingCommandsSection(): string | null {
+		const commands = peekBridgeEvents(this.db, "to_minecraft", 5);
+		const pending = commands.filter((e) => e.type === "command");
+		if (pending.length === 0) return null;
+
+		const lines = pending.map((e) => `- ${e.payload}`);
+		return `## 未処理の指示\n${lines.join("\n")}`;
+	}
+
+	private parseEvent(e: BridgeEvent): ParsedReport | null {
+		const ts = new Date(e.createdAt).toISOString();
+		if (e.type === "report") {
+			try {
+				const parsed = JSON.parse(e.payload) as Record<string, unknown>;
+				if (typeof parsed.message === "string") {
+					return {
+						message: parsed.message,
+						importance: typeof parsed.importance === "string" ? parsed.importance : "medium",
+						category: typeof parsed.category === "string" ? parsed.category : "status",
+						createdAt: ts,
+					};
+				}
+			} catch {
+				// JSON パース失敗時はフォールバック
 			}
-		} catch {
-			// JSON パース失敗時は null を返す
 		}
-		return null;
+		// lifecycle や非JSON レポートのフォールバック
+		return {
+			message: `(${e.type}) ${e.payload}`,
+			importance: "low",
+			category: "status",
+			createdAt: ts,
+		};
 	}
 
 	private async buildGoalsSection(): Promise<string | null> {
-		// オーバーレイ優先
 		const content = await this.readFile(this.overlayGoalsPath);
 		if (content) return `## 現在の目標\n${content}`;
 
