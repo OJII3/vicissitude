@@ -178,13 +178,12 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
 ### 8.1 手順
 
 1. Bot を停止する。
-2. 対象の LTM データベースを特定する: `data/ltm/guilds/{guildId}/memory.db`
-3. embedding メタデータをリセットする:
+2. 対象の LTM データベースをバックアップする:
    ```bash
-   sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
+   cp data/ltm/guilds/{guildId}/memory.db data/ltm/guilds/{guildId}/memory.db.bak
    ```
-4. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
-5. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のように全レコードの embedding を更新する:
+3. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
+4. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のように全レコードの embedding を更新する（id は UUID のためクォート展開は安全）:
    ```bash
    DB="data/ltm/guilds/{guildId}/memory.db"
    MODEL="新モデル名"
@@ -202,13 +201,16 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
      sqlite3 "$DB" "UPDATE semantic_facts SET embedding = '$(echo "$vec")' WHERE id = '$id';"
    done
    ```
-6. Bot を起動する。初回保存時に新しい次元が自動記録される。
+5. embedding メタデータをリセットする（全レコード更新完了後に実行すること）:
+   ```bash
+   sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
+   ```
+6. Bot を起動する。起動時のバックフィルで新しい次元が自動記録される。
 
 ### 8.2 注意事項
 
-- 再 embedding を行わずにメタデータのみリセットすると、古い次元の embedding と新しい次元の embedding が混在し、コサイン類似度の計算でエラーになる。
+- メタデータリセット（Step 5）は必ず全 embedding の再生成（Step 4）が完了した後に行うこと。途中でリセットすると、バックフィルが未更新の古い embedding から誤った次元を推定する。
 - データ量が多い場合は Ollama の負荷に注意する。
-- マイグレーション前にデータベースのバックアップを取ること: `cp memory.db memory.db.bak`
 
 ## 9. セキュリティ運用
 
