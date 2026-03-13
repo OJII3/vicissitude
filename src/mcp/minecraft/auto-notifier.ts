@@ -1,7 +1,7 @@
 import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
 import type { StoreDb } from "../../store/db.ts";
-import { insertBridgeEvent } from "../../store/mc-bridge.ts";
+import { insertBridgeEvent, markStaleEventsConsumedOnSpawn } from "../../store/mc-bridge.ts";
 import type { Importance } from "./helpers.ts";
 
 /** Discord 自動通知の対象イベント種別（report として書き込む） */
@@ -25,6 +25,11 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 		// 接続状態を lifecycle イベントとして記録（Discord 側で接続状態を判定するため）
 		if (LIFECYCLE_KINDS.has(kind)) {
 			try {
+				// spawn 時は古い未消費の report/command をクリアしてから lifecycle を挿入
+				if (kind === "spawn") {
+					const cleared = markStaleEventsConsumedOnSpawn(db);
+					if (cleared > 0) console.log(`[auto-notifier] cleared ${cleared} stale events on spawn`);
+				}
 				insertBridgeEvent(db, "to_discord", "lifecycle", kind);
 			} catch (err) {
 				console.error("[auto-notifier] lifecycle insert failed:", err);

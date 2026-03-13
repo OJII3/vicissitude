@@ -18,6 +18,7 @@ import type {
 	PromptResult,
 	TokenUsage,
 } from "../core/types.ts";
+import { withTimeout } from "../core/functions.ts";
 
 export interface OpencodeSessionAdapterConfig {
 	port: number;
@@ -161,13 +162,20 @@ const STREAM_RETURNED = Symbol("streamReturned"),
 	STREAM_RETURN_PROMISE = Symbol("streamReturnPromise");
 type StreamReadResult = { type: "event"; value: unknown } | { type: "done" } | { type: "aborted" };
 
+/** signal なしの stream.next() に適用するタイムアウト（5分） */
+const STREAM_NEXT_TIMEOUT_MS = 5 * 60 * 1000;
+
 async function nextStreamEvent(
 	stream: AbortableAsyncStream<unknown>,
 	signal: AbortSignal | undefined,
 	onAbort: () => Promise<void>,
 ): Promise<StreamReadResult> {
 	if (!signal) {
-		const result = await stream.next();
+		const result = await withTimeout(
+			stream.next(),
+			STREAM_NEXT_TIMEOUT_MS,
+			"stream.next() timed out after 5 minutes",
+		);
 		return result.done ? { type: "done" } : { type: "event", value: result.value };
 	}
 	return waitForNextStreamEvent(stream, signal, onAbort);

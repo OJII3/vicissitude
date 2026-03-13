@@ -4,7 +4,7 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import { createDb, closeDb } from "../../store/db.ts";
-import { peekBridgeEvents } from "../../store/mc-bridge.ts";
+import { insertBridgeEvent, peekBridgeEvents } from "../../store/mc-bridge.ts";
 import { createAutoNotifier } from "./auto-notifier.ts";
 
 function setupDb() {
@@ -67,6 +67,22 @@ describe("createAutoNotifier", () => {
 		notifier("spawn", "Spawned at (0, 64, 0)", "high");
 
 		const events = peekBridgeEvents(db, "to_discord");
+		expect(events).toHaveLength(1);
+		expect(events.at(0)?.type).toBe("lifecycle");
+		expect(events.at(0)?.payload).toBe("spawn");
+	});
+
+	test("spawn 時に既存の未消費 report が消費済みになる", () => {
+		({ db, dir } = setupDb());
+		// spawn 前に古い report を挿入
+		insertBridgeEvent(db, "to_discord", "report", '{"message":"stale report","importance":"high","auto":true}');
+		insertBridgeEvent(db, "to_discord", "report", '{"message":"another stale","importance":"high","auto":true}');
+
+		const notifier = createAutoNotifier(db);
+		notifier("spawn", "Spawned at (0, 64, 0)", "high");
+
+		const events = peekBridgeEvents(db, "to_discord");
+		// 古い report は消費済み、lifecycle(spawn) のみ残る
 		expect(events).toHaveLength(1);
 		expect(events.at(0)?.type).toBe("lifecycle");
 		expect(events.at(0)?.payload).toBe("spawn");

@@ -6,6 +6,7 @@ import {
 	consumeBridgeEventsByType,
 	hasBridgeEvents,
 	insertBridgeEvent,
+	markStaleEventsConsumedOnSpawn,
 	peekBridgeEvents,
 	releaseSessionLock,
 	releaseSessionLockAndStop,
@@ -162,6 +163,40 @@ describe("mc-bridge", () => {
 			insertBridgeEvent(db, "to_minecraft", "command", "test");
 			expect(hasBridgeEvents(db, "to_discord")).toBe(false);
 			expect(hasBridgeEvents(db, "to_minecraft")).toBe(true);
+		});
+	});
+
+	describe("markStaleEventsConsumedOnSpawn", () => {
+		test("未消費の to_discord report/command を消費済みにする", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_discord", "report", '{"message":"old report"}');
+			insertBridgeEvent(db, "to_discord", "command", "old command");
+			insertBridgeEvent(db, "to_discord", "lifecycle", "spawn");
+
+			const changed = markStaleEventsConsumedOnSpawn(db);
+
+			expect(changed).toBe(2);
+			// report と command は消費済み
+			const remaining = peekBridgeEvents(db, "to_discord");
+			expect(remaining).toHaveLength(1);
+			expect(remaining[0]?.type).toBe("lifecycle");
+		});
+
+		test("to_minecraft のイベントには影響しない", () => {
+			const db = createTestDb();
+			insertBridgeEvent(db, "to_minecraft", "command", "go forest");
+			insertBridgeEvent(db, "to_discord", "report", '{"message":"old"}');
+
+			markStaleEventsConsumedOnSpawn(db);
+
+			const mcEvents = peekBridgeEvents(db, "to_minecraft");
+			expect(mcEvents).toHaveLength(1);
+		});
+
+		test("未消費イベントがない場合は 0 を返す", () => {
+			const db = createTestDb();
+			const changed = markStaleEventsConsumedOnSpawn(db);
+			expect(changed).toBe(0);
 		});
 	});
 
