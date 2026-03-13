@@ -4,7 +4,7 @@
 
 - 2026-03-13
 - 更新者: claude-code
-- ブランチ: main
+- ブランチ: feat/m13e-microsoft-auth
 
 ## 2. 現在の状態
 
@@ -46,6 +46,11 @@
   - `embedding_meta` テーブルを LtmStorage に追加。初回保存時に embedding 次元を記録し、以降の保存で次元不一致を検出・エラーを投げる。
   - `getEmbeddingDimension()` / `resetEmbeddingMeta()` を LtmStorage に追加。
   - モデル変更時の再 embedding マイグレーション手順を RUNBOOK.md §8 に記載。
+- M13e 正式アカウントログイン対応:
+  - `MC_AUTH_MODE`（`offline` / `microsoft`）環境変数を追加。デフォルト: `offline`（後方互換）。
+  - `MC_PROFILES_FOLDER` 環境変数を追加。Microsoft 認証トークンキャッシュの保存先を指定可能に。
+  - `bot-connection.ts` が `auth` を設定値に基づいて渡すように変更。認証エラー時は再接続を無効化（無限ループ防止）。
+  - RUNBOOK.md §9 に Microsoft 認証の初回ログイン手順、トークン失効時の再認証、コンテナ環境での運用を記載。
 - `nr validate` 通過。`bun test` は 770 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
@@ -83,7 +88,7 @@
 - ~~`M14b`: Fact 注入時の関連性フィルタリング（ハイブリッド検索で上位 N 件のみ注入）。~~ 完了。
 - ~~`M13c` 継続: Discord 自動通知をコードへ反映する。~~ 完了。
 - ~~クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。~~ 完了。
-- `M13e`: 正式アカウントログイン設計。
+- ~~`M13e`: 正式アカウントログイン設計。~~ 完了。
 - `data/fenghuang/` → `data/ltm/` 移行手順を RUNBOOK に追記。
 - テストが存在しない残りモジュールへのテスト追加（残: `DiscordGateway`）。
 - `nr test:quality` / `nr test:quality:flake` の履歴蓄積導線を作り、重要シナリオ網羅率へ拡張する。

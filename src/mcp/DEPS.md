@@ -144,6 +144,7 @@ graph LR
 
 ### minecraft/bot-connection.ts
 - モジュール内依存: minecraft/bot-context, minecraft/bot-queries, minecraft/helpers
+- 他モジュール依存: core/
 - 外部依存: mineflayer, mineflayer-pathfinder, prismarine-entity, prismarine-viewer
 
 ### minecraft/bot-context.ts
@@ -184,7 +185,7 @@ graph LR
 
 ### minecraft/server.ts
 - モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/brain-wake, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
-- 他モジュール依存: store/
+- 他モジュール依存: core/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/state-summary.ts

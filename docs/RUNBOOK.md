@@ -38,6 +38,7 @@
 8. `nr container:build:all` でコンテナイメージをビルド済みであることを確認する。
 9. Minecraft エージェントを使用する場合、以下を確認する:
    - `MC_HOST` が設定されていること（設定時のみ Minecraft エージェントが起動される）
+   - `MC_AUTH_MODE`（`offline` / `microsoft`、デフォルト: `offline`）
    - `MC_PROVIDER_ID` / `MC_MODEL_ID`（省略時は Discord エージェントと同じプロバイダ・モデルを使用）
 
 ### 3.2 開発時コマンド
@@ -218,7 +219,54 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
 - メタデータリセット（Step 5）は必ず全 embedding の再生成（Step 4）が完了した後に行うこと。途中でリセットすると、バックフィルが未更新の古い embedding から誤った次元を推定する。
 - データ量が多い場合は Ollama の負荷に注意する。
 
-## 9. セキュリティ運用
+## 9. Minecraft Microsoft 認証
+
+### 9.1 概要
+
+`MC_AUTH_MODE=microsoft` を設定すると、mineflayer が prismarine-auth 経由で Microsoft アカウントのデバイスコード認証を行う。初回のみブラウザでのログインが必要で、以降はキャッシュされたトークンで自動再認証される。
+
+### 9.2 環境変数
+
+| 変数 | 値 | 説明 |
+|------|------|------|
+| `MC_AUTH_MODE` | `microsoft` | Microsoft 認証を有効化 |
+| `MC_USERNAME` | 任意の識別子 | トークンキャッシュのキーとして使われる。アカウントを切り替える場合はこの値を変更する |
+| `MC_PROFILES_FOLDER` | ディレクトリパス（省略可） | トークンキャッシュの保存先。省略時は `~/.minecraft`。コンテナ環境では永続ボリュームを指定すること |
+
+### 9.3 初回ログイン手順
+
+1. `.env` に以下を設定する:
+   ```
+   MC_AUTH_MODE=microsoft
+   MC_USERNAME=my-bot-account
+   MC_PROFILES_FOLDER=data/mc-profiles
+   ```
+2. Bot を起動する（`nr dev` または `nr deploy`）。
+3. コンソールに Microsoft デバイスコードが表示される:
+   ```
+   To sign in, use a web browser to open the page https://www.microsoft.com/link
+   and enter the code XXXXXXXX to authenticate.
+   ```
+4. ブラウザで指定 URL を開き、表示されたコードを入力して Microsoft アカウントでログインする。
+5. ログイン成功後、Bot が自動的にサーバーに接続する。トークンは `MC_PROFILES_FOLDER`（または `~/.minecraft`）にキャッシュされる。
+
+### 9.4 トークン失効時の再認証
+
+- トークンのリフレッシュは prismarine-auth が自動的に行う。
+- リフレッシュトークンも失効した場合（長期間未使用等）、初回と同じデバイスコードフローが再実行される。
+- 認証失敗時は Bot の自動再接続が無効化される（無限ループ防止）。コンソールに `Authentication failed — disabling reconnect` と表示されるので、手動で再起動してログインし直す。
+
+### 9.5 コンテナ環境での運用
+
+- `MC_PROFILES_FOLDER` にボリュームマウントされたパスを指定し、トークンキャッシュを永続化する。
+- 初回ログインはコンテナのログ（`nr deploy:logs`）でデバイスコードを確認する。
+- `compose.yaml` でボリュームを追加する例:
+  ```yaml
+  volumes:
+    - ./data/mc-profiles:/app/data/mc-profiles
+  ```
+
+## 10. セキュリティ運用
 
 1. `DISCORD_TOKEN` は `.env` で管理し、リポジトリにコミットしない。
 2. エラーメッセージに内部情報を含めない（要修正、STATUS.md 参照）。

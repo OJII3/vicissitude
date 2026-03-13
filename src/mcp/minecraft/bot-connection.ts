@@ -3,6 +3,7 @@ import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { mineflayer as prismarineViewer } from "prismarine-viewer";
 
+import type { McAuthMode } from "../../core/config.ts";
 import type { BotContext } from "./bot-context.ts";
 import { getTimePeriod, getWeather } from "./bot-queries.ts";
 import type { Importance } from "./helpers.ts";
@@ -12,6 +13,8 @@ export interface BotConfig {
 	port: number;
 	username: string;
 	version: string | undefined;
+	authMode: McAuthMode;
+	profilesFolder: string | undefined;
 	viewerPort: number;
 }
 
@@ -29,6 +32,28 @@ interface ReconnectState {
 }
 
 const MAX_RECONNECT_DELAY = 60_000;
+
+const AUTH_ERROR_PATTERNS = [
+	// node-minecraft-protocol / mineflayer
+	"invalid credentials",
+	"does not own",
+	"not authenticated",
+	// prismarine-auth: device code timeout
+	"authentication failed, timed out",
+	// prismarine-auth: token refresh failure
+	"cannot refresh without refresh token",
+	// prismarine-auth: XSTS / device code acquisition failure
+	"failed to obtain a xsts token",
+	"failed to request",
+	"failed to acquire",
+	// prismarine-auth: Xbox Live account restrictions
+	"xbox",
+] as const;
+
+function isAuthError(err: Error): boolean {
+	const msg = err.message.toLowerCase();
+	return AUTH_ERROR_PATTERNS.some((p) => msg.includes(p));
+}
 
 function cleanupBot(b: mineflayer.Bot): void {
 	// prismarine-viewer adds `viewer` dynamically; not in mineflayer's type definitions
@@ -49,6 +74,23 @@ function startViewer(b: mineflayer.Bot, viewerPort: number): void {
 	console.error(`[minecraft] Viewer running on *:${String(viewerPort)}`);
 }
 
+function handleHealthChange(b: mineflayer.Bot, ctx: BotContext, tracking: TrackingState): void {
+	const h = Math.round(b.health);
+	const f = Math.round(b.food);
+	const healthDelta = Math.abs(h - tracking.lastHealth);
+	const droppedToLow = h <= 5 && tracking.lastHealth > 5;
+	const droppedToStarving = f === 0 && tracking.lastFood > 0;
+	if (tracking.lastHealth < 0 || healthDelta >= 5 || droppedToLow || droppedToStarving) {
+		const importance: Importance = h <= 5 || droppedToStarving ? "medium" : "low";
+		tracking.lastHealth = h;
+		tracking.lastFood = f;
+		ctx.pushEvent("health", `Health: ${String(h)}, Food: ${String(f)}`, importance);
+	} else if (f !== tracking.lastFood) {
+		tracking.lastHealth = h;
+		tracking.lastFood = f;
+	}
+}
+
 function registerCoreEvents(
 	b: mineflayer.Bot,
 	ctx: BotContext,
@@ -56,6 +98,7 @@ function registerCoreEvents(
 	viewerPort: number,
 	onSpawnReady: () => void,
 	onDisconnect: () => void,
+	onAuthFailure: () => void,
 ): void {
 	b.once("spawn", () => {
 		console.error(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
@@ -64,22 +107,7 @@ function registerCoreEvents(
 		startViewer(b, viewerPort);
 	});
 	b.on("death", () => ctx.pushEvent("death", "Bot died", "high"));
-	b.on("health", () => {
-		const h = Math.round(b.health);
-		const f = Math.round(b.food);
-		const healthDelta = Math.abs(h - tracking.lastHealth);
-		const droppedToLow = h <= 5 && tracking.lastHealth > 5;
-		const droppedToStarving = f === 0 && tracking.lastFood > 0;
-		if (tracking.lastHealth < 0 || healthDelta >= 5 || droppedToLow || droppedToStarving) {
-			const importance: Importance = h <= 5 || droppedToStarving ? "medium" : "low";
-			tracking.lastHealth = h;
-			tracking.lastFood = f;
-			ctx.pushEvent("health", `Health: ${String(h)}, Food: ${String(f)}`, importance);
-		} else if (f !== tracking.lastFood) {
-			tracking.lastHealth = h;
-			tracking.lastFood = f;
-		}
-	});
+	b.on("health", () => handleHealthChange(b, ctx, tracking));
 	b.on("chat", (username: string, message: string) => {
 		if (username !== b.username) ctx.pushEvent("chat", `<${username}> ${message}`, "medium");
 	});
@@ -95,7 +123,13 @@ function registerCoreEvents(
 		ctx.pushEvent("disconnect", `Disconnected: ${reason}`, "high");
 		onDisconnect();
 	});
-	b.on("error", (err: Error) => console.error(`[minecraft] Error: ${err.message}`));
+	b.on("error", (err: Error) => {
+		console.error(`[minecraft] Error: ${err.message}`);
+		if (isAuthError(err)) {
+			console.error("[minecraft] Authentication failed — disabling reconnect");
+			onAuthFailure();
+		}
+	});
 }
 
 function registerWorldEvents(b: mineflayer.Bot, ctx: BotContext, tracking: TrackingState): void {
@@ -130,13 +164,17 @@ function initBot(
 	reconnect: ReconnectState,
 	botFactory: () => mineflayer.Bot,
 ): mineflayer.Bot {
-	const b = mineflayer.createBot({
+	const botOptions: Parameters<typeof mineflayer.createBot>[0] = {
 		host: config.host,
 		port: config.port,
 		username: config.username,
 		version: config.version,
-		auth: "offline",
-	});
+		auth: config.authMode,
+	};
+	if (config.authMode === "microsoft" && config.profilesFolder) {
+		botOptions.profilesFolder = config.profilesFolder;
+	}
+	const b = mineflayer.createBot(botOptions);
 	b.loadPlugin(pathfinder.pathfinder);
 	registerCoreEvents(
 		b,
@@ -148,6 +186,9 @@ function initBot(
 		},
 		() => {
 			if (!reconnect.shuttingDown) scheduleReconnect(reconnect, ctx, botFactory);
+		},
+		() => {
+			reconnect.shuttingDown = true;
 		},
 	);
 	registerWorldEvents(b, ctx, tracking);

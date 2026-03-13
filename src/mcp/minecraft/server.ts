@@ -1,6 +1,7 @@
 /* oxlint-disable max-dependencies -- server entry requires auto-notifier + bridge DB dependencies */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { parseMcAuthMode } from "../../core/config.ts";
 import { createDb, closeDb } from "../../store/db.ts";
 import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
@@ -31,6 +32,17 @@ if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
 const MC_PORT = portRaw;
 const MC_USERNAME = process.env.MC_USERNAME ?? "hua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
+let MC_AUTH_MODE: ReturnType<typeof parseMcAuthMode>;
+try {
+	MC_AUTH_MODE = parseMcAuthMode(process.env.MC_AUTH_MODE ?? "offline");
+} catch (e) {
+	console.error((e as Error).message);
+	process.exit(1);
+}
+const MC_PROFILES_FOLDER = process.env.MC_PROFILES_FOLDER;
+if (MC_AUTH_MODE === "offline" && MC_PROFILES_FOLDER) {
+	console.error("[minecraft] MC_PROFILES_FOLDER is set but MC_AUTH_MODE is 'offline'; it will be ignored");
+}
 const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
 if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 	console.error("MC_MCP_PORT must be a valid port number (1-65535)");
@@ -71,6 +83,8 @@ const connection = createBotConnection(
 		port: MC_PORT,
 		username: MC_USERNAME,
 		version: MC_VERSION,
+		authMode: MC_AUTH_MODE,
+		profilesFolder: MC_PROFILES_FOLDER,
 		viewerPort: MC_VIEWER_PORT,
 	},
 	ctx,

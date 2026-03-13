@@ -16,11 +16,24 @@ const safeInt = z
 	.refine((n) => !Number.isNaN(n), "must be a valid integer");
 const safeNumber = z.number().refine((n) => !Number.isNaN(n), "must be a valid number");
 
+const mcAuthModeSchema = z.enum(["offline", "microsoft"]);
+export type McAuthMode = z.infer<typeof mcAuthModeSchema>;
+
+export function parseMcAuthMode(value: string): McAuthMode {
+	const result = mcAuthModeSchema.safeParse(value);
+	if (!result.success) {
+		throw new Error('MC_AUTH_MODE must be "offline" or "microsoft"');
+	}
+	return result.data;
+}
+
 const minecraftSchema = z.object({
 	host: z.string(),
 	port: safeInt,
 	username: z.string(),
 	version: z.string().optional(),
+	authMode: mcAuthModeSchema,
+	profilesFolder: z.string().optional(),
 	mcpPort: safeInt,
 	viewerPort: safeInt,
 });
@@ -91,6 +104,8 @@ export function loadConfig(
 					port: Number(env.MC_PORT ?? "25565"),
 					username: env.MC_USERNAME ?? "hua",
 					version: env.MC_VERSION,
+					authMode: env.MC_AUTH_MODE ?? "offline",
+					profilesFolder: env.MC_PROFILES_FOLDER,
 					mcpPort: Number(env.MC_MCP_PORT ?? "3001"),
 					viewerPort: Number(env.MC_VIEWER_PORT ?? "3007"),
 				}

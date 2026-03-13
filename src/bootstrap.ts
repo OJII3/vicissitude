@@ -323,11 +323,13 @@ async function startMinecraftMcp(
 		MC_HOST: config.minecraft.host,
 		MC_PORT: String(config.minecraft.port),
 		MC_USERNAME: config.minecraft.username,
+		MC_AUTH_MODE: config.minecraft.authMode,
 		MC_MCP_PORT: String(config.minecraft.mcpPort),
 		MC_BRAIN_WAKE_FILE: resolve(root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
 		DATA_DIR: resolve(root, "data"),
 	};
 	if (config.minecraft.version) mcEnv.MC_VERSION = config.minecraft.version;
+	if (config.minecraft.profilesFolder) mcEnv.MC_PROFILES_FOLDER = config.minecraft.profilesFolder;
 
 	const mcProcess = spawn({
 		cmd: ["bun", "run", resolve(root, "dist/minecraft-server.js")],
