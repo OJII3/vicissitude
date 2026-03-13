@@ -47,14 +47,29 @@ describe("createAutoNotifier", () => {
 		expect(events).toHaveLength(1);
 	});
 
-	test("disconnect イベントでブリッジに report が挿入される", () => {
+	test("disconnect イベントでブリッジに lifecycle + report が挿入される", () => {
 		({ db, dir } = setupDb());
 		const notifier = createAutoNotifier(db);
 
 		notifier("disconnect", "Disconnected: server closed", "high");
 
 		const events = peekBridgeEvents(db, "to_discord");
+		expect(events).toHaveLength(2);
+		expect(events.at(0)?.type).toBe("lifecycle");
+		expect(events.at(0)?.payload).toBe("disconnect");
+		expect(events.at(1)?.type).toBe("report");
+	});
+
+	test("spawn イベントで lifecycle のみ挿入される（report は不要）", () => {
+		({ db, dir } = setupDb());
+		const notifier = createAutoNotifier(db);
+
+		notifier("spawn", "Spawned at (0, 64, 0)", "high");
+
+		const events = peekBridgeEvents(db, "to_discord");
 		expect(events).toHaveLength(1);
+		expect(events.at(0)?.type).toBe("lifecycle");
+		expect(events.at(0)?.payload).toBe("spawn");
 	});
 
 	test("対象外のイベント種別は通知しない", () => {
@@ -63,7 +78,6 @@ describe("createAutoNotifier", () => {
 
 		notifier("chat", "<player> hello", "medium");
 		notifier("health", "Health: 20, Food: 10", "low");
-		notifier("spawn", "Spawned at (0, 64, 0)", "high");
 
 		const events = peekBridgeEvents(db, "to_discord");
 		expect(events).toHaveLength(0);

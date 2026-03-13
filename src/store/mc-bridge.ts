@@ -183,6 +183,27 @@ export function parseBridgeEvent(e: BridgeEvent): ParsedReport {
 	};
 }
 
+/** 最新の lifecycle イベントから MC Bot の接続状態を判定する */
+export function getMcConnectionStatus(db: StoreDb): { connected: boolean; since: string | null } {
+	const row = db
+		.select({ payload: mcBridgeEvents.payload, createdAt: mcBridgeEvents.createdAt })
+		.from(mcBridgeEvents)
+		.where(
+			and(
+				eq(mcBridgeEvents.direction, "to_discord"),
+				eq(mcBridgeEvents.type, "lifecycle"),
+			),
+		)
+		.orderBy(desc(mcBridgeEvents.id))
+		.limit(1)
+		.get();
+	if (!row) return { connected: false, since: null };
+	return {
+		connected: row.payload === "spawn",
+		since: new Date(row.createdAt).toISOString(),
+	};
+}
+
 /** 未消費のブリッジイベントが存在するか確認する */
 export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolean {
 	const row = db

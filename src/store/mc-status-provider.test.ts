@@ -200,6 +200,52 @@ describe("SqliteMcStatusProvider", () => {
 		expect(summary).toContain("ダイヤ5個集めて");
 	});
 
+	test("shows connected status when latest lifecycle is spawn", async () => {
+		const db = createTestDb();
+		insertBridgeEvent(db, "to_discord", "lifecycle", "spawn");
+		const provider = new SqliteMcStatusProvider(
+			db,
+			"/nonexistent/overlay.md",
+			"/nonexistent/base.md",
+		);
+
+		const summary = await provider.getStatusSummary();
+		expect(summary).toContain("## 接続状態");
+		expect(summary).toContain("🟢 接続中");
+	});
+
+	test("shows disconnected status when latest lifecycle is disconnect", async () => {
+		const db = createTestDb();
+		insertBridgeEvent(db, "to_discord", "lifecycle", "spawn");
+		insertBridgeEvent(db, "to_discord", "lifecycle", "disconnect");
+		const provider = new SqliteMcStatusProvider(
+			db,
+			"/nonexistent/overlay.md",
+			"/nonexistent/base.md",
+		);
+
+		const summary = await provider.getStatusSummary();
+		expect(summary).toContain("🔴 未接続");
+	});
+
+	test("omits connection section when no lifecycle events exist", async () => {
+		const db = createTestDb();
+		insertBridgeEvent(
+			db,
+			"to_discord",
+			"report",
+			JSON.stringify({ message: "test", importance: "low" }),
+		);
+		const provider = new SqliteMcStatusProvider(
+			db,
+			"/nonexistent/overlay.md",
+			"/nonexistent/base.md",
+		);
+
+		const summary = await provider.getStatusSummary();
+		expect(summary).not.toContain("## 接続状態");
+	});
+
 	test("defaults category to status when not provided", async () => {
 		const db = createTestDb();
 		insertBridgeEvent(
