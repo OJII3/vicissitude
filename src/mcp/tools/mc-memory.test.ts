@@ -5,6 +5,7 @@ import { join } from "path";
 
 import {
 	readOverlay,
+	sanitizeSingleLine,
 	sanitizeSkillDescription,
 	sanitizeSkillName,
 	writeOverlay,
@@ -99,6 +100,20 @@ describe("sanitizeSkillDescription", () => {
 	});
 });
 
+describe("sanitizeSingleLine", () => {
+	it("改行を除去して単一行にする", () => {
+		expect(sanitizeSingleLine("石の\nピッケル\n以上")).toBe("石の ピッケル 以上");
+	});
+
+	it("CR+LF も除去する", () => {
+		expect(sanitizeSingleLine("foo\r\nbar\r\nbaz")).toBe("foo bar baz");
+	});
+
+	it("Markdown ヘッダーも除去する", () => {
+		expect(sanitizeSingleLine("## 危険な入力")).toBe("危険な入力");
+	});
+});
+
 describe("progress の読み書き", () => {
 	it("base テンプレートからフォールバック読み込みできる", () => {
 		const dataDir = createTmpDir();
@@ -178,13 +193,13 @@ describe("mc_record_skill の追記ロジック", () => {
 		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
 		const safeName = sanitizeSkillName("鉄鉱石採掘");
 		const safeDescription = sanitizeSkillDescription("Y=-64〜16 で鉄鉱石を採掘する");
-		const preconditions = "石のピッケル以上が必要";
-		const failurePatterns = "夜間は敵mobで中断されやすい";
+		const preconditions = sanitizeSingleLine("石のピッケル以上が必要");
+		const failurePatterns = sanitizeSingleLine("夜間は敵mobで中断されやすい");
 
-		const parts = [`\n## ${safeName}\n`, safeDescription];
-		parts.push(`\n**前提条件**: ${preconditions}`);
-		parts.push(`\n**失敗パターン**: ${failurePatterns}`);
-		const entry = `${parts.join("\n")}\n`;
+		const lines = [`\n## ${safeName}\n\n${safeDescription}`];
+		lines.push(`\n**前提条件**: ${preconditions}`);
+		lines.push(`\n**失敗パターン**: ${failurePatterns}`);
+		const entry = `${lines.join("")}\n`;
 		const updated = existing + entry;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);
 
@@ -192,5 +207,28 @@ describe("mc_record_skill の追記ロジック", () => {
 		expect(result).toContain("## 鉄鉱石採掘");
 		expect(result).toContain("**前提条件**: 石のピッケル以上が必要");
 		expect(result).toContain("**失敗パターン**: 夜間は敵mobで中断されやすい");
+	});
+
+	it("前提条件に改行が含まれていても単一行になる", () => {
+		const dataDir = createTmpDir();
+		writeFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "# Minecraft スキルライブラリ\n");
+
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const safeName = sanitizeSkillName("テストスキル");
+		const safeDescription = sanitizeSkillDescription("説明文");
+		const preconditions = sanitizeSingleLine("条件1\n条件2\r\n条件3");
+
+		const lines = [`\n## ${safeName}\n\n${safeDescription}`];
+		lines.push(`\n**前提条件**: ${preconditions}`);
+		const entry = `${lines.join("")}\n`;
+		const updated = existing + entry;
+		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);
+
+		const result = readFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "utf-8");
+		expect(result).toContain("**前提条件**: 条件1 条件2 条件3");
+		// 前提条件行に改行が含まれていないことを確認
+		const preconditionLine = result.split("\n").find((l: string) => l.includes("**前提条件**"));
+		expect(preconditionLine).toBeDefined();
+		expect(preconditionLine).not.toContain("\n条件");
 	});
 });

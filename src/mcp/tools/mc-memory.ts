@@ -56,6 +56,11 @@ export function sanitizeSkillDescription(description: string): string {
 	return description.replaceAll(/^#{1,6}\s/gm, "");
 }
 
+/** 単一行テキストのサニタイズ（改行・Markdown ヘッダーを除去） */
+export function sanitizeSingleLine(text: string): string {
+	return sanitizeSkillDescription(text).replaceAll(/[\r\n]+/g, " ").trim();
+}
+
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
 	const { dataDir } = deps;
 
@@ -159,15 +164,15 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 			const safeName = sanitizeSkillName(name);
 			const safeDescription = sanitizeSkillDescription(description);
 
-			const parts = [`\n## ${safeName}\n`, safeDescription];
+			const lines = [`\n## ${safeName}\n\n${safeDescription}`];
 			if (preconditions) {
-				parts.push(`\n**前提条件**: ${sanitizeSkillDescription(preconditions)}`);
+				lines.push(`\n**前提条件**: ${sanitizeSingleLine(preconditions)}`);
 			}
 			if (failure_patterns) {
-				parts.push(`\n**失敗パターン**: ${sanitizeSkillDescription(failure_patterns)}`);
+				lines.push(`\n**失敗パターン**: ${sanitizeSingleLine(failure_patterns)}`);
 			}
 
-			const entry = `${parts.join("\n")}\n`;
+			const entry = `${lines.join("")}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			if (updated.length > MAX_SKILLS_CHARS) {
 				return {
