@@ -99,6 +99,24 @@ describe("sanitizeSkillDescription", () => {
 	});
 });
 
+describe("progress の読み書き", () => {
+	it("base テンプレートからフォールバック読み込みできる", () => {
+		const dataDir = createTmpDir();
+		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md");
+		expect(result).toContain("Minecraft ワールド進捗");
+		expect(result).toContain("装備段階");
+	});
+
+	it("overlay に書き込んだ進捗が読み込める", () => {
+		const dataDir = createTmpDir();
+		const progressContent = "# Minecraft ワールド進捗\n\n## 装備段階\n\n- 現在: 石\n";
+		writeOverlay(dataDir, "MINECRAFT-PROGRESS.md", progressContent);
+
+		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md");
+		expect(result).toContain("現在: 石");
+	});
+});
+
 describe("mc_record_skill の追記ロジック", () => {
 	it("既存スキルファイルがあれば末尾に追記される", () => {
 		const dataDir = createTmpDir();
@@ -151,5 +169,28 @@ describe("mc_record_skill の追記ロジック", () => {
 		const result = readFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "utf-8");
 		expect(result).toContain("## スキルA");
 		expect(result).toContain("## スキルB");
+	});
+
+	it("前提条件・失敗パターン付きで追記できる", () => {
+		const dataDir = createTmpDir();
+		writeFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "# Minecraft スキルライブラリ\n");
+
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const safeName = sanitizeSkillName("鉄鉱石採掘");
+		const safeDescription = sanitizeSkillDescription("Y=-64〜16 で鉄鉱石を採掘する");
+		const preconditions = "石のピッケル以上が必要";
+		const failurePatterns = "夜間は敵mobで中断されやすい";
+
+		const parts = [`\n## ${safeName}\n`, safeDescription];
+		parts.push(`\n**前提条件**: ${preconditions}`);
+		parts.push(`\n**失敗パターン**: ${failurePatterns}`);
+		const entry = `${parts.join("\n")}\n`;
+		const updated = existing + entry;
+		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);
+
+		const result = readFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "utf-8");
+		expect(result).toContain("## 鉄鉱石採掘");
+		expect(result).toContain("**前提条件**: 石のピッケル以上が必要");
+		expect(result).toContain("**失敗パターン**: 夜間は敵mobで中断されやすい");
 	});
 });

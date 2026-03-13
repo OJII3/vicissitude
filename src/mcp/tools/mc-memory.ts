@@ -12,9 +12,11 @@ import {
 } from "../memory-helpers.ts";
 
 const MAX_GOALS_CHARS = 20_000;
+const MAX_PROGRESS_CHARS = 20_000;
 const MAX_SKILLS_CHARS = 50_000;
 
 const GOALS_FILENAME = "MINECRAFT-GOALS.md";
+const PROGRESS_FILENAME = "MINECRAFT-PROGRESS.md";
 const SKILLS_FILENAME = "MINECRAFT-SKILLS.md";
 
 export interface McMemoryDeps {
@@ -57,42 +59,73 @@ export function sanitizeSkillDescription(description: string): string {
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
 	const { dataDir } = deps;
 
-	// --- Goals / Progress (shared handlers) ---
+	// --- Goals ---
 
-	const readGoalsHandler = () => {
+	server.tool("mc_read_goals", "Minecraft 目標ファイルを読む（現在の目標のみ）", {}, () => {
 		const content = readOverlay(dataDir, GOALS_FILENAME);
 		return {
 			content: [{ type: "text" as const, text: content || "(目標ファイルは空です)" }],
 		};
-	};
-
-	const updateGoalsSchema = {
-		content: z
-			.string()
-			.min(1)
-			.max(MAX_GOALS_CHARS)
-			.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
-	};
-
-	const updateGoalsHandler = ({ content }: { content: string }) => {
-		writeOverlay(dataDir, GOALS_FILENAME, content);
-		return {
-			content: [
-				{
-					type: "text" as const,
-					text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
-				},
-			],
-		};
-	};
-
-	server.tool("mc_read_goals", "Minecraft 目標ファイルを読む", {}, readGoalsHandler);
+	});
 
 	server.tool(
 		"mc_update_goals",
-		"Minecraft 目標ファイルを上書き更新する（バックアップ自動作成）",
-		updateGoalsSchema,
-		updateGoalsHandler,
+		"Minecraft 目標ファイルを上書き更新する（バックアップ自動作成）。現在の目標のみ記載すること。達成済み目標や探索メモは mc_update_progress に記録する。",
+		{
+			content: z
+				.string()
+				.min(1)
+				.max(MAX_GOALS_CHARS)
+				.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
+		},
+		({ content }) => {
+			writeOverlay(dataDir, GOALS_FILENAME, content);
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
+					},
+				],
+			};
+		},
+	);
+
+	// --- Progress ---
+
+	server.tool(
+		"mc_read_progress",
+		"Minecraft ワールド進捗を読む（装備段階、拠点、探索範囲、主要資源、達成済み目標、プレイヤーメモ）",
+		{},
+		() => {
+			const content = readOverlay(dataDir, PROGRESS_FILENAME);
+			return {
+				content: [{ type: "text" as const, text: content || "(進捗ファイルは空です)" }],
+			};
+		},
+	);
+
+	server.tool(
+		"mc_update_progress",
+		"Minecraft ワールド進捗を更新する（バックアップ自動作成）。装備段階、拠点、探索範囲、主要資源、達成済み目標、プレイヤーメモを記録する。",
+		{
+			content: z
+				.string()
+				.min(1)
+				.max(MAX_PROGRESS_CHARS)
+				.describe("新しい MINECRAFT-PROGRESS.md の内容（最大 20,000 文字）"),
+		},
+		({ content }) => {
+			writeOverlay(dataDir, PROGRESS_FILENAME, content);
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: `MINECRAFT-PROGRESS.md を更新しました（${String(content.length)} 文字）`,
+					},
+				],
+			};
+		},
 	);
 
 	// --- Skills ---
@@ -106,16 +139,35 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 
 	server.tool(
 		"mc_record_skill",
-		"Minecraft スキルライブラリにスキルを追記する",
+		"Minecraft スキルライブラリにスキルを追記する（有効条件・前提装備・失敗パターン付き）",
 		{
 			name: z.string().min(1).max(200).describe("スキル名"),
 			description: z.string().min(1).max(2_000).describe("スキルの説明・手順"),
+			preconditions: z
+				.string()
+				.max(500)
+				.optional()
+				.describe("有効条件・前提装備（例: 石のピッケル以上が必要）"),
+			failure_patterns: z
+				.string()
+				.max(500)
+				.optional()
+				.describe("既知の失敗パターン（例: 夜間は敵mobで中断されやすい）"),
 		},
-		({ name, description }) => {
+		({ name, description, preconditions, failure_patterns }) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME);
 			const safeName = sanitizeSkillName(name);
 			const safeDescription = sanitizeSkillDescription(description);
-			const entry = `\n## ${safeName}\n\n${safeDescription}\n`;
+
+			const parts = [`\n## ${safeName}\n`, safeDescription];
+			if (preconditions) {
+				parts.push(`\n**前提条件**: ${sanitizeSkillDescription(preconditions)}`);
+			}
+			if (failure_patterns) {
+				parts.push(`\n**失敗パターン**: ${sanitizeSkillDescription(failure_patterns)}`);
+			}
+
+			const entry = `${parts.join("\n")}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			if (updated.length > MAX_SKILLS_CHARS) {
 				return {
@@ -132,21 +184,5 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 				content: [{ type: "text" as const, text: `スキル「${name}」を記録しました` }],
 			};
 		},
-	);
-
-	// --- Progress (aliases for Goals) ---
-
-	server.tool(
-		"mc_read_progress",
-		"Minecraft 目標の進捗を読む（mc_read_goals のエイリアス）",
-		{},
-		readGoalsHandler,
-	);
-
-	server.tool(
-		"mc_update_progress",
-		"Minecraft 目標の進捗を更新する（mc_update_goals のエイリアス、バックアップ自動作成）",
-		updateGoalsSchema,
-		updateGoalsHandler,
 	);
 }
