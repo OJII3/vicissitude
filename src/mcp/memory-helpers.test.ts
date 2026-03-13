@@ -5,8 +5,10 @@ import { resolve } from "path";
 import {
 	OVERLAY_CONTEXT_DIR,
 	guildIdSchema,
+	isDateWithinRange,
 	readWithFallbackFrom,
 	resolveContextPaths,
+	todayDateString,
 } from "./memory-helpers.ts";
 
 describe("resolveContextPaths", () => {
@@ -94,6 +96,30 @@ describe("readWithFallbackFrom", () => {
 			TEST_BASE,
 		);
 		expect(content).toBe("  \n");
+	});
+});
+
+describe("isDateWithinRange", () => {
+	it("今日の日付は範囲内", () => {
+		expect(isDateWithinRange(todayDateString())).toBe(true);
+	});
+
+	it("7 日前は範囲内", () => {
+		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 - 7 * 24 * 60 * 60 * 1000);
+		const dateStr = d.toISOString().slice(0, 10);
+		expect(isDateWithinRange(dateStr)).toBe(true);
+	});
+
+	it("8 日前は範囲外", () => {
+		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 - 8 * 24 * 60 * 60 * 1000);
+		const dateStr = d.toISOString().slice(0, 10);
+		expect(isDateWithinRange(dateStr)).toBe(false);
+	});
+
+	it("未来の日付は範囲外", () => {
+		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
+		const dateStr = d.toISOString().slice(0, 10);
+		expect(isDateWithinRange(dateStr)).toBe(false);
 	});
 });
 

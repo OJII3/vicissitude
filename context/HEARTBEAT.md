@@ -39,3 +39,4 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
    - 古くなった時限情報の削除
    - **注意**: ユーザー背景情報・経歴・プロジェクト情報は LTM に自動蓄積されるため、MEMORY.md には記録しない
 5. パターンや教訓があれば `ltm_get_facts(guild_id, category: "guideline")` で LTM guideline を確認し、重複しない教訓のみ `read_lessons` → `update_lessons` で LESSONS.md に反映する
+6. `cleanup_old_logs` で 7 日より古い日次ログを削除する
