@@ -150,6 +150,39 @@ export function consumeBridgeEventsByType(
 	);
 }
 
+export interface ParsedReport {
+	message: string;
+	importance: string;
+	category: string;
+	createdAt: string;
+}
+
+/** BridgeEvent を ParsedReport に変換する。report タイプは JSON パースし、それ以外はフォールバック表示。 */
+export function parseBridgeEvent(e: BridgeEvent): ParsedReport {
+	const ts = new Date(e.createdAt).toISOString();
+	if (e.type === "report") {
+		try {
+			const p = JSON.parse(e.payload) as Record<string, unknown>;
+			if (typeof p.message === "string") {
+				return {
+					message: p.message,
+					importance: typeof p.importance === "string" ? p.importance : "medium",
+					category: typeof p.category === "string" ? p.category : "status",
+					createdAt: ts,
+				};
+			}
+		} catch {
+			// JSON パース失敗時はフォールバック
+		}
+	}
+	return {
+		message: `(${e.type}) ${e.payload}`,
+		importance: "low",
+		category: "status",
+		createdAt: ts,
+	};
+}
+
 /** 未消費のブリッジイベントが存在するか確認する */
 export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolean {
 	const row = db

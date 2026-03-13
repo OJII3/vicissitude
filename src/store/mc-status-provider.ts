@@ -1,15 +1,8 @@
 import type { McStatusProvider } from "../core/types.ts";
 import type { StoreDb } from "./db.ts";
-import { type BridgeEvent, peekBridgeEvents } from "./mc-bridge.ts";
+import { parseBridgeEvent, peekBridgeEvents } from "./mc-bridge.ts";
 
 const MAX_RECENT_REPORTS = 10;
-
-interface ParsedReport {
-	message: string;
-	importance: string;
-	category: string;
-	createdAt: string;
-}
 
 /**
  * SQLite ブリッジテーブルと MINECRAFT-GOALS.md から Discord 側の
@@ -47,11 +40,7 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 		const events = peekBridgeEvents(this.db, "to_discord", MAX_RECENT_REPORTS);
 		if (events.length === 0) return null;
 
-		const reports = events
-			.map((e) => this.parseEvent(e))
-			.filter((r): r is ParsedReport => r !== null);
-
-		if (reports.length === 0) return null;
+		const reports = events.map((e) => parseBridgeEvent(e));
 
 		// カテゴリ別にグループ化（優先度順）
 		const dangerReports = reports.filter((r) => r.category === "danger");
@@ -88,32 +77,6 @@ export class SqliteMcStatusProvider implements McStatusProvider {
 
 		const lines = pending.map((e) => `- ${e.payload}`);
 		return `## 未処理の指示\n${lines.join("\n")}`;
-	}
-
-	private parseEvent(e: BridgeEvent): ParsedReport | null {
-		const ts = new Date(e.createdAt).toISOString();
-		if (e.type === "report") {
-			try {
-				const parsed = JSON.parse(e.payload) as Record<string, unknown>;
-				if (typeof parsed.message === "string") {
-					return {
-						message: parsed.message,
-						importance: typeof parsed.importance === "string" ? parsed.importance : "medium",
-						category: typeof parsed.category === "string" ? parsed.category : "status",
-						createdAt: ts,
-					};
-				}
-			} catch {
-				// JSON パース失敗時はフォールバック
-			}
-		}
-		// lifecycle や非JSON レポートのフォールバック
-		return {
-			message: `(${e.type}) ${e.payload}`,
-			importance: "low",
-			category: "status",
-			createdAt: ts,
-		};
 	}
 
 	private async buildGoalsSection(): Promise<string | null> {
