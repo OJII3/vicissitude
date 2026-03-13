@@ -18,6 +18,7 @@ graph LR
   consolidation --> utils
   conversation_recorder["conversation-recorder"] --> consolidation
   conversation_recorder["conversation-recorder"] --> episode
+  conversation_recorder["conversation-recorder"] --> episodic
   conversation_recorder["conversation-recorder"] --> llm_port["llm-port"]
   conversation_recorder["conversation-recorder"] --> ltm_storage["ltm-storage"]
   conversation_recorder["conversation-recorder"] --> segmenter
@@ -90,7 +91,7 @@ graph LR
 
 ### conversation-recorder.ts
 
-- モジュール内依存: consolidation, episode, llm-port, ltm-storage, segmenter
+- モジュール内依存: consolidation, episode, episodic, llm-port, ltm-storage, segmenter
 - 他モジュール依存: core/
 - 外部依存: fs, path
 

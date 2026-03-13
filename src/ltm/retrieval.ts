@@ -188,11 +188,18 @@ function rankResults(ctx: RankContext): RetrievalResult {
 
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
+	private pendingReview: Promise<void> = Promise.resolve();
+
 	constructor(
 		private llm: LtmLlmPort,
 		private storage: LtmStorage,
 		private episodic: EpisodicMemory | null = null,
 	) {}
+
+	/** Wait for any pending FSRS reviews to complete (useful in tests and graceful shutdown) */
+	flushReviews(): Promise<void> {
+		return this.pendingReview;
+	}
 
 	/** Run all 4 searches in parallel */
 	private runSearches(
@@ -227,9 +234,10 @@ export class Retrieval {
 		);
 		const result = rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
 
-		// FSRS learning loop: auto-review retrieved episodes as "good"
+		// FSRS learning loop: fire-and-forget auto-review so returned scores
+		// reflect the pre-review state and remain consistent with this response.
 		if (this.episodic && result.episodes.length > 0) {
-			await this.reviewRetrievedEpisodes(userId, result.episodes, opts.now);
+			this.pendingReview = this.reviewRetrievedEpisodes(userId, result.episodes, opts.now);
 		}
 
 		return result;
