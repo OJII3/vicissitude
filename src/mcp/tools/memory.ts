@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync, writeFileSync } from "fs";
+import { existsSync, readdirSync, statSync, unlinkSync, writeFileSync } from "fs";
 import path, { resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import {
 	BASE_CONTEXT_DIR,
+	MAX_DAILY_LOG_AGE_DAYS,
 	MAX_DAILY_LOG_CHARS,
 	MAX_ENTRY_CHARS,
 	MAX_LESSONS_CHARS,
@@ -244,6 +245,44 @@ export function registerMemoryTools(server: McpServer): void {
 					{
 						type: "text",
 						text: `${guildLabel(guild_id)}LESSONS.md を更新しました（${String(content.length)} 文字）`,
+					},
+				],
+			};
+		},
+	);
+
+	server.tool(
+		"cleanup_old_logs",
+		`${String(MAX_DAILY_LOG_AGE_DAYS)} 日より古い日次ログを削除する（guild_id 指定時は Guild 固有）`,
+		{ guild_id: guildIdSchema },
+		({ guild_id }) => {
+			const { memoryDir } = resolveContextPaths(guild_id);
+			if (!existsSync(memoryDir)) {
+				return {
+					content: [{ type: "text", text: `${guildLabel(guild_id)}日次ログディレクトリが存在しません` }],
+				};
+			}
+
+			const files = readdirSync(memoryDir).filter((f) => /^\d{4}-\d{2}-\d{2}\.md$/.test(f));
+			const removed: string[] = [];
+			for (const file of files) {
+				const dateStr = file.replace(".md", "");
+				if (!isDateWithinRange(dateStr)) {
+					unlinkSync(resolve(memoryDir, file));
+					removed.push(dateStr);
+				}
+			}
+
+			if (removed.length === 0) {
+				return {
+					content: [{ type: "text", text: `${guildLabel(guild_id)}削除対象の古いログはありません` }],
+				};
+			}
+			return {
+				content: [
+					{
+						type: "text",
+						text: `${guildLabel(guild_id)}${String(removed.length)} 件の古いログを削除しました: ${removed.join(", ")}`,
 					},
 				],
 			};

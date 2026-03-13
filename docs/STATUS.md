@@ -39,6 +39,9 @@
   - `ContextBuilder` が日次ログをコンテキストヒントとして渡す。日次ログなしの場合は `getFacts()` にフォールバック。
   - ファクト数 ≤ limit の場合は全件返却（不要な embedding API 呼出回避）。
   - `OllamaEmbeddingAdapter` をコンテキスト層と LTM 記録層で共有化。
+- M14c 記憶システム責務統合（Phase 2-3）:
+  - Phase 2: MEMORY.md スリム化。ユーザー情報（名前・authorId・特徴）を全 MEMORY.md から削除し、LTM 参照ノートに置換。エピソード的情報（MC 進捗詳細）も LTM Episodes に委譲。Guild 固有 MEMORY.md をそのギルド固有のサーバー情報のみに限定。
+  - Phase 3: 日次ログ保持期間（7 日）の `cleanup_old_logs` MCP ツール追加。SPEC.md に責務分離表を追加。
 - `nr validate` 通過。`bun test` は 746 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
@@ -64,7 +67,7 @@
 - LTM の既知の不足機能（M14 で対応予定）:
   - ~~FSRS `reviewCard()` が本番で呼ばれていない~~ → M14a で解消。retrieve/consolidate 時に自動 review。
   - ~~ContextBuilder が全 Fact を無条件注入。関連性フィルタリング未実装。~~ → M14b で解消。日次ログベースのハイブリッド検索で関連上位 N 件 + カテゴリ別最低 1 件を注入。
-  - 3 つの独立した記憶システム（LTM, MEMORY.md/LESSONS.md, 日次ログ）が未統合。
+  - ~~3 つの独立した記憶システム（LTM, MEMORY.md/LESSONS.md, 日次ログ）が未統合。~~ → M14c で責務分離を整理。MEMORY.md スリム化 + 日次ログ保持期間定義。
   - 埋め込み次元のメタデータ管理なし。モデル変更時の互換性リスク。
 - `data/fenghuang/` → `data/ltm/` のデータディレクトリ移行手順が RUNBOOK に未記載。
 - テスト品質は失敗率・時間・行/関数カバレッジ・フレーク率までは自動集計済みだが、本番流出率は未導入。残りのテスト未実装モジュールは `DiscordGateway`（優先度 中）と `bootstrap.ts`（優先度 低）。

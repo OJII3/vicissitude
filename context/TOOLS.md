@@ -47,6 +47,7 @@
 - `list_daily_logs(limit?)` - 日次ログ一覧を表示する（デフォルト: 7件）
 - `read_lessons` - LESSONS.md を読み取る
 - `update_lessons(content)` - LESSONS.md を上書き更新する（更新前に `ltm_get_facts(category: "guideline")` で LTM guideline を確認し重複を避ける。.bak バックアップ作成、空文字禁止、30,000 文字上限）
+- `cleanup_old_logs` - 7日より古い日次ログを削除する
 
 ### ltm サーバー（長期記憶）
 
