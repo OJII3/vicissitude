@@ -433,8 +433,10 @@ MCP サーバーは 4 プロセス構成:
 
 - `MC_HOST`: Minecraft サーバーホスト（必須）
 - `MC_PORT`: ポート（デフォルト: `25565`）
-- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）
+- `MC_USERNAME`: bot ユーザー名（デフォルト: `hua`）。`microsoft` 認証時はアカウント識別子（トークンキャッシュのキー）として使われる
 - `MC_VERSION`: Minecraft バージョン指定（省略可、mineflayer 自動検出）
+- `MC_AUTH_MODE`: 認証方式（`offline` / `microsoft`、デフォルト: `offline`）。`microsoft` 時は初回起動でデバイスコードフローによるブラウザ認証が必要
+- `MC_PROFILES_FOLDER`: Microsoft 認証トークンのキャッシュ先ディレクトリ（省略時は `~/.minecraft`）。コンテナ環境ではボリュームマウント先を指定する
 
 ### Minecraft エージェント設定（`MC_HOST` 設定時のみ有効）
 

@@ -31,6 +31,13 @@ if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
 const MC_PORT = portRaw;
 const MC_USERNAME = process.env.MC_USERNAME ?? "hua";
 const MC_VERSION = process.env.MC_VERSION ?? undefined;
+const mcAuthModeRaw = process.env.MC_AUTH_MODE ?? "offline";
+if (mcAuthModeRaw !== "offline" && mcAuthModeRaw !== "microsoft") {
+	console.error('MC_AUTH_MODE must be "offline" or "microsoft"');
+	process.exit(1);
+}
+const MC_AUTH_MODE = mcAuthModeRaw as "offline" | "microsoft";
+const MC_PROFILES_FOLDER = process.env.MC_PROFILES_FOLDER;
 const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
 if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 	console.error("MC_MCP_PORT must be a valid port number (1-65535)");
@@ -71,6 +78,8 @@ const connection = createBotConnection(
 		port: MC_PORT,
 		username: MC_USERNAME,
 		version: MC_VERSION,
+		authMode: MC_AUTH_MODE,
+		profilesFolder: MC_PROFILES_FOLDER,
 		viewerPort: MC_VIEWER_PORT,
 	},
 	ctx,

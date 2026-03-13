@@ -144,6 +144,7 @@ graph LR
 
 ### minecraft/bot-connection.ts
 - モジュール内依存: minecraft/bot-context, minecraft/bot-queries, minecraft/helpers
+- 他モジュール依存: core/
 - 外部依存: mineflayer, mineflayer-pathfinder, prismarine-entity, prismarine-viewer
 
 ### minecraft/bot-context.ts

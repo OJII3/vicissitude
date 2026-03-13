@@ -89,6 +89,8 @@ describe("loadConfig", () => {
 			expect(config.minecraft?.version).toBeUndefined();
 			expect(config.minecraft?.mcpPort).toBe(3001);
 			expect(config.minecraft?.viewerPort).toBe(3007);
+			expect(config.minecraft?.authMode).toBe("offline");
+			expect(config.minecraft?.profilesFolder).toBeUndefined();
 		});
 
 		it("MC_HOST が未設定なら minecraft は undefined", () => {
@@ -103,6 +105,8 @@ describe("loadConfig", () => {
 					MC_PORT: "25000",
 					MC_USERNAME: "bot",
 					MC_VERSION: "1.20.4",
+					MC_AUTH_MODE: "microsoft",
+					MC_PROFILES_FOLDER: "/tmp/mc-profiles",
 					MC_MCP_PORT: "4000",
 					MC_VIEWER_PORT: "5000",
 				}),
@@ -112,6 +116,8 @@ describe("loadConfig", () => {
 			expect(config.minecraft?.port).toBe(25000);
 			expect(config.minecraft?.username).toBe("bot");
 			expect(config.minecraft?.version).toBe("1.20.4");
+			expect(config.minecraft?.authMode).toBe("microsoft");
+			expect(config.minecraft?.profilesFolder).toBe("/tmp/mc-profiles");
 			expect(config.minecraft?.mcpPort).toBe(4000);
 			expect(config.minecraft?.viewerPort).toBe(5000);
 		});
