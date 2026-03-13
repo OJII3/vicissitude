@@ -317,6 +317,7 @@ async function startMinecraftMcp(
 		MC_USERNAME: config.minecraft.username,
 		MC_MCP_PORT: String(config.minecraft.mcpPort),
 		MC_BRAIN_WAKE_FILE: resolve(root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
+		DATA_DIR: resolve(root, "data"),
 	};
 	if (config.minecraft.version) mcEnv.MC_VERSION = config.minecraft.version;
 

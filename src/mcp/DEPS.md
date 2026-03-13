@@ -44,6 +44,7 @@ graph LR
   minecraft_actions_survival_index["minecraft/actions/survival/index"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_actions_survival_shelter["minecraft/actions/survival/shelter"] --> minecraft_actions_shared["minecraft/actions/shared"]
   minecraft_actions_survival_shelter["minecraft/actions/survival/shelter"] --> minecraft_job_manager["minecraft/job-manager"]
+  minecraft_auto_notifier["minecraft/auto-notifier"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_helpers["minecraft/helpers"]
@@ -61,6 +62,7 @@ graph LR
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_bot_queries["minecraft/bot-queries"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_mcp_tools["minecraft/mcp-tools"] --> minecraft_state_summary["minecraft/state-summary"]
+  minecraft_server["minecraft/server"] --> minecraft_auto_notifier["minecraft/auto-notifier"]
   minecraft_server["minecraft/server"] --> minecraft_bot_connection["minecraft/bot-connection"]
   minecraft_server["minecraft/server"] --> minecraft_bot_context["minecraft/bot-context"]
   minecraft_server["minecraft/server"] --> minecraft_brain_wake["minecraft/brain-wake"]
@@ -83,174 +85,144 @@ graph LR
 ## ファイル別依存一覧
 
 ### code-exec-server.ts
-
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, zod
 
 ### core-server.ts
-
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
 - 他モジュール依存: core/, ltm/, ollama/, opencode/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path
 
 ### http-server.ts
-
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js
 
 ### memory-helpers.ts
-
 - 外部依存: fs, path, zod
 
 ### minecraft/actions/combat.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
 
 ### minecraft/actions/index.ts
-
 - モジュール内依存: minecraft/actions/combat, minecraft/actions/interaction, minecraft/actions/jobs, minecraft/actions/movement, minecraft/actions/shared, minecraft/actions/survival/index, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/actions/interaction.ts
-
 - モジュール内依存: minecraft/actions/shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, vec3, zod
 
 ### minecraft/actions/jobs.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-recipe, zod
 
 ### minecraft/actions/movement.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
 
 ### minecraft/actions/shared.ts
-
 - モジュール内依存: minecraft/job-manager
 - 外部依存: mineflayer, mineflayer-pathfinder
 
 ### minecraft/actions/survival/escape.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer-pathfinder, zod
 
 ### minecraft/actions/survival/food.ts
-
 - モジュール内依存: minecraft/actions/shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, zod
 
 ### minecraft/actions/survival/index.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/actions/survival/escape, minecraft/actions/survival/food, minecraft/actions/survival/shelter, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/actions/survival/shelter.ts
-
 - モジュール内依存: minecraft/actions/shared, minecraft/job-manager
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, vec3, zod
 
-### minecraft/bot-connection.ts
+### minecraft/auto-notifier.ts
+- モジュール内依存: minecraft/helpers
+- 他モジュール依存: core/, store/
 
+### minecraft/bot-connection.ts
 - モジュール内依存: minecraft/bot-context, minecraft/bot-queries, minecraft/helpers
 - 外部依存: mineflayer, mineflayer-pathfinder, prismarine-entity, prismarine-viewer
 
 ### minecraft/bot-context.ts
-
 - モジュール内依存: minecraft/helpers
 - 他モジュール依存: core/
 - 外部依存: mineflayer
 
 ### minecraft/bot-queries.ts
-
 - モジュール内依存: minecraft/helpers
 - 外部依存: mineflayer, prismarine-entity, vec3
 
 ### minecraft/brain-wake.ts
-
 - モジュール内依存: minecraft/helpers
 - 外部依存: fs, path
 
 ### minecraft/helpers.ts
-
 - 依存なし
 
 ### minecraft/http-server.ts
-
 - モジュール内依存: http-server
 
 ### minecraft/job-manager.ts
-
 - モジュール内依存: minecraft/helpers
 - 他モジュール依存: core/
 
 ### minecraft/mc-bridge-server.ts
-
 - モジュール内依存: tools/mc-bridge-minecraft, tools/mc-memory
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 
 ### minecraft/mc-metrics.ts
-
 - 他モジュール依存: core/
 
 ### minecraft/mcp-tools.ts
-
 - モジュール内依存: minecraft/actions/index, minecraft/bot-context, minecraft/bot-queries, minecraft/job-manager, minecraft/state-summary
 - 他モジュール依存: core/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### minecraft/server.ts
-
-- モジュール内依存: minecraft/bot-connection, minecraft/bot-context, minecraft/brain-wake, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
+- モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/brain-wake, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
+- 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/state-summary.ts
-
 - モジュール内依存: minecraft/helpers
 
 ### tools/discord.ts
-
 - 他モジュール依存: infrastructure/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path, zod
 
 ### tools/event-buffer.ts
-
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/ltm.ts
-
 - 他モジュール依存: ltm/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/mc-bridge-discord.ts
-
 - モジュール内依存: tools/mc-bridge-shared
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/mc-bridge-minecraft.ts
-
 - モジュール内依存: tools/mc-bridge-shared
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/mc-bridge-shared.ts
-
 - 他モジュール依存: store/
 
 ### tools/mc-memory.ts
-
 - モジュール内依存: memory-helpers
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod
 
 ### tools/memory.ts
-
 - モジュール内依存: memory-helpers
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod
 
 ### tools/schedule.ts
-
 - 他モジュール依存: core/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod

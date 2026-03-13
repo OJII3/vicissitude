@@ -14,16 +14,13 @@ graph LR
 ## ファイル別依存一覧
 
 ### consolidation-scheduler.ts
-
 - 他モジュール依存: core/, observability/
 
 ### heartbeat-config.ts
-
 - 他モジュール依存: core/
 - 外部依存: fs, path, zod
 
 ### heartbeat-scheduler.ts
-
 - モジュール内依存: heartbeat-config
 - 他モジュール依存: application/, core/, observability/
 - 外部依存: path

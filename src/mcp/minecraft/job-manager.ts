@@ -219,10 +219,12 @@ export class JobManager {
 
 		const streak = (this.failureStreaks.get(type) ?? 0) + 1;
 		this.failureStreaks.set(type, streak);
+		this.metrics?.incrementCounter(METRIC.MC_FAILURE_STREAKS, { type });
 		if (streak < FAILURE_STREAK_FOR_COOLDOWN) return;
 
 		const until = new Date(Date.now() + this.cooldownMs);
 		this.cooldowns.set(type, until);
+		this.metrics?.incrementCounter(METRIC.MC_COOLDOWNS, { type });
 		this.pushEvent(
 			"job",
 			`クールダウン開始: ${type} を ${String(Math.ceil(this.cooldownMs / 1000))} 秒停止`,
