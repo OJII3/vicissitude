@@ -58,11 +58,17 @@ export interface CreateLtmOptions {
 export function createLtm(opts: CreateLtmOptions): Ltm {
 	const { llm, storage } = opts;
 
+	const episodic = new EpisodicMemory(storage);
+	const consolidation = new ConsolidationPipeline(llm, storage);
+	const retrieval = new Retrieval(llm, storage);
+	retrieval.setEpisodicMemory(episodic);
+	consolidation.setEpisodicMemory(episodic);
+
 	return {
 		segmenter: new Segmenter(llm, storage),
-		episodic: new EpisodicMemory(storage),
-		consolidation: new ConsolidationPipeline(llm, storage),
+		episodic,
+		consolidation,
 		semantic: new SemanticMemory(storage),
-		retrieval: new Retrieval(llm, storage),
+		retrieval,
 	};
 }

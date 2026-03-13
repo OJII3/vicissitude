@@ -1,4 +1,5 @@
 import type { Episode } from "./episode.ts";
+import type { EpisodicMemory } from "./episodic.ts";
 import { retrievability } from "./fsrs.ts";
 import type { LtmLlmPort } from "./llm-port.ts";
 import type { LtmStorage } from "./ltm-storage.ts";
@@ -187,10 +188,17 @@ function rankResults(ctx: RankContext): RetrievalResult {
 
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
+	private episodic: EpisodicMemory | null = null;
+
 	constructor(
 		private llm: LtmLlmPort,
 		private storage: LtmStorage,
 	) {}
+
+	/** Set the EpisodicMemory instance for automatic FSRS review on retrieve */
+	setEpisodicMemory(episodic: EpisodicMemory): void {
+		this.episodic = episodic;
+	}
 
 	/** Run all 4 searches in parallel */
 	private runSearches(
@@ -223,6 +231,26 @@ export class Retrieval {
 			query,
 			queryEmbedding,
 		);
-		return rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+		const result = rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+
+		// FSRS learning loop: auto-review retrieved episodes as "good"
+		if (this.episodic && result.episodes.length > 0) {
+			await this.reviewRetrievedEpisodes(userId, result.episodes, opts.now);
+		}
+
+		return result;
+	}
+
+	/** Review retrieved episodes to update FSRS parameters (search hit = "good") */
+	private async reviewRetrievedEpisodes(
+		userId: string,
+		episodes: ScoredEpisode[],
+		now: Date,
+	): Promise<void> {
+		const { episodic } = this;
+		if (!episodic) return;
+		await Promise.all(
+			episodes.map((ep) => episodic.review(userId, ep.episode.id, { rating: "good", now })),
+		);
 	}
 }

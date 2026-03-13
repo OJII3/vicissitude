@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { ConsolidationOutput } from "./consolidation.ts";
 import { ConsolidationPipeline } from "./consolidation.ts";
 import { createEpisode } from "./episode.ts";
+import { EpisodicMemory } from "./episodic.ts";
 import type { LtmLlmPort, Schema } from "./llm-port.ts";
 import { LtmStorage } from "./ltm-storage.ts";
 import { createFact } from "./semantic-fact.ts";
@@ -775,5 +776,47 @@ describe("ConsolidationPipeline — schema validation", () => {
 			storage,
 		);
 		await expect(pipeline.consolidate(userId)).rejects.toThrow("keywords[0]: expected string");
+	});
+});
+
+describe("ConsolidationPipeline — FSRS learning loop", () => {
+	let storage: LtmStorage;
+
+	beforeEach(() => {
+		storage = new LtmStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("consolidation reviews episodes when episodic is set", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		// Before: lastReviewedAt is null
+		const before = await storage.getEpisodeById(userId, episode.id);
+		expect(before!.lastReviewedAt).toBeNull();
+
+		const episodic = new EpisodicMemory(storage);
+		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
+		pipeline.setEpisodicMemory(episodic);
+		await pipeline.consolidate(userId);
+
+		// After: lastReviewedAt should be updated
+		const after = await storage.getEpisodeById(userId, episode.id);
+		expect(after!.lastReviewedAt).not.toBeNull();
+	});
+
+	test("consolidation does not review when episodic is not set", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
+		// No setEpisodicMemory call
+		await pipeline.consolidate(userId);
+
+		const after = await storage.getEpisodeById(userId, episode.id);
+		expect(after!.lastReviewedAt).toBeNull();
 	});
 });

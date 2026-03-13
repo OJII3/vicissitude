@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines, require-await -- consolidation pipeline with schema validation */
 import type { Episode } from "./episode.ts";
+import type { EpisodicMemory } from "./episodic.ts";
 import type { LtmLlmPort, Schema } from "./llm-port.ts";
 import type { LtmStorage } from "./ltm-storage.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
@@ -37,10 +38,17 @@ interface ActionContext {
 }
 /** Consolidation pipeline — converts episodes into semantic facts */
 export class ConsolidationPipeline {
+	private episodic: EpisodicMemory | null = null;
+
 	constructor(
 		protected llm: LtmLlmPort,
 		protected storage: LtmStorage,
 	) {}
+
+	/** Set the EpisodicMemory instance for FSRS review during consolidation */
+	setEpisodicMemory(episodic: EpisodicMemory): void {
+		this.episodic = episodic;
+	}
 
 	/** Run consolidation for a user: extract facts from unconsolidated episodes */
 	async consolidate(userId: string): Promise<ConsolidationResult> {
@@ -54,7 +62,7 @@ export class ConsolidationPipeline {
 		return result;
 	}
 
-	/** Process a single episode: extract facts, apply actions, mark consolidated */
+	/** Process a single episode: extract facts, apply actions, review FSRS, mark consolidated */
 	private async processEpisode(
 		userId: string,
 		episode: Episode,
@@ -64,6 +72,10 @@ export class ConsolidationPipeline {
 		const extracted = await this.extractFacts(episode, existingFacts);
 		const ctx: ActionContext = { userId, episodeId: episode.id, existingFacts, now: new Date() };
 		await this.applyActions(ctx, extracted.facts, result);
+		// FSRS learning loop: consolidation references count as "good" review
+		if (this.episodic) {
+			await this.episodic.review(userId, episode.id, { rating: "good", now: ctx.now });
+		}
 		await this.storage.markEpisodeConsolidated(userId, episode.id);
 		result.processedEpisodes++;
 	}
