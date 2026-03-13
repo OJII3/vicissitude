@@ -8,7 +8,15 @@ import type {
 	OpencodeSessionPort,
 } from "../core/types.ts";
 import type { AgentProfile } from "./profile.ts";
-import { AgentRunner } from "./runner.ts";
+import { AgentRunner, type RunnerDeps } from "./runner.ts";
+
+/** テスト用サブクラス: protected constructor を公開する */
+class TestAgent extends AgentRunner {
+	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
+	constructor(deps: RunnerDeps) {
+		super(deps);
+	}
+}
 
 function deferred<T>() {
 	let resolveDeferred!: (value: T) => void;
@@ -99,7 +107,7 @@ describe("AgentRunner", () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPort(() => sessionDone.promise);
-		const runner = new AgentRunner({
+		const runner = new TestAgent({
 			profile: createProfile(),
 			guildId: "guild-1",
 			sessionStore: createSessionStore() as never,
@@ -111,7 +119,7 @@ describe("AgentRunner", () => {
 		});
 		activeRunners.add(runner);
 
-		const loop = runner.startPollingLoop();
+		runner.ensurePolling();
 		await Bun.sleep(0);
 		expect(sessionPort.promptAsync).toHaveBeenCalledTimes(0);
 
@@ -123,7 +131,6 @@ describe("AgentRunner", () => {
 
 		runner.stop();
 		sessionDone.resolve({ type: "cancelled" });
-		await loop;
 	});
 
 	test("session が idle になったら新規イベント待ちなしで再起動する", async () => {
@@ -146,7 +153,7 @@ describe("AgentRunner", () => {
 			deleteSession: mock(() => Promise.resolve()),
 			close: mock(() => {}),
 		} satisfies OpencodeSessionPort;
-		const runner = new AgentRunner({
+		const runner = new TestAgent({
 			profile: createProfile(),
 			guildId: "guild-1",
 			sessionStore: createSessionStore() as never,
@@ -158,7 +165,7 @@ describe("AgentRunner", () => {
 		});
 		activeRunners.add(runner);
 
-		const loop = runner.startPollingLoop();
+		runner.ensurePolling();
 		firstEvent.resolve();
 		await Bun.sleep(0);
 
@@ -174,7 +181,6 @@ describe("AgentRunner", () => {
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
-		await loop;
 	});
 
 	test("wait_for_events ポリシーでは idle 後に再度 EventBuffer を待ってから再起動する", async () => {
@@ -192,7 +198,7 @@ describe("AgentRunner", () => {
 			sessionWatchCount += 1;
 			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
 		});
-		const runner = new AgentRunner({
+		const runner = new TestAgent({
 			profile: createProfile("wait_for_events"),
 			guildId: "guild-1",
 			sessionStore: createSessionStore() as never,
@@ -204,7 +210,7 @@ describe("AgentRunner", () => {
 		});
 		activeRunners.add(runner);
 
-		const loop = runner.startPollingLoop();
+		runner.ensurePolling();
 		firstEvent.resolve();
 		await Bun.sleep(0);
 
@@ -225,7 +231,6 @@ describe("AgentRunner", () => {
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
-		await loop;
 	});
 
 	test("起動準備中に stop されても abort 不能な監視セッションを開始しない", async () => {
@@ -234,7 +239,7 @@ describe("AgentRunner", () => {
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPort(() => Promise.resolve({ type: "idle" }));
 		const contextBuilder: ContextBuilderPort = { build: mock(() => buildDeferred.promise) };
-		const runner = new AgentRunner({
+		const runner = new TestAgent({
 			profile: createProfile(),
 			guildId: "guild-1",
 			sessionStore: createSessionStore() as never,
@@ -246,14 +251,43 @@ describe("AgentRunner", () => {
 		});
 		activeRunners.add(runner);
 
-		const loop = runner.startPollingLoop();
+		runner.ensurePolling();
 		firstEvent.resolve();
 		await Bun.sleep(0);
 
 		runner.stop();
 		buildDeferred.resolve("system prompt");
-		await loop;
+		await Bun.sleep(0);
 
 		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(0);
+	});
+
+	test("send() はポーリングループが未起動なら自動起動する", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			guildId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		// send() を呼ぶとポーリングが自動起動する
+		await runner.send({ sessionKey: "test", message: "hello" });
+		expect(eventBuffer.append).toHaveBeenCalledTimes(1);
+
+		// イベントバッファの waitForEvents が呼ばれている（ポーリング起動済み）
+		await Bun.sleep(0);
+		expect(eventBuffer.waitForEvents).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
 	});
 });

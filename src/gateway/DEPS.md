@@ -13,8 +13,10 @@ graph LR
 ## ファイル別依存一覧
 
 ### channel-config-loader.ts
+
 - 依存なし
 
 ### discord.ts
+
 - 他モジュール依存: core/, infrastructure/
 - 外部依存: discord.js

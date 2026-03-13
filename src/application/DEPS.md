@@ -13,7 +13,9 @@ graph LR
 ## ファイル別依存一覧
 
 ### heartbeat-service.ts
+
 - 他モジュール依存: core/
 
 ### message-ingestion-service.ts
+
 - 他モジュール依存: core/

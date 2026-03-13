@@ -45,7 +45,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
 
-	constructor(deps: RunnerDeps) {
+	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
 		this.guildId = deps.guildId;
 		this.sessionStore = deps.sessionStore;
@@ -72,10 +72,27 @@ export class AgentRunner implements AiAgent {
 			isMentioned: false,
 			isThread: false,
 		});
+		this.ensurePolling();
 		return Promise.resolve({ text: "", sessionId: "polling" });
 	}
 
-	async startPollingLoop(): Promise<void> {
+	/**
+	 * ポーリングループが未起動なら起動する。
+	 * 通常は `send()` 経由で自動起動される。
+	 * タイマーベース EventBuffer など `send()` なしで起動が必要な場合のみ直接呼ぶ。
+	 */
+	ensurePolling(): void {
+		if (!this.running) {
+			this.startPollingLoop().catch((err) => {
+				this.logger.error(
+					`[${this.profile.name}:${this.guildId}] polling loop unexpectedly rejected`,
+					err,
+				);
+			});
+		}
+	}
+
+	protected async startPollingLoop(): Promise<void> {
 		if (this.running) return;
 		this.running = true;
 		this.abortController = new AbortController();

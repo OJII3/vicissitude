@@ -5,12 +5,9 @@ import { resolve } from "path";
 import { spawn, type Subprocess } from "bun";
 
 import { ContextBuilder } from "./agent/discord/context-builder.ts";
-import { createConversationProfile } from "./agent/discord/profile.ts";
+import { DiscordAgent } from "./agent/discord/discord-agent.ts";
 import { GuildRouter } from "./agent/discord/router.ts";
-import { mcpServerConfigs, mcpMinecraftConfigs } from "./agent/mcp-config.ts";
 import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
-import { createMinecraftProfile } from "./agent/minecraft/profile.ts";
-import { AgentRunner } from "./agent/runner.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { MessageIngestionService } from "./application/message-ingestion-service.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
@@ -39,7 +36,6 @@ import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts"
 import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";
 import type { StoreDb } from "./store/db.ts";
 import { createDb, closeDb } from "./store/db.ts";
-import { SqliteEventBuffer } from "./store/event-buffer.ts";
 import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
 import { incrementEmoji } from "./store/queries.ts";
 
@@ -88,33 +84,22 @@ export function createGuildAgents(
 		logger: Logger;
 		metrics?: MetricsCollector;
 	},
-): Map<string, AgentRunner> {
-	const agents = new Map<string, AgentRunner>();
+): Map<string, DiscordAgent> {
+	const agents = new Map<string, DiscordAgent>();
 
 	for (const [index, guildId] of guildIds.entries()) {
-		const eventBuffer = new SqliteEventBuffer(deps.db, guildId);
-		const profile = createConversationProfile({
-			providerId: config.opencode.providerId,
-			modelId: config.opencode.modelId,
-			mcpServers: mcpServerConfigs(),
-		});
-		const sessionPort = new OpencodeSessionAdapter({
-			port: config.opencode.basePort + index,
-			mcpServers: profile.mcpServers,
-			builtinTools: profile.builtinTools,
-		});
-		const runner = new AgentRunner({
-			profile,
+		const agent = new DiscordAgent({
 			guildId,
+			db: deps.db,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
-			sessionPort,
-			eventBuffer,
+			opencodePort: config.opencode.basePort + index,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
+			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
 		});
-		agents.set(guildId, runner);
+		agents.set(guildId, agent);
 	}
 
 	return agents;
@@ -454,23 +439,13 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft brain manager
 	let mcBrainManager: McBrainManager | undefined;
 	if (config.minecraft) {
-		const mcProfile = createMinecraftProfile({
-			providerId: config.mcBrain.providerId,
-			modelId: config.mcBrain.modelId,
-			mcpServers: mcpMinecraftConfigs(),
-		});
 		mcBrainManager = new McBrainManager({
 			db,
 			sessionStore,
 			logger,
 			root,
-			createSessionPort: () =>
-				new OpencodeSessionAdapter({
-					// ギルドエージェントが basePort + 0..N-1 を使うため、Minecraft エージェントは basePort + N を使用
-					port: config.opencode.basePort + guildIds.length,
-					mcpServers: mcProfile.mcpServers,
-					builtinTools: mcProfile.builtinTools,
-				}),
+			// ギルドエージェントが basePort + 0..N-1 を使うため、Minecraft エージェントは basePort + N を使用
+			opencodePort: config.opencode.basePort + guildIds.length,
 			providerId: config.mcBrain.providerId,
 			modelId: config.mcBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
@@ -490,7 +465,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
-			await mcBrainManager?.stop();
+			mcBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await ltmResources?.chatAdapter.close();
@@ -513,13 +488,6 @@ export async function bootstrap(): Promise<void> {
 	await gateway.start();
 	heartbeatScheduler.start();
 	ltmResources?.consolidationScheduler.start();
-	for (const [guildId, runner] of agents) {
-		runner.startPollingLoop().catch((err) => {
-			logger.error(`[bootstrap] polling loop for guild ${guildId} unexpectedly rejected`, err);
-		});
-	}
-
-	if (mcBrainManager) {
-		mcBrainManager.start();
-	}
+	// DiscordAgent は lazy start: 最初の send() 呼び出しで自動的にポーリングループが起動する
+	mcBrainManager?.start();
 }

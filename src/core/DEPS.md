@@ -16,13 +16,17 @@ graph LR
 ## ファイル別依存一覧
 
 ### config.ts
+
 - 外部依存: path, zod
 
 ### constants.ts
+
 - 依存なし
 
 ### functions.ts
+
 - モジュール内依存: constants, types
 
 ### types.ts
+
 - 依存なし

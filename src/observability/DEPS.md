@@ -13,7 +13,9 @@ graph LR
 ## ファイル別依存一覧
 
 ### logger.ts
+
 - 他モジュール依存: core/
 
 ### metrics.ts
+
 - 他モジュール依存: core/

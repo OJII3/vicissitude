@@ -7,15 +7,21 @@
 ```mermaid
 graph LR
   discord_context_builder["discord/context-builder"]
+  discord_discord_agent["discord/discord-agent"] --> discord_profile["discord/profile"]
+  discord_discord_agent["discord/discord-agent"] --> mcp_config["mcp-config"]
+  discord_discord_agent["discord/discord-agent"] --> runner
+  discord_discord_agent["discord/discord-agent"] --> session_store["session-store"]
   discord_profile["discord/profile"] --> profile
   discord_router["discord/router"]
   mcp_config["mcp-config"] --> profile
-  minecraft_brain_manager["minecraft/brain-manager"] --> mcp_config["mcp-config"]
-  minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_context_builder["minecraft/context-builder"]
-  minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_profile["minecraft/profile"]
-  minecraft_brain_manager["minecraft/brain-manager"] --> runner
+  minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_minecraft_agent["minecraft/minecraft-agent"]
   minecraft_brain_manager["minecraft/brain-manager"] --> session_store["session-store"]
   minecraft_context_builder["minecraft/context-builder"]
+  minecraft_minecraft_agent["minecraft/minecraft-agent"] --> mcp_config["mcp-config"]
+  minecraft_minecraft_agent["minecraft/minecraft-agent"] --> minecraft_context_builder["minecraft/context-builder"]
+  minecraft_minecraft_agent["minecraft/minecraft-agent"] --> minecraft_profile["minecraft/profile"]
+  minecraft_minecraft_agent["minecraft/minecraft-agent"] --> runner
+  minecraft_minecraft_agent["minecraft/minecraft-agent"] --> session_store["session-store"]
   minecraft_profile["minecraft/profile"] --> profile
   profile
   runner --> profile
@@ -26,40 +32,60 @@ graph LR
 ## ファイル別依存一覧
 
 ### discord/context-builder.ts
+
 - 他モジュール依存: core/
 - 外部依存: path
 
+### discord/discord-agent.ts
+
+- モジュール内依存: discord/profile, mcp-config, runner, session-store
+- 他モジュール依存: core/, opencode/, store/
+
 ### discord/profile.ts
+
 - モジュール内依存: profile
 - 他モジュール依存: core/
 
 ### discord/router.ts
+
 - 他モジュール依存: core/
 
 ### mcp-config.ts
+
 - モジュール内依存: profile
 - 外部依存: path
 
 ### minecraft/brain-manager.ts
-- モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
+
+- モジュール内依存: minecraft/minecraft-agent, session-store
 - 他モジュール依存: core/, store/
-- 外部依存: path
 
 ### minecraft/context-builder.ts
+
 - 他モジュール依存: core/
 - 外部依存: path
 
+### minecraft/minecraft-agent.ts
+
+- モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
+- 他モジュール依存: core/, opencode/, store/
+- 外部依存: path
+
 ### minecraft/profile.ts
+
 - モジュール内依存: profile
 - 他モジュール依存: core/
 
 ### profile.ts
+
 - 依存なし
 
 ### runner.ts
+
 - モジュール内依存: profile, session-store
 - 他モジュール依存: core/
 
 ### session-store.ts
+
 - 他モジュール依存: store/
 - 外部依存: drizzle-orm
