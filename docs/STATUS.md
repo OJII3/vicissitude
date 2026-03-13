@@ -32,7 +32,7 @@
   - `Retrieval.retrieve()` 実行時にヒットしたエピソードを自動で `review(rating: "good")` する。
   - `ConsolidationPipeline.consolidate()` でエピソード処理時に `review(rating: "good")` する。
   - `lastReviewedAt` が更新されることで、頻繁に参照されるエピソードの `retrievability` が高く維持される。
-- `nr validate` 通過。`bun test` は 734 テスト pass（0 fail）。
+- `nr validate` 通過。`bun test` は 738 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。
