@@ -4,12 +4,16 @@ import type { McpServerConfig } from "./profile.ts";
 
 const DEFAULT_BASE_PORT = 4096;
 
+function getRoot(): string {
+	return process.env.APP_ROOT ?? resolve(import.meta.dirname, "../..");
+}
+
 /**
  * MCP サーバー設定を返す。
  * core MCP は HTTP サーバーとして全 guild で共有。
  */
 export function mcpServerConfigs() {
-	const root = resolve(import.meta.dirname, "../..");
+	const root = getRoot();
 	const basePort = Number(process.env.OPENCODE_BASE_PORT ?? String(DEFAULT_BASE_PORT));
 	const coreMcpPort = Number(process.env.CORE_MCP_PORT ?? String(basePort - 1));
 
@@ -20,7 +24,7 @@ export function mcpServerConfigs() {
 		},
 		"code-exec": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/code-exec-server.ts")],
+			command: ["bun", "run", resolve(root, "dist/code-exec-server.js")],
 		},
 	};
 
@@ -32,12 +36,12 @@ export function mcpServerConfigs() {
  * mc-bridge-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
  */
 export function mcpMinecraftConfigs(): Record<string, McpServerConfig> {
-	const root = resolve(import.meta.dirname, "../..");
+	const root = getRoot();
 
 	const configs: Record<string, McpServerConfig> = {
 		"mc-bridge": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "src/mcp/minecraft/mc-bridge-server.ts")],
+			command: ["bun", "run", resolve(root, "dist/mc-bridge-server.js")],
 			environment: {
 				DATA_DIR: resolve(root, "data"),
 			},

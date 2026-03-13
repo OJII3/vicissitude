@@ -281,7 +281,7 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 	};
 
 	const coreProcess = spawn({
-		cmd: ["bun", "run", resolve(root, "src/mcp/core-server.ts")],
+		cmd: ["bun", "run", resolve(root, "dist/core-server.js")],
 		env: coreEnv,
 		stdout: "inherit",
 		stderr: "inherit",
@@ -321,7 +321,7 @@ async function startMinecraftMcp(
 	if (config.minecraft.version) mcEnv.MC_VERSION = config.minecraft.version;
 
 	const mcProcess = spawn({
-		cmd: ["bun", "run", resolve(root, "src/mcp/minecraft/server.ts")],
+		cmd: ["bun", "run", resolve(root, "dist/minecraft-server.js")],
 		env: mcEnv,
 		stdout: "inherit",
 		stderr: "inherit",
@@ -359,7 +359,7 @@ function startSessionGauge(
 
 export async function bootstrap(): Promise<void> {
 	const config = loadConfig();
-	const root = resolve(import.meta.dirname, "..");
+	const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "..");
 	const logger = new ConsoleLogger();
 
 	// Store

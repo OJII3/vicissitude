@@ -41,7 +41,15 @@ services:
       - ./tsconfig.json:/app/tsconfig.json:ro
       - bot-node-modules:/app/node_modules:ro
       - bot-dist:/app/dist
-    command: ["bun", "build", "src/index.ts", "--outdir", "dist", "--target", "bun"]
+    command:
+      - sh
+      - -c
+      - |
+        bun build src/index.ts --outdir dist --target bun --packages external &&
+        bun build src/mcp/core-server.ts --outfile dist/core-server.js --target bun --packages external &&
+        bun build src/mcp/code-exec-server.ts --outfile dist/code-exec-server.js --target bun --packages external &&
+        bun build src/mcp/minecraft/server.ts --outfile dist/minecraft-server.js --target bun --packages external &&
+        bun build src/mcp/minecraft/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external
     depends_on:
       installer:
         condition: service_completed_successfully
@@ -52,6 +60,8 @@ services:
     <<: *bot-base
     container_name: vicissitude
     init: true
+    environment:
+      APP_ROOT: /app
     env_file:
       - .env
     ports:
