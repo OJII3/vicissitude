@@ -42,7 +42,7 @@
 - M14c 記憶システム責務統合（Phase 2-3）:
   - Phase 2: MEMORY.md スリム化。ユーザー情報（名前・authorId・特徴）を全 MEMORY.md から削除し、LTM 参照ノートに置換。エピソード的情報（MC 進捗詳細）も LTM Episodes に委譲。Guild 固有 MEMORY.md をそのギルド固有のサーバー情報のみに限定。
   - Phase 3: 日次ログ保持期間（7 日）の `cleanup_old_logs` MCP ツール追加。SPEC.md に責務分離表を追加。
-- `nr validate` 通過。`bun test` は 746 テスト pass（0 fail）。
+- `nr validate` 通過。`bun test` は 748 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。

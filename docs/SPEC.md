@@ -129,7 +129,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - ユーザー情報（名前、authorId、特徴）を全 MEMORY.md から削除し、LTM 参照ノートに置換
    - エピソード的情報（MC 進捗詳細）も LTM Episodes に委譲し、運用上必要な制約のみ残す
    - Guild 固有 MEMORY.md はそのギルド固有のサーバー情報のみに限定
-3. **Phase 3**: 日次ログ再設計 + LESSONS.md 整理（記録内容の限定、LTM guideline との連携）
+3. **Phase 3** ✅: 日次ログ再設計 + LESSONS.md 整理（記録内容の限定、LTM guideline との連携）
 
 各フェーズ間に数日の観察期間を設け、情報ロスがないことを確認してから次に進む。
 

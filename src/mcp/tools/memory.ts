@@ -253,7 +253,7 @@ export function registerMemoryTools(server: McpServer): void {
 
 	server.tool(
 		"cleanup_old_logs",
-		`${String(MAX_DAILY_LOG_AGE_DAYS)} 日より古い日次ログを削除する（guild_id 指定時は Guild 固有）`,
+		`${String(MAX_DAILY_LOG_AGE_DAYS)} 日より古い日次ログを削除する（guild_id 指定時は Guild 固有、overlay のみ対象）`,
 		{ guild_id: guildIdSchema },
 		({ guild_id }) => {
 			const { memoryDir } = resolveContextPaths(guild_id);
