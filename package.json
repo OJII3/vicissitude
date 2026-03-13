@@ -23,8 +23,7 @@
 		"deploy:rebuild": "bun run deploy",
 		"deploy:rebuild-base": "bun run container:build:base && podman-compose down && podman volume ls --format '{{.Name}}' | grep -E 'bot-(node-modules|dist)$' | xargs -r podman volume rm -f; podman-compose up -d && echo 'Base rebuilt and deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman-compose logs -f",
-		"deploy:stop": "podman-compose down",
-		"prepare": "true"
+		"deploy:stop": "podman-compose down"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",

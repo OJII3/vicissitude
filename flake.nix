@@ -28,7 +28,7 @@
             deps-graph = {
               enable = true;
               entry = "${pkgs.writeShellScript "deps-graph" ''
-                nr deps:graph >/dev/null 2>&1 && git add docs/DEPS.md src/*/DEPS.md 2>/dev/null
+                ${pkgs.bun}/bin/bun run deps:graph >/dev/null 2>&1 && git add docs/DEPS.md src/*/DEPS.md 2>/dev/null
                 true
               ''}";
               pass_filenames = false;
