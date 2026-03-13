@@ -798,6 +798,92 @@ describe("LtmStorage — escapeLike wildcards", () => {
 	});
 });
 
+describe("LtmStorage — embedding dimension validation", () => {
+	let storage: LtmStorage;
+
+	beforeEach(() => {
+		storage = new LtmStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("records dimension on first episode save", async () => {
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep);
+		expect(storage.getEmbeddingDimension()).toBe(3);
+	});
+
+	test("records dimension on first fact save", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3, 0.4] });
+		await storage.saveFact(userId, fact);
+		expect(storage.getEmbeddingDimension()).toBe(4);
+	});
+
+	test("allows same dimension on subsequent saves", async () => {
+		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		const ep2 = makeEpisode({ embedding: [0.4, 0.5, 0.6] });
+		await storage.saveEpisode(userId, ep1);
+		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
+	});
+
+	test("throws on episode dimension mismatch", async () => {
+		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep1);
+
+		const ep2 = makeEpisode({ embedding: [0.1, 0.2] });
+		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
+			"Embedding dimension mismatch: expected 3, got 2",
+		);
+	});
+
+	test("throws on fact dimension mismatch", async () => {
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep);
+
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3, 0.4, 0.5] });
+		await expect(storage.saveFact(userId, fact)).rejects.toThrow(
+			"Embedding dimension mismatch: expected 3, got 5",
+		);
+	});
+
+	test("dimension is consistent across episode and fact saves", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2] });
+		await storage.saveFact(userId, fact);
+
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await expect(storage.saveEpisode(userId, ep)).rejects.toThrow(
+			"Embedding dimension mismatch",
+		);
+	});
+
+	test("resetEmbeddingMeta allows new dimension", async () => {
+		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep1);
+		expect(storage.getEmbeddingDimension()).toBe(3);
+
+		storage.resetEmbeddingMeta();
+		expect(storage.getEmbeddingDimension()).toBeNull();
+
+		const ep2 = makeEpisode({ embedding: [0.1, 0.2] });
+		await storage.saveEpisode(userId, ep2);
+		expect(storage.getEmbeddingDimension()).toBe(2);
+	});
+
+	test("getEmbeddingDimension returns null when no data stored", () => {
+		expect(storage.getEmbeddingDimension()).toBeNull();
+	});
+
+	test("skips validation for empty embedding", async () => {
+		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep1);
+
+		const ep2 = makeEpisode({ embedding: [] });
+		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
+	});
+});
+
 describe("LtmStorage — FTS5 special character fallback", () => {
 	let storage: LtmStorage;
 

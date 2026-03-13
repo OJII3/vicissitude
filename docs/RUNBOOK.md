@@ -171,7 +171,34 @@ M13d 適用時に既存の `data/context/minecraft/MINECRAFT-GOALS.md` に「達
 - 1 コミット 1 目的を徹底する。
 - 適切な粒度でコミットを行う。
 
-## 8. セキュリティ運用
+## 8. Embedding モデル変更時のマイグレーション
+
+embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedding の次元が既存データと異なる場合にエラーが発生する。以下の手順で再 embedding を行う。
+
+### 8.1 手順
+
+1. Bot を停止する。
+2. 対象の LTM データベースを特定する: `data/ltm/guilds/{guildId}/memory.db`
+3. embedding メタデータをリセットする:
+   ```bash
+   sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
+   ```
+4. 既存の全 embedding を再生成するスクリプトを実行する:
+   ```bash
+   # 全 episode の summary を新モデルで再 embed
+   # 全 semantic_fact の fact を新モデルで再 embed
+   # （現時点では手動で SQLite を操作するか、専用スクリプトを用意する）
+   ```
+5. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
+6. Bot を起動する。初回保存時に新しい次元が自動記録される。
+
+### 8.2 注意事項
+
+- 再 embedding を行わずにメタデータのみリセットすると、古い次元の embedding と新しい次元の embedding が混在し、コサイン類似度の計算でエラーになる。
+- データ量が多い場合は Ollama の負荷に注意する。
+- マイグレーション前にデータベースのバックアップを取ること: `cp memory.db memory.db.bak`
+
+## 9. セキュリティ運用
 
 1. `DISCORD_TOKEN` は `.env` で管理し、リポジトリにコミットしない。
 2. エラーメッセージに内部情報を含めない（要修正、STATUS.md 参照）。

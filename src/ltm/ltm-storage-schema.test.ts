@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import {
 	createAllTables,
+	createEmbeddingMeta,
 	createEpisodeTables,
 	createFactTables,
 	createMessageQueue,
@@ -93,6 +94,13 @@ describe("sqlite-schema", () => {
 		});
 	});
 
+	describe("createEmbeddingMeta", () => {
+		test("creates embedding_meta table", () => {
+			createEmbeddingMeta(db);
+			expect(getNames(db, "table")).toContain("embedding_meta");
+		});
+	});
+
 	describe("createAllTables", () => {
 		test("creates all tables", () => {
 			createAllTables(db);
@@ -102,6 +110,7 @@ describe("sqlite-schema", () => {
 			expect(tables).toContain("semantic_facts");
 			expect(tables).toContain("semantic_facts_fts");
 			expect(tables).toContain("message_queue");
+			expect(tables).toContain("embedding_meta");
 		});
 
 		test("is idempotent", () => {

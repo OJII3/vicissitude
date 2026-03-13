@@ -60,10 +60,48 @@ export class LtmStorage {
 		this.db.close();
 	}
 
+	/**
+	 * Validate embedding dimension consistency.
+	 * On first call, records the dimension. On subsequent calls, throws if dimension differs.
+	 */
+	private validateEmbeddingDimension(embedding: number[]): void {
+		if (embedding.length === 0) return;
+
+		const row = this.db
+			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
+			.get() as { dimension: number } | null;
+
+		if (row === null) {
+			this.db
+				.prepare("INSERT INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
+				.run("default", embedding.length, Date.now());
+			return;
+		}
+
+		if (row.dimension !== embedding.length) {
+			throw new Error(
+				`Embedding dimension mismatch: expected ${row.dimension}, got ${embedding.length}. ` +
+					"If you changed the embedding model, run the re-embedding migration (see RUNBOOK.md).",
+			);
+		}
+	}
+
+	getEmbeddingDimension(): number | null {
+		const row = this.db
+			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
+			.get() as { dimension: number } | null;
+		return row?.dimension ?? null;
+	}
+
+	resetEmbeddingMeta(): void {
+		this.db.prepare("DELETE FROM embedding_meta WHERE key = 'default'").run();
+	}
+
 	async saveEpisode(userId: string, episode: Episode): Promise<void> {
 		if (episode.userId !== userId) {
 			throw new Error("episode.userId does not match userId");
 		}
+		this.validateEmbeddingDimension(episode.embedding);
 		this.db
 			.prepare(
 				`INSERT INTO episodes (id, user_id, title, summary, messages, embedding, surprise, stability, difficulty, start_at, end_at, created_at, last_reviewed_at, consolidated_at)
@@ -132,6 +170,7 @@ export class LtmStorage {
 		if (fact.userId !== userId) {
 			throw new Error("fact.userId does not match userId");
 		}
+		this.validateEmbeddingDimension(fact.embedding);
 		this.db
 			.prepare(
 				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
