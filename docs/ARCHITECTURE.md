@@ -517,7 +517,7 @@ MCP サーバーは 4 プロセス構成:
 - 即応性不足: 危険時のプリエンプションは wake file で部分対応済みだが、完全なイベント直結ではない。
 - 長期進捗不足: `MINECRAFT-GOALS.md` と `MINECRAFT-SKILLS.md` だけでは、拠点状態や技術段階、探索済み領域を保持しにくい。
 - 社会行動不足: Discord 依頼、緊急回避、自律目標の優先順位と説明責任が未整理である。
-- 安全機構: 失敗分類（5 類型）とクールダウンは実装済み。stuck 判定と Discord 自動通知は未実装。
+- 安全機構: 失敗分類（5 類型）とクールダウンは実装済み。stuck 判定は実装済み。Discord 自動通知（death/kicked/disconnect）は実装済み。
 
 ### 11.7 M13c 実行安全性設計
 
@@ -546,8 +546,22 @@ MCP サーバーは 4 プロセス構成:
 - `target missing`: 周辺再観測を 1 回だけ許可し、見つからなければ失敗確定する。
 - `connection failure`: Minecraft 側の再接続を待ち、Discord 側へ停止または遅延を通知する。
 
-#### 11.7.4 Discord 通知条件
+#### 11.7.4 Discord 自動通知
 
-- 即時通知: `death`, `kicked`, `disconnect`, 危険回避開始、危険回避失敗、依頼失敗。
-- 要約通知: 危険回避完了、再計画開始、長時間スタック、依頼延期。
+- `death`, `kicked`, `disconnect` イベントは `AutoNotifier` がブリッジ DB に自動挿入する。LLM 判断を待たない即時通知。
+- 同一種別の通知は 30 秒のクールダウンで重複抑制する。
+- stuck や危険回避などの判断を伴う通知は LLM が `mc_report` ツールで送信する（自動通知対象外）。
+- `mc_auto_notifications_total` メトリクスで通知回数を追跡する。
+
+#### 11.7.5 クールダウン・再試行メトリクス
+
+- `mc_cooldowns_total{type}`: クールダウン発動回数（ジョブ種別ラベル付き）。
+- `mc_failure_streaks_total{type}`: 失敗ストリークのインクリメント回数。
+- `mc_stuck_total`: stuck 検知回数。
+
+#### 11.7.6 Discord 通知条件（LLM 判断分）
+
+- 即時通知（`mc_report`）: 危険回避開始、危険回避失敗、依頼失敗。
+- 要約通知（`mc_report`）: 危険回避完了、再計画開始、長時間スタック、依頼延期。
 - 非通知: 軽微な低重要度イベント、単発の通常ジョブ完了、クールダウン中の内部再評価。
+- `death`/`kicked`/`disconnect` は §11.7.4 の自動通知で処理されるため、LLM が重複して `mc_report` する必要はない。

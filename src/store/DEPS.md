@@ -23,35 +23,28 @@ graph LR
 ## ファイル別依存一覧
 
 ### db.ts
-
 - モジュール内依存: schema
 - 外部依存: bun:sqlite, drizzle-orm, fs, path
 
 ### event-buffer.ts
-
 - モジュール内依存: db, mc-bridge, queries
 - 他モジュール依存: core/
 
 ### mc-bridge.ts
-
 - モジュール内依存: db, schema
 - 外部依存: drizzle-orm
 
 ### mc-status-provider.ts
-
 - モジュール内依存: db, mc-bridge
 - 他モジュール依存: core/
 
 ### minecraft-event-buffer.ts
-
 - 他モジュール依存: core/
 - 外部依存: fs
 
 ### queries.ts
-
 - モジュール内依存: db, schema
 - 外部依存: drizzle-orm
 
 ### schema.ts
-
 - 外部依存: drizzle-orm

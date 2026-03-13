@@ -1,5 +1,8 @@
+/* oxlint-disable max-dependencies -- server entry requires auto-notifier + bridge DB dependencies */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { createDb, closeDb } from "../../store/db.ts";
+import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
 import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
@@ -35,10 +38,18 @@ if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 }
 const MC_MCP_PORT = mcpPortRaw;
 const MC_BRAIN_WAKE_FILE = process.env.MC_BRAIN_WAKE_FILE;
+const DATA_DIR = process.env.DATA_DIR;
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
 const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics();
 mcMetricsServer.start();
+
+// ── Bridge DB (auto-notification) ─────────────────────────────────────────────
+const bridgeDb = DATA_DIR ? createDb(DATA_DIR) : undefined;
+const autoNotifier = bridgeDb ? createAutoNotifier(bridgeDb, mcCollector) : undefined;
+if (!bridgeDb) {
+	console.error("[minecraft] DATA_DIR not set; Discord auto-notifications disabled");
+}
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 const wakeNotifier = MC_BRAIN_WAKE_FILE
@@ -47,6 +58,7 @@ const wakeNotifier = MC_BRAIN_WAKE_FILE
 const ctx = createBotContext({
 	metrics: mcCollector,
 	urgentEventNotifier: (kind, description, importance) => {
+		autoNotifier?.(kind, description, importance);
 		if (!wakeNotifier) return;
 		if (shouldWakeMinecraftBrain(kind, importance, description)) {
 			wakeNotifier();
@@ -86,6 +98,7 @@ const shutdown = (): void => {
 	stopServer();
 	mcMetricsServer.stop();
 	connection.shutdown();
+	if (bridgeDb) closeDb(bridgeDb);
 	process.exit(0);
 };
 process.on("SIGINT", shutdown);

@@ -59,6 +59,13 @@ export function createMcMetrics(): { collector: McMetricsCollector; server: McMe
 	collector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
 	collector.registerCounter(METRIC.MC_BOT_EVENTS, "Minecraft bot events total");
 	collector.registerCounter(METRIC.MC_MCP_TOOL_CALLS, "Minecraft MCP tool calls total");
+	collector.registerCounter(METRIC.MC_STUCK, "Minecraft stuck detections total");
+	collector.registerCounter(METRIC.MC_COOLDOWNS, "Minecraft cooldown activations total");
+	collector.registerCounter(METRIC.MC_FAILURE_STREAKS, "Minecraft failure streak increments total");
+	collector.registerCounter(
+		METRIC.MC_AUTO_NOTIFICATIONS,
+		"Minecraft auto Discord notifications total",
+	);
 
 	let bunServer: ReturnType<typeof Bun.serve> | null = null;
 

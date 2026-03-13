@@ -14,9 +14,10 @@
 - Grafana ダッシュボードを更新し、壊れていた `judge_requests_total` パネルを LTM パネルへ置換、未反映だったトークン系・MC 系メトリクスを追加。
 - M13a 要件整理を実施。Minecraft エージェントの不足機能を整理しドキュメント化。
 - M13c 実行安全性ルールを整理。危険時プリエンプション、ジョブ再試行制限、失敗分類、Discord 通知条件をドキュメント化。
-- M13c 実装（部分完了）:
-  - 完了: 高優先度イベントでの brain wake 通知経路、ジョブ失敗分類（5 類型）、同系統ジョブ連続失敗時のクールダウン、`get_job_status` のクールダウン表示。
-  - 未実装: Discord 自動通知、クールダウン/再試行の詳細メトリクス。
+- M13c 実装（完了）:
+  - 高優先度イベントでの brain wake 通知経路、ジョブ失敗分類（5 類型）、同系統ジョブ連続失敗時のクールダウン、`get_job_status` のクールダウン表示。
+  - Discord 自動通知: `death`/`kicked`/`disconnect` イベントを `AutoNotifier` がブリッジ DB に自動挿入（30 秒クールダウン付き）。
+  - クールダウン/再試行メトリクス: `mc_cooldowns_total`, `mc_failure_streaks_total`, `mc_auto_notifications_total` を追加。
 - M13d stuck 検知を実装（PR #132）。位置・インベントリ・体力の停滞検知 + 自動リカバリ（連続失敗 / 位置停滞 + 時間条件）。
 - fenghuang 外部パッケージを `src/ltm/` としてモノレポに統合完了（PR #134）。
   - StoragePort 廃止 → SQLite 直接依存、LLMPort → LtmLlmPort リネーム、全テスト移行済み。
@@ -26,7 +27,7 @@
   - `Retrieval.retrieve()` 実行時にヒットしたエピソードを自動で `review(rating: "good")` する。
   - `ConsolidationPipeline.consolidate()` でエピソード処理時に `review(rating: "good")` する。
   - `lastReviewedAt` が更新されることで、頻繁に参照されるエピソードの `retrievability` が高く維持される。
-- `nr validate` 通過。`bun test` は 721 テスト pass（0 fail）。
+- `nr validate` 通過。`bun test` は 729 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。
@@ -47,7 +48,7 @@
 - Ollama イメージタグ `latest` 固定。バージョン固定を将来検討。
 - `HeartbeatScheduler` / `ConsolidationScheduler` の二重タイムアウトで最悪 tick 時間が 2 倍（6 分 / 20 分）。
 - 危険時再判断は wake file による早期再開まで実装。完全なイベント直結ではなく、ファイルポーリングに依存する。
-- stuck 判定は実装済み（PR #132）。再試行制御の詳細メトリクス、Discord 通知自動化はまだ未実装。
+- stuck 判定は実装済み（PR #132）。Discord 自動通知は death/kicked/disconnect のみ。LLM 判断通知（stuck、危険回避等）は `mc_report` 経由。
 - LTM の既知の不足機能（M14 で対応予定）:
   - ~~FSRS `reviewCard()` が本番で呼ばれていない~~ → M14a で解消。retrieve/consolidate 時に自動 review。
   - ContextBuilder が全 Fact を無条件注入。関連性フィルタリング未実装。
@@ -61,8 +62,8 @@
 
 - ~~`M14a`: FSRS 学習ループ構築~~ 完了。
 - `M14b`: Fact 注入時の関連性フィルタリング（ハイブリッド検索で上位 N 件のみ注入）。
-- `M13c` 継続: Discord 自動通知をコードへ反映する。
-- クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。
+- ~~`M13c` 継続: Discord 自動通知をコードへ反映する。~~ 完了。
+- ~~クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。~~ 完了。
 - `M13e`: 正式アカウントログイン設計。
 - `data/fenghuang/` → `data/ltm/` 移行手順を RUNBOOK に追記。
 - テストが存在しない残りモジュールへのテスト追加（残: `DiscordGateway`）。

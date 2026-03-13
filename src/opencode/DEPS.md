@@ -13,10 +13,8 @@ graph LR
 ## ファイル別依存一覧
 
 ### session-adapter.ts
-
 - 他モジュール依存: core/
 - 外部依存: @opencode-ai/sdk/v2
 
 ### session-port.ts
-
 - 他モジュール依存: core/
