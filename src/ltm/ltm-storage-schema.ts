@@ -39,8 +39,14 @@ export function createMessageQueue(db: Database): void {
 	db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
 }
 
+export function createEmbeddingMeta(db: Database): void {
+	db.exec(`CREATE TABLE IF NOT EXISTS embedding_meta (
+		key TEXT PRIMARY KEY, dimension INTEGER NOT NULL, created_at INTEGER NOT NULL)`);
+}
+
 export function createAllTables(db: Database): void {
 	createEpisodeTables(db);
 	createFactTables(db);
 	createMessageQueue(db);
+	createEmbeddingMeta(db);
 }

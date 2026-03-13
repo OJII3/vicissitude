@@ -240,7 +240,7 @@ MCP サーバーは 4 プロセス構成:
 
 旧 `fenghuang` 外部パッケージをモノレポに統合。StoragePort を廃止し SQLite（`bun:sqlite`）直接依存。
 
-- `ltm-storage.ts`: `LtmStorage` — SQLite + FTS5 テキスト検索 + コサイン類似度ベクトル検索。WAL モードで安全な同時アクセス
+- `ltm-storage.ts`: `LtmStorage` — SQLite + FTS5 テキスト検索 + コサイン類似度ベクトル検索。WAL モードで安全な同時アクセス。`embedding_meta` テーブルで次元数を記録し、モデル変更時の次元不一致を検出
 - `segmenter.ts`: `Segmenter` — 会話メッセージキューを soft/hard トリガーで分節化し Episode を生成
 - `consolidation.ts`: `ConsolidationPipeline` — Episode から SemanticFact を LLM で抽出・統合
 - `retrieval.ts`: `Retrieval` — テキスト + ベクトル + FSRS の Reciprocal Rank Fusion ハイブリッド検索

@@ -171,7 +171,54 @@ M13d 適用時に既存の `data/context/minecraft/MINECRAFT-GOALS.md` に「達
 - 1 コミット 1 目的を徹底する。
 - 適切な粒度でコミットを行う。
 
-## 8. セキュリティ運用
+## 8. Embedding モデル変更時のマイグレーション
+
+embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedding の次元が既存データと異なる場合にエラーが発生する。以下の手順で再 embedding を行う。
+
+### 8.1 手順
+
+1. Bot を停止する。
+2. 対象の LTM データベースをバックアップする:
+   ```bash
+   cp data/ltm/guilds/{guildId}/memory.db data/ltm/guilds/{guildId}/memory.db.bak
+   ```
+3. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
+4. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のスクリプトを実行する。`sqlite3 -json` と `jq` を使い、本文中の改行・引用符・パイプ等を安全に扱う:
+   ```bash
+   DB="data/ltm/guilds/{guildId}/memory.db"
+   MODEL="新モデル名"
+   OLLAMA="http://localhost:11434"
+
+   # episodes の summary を再 embed
+   sqlite3 -json "$DB" "SELECT id, summary FROM episodes;" | jq -c '.[]' | while read -r row; do
+     id=$(echo "$row" | jq -r '.id')
+     text=$(echo "$row" | jq -r '.summary')
+     payload=$(jq -nc --arg model "$MODEL" --arg input "$text" '{model: $model, input: $input}')
+     vec=$(curl -s "$OLLAMA/api/embed" -d "$payload" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE episodes SET embedding = ? WHERE id = ?" "$vec" "$id"
+   done
+
+   # semantic_facts の fact を再 embed（無効化済み fact は対象外）
+   sqlite3 -json "$DB" "SELECT id, fact FROM semantic_facts WHERE invalid_at IS NULL;" | jq -c '.[]' | while read -r row; do
+     id=$(echo "$row" | jq -r '.id')
+     text=$(echo "$row" | jq -r '.fact')
+     payload=$(jq -nc --arg model "$MODEL" --arg input "$text" '{model: $model, input: $input}')
+     vec=$(curl -s "$OLLAMA/api/embed" -d "$payload" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE semantic_facts SET embedding = ? WHERE id = ?" "$vec" "$id"
+   done
+   ```
+5. embedding メタデータをリセットする（全レコード更新完了後に実行すること）:
+   ```bash
+   sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
+   ```
+6. Bot を起動する。起動時のバックフィルで新しい次元が自動記録される。
+
+### 8.2 注意事項
+
+- メタデータリセット（Step 5）は必ず全 embedding の再生成（Step 4）が完了した後に行うこと。途中でリセットすると、バックフィルが未更新の古い embedding から誤った次元を推定する。
+- データ量が多い場合は Ollama の負荷に注意する。
+
+## 9. セキュリティ運用
 
 1. `DISCORD_TOKEN` は `.env` で管理し、リポジトリにコミットしない。
 2. エラーメッセージに内部情報を含めない（要修正、STATUS.md 参照）。
