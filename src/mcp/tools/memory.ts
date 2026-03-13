@@ -267,7 +267,8 @@ export function registerMemoryTools(server: McpServer): void {
 			const removed: string[] = [];
 			for (const file of files) {
 				const dateStr = file.replace(".md", "");
-				if (!isDateWithinRange(dateStr)) {
+				// 未来日は保持し、7日超過の過去日のみ削除
+				if (!isDateWithinRange(dateStr) && dateStr <= todayDateString()) {
 					unlinkSync(resolve(memoryDir, file));
 					removed.push(dateStr);
 				}
