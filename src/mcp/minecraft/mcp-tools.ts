@@ -31,6 +31,19 @@ function registerObserveStateTool(
 				return { content: [{ type: "text", text: "ボット未接続" }] };
 			}
 
+			// 死亡画面でスタックしている場合、リスポーンを試みる
+			if (bot.health <= 0) {
+				bot.respawn();
+				return {
+					content: [
+						{
+							type: "text",
+							text: "ボットは死亡状態です。リスポーンを試みました。少し待ってから再度確認してください。",
+						},
+					],
+				};
+			}
+
 			const pos = bot.entity.position;
 			const timeOfDay = bot.time?.timeOfDay;
 			const roundedPos = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) };
