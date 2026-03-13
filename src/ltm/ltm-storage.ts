@@ -48,6 +48,7 @@ function sortBySimilarity<T extends { embedding: number[] }>(
 /** SQLite-based LTM storage */
 export class LtmStorage {
 	private db: Database;
+	private cachedDimension: number | null | undefined = undefined; // undefined = not loaded yet
 
 	constructor(path = ":memory:") {
 		this.db = new Database(path);
@@ -60,6 +61,15 @@ export class LtmStorage {
 		this.db.close();
 	}
 
+	private loadDimension(): number | null {
+		if (this.cachedDimension !== undefined) return this.cachedDimension;
+		const row = this.db
+			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
+			.get() as { dimension: number } | null;
+		this.cachedDimension = row?.dimension ?? null;
+		return this.cachedDimension;
+	}
+
 	/**
 	 * Validate embedding dimension consistency.
 	 * On first call, records the dimension. On subsequent calls, throws if dimension differs.
@@ -67,34 +77,31 @@ export class LtmStorage {
 	private validateEmbeddingDimension(embedding: number[]): void {
 		if (embedding.length === 0) return;
 
-		const row = this.db
-			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
-			.get() as { dimension: number } | null;
+		const stored = this.loadDimension();
 
-		if (row === null) {
+		if (stored === null) {
 			this.db
 				.prepare("INSERT INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
 				.run("default", embedding.length, Date.now());
+			this.cachedDimension = embedding.length;
 			return;
 		}
 
-		if (row.dimension !== embedding.length) {
+		if (stored !== embedding.length) {
 			throw new Error(
-				`Embedding dimension mismatch: expected ${row.dimension}, got ${embedding.length}. ` +
+				`Embedding dimension mismatch: expected ${stored}, got ${embedding.length}. ` +
 					"If you changed the embedding model, run the re-embedding migration (see RUNBOOK.md).",
 			);
 		}
 	}
 
 	getEmbeddingDimension(): number | null {
-		const row = this.db
-			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
-			.get() as { dimension: number } | null;
-		return row?.dimension ?? null;
+		return this.loadDimension();
 	}
 
 	resetEmbeddingMeta(): void {
 		this.db.prepare("DELETE FROM embedding_meta WHERE key = 'default'").run();
+		this.cachedDimension = undefined;
 	}
 
 	async saveEpisode(userId: string, episode: Episode): Promise<void> {
@@ -319,6 +326,7 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<Episode[]> {
+		this.validateEmbeddingDimension(embedding);
 		const lim = clampLimit(limit);
 		// Fetch only id + embedding for similarity ranking, then load full rows for top-N
 		const candidates = this.db
@@ -346,6 +354,7 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<SemanticFact[]> {
+		this.validateEmbeddingDimension(embedding);
 		const lim = clampLimit(limit);
 		const candidates = this.db
 			.prepare("SELECT id, embedding FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")

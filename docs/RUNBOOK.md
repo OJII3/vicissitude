@@ -183,13 +183,25 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
    ```bash
    sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
    ```
-4. 既存の全 embedding を再生成するスクリプトを実行する:
+4. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
+5. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のように全レコードの embedding を更新する:
    ```bash
-   # 全 episode の summary を新モデルで再 embed
-   # 全 semantic_fact の fact を新モデルで再 embed
-   # （現時点では手動で SQLite を操作するか、専用スクリプトを用意する）
+   DB="data/ltm/guilds/{guildId}/memory.db"
+   MODEL="新モデル名"
+   OLLAMA="http://localhost:11434"
+
+   # episodes の summary を再 embed
+   sqlite3 "$DB" "SELECT id, summary FROM episodes;" | while IFS='|' read -r id text; do
+     vec=$(curl -s "$OLLAMA/api/embed" -d "{\"model\":\"$MODEL\",\"input\":\"$text\"}" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE episodes SET embedding = '$(echo "$vec")' WHERE id = '$id';"
+   done
+
+   # semantic_facts の fact を再 embed
+   sqlite3 "$DB" "SELECT id, fact FROM semantic_facts WHERE invalid_at IS NULL;" | while IFS='|' read -r id text; do
+     vec=$(curl -s "$OLLAMA/api/embed" -d "{\"model\":\"$MODEL\",\"input\":\"$text\"}" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE semantic_facts SET embedding = '$(echo "$vec")' WHERE id = '$id';"
+   done
    ```
-5. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
 6. Bot を起動する。初回保存時に新しい次元が自動記録される。
 
 ### 8.2 注意事項
