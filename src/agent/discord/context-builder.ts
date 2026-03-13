@@ -17,6 +17,7 @@ const MEMORY_FILES = ["MEMORY.md", "LESSONS.md"] as const;
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
+const FACT_INJECTION_LIMIT = 20;
 
 export class ContextBuilder implements ContextBuilderPort {
 	constructor(
@@ -35,8 +36,13 @@ export class ContextBuilder implements ContextBuilderPort {
 		let totalLength = 0;
 
 		totalLength = await this.loadFileSections(guildId, sections, totalLength);
-		totalLength = await this.loadDailyLog(guildId, sections, totalLength);
-		totalLength = await this.loadLtmFacts(guildId, sections, totalLength);
+		const { totalLength: afterDailyLog, content: dailyLogContent } = await this.loadDailyLog(
+			guildId,
+			sections,
+			totalLength,
+		);
+		totalLength = afterDailyLog;
+		totalLength = await this.loadLtmFacts(guildId, sections, totalLength, dailyLogContent);
 		totalLength = await this.loadMinecraftStatus(sections, totalLength);
 		this.appendGuildContext(guildId, sections);
 
@@ -79,7 +85,7 @@ export class ContextBuilder implements ContextBuilderPort {
 		guildId: string | undefined,
 		sections: string[],
 		totalLength: number,
-	): Promise<number> {
+	): Promise<{ totalLength: number; content: string }> {
 		const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 		const jstNow = new Date(Date.now() + JST_OFFSET_MS);
 		const today = jstNow.toISOString().slice(0, 10);
@@ -88,20 +94,23 @@ export class ContextBuilder implements ContextBuilderPort {
 			const section = `<daily-log date="${today}">\n${dailyLog}\n</daily-log>`;
 			if (totalLength + section.length <= TOTAL_MAX) {
 				sections.push(section);
-				return totalLength + section.length;
+				return { totalLength: totalLength + section.length, content: dailyLog };
 			}
 		}
-		return totalLength;
+		return { totalLength, content: "" };
 	}
 
 	private async loadLtmFacts(
 		guildId: string | undefined,
 		sections: string[],
 		totalLength: number,
+		contextHint: string,
 	): Promise<number> {
 		if (!guildId || !this.ltmFactReader) return totalLength;
 		try {
-			const facts = await this.ltmFactReader.getFacts(guildId);
+			const facts = contextHint
+				? await this.ltmFactReader.getRelevantFacts(guildId, contextHint, FACT_INJECTION_LIMIT)
+				: await this.ltmFactReader.getFacts(guildId);
 			if (facts.length > 0) {
 				const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
 				const section = `<ltm-facts>\n${lines.join("\n")}\n</ltm-facts>`;

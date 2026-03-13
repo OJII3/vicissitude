@@ -21,9 +21,13 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	writeFileSync(fullPath, content);
 }
 
-function createMockLtmReader(facts: LtmFact[]): LtmFactReader {
+function createMockLtmReader(
+	facts: LtmFact[],
+	relevantFacts?: LtmFact[],
+): LtmFactReader {
 	return {
 		getFacts: mock(() => Promise.resolve(facts)),
+		getRelevantFacts: mock(() => Promise.resolve(relevantFacts ?? facts)),
 		close: mock(() => Promise.resolve()),
 	};
 }
@@ -111,6 +115,48 @@ describe("ContextBuilder", () => {
 		});
 	});
 
+	describe("LTM ファクト関連性フィルタリング", () => {
+		it("日次ログがある場合は getRelevantFacts が呼ばれる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+			const today = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
+			writeFile(overlayDir, `memory/${today}.md`, "今日はMinecraftで建築した");
+
+			const allFacts: LtmFact[] = [
+				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
+				{ content: "建築が得意", category: "interest", createdAt: "2026-01-02" },
+			];
+			const relevantFacts: LtmFact[] = [
+				{ content: "建築が得意", category: "interest", createdAt: "2026-01-02" },
+			];
+			const reader = createMockLtmReader(allFacts, relevantFacts);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, reader);
+			const result = await builder.build("123456789");
+
+			expect(result).toContain("<ltm-facts>");
+			expect(result).toContain("[interest] 建築が得意");
+			expect(result).not.toContain("猫が好き");
+			expect(reader.getRelevantFacts).toHaveBeenCalled();
+			expect(reader.getFacts).not.toHaveBeenCalled();
+		});
+
+		it("日次ログがない場合は getFacts にフォールバックする", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const facts: LtmFact[] = [
+				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
+			];
+			const reader = createMockLtmReader(facts);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, reader);
+			const result = await builder.build("123456789");
+
+			expect(result).toContain("[preference] ユーザーAは猫が好き");
+			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
+			expect(reader.getRelevantFacts).not.toHaveBeenCalled();
+		});
+	});
+
 	describe("LTM ファクト取得の graceful degradation", () => {
 		it("LTM ファクト取得で例外発生時はスキップして続行する", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
@@ -118,6 +164,7 @@ describe("ContextBuilder", () => {
 
 			const failingReader: LtmFactReader = {
 				getFacts: mock(() => Promise.reject(new Error("LTM connection failed"))),
+				getRelevantFacts: mock(() => Promise.reject(new Error("LTM connection failed"))),
 				close: mock(() => Promise.resolve()),
 			};
 
