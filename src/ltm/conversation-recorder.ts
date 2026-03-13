@@ -9,6 +9,7 @@ import type {
 } from "../core/types.ts";
 import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
+import { EpisodicMemory } from "./episodic.ts";
 import type { LtmLlmPort } from "./llm-port.ts";
 import { LtmStorage } from "./ltm-storage.ts";
 import { Segmenter } from "./segmenter.ts";
@@ -25,8 +26,9 @@ export type GuildInstanceFactory = (dbPath: string, llm: LtmLlmPort) => GuildIns
 
 const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
 	const storage = new LtmStorage(dbPath);
+	const episodic = new EpisodicMemory(storage);
 	const segmenter = new Segmenter(llm, storage);
-	const consolidation = new ConsolidationPipeline(llm, storage);
+	const consolidation = new ConsolidationPipeline(llm, storage, episodic);
 	return { segmenter, storage, consolidation };
 };
 

@@ -10,6 +10,7 @@ graph LR
   composite_llm_adapter["composite-llm-adapter"] --> ltm_chat_adapter["ltm-chat-adapter"]
   composite_llm_adapter["composite-llm-adapter"] --> types
   consolidation --> episode
+  consolidation --> episodic
   consolidation --> llm_port["llm-port"]
   consolidation --> ltm_storage["ltm-storage"]
   consolidation --> semantic_fact["semantic-fact"]
@@ -17,6 +18,7 @@ graph LR
   consolidation --> utils
   conversation_recorder["conversation-recorder"] --> consolidation
   conversation_recorder["conversation-recorder"] --> episode
+  conversation_recorder["conversation-recorder"] --> episodic
   conversation_recorder["conversation-recorder"] --> llm_port["llm-port"]
   conversation_recorder["conversation-recorder"] --> ltm_storage["ltm-storage"]
   conversation_recorder["conversation-recorder"] --> segmenter
@@ -55,6 +57,7 @@ graph LR
   ltm_storage_schema["ltm-storage-schema"]
   parse_helpers["parse-helpers"] --> types
   retrieval --> episode
+  retrieval --> episodic
   retrieval --> fsrs
   retrieval --> llm_port["llm-port"]
   retrieval --> ltm_storage["ltm-storage"]
@@ -84,11 +87,11 @@ graph LR
 
 ### consolidation.ts
 
-- モジュール内依存: episode, llm-port, ltm-storage, semantic-fact, types, utils
+- モジュール内依存: episode, episodic, llm-port, ltm-storage, semantic-fact, types, utils
 
 ### conversation-recorder.ts
 
-- モジュール内依存: consolidation, episode, llm-port, ltm-storage, segmenter
+- モジュール内依存: consolidation, episode, episodic, llm-port, ltm-storage, segmenter
 - 他モジュール依存: core/
 - 外部依存: fs, path
 
@@ -142,7 +145,7 @@ graph LR
 
 ### retrieval.ts
 
-- モジュール内依存: episode, fsrs, llm-port, ltm-storage, semantic-fact, utils
+- モジュール内依存: episode, episodic, fsrs, llm-port, ltm-storage, semantic-fact, utils
 
 ### segmenter.ts
 

@@ -22,7 +22,11 @@
   - StoragePort 廃止 → SQLite 直接依存、LLMPort → LtmLlmPort リネーム、全テスト移行済み。
   - レビュー指摘 6 件修正: 型安全性向上（`Promise<Episode[]>`）、セグメント index バリデーション強化、キューサイズ事前チェック、embedding 検索の 2 段階最適化、FTS5 フォールバック限定化、フィールド長制限追加。
   - M14 LTM 強化ロードマップを PLAN.md に追加（FSRS 学習ループ、Fact 関連性フィルタリング、記憶システム統合、埋め込みロバスト性）。
-- `nr validate` 通過。`bun test` は 715 テスト pass（0 fail）。
+- M14a FSRS 学習ループ統合:
+  - `Retrieval.retrieve()` 実行時にヒットしたエピソードを自動で `review(rating: "good")` する。
+  - `ConsolidationPipeline.consolidate()` でエピソード処理時に `review(rating: "good")` する。
+  - `lastReviewedAt` が更新されることで、頻繁に参照されるエピソードの `retrievability` が高く維持される。
+- `nr validate` 通過。`bun test` は 721 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。
@@ -45,7 +49,7 @@
 - 危険時再判断は wake file による早期再開まで実装。完全なイベント直結ではなく、ファイルポーリングに依存する。
 - stuck 判定は実装済み（PR #132）。再試行制御の詳細メトリクス、Discord 通知自動化はまだ未実装。
 - LTM の既知の不足機能（M14 で対応予定）:
-  - FSRS `reviewCard()` が本番で呼ばれていない（`retrievability()` のみ使用）。学習ループ未構築。
+  - ~~FSRS `reviewCard()` が本番で呼ばれていない~~ → M14a で解消。retrieve/consolidate 時に自動 review。
   - ContextBuilder が全 Fact を無条件注入。関連性フィルタリング未実装。
   - 3 つの独立した記憶システム（LTM, MEMORY.md/LESSONS.md, 日次ログ）が未統合。
   - 埋め込み次元のメタデータ管理なし。モデル変更時の互換性リスク。
@@ -55,7 +59,7 @@
 
 ## 4. 直近タスク
 
-- `M14a`: FSRS 学習ループ構築（retrieve 時に reviewCard 実行）。
+- ~~`M14a`: FSRS 学習ループ構築~~ 完了。
 - `M14b`: Fact 注入時の関連性フィルタリング（ハイブリッド検索で上位 N 件のみ注入）。
 - `M13c` 継続: Discord 自動通知をコードへ反映する。
 - クールダウン / 再試行制御を追加メトリクスとログで追えるようにする。

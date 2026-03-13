@@ -1,4 +1,5 @@
 import type { Episode } from "./episode.ts";
+import type { EpisodicMemory } from "./episodic.ts";
 import { retrievability } from "./fsrs.ts";
 import type { LtmLlmPort } from "./llm-port.ts";
 import type { LtmStorage } from "./ltm-storage.ts";
@@ -187,10 +188,18 @@ function rankResults(ctx: RankContext): RetrievalResult {
 
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
+	private pendingReview: Promise<void> = Promise.resolve();
+
 	constructor(
 		private llm: LtmLlmPort,
 		private storage: LtmStorage,
+		private episodic: EpisodicMemory | null = null,
 	) {}
+
+	/** Wait for any pending FSRS reviews to complete (useful in tests and graceful shutdown) */
+	flushReviews(): Promise<void> {
+		return this.pendingReview;
+	}
 
 	/** Run all 4 searches in parallel */
 	private runSearches(
@@ -223,6 +232,31 @@ export class Retrieval {
 			query,
 			queryEmbedding,
 		);
-		return rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+		const result = rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+
+		// FSRS learning loop: fire-and-forget auto-review so returned scores
+		// reflect the pre-review state and remain consistent with this response.
+		if (this.episodic && result.episodes.length > 0) {
+			this.pendingReview = this.reviewRetrievedEpisodes(userId, result.episodes, opts.now);
+		}
+
+		return result;
+	}
+
+	/** Max episodes to auto-review per retrieve call to bound DB write cost */
+	private static readonly MAX_AUTO_REVIEW = 20;
+
+	/** Review retrieved episodes to update FSRS parameters (search hit = "good") */
+	private async reviewRetrievedEpisodes(
+		userId: string,
+		episodes: ScoredEpisode[],
+		now: Date,
+	): Promise<void> {
+		const { episodic } = this;
+		if (!episodic) return;
+		const toReview = episodes.slice(0, Retrieval.MAX_AUTO_REVIEW);
+		await Promise.all(
+			toReview.map((ep) => episodic.review(userId, ep.episode.id, { rating: "good", now })),
+		);
 	}
 }
