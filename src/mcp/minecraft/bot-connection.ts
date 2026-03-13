@@ -34,10 +34,20 @@ interface ReconnectState {
 const MAX_RECONNECT_DELAY = 60_000;
 
 const AUTH_ERROR_PATTERNS = [
+	// node-minecraft-protocol / mineflayer
 	"invalid credentials",
 	"does not own",
 	"not authenticated",
-	"failed to obtain",
+	// prismarine-auth: device code timeout
+	"authentication failed, timed out",
+	// prismarine-auth: token refresh failure
+	"cannot refresh without refresh token",
+	// prismarine-auth: XSTS / device code acquisition failure
+	"failed to obtain a xsts token",
+	"failed to request",
+	"failed to acquire",
+	// prismarine-auth: Xbox Live account restrictions
+	"xbox",
 ] as const;
 
 function isAuthError(err: Error): boolean {
