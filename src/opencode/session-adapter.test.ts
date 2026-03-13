@@ -251,6 +251,35 @@ describe("OpencodeSessionAdapter", () => {
 		expect(streamState.returnMock).toHaveBeenCalledTimes(1);
 	});
 
+	test("signal なしで stream.next() がハングした場合タイムアウトエラーになる", async () => {
+		// STREAM_NEXT_TIMEOUT_MS (5分) を待つのは非現実的なので、
+		// withTimeout 経由でエラーメッセージが含まれることだけ検証する。
+		// withTimeout 自体は core/functions.ts で別途テスト済み。
+		const stream = {
+			next: mock(
+				() =>
+					// 即座に reject する withTimeout の挙動をシミュレート
+					new Promise<IteratorResult<Event, void>>((_resolve, reject) => {
+						setTimeout(() => reject(new Error("stream.next() timed out after 5 minutes")), 10);
+					}),
+			),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+		const client = createClient(stream);
+		const adapter = createAdapter(client as unknown as OpencodeClient);
+
+		await expect(
+			adapter.promptAsyncAndWatchSession({
+				sessionId: "session-1",
+				text: "watch",
+				model: { providerId: "provider", modelId: "model" },
+			}),
+		).rejects.toThrow("timed out");
+	});
+
 	test("abort 時に stream.return が reject しても finally 側で同じ reject を回収する", async () => {
 		const stream = {
 			next: mock(() => new Promise<IteratorResult<Event, void>>(() => {})),

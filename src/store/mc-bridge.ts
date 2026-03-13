@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, ne } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
 import { mcBridgeEvents, mcSessionLock } from "./schema.ts";
@@ -52,6 +52,22 @@ export function insertBridgeEvent(
 			.where(inArray(mcBridgeEvents.id, idsToMark))
 			.run();
 	}
+}
+
+/** spawn 時に未消費の to_discord report/command イベントを消費済みにする（lifecycle は温存） */
+export function markStaleEventsConsumedOnSpawn(db: StoreDb): number {
+	const result = db
+		.update(mcBridgeEvents)
+		.set({ consumed: 1 })
+		.where(
+			and(
+				eq(mcBridgeEvents.direction, "to_discord"),
+				eq(mcBridgeEvents.consumed, 0),
+				ne(mcBridgeEvents.type, "lifecycle"),
+			),
+		)
+		.run();
+	return result.changes;
 }
 
 /** 消費済みレコードを保持する期間（24時間） */
