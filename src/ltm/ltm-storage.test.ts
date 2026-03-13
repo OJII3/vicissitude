@@ -884,6 +884,50 @@ describe("LtmStorage — embedding dimension validation", () => {
 		const ep2 = makeEpisode({ embedding: [] });
 		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
 	});
+
+	test("updateFact throws on embedding dimension mismatch", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveFact(userId, fact);
+
+		await expect(
+			storage.updateFact(userId, fact.id, { embedding: [0.1, 0.2] }),
+		).rejects.toThrow("Embedding dimension mismatch: expected 3, got 2");
+	});
+
+	test("updateFact allows same-dimension embedding update", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveFact(userId, fact);
+
+		await expect(
+			storage.updateFact(userId, fact.id, { embedding: [0.4, 0.5, 0.6] }),
+		).resolves.toBeUndefined();
+	});
+
+	test("updateFact without embedding skips dimension check", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveFact(userId, fact);
+
+		await expect(
+			storage.updateFact(userId, fact.id, { fact: "Updated text" }),
+		).resolves.toBeUndefined();
+	});
+
+	test("search does not create embedding_meta on empty DB", async () => {
+		// Search on empty DB should not side-effect create embedding_meta
+		await storage.searchEpisodesByEmbedding(userId, [0.1, 0.2, 0.3], 10);
+		expect(storage.getEmbeddingDimension()).toBeNull();
+	});
+
+	test("search checks dimension but does not register it", async () => {
+		// Save with dim=3
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep);
+
+		// Search with dim=2 should throw
+		await expect(
+			storage.searchEpisodesByEmbedding(userId, [0.1, 0.2], 10),
+		).rejects.toThrow("Embedding dimension mismatch");
+	});
 });
 
 describe("LtmStorage — legacy DB upgrade (backfill from existing data)", () => {

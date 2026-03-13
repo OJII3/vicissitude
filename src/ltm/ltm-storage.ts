@@ -73,11 +73,8 @@ export class LtmStorage {
 		// Backfill from existing data for DBs created before embedding_meta was added
 		const dim = this.inferDimensionFromExistingData();
 		if (dim !== null) {
-			this.db
-				.prepare("INSERT INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
-				.run("default", dim, Date.now());
-			this.cachedDimension = dim;
-			return dim;
+			this.upsertDimension(dim);
+			return this.cachedDimension!;
 		}
 		this.cachedDimension = null;
 		return null;
@@ -103,24 +100,60 @@ export class LtmStorage {
 	}
 
 	/**
-	 * Validate embedding dimension consistency.
+	 * Atomically insert or read the dimension. Uses INSERT OR IGNORE to handle
+	 * concurrent writers safely, then re-reads to get the winner's value.
+	 */
+	private upsertDimension(dimension: number): void {
+		this.db
+			.prepare(
+				"INSERT OR IGNORE INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)",
+			)
+			.run("default", dimension, Date.now());
+		// Re-read to get the actual stored value (may differ if another writer won)
+		const row = this.db
+			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
+			.get() as { dimension: number };
+		this.cachedDimension = row.dimension;
+	}
+
+	/**
+	 * Validate and register embedding dimension for write operations (save/update).
 	 * On first call, records the dimension (backfilling from existing data if present).
 	 * On subsequent calls, throws if dimension differs.
 	 */
-	private validateEmbeddingDimension(embedding: number[]): void {
+	private validateEmbeddingDimensionForWrite(embedding: number[]): void {
 		if (embedding.length === 0) return;
 
 		const stored = this.loadDimension();
 
 		if (stored === null) {
-			this.db
-				.prepare("INSERT INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
-				.run("default", embedding.length, Date.now());
-			this.cachedDimension = embedding.length;
+			this.upsertDimension(embedding.length);
+			if (this.cachedDimension !== embedding.length) {
+				throw new Error(
+					`Embedding dimension mismatch: expected ${this.cachedDimension}, got ${embedding.length}. ` +
+						"If you changed the embedding model, run the re-embedding migration (see RUNBOOK.md).",
+				);
+			}
 			return;
 		}
 
 		if (stored !== embedding.length) {
+			throw new Error(
+				`Embedding dimension mismatch: expected ${stored}, got ${embedding.length}. ` +
+					"If you changed the embedding model, run the re-embedding migration (see RUNBOOK.md).",
+			);
+		}
+	}
+
+	/**
+	 * Check embedding dimension for read operations (search).
+	 * Only validates if dimension is already known; never creates embedding_meta.
+	 */
+	private checkEmbeddingDimensionForRead(embedding: number[]): void {
+		if (embedding.length === 0) return;
+
+		const stored = this.loadDimension();
+		if (stored !== null && stored !== embedding.length) {
 			throw new Error(
 				`Embedding dimension mismatch: expected ${stored}, got ${embedding.length}. ` +
 					"If you changed the embedding model, run the re-embedding migration (see RUNBOOK.md).",
@@ -141,7 +174,7 @@ export class LtmStorage {
 		if (episode.userId !== userId) {
 			throw new Error("episode.userId does not match userId");
 		}
-		this.validateEmbeddingDimension(episode.embedding);
+		this.validateEmbeddingDimensionForWrite(episode.embedding);
 		this.db
 			.prepare(
 				`INSERT INTO episodes (id, user_id, title, summary, messages, embedding, surprise, stability, difficulty, start_at, end_at, created_at, last_reviewed_at, consolidated_at)
@@ -210,7 +243,7 @@ export class LtmStorage {
 		if (fact.userId !== userId) {
 			throw new Error("fact.userId does not match userId");
 		}
-		this.validateEmbeddingDimension(fact.embedding);
+		this.validateEmbeddingDimensionForWrite(fact.embedding);
 		this.db
 			.prepare(
 				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
@@ -265,6 +298,9 @@ export class LtmStorage {
 		}
 
 		const original = rowToFact(row);
+		if (updates.embedding) {
+			this.validateEmbeddingDimensionForWrite(updates.embedding);
+		}
 		const merged = { ...original, ...updates, id: original.id, userId: original.userId };
 		this.db
 			.prepare(
@@ -359,7 +395,7 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<Episode[]> {
-		this.validateEmbeddingDimension(embedding);
+		this.checkEmbeddingDimensionForRead(embedding);
 		const lim = clampLimit(limit);
 		// Fetch only id + embedding for similarity ranking, then load full rows for top-N
 		const candidates = this.db
@@ -387,7 +423,7 @@ export class LtmStorage {
 		embedding: number[],
 		limit: number,
 	): Promise<SemanticFact[]> {
-		this.validateEmbeddingDimension(embedding);
+		this.checkEmbeddingDimensionForRead(embedding);
 		const lim = clampLimit(limit);
 		const candidates = this.db
 			.prepare("SELECT id, embedding FROM semantic_facts WHERE user_id = ? AND invalid_at IS NULL")
