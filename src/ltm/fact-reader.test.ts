@@ -186,4 +186,32 @@ describe("LtmFactReaderImpl.getRelevantFacts", () => {
 		expect(reader.getRelevantFacts("../malicious", "ctx", 10)).rejects.toThrow("Invalid guildId");
 		await reader.close();
 	});
+
+	it("カテゴリ数が limit を超える場合でも limit 件以内に収まる", async () => {
+		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
+		const db = new Database(dbPath);
+		const categories: FactCategory[] = [
+			"identity",
+			"preference",
+			"interest",
+			"personality",
+			"relationship",
+			"experience",
+			"goal",
+			"guideline",
+		];
+		for (const cat of categories) {
+			insertFact(db, GUILD_ID, cat, `${cat}のファクト1`);
+			insertFact(db, GUILD_ID, cat, `${cat}のファクト2`);
+		}
+		db.close();
+
+		const embedding = createMockEmbedding();
+		const reader = new LtmFactReaderImpl(TEST_DATA_DIR, embedding);
+		// 8 カテゴリ × 2 件 = 16 件、limit = 5
+		const facts = await reader.getRelevantFacts(GUILD_ID, "テスト", 5);
+
+		expect(facts.length).toBeLessThanOrEqual(5);
+		await reader.close();
+	});
 });

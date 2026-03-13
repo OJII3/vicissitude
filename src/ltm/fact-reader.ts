@@ -26,16 +26,7 @@ export class LtmFactReaderImpl implements LtmFactReader {
 
 	async getFacts(guildId?: string): Promise<LtmFact[]> {
 		if (!guildId) return [];
-
-		if (!GUILD_ID_RE.test(guildId)) {
-			throw new Error(`Invalid guildId: ${guildId}`);
-		}
-
-		const dbPath = resolve(this.dataDir, "guilds", guildId, "memory.db");
-		if (!existsSync(dbPath)) return [];
-
-		const storage = this.getOrCreate(guildId, dbPath);
-		const rawFacts = await storage.getFacts(guildId);
+		const rawFacts = await this.loadAllFacts(guildId);
 		return rawFacts.map((f) => toFact(f));
 	}
 
@@ -73,14 +64,12 @@ export class LtmFactReaderImpl implements LtmFactReader {
 		guildId: string,
 		context: string,
 	): Promise<{ fact: SemanticFact; score: number }[]> {
-		const dbPath = resolve(this.dataDir, "guilds", guildId, "memory.db");
-		const storage = this.getOrCreate(guildId, dbPath);
+		const storage = this.instances.get(guildId);
+		if (!storage || !this.embedding) return [];
 
-		const embed = this.embedding;
-		if (!embed) return [];
 		const [textFacts, queryEmbedding] = await Promise.all([
 			storage.searchFacts(guildId, context, CANDIDATE_LIMIT),
-			embed.embed(context),
+			this.embedding.embed(context),
 		]);
 		const vectorFacts = await storage.searchFactsByEmbedding(guildId, queryEmbedding, CANDIDATE_LIMIT);
 
@@ -120,21 +109,30 @@ function toFact(f: SemanticFact): LtmFact {
 
 /**
  * Ensure category diversity: fill slots with top-scored facts,
- * but guarantee at least 1 fact per category that has facts.
+ * but guarantee at least 1 fact per category that has facts (up to limit).
  */
 function ensureCategoryDiversity(
 	scored: { fact: SemanticFact; score: number }[],
 	allFacts: SemanticFact[],
 	limit: number,
 ): SemanticFact[] {
-	const categories = new Set(allFacts.map((f) => f.category));
 	const selected = new Map<string, SemanticFact>();
 
-	// 1. Pick top-scored fact per category (category diversity guarantee)
+	// Build per-category best-scored lookup (O(scored) instead of O(categories × scored))
+	const bestByCategory = new Map<string, SemanticFact>();
+	for (const s of scored) {
+		if (!bestByCategory.has(s.fact.category)) {
+			bestByCategory.set(s.fact.category, s.fact);
+		}
+	}
+
+	// 1. Pick top-scored fact per category (category diversity guarantee, up to limit)
+	const categories = new Set(allFacts.map((f) => f.category));
 	for (const cat of categories) {
-		const best = scored.find((s) => s.fact.category === cat);
+		if (selected.size >= limit) break;
+		const best = bestByCategory.get(cat);
 		if (best) {
-			selected.set(best.fact.id, best.fact);
+			selected.set(best.id, best);
 		} else {
 			const fallback = allFacts.find((f) => f.category === cat);
 			if (fallback) {

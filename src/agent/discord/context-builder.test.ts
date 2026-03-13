@@ -155,6 +155,39 @@ describe("ContextBuilder", () => {
 			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
 			expect(reader.getRelevantFacts).not.toHaveBeenCalled();
 		});
+
+		it("日次ログが TOTAL_MAX 超過で切り詰められた場合は getFacts にフォールバックする", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			// SHARED_FILES × PER_FILE_MAX で TOTAL_MAX を埋め尽くす
+			const largeContent = "x".repeat(20_000);
+			writeFile(baseDir, "IDENTITY.md", largeContent);
+			writeFile(baseDir, "SOUL.md", largeContent);
+			writeFile(baseDir, "AGENTS.md", largeContent);
+			writeFile(baseDir, "TOOLS.md", largeContent);
+			writeFile(baseDir, "HEARTBEAT.md", largeContent);
+			writeFile(baseDir, "USER.md", largeContent);
+			writeFile(baseDir, "MEMORY.md", largeContent);
+
+			writeFile(baseDir, "LESSONS.md", largeContent);
+
+			// 日次ログも大きくして TOTAL_MAX 超過させる
+			// 8 ファイルのうち 7 件で ~140K 使用、残り ~10K に収まらない日次ログ
+			const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+			const today = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
+			writeFile(overlayDir, `memory/${today}.md`, "y".repeat(15_000));
+
+			const facts: LtmFact[] = [
+				{ content: "テスト", category: "preference", createdAt: "2026-01-01" },
+			];
+			const reader = createMockLtmReader(facts);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, reader);
+			await builder.build("123456789");
+
+			// 日次ログが入りきらなかったので getFacts にフォールバック
+			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
+			expect(reader.getRelevantFacts).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("LTM ファクト取得の graceful degradation", () => {
