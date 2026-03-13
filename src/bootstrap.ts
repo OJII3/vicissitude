@@ -213,6 +213,7 @@ function setupEventHandlers(
 	gateway: DiscordGateway,
 	ingestionService: MessageIngestionService,
 	metricsCollector: PrometheusCollector,
+	agents: Map<string, DiscordAgent>,
 ): void {
 	gateway.onHomeChannelMessage((msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
@@ -221,6 +222,9 @@ function setupEventHandlers(
 			recordConversation: true,
 			bufferEvent: msg.authorId !== selfUserId,
 		});
+		if (msg.guildId && msg.authorId !== selfUserId) {
+			agents.get(msg.guildId)?.ensurePolling();
+		}
 		return Promise.resolve();
 	});
 
@@ -229,6 +233,9 @@ function setupEventHandlers(
 			channel_type: "mention",
 		});
 		ingestionService.handleIncomingMessage(msg);
+		if (msg.guildId) {
+			agents.get(msg.guildId)?.ensurePolling();
+		}
 		return Promise.resolve();
 	});
 }
@@ -409,7 +416,7 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Event handlers
-	setupEventHandlers(gateway, ingestionService, metrics.collector);
+	setupEventHandlers(gateway, ingestionService, metrics.collector, agents);
 
 	// Emoji tracking
 	gateway.onEmojiUsed((guildId, emojiName) => incrementEmoji(db, guildId, emojiName));
