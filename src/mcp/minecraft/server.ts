@@ -47,6 +47,9 @@ mcMetricsServer.start();
 // ── Bridge DB (auto-notification) ─────────────────────────────────────────────
 const bridgeDb = DATA_DIR ? createDb(DATA_DIR) : undefined;
 const autoNotifier = bridgeDb ? createAutoNotifier(bridgeDb, mcCollector) : undefined;
+if (!bridgeDb) {
+	console.error("[minecraft] DATA_DIR not set; Discord auto-notifications disabled");
+}
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
 const wakeNotifier = MC_BRAIN_WAKE_FILE

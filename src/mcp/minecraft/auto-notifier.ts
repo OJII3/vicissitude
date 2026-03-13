@@ -27,7 +27,11 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 		lastNotified.set(kind, now);
 
 		const payload = JSON.stringify({ message: description, importance: "high", auto: true });
-		insertBridgeEvent(db, "to_discord", "report", payload);
-		metrics?.incrementCounter(METRIC.MC_AUTO_NOTIFICATIONS, { kind });
+		try {
+			insertBridgeEvent(db, "to_discord", "report", payload);
+			metrics?.incrementCounter(METRIC.MC_AUTO_NOTIFICATIONS, { kind });
+		} catch (err) {
+			console.error("[auto-notifier] bridge insert failed:", err);
+		}
 	};
 }
