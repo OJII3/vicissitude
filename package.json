@@ -19,8 +19,8 @@
 		"container:build": "podman build -t vicissitude-code-exec containers/code-exec",
 		"container:build:base": "podman build -t vicissitude-base -f containers/bot/Containerfile containers/bot",
 		"container:build:all": "bun run container:build && bun run container:build:base",
-		"deploy": "podman-compose up -d && echo 'Deployed: nr deploy:logs to follow logs'",
-		"deploy:rebuild-base": "bun run container:build:base && podman-compose down && podman volume rm -f vicissitude_bot-node-modules vicissitude_bot-dist; podman-compose up -d && echo 'Base rebuilt and deployed: nr deploy:logs to follow logs'",
+		"deploy": "podman-compose rm -f installer builder 2>/dev/null; podman-compose up -d && echo 'Deployed: nr deploy:logs to follow logs'",
+		"deploy:rebuild-base": "bun run container:build:base && podman-compose down && podman volume ls --format '{{.Name}}' | grep -E 'bot-(node-modules|dist)$' | xargs -r podman volume rm -f; podman-compose up -d && echo 'Base rebuilt and deployed: nr deploy:logs to follow logs'",
 		"deploy:logs": "podman-compose logs -f",
 		"deploy:stop": "podman-compose down",
 		"prepare": "command -v lefthook >/dev/null 2>&1 && lefthook install || true"

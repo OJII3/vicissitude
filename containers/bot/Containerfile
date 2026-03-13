@@ -25,12 +25,8 @@ WORKDIR /app
 # userns keep-id で uid 1000 として実行されるため書き込み可能にする
 RUN mkdir -p data/context node_modules dist \
     .local/share/opencode/bin .local/state/mise .config && \
-    chown -R 1000:1000 /app && \
-    chown -R 1000:1000 /app/.local /app/.config
+    chown -R 1000:1000 /app
 
-# gl@6 の ANGLE ソースが GCC 14 の <cstdint> 必須化に未対応のため強制インクルード
-# TODO: gl パッケージが GCC 14+ 対応したらこのワークアラウンドを削除する
-ENV CXXFLAGS="-include cstdint"
 ENV CONTAINER_HOST=unix:///run/podman/podman.sock
 
 ENTRYPOINT []

@@ -21,11 +21,15 @@ services:
   installer:
     <<: *bot-base
     container_name: vicissitude-installer
+    # gl@6 の ANGLE ソースが GCC 14 の <cstdint> 必須化に未対応のため強制インクルード
+    # TODO: gl パッケージが GCC 14+ 対応したらこのワークアラウンドを削除する
+    environment:
+      CXXFLAGS: "-include cstdint"
     volumes:
       - ./package.json:/app/package.json:ro
       - ./bun.lock:/app/bun.lock:ro
       - bot-node-modules:/app/node_modules
-    command: ["bun", "install", "--frozen-lockfile"]
+    command: ["bun", "install", "--frozen-lockfile", "--production"]
     restart: "no"
 
   # Step 2: bun build (バンドル)
