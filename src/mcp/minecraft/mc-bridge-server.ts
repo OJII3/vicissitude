@@ -9,7 +9,8 @@ import { registerMcMemoryTools } from "../tools/mc-memory.ts";
 
 // --- Configuration from environment ---
 
-const DATA_DIR = process.env.DATA_DIR ?? resolve(import.meta.dirname, "../../../data");
+const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "../../..");
+const DATA_DIR = process.env.DATA_DIR ?? resolve(root, "data");
 
 // --- Drizzle DB ---
 

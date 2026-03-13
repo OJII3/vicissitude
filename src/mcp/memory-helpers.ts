@@ -3,8 +3,9 @@ import path, { resolve } from "path";
 
 import { z } from "zod";
 
-export const BASE_CONTEXT_DIR = resolve(import.meta.dirname, "../../context");
-export const OVERLAY_CONTEXT_DIR = resolve(import.meta.dirname, "../../data/context");
+const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "../..");
+export const BASE_CONTEXT_DIR = resolve(root, "context");
+export const OVERLAY_CONTEXT_DIR = resolve(root, "data/context");
 export const SOUL_PATH = resolve(OVERLAY_CONTEXT_DIR, "SOUL.md");
 
 export const MAX_MEMORY_CHARS = 50_000;
