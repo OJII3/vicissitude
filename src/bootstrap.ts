@@ -24,7 +24,7 @@ import { DiscordGateway } from "./gateway/discord.ts";
 import { SqliteBufferedEventStore } from "./infrastructure/store/sqlite-buffered-event-store.ts";
 import { CompositeLLMAdapter } from "./ltm/composite-llm-adapter.ts";
 import { LtmConversationRecorder } from "./ltm/conversation-recorder.ts";
-import { LtmFactReaderImpl } from "./ltm/fact-reader.ts";
+import { type EmbeddingPort, LtmFactReaderImpl } from "./ltm/fact-reader.ts";
 import { LtmChatAdapter } from "./ltm/ltm-chat-adapter.ts";
 import { ConsoleLogger } from "./observability/logger.ts";
 import {
@@ -53,8 +53,13 @@ export function createStoreLayer(config: AppConfig) {
 
 // ─── Context Layer ──────────────────────────────────────────────
 
-export function createContextLayer(config: AppConfig, root: string, db: StoreDb) {
-	const ltmFactReader = new LtmFactReaderImpl(resolve(config.dataDir, "ltm"));
+export function createContextLayer(
+	config: AppConfig,
+	root: string,
+	db: StoreDb,
+	embedding?: EmbeddingPort,
+) {
+	const ltmFactReader = new LtmFactReaderImpl(resolve(config.dataDir, "ltm"), embedding);
 	const mcStatusProvider = config.minecraft
 		? new SqliteMcStatusProvider(
 				db,
@@ -185,6 +190,7 @@ export function setupLtmRecording(
 	config: AppConfig,
 	logger: Logger,
 	metricsCollector?: PrometheusCollector,
+	embeddingAdapter?: OllamaEmbeddingAdapter,
 ): LtmResources | undefined {
 	const ltmPort = config.opencode.basePort - 2;
 	const dataDir = resolve(config.dataDir, "ltm");
@@ -201,7 +207,9 @@ export function setupLtmRecording(
 			config.ltm.modelId,
 		);
 
-		const ollama = new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
+		const ollama =
+			embeddingAdapter ??
+			new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 		const recorder = new LtmConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(recorder, logger, metricsCollector);
@@ -366,8 +374,19 @@ export async function bootstrap(): Promise<void> {
 	// Store
 	const { db, sessionStore } = createStoreLayer(config);
 
+	// Embedding adapter (shared between context layer and LTM recording)
+	const ollamaEmbedding = new OllamaEmbeddingAdapter(
+		config.ltm.ollamaBaseUrl,
+		config.ltm.embeddingModel,
+	);
+
 	// Context
-	const { ltmFactReader, contextBuilder } = createContextLayer(config, root, db);
+	const { ltmFactReader, contextBuilder } = createContextLayer(
+		config,
+		root,
+		db,
+		ollamaEmbedding,
+	);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -395,7 +414,7 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// LTM recording
-	const ltmResources = setupLtmRecording(config, logger, metrics.collector);
+	const ltmResources = setupLtmRecording(config, logger, metrics.collector, ollamaEmbedding);
 	const ingestionService = new MessageIngestionService({
 		eventStore: new SqliteBufferedEventStore(db),
 		logger,

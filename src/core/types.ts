@@ -208,6 +208,7 @@ export interface McStatusProvider {
 
 export interface LtmFactReader {
 	getFacts(guildId?: string): Promise<LtmFact[]>;
+	getRelevantFacts(guildId: string, context: string, limit: number): Promise<LtmFact[]>;
 	close(): Promise<void>;
 }
 

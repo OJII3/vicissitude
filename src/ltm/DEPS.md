@@ -29,6 +29,8 @@ graph LR
   episodic --> types
   episodic --> utils
   fact_reader["fact-reader"] --> ltm_storage["ltm-storage"]
+  fact_reader["fact-reader"] --> retrieval
+  fact_reader["fact-reader"] --> semantic_fact["semantic-fact"]
   fsrs --> types
   index --> consolidation
   index --> episode
@@ -99,7 +101,7 @@ graph LR
 - モジュール内依存: episode, fsrs, ltm-storage, types, utils
 
 ### fact-reader.ts
-- モジュール内依存: ltm-storage
+- モジュール内依存: ltm-storage, retrieval, semantic-fact
 - 他モジュール依存: core/
 - 外部依存: fs, path
 
