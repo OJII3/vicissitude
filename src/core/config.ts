@@ -19,6 +19,14 @@ const safeNumber = z.number().refine((n) => !Number.isNaN(n), "must be a valid n
 const mcAuthModeSchema = z.enum(["offline", "microsoft"]);
 export type McAuthMode = z.infer<typeof mcAuthModeSchema>;
 
+export function parseMcAuthMode(value: string): McAuthMode {
+	const result = mcAuthModeSchema.safeParse(value);
+	if (!result.success) {
+		throw new Error('MC_AUTH_MODE must be "offline" or "microsoft"');
+	}
+	return result.data;
+}
+
 const minecraftSchema = z.object({
 	host: z.string(),
 	port: safeInt,

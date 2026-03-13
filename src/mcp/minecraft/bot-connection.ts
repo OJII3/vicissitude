@@ -36,7 +36,6 @@ const MAX_RECONNECT_DELAY = 60_000;
 const AUTH_ERROR_PATTERNS = [
 	"invalid credentials",
 	"does not own",
-	"authentication",
 	"not authenticated",
 	"failed to obtain",
 ] as const;
