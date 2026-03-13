@@ -46,7 +46,7 @@
   - `embedding_meta` テーブルを LtmStorage に追加。初回保存時に embedding 次元を記録し、以降の保存で次元不一致を検出・エラーを投げる。
   - `getEmbeddingDimension()` / `resetEmbeddingMeta()` を LtmStorage に追加。
   - モデル変更時の再 embedding マイグレーション手順を RUNBOOK.md §8 に記載。
-- `nr validate` 通過。`bun test` は 762 テスト pass（0 fail）。
+- `nr validate` 通過。`bun test` は 770 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。
