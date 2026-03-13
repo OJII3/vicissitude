@@ -1,6 +1,11 @@
 x-podman:
   in_pod: false # userns_mode と --pod は共存不可のため必須
 
+# ベースイメージ参照 & userns 設定の共通定義
+x-bot-base: &bot-base
+  image: vicissitude-base
+  userns_mode: "keep-id:uid=1000,gid=1000"
+
 networks:
   vicissitude-net:
     driver: bridge
@@ -8,19 +13,49 @@ networks:
 volumes:
   ollama-data:
   minecraft-data:
+  bot-node-modules:
+  bot-dist:
 
 services:
+  # Step 1: bun install (依存が変わったときだけ実質的に仕事をする)
+  installer:
+    <<: *bot-base
+    container_name: vicissitude-installer
+    volumes:
+      - ./package.json:/app/package.json:ro
+      - ./bun.lock:/app/bun.lock:ro
+      - bot-node-modules:/app/node_modules
+    command: ["bun", "install", "--frozen-lockfile"]
+    restart: "no"
+
+  # Step 2: bun build (バンドル)
+  builder:
+    <<: *bot-base
+    container_name: vicissitude-builder
+    volumes:
+      - ./src:/app/src:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - bot-node-modules:/app/node_modules:ro
+      - bot-dist:/app/dist
+    command: ["bun", "build", "src/index.ts", "--outdir", "dist", "--target", "bun"]
+    depends_on:
+      installer:
+        condition: service_completed_successfully
+    restart: "no"
+
+  # Step 3: 実行
   bot:
+    <<: *bot-base
     container_name: vicissitude
-    image: vicissitude
     init: true
-    userns_mode: "keep-id:uid=1000,gid=1000"
     env_file:
       - .env
     ports:
       - "127.0.0.1:9091:9091"
       - "0.0.0.0:3007:3007" # prismarine-viewer
     volumes:
+      - bot-node-modules:/app/node_modules:ro
+      - bot-dist:/app/dist:ro
       - ./data:/app/data:rw
       - ./context:/app/context:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
@@ -33,8 +68,11 @@ services:
         tag: vicissitude
     restart: unless-stopped
     depends_on:
+      builder:
+        condition: service_completed_successfully
       ollama:
         condition: service_healthy
+    command: ["xvfb-run", "-a", "bun", "run", "dist/index.js"]
 
   minecraft:
     container_name: vicissitude-minecraft
