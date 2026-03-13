@@ -4,7 +4,7 @@
 
 - 2026-03-13
 - 更新者: claude-code
-- ブランチ: feat/m13e-microsoft-auth
+- ブランチ: feat/m13f-discord-mc-integration
 
 ## 2. 現在の状態
 
@@ -51,7 +51,14 @@
   - `MC_PROFILES_FOLDER` 環境変数を追加。Microsoft 認証トークンキャッシュの保存先を指定可能に。
   - `bot-connection.ts` が `auth` を設定値に基づいて渡すように変更。認証エラー時は再接続を無効化（無限ループ防止）。
   - RUNBOOK.md §9 に Microsoft 認証の初回ログイン手順、トークン失効時の再認証、コンテナ環境での運用を記載。
-- `nr validate` 通過。`bun test` は 770 テスト pass（0 fail）。
+- M13f Discord 連携高度化:
+  - 優先順位を仕様化: 緊急回避 > ユーザー依頼 > 自律目標（MINECRAFT-IDENTITY.md）
+  - `mc_report` に `category` フィールド追加（progress/completion/stuck/danger/discovery/status）
+  - `McStatusProvider` を構造化出力に強化（危険/行き詰まり/直近の出来事/未処理指示のセクション分け）
+  - `minecraft_status` ツールの出力をカテゴリ別グループ化
+  - 報告ノイズ削減ルールを MINECRAFT-IDENTITY.md に追加
+  - TOOLS.md に依頼の出し方ガイドラインと stuck/danger レポート対応指針を追加
+- `nr validate` 通過。`bun test` は 774 テスト pass（0 fail）。
 - テスト品質:
   - `docs/TEST_QUALITY.md` + `nr test:quality` + `nr test:quality:flake` で JUnit / LCOV / flake rate を集計可能。
   - CI に Test Quality ワークフロー追加済み（PR ごと + main push + 週次 flake 検出）。

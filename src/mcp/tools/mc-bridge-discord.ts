@@ -9,7 +9,11 @@ import {
 	releaseSessionLockAndStop,
 	tryAcquireSessionLock,
 } from "../../store/mc-bridge.ts";
-import { MAX_BRIDGE_MESSAGE_CHARS, formatBridgeEvents } from "./mc-bridge-shared.ts";
+import {
+	MAX_BRIDGE_MESSAGE_CHARS,
+	formatBridgeEvents,
+	formatStatusEvents,
+} from "./mc-bridge-shared.ts";
 
 export interface McBridgeDeps {
 	db: StoreDb;
@@ -41,7 +45,7 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 			};
 		}
 		return {
-			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+			content: [{ type: "text" as const, text: formatStatusEvents(events) }],
 		};
 	});
 
