@@ -858,17 +858,19 @@ describe("LtmStorage — embedding dimension validation", () => {
 		);
 	});
 
-	test("resetEmbeddingMeta allows new dimension", async () => {
+	test("resetEmbeddingMeta backfills from existing data", async () => {
 		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveEpisode(userId, ep1);
 		expect(storage.getEmbeddingDimension()).toBe(3);
 
 		storage.resetEmbeddingMeta();
-		expect(storage.getEmbeddingDimension()).toBeNull();
+		// Backfills from existing episode — still 3
+		expect(storage.getEmbeddingDimension()).toBe(3);
 
 		const ep2 = makeEpisode({ embedding: [0.1, 0.2] });
-		await storage.saveEpisode(userId, ep2);
-		expect(storage.getEmbeddingDimension()).toBe(2);
+		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
+			"Embedding dimension mismatch",
+		);
 	});
 
 	test("getEmbeddingDimension returns null when no data stored", () => {
@@ -881,6 +883,52 @@ describe("LtmStorage — embedding dimension validation", () => {
 
 		const ep2 = makeEpisode({ embedding: [] });
 		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
+	});
+});
+
+describe("LtmStorage — legacy DB upgrade (backfill from existing data)", () => {
+	let storage: LtmStorage;
+
+	beforeEach(() => {
+		storage = new LtmStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("backfills dimension from existing episodes on first access", async () => {
+		// Simulate a pre-M14d DB: episodes exist but embedding_meta is empty
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep);
+		// Clear meta to simulate legacy state, bypassing backfill via direct SQL
+		storage.resetEmbeddingMeta();
+		// Force cache clear by creating a fresh storage on same DB — not possible with :memory:,
+		// so instead we just verify that resetEmbeddingMeta + getEmbeddingDimension backfills
+		expect(storage.getEmbeddingDimension()).toBe(3);
+	});
+
+	test("rejects new dimension that conflicts with existing episode data", async () => {
+		// Existing 3-dim episode
+		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
+		await storage.saveEpisode(userId, ep);
+
+		// Simulate legacy: clear meta so backfill triggers
+		storage.resetEmbeddingMeta();
+
+		// Try to save a 5-dim episode — should fail because backfill inferred dim=3
+		const ep2 = makeEpisode({ embedding: [0.1, 0.2, 0.3, 0.4, 0.5] });
+		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
+			"Embedding dimension mismatch: expected 3, got 5",
+		);
+	});
+
+	test("backfills dimension from existing facts when no episodes exist", async () => {
+		const fact = makeFact({ embedding: [0.1, 0.2, 0.3, 0.4] });
+		await storage.saveFact(userId, fact);
+
+		storage.resetEmbeddingMeta();
+		expect(storage.getEmbeddingDimension()).toBe(4);
 	});
 });
 

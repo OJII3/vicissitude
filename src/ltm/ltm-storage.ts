@@ -66,13 +66,46 @@ export class LtmStorage {
 		const row = this.db
 			.prepare("SELECT dimension FROM embedding_meta WHERE key = 'default'")
 			.get() as { dimension: number } | null;
-		this.cachedDimension = row?.dimension ?? null;
-		return this.cachedDimension;
+		if (row) {
+			this.cachedDimension = row.dimension;
+			return this.cachedDimension;
+		}
+		// Backfill from existing data for DBs created before embedding_meta was added
+		const dim = this.inferDimensionFromExistingData();
+		if (dim !== null) {
+			this.db
+				.prepare("INSERT INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
+				.run("default", dim, Date.now());
+			this.cachedDimension = dim;
+			return dim;
+		}
+		this.cachedDimension = null;
+		return null;
+	}
+
+	/** Sample one existing embedding to infer the dimension stored in this DB */
+	private inferDimensionFromExistingData(): number | null {
+		const episode = this.db
+			.prepare("SELECT embedding FROM episodes LIMIT 1")
+			.get() as { embedding: string } | null;
+		if (episode) {
+			const parsed = JSON.parse(episode.embedding) as number[];
+			if (parsed.length > 0) return parsed.length;
+		}
+		const fact = this.db
+			.prepare("SELECT embedding FROM semantic_facts LIMIT 1")
+			.get() as { embedding: string } | null;
+		if (fact) {
+			const parsed = JSON.parse(fact.embedding) as number[];
+			if (parsed.length > 0) return parsed.length;
+		}
+		return null;
 	}
 
 	/**
 	 * Validate embedding dimension consistency.
-	 * On first call, records the dimension. On subsequent calls, throws if dimension differs.
+	 * On first call, records the dimension (backfilling from existing data if present).
+	 * On subsequent calls, throws if dimension differs.
 	 */
 	private validateEmbeddingDimension(embedding: number[]): void {
 		if (embedding.length === 0) return;
