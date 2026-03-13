@@ -183,22 +183,28 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
    cp data/ltm/guilds/{guildId}/memory.db data/ltm/guilds/{guildId}/memory.db.bak
    ```
 3. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
-4. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のように全レコードの embedding を更新する（id は UUID のためクォート展開は安全）:
+4. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のスクリプトを実行する。`sqlite3 -json` と `jq` を使い、本文中の改行・引用符・パイプ等を安全に扱う:
    ```bash
    DB="data/ltm/guilds/{guildId}/memory.db"
    MODEL="新モデル名"
    OLLAMA="http://localhost:11434"
 
    # episodes の summary を再 embed
-   sqlite3 "$DB" "SELECT id, summary FROM episodes;" | while IFS='|' read -r id text; do
-     vec=$(curl -s "$OLLAMA/api/embed" -d "{\"model\":\"$MODEL\",\"input\":\"$text\"}" | jq -c '.embeddings[0]')
-     sqlite3 "$DB" "UPDATE episodes SET embedding = '$(echo "$vec")' WHERE id = '$id';"
+   sqlite3 -json "$DB" "SELECT id, summary FROM episodes;" | jq -c '.[]' | while read -r row; do
+     id=$(echo "$row" | jq -r '.id')
+     text=$(echo "$row" | jq -r '.summary')
+     payload=$(jq -nc --arg model "$MODEL" --arg input "$text" '{model: $model, input: $input}')
+     vec=$(curl -s "$OLLAMA/api/embed" -d "$payload" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE episodes SET embedding = ? WHERE id = ?" "$vec" "$id"
    done
 
-   # semantic_facts の fact を再 embed
-   sqlite3 "$DB" "SELECT id, fact FROM semantic_facts WHERE invalid_at IS NULL;" | while IFS='|' read -r id text; do
-     vec=$(curl -s "$OLLAMA/api/embed" -d "{\"model\":\"$MODEL\",\"input\":\"$text\"}" | jq -c '.embeddings[0]')
-     sqlite3 "$DB" "UPDATE semantic_facts SET embedding = '$(echo "$vec")' WHERE id = '$id';"
+   # semantic_facts の fact を再 embed（無効化済み fact は対象外）
+   sqlite3 -json "$DB" "SELECT id, fact FROM semantic_facts WHERE invalid_at IS NULL;" | jq -c '.[]' | while read -r row; do
+     id=$(echo "$row" | jq -r '.id')
+     text=$(echo "$row" | jq -r '.fact')
+     payload=$(jq -nc --arg model "$MODEL" --arg input "$text" '{model: $model, input: $input}')
+     vec=$(curl -s "$OLLAMA/api/embed" -d "$payload" | jq -c '.embeddings[0]')
+     sqlite3 "$DB" "UPDATE semantic_facts SET embedding = ? WHERE id = ?" "$vec" "$id"
    done
    ```
 5. embedding メタデータをリセットする（全レコード更新完了後に実行すること）:

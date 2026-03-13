@@ -90,7 +90,7 @@ export class LtmStorage {
 			if (parsed.length > 0) return parsed.length;
 		}
 		const fact = this.db
-			.prepare("SELECT embedding FROM semantic_facts LIMIT 1")
+			.prepare("SELECT embedding FROM semantic_facts WHERE invalid_at IS NULL LIMIT 1")
 			.get() as { embedding: string } | null;
 		if (fact) {
 			const parsed = JSON.parse(fact.embedding) as number[];
