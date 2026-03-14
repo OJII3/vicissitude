@@ -79,7 +79,7 @@ export class McBrainManager {
 		const { db, sessionStore, logger, root, opencodePort, providerId, modelId, sessionMaxAgeMs } =
 			this.deps;
 		this.agent = new MinecraftAgent({
-			eventBuffer: new SqliteEventBuffer(db, MINECRAFT_AGENT_ID),
+			eventBuffer: new SqliteEventBuffer(db, MINECRAFT_AGENT_ID, logger),
 			sessionStore,
 			logger,
 			root,
