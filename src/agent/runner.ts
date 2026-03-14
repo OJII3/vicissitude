@@ -26,6 +26,8 @@ export interface RunnerDeps {
 	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
+	/** ContextBuilder に渡す guildId（Discord エージェント用）。省略時は undefined */
+	contextGuildId?: string;
 }
 
 export class AgentRunner implements AiAgent {
@@ -44,6 +46,7 @@ export class AgentRunner implements AiAgent {
 	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
+	private readonly contextGuildId?: string;
 
 	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
@@ -55,6 +58,7 @@ export class AgentRunner implements AiAgent {
 		this.eventBuffer = deps.eventBuffer;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 		this.metrics = deps.metrics;
+		this.contextGuildId = deps.contextGuildId;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -148,7 +152,7 @@ export class AgentRunner implements AiAgent {
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
-		const system = await this.contextBuilder.build(this.agentId);
+		const system = await this.contextBuilder.build(this.contextGuildId);
 		if (signal.aborted) return;
 
 		this.logger.info(

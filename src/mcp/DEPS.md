@@ -50,7 +50,6 @@ graph LR
   minecraft_bot_connection["minecraft/bot-connection"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_bot_context["minecraft/bot-context"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_bot_queries["minecraft/bot-queries"] --> minecraft_helpers["minecraft/helpers"]
-  minecraft_brain_wake["minecraft/brain-wake"] --> minecraft_helpers["minecraft/helpers"]
   minecraft_helpers["minecraft/helpers"]
   minecraft_http_server["minecraft/http-server"] --> http_server["http-server"]
   minecraft_job_manager["minecraft/job-manager"] --> minecraft_helpers["minecraft/helpers"]
@@ -171,11 +170,6 @@ graph LR
 
 - モジュール内依存: minecraft/helpers
 - 外部依存: mineflayer, prismarine-entity, vec3
-
-### minecraft/brain-wake.ts
-
-- モジュール内依存: minecraft/helpers
-- 外部依存: fs, path
 
 ### minecraft/helpers.ts
 

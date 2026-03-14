@@ -40,6 +40,7 @@ export class DiscordAgent extends AgentRunner {
 			eventBuffer: new SqliteEventBuffer(deps.db, `discord:${deps.guildId}`),
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
+			contextGuildId: deps.guildId,
 		});
 	}
 }
