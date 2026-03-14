@@ -1,253 +1,7 @@
-import { and, desc, eq, inArray, lt, ne } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
-import { mcBridgeEvents, mcSessionLock } from "./schema.ts";
-
-export type BridgeDirection = "to_discord" | "to_minecraft";
-export type BridgeEventType = "command" | "report" | "lifecycle";
-
-export interface BridgeEvent {
-	id: number;
-	direction: BridgeDirection;
-	type: BridgeEventType;
-	payload: string;
-	createdAt: number;
-}
-
-/** 未消費レコードの自動パージ閾値 */
-const AUTO_PURGE_THRESHOLD = 100;
-
-/** ブリッジイベントを挿入する。未消費レコードが閾値を超えた場合は古いものを自動消費済みにする。 */
-export function insertBridgeEvent(
-	db: StoreDb,
-	direction: BridgeDirection,
-	type: BridgeEventType,
-	payload: string,
-): void {
-	db.insert(mcBridgeEvents).values({ direction, type, payload, createdAt: Date.now() }).run();
-
-	// 未消費レコードの肥大化を防止: 閾値超過分を消費済みにマーク
-	const now = Date.now();
-	if (now - lastPurgeTime > PURGE_INTERVAL_MS) {
-		lastPurgeTime = now;
-		db.delete(mcBridgeEvents)
-			.where(and(eq(mcBridgeEvents.consumed, 1), lt(mcBridgeEvents.createdAt, now - PURGE_AGE_MS)))
-			.run();
-	}
-
-	// 方向ごとの未消費レコード数を確認し、閾値を超えたら古いものを消費済みにする
-	const unconsumedIds = db
-		.select({ id: mcBridgeEvents.id })
-		.from(mcBridgeEvents)
-		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
-		.orderBy(mcBridgeEvents.id)
-		.all()
-		.map((r) => r.id)
-		.filter((id): id is number => id !== null);
-
-	if (unconsumedIds.length > AUTO_PURGE_THRESHOLD) {
-		const idsToMark = unconsumedIds.slice(0, unconsumedIds.length - AUTO_PURGE_THRESHOLD);
-		db.update(mcBridgeEvents)
-			.set({ consumed: 1 })
-			.where(inArray(mcBridgeEvents.id, idsToMark))
-			.run();
-	}
-}
-
-/** spawn 時に未消費の to_discord report/command イベントを消費済みにする（lifecycle は温存） */
-export function markStaleEventsConsumedOnSpawn(db: StoreDb): number {
-	const result = db
-		.update(mcBridgeEvents)
-		.set({ consumed: 1 })
-		.where(
-			and(
-				eq(mcBridgeEvents.direction, "to_discord"),
-				eq(mcBridgeEvents.consumed, 0),
-				ne(mcBridgeEvents.type, "lifecycle"),
-			),
-		)
-		.run();
-	return result.changes;
-}
-
-/** 消費済みレコードを保持する期間（24時間） */
-const PURGE_AGE_MS = 24 * 60 * 60 * 1000;
-
-/** パージ間隔（1時間） */
-const PURGE_INTERVAL_MS = 60 * 60 * 1000;
-
-/**
- * 最後にパージを実行した時刻。
- * モジュールスコープの可変変数だが、パージはベストエフォートのため
- * 複数 DB インスタンスで共有されても実害はない。
- */
-let lastPurgeTime = 0;
-
-/** DB 行を BridgeEvent に変換するヘルパー */
-function toBridgeEvent(r: {
-	id: number | null;
-	direction: string;
-	type: string;
-	payload: string;
-	createdAt: number;
-}): BridgeEvent {
-	return {
-		id: r.id ?? 0,
-		direction: r.direction as BridgeDirection,
-		type: r.type as BridgeEventType,
-		payload: r.payload,
-		createdAt: r.createdAt,
-	};
-}
-
-/** 未消費イベントをアトミックに消費する共通処理。パージは別途スロットリングして実行。 */
-function consumeAndPurge(db: StoreDb, whereConditions: ReturnType<typeof and>): BridgeEvent[] {
-	const rows = db.transaction((tx) => {
-		const selected = tx.select().from(mcBridgeEvents).where(whereConditions).all();
-
-		if (selected.length > 0) {
-			const ids = selected.map((r) => r.id).filter((id): id is number => id !== null);
-			tx.update(mcBridgeEvents).set({ consumed: 1 }).where(inArray(mcBridgeEvents.id, ids)).run();
-		}
-
-		return selected;
-	});
-
-	// 1時間に1回、消費済みの古いレコードをパージ
-	const now = Date.now();
-	if (now - lastPurgeTime > PURGE_INTERVAL_MS) {
-		lastPurgeTime = now;
-		db.delete(mcBridgeEvents)
-			.where(and(eq(mcBridgeEvents.consumed, 1), lt(mcBridgeEvents.createdAt, now - PURGE_AGE_MS)))
-			.run();
-	}
-
-	return rows.map((r) => toBridgeEvent(r));
-}
-
-/** 未消費のブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
-export function consumeBridgeEvents(db: StoreDb, direction: BridgeDirection): BridgeEvent[] {
-	return consumeAndPurge(
-		db,
-		and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)),
-	);
-}
-
-/** 未消費のブリッジイベントを消費せず覗き見する（id 昇順、limit で件数制限可能） */
-export function peekBridgeEvents(
-	db: StoreDb,
-	direction: BridgeDirection,
-	limit?: number,
-): BridgeEvent[] {
-	let query = db
-		.select()
-		.from(mcBridgeEvents)
-		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
-		.orderBy(mcBridgeEvents.id);
-	if (limit !== undefined) {
-		query = query.limit(limit) as typeof query;
-	}
-	return query.all().map((r) => toBridgeEvent(r));
-}
-
-/** 未消費の特定タイプのブリッジイベントをアトミックに取得し consumed=1 にする。古い消費済みレコードも削除する。 */
-export function consumeBridgeEventsByType(
-	db: StoreDb,
-	direction: BridgeDirection,
-	type: BridgeEventType,
-): BridgeEvent[] {
-	return consumeAndPurge(
-		db,
-		and(
-			eq(mcBridgeEvents.direction, direction),
-			eq(mcBridgeEvents.type, type),
-			eq(mcBridgeEvents.consumed, 0),
-		),
-	);
-}
-
-export interface ParsedReport {
-	message: string;
-	importance: string;
-	category: string;
-	createdAt: string;
-}
-
-/** BridgeEvent を ParsedReport に変換する。report タイプは JSON パースし、それ以外はフォールバック表示。 */
-export function parseBridgeEvent(e: BridgeEvent): ParsedReport {
-	const ts = new Date(e.createdAt).toISOString();
-	if (e.type === "report") {
-		try {
-			const p = JSON.parse(e.payload) as Record<string, unknown>;
-			if (typeof p.message === "string") {
-				return {
-					message: p.message,
-					importance: typeof p.importance === "string" ? p.importance : "medium",
-					category: typeof p.category === "string" ? p.category : "status",
-					createdAt: ts,
-				};
-			}
-		} catch {
-			// JSON パース失敗時はフォールバック
-		}
-	}
-	return {
-		message: `(${e.type}) ${e.payload}`,
-		importance: "low",
-		category: "status",
-		createdAt: ts,
-	};
-}
-
-/** 最新の lifecycle イベントから MC Bot の接続状態を判定する */
-export function getMcConnectionStatus(db: StoreDb): { connected: boolean; since: string | null } {
-	const row = db
-		.select({ payload: mcBridgeEvents.payload, createdAt: mcBridgeEvents.createdAt })
-		.from(mcBridgeEvents)
-		.where(
-			and(
-				eq(mcBridgeEvents.direction, "to_discord"),
-				eq(mcBridgeEvents.type, "lifecycle"),
-			),
-		)
-		.orderBy(desc(mcBridgeEvents.id))
-		.limit(1)
-		.get();
-	if (!row) return { connected: false, since: null };
-	return {
-		connected: row.payload === "spawn",
-		since: new Date(row.createdAt).toISOString(),
-	};
-}
-
-/** 未消費のブリッジイベントが存在するか確認する */
-export function hasBridgeEvents(db: StoreDb, direction: BridgeDirection): boolean {
-	const row = db
-		.select({ id: mcBridgeEvents.id })
-		.from(mcBridgeEvents)
-		.where(and(eq(mcBridgeEvents.direction, direction), eq(mcBridgeEvents.consumed, 0)))
-		.limit(1)
-		.get();
-	return row !== undefined;
-}
-
-export function hasDiscordBridgeEventsForGuild(db: StoreDb, guildId: string): boolean {
-	const lock = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
-	if (!lock || lock.guildId !== guildId) return false;
-	return hasBridgeEvents(db, "to_discord");
-}
-
-export function getLatestDiscordBridgeEventIdForGuild(db: StoreDb, guildId: string): number | null {
-	const lock = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
-	if (!lock || lock.guildId !== guildId) return null;
-	const row = db
-		.select({ id: mcBridgeEvents.id })
-		.from(mcBridgeEvents)
-		.where(and(eq(mcBridgeEvents.direction, "to_discord"), eq(mcBridgeEvents.consumed, 0)))
-		.orderBy(desc(mcBridgeEvents.id))
-		.get();
-	return row?.id ?? null;
-}
+import { mcSessionLock } from "./schema.ts";
 
 // ─── MC セッション排他ロック ─────────────────────────────────────
 
@@ -293,25 +47,46 @@ export function releaseSessionLock(db: StoreDb, guildId: string): boolean {
 	});
 }
 
-/** セッションロック解放 + lifecycle stop イベント挿入をアトミックに実行する */
-export function releaseSessionLockAndStop(db: StoreDb, guildId: string): boolean {
-	return db.transaction((tx) => {
-		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
-		if (!existing || existing.guildId !== guildId) return false;
-		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
-		tx.insert(mcBridgeEvents)
-			.values({
-				direction: "to_minecraft",
-				type: "lifecycle",
-				payload: "stop",
-				createdAt: Date.now(),
-			})
-			.run();
-		return true;
-	});
-}
-
 /** セッションロックを強制クリアする（プロセス再起動時用） */
 export function clearSessionLock(db: StoreDb): void {
 	db.delete(mcSessionLock).run();
+}
+
+// ─── MC 接続状態 ─────────────────────────────────────────────────
+
+/** MC Bot の接続状態を更新する */
+export function setMcConnectionStatus(db: StoreDb, connected: boolean): void {
+	const existing = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!existing) return;
+	db.update(mcSessionLock)
+		.set({
+			connected: connected ? 1 : 0,
+			connectedAt: connected ? Date.now() : existing.connectedAt,
+		})
+		.where(eq(mcSessionLock.id, 1))
+		.run();
+}
+
+/** MC Bot の接続状態を取得する */
+export function getMcConnectionStatus(db: StoreDb): { connected: boolean; since: string | null } {
+	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!row) return { connected: false, since: null };
+	return {
+		connected: row.connected === 1,
+		since: row.connectedAt ? new Date(row.connectedAt).toISOString() : null,
+	};
+}
+
+/** セッションロックが存在するか（MC エージェントが起動すべきか）を確認する */
+export function hasSessionLock(db: StoreDb): boolean {
+	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!row) return false;
+	// タイムアウトしたロックは無効とみなす
+	return Date.now() - row.acquiredAt <= LOCK_TIMEOUT_MS;
+}
+
+/** セッションロックの guildId を取得する */
+export function getSessionLockGuildId(db: StoreDb): string | null {
+	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	return row?.guildId ?? null;
 }

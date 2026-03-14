@@ -1,14 +1,16 @@
 import { METRIC } from "../../core/constants.ts";
 import type { MetricsCollector } from "../../core/types.ts";
 import type { StoreDb } from "../../store/db.ts";
-import { insertBridgeEvent, markStaleEventsConsumedOnSpawn } from "../../store/mc-bridge.ts";
+import { getSessionLockGuildId, setMcConnectionStatus } from "../../store/mc-bridge.ts";
+import { appendEvent } from "../../store/queries.ts";
 import type { Importance } from "./helpers.ts";
 
-/** Discord 自動通知の対象イベント種別（report として書き込む） */
+/** Discord 自動通知の対象イベント種別 */
 const AUTO_NOTIFY_KINDS = new Set(["death", "kicked", "disconnect"]);
 
-/** lifecycle イベントとして書き込む種別（接続状態追跡用） */
-const LIFECYCLE_KINDS = new Set(["spawn", "disconnect"]);
+/** 接続状態を追跡するイベント種別 */
+const CONNECT_KINDS = new Set(["spawn"]);
+const DISCONNECT_KINDS = new Set(["disconnect"]);
 
 /** 同一種別の通知を連続送信しないための最小間隔（ms） */
 const NOTIFY_COOLDOWN_MS = 30_000;
@@ -22,17 +24,18 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 	const lastNotified = new Map<string, number>();
 
 	return (kind: string, description: string, _importance: Importance) => {
-		// 接続状態を lifecycle イベントとして記録（Discord 側で接続状態を判定するため）
-		if (LIFECYCLE_KINDS.has(kind)) {
+		// 接続状態を mc_session_lock に記録
+		if (CONNECT_KINDS.has(kind)) {
 			try {
-				// spawn 時は古い未消費の report/command をクリアしてから lifecycle を挿入
-				if (kind === "spawn") {
-					const cleared = markStaleEventsConsumedOnSpawn(db);
-					if (cleared > 0) console.log(`[auto-notifier] cleared ${cleared} stale events on spawn`);
-				}
-				insertBridgeEvent(db, "to_discord", "lifecycle", kind);
+				setMcConnectionStatus(db, true);
 			} catch (err) {
-				console.error("[auto-notifier] lifecycle insert failed:", err);
+				console.error("[auto-notifier] connection status update failed:", err);
+			}
+		} else if (DISCONNECT_KINDS.has(kind)) {
+			try {
+				setMcConnectionStatus(db, false);
+			} catch (err) {
+				console.error("[auto-notifier] connection status update failed:", err);
 			}
 		}
 
@@ -43,12 +46,24 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 		if (now - last < NOTIFY_COOLDOWN_MS) return;
 		lastNotified.set(kind, now);
 
-		const payload = JSON.stringify({ message: description, importance: "high", auto: true });
+		// 対象 Discord エージェントの agentId を mc_session_lock から特定
+		const guildId = getSessionLockGuildId(db);
+		if (!guildId) return;
+
+		const targetAgentId = `discord:${guildId}`;
+		const event = {
+			ts: new Date().toISOString(),
+			content: description,
+			authorId: "minecraft",
+			authorName: "Minecraft Auto",
+			messageId: `mc-auto-${Date.now()}`,
+			metadata: { type: "mc_report", importance: "high", category: "danger", auto: true },
+		};
 		try {
-			insertBridgeEvent(db, "to_discord", "report", payload);
+			appendEvent(db, targetAgentId, JSON.stringify(event));
 			metrics?.incrementCounter(METRIC.MC_AUTO_NOTIFICATIONS, { kind });
 		} catch (err) {
-			console.error("[auto-notifier] bridge insert failed:", err);
+			console.error("[auto-notifier] event buffer insert failed:", err);
 		}
 	};
 }

@@ -2,204 +2,17 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	clearSessionLock,
-	consumeBridgeEvents,
-	consumeBridgeEventsByType,
-	hasBridgeEvents,
-	insertBridgeEvent,
-	markStaleEventsConsumedOnSpawn,
-	peekBridgeEvents,
+	getMcConnectionStatus,
+	getSessionLockGuildId,
+	hasSessionLock,
 	releaseSessionLock,
-	releaseSessionLockAndStop,
+	setMcConnectionStatus,
 	tryAcquireSessionLock,
 } from "./mc-bridge.ts";
 import { mcSessionLock } from "./schema.ts";
 import { createTestDb } from "./test-helpers.ts";
 
 describe("mc-bridge", () => {
-	describe("insertBridgeEvent", () => {
-		test("inserts an event", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "command", "go to forest");
-			const events = peekBridgeEvents(db, "to_minecraft");
-			expect(events).toHaveLength(1);
-			expect(events[0]?.type).toBe("command");
-			expect(events[0]?.payload).toBe("go to forest");
-			expect(events[0]?.direction).toBe("to_minecraft");
-			expect(events[0]?.createdAt).toBeGreaterThan(0);
-		});
-	});
-
-	describe("consumeBridgeEvents", () => {
-		test("returns and marks events as consumed", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", '{"message":"found diamond"}');
-			insertBridgeEvent(db, "to_discord", "report", '{"message":"built house"}');
-
-			const events = consumeBridgeEvents(db, "to_discord");
-			expect(events).toHaveLength(2);
-			expect(events[0]?.payload).toBe('{"message":"found diamond"}');
-			expect(events[1]?.payload).toBe('{"message":"built house"}');
-		});
-
-		test("consumed events are not returned again", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "test");
-			consumeBridgeEvents(db, "to_discord");
-
-			const remaining = consumeBridgeEvents(db, "to_discord");
-			expect(remaining).toHaveLength(0);
-		});
-
-		test("does not affect other direction", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "for main");
-			insertBridgeEvent(db, "to_minecraft", "command", "for sub");
-
-			consumeBridgeEvents(db, "to_discord");
-
-			const subEvents = consumeBridgeEvents(db, "to_minecraft");
-			expect(subEvents).toHaveLength(1);
-			expect(subEvents[0]?.payload).toBe("for sub");
-		});
-
-		test("returns empty array when no events", () => {
-			const db = createTestDb();
-			const events = consumeBridgeEvents(db, "to_discord");
-			expect(events).toHaveLength(0);
-		});
-	});
-
-	describe("peekBridgeEvents", () => {
-		test("returns events without consuming them", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "peeked");
-
-			const peeked = peekBridgeEvents(db, "to_discord");
-			expect(peeked).toHaveLength(1);
-
-			const stillThere = consumeBridgeEvents(db, "to_discord");
-			expect(stillThere).toHaveLength(1);
-			expect(stillThere[0]?.payload).toBe("peeked");
-		});
-
-		test("filters by direction", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "main event");
-			insertBridgeEvent(db, "to_minecraft", "command", "sub event");
-
-			const mainEvents = peekBridgeEvents(db, "to_discord");
-			expect(mainEvents).toHaveLength(1);
-			expect(mainEvents[0]?.direction).toBe("to_discord");
-		});
-	});
-
-	describe("consumeBridgeEventsByType", () => {
-		test("consumes only events of the specified type", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "command", "go to forest");
-			insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
-			insertBridgeEvent(db, "to_minecraft", "command", "mine diamonds");
-
-			const lifecycleEvents = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
-			expect(lifecycleEvents).toHaveLength(1);
-			expect(lifecycleEvents[0]?.type).toBe("lifecycle");
-			expect(lifecycleEvents[0]?.payload).toBe("start");
-
-			// command events should remain unconsumed
-			const commandEvents = consumeBridgeEventsByType(db, "to_minecraft", "command");
-			expect(commandEvents).toHaveLength(2);
-		});
-
-		test("consumed events are not returned again", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
-			consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
-
-			const remaining = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
-			expect(remaining).toHaveLength(0);
-		});
-
-		test("returns empty array when no events of the type exist", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "command", "test");
-
-			const events = consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
-			expect(events).toHaveLength(0);
-		});
-
-		test("does not affect other direction", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "found diamond");
-			insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
-
-			consumeBridgeEventsByType(db, "to_minecraft", "lifecycle");
-
-			const mainEvents = peekBridgeEvents(db, "to_discord");
-			expect(mainEvents).toHaveLength(1);
-		});
-	});
-
-	describe("hasBridgeEvents", () => {
-		test("returns false when no events", () => {
-			const db = createTestDb();
-			expect(hasBridgeEvents(db, "to_discord")).toBe(false);
-		});
-
-		test("returns true when unconsumed events exist", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "test");
-			expect(hasBridgeEvents(db, "to_discord")).toBe(true);
-		});
-
-		test("returns false after events are consumed", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", "test");
-			consumeBridgeEvents(db, "to_discord");
-			expect(hasBridgeEvents(db, "to_discord")).toBe(false);
-		});
-
-		test("is direction-scoped", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "command", "test");
-			expect(hasBridgeEvents(db, "to_discord")).toBe(false);
-			expect(hasBridgeEvents(db, "to_minecraft")).toBe(true);
-		});
-	});
-
-	describe("markStaleEventsConsumedOnSpawn", () => {
-		test("未消費の to_discord report/command を消費済みにする", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_discord", "report", '{"message":"old report"}');
-			insertBridgeEvent(db, "to_discord", "command", "old command");
-			insertBridgeEvent(db, "to_discord", "lifecycle", "spawn");
-
-			const changed = markStaleEventsConsumedOnSpawn(db);
-
-			expect(changed).toBe(2);
-			// report と command は消費済み
-			const remaining = peekBridgeEvents(db, "to_discord");
-			expect(remaining).toHaveLength(1);
-			expect(remaining[0]?.type).toBe("lifecycle");
-		});
-
-		test("to_minecraft のイベントには影響しない", () => {
-			const db = createTestDb();
-			insertBridgeEvent(db, "to_minecraft", "command", "go forest");
-			insertBridgeEvent(db, "to_discord", "report", '{"message":"old"}');
-
-			markStaleEventsConsumedOnSpawn(db);
-
-			const mcEvents = peekBridgeEvents(db, "to_minecraft");
-			expect(mcEvents).toHaveLength(1);
-		});
-
-		test("未消費イベントがない場合は 0 を返す", () => {
-			const db = createTestDb();
-			const changed = markStaleEventsConsumedOnSpawn(db);
-			expect(changed).toBe(0);
-		});
-	});
-
 	describe("tryAcquireSessionLock", () => {
 		test("acquires lock when no existing lock", () => {
 			const db = createTestDb();
@@ -272,36 +85,6 @@ describe("mc-bridge", () => {
 		});
 	});
 
-	describe("releaseSessionLockAndStop", () => {
-		test("releases lock and inserts stop event atomically", () => {
-			const db = createTestDb();
-			tryAcquireSessionLock(db, "guild-1");
-			const result = releaseSessionLockAndStop(db, "guild-1");
-			expect(result).toBe(true);
-
-			// ロックが解放されている
-			const reacquire = tryAcquireSessionLock(db, "guild-2");
-			expect(reacquire).toEqual({ ok: true });
-
-			// stop イベントが挿入されている
-			const events = consumeBridgeEvents(db, "to_minecraft");
-			expect(events).toHaveLength(1);
-			expect(events[0]?.type).toBe("lifecycle");
-			expect(events[0]?.payload).toBe("stop");
-		});
-
-		test("returns false when different guild holds the lock", () => {
-			const db = createTestDb();
-			tryAcquireSessionLock(db, "guild-1");
-			const result = releaseSessionLockAndStop(db, "guild-2");
-			expect(result).toBe(false);
-
-			// stop イベントが挿入されていない
-			const events = consumeBridgeEvents(db, "to_minecraft");
-			expect(events).toHaveLength(0);
-		});
-	});
-
 	describe("clearSessionLock", () => {
 		test("clears existing lock", () => {
 			const db = createTestDb();
@@ -315,6 +98,96 @@ describe("mc-bridge", () => {
 		test("does not throw when no lock exists", () => {
 			const db = createTestDb();
 			expect(() => clearSessionLock(db)).not.toThrow();
+		});
+	});
+
+	describe("setMcConnectionStatus", () => {
+		test("sets connected status to true", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			setMcConnectionStatus(db, true);
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(true);
+			expect(status.since).not.toBeNull();
+		});
+
+		test("sets connected status to false", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			setMcConnectionStatus(db, true);
+			setMcConnectionStatus(db, false);
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(false);
+		});
+
+		test("is no-op when no lock exists", () => {
+			const db = createTestDb();
+			// ロックがない場合は例外なく何もしない
+			expect(() => setMcConnectionStatus(db, true)).not.toThrow();
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(false);
+			expect(status.since).toBeNull();
+		});
+
+		test("connectedAt is preserved when disconnecting", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			setMcConnectionStatus(db, true);
+			const statusBefore = getMcConnectionStatus(db);
+			setMcConnectionStatus(db, false);
+			const statusAfter = getMcConnectionStatus(db);
+			// connectedAt は切断時にも保持される（最後の接続時刻）
+			expect(statusAfter.since).toBe(statusBefore.since);
+		});
+	});
+
+	describe("getMcConnectionStatus", () => {
+		test("returns disconnected with null since when no lock", () => {
+			const db = createTestDb();
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(false);
+			expect(status.since).toBeNull();
+		});
+
+		test("returns disconnected with null since when lock exists but never connected", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(false);
+			expect(status.since).toBeNull();
+		});
+	});
+
+	describe("hasSessionLock", () => {
+		test("returns false when no lock", () => {
+			const db = createTestDb();
+			expect(hasSessionLock(db)).toBe(false);
+		});
+
+		test("returns true when lock exists", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			expect(hasSessionLock(db)).toBe(true);
+		});
+
+		test("returns false when lock is expired", () => {
+			const db = createTestDb();
+			const twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000 - 1;
+			db.insert(mcSessionLock).values({ id: 1, guildId: "guild-1", acquiredAt: twoHoursAgo }).run();
+			expect(hasSessionLock(db)).toBe(false);
+		});
+	});
+
+	describe("getSessionLockGuildId", () => {
+		test("returns null when no lock", () => {
+			const db = createTestDb();
+			expect(getSessionLockGuildId(db)).toBeNull();
+		});
+
+		test("returns guildId when lock exists", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			expect(getSessionLockGuildId(db)).toBe("guild-1");
 		});
 	});
 });

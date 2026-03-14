@@ -1,24 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
+import { MINECRAFT_AGENT_ID } from "../../core/constants.ts";
 import type { StoreDb } from "../../store/db.ts";
 import {
-	consumeBridgeEventsByType,
 	getMcConnectionStatus,
-	insertBridgeEvent,
-	peekBridgeEvents,
-	releaseSessionLockAndStop,
+	releaseSessionLock,
 	tryAcquireSessionLock,
 } from "../../store/mc-bridge.ts";
-import {
-	MAX_BRIDGE_MESSAGE_CHARS,
-	formatBridgeEvents,
-	formatStatusEvents,
-} from "./mc-bridge-shared.ts";
+import { appendEvent } from "../../store/queries.ts";
 
 export interface McBridgeDeps {
 	db: StoreDb;
 }
+
+const MAX_COMMAND_CHARS = 10_000;
 
 /** Discord 側のブリッジツールを登録する */
 export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps): void {
@@ -28,42 +24,31 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		"minecraft_delegate",
 		"マイクラの自分に指示を出す。次のポーリングで反映される。",
 		{
-			command: z.string().min(1).max(MAX_BRIDGE_MESSAGE_CHARS).describe("マイクラでやること"),
+			command: z.string().min(1).max(MAX_COMMAND_CHARS).describe("マイクラでやること"),
 		},
 		({ command }) => {
-			insertBridgeEvent(db, "to_minecraft", "command", command);
+			const event = {
+				ts: new Date().toISOString(),
+				content: command,
+				authorId: "discord",
+				authorName: "Discord Agent",
+				messageId: `delegate-${Date.now()}`,
+				metadata: { type: "command" },
+			};
+			appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(event));
 			return {
 				content: [{ type: "text" as const, text: "指示を出した。あとでやっとく。" }],
 			};
 		},
 	);
 
-	server.tool("minecraft_status", "マイクラの最新状況を構造化して確認する（消費しない）。", {}, () => {
-		const parts: string[] = [];
-
+	server.tool("minecraft_status", "マイクラの最新状況を確認する。", {}, () => {
 		const status = getMcConnectionStatus(db);
-		const label = status.connected ? "🟢 接続中" : "🔴 未接続";
-		parts.push(`接続状態: ${label}${status.since ? ` (${status.since})` : ""}`);
-
-		const events = peekBridgeEvents(db, "to_discord", 50);
-		if (events.length > 0) {
-			parts.push(formatStatusEvents(events));
-		}
+		const label = status.connected ? "接続中" : "未接続";
+		const text = `接続状態: ${label}${status.since ? ` (${status.since})` : ""}`;
 
 		return {
-			content: [{ type: "text" as const, text: parts.join("\n\n") }],
-		};
-	});
-
-	server.tool("minecraft_read_reports", "マイクラでの出来事を確認済みにして読む。", {}, () => {
-		const events = consumeBridgeEventsByType(db, "to_discord", "report");
-		if (events.length === 0) {
-			return {
-				content: [{ type: "text" as const, text: "新しい出来事はなかった。" }],
-			};
-		}
-		return {
-			content: [{ type: "text" as const, text: formatBridgeEvents(events) }],
+			content: [{ type: "text" as const, text }],
 		};
 	});
 
@@ -85,7 +70,6 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 					],
 				};
 			}
-			insertBridgeEvent(db, "to_minecraft", "lifecycle", "start");
 			return {
 				content: [
 					{
@@ -104,7 +88,7 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 			guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
 		},
 		({ guild_id }) => {
-			const released = releaseSessionLockAndStop(db, guild_id);
+			const released = releaseSessionLock(db, guild_id);
 			if (!released) {
 				return {
 					content: [

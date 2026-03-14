@@ -48,30 +48,62 @@ CREATE TABLE IF NOT EXISTS emoji_usage (
 
 CREATE TABLE IF NOT EXISTS event_buffer (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	guild_id TEXT NOT NULL,
+	agent_id TEXT NOT NULL,
 	payload TEXT NOT NULL,
 	created_at INTEGER NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_event_buffer_guild ON event_buffer(guild_id);
-
-CREATE TABLE IF NOT EXISTS mc_bridge_events (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	direction TEXT NOT NULL,
-	type TEXT NOT NULL,
-	payload TEXT NOT NULL,
-	created_at INTEGER NOT NULL,
-	consumed INTEGER NOT NULL DEFAULT 0
-);
-CREATE INDEX IF NOT EXISTS idx_mc_bridge_direction ON mc_bridge_events(direction, consumed);
-CREATE INDEX IF NOT EXISTS idx_mc_bridge_dir_type ON mc_bridge_events(direction, type, consumed);
+CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id);
 
 CREATE TABLE IF NOT EXISTS mc_session_lock (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	guild_id TEXT NOT NULL,
-	acquired_at INTEGER NOT NULL
+	acquired_at INTEGER NOT NULL,
+	connected INTEGER NOT NULL DEFAULT 0,
+	connected_at INTEGER
 );
 `;
+
+/** 既存 DB のマイグレーション（CREATE_TABLES_SQL の前に実行） */
+function migrateDb(sqlite: Database): void {
+	// event_buffer: guild_id → agent_id リネーム + データ移行
+	const hasEventBuffer = sqlite
+		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='event_buffer'")
+		.get();
+	if (hasEventBuffer) {
+		const columns = sqlite.prepare("PRAGMA table_info(event_buffer)").all() as {
+			name: string;
+		}[];
+		const hasGuildId = columns.some((c) => c.name === "guild_id");
+		if (hasGuildId) {
+			sqlite.exec("ALTER TABLE event_buffer RENAME COLUMN guild_id TO agent_id");
+			sqlite.exec("UPDATE event_buffer SET agent_id = 'discord:' || agent_id");
+			sqlite.exec("DROP INDEX IF EXISTS idx_event_buffer_guild");
+			sqlite.exec("CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id)");
+		}
+	}
+
+	// mc_session_lock: connected / connected_at カラム追加
+	const hasLock = sqlite
+		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mc_session_lock'")
+		.get();
+	if (hasLock) {
+		const columns = sqlite.prepare("PRAGMA table_info(mc_session_lock)").all() as {
+			name: string;
+		}[];
+		if (!columns.some((c) => c.name === "connected")) {
+			sqlite.exec("ALTER TABLE mc_session_lock ADD COLUMN connected INTEGER NOT NULL DEFAULT 0");
+		}
+		if (!columns.some((c) => c.name === "connected_at")) {
+			sqlite.exec("ALTER TABLE mc_session_lock ADD COLUMN connected_at INTEGER");
+		}
+	}
+
+	// mc_bridge_events テーブルを削除（統合済み）
+	sqlite.exec("DROP TABLE IF EXISTS mc_bridge_events");
+	sqlite.exec("DROP INDEX IF EXISTS idx_mc_bridge_direction");
+	sqlite.exec("DROP INDEX IF EXISTS idx_mc_bridge_dir_type");
+}
 
 export function createDb(dataDir: string): StoreDb {
 	mkdirSync(dataDir, { recursive: true });
@@ -79,6 +111,7 @@ export function createDb(dataDir: string): StoreDb {
 	const sqlite = new Database(dbPath);
 	sqlite.exec("PRAGMA journal_mode = WAL");
 	sqlite.exec("PRAGMA busy_timeout = 5000");
+	migrateDb(sqlite);
 	sqlite.exec(CREATE_TABLES_SQL);
 	const db = drizzle(sqlite, { schema });
 	dbInstances.set(db, sqlite);

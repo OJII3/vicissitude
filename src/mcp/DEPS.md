@@ -65,7 +65,6 @@ graph LR
   minecraft_server["minecraft/server"] --> minecraft_auto_notifier["minecraft/auto-notifier"]
   minecraft_server["minecraft/server"] --> minecraft_bot_connection["minecraft/bot-connection"]
   minecraft_server["minecraft/server"] --> minecraft_bot_context["minecraft/bot-context"]
-  minecraft_server["minecraft/server"] --> minecraft_brain_wake["minecraft/brain-wake"]
   minecraft_server["minecraft/server"] --> minecraft_http_server["minecraft/http-server"]
   minecraft_server["minecraft/server"] --> minecraft_job_manager["minecraft/job-manager"]
   minecraft_server["minecraft/server"] --> minecraft_mc_metrics["minecraft/mc-metrics"]
@@ -74,9 +73,8 @@ graph LR
   tools_discord["tools/discord"]
   tools_event_buffer["tools/event-buffer"]
   tools_ltm["tools/ltm"]
-  tools_mc_bridge_discord["tools/mc-bridge-discord"] --> tools_mc_bridge_shared["tools/mc-bridge-shared"]
-  tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_mc_bridge_shared["tools/mc-bridge-shared"]
-  tools_mc_bridge_shared["tools/mc-bridge-shared"]
+  tools_mc_bridge_discord["tools/mc-bridge-discord"]
+  tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
   tools_memory["tools/memory"] --> memory_helpers["memory-helpers"]
   tools_schedule["tools/schedule"]
@@ -210,7 +208,7 @@ graph LR
 
 ### minecraft/server.ts
 
-- モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/brain-wake, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
+- モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
 - 他モジュール依存: core/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
@@ -235,19 +233,13 @@ graph LR
 
 ### tools/mc-bridge-discord.ts
 
-- モジュール内依存: tools/mc-bridge-shared
-- 他モジュール依存: store/
+- 他モジュール依存: core/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
 
 ### tools/mc-bridge-minecraft.ts
 
-- モジュール内依存: tools/mc-bridge-shared
 - 他モジュール依存: store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
-
-### tools/mc-bridge-shared.ts
-
-- 他モジュール依存: store/
 
 ### tools/mc-memory.ts
 

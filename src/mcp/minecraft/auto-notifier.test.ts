@@ -4,7 +4,8 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import { createDb, closeDb } from "../../store/db.ts";
-import { insertBridgeEvent, peekBridgeEvents } from "../../store/mc-bridge.ts";
+import { getMcConnectionStatus, tryAcquireSessionLock } from "../../store/mc-bridge.ts";
+import { consumeEvents } from "../../store/queries.ts";
 import { createAutoNotifier } from "./auto-notifier.ts";
 
 function setupDb() {
@@ -22,109 +23,106 @@ describe("createAutoNotifier", () => {
 		if (dir) rmSync(dir, { recursive: true, force: true });
 	});
 
-	test("death イベントでブリッジに report が挿入される", () => {
+	test("death イベントで event_buffer に report が挿入される", () => {
 		({ db, dir } = setupDb());
+		// guildId を mc_session_lock に登録して、対象の agentId を特定可能にする
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("death", "Bot died", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
+		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(1);
-		const first = events.at(0);
-		expect(first?.type).toBe("report");
-		const payload = JSON.parse(first?.payload ?? "{}");
-		expect(payload.message).toBe("Bot died");
-		expect(payload.auto).toBe(true);
+		const payload = JSON.parse(events[0]?.payload ?? "{}");
+		expect(payload.content).toBe("Bot died");
+		expect(payload.metadata?.auto).toBe(true);
 	});
 
-	test("kicked イベントでブリッジに report が挿入される", () => {
+	test("kicked イベントで event_buffer に report が挿入される", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("kicked", "Kicked: timeout", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
+		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(1);
 	});
 
-	test("disconnect イベントでブリッジに lifecycle + report が挿入される", () => {
+	test("disconnect イベントで接続状態が false に設定される", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("disconnect", "Disconnected: server closed", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
-		expect(events).toHaveLength(2);
-		expect(events.at(0)?.type).toBe("lifecycle");
-		expect(events.at(0)?.payload).toBe("disconnect");
-		expect(events.at(1)?.type).toBe("report");
+		const status = getMcConnectionStatus(db);
+		expect(status.connected).toBe(false);
 	});
 
-	test("spawn イベントで lifecycle のみ挿入される（report は不要）", () => {
+	test("spawn イベントで接続状態が true に設定される", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("spawn", "Spawned at (0, 64, 0)", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
-		expect(events).toHaveLength(1);
-		expect(events.at(0)?.type).toBe("lifecycle");
-		expect(events.at(0)?.payload).toBe("spawn");
-	});
-
-	test("spawn 時に既存の未消費 report が消費済みになる", () => {
-		({ db, dir } = setupDb());
-		// spawn 前に古い report を挿入
-		insertBridgeEvent(db, "to_discord", "report", '{"message":"stale report","importance":"high","auto":true}');
-		insertBridgeEvent(db, "to_discord", "report", '{"message":"another stale","importance":"high","auto":true}');
-
-		const notifier = createAutoNotifier(db);
-		notifier("spawn", "Spawned at (0, 64, 0)", "high");
-
-		const events = peekBridgeEvents(db, "to_discord");
-		// 古い report は消費済み、lifecycle(spawn) のみ残る
-		expect(events).toHaveLength(1);
-		expect(events.at(0)?.type).toBe("lifecycle");
-		expect(events.at(0)?.payload).toBe("spawn");
+		const status = getMcConnectionStatus(db);
+		expect(status.connected).toBe(true);
 	});
 
 	test("対象外のイベント種別は通知しない", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("chat", "<player> hello", "medium");
 		notifier("health", "Health: 20, Food: 10", "low");
 
-		const events = peekBridgeEvents(db, "to_discord");
+		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(0);
 	});
 
 	test("同一種別のクールダウン期間中は通知をスキップする", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("death", "Bot died (1st)", "high");
 		notifier("death", "Bot died (2nd)", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
+		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(1);
-		const payload = JSON.parse(events.at(0)?.payload ?? "{}");
-		expect(payload.message).toBe("Bot died (1st)");
+		const payload = JSON.parse(events[0]?.payload ?? "{}");
+		expect(payload.content).toBe("Bot died (1st)");
 	});
 
 	test("異なる種別は独立してクールダウンする", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const notifier = createAutoNotifier(db);
 
 		notifier("death", "Bot died", "high");
 		notifier("kicked", "Kicked: reason", "high");
 
-		const events = peekBridgeEvents(db, "to_discord");
+		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(2);
+	});
+
+	test("session lock がない場合は event_buffer に挿入されない", () => {
+		({ db, dir } = setupDb());
+		const notifier = createAutoNotifier(db);
+
+		notifier("death", "Bot died", "high");
+
+		// guildId が特定できないため挿入されない
+		const events = consumeEvents(db, "discord:guild-1");
+		expect(events).toHaveLength(0);
 	});
 
 	test("メトリクスが記録される", () => {
 		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
 		const calls: { name: string; labels: Record<string, string> }[] = [];
 		const metrics = {
 			incrementCounter: (name: string, labels?: Record<string, string>) => {

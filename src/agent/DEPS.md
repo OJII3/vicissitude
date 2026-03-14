@@ -68,7 +68,7 @@ graph LR
 ### minecraft/minecraft-agent.ts
 
 - モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
-- 他モジュール依存: core/, opencode/, store/
+- 他モジュール依存: core/, opencode/
 - 外部依存: path
 
 ### minecraft/profile.ts

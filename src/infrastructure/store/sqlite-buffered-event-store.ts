@@ -6,7 +6,7 @@ import { appendEvent } from "../../store/queries.ts";
 export class SqliteBufferedEventStore implements BufferedEventStore {
 	constructor(private readonly db: StoreDb) {}
 
-	append(guildId: string, event: BufferedEvent): void {
-		appendEvent(this.db, guildId, JSON.stringify(event));
+	append(agentId: string, event: BufferedEvent): void {
+		appendEvent(this.db, agentId, JSON.stringify(event));
 	}
 }

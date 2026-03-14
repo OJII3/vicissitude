@@ -1,6 +1,9 @@
+import { MINECRAFT_AGENT_ID } from "../../core/constants.ts";
 import type { Logger } from "../../core/types.ts";
 import type { StoreDb } from "../../store/db.ts";
-import { clearSessionLock, consumeBridgeEventsByType } from "../../store/mc-bridge.ts";
+import { SqliteEventBuffer } from "../../store/event-buffer.ts";
+import { clearSessionLock, hasSessionLock } from "../../store/mc-bridge.ts";
+import { appendEvent } from "../../store/queries.ts";
 import type { SessionStore } from "../session-store.ts";
 import { MinecraftAgent } from "./minecraft-agent.ts";
 
@@ -21,11 +24,8 @@ export interface McBrainManagerDeps {
 
 /**
  * Minecraft エージェントの生成・起動・停止を管理する。
- * ブリッジテーブルの lifecycle イベントを定期ポーリングし、
- * start/stop 指示に応じてエージェントを制御する。
- *
- * 前提: シングルプロセス構成。複数プロセスが同一 DB を共有する場合は
- * clearSessionLock やポート管理の見直しが必要。
+ * mc_session_lock テーブルの状態を定期ポーリングし、
+ * ロックの有無に応じてエージェントを制御する。
  */
 export class McBrainManager {
 	private agent: MinecraftAgent | undefined;
@@ -66,7 +66,7 @@ export class McBrainManager {
 					`[McBrainManager] alive (polls=${this.pollCount}, agent=${agentState})`,
 				);
 			}
-			this.checkLifecycleEvents();
+			this.checkLifecycleState();
 			if (!this.stopping && this.pollTimer !== undefined) {
 				this.schedulePoll();
 			}
@@ -76,9 +76,10 @@ export class McBrainManager {
 	private createAgent(): void {
 		if (this.agent || this.stopping) return;
 
-		const { sessionStore, logger, root, opencodePort, providerId, modelId, sessionMaxAgeMs } =
+		const { db, sessionStore, logger, root, opencodePort, providerId, modelId, sessionMaxAgeMs } =
 			this.deps;
 		this.agent = new MinecraftAgent({
+			eventBuffer: new SqliteEventBuffer(db, MINECRAFT_AGENT_ID),
 			sessionStore,
 			logger,
 			root,
@@ -86,8 +87,15 @@ export class McBrainManager {
 			sessionMaxAgeMs,
 			model: { providerId, modelId },
 		});
-		// MinecraftAgent は MinecraftEventBuffer (タイマーベース) を内蔵しているため、
-		// ensurePolling() でポーリングループを即時起動する
+		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
+		const bootstrapEvent = {
+			ts: new Date().toISOString(),
+			content: "Minecraft セッション開始",
+			authorId: "system",
+			authorName: "system",
+			messageId: `mc-bootstrap-${Date.now()}`,
+		};
+		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(bootstrapEvent));
 		this.agent.ensurePolling();
 		logger.info("[McBrainManager] minecraft brain started");
 	}
@@ -101,18 +109,17 @@ export class McBrainManager {
 		this.stopping = false;
 	}
 
-	private checkLifecycleEvents(): void {
+	/** mc_session_lock の有無でエージェントの起動/停止を判断する */
+	private checkLifecycleState(): void {
 		if (this.stopping) return;
 		try {
-			const events = consumeBridgeEventsByType(this.deps.db, "to_minecraft", "lifecycle");
-			for (const event of events) {
-				if (event.payload === "start") {
-					this.deps.logger.info("[McBrainManager] received lifecycle start");
-					this.createAgent();
-				} else if (event.payload === "stop") {
-					this.deps.logger.info("[McBrainManager] received lifecycle stop");
-					this.stopAgent();
-				}
+			const lockActive = hasSessionLock(this.deps.db);
+			if (lockActive && !this.agent) {
+				this.deps.logger.info("[McBrainManager] session lock detected, starting agent");
+				this.createAgent();
+			} else if (!lockActive && this.agent) {
+				this.deps.logger.info("[McBrainManager] session lock released, stopping agent");
+				this.stopAgent();
 			}
 		} catch (err) {
 			this.deps.logger.error("[McBrainManager] lifecycle check error", err);

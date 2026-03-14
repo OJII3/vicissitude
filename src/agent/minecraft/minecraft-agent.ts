@@ -1,9 +1,8 @@
 import { resolve } from "path";
 
-import { MC_BRAIN_GUILD_ID, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH } from "../../core/constants.ts";
-import type { Logger } from "../../core/types.ts";
+import { MINECRAFT_AGENT_ID } from "../../core/constants.ts";
+import type { EventBuffer, Logger } from "../../core/types.ts";
 import { OpencodeSessionAdapter } from "../../opencode/session-adapter.ts";
-import { MinecraftEventBuffer } from "../../store/minecraft-event-buffer.ts";
 import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
 import type { SessionStore } from "../session-store.ts";
@@ -14,6 +13,7 @@ export interface MinecraftAgentDeps {
 	sessionStore: SessionStore;
 	logger: Logger;
 	root: string;
+	eventBuffer: EventBuffer;
 	/** OpenCode SDK サーバーのポート番号 */
 	opencodePort: number;
 	sessionMaxAgeMs: number;
@@ -28,7 +28,7 @@ export class MinecraftAgent extends AgentRunner {
 		});
 		super({
 			profile,
-			guildId: MC_BRAIN_GUILD_ID,
+			agentId: MINECRAFT_AGENT_ID,
 			sessionStore: deps.sessionStore,
 			contextBuilder: new MinecraftContextBuilder(
 				resolve(deps.root, "data/context/minecraft"),
@@ -40,10 +40,7 @@ export class MinecraftAgent extends AgentRunner {
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
 			}),
-			eventBuffer: new MinecraftEventBuffer(
-				30_000,
-				resolve(deps.root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
-			),
+			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 		});
 	}

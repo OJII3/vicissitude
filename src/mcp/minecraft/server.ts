@@ -6,7 +6,6 @@ import { createDb, closeDb } from "../../store/db.ts";
 import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
-import { createMinecraftBrainWakeNotifier, shouldWakeMinecraftBrain } from "./brain-wake.ts";
 import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
 import { createMcMetrics } from "./mc-metrics.ts";
@@ -41,7 +40,9 @@ try {
 }
 const MC_PROFILES_FOLDER = process.env.MC_PROFILES_FOLDER;
 if (MC_AUTH_MODE === "offline" && MC_PROFILES_FOLDER) {
-	console.error("[minecraft] MC_PROFILES_FOLDER is set but MC_AUTH_MODE is 'offline'; it will be ignored");
+	console.error(
+		"[minecraft] MC_PROFILES_FOLDER is set but MC_AUTH_MODE is 'offline'; it will be ignored",
+	);
 }
 const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
 if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
@@ -49,7 +50,6 @@ if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
 	process.exit(1);
 }
 const MC_MCP_PORT = mcpPortRaw;
-const MC_BRAIN_WAKE_FILE = process.env.MC_BRAIN_WAKE_FILE;
 const DATA_DIR = process.env.DATA_DIR;
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
@@ -64,17 +64,10 @@ if (!bridgeDb) {
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
-const wakeNotifier = MC_BRAIN_WAKE_FILE
-	? createMinecraftBrainWakeNotifier(MC_BRAIN_WAKE_FILE)
-	: undefined;
 const ctx = createBotContext({
 	metrics: mcCollector,
 	urgentEventNotifier: (kind, description, importance) => {
 		autoNotifier?.(kind, description, importance);
-		if (!wakeNotifier) return;
-		if (shouldWakeMinecraftBrain(kind, importance, description)) {
-			wakeNotifier();
-		}
 	},
 });
 const connection = createBotConnection(

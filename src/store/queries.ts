@@ -3,17 +3,17 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import type { StoreDb } from "./db.ts";
 import { emojiUsage, eventBuffer, sessions } from "./schema.ts";
 
-/** event_buffer から該当ギルドのイベントを取得して削除する（トランザクションでアトミック） */
+/** event_buffer から該当エージェントのイベントを取得して削除する（トランザクションでアトミック） */
 export function consumeEvents(
 	db: StoreDb,
-	guildId: string,
+	agentId: string,
 	limit?: number,
 ): { id: number; payload: string; createdAt: number }[] {
 	return db.transaction((tx) => {
 		let query = tx
 			.select()
 			.from(eventBuffer)
-			.where(eq(eventBuffer.guildId, guildId))
+			.where(eq(eventBuffer.agentId, agentId))
 			.orderBy(eventBuffer.id);
 		if (limit !== undefined) {
 			query = query.limit(limit) as typeof query;
@@ -30,13 +30,13 @@ export function consumeEvents(
 /** event_buffer から最古の 1 件を取得して削除する */
 export function consumeNextEvent(
 	db: StoreDb,
-	guildId: string,
+	agentId: string,
 ): { id: number; payload: string; createdAt: number } | null {
 	return db.transaction((tx) => {
 		const row = tx
 			.select()
 			.from(eventBuffer)
-			.where(eq(eventBuffer.guildId, guildId))
+			.where(eq(eventBuffer.agentId, agentId))
 			.orderBy(eventBuffer.id)
 			.limit(1)
 			.get();
@@ -47,8 +47,8 @@ export function consumeNextEvent(
 }
 
 /** event_buffer にイベントを追加する */
-export function appendEvent(db: StoreDb, guildId: string, payload: string): void {
-	db.insert(eventBuffer).values({ guildId, payload, createdAt: Date.now() }).run();
+export function appendEvent(db: StoreDb, agentId: string, payload: string): void {
+	db.insert(eventBuffer).values({ agentId, payload, createdAt: Date.now() }).run();
 }
 
 /** セッションを取得する */
@@ -86,12 +86,12 @@ export function incrementEmoji(db: StoreDb, guildId: string, emojiName: string):
 		.run();
 }
 
-/** event_buffer に該当ギルドのイベントが存在するか確認する */
-export function hasEvents(db: StoreDb, guildId: string): boolean {
+/** event_buffer に該当エージェントのイベントが存在するか確認する */
+export function hasEvents(db: StoreDb, agentId: string): boolean {
 	const row = db
 		.select({ id: eventBuffer.id })
 		.from(eventBuffer)
-		.where(eq(eventBuffer.guildId, guildId))
+		.where(eq(eventBuffer.agentId, agentId))
 		.limit(1)
 		.get();
 	return row !== undefined;
