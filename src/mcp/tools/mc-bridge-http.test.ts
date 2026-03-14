@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { insertBridgeEvent } from "../../store/mc-bridge.ts";
+import { tryAcquireSessionLock, setMcConnectionStatus } from "../../store/mc-bridge.ts";
 import { createTestDb } from "../../store/test-helpers.ts";
 import { startHttpServer } from "../http-server.ts";
 import { parseMcpResponse } from "../test-helpers.ts";
@@ -86,7 +86,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		stopServer();
 	});
 
-	test("health check → セッション作成 → minecraft_delegate 実行で DB にイベントが入る", async () => {
+	test("health check → セッション作成 → minecraft_delegate 実行で event_buffer にイベントが入る", async () => {
 		// health check
 		const healthRes = await fetch(`${baseUrl}/health`);
 		expect(healthRes.status).toBe(200);
@@ -99,21 +99,16 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		expect(result.result?.content.at(0)?.text).toContain("指示を出した");
 	});
 
-	test("minecraft_status が未消費イベントを返す", async () => {
-		// DB に直接 report を挿入
-		insertBridgeEvent(
-			db,
-			"to_discord",
-			"report",
-			JSON.stringify({ message: "ダイヤ見つけた", importance: "high" }),
-		);
+	test("minecraft_status が接続状態を返す", async () => {
+		// ロック取得 + 接続状態設定
+		tryAcquireSessionLock(db, "guild-1");
+		setMcConnectionStatus(db, true);
 
 		const sessionId = await initSession();
 		const result = await callTool(sessionId, "minecraft_status", {});
 
 		expect(result.result).toBeDefined();
 		const text = result.result?.content.at(0)?.text ?? "";
-		// JSON 配列が返る（formatBridgeEvents の出力）
-		expect(text).toContain("ダイヤ見つけた");
+		expect(text).toContain("接続中");
 	});
 });

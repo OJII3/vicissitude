@@ -18,7 +18,7 @@ const INITIAL_RECONNECT_DELAY_MS = 2_000;
 
 export interface RunnerDeps {
 	profile: AgentProfile;
-	guildId: string;
+	agentId: string;
 	sessionStore: SessionStore;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
@@ -26,6 +26,8 @@ export interface RunnerDeps {
 	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
+	/** ContextBuilder に渡す guildId（Discord エージェント用）。省略時は undefined */
+	contextGuildId?: string;
 }
 
 export class AgentRunner implements AiAgent {
@@ -36,7 +38,7 @@ export class AgentRunner implements AiAgent {
 	private hasStartedSession = false;
 
 	private readonly profile: AgentProfile;
-	private readonly guildId: string;
+	private readonly agentId: string;
 	private readonly sessionStore: SessionStore;
 	private readonly contextBuilder: ContextBuilderPort;
 	private readonly logger: Logger;
@@ -44,10 +46,11 @@ export class AgentRunner implements AiAgent {
 	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
+	private readonly contextGuildId?: string;
 
 	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
-		this.guildId = deps.guildId;
+		this.agentId = deps.agentId;
 		this.sessionStore = deps.sessionStore;
 		this.contextBuilder = deps.contextBuilder;
 		this.logger = deps.logger;
@@ -55,22 +58,18 @@ export class AgentRunner implements AiAgent {
 		this.eventBuffer = deps.eventBuffer;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 		this.metrics = deps.metrics;
+		this.contextGuildId = deps.contextGuildId;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		const { message, guildId, attachments } = options;
+		const { message, attachments } = options;
 		this.eventBuffer.append({
 			ts: new Date().toISOString(),
-			channelId: "system",
-			guildId: guildId ?? this.guildId,
 			authorId: "system",
 			authorName: "system",
 			messageId: `send-${Date.now()}`,
 			content: message,
 			attachments: attachments && attachments.length > 0 ? attachments : undefined,
-			isBot: false,
-			isMentioned: false,
-			isThread: false,
 		});
 		this.ensurePolling();
 		return Promise.resolve({ text: "", sessionId: "polling" });
@@ -85,7 +84,7 @@ export class AgentRunner implements AiAgent {
 		if (!this.running) {
 			this.startPollingLoop().catch((err) => {
 				this.logger.error(
-					`[${this.profile.name}:${this.guildId}] polling loop unexpectedly rejected`,
+					`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
 					err,
 				);
 			});
@@ -126,7 +125,7 @@ export class AgentRunner implements AiAgent {
 			} catch (err) {
 				if (signal.aborted) return;
 				this.logger.error(
-					`[${this.profile.name}:${this.guildId}] session error, will restart`,
+					`[${this.profile.name}:${this.agentId}] session error, will restart`,
 					err,
 				);
 				this.sessionWatch = null;
@@ -134,7 +133,7 @@ export class AgentRunner implements AiAgent {
 
 			if (signal.aborted) return;
 
-			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting in ${delay}ms...`);
+			this.logger.info(`[${this.profile.name}:${this.agentId}] restarting in ${delay}ms...`);
 			// eslint-disable-next-line no-await-in-loop -- backoff delay between restarts
 			await this.sleep(delay);
 			delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
@@ -153,11 +152,11 @@ export class AgentRunner implements AiAgent {
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
-		const system = await this.contextBuilder.build(this.guildId);
+		const system = await this.contextBuilder.build(this.contextGuildId);
 		if (signal.aborted) return;
 
 		this.logger.info(
-			`[${this.profile.name}:${this.guildId}] starting polling prompt on session ${sessionId}`,
+			`[${this.profile.name}:${this.agentId}] starting polling prompt on session ${sessionId}`,
 		);
 
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
@@ -177,15 +176,15 @@ export class AgentRunner implements AiAgent {
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
 		if (this.hasStartedSession && this.profile.restartPolicy === "immediate") {
-			this.logger.info(`[${this.profile.name}:${this.guildId}] restarting long-lived session`);
+			this.logger.info(`[${this.profile.name}:${this.agentId}] restarting long-lived session`);
 			await this.startLongLivedSession(signal);
 			return;
 		}
 
-		this.logger.info(`[${this.profile.name}:${this.guildId}] waiting for events...`);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] waiting for events...`);
 		await this.eventBuffer.waitForEvents(signal);
 		if (signal.aborted) return;
-		this.logger.info(`[${this.profile.name}:${this.guildId}] events detected, starting session`);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] events detected, starting session`);
 		await this.startLongLivedSession(signal);
 		if (signal.aborted || !this.sessionWatch) return;
 		this.hasStartedSession = true;
@@ -197,7 +196,7 @@ export class AgentRunner implements AiAgent {
 		}
 		if (event.type === "idle") {
 			this.logger.info(
-				`[${this.profile.name}:${this.guildId}] long-lived session went idle, will restart`,
+				`[${this.profile.name}:${this.agentId}] long-lived session went idle, will restart`,
 			);
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(this.metrics, event.tokens, {
@@ -208,14 +207,14 @@ export class AgentRunner implements AiAgent {
 			return;
 		}
 		if (event.type === "compacted") {
-			this.logger.info(`[${this.profile.name}:${this.guildId}] session compacted`);
+			this.logger.info(`[${this.profile.name}:${this.agentId}] session compacted`);
 			return;
 		}
-		this.logger.error(`[${this.profile.name}:${this.guildId}] session error event`, event.message);
+		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
 	}
 
 	private async resolveSessionId(): Promise<string> {
-		const sessionKey = `__polling__:${this.guildId}`;
+		const sessionKey = `__polling__:${this.agentId}`;
 		let realId = this.sessionStore.get(this.profile.name, sessionKey);
 
 		if (realId) {
@@ -229,7 +228,7 @@ export class AgentRunner implements AiAgent {
 			const row = this.sessionStore.getRow(this.profile.name, sessionKey);
 			this.sessionCreatedAt = row?.createdAt ?? Date.now();
 		} else {
-			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.guildId}`);
+			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.agentId}`);
 			this.sessionStore.save(this.profile.name, sessionKey, realId);
 			this.sessionCreatedAt = Date.now();
 		}
@@ -242,7 +241,7 @@ export class AgentRunner implements AiAgent {
 		const age = Date.now() - this.sessionCreatedAt;
 		if (age < this.sessionMaxAgeMs) return;
 
-		const sessionKey = `__polling__:${this.guildId}`;
+		const sessionKey = `__polling__:${this.agentId}`;
 		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
 		if (!sessionId) return;
 
@@ -250,7 +249,7 @@ export class AgentRunner implements AiAgent {
 			await this.sessionPort.deleteSession(sessionId);
 		} catch (err) {
 			this.logger.error(
-				`[${this.profile.name}:${this.guildId}] failed to delete OpenCode session`,
+				`[${this.profile.name}:${this.agentId}] failed to delete OpenCode session`,
 				err,
 			);
 		}
@@ -259,7 +258,7 @@ export class AgentRunner implements AiAgent {
 		this.sessionCreatedAt = null;
 
 		const hours = Math.round(age / 3_600_000);
-		this.logger.info(`[${this.profile.name}:${this.guildId}] session rotated after ${hours}h`);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);
 	}
 
 	private sleep(ms: number): Promise<void> {

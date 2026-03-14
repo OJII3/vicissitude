@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-13
+- 2026-03-14
 - 更新者: claude-code
-- ブランチ: feat/m13f-discord-mc-integration
+- ブランチ: refactor/unify-agent-event-buffer
 
 ## 2. 現在の状態
 
@@ -72,13 +72,21 @@
 - `actions/survival/` へ責務分割し、`survival.ts` の max-lines 問題を解消した。
 - Discord / Minecraft の AgentRunner を長寿命セッションの終了監視型へ寄せる作業を開始。
 - OpenCode 長寿命セッション監視の停止ハングを修正。
+- エージェント間通信を統一 `event_buffer` に統合:
+  - `mc_bridge_events` テーブルを廃止し、全エージェント間メッセージを `event_buffer` 経由に統一。
+  - `event_buffer.guild_id` → `agent_id` にリネーム（`discord:{guildId}` / `minecraft:brain`）。
+  - `AgentRunner` を `guildId` ベースから `agentId` ベースに汎用化。
+  - `MinecraftEventBuffer` を廃止し `SqliteEventBuffer` に統一。
+  - `brain-manager.ts` を `mc_session_lock` 状態ポーリング方式に変更。
+  - 既存 DB のマイグレーション関数を追加。
+- `nr validate` 通過（既存リントエラー7件は別途）。`bun test` は 758 テスト pass（0 fail）。
 
 ## 3. 既知のバグ・要修正事項
 
 - `GuildRouter.send()` がエラーを同期スロー（`.catch()` のみの呼び出し元が増えたら `Promise.reject()` に変更要）。
 - Ollama イメージタグ `latest` 固定。バージョン固定を将来検討。
 - `HeartbeatScheduler` / `ConsolidationScheduler` の二重タイムアウトで最悪 tick 時間が 2 倍（6 分 / 20 分）。
-- 危険時再判断は wake file による早期再開まで実装。完全なイベント直結ではなく、ファイルポーリングに依存する。
+- 危険時再判断は `event_buffer` への自動通知で対応。完全なイベント直結ではなく、ポーリングに依存する。
 - stuck 判定は実装済み（PR #132）。Discord 自動通知は death/kicked/disconnect のみ。LLM 判断通知（stuck、危険回避等）は `mc_report` 経由。
 - LTM の既知の不足機能（M14 で対応予定）:
   - ~~FSRS `reviewCard()` が本番で呼ばれていない~~ → M14a で解消。retrieve/consolidate 時に自動 review。

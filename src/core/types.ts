@@ -68,16 +68,12 @@ export interface EventBuffer {
 
 export interface BufferedEvent {
 	ts: string;
-	channelId: string;
-	guildId?: string;
+	content: string;
 	authorId: string;
 	authorName: string;
 	messageId: string;
-	content: string;
 	attachments?: Attachment[];
-	isBot: boolean;
-	isMentioned: boolean;
-	isThread: boolean;
+	metadata?: Record<string, unknown>;
 }
 
 // ─── Incoming Message & Message Channel ──────────────────────────

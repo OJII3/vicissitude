@@ -7,7 +7,7 @@ import type {
 } from "../core/types.ts";
 
 export interface BufferedEventStore {
-	append(guildId: string, event: BufferedEvent): void;
+	append(agentId: string, event: BufferedEvent): void;
 }
 
 export interface MessageIngestionServiceDeps {
@@ -33,20 +33,23 @@ export class MessageIngestionService {
 
 		const event: BufferedEvent = {
 			ts: message.timestamp.toISOString(),
-			channelId: message.channelId,
-			guildId: message.guildId,
 			authorId: message.authorId,
 			authorName: message.authorName,
 			messageId: message.messageId,
 			content: message.content,
 			attachments: message.attachments.length > 0 ? message.attachments : undefined,
-			isBot: message.isBot,
-			isMentioned: message.isMentioned,
-			isThread: message.isThread,
+			metadata: {
+				channelId: message.channelId,
+				guildId: message.guildId,
+				isBot: message.isBot,
+				isMentioned: message.isMentioned,
+				isThread: message.isThread,
+			},
 		};
 
 		if (options.bufferEvent ?? true) {
-			this.deps.eventStore.append(message.guildId, event);
+			const agentId = `discord:${message.guildId}`;
+			this.deps.eventStore.append(agentId, event);
 			this.deps.logger.info(
 				`[message-ingestion] buffered: ch=${message.channelId} author=${message.authorName} mentioned=${message.isMentioned}`,
 			);

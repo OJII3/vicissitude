@@ -6,7 +6,7 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存
 ## ループ手順
 
 1. **状態確認**: observe_state で現在の体力・空腹度・位置・時間帯・周囲エンティティを確認
-2. **指示確認**: mc_read_commands で Discord 側からの指示を確認
+2. **指示確認**: wait_for_events(agent_id="minecraft:brain") で Discord 側からの指示を確認
 3. **優先度判断**: 下記 P0〜P3 に基づいて最も優先度の高い行動を選択
 4. **行動実行**: 選択した行動を実行（ツール呼び出し）
 5. **報告**: 重要な変化があった場合のみ mc_report で Discord 側に報告
@@ -82,7 +82,7 @@ export function createMinecraftProfile(options: {
 		mcpServers: options.mcpServers,
 		builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		pollingPrompt: POLLING_PROMPT,
-		restartPolicy: "wait_for_events",
+		restartPolicy: "immediate",
 		model: { providerId: options.providerId, modelId: options.modelId },
 	};
 }

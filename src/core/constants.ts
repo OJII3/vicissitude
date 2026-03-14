@@ -1,6 +1,5 @@
-/** Minecraft エージェント用の仮想 Guild ID */
-export const MC_BRAIN_GUILD_ID = "__minecraft__";
-export const MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH = "data/minecraft-brain-wake.signal";
+/** Minecraft エージェントの agentId */
+export const MINECRAFT_AGENT_ID = "minecraft:brain";
 
 // ─── Metric Names ───────────────────────────────────────────────
 

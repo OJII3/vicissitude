@@ -28,7 +28,7 @@ export class DiscordAgent extends AgentRunner {
 		});
 		super({
 			profile,
-			guildId: deps.guildId,
+			agentId: `discord:${deps.guildId}`,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
@@ -37,9 +37,10 @@ export class DiscordAgent extends AgentRunner {
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
 			}),
-			eventBuffer: new SqliteEventBuffer(deps.db, deps.guildId),
+			eventBuffer: new SqliteEventBuffer(deps.db, `discord:${deps.guildId}`),
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
+			contextGuildId: deps.guildId,
 		});
 	}
 }

@@ -23,7 +23,7 @@ describe("store", () => {
 			expect(tableNames).toContain("sessions");
 			expect(tableNames).toContain("emoji_usage");
 			expect(tableNames).toContain("event_buffer");
-			expect(tableNames).toContain("mc_bridge_events");
+			expect(tableNames).toContain("mc_session_lock");
 		});
 	});
 

@@ -30,13 +30,13 @@ export function formatEvents(rows: { payload: string }[]): string {
 
 export async function pollEvents(
 	db: StoreDb,
-	guildId: string,
+	agentId: string,
 	deadlineMs: number,
 	pollIntervalMs = 1000,
 ): Promise<string | null> {
 	while (Date.now() < deadlineMs) {
-		if (hasEvents(db, guildId)) {
-			const rows = consumeEvents(db, guildId, MAX_BATCH_SIZE);
+		if (hasEvents(db, agentId)) {
+			const rows = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (rows.length > 0) return formatEvents(rows);
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
@@ -52,11 +52,14 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		"wait_for_events",
 		"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
 		{
-			guild_id: z.string().min(1).describe("対象の guild ID"),
+			agent_id: z
+				.string()
+				.min(1)
+				.describe("対象のエージェント ID (例: discord:123456, minecraft:brain)"),
 			timeout_seconds: z.number().min(1).max(172800).default(60),
 		},
-		async ({ guild_id, timeout_seconds }) => {
-			const immediate = consumeEvents(db, guild_id, MAX_BATCH_SIZE);
+		async ({ agent_id, timeout_seconds }) => {
+			const immediate = consumeEvents(db, agent_id, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				return {
 					content: [{ type: "text" as const, text: formatEvents(immediate) }],
@@ -64,7 +67,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			}
 
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, guild_id, deadline);
+			const result = await pollEvents(db, agent_id, deadline);
 			return { content: [{ type: "text" as const, text: result ?? "[]" }] };
 		},
 	);

@@ -8,13 +8,11 @@
 graph LR
   db --> schema
   event_buffer["event-buffer"] --> db
-  event_buffer["event-buffer"] --> mc_bridge["mc-bridge"]
   event_buffer["event-buffer"] --> queries
   mc_bridge["mc-bridge"] --> db
   mc_bridge["mc-bridge"] --> schema
   mc_status_provider["mc-status-provider"] --> db
   mc_status_provider["mc-status-provider"] --> mc_bridge["mc-bridge"]
-  minecraft_event_buffer["minecraft-event-buffer"]
   queries --> db
   queries --> schema
   schema
@@ -29,7 +27,7 @@ graph LR
 
 ### event-buffer.ts
 
-- モジュール内依存: db, mc-bridge, queries
+- モジュール内依存: db, queries
 - 他モジュール依存: core/
 
 ### mc-bridge.ts
@@ -41,11 +39,6 @@ graph LR
 
 - モジュール内依存: db, mc-bridge
 - 他モジュール依存: core/
-
-### minecraft-event-buffer.ts
-
-- 他モジュール依存: core/
-- 外部依存: fs
 
 ### queries.ts
 

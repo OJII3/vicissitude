@@ -11,10 +11,7 @@ import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
 import { SessionStore } from "./agent/session-store.ts";
 import { MessageIngestionService } from "./application/message-ingestion-service.ts";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "./core/config.ts";
-import {
-	MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH,
-	OPENCODE_ALL_TOOLS_DISABLED,
-} from "./core/constants.ts";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "./core/constants.ts";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "./core/types.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
@@ -317,7 +314,6 @@ async function startMinecraftMcp(
 		MC_USERNAME: config.minecraft.username,
 		MC_AUTH_MODE: config.minecraft.authMode,
 		MC_MCP_PORT: String(config.minecraft.mcpPort),
-		MC_BRAIN_WAKE_FILE: resolve(root, MC_BRAIN_WAKE_SIGNAL_RELATIVE_PATH),
 		DATA_DIR: resolve(root, "data"),
 	};
 	if (config.minecraft.version) mcEnv.MC_VERSION = config.minecraft.version;
@@ -375,12 +371,7 @@ export async function bootstrap(): Promise<void> {
 	);
 
 	// Context
-	const { ltmFactReader, contextBuilder } = createContextLayer(
-		config,
-		root,
-		db,
-		ollamaEmbedding,
-	);
+	const { ltmFactReader, contextBuilder } = createContextLayer(config, root, db, ollamaEmbedding);
 
 	// Metrics
 	const metrics = createMetrics(logger);

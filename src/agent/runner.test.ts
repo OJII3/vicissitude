@@ -109,7 +109,7 @@ describe("AgentRunner", () => {
 		const sessionPort = createSessionPort(() => sessionDone.promise);
 		const runner = new TestAgent({
 			profile: createProfile(),
-			guildId: "guild-1",
+			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createLogger(),
@@ -155,7 +155,7 @@ describe("AgentRunner", () => {
 		} satisfies OpencodeSessionPort;
 		const runner = new TestAgent({
 			profile: createProfile(),
-			guildId: "guild-1",
+			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createLogger(),
@@ -200,7 +200,7 @@ describe("AgentRunner", () => {
 		});
 		const runner = new TestAgent({
 			profile: createProfile("wait_for_events"),
-			guildId: "guild-1",
+			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createLogger(),
@@ -241,7 +241,7 @@ describe("AgentRunner", () => {
 		const contextBuilder: ContextBuilderPort = { build: mock(() => buildDeferred.promise) };
 		const runner = new TestAgent({
 			profile: createProfile(),
-			guildId: "guild-1",
+			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder,
 			logger: createLogger(),
@@ -269,7 +269,7 @@ describe("AgentRunner", () => {
 		const sessionPort = createSessionPort(() => sessionDone.promise);
 		const runner = new TestAgent({
 			profile: createProfile(),
-			guildId: "guild-1",
+			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createLogger(),
