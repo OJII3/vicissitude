@@ -50,10 +50,10 @@ describe("MessageIngestionService", () => {
 	});
 
 	test("イベントをバッファし、添付だけのメッセージも許可する", () => {
-		const buffered: Array<{ guildId: string; event: BufferedEvent }> = [];
+		const buffered: Array<{ agentId: string; event: BufferedEvent }> = [];
 		const eventStore: BufferedEventStore = {
-			append: mock((guildId: string, event: BufferedEvent) => {
-				buffered.push({ guildId, event });
+			append: mock((agentId: string, event: BufferedEvent) => {
+				buffered.push({ agentId, event });
 			}),
 		};
 		const logger = createMockLogger();
@@ -67,7 +67,7 @@ describe("MessageIngestionService", () => {
 		);
 
 		expect(buffered).toHaveLength(1);
-		expect(buffered[0]?.guildId).toBe("guild-1");
+		expect(buffered[0]?.agentId).toBe("discord:guild-1");
 		expect(buffered[0]?.event.attachments?.[0]?.filename).toBe("image.png");
 	});
 
