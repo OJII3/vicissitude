@@ -27,16 +27,26 @@
 	"panels": [
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 0
+			},
 			"id": 100,
 			"title": "Overview",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -50,11 +60,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 1
+			},
 			"id": 1,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -66,10 +86,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -83,11 +108,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 1
+			},
 			"id": 2,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -99,25 +134,52 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"mappings": [{ "options": { "1": { "text": "UP" } }, "type": "value" }],
+					"mappings": [
+						{
+							"options": {
+								"1": {
+									"text": "UP"
+								}
+							},
+							"type": "value"
+						}
+					],
 					"thresholds": {
 						"steps": [
-							{ "color": "red", "value": null },
-							{ "color": "green", "value": 1 }
+							{
+								"color": "red",
+								"value": null
+							},
+							{
+								"color": "green",
+								"value": 1
+							}
 						]
 					}
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 1
+			},
 			"id": 3,
 			"options": {
 				"colorMode": "background",
 				"graphMode": "none",
-				"reduceOptions": { "calcs": ["lastNotNull"] }
+				"reduceOptions": {
+					"calcs": [
+						"lastNotNull"
+					]
+				}
 			},
 			"targets": [
 				{
@@ -130,16 +192,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 9
+			},
 			"id": 200,
 			"title": "AI Performance",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -153,11 +225,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 10
+			},
 			"id": 4,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -177,10 +259,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -194,11 +281,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 10
+			},
 			"id": 5,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -210,10 +307,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -227,11 +329,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 10
+			},
 			"id": 6,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -244,16 +356,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 18
+			},
 			"id": 300,
 			"title": "LTM",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -262,17 +384,30 @@
 						"pointSize": 5,
 						"showPoints": "never",
 						"spanNulls": false,
-						"stacking": { "group": "A", "mode": "normal" }
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
 					},
 					"unit": "short"
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 19 },
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 19
+			},
 			"id": 7,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -284,10 +419,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -301,11 +441,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 19 },
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 19
+			},
 			"id": 18,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -326,16 +476,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 27 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 27
+			},
 			"id": 400,
 			"title": "Heartbeat",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -349,11 +509,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 28 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 28
+			},
 			"id": 8,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -365,10 +535,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -382,11 +557,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 28 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 28
+			},
 			"id": 9,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -406,10 +591,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -423,11 +613,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 28 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 28
+			},
 			"id": 10,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -440,16 +640,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 36 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 36
+			},
 			"id": 500,
 			"title": "LLM Sessions",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -463,11 +673,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 37 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 37
+			},
 			"id": 11,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -483,10 +703,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -500,11 +725,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 37 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 37
+			},
 			"id": 12,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -516,10 +751,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -528,17 +768,30 @@
 						"pointSize": 5,
 						"showPoints": "never",
 						"spanNulls": false,
-						"stacking": { "group": "A", "mode": "normal" }
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
 					},
 					"unit": "short"
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 37 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 37
+			},
 			"id": 13,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -551,16 +804,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 45 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 45
+			},
 			"id": 700,
 			"title": "Token Usage",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -574,11 +837,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 46 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 46
+			},
 			"id": 19,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -590,10 +863,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -607,11 +885,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 46 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 46
+			},
 			"id": 20,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -623,10 +911,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -640,11 +933,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 46 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 46
+			},
 			"id": 21,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -657,16 +960,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 54 },
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 54
+			},
 			"id": 800,
 			"title": "Minecraft",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -680,11 +993,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 55 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 55
+			},
 			"id": 22,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -696,10 +1019,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -713,11 +1041,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 55 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 55
+			},
 			"id": 23,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -729,10 +1067,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
@@ -746,11 +1089,21 @@
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 55 },
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 55
+			},
 			"id": 24,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -763,220 +1116,26 @@
 		},
 		{
 			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 },
-			"id": 700,
-			"title": "Test Quality",
-			"type": "row"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"fieldConfig": {
-				"defaults": {
-					"decimals": 2,
-					"mappings": [],
-					"thresholds": {
-						"steps": [
-							{ "color": "green", "value": null },
-							{ "color": "orange", "value": 0.01 },
-							{ "color": "red", "value": 0.05 }
-						]
-					},
-					"unit": "percentunit"
-				},
-				"overrides": []
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 63
 			},
-			"gridPos": { "h": 8, "w": 8, "x": 0, "y": 64 },
-			"id": 701,
-			"options": {
-				"colorMode": "background",
-				"graphMode": "area",
-				"reduceOptions": { "calcs": ["lastNotNull"] }
-			},
-			"targets": [
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap failure_rate [30d])",
-					"legendFormat": "failure rate"
-				}
-			],
-			"title": "Latest Failure Rate",
-			"type": "stat"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"fieldConfig": {
-				"defaults": {
-					"decimals": 2,
-					"mappings": [],
-					"thresholds": {
-						"steps": [
-							{ "color": "red", "value": null },
-							{ "color": "orange", "value": 0.5 },
-							{ "color": "green", "value": 0.7 }
-						]
-					},
-					"unit": "percentunit"
-				},
-				"overrides": []
-			},
-			"gridPos": { "h": 8, "w": 8, "x": 8, "y": 64 },
-			"id": 702,
-			"options": {
-				"colorMode": "background",
-				"graphMode": "area",
-				"reduceOptions": { "calcs": ["lastNotNull"] }
-			},
-			"targets": [
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap line_coverage [30d])",
-					"legendFormat": "line coverage"
-				}
-			],
-			"title": "Latest Line Coverage",
-			"type": "stat"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"fieldConfig": {
-				"defaults": {
-					"decimals": 2,
-					"mappings": [],
-					"thresholds": {
-						"steps": [
-							{ "color": "green", "value": null },
-							{ "color": "orange", "value": 0.01 },
-							{ "color": "red", "value": 0.05 }
-						]
-					},
-					"unit": "percentunit"
-				},
-				"overrides": []
-			},
-			"gridPos": { "h": 8, "w": 8, "x": 16, "y": 64 },
-			"id": 703,
-			"options": {
-				"colorMode": "background",
-				"graphMode": "area",
-				"reduceOptions": { "calcs": ["lastNotNull"] }
-			},
-			"targets": [
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap flake_rate [30d])",
-					"legendFormat": "flake rate"
-				}
-			],
-			"title": "Latest Flake Rate",
-			"type": "stat"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"fieldConfig": {
-				"defaults": {
-					"color": { "mode": "palette-classic" },
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "always",
-						"spanNulls": false
-					},
-					"unit": "percentunit"
-				},
-				"overrides": []
-			},
-			"gridPos": { "h": 8, "w": 12, "x": 0, "y": 72 },
-			"id": 704,
-			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
-			},
-			"targets": [
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap line_coverage [30d])",
-					"legendFormat": "line"
-				},
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap function_coverage [30d])",
-					"legendFormat": "function"
-				},
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap flake_rate [30d])",
-					"legendFormat": "flake"
-				}
-			],
-			"title": "Coverage & Flake Trend",
-			"type": "timeseries"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"fieldConfig": {
-				"defaults": {
-					"color": { "mode": "palette-classic" },
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "always",
-						"spanNulls": false
-					},
-					"unit": "s"
-				},
-				"overrides": []
-			},
-			"gridPos": { "h": 8, "w": 12, "x": 12, "y": 72 },
-			"id": 705,
-			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
-			},
-			"targets": [
-				{
-					"expr": "last_over_time({job=~\".+\"} | json | component=\"test-quality\" | unwrap duration_seconds [30d])",
-					"legendFormat": "duration"
-				}
-			],
-			"title": "Test Duration Trend",
-			"type": "timeseries"
-		},
-		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 80 },
-			"id": 706,
-			"maxDataPoints": 200,
-			"options": {
-				"dedupStrategy": "none",
-				"enableLogDetails": true,
-				"prettifyLogMessage": false,
-				"showCommonLabels": false,
-				"showLabels": false,
-				"showTime": true,
-				"sortOrder": "Descending",
-				"wrapLogMessage": true
-			},
-			"targets": [
-				{
-					"expr": "{job=~\".+\"} | json | component=\"test-quality\"",
-					"legendFormat": ""
-				}
-			],
-			"title": "Recent Test Quality Summaries",
-			"type": "logs"
-		},
-		{
-			"collapsed": false,
-			"gridPos": { "h": 1, "w": 24, "x": 0, "y": 90 },
 			"id": 600,
 			"title": "Logs",
 			"type": "row"
 		},
 		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"datasource": {
+				"type": "loki",
+				"uid": "${DS_LOKI}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "bars",
@@ -985,30 +1144,76 @@
 						"pointSize": 5,
 						"showPoints": "never",
 						"spanNulls": false,
-						"stacking": { "group": "A", "mode": "normal" }
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
 					},
 					"unit": "short"
 				},
 				"overrides": [
 					{
-						"matcher": { "id": "byName", "options": "error" },
-						"properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }]
+						"matcher": {
+							"id": "byName",
+							"options": "error"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "red",
+									"mode": "fixed"
+								}
+							}
+						]
 					},
 					{
-						"matcher": { "id": "byName", "options": "warn" },
-						"properties": [{ "id": "color", "value": { "fixedColor": "orange", "mode": "fixed" } }]
+						"matcher": {
+							"id": "byName",
+							"options": "warn"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "orange",
+									"mode": "fixed"
+								}
+							}
+						]
 					},
 					{
-						"matcher": { "id": "byName", "options": "info" },
-						"properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }]
+						"matcher": {
+							"id": "byName",
+							"options": "info"
+						},
+						"properties": [
+							{
+								"id": "color",
+								"value": {
+									"fixedColor": "green",
+									"mode": "fixed"
+								}
+							}
+						]
 					}
 				]
 			},
-			"gridPos": { "h": 6, "w": 12, "x": 0, "y": 91 },
+			"gridPos": {
+				"h": 6,
+				"w": 12,
+				"x": 0,
+				"y": 64
+			},
 			"id": 14,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -1020,10 +1225,15 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
+			"datasource": {
+				"type": "loki",
+				"uid": "${DS_LOKI}"
+			},
 			"fieldConfig": {
 				"defaults": {
-					"color": { "mode": "palette-classic" },
+					"color": {
+						"mode": "palette-classic"
+					},
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "bars",
@@ -1032,17 +1242,30 @@
 						"pointSize": 5,
 						"showPoints": "never",
 						"spanNulls": false,
-						"stacking": { "group": "A", "mode": "normal" }
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
 					},
 					"unit": "short"
 				},
 				"overrides": []
 			},
-			"gridPos": { "h": 6, "w": 12, "x": 12, "y": 91 },
+			"gridPos": {
+				"h": 6,
+				"w": 12,
+				"x": 12,
+				"y": 64
+			},
 			"id": 15,
 			"options": {
-				"legend": { "displayMode": "list", "placement": "bottom" },
-				"tooltip": { "mode": "multi" }
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
 			},
 			"targets": [
 				{
@@ -1054,8 +1277,16 @@
 			"type": "timeseries"
 		},
 		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"gridPos": { "h": 10, "w": 24, "x": 0, "y": 97 },
+			"datasource": {
+				"type": "loki",
+				"uid": "${DS_LOKI}"
+			},
+			"gridPos": {
+				"h": 10,
+				"w": 24,
+				"x": 0,
+				"y": 70
+			},
 			"id": 16,
 			"maxDataPoints": 200,
 			"options": {
@@ -1078,8 +1309,16 @@
 			"type": "logs"
 		},
 		{
-			"datasource": { "type": "loki", "uid": "${DS_LOKI}" },
-			"gridPos": { "h": 12, "w": 24, "x": 0, "y": 107 },
+			"datasource": {
+				"type": "loki",
+				"uid": "${DS_LOKI}"
+			},
+			"gridPos": {
+				"h": 12,
+				"w": 24,
+				"x": 0,
+				"y": 80
+			},
 			"id": 17,
 			"maxDataPoints": 500,
 			"options": {
@@ -1103,9 +1342,17 @@
 		}
 	],
 	"schemaVersion": 39,
-	"tags": ["vicissitude", "discord-bot"],
-	"templating": { "list": [] },
-	"time": { "from": "now-6h", "to": "now" },
+	"tags": [
+		"vicissitude",
+		"discord-bot"
+	],
+	"templating": {
+		"list": []
+	},
+	"time": {
+		"from": "now-6h",
+		"to": "now"
+	},
 	"timepicker": {},
 	"timezone": "browser",
 	"title": "Vicissitude - Discord Bot ふあ",
