@@ -11,6 +11,7 @@ import {
 	type Part,
 } from "@opencode-ai/sdk/v2";
 
+import { withTimeout } from "../core/functions.ts";
 import type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
@@ -18,7 +19,6 @@ import type {
 	PromptResult,
 	TokenUsage,
 } from "../core/types.ts";
-import { withTimeout } from "../core/functions.ts";
 
 export interface OpencodeSessionAdapterConfig {
 	port: number;

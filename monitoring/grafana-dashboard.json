@@ -176,9 +176,7 @@
 				"colorMode": "background",
 				"graphMode": "none",
 				"reduceOptions": {
-					"calcs": [
-						"lastNotNull"
-					]
+					"calcs": ["lastNotNull"]
 				}
 			},
 			"targets": [
@@ -1342,10 +1340,7 @@
 		}
 	],
 	"schemaVersion": 39,
-	"tags": [
-		"vicissitude",
-		"discord-bot"
-	],
+	"tags": ["vicissitude", "discord-bot"],
 	"templating": {
 		"list": []
 	},
