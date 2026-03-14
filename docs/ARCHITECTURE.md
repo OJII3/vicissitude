@@ -17,7 +17,7 @@
 
 - 本体コード: `vicissitude` リポジトリ (`src/`)
 - コンテキスト: `context/`（git 管理・ベース）+ `data/context/`（gitignore・オーバーレイ、読み込み優先）。Minecraft 用: `context/minecraft/`（IDENTITY, KNOWLEDGE, GOALS, PROGRESS, SKILLS）
-- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`ltm/guilds/{guildId}/memory.db`、`context/`）
+- データ: `data/` ディレクトリ（`vicissitude.db`（SQLite: sessions, event_buffer, emoji_usage, mc_session_lock）、`heartbeat-config.json`（Heartbeat 設定・リマインダー）、`ltm/guilds/{guildId}/memory.db`、`context/`）
 - 外部依存:
   - Discord API (`discord.js`)
   - OpenCode SDK (`@opencode-ai/sdk`)
@@ -39,7 +39,7 @@ src/
 ├── core/                    # 型定義・設定・純粋関数（外部依存なし）
 │   ├── types.ts             # 型定義、値オブジェクト、インターフェース（OpencodeSessionPort 含む）
 │   ├── config.ts            # Zod スキーマによる設定バリデーション
-│   ├── constants.ts         # 共有定数（MC_BRAIN_GUILD_ID, METRIC, OPENCODE_ALL_TOOLS_DISABLED）
+│   ├── constants.ts         # 共有定数（MINECRAFT_AGENT_ID, METRIC, OPENCODE_ALL_TOOLS_DISABLED）
 │   └── functions.ts         # splitMessage, evaluateDueReminders 等
 │
 ├── agent/                   # OpenCode エージェント基盤
@@ -90,16 +90,15 @@ src/
 │       ├── ltm.ts
 │       ├── mc-bridge-discord.ts    # Discord 側ブリッジツール
 │       ├── mc-bridge-minecraft.ts # Minecraft 側ブリッジツール
-│       ├── mc-bridge-shared.ts  # ブリッジ共通ヘルパー
 │       └── mc-memory.ts
 │
 ├── store/                   # SQLite 統一永続化（Drizzle ORM）
 │   ├── db.ts                # Drizzle クライアント初期化
 │   ├── schema.ts            # 全テーブル定義
 │   ├── queries.ts           # 共通クエリヘルパー
-│   ├── mc-bridge.ts         # MC ブリッジクエリ関数
-│   ├── mc-status-provider.ts       # Discord 側 MC 状態サマリー生成
-│   └── minecraft-event-buffer.ts  # Minecraft エージェント用タイマーベース EventBuffer
+│   ├── event-buffer.ts      # SqliteEventBuffer（agentId 別 EventBuffer 実装）
+│   ├── mc-bridge.ts         # MC セッションロック・接続状態クエリ
+│   └── mc-status-provider.ts       # Discord 側 MC 状態サマリー生成
 │
 ├── observability/           # ログ・メトリクス
 │   ├── logger.ts            # ConsoleLogger（NDJSON 構造化ログ）
@@ -139,23 +138,23 @@ src/
 
 - `types.ts`: 全エンティティ型、インターフェース（`OpencodeSessionPort`, `ConversationRecorder`, `MemoryConsolidator`, `LtmFactReader` 等）
 - `config.ts`: Zod スキーマで全環境変数をバリデーション。`loadConfig()` で `AppConfig` を返す。`coreMcpPort` を含む
-- `constants.ts`: 共有定数（`MC_BRAIN_GUILD_ID`, `METRIC`, `OPENCODE_ALL_TOOLS_DISABLED`）
+- `constants.ts`: 共有定数（`MINECRAFT_AGENT_ID`, `METRIC`, `OPENCODE_ALL_TOOLS_DISABLED`）
 - `functions.ts`: `splitMessage()`, `evaluateDueReminders()`, `labelsToKey()`, `recordTokenMetrics()` 等の純粋関数
 
 ### 4.2 agent/ — OpenCode エージェント基盤
 
 - `profile.ts`: `AgentProfile` 型定義（name, mcpServers, builtinTools, model 等）
-- `runner.ts`: `AgentRunner` — ポーリングループ・セッション管理の基底クラス（`AiAgent` 実装）。`protected constructor` により直接インスタンス化不可。`send()` でポーリング未起動なら自動起動（lazy start）。`DiscordAgent`・`MinecraftAgent` がサブクラスとして配線をカプセル化
+- `runner.ts`: `AgentRunner` — ポーリングループ・セッション管理の基底クラス（`AiAgent` 実装）。`protected constructor` により直接インスタンス化不可。`send()` でポーリング未起動なら自動起動（lazy start）。`agentId` で識別（`discord:{guildId}` / `minecraft:brain`）。`DiscordAgent`・`MinecraftAgent` がサブクラスとして配線をカプセル化
 - `session-store.ts`: `SessionStore` — SQLite でセッション ID を永続化
 - `mcp-config.ts`: `mcpServerConfigs()` — Discord エージェント用 MCP サーバー設定（core: remote, code-exec: local）。`mcpMinecraftConfigs()` — Minecraft エージェント用 MCP サーバー設定（mc-bridge / minecraft）
 - `discord/router.ts`: `GuildRouter` — ギルド ID に基づいて適切なギルド固有エージェントにルーティングするファサード。`guildId` 未指定時は `defaultAgent` にフォールバック
-- `discord/discord-agent.ts`: `DiscordAgent extends AgentRunner` — `SqliteEventBuffer` + 会話 Profile + `OpencodeSessionAdapter` を内部生成
+- `discord/discord-agent.ts`: `DiscordAgent extends AgentRunner` — `agentId: discord:{guildId}` + `SqliteEventBuffer` + 会話 Profile + `OpencodeSessionAdapter` を内部生成
 - `discord/context-builder.ts`: `ContextBuilder` — オーバーレイ方式でコンテキストファイルを読み込み、LTM ファクトを注入してシステムプロンプトを構築
 - `discord/profile.ts`: 会話エージェントプロファイル
-- `minecraft/minecraft-agent.ts`: `MinecraftAgent extends AgentRunner` — `MinecraftEventBuffer` + MC Profile + `MinecraftContextBuilder` + `OpencodeSessionAdapter` を内部生成
+- `minecraft/minecraft-agent.ts`: `MinecraftAgent extends AgentRunner` — `agentId: minecraft:brain` + DI 注入の `EventBuffer` + MC Profile + `MinecraftContextBuilder` + `OpencodeSessionAdapter` を内部生成
 - `minecraft/context-builder.ts`: `MinecraftContextBuilder` — Minecraft エージェント専用コンテキスト構築（Guild 非依存、オーバーレイ方式）
 - `minecraft/profile.ts`: Minecraft エージェントプロファイル（全ビルトインツール無効、MCP ツールのみ使用）
-- `minecraft/brain-manager.ts`: `McBrainManager` — `MinecraftAgent` の生成・停止を管理（ブリッジ lifecycle ポーリング）
+- `minecraft/brain-manager.ts`: `McBrainManager` — `MinecraftAgent` の生成・停止を管理（`mc_session_lock` 状態ポーリング）
 
 ### 4.3 application/ — ユースケース
 
@@ -188,23 +187,22 @@ MCP サーバーは 4 プロセス構成:
    - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
    - `tools/event-buffer.ts`: `wait_for_events` — SQLite ベース
    - `tools/ltm.ts`: `ltm_retrieve`, `ltm_consolidate`, `ltm_get_facts`
-   - `tools/mc-bridge-discord.ts`（Discord 側）: `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
+   - `tools/mc-bridge-discord.ts`（Discord 側）: `minecraft_delegate`, `minecraft_status`, `minecraft_start_session`, `minecraft_stop_session`
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー
    - `observe_state`, `get_recent_events`, `follow_player`, `go_to`, `collect_block`, `stop`, `get_job_status`, `get_viewer_url`, `craft_item`, `place_block`, `equip_item`, `sleep_in_bed`, `send_chat`, `eat_food`, `flee_from_entity`, `find_shelter`, `attack_entity`
 4. **minecraft/mc-bridge-server.ts** (`type: "local"`、Minecraft 側専用): Minecraft ブリッジ + メモリ MCP サーバー
-   - `tools/mc-bridge-minecraft.ts`（Minecraft 側）: `mc_report`, `mc_read_commands`
+   - `tools/mc-bridge-minecraft.ts`（Minecraft 側）: `mc_report`
    - `tools/mc-memory.ts`: `mc_read_goals`, `mc_update_goals`, `mc_read_progress`, `mc_update_progress`, `mc_read_skills`, `mc_record_skill`
 
 ### 4.8 store/ — SQLite 統一永続化
 
-- `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）
-- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_bridge_events, mc_session_lock）
-- `event-buffer.ts`: `SqliteEventBuffer` — Guild 別イベントバッファ（`EventBuffer` インターフェース実装）
+- `db.ts`: Drizzle クライアント初期化（`bun:sqlite`）+ マイグレーション（`guild_id` → `agent_id` リネーム等）
+- `schema.ts`: テーブル定義（sessions, event_buffer, emoji_usage, mc_session_lock）
+- `event-buffer.ts`: `SqliteEventBuffer` — agentId 別イベントバッファ（`EventBuffer` インターフェース実装）
 - `queries.ts`: 共通クエリヘルパー（`appendEvent`, `hasEvents`, `consumeEvents`, `incrementEmoji` 等）
-- `mc-bridge.ts`: MC ブリッジクエリ（`insertBridgeEvent`, `consumeBridgeEvents`, `consumeBridgeEventsByType`, `peekBridgeEvents`, `hasBridgeEvents`）
-- `mc-status-provider.ts`: `SqliteMcStatusProvider` — ブリッジレポート + MINECRAFT-GOALS.md から Discord 側 MC 状態サマリーを生成
-- `minecraft-event-buffer.ts`: `MinecraftEventBuffer` — タイマーベースの EventBuffer 実装（30秒間隔ポーリング用）
+- `mc-bridge.ts`: MC セッションロック・接続状態クエリ（`tryAcquireSessionLock`, `releaseSessionLock`, `setMcConnectionStatus`, `getMcConnectionStatus`）
+- `mc-status-provider.ts`: `SqliteMcStatusProvider` — 接続状態 + MINECRAFT-GOALS.md から Discord 側 MC 状態サマリーを生成
 
 ### 4.7 observability/ — ログ・メトリクス
 
@@ -268,7 +266,7 @@ MCP サーバーは 4 プロセス構成:
   - `startCoreMcp()` — core MCP HTTP プロセスの起動 + health check
 - LTM 記録、Heartbeat スケジューラ、Consolidation スケジューラを起動
 - core MCP と Minecraft MCP を子プロセスとして起動（Minecraft は `MC_HOST` 設定時のみ）
-- Minecraft エージェント（`AgentRunner` + `MinecraftEventBuffer`）を起動（`config.minecraft` 存在時のみ）
+- Minecraft エージェント（`McBrainManager` + `SqliteEventBuffer`）を起動（`config.minecraft` 存在時のみ）
 - Graceful shutdown（SIGINT/SIGTERM）実装済み
 
 ### 4.12 OpenCode 組み込みツール
@@ -354,10 +352,9 @@ MCP サーバーは 4 プロセス構成:
 ### SQLite テーブル（store/schema.ts）
 
 - `sessions`: セッション永続化（key, sessionId, createdAt）
-- `event_buffer`: イベントバッファ（guildId, payload, createdAt）
+- `event_buffer`: エージェント間イベントバッファ（agentId, payload, createdAt）— 全エージェント間通信の統一キュー。agentId 例: `discord:{guildId}`, `minecraft:brain`
 - `emoji_usage`: 絵文字使用カウント（guildId, emojiName, count）
-- `mc_bridge_events`: MC ブリッジイベント（direction, type, payload, createdAt, consumed）
-- `mc_session_lock`: MC セッション排他ロック（id=1 固定、guildId, acquiredAt）— 最大1行、2時間タイムアウト
+- `mc_session_lock`: MC セッション排他ロック（id=1 固定、guildId, acquiredAt, connected, connectedAt）— 最大1行、2時間タイムアウト。接続状態トラッキング含む
 
 ### JSON ファイル
 
@@ -475,7 +472,8 @@ MCP サーバーは 4 プロセス構成:
 6. Guild 跨ぎコンテキスト分離: 人格（IDENTITY, SOUL 等）は共通、記憶（MEMORY, LESSONS, daily log）は Guild ごとに `guilds/{guildId}/` で分離する。DM やフォールバック時はグローバルを使用する。
 7. 記憶システムの役割分離: ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）は運用特化型の構造化メモリとして維持し、LTM（src/ltm/ の Episodes/SemanticFacts）は会話から自動抽出される意味記憶を担当する。`ContextBuilder` は `LtmFactReader` を通じて LTM ファクトをシステムプロンプトに注入する。
 8. Minecraft 拡張は既存エージェント基盤の置換ではなく、MCP サーバー追加で実装する。人格は 1 つに維持し、Minecraft は内部で分業する。
-9. Minecraft 連携の意思決定はイベント駆動を目標とする。現行実装は 30 秒ポーリングをベースとしつつ、M13 で危険時即応と再計画経路を強化する。LLM への入力は要約優先でコンテキスト過負荷を防ぐ。
+9. エージェント間通信は `event_buffer` テーブルを統一キューとして使用する。各エージェントは `agentId`（`discord:{guildId}` / `minecraft:brain`）で識別され、MCP ツールから `event_buffer` に書き込むことでプロセス境界を越えたメッセージングを実現する。
+10. Minecraft 連携の意思決定はイベント駆動を目標とする。`McBrainManager` は `mc_session_lock` の有無をポーリングしてエージェントの起動/停止を制御する。LLM への入力は要約優先でコンテキスト過負荷を防ぐ。
 
 ## 11. Minecraft 拡張設計（計画）
 
@@ -502,8 +500,8 @@ MCP サーバーは 4 プロセス構成:
 ### 11.3.1 現行構成
 
 - `agent/minecraft/profile.ts` の単一プロンプトが、観察、優先度判断、実行、報告、目標更新をまとめて担当する。
-- `agent/minecraft/brain-manager.ts` は Minecraft 専用 `AgentRunner` の起動停止だけを担い、内部認知分業は持たない。
-- Discord 側との接続点は Event Bridge のみであり、Minecraft 側は高レベル指示と報告を非同期メッセージとして扱う。
+- `agent/minecraft/brain-manager.ts` は `mc_session_lock` の状態ポーリングで `MinecraftAgent` の起動停止を管理し、内部認知分業は持たない。
+- Discord 側との接続点は統一 `event_buffer` であり、Minecraft 側は高レベル指示と報告を非同期メッセージとして扱う。
 
 ### 11.4 イベント駆動フロー（想定）
 
@@ -554,7 +552,7 @@ MCP サーバーは 4 プロセス構成:
 
 #### 11.7.4 Discord 自動通知
 
-- `death`, `kicked`, `disconnect` イベントは `AutoNotifier` がブリッジ DB に自動挿入する。LLM 判断を待たない即時通知。
+- `death`, `kicked`, `disconnect` イベントは `AutoNotifier` が `event_buffer` に自動挿入する。LLM 判断を待たない即時通知。
 - 同一種別の通知は 30 秒のクールダウンで重複抑制する。
 - stuck や危険回避などの判断を伴う通知は LLM が `mc_report` ツールで送信する（自動通知対象外）。
 - `mc_auto_notifications_total` メトリクスで通知回数を追跡する。
