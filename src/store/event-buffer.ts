@@ -27,13 +27,17 @@ export class SqliteEventBuffer implements EventBuffer {
 				resolve();
 			};
 			const poll = () => {
-				if (signal.aborted) {
-					done();
-					return;
-				}
-				if (hasEvents(this.db, this.agentId)) {
-					done();
-					return;
+				try {
+					if (signal.aborted) {
+						done();
+						return;
+					}
+					if (hasEvents(this.db, this.agentId)) {
+						done();
+						return;
+					}
+				} catch {
+					// DB クエリ失敗時もポーリングを継続する（setTimeout チェーンを途切れさせない）
 				}
 				timer = setTimeout(poll, interval);
 				interval = Math.min(interval * 1.5, POLL_MAX_MS);
