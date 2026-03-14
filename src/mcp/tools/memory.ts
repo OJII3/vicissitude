@@ -259,7 +259,9 @@ export function registerMemoryTools(server: McpServer): void {
 			const { memoryDir } = resolveContextPaths(guild_id);
 			if (!existsSync(memoryDir)) {
 				return {
-					content: [{ type: "text", text: `${guildLabel(guild_id)}日次ログディレクトリが存在しません` }],
+					content: [
+						{ type: "text", text: `${guildLabel(guild_id)}日次ログディレクトリが存在しません` },
+					],
 				};
 			}
 
@@ -276,7 +278,9 @@ export function registerMemoryTools(server: McpServer): void {
 
 			if (removed.length === 0) {
 				return {
-					content: [{ type: "text", text: `${guildLabel(guild_id)}削除対象の古いログはありません` }],
+					content: [
+						{ type: "text", text: `${guildLabel(guild_id)}削除対象の古いログはありません` },
+					],
 				};
 			}
 			return {

@@ -71,7 +71,11 @@ export class LtmFactReaderImpl implements LtmFactReader {
 			storage.searchFacts(guildId, context, CANDIDATE_LIMIT),
 			this.embedding.embed(context),
 		]);
-		const vectorFacts = await storage.searchFactsByEmbedding(guildId, queryEmbedding, CANDIDATE_LIMIT);
+		const vectorFacts = await storage.searchFactsByEmbedding(
+			guildId,
+			queryEmbedding,
+			CANDIDATE_LIMIT,
+		);
 
 		const rrfScores = reciprocalRankFusion(
 			[

@@ -82,9 +82,9 @@ export class LtmStorage {
 
 	/** Sample one existing embedding to infer the dimension stored in this DB */
 	private inferDimensionFromExistingData(): number | null {
-		const episode = this.db
-			.prepare("SELECT embedding FROM episodes LIMIT 1")
-			.get() as { embedding: string } | null;
+		const episode = this.db.prepare("SELECT embedding FROM episodes LIMIT 1").get() as {
+			embedding: string;
+		} | null;
 		if (episode) {
 			const parsed = JSON.parse(episode.embedding) as number[];
 			if (parsed.length > 0) return parsed.length;
@@ -105,9 +105,7 @@ export class LtmStorage {
 	 */
 	private upsertDimension(dimension: number): void {
 		this.db
-			.prepare(
-				"INSERT OR IGNORE INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)",
-			)
+			.prepare("INSERT OR IGNORE INTO embedding_meta (key, dimension, created_at) VALUES (?, ?, ?)")
 			.run("default", dimension, Date.now());
 		// Re-read to get the actual stored value (may differ if another writer won)
 		const row = this.db

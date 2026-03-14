@@ -21,10 +21,7 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	writeFileSync(fullPath, content);
 }
 
-function createMockLtmReader(
-	facts: LtmFact[],
-	relevantFacts?: LtmFact[],
-): LtmFactReader {
+function createMockLtmReader(facts: LtmFact[], relevantFacts?: LtmFact[]): LtmFactReader {
 	return {
 		getFacts: mock(() => Promise.resolve(facts)),
 		getRelevantFacts: mock(() => Promise.resolve(relevantFacts ?? facts)),

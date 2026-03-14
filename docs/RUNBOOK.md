@@ -185,6 +185,7 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
    ```
 3. `.env` の `LTM_EMBEDDING_MODEL` を新モデルに変更する。
 4. 既存の全 embedding を新モデルで再生成する。Ollama が起動していることを確認した上で、以下のスクリプトを実行する。`sqlite3 -json` と `jq` を使い、本文中の改行・引用符・パイプ等を安全に扱う:
+
    ```bash
    DB="data/ltm/guilds/{guildId}/memory.db"
    MODEL="新モデル名"
@@ -208,6 +209,7 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
      sqlite3 "$DB" "UPDATE semantic_facts SET embedding = ? WHERE id = ?" "$vec" "$id"
    done
    ```
+
 5. embedding メタデータをリセットする（全レコード更新完了後に実行すること）:
    ```bash
    sqlite3 data/ltm/guilds/{guildId}/memory.db "DELETE FROM embedding_meta WHERE key = 'default';"
@@ -227,10 +229,10 @@ embedding モデル（`LTM_EMBEDDING_MODEL`）を変更すると、新規 embedd
 
 ### 9.2 環境変数
 
-| 変数 | 値 | 説明 |
-|------|------|------|
-| `MC_AUTH_MODE` | `microsoft` | Microsoft 認証を有効化 |
-| `MC_USERNAME` | 任意の識別子 | トークンキャッシュのキーとして使われる。アカウントを切り替える場合はこの値を変更する |
+| 変数                 | 値                         | 説明                                                                                              |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------- |
+| `MC_AUTH_MODE`       | `microsoft`                | Microsoft 認証を有効化                                                                            |
+| `MC_USERNAME`        | 任意の識別子               | トークンキャッシュのキーとして使われる。アカウントを切り替える場合はこの値を変更する              |
 | `MC_PROFILES_FOLDER` | ディレクトリパス（省略可） | トークンキャッシュの保存先。省略時は `~/.minecraft`。コンテナ環境では永続ボリュームを指定すること |
 
 ### 9.3 初回ログイン手順

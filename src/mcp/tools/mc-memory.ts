@@ -58,7 +58,9 @@ export function sanitizeSkillDescription(description: string): string {
 
 /** 単一行テキストのサニタイズ（改行・Markdown ヘッダーを除去） */
 export function sanitizeSingleLine(text: string): string {
-	return sanitizeSkillDescription(text).replaceAll(/[\r\n]+/g, " ").trim();
+	return sanitizeSkillDescription(text)
+		.replaceAll(/[\r\n]+/g, " ")
+		.trim();
 }
 
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
