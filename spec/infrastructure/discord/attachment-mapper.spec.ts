@@ -3,7 +3,10 @@ import { describe, expect, test } from "bun:test";
 import { Collection } from "discord.js";
 import type { Attachment as DiscordAttachment } from "discord.js";
 
-import { filterImageUrls, mapAttachments } from "./attachment-mapper.ts";
+import {
+	filterImageUrls,
+	mapAttachments,
+} from "../../../src/infrastructure/discord/attachment-mapper.ts";
 
 function makeAttachment(
 	overrides: Partial<DiscordAttachment> & { id?: string } = {},

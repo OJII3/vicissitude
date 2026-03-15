@@ -1,7 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse } from "../core/types.ts";
-import { InstrumentedAiAgent, PrometheusCollector, METRIC } from "./metrics.ts";
+import type { AgentResponse } from "../../src/core/types.ts";
+import {
+	InstrumentedAiAgent,
+	PrometheusCollector,
+	METRIC,
+} from "../../src/observability/metrics.ts";
 
 function createSetup() {
 	const collector = new PrometheusCollector();

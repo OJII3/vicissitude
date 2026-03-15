@@ -5,8 +5,8 @@ import type {
 	Logger,
 	MemoryConsolidator,
 	MetricsCollector,
-} from "../core/types.ts";
-import { ConsolidationScheduler } from "./consolidation-scheduler.ts";
+} from "../../src/core/types.ts";
+import { ConsolidationScheduler } from "../../src/scheduling/consolidation-scheduler.ts";
 
 function createMockLogger(): Logger {
 	return {

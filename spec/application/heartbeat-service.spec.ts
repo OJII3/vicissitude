@@ -1,7 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type { AiAgent, DueReminder, Logger } from "../core/types.ts";
-import { HeartbeatService, buildHeartbeatPrompt, groupByGuild } from "./heartbeat-service.ts";
+import {
+	HeartbeatService,
+	buildHeartbeatPrompt,
+	groupByGuild,
+} from "../../src/application/heartbeat-service.ts";
+import type { AiAgent, DueReminder, Logger } from "../../src/core/types.ts";
 
 function createMockLogger(): Logger {
 	return {

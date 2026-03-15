@@ -1,13 +1,13 @@
 import { describe, expect, mock, test } from "bun:test";
 
+import type { BufferedEventStore } from "../../src/application/message-ingestion-service.ts";
+import { MessageIngestionService } from "../../src/application/message-ingestion-service.ts";
 import type {
 	BufferedEvent,
 	ConversationRecorder,
 	IncomingMessage,
 	Logger,
-} from "../core/types.ts";
-import type { BufferedEventStore } from "./message-ingestion-service.ts";
-import { MessageIngestionService } from "./message-ingestion-service.ts";
+} from "../../src/core/types.ts";
 
 function createMockLogger(): Logger {
 	return {
