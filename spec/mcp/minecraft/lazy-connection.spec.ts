@@ -33,8 +33,7 @@ describe("BotContext — bot null 時の安全性", () => {
 });
 
 describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
-	const TEST_PORT = 49_741;
-	const baseUrl = `http://localhost:${TEST_PORT}`;
+	let baseUrl: string;
 
 	const ctx = createBotContext();
 	const jobManager = new JobManager(
@@ -48,11 +47,12 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 		return server;
 	}
 
-	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createTestServer,
-		TEST_PORT,
+		0,
 		"test-minecraft",
 	);
+	baseUrl = `http://localhost:${port}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);

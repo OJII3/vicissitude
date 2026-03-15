@@ -8,8 +8,7 @@ import { registerDiscordBridgeTools } from "../../../src/mcp/tools/mc-bridge-dis
 import { tryAcquireSessionLock, setMcConnectionStatus } from "../../../src/store/mc-bridge.ts";
 import { createTestDb } from "../../../src/store/test-helpers.ts";
 
-const TEST_PORT = 49_740;
-const baseUrl = `http://localhost:${TEST_PORT}`;
+let baseUrl: string;
 
 const MCP_HEADERS = {
 	"Content-Type": "application/json",
@@ -74,11 +73,12 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		return server;
 	}
 
-	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createTestMcpServer,
-		TEST_PORT,
+		0,
 		"test-mc-bridge",
 	);
+	baseUrl = `http://localhost:${port}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);
