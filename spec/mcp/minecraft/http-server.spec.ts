@@ -4,10 +4,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { startHttpServer } from "../../../src/mcp/minecraft/http-server.ts";
 
-// テスト用ポート（他と競合しない高ポート）
-const TEST_PORT = 49_731;
-const TEST_PORT_ERROR = 49_732;
-
 const MCP_INIT_BODY = JSON.stringify({
 	jsonrpc: "2.0",
 	id: 1,
@@ -29,11 +25,8 @@ function createTestServer(): McpServer {
 }
 
 describe("MCP HTTP Server ライフサイクル", () => {
-	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
-		createTestServer,
-		TEST_PORT,
-	);
-	const baseUrl = `http://localhost:${TEST_PORT}`;
+	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(createTestServer, 0);
+	const baseUrl = `http://localhost:${port}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);
@@ -120,11 +113,11 @@ function createFailingServer(): McpServer {
 }
 
 describe("createServer 例外ハンドリング", () => {
-	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createFailingServer,
-		TEST_PORT_ERROR,
+		0,
 	);
-	const baseUrl = `http://localhost:${TEST_PORT_ERROR}`;
+	const baseUrl = `http://localhost:${port}`;
 
 	afterAll(() => {
 		clearInterval(cleanupTimer);

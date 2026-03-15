@@ -62,6 +62,7 @@ function createFetchHandler(
 }
 
 export interface HttpServerHandle {
+	port: number;
 	cleanupTimer: ReturnType<typeof setInterval>;
 	closeAllSessions: () => void;
 	stopServer: () => void;
@@ -102,7 +103,7 @@ export function startHttpServer(
 		}
 	}, SESSION_CLEANUP_INTERVAL_MS);
 
-	console.error(`[${label}] MCP server listening on port ${port}`);
+	console.error(`[${label}] MCP server listening on port ${httpServer.port}`);
 
-	return { cleanupTimer, closeAllSessions, stopServer };
+	return { port: httpServer.port, cleanupTimer, closeAllSessions, stopServer };
 }
