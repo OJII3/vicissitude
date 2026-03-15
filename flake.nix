@@ -42,7 +42,6 @@
               nodejs-slim
               opencode
               podman
-              podman-compose
               python311
             ];
             shellHook = config.pre-commit.installationScript;
