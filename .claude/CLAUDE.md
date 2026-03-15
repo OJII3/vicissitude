@@ -127,3 +127,10 @@ src/agent/
 | `impl-agent`   | `*.spec.ts`・型定義・SCOPE             | `*.test.ts`・他モジュールの実装 |
 | `test-agent`   | 実装コード・`*.spec.ts`                | 他モジュール                    |
 | `verify-agent` | `*.spec.ts` のパス・実行結果・plan出力 | 実装の中身                      |
+
+## Issue 運用ルール
+
+- 作業中に課題・改善点・技術的負債を発見したら、その場で GitHub Issue を立てる。後回しにしない。
+- `/review` 時に指摘した項目のうち、今回の PR で修正しなかったものは必ず Issue に残す。
+- Issue はまとめすぎず、トピックごとに小分けにする（1 Issue = 1 トピック）。
+- 重要な判断が必要な課題（設計方針の決定、破壊的変更の検討など）には `help wanted` ラベルを付ける。
