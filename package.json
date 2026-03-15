@@ -12,7 +12,7 @@
 		"fmt": "oxfmt .",
 		"fmt:check": "oxfmt --check .",
 		"test": "bun test",
-		"test:spec": "bun test --test-name-pattern '.*' src/**/*.spec.ts",
+		"test:spec": "bun test --test-name-pattern '.*' spec/**/*.spec.ts",
 		"test:unit": "bun test --test-name-pattern '.*' src/**/*.test.ts",
 		"test:quality": "bun scripts/test-quality.ts",
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",

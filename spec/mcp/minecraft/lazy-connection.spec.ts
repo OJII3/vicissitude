@@ -3,10 +3,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { startHttpServer } from "../../../src/mcp/http-server.ts";
-import { parseMcpResponse } from "../../../src/mcp/test-helpers.ts";
 import { createBotContext } from "../../../src/mcp/minecraft/bot-context.ts";
 import { JobManager } from "../../../src/mcp/minecraft/job-manager.ts";
 import { registerMinecraftTools } from "../../../src/mcp/minecraft/mcp-tools.ts";
+import { parseMcpResponse } from "../../../src/mcp/test-helpers.ts";
 
 describe("BotContext — bot null 時の安全性", () => {
 	test("getBot() === null の状態で pushEvent が正常動作", () => {

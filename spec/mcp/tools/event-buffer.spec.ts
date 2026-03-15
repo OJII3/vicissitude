@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import { formatEvents, pollEvents } from "../../../src/mcp/tools/event-buffer.ts";
 import { appendEvent } from "../../../src/store/queries.ts";
 import { createTestDb } from "../../../src/store/test-helpers.ts";
-import { formatEvents, pollEvents } from "../../../src/mcp/tools/event-buffer.ts";
 
 describe("formatEvents", () => {
 	test("有効な JSON ペイロードをパースして整形する", () => {

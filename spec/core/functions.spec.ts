@@ -6,8 +6,8 @@ import {
 	formatTimestamp,
 	splitMessage,
 	withTimeout,
-} from "./functions.ts";
-import type { HeartbeatConfig } from "./types.ts";
+} from "../../src/core/functions.ts";
+import type { HeartbeatConfig } from "../../src/core/types.ts";
 
 // ─── splitMessage ────────────────────────────────────────────────
 

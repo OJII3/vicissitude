@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	hasSessionLock,
-	tryAcquireSessionLock,
-} from "./mc-bridge.ts";
+import { hasSessionLock, tryAcquireSessionLock } from "./mc-bridge.ts";
 import { mcSessionLock } from "./schema.ts";
 import { createTestDb } from "./test-helpers.ts";
 
