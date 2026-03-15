@@ -14,7 +14,7 @@ import { closeDb, createDb } from "../store/db.ts";
 import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
-import { registerLtmTools } from "./tools/ltm.ts";
+import { type LtmReadServices, registerLtmTools } from "./tools/ltm.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -59,7 +59,7 @@ const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 
 /** LtmLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
 const embedOnlyLlm: LtmLlmPort = {
-	async chat(): Promise<string> {
+	async chat(): Promise<never> {
 		throw new Error("chat is not available in core-server (consolidation runs in main process)");
 	},
 	async chatStructured(): Promise<never> {
@@ -71,11 +71,6 @@ const embedOnlyLlm: LtmLlmPort = {
 };
 
 const MAX_LTM_INSTANCES = 50;
-
-interface LtmReadServices {
-	retrieval: Retrieval;
-	semantic: SemanticMemory;
-}
 
 const ltmInstances = new Map<string, LtmReadServices>();
 const ltmStorages = new Map<string, LtmStorage>();
