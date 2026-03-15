@@ -4,7 +4,7 @@
 
 - 本書は、現在の実装構成（`src/` 配下モジュール構成）に基づく実装準拠アーキテクチャを定義する。
 - Minecraft 拡張は「既存構成を維持した段階的追加」として、末尾の拡張設計セクションに記載する。
-- 要件の正本は `SPEC.md`、運用方針の正本は `RUNBOOK.md`、進行状況の正本は `STATUS.md` とする。
+- 要件の正本は `README.md` とする。
 
 ## 2. 設計原則
 
@@ -183,7 +183,7 @@ MCP サーバーは 4 プロセス構成:
 
 1. **core-server.ts** (`type: "remote"`, StreamableHTTP): Discord 操作 + メモリ管理 + スケジュール管理 + イベントバッファ + LTM + MC ブリッジ（Discord 側）を統合した HTTP サーバー。全 guild で 1 プロセスを共有し、guild_id はツールパラメータで指定する
    - `tools/discord.ts`: `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`, `list_channels`
-   - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
+   - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`, `cleanup_old_logs`
    - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
    - `tools/event-buffer.ts`: `wait_for_events` — SQLite ベース
    - `tools/ltm.ts`: `ltm_retrieve`, `ltm_get_facts`（consolidation はメインプロセスの `ConsolidationScheduler` が自動実行）
@@ -209,7 +209,7 @@ MCP サーバーは 4 プロセス構成:
 - `logger.ts`: `ConsoleLogger` — JSON 構造化ログ（NDJSON）を stdout/stderr に出力
 - `metrics.ts`: `PrometheusCollector` + `PrometheusServer` + `InstrumentedAiAgent`（`METRIC` は `core/constants.ts` から re-export）
 
-メトリクス一覧（17個）:
+メトリクス一覧（20個）:
 
 | 名前                                      | 型        | ラベル                             | 説明                                               |
 | ----------------------------------------- | --------- | ---------------------------------- | -------------------------------------------------- |
@@ -230,6 +230,9 @@ MCP サーバーは 4 プロセス構成:
 | `mc_jobs_total`                           | Counter   | `type`, `status`                   | MC ジョブ完了/失敗/キャンセル数                    |
 | `mc_bot_events_total`                     | Counter   | `kind`                             | MC ボットイベント（spawn/death/kicked/disconnect） |
 | `mc_mcp_tool_calls_total`                 | Counter   | `tool`                             | MC MCP ツール呼び出し数                            |
+| `mc_auto_notifications_total`             | Counter   | `kind`                             | MC 自動通知回数（death/kicked/disconnect）         |
+| `mc_cooldowns_total`                      | Counter   | `type`                             | MC クールダウン発動回数                            |
+| `mc_failure_streaks_total`                | Counter   | `type`                             | MC 失敗ストリークインクリメント回数                |
 
 トークンメトリクスはメインプロセス（ポート 9091）、MC メトリクスは MC MCP プロセス（ポート 9092、`MC_METRICS_PORT` で変更可）で公開される。
 
