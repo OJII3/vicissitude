@@ -120,6 +120,8 @@ export class AgentRunner implements AiAgent {
 
 				if (event.type !== "error") {
 					delay = INITIAL_RECONNECT_DELAY_MS;
+					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
+					await this.sleep(INITIAL_RECONNECT_DELAY_MS);
 					continue;
 				}
 			} catch (err) {
@@ -261,7 +263,7 @@ export class AgentRunner implements AiAgent {
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);
 	}
 
-	private sleep(ms: number): Promise<void> {
+	protected sleep(ms: number): Promise<void> {
 		if (this.abortController?.signal.aborted) return Promise.resolve();
 		return new Promise((resolve) => {
 			let resolved = false;
