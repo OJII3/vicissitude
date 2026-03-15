@@ -2,11 +2,11 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { tryAcquireSessionLock, setMcConnectionStatus } from "../../store/mc-bridge.ts";
-import { createTestDb } from "../../store/test-helpers.ts";
-import { startHttpServer } from "../http-server.ts";
-import { parseMcpResponse } from "../test-helpers.ts";
-import { registerDiscordBridgeTools } from "./mc-bridge-discord.ts";
+import { tryAcquireSessionLock, setMcConnectionStatus } from "../../../src/store/mc-bridge.ts";
+import { createTestDb } from "../../../src/store/test-helpers.ts";
+import { startHttpServer } from "../../../src/mcp/http-server.ts";
+import { parseMcpResponse } from "../../../src/mcp/test-helpers.ts";
+import { registerDiscordBridgeTools } from "../../../src/mcp/tools/mc-bridge-discord.ts";
 
 const TEST_PORT = 49_740;
 const baseUrl = `http://localhost:${TEST_PORT}`;

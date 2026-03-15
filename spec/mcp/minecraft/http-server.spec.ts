@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { startHttpServer } from "./http-server.ts";
+import { startHttpServer } from "../../../src/mcp/minecraft/http-server.ts";
 
 // テスト用ポート（他と競合しない高ポート）
 const TEST_PORT = 49_731;

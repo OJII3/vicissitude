@@ -9,7 +9,7 @@ import {
 	sanitizeSkillDescription,
 	sanitizeSkillName,
 	writeOverlay,
-} from "./mc-memory.ts";
+} from "../../../src/mcp/tools/mc-memory.ts";
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));

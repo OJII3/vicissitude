@@ -9,7 +9,7 @@ import {
 	readWithFallbackFrom,
 	resolveContextPaths,
 	todayDateString,
-} from "./memory-helpers.ts";
+} from "../../src/mcp/memory-helpers.ts";
 
 describe("resolveContextPaths", () => {
 	it("guildId 未指定時はオーバーレイベースのグローバルパスを返す", () => {
