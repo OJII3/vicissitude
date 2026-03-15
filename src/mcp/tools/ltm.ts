@@ -1,13 +1,20 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { Ltm, SemanticFact } from "../../ltm/index.ts";
+import type { Retrieval } from "../../ltm/retrieval.ts";
+import type { SemanticFact } from "../../ltm/semantic-fact.ts";
+import type { SemanticMemory } from "../../ltm/semantic-memory.ts";
 
 const GUILD_ID_REGEX = /^\d+$/;
 const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
 
+export interface LtmReadServices {
+	retrieval: Retrieval;
+	semantic: SemanticMemory;
+}
+
 export interface LtmDeps {
-	getOrCreateLtm: (guildId: string) => Ltm;
+	getOrCreateLtm: (guildId: string) => LtmReadServices;
 }
 
 export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
@@ -57,46 +64,6 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 						{
 							type: "text",
 							text: `ltm_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
-						},
-					],
-					isError: true,
-				};
-			}
-		},
-	);
-
-	server.tool(
-		"ltm_consolidate",
-		"未統合のエピソードからファクト（意味記憶）を抽出・統合する",
-		{
-			guild_id: guildIdSchema,
-		},
-		async ({ guild_id }) => {
-			try {
-				const ltm = getOrCreateLtm(guild_id);
-				const result = await ltm.consolidation.consolidate(guild_id);
-
-				return {
-					content: [
-						{
-							type: "text",
-							text: [
-								`統合完了:`,
-								`- 処理エピソード: ${result.processedEpisodes}`,
-								`- 新規ファクト: ${result.newFacts}`,
-								`- 強化: ${result.reinforced}`,
-								`- 更新: ${result.updated}`,
-								`- 無効化: ${result.invalidated}`,
-							].join("\n"),
-						},
-					],
-				};
-			} catch (error) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `ltm_consolidate エラー: ${error instanceof Error ? error.message : String(error)}`,
 						},
 					],
 					isError: true,

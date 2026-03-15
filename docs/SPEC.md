@@ -57,8 +57,8 @@ OpenCode が使用する MCP サーバーを提供する。
 5. **ltm**: 長期記憶（src/ltm/）
    - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
-   - `ltm_consolidate`: エピソードからファクト（意味記憶）を抽出・統合
    - `ltm_get_facts`: 蓄積されたファクト一覧を取得
+   - consolidation はメインプロセスの `ConsolidationScheduler` が30分間隔で自動実行
 6. **MC ブリッジ**（core-server 内、Discord 側）: Minecraft エージェントとの通信
    - `minecraft_delegate`, `minecraft_status`, `minecraft_read_reports`, `minecraft_start_session`, `minecraft_stop_session`
 7. **minecraft**（`MC_HOST` 設定時のみ有効）: Minecraft 操作（mineflayer ベース）
