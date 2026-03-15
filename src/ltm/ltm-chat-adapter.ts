@@ -1,6 +1,8 @@
 import type { OpencodeSessionPort } from "../core/types.ts";
 import type { ChatMessage } from "./types.ts";
 
+const MAX_CHAT_STRUCTURED_ATTEMPTS = 3;
+
 const JSON_INSTRUCTION =
 	"IMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.";
 
@@ -41,16 +43,32 @@ export class LtmChatAdapter {
 
 	async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
 		const augmented = appendJsonInstruction(messages);
-		const text = await this.chat(augmented);
-		const cleaned = cleanJsonResponse(text);
 
-		let parsed: unknown;
-		try {
-			parsed = JSON.parse(cleaned);
-		} catch {
-			throw new Error(`LLM response was not valid JSON: ${text.slice(0, 200)}`);
+		for (let attempt = 0; attempt < MAX_CHAT_STRUCTURED_ATTEMPTS; attempt++) {
+			if (attempt > 0) {
+				// oxlint-disable-next-line no-await-in-loop -- intentional sequential retry with backoff
+				await sleep(1000);
+			}
+
+			// oxlint-disable-next-line no-await-in-loop -- sequential retry attempts
+			const text = await this.chat(augmented);
+			const cleaned = cleanJsonResponse(text);
+
+			if (cleaned === "") {
+				if (attempt < MAX_CHAT_STRUCTURED_ATTEMPTS - 1) continue;
+				throw new Error("Empty response from LLM after retry limit exceeded");
+			}
+
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(cleaned);
+			} catch {
+				throw new Error(`LLM response was not valid JSON: ${text.slice(0, 200)}`);
+			}
+			return schema.parse(parsed);
 		}
-		return schema.parse(parsed);
+
+		throw new Error("Empty response from LLM after retry limit exceeded");
 	}
 
 	close(): void {
@@ -87,6 +105,12 @@ export function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {
 		augmented[lastIdx] = { ...lastMsg, content: `${lastMsg.content}\n\n${JSON_INSTRUCTION}` };
 	}
 	return augmented;
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
 export function cleanJsonResponse(text: string): string {

@@ -1,7 +1,70 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, mock } from "bun:test";
 
-import { appendJsonInstruction, cleanJsonResponse, separateMessages } from "./ltm-chat-adapter.ts";
+import type { OpencodeSessionPort } from "../core/types.ts";
+import {
+	LtmChatAdapter,
+	appendJsonInstruction,
+	cleanJsonResponse,
+	separateMessages,
+} from "./ltm-chat-adapter.ts";
 import type { ChatMessage } from "./types.ts";
+
+function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessionPort {
+	let callIndex = 0;
+	return {
+		createSession: mock(() => Promise.resolve("test-session-id")),
+		sessionExists: mock(() => Promise.resolve(true)),
+		prompt: mock(() => {
+			const result = promptResults[callIndex];
+			callIndex++;
+			if (!result) throw new Error("No more prompt results configured");
+			return Promise.resolve(result);
+		}),
+		promptAsync: mock(() => Promise.resolve()),
+		promptAsyncAndWatchSession: mock(() =>
+			Promise.resolve({ type: "idle" as const, messages: [] }),
+		),
+		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const, messages: [] })),
+		deleteSession: mock(() => Promise.resolve()),
+		close: mock(() => {}),
+	} as unknown as OpencodeSessionPort;
+}
+
+const validSchema = {
+	parse: (data: unknown) => data as { key: string },
+};
+
+describe("chatStructured", () => {
+	const messages: ChatMessage[] = [{ role: "user", content: "Give me JSON" }];
+
+	it("should return parsed result when LLM returns valid JSON on first attempt", async () => {
+		const port = createMockSessionPort([{ text: '{"key": "value"}' }]);
+		const adapter = new LtmChatAdapter(port, "provider", "model");
+
+		const result = await adapter.chatStructured(messages, validSchema);
+
+		expect(result).toEqual({ key: "value" });
+	});
+
+	it("should retry when LLM returns empty string, and succeed on second attempt", async () => {
+		const port = createMockSessionPort([{ text: "" }, { text: '{"key": "retried"}' }]);
+		const adapter = new LtmChatAdapter(port, "provider", "model");
+
+		const result = await adapter.chatStructured(messages, validSchema);
+
+		expect(result).toEqual({ key: "retried" });
+		expect(port.createSession).toHaveBeenCalledTimes(2);
+	});
+
+	it("should throw a clear error when retry limit is exceeded with empty responses", async () => {
+		const port = createMockSessionPort([{ text: "" }, { text: "" }, { text: "" }]);
+		const adapter = new LtmChatAdapter(port, "provider", "model");
+
+		await expect(adapter.chatStructured(messages, validSchema)).rejects.toThrow(
+			/empty.*response|retry/i,
+		);
+	});
+});
 
 describe("separateMessages", () => {
 	it("should separate system messages from non-system messages", () => {
