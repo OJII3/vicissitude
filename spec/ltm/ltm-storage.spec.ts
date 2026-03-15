@@ -1,10 +1,10 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive storage adapter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { createEpisode } from "./episode.ts";
-import { LtmStorage } from "./ltm-storage.ts";
-import { createFact } from "./semantic-fact.ts";
-import type { ChatMessage } from "./types.ts";
+import { createEpisode } from "../../src/ltm/episode.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import { createFact } from "../../src/ltm/semantic-fact.ts";
+import type { ChatMessage } from "../../src/ltm/types.ts";
 
 const userId = "user-1";
 
@@ -938,25 +938,18 @@ describe("LtmStorage — legacy DB upgrade (backfill from existing data)", () =>
 	});
 
 	test("backfills dimension from existing episodes on first access", async () => {
-		// Simulate a pre-M14d DB: episodes exist but embedding_meta is empty
 		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveEpisode(userId, ep);
-		// Clear meta to simulate legacy state, bypassing backfill via direct SQL
 		storage.resetEmbeddingMeta();
-		// Force cache clear by creating a fresh storage on same DB — not possible with :memory:,
-		// so instead we just verify that resetEmbeddingMeta + getEmbeddingDimension backfills
 		expect(storage.getEmbeddingDimension()).toBe(3);
 	});
 
 	test("rejects new dimension that conflicts with existing episode data", async () => {
-		// Existing 3-dim episode
 		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveEpisode(userId, ep);
 
-		// Simulate legacy: clear meta so backfill triggers
 		storage.resetEmbeddingMeta();
 
-		// Try to save a 5-dim episode — should fail because backfill inferred dim=3
 		const ep2 = makeEpisode({ embedding: [0.1, 0.2, 0.3, 0.4, 0.5] });
 		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
 			"Embedding dimension mismatch: expected 3, got 5",

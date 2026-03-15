@@ -1,14 +1,14 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await -- comprehensive consolidation tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { ConsolidationOutput } from "./consolidation.ts";
-import { ConsolidationPipeline } from "./consolidation.ts";
-import { createEpisode } from "./episode.ts";
-import { EpisodicMemory } from "./episodic.ts";
-import type { LtmLlmPort, Schema } from "./llm-port.ts";
-import { LtmStorage } from "./ltm-storage.ts";
-import { createFact } from "./semantic-fact.ts";
-import type { ChatMessage } from "./types.ts";
+import type { ConsolidationOutput } from "../../src/ltm/consolidation.ts";
+import { ConsolidationPipeline } from "../../src/ltm/consolidation.ts";
+import { createEpisode } from "../../src/ltm/episode.ts";
+import { EpisodicMemory } from "../../src/ltm/episodic.ts";
+import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import { createFact } from "../../src/ltm/semantic-fact.ts";
+import type { ChatMessage } from "../../src/ltm/types.ts";
 
 const userId = "user-1";
 

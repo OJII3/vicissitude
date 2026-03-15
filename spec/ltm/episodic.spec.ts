@@ -1,11 +1,11 @@
 /* oxlint-disable no-non-null-assertion, require-await -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { Episode } from "./episode.ts";
-import { createEpisode } from "./episode.ts";
-import { EpisodicMemory } from "./episodic.ts";
-import { LtmStorage } from "./ltm-storage.ts";
-import type { ChatMessage } from "./types.ts";
+import type { Episode } from "../../src/ltm/episode.ts";
+import { createEpisode } from "../../src/ltm/episode.ts";
+import { EpisodicMemory } from "../../src/ltm/episodic.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import type { ChatMessage } from "../../src/ltm/types.ts";
 
 const userId = "user-1";
 

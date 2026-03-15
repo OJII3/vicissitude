@@ -1,9 +1,9 @@
 /* oxlint-disable no-non-null-assertion, require-await, no-await-in-loop -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { LtmStorage } from "./ltm-storage.ts";
-import { createFact } from "./semantic-fact.ts";
-import { SemanticMemory } from "./semantic-memory.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import { createFact } from "../../src/ltm/semantic-fact.ts";
+import { SemanticMemory } from "../../src/ltm/semantic-memory.ts";
 
 const userId = "user-1";
 

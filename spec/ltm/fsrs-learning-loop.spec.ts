@@ -1,13 +1,13 @@
 /* oxlint-disable no-non-null-assertion, require-await -- FSRS learning loop integration tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { createEpisode } from "./episode.ts";
-import { EpisodicMemory } from "./episodic.ts";
-import { retrievability } from "./fsrs.ts";
-import type { LtmLlmPort } from "./llm-port.ts";
-import { LtmStorage } from "./ltm-storage.ts";
-import { Retrieval } from "./retrieval.ts";
-import type { ChatMessage } from "./types.ts";
+import { createEpisode } from "../../src/ltm/episode.ts";
+import { EpisodicMemory } from "../../src/ltm/episodic.ts";
+import { retrievability } from "../../src/ltm/fsrs.ts";
+import type { LtmLlmPort } from "../../src/ltm/llm-port.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import { Retrieval } from "../../src/ltm/retrieval.ts";
+import type { ChatMessage } from "../../src/ltm/types.ts";
 
 const userId = "user-1";
 

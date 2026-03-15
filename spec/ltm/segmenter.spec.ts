@@ -1,13 +1,13 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive segmenter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { Episode } from "./episode.ts";
-import type { LtmLlmPort, Schema } from "./llm-port.ts";
-import { LtmStorage } from "./ltm-storage.ts";
-import type { SegmentationOutput } from "./segmenter.ts";
-import { Segmenter } from "./segmenter.ts";
-import type { ChatMessage, SurpriseLevel } from "./types.ts";
-import { SURPRISE_VALUES } from "./types.ts";
+import type { Episode } from "../../src/ltm/episode.ts";
+import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
+import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import type { SegmentationOutput } from "../../src/ltm/segmenter.ts";
+import { Segmenter } from "../../src/ltm/segmenter.ts";
+import type { ChatMessage, SurpriseLevel } from "../../src/ltm/types.ts";
+import { SURPRISE_VALUES } from "../../src/ltm/types.ts";
 
 // --- Mock LtmLlmPort ---
 
