@@ -43,6 +43,7 @@
               opencode
               podman
               python311
+              podman-compose
             ];
             shellHook = config.pre-commit.installationScript;
           };
