@@ -3,9 +3,9 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-import { setMcConnectionStatus, tryAcquireSessionLock } from "./mc-bridge.ts";
-import { SqliteMcStatusProvider } from "./mc-status-provider.ts";
-import { createTestDb } from "./test-helpers.ts";
+import { setMcConnectionStatus, tryAcquireSessionLock } from "../../src/store/mc-bridge.ts";
+import { SqliteMcStatusProvider } from "../../src/store/mc-status-provider.ts";
+import { createTestDb } from "../../src/store/test-helpers.ts";
 
 function createTmpDir(): string {
 	const dir = join(tmpdir(), `mc-status-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -56,7 +56,6 @@ describe("SqliteMcStatusProvider", () => {
 
 	test("omits connection section when never connected (since is null)", async () => {
 		const db = createTestDb();
-		// ロックだけ取得して接続状態は設定しない
 		tryAcquireSessionLock(db, "guild-1");
 		const provider = new SqliteMcStatusProvider(
 			db,
@@ -65,7 +64,6 @@ describe("SqliteMcStatusProvider", () => {
 		);
 
 		const summary = await provider.getStatusSummary();
-		// since が null のため接続セクションが出ない → goals もないので null
 		expect(summary).toBeNull();
 	});
 
