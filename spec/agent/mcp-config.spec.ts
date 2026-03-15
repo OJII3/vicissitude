@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
-import { mcpMinecraftConfigs, mcpServerConfigs } from "./mcp-config.ts";
+import { mcpMinecraftConfigs, mcpServerConfigs } from "../../src/agent/mcp-config.ts";
 
 // ─── mcpServerConfigs ────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ describe("mcpServerConfigs", () => {
 	});
 });
 
-// ─── mcpMinecraftConfigs ─────────────────────────────────
+// ─── mcpMinecraftConfigs ─────────────────────────────────────
 
 describe("mcpMinecraftConfigs", () => {
 	const originalEnv = { ...process.env };

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { createTestDb } from "../store/test-helpers.ts";
-import { SessionStore } from "./session-store.ts";
+import { createTestDb } from "../../src/store/test-helpers.ts";
+import { SessionStore } from "../../src/agent/session-store.ts";
 
 describe("SessionStore", () => {
 	test("save → get → count", () => {
