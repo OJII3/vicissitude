@@ -4,8 +4,8 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, GatewayIntentBits } from "discord.js";
 
-import type { LtmLlmPort } from "../ltm/llm-port.ts";
 import { EpisodicMemory } from "../ltm/episodic.ts";
+import type { LtmLlmPort } from "../ltm/llm-port.ts";
 import { LtmStorage } from "../ltm/ltm-storage.ts";
 import { Retrieval } from "../ltm/retrieval.ts";
 import { SemanticMemory } from "../ltm/semantic-memory.ts";
