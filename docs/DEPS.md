@@ -22,7 +22,6 @@ graph LR
   mcp --> infrastructure
   mcp --> ltm
   mcp --> ollama
-  mcp --> opencode
   mcp --> store
   observability --> core
   ollama
@@ -73,7 +72,7 @@ graph LR
 
 ### mcp/
 
-- 内部依存: core/, infrastructure/, ltm/, ollama/, opencode/, store/
+- 内部依存: core/, infrastructure/, ltm/, ollama/, store/
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
 - ファイル数: 34
 

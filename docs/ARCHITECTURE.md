@@ -186,7 +186,7 @@ MCP サーバーは 4 プロセス構成:
    - `tools/memory.ts`: `read_memory`, `update_memory`, `read_soul`, `append_daily_log`, `read_daily_log`, `list_daily_logs`, `read_lessons`, `update_lessons`
    - `tools/schedule.ts`: `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
    - `tools/event-buffer.ts`: `wait_for_events` — SQLite ベース
-   - `tools/ltm.ts`: `ltm_retrieve`, `ltm_consolidate`, `ltm_get_facts`
+   - `tools/ltm.ts`: `ltm_retrieve`, `ltm_get_facts`（consolidation はメインプロセスの `ConsolidationScheduler` が自動実行）
    - `tools/mc-bridge-discord.ts`（Discord 側）: `minecraft_delegate`, `minecraft_status`, `minecraft_start_session`, `minecraft_stop_session`
 2. **code-exec-server.ts** (`type: "local"`): `execute_code` — Podman コンテナでサンドボックス実行
 3. **minecraft/server.ts** (`type: "remote"`、`MC_HOST` 設定時のみ): StreamableHTTP サーバー

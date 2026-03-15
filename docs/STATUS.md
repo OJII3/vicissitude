@@ -2,9 +2,9 @@
 
 ## 1. 最終更新
 
-- 2026-03-14
+- 2026-03-15
 - 更新者: claude-code
-- ブランチ: refactor/unify-agent-event-buffer
+- ブランチ: refactor/remove-mcp-opencode-dep
 
 ## 2. 現在の状態
 
@@ -80,6 +80,10 @@
   - `brain-manager.ts` を `mc_session_lock` 状態ポーリング方式に変更。
   - 既存 DB のマイグレーション関数を追加。
 - `nr validate` 通過（既存リントエラー7件は別途）。`bun test` は 758 テスト pass（0 fail）。
+- `mcp/` から `opencode/` への依存を除去（PR #161）:
+  - `core-server.ts` から `OpencodeSessionAdapter` / `LtmChatAdapter` / `CompositeLLMAdapter` を除去し、Ollama embed のみに依存。
+  - `ltm_consolidate` を MCP ツールから削除（メインプロセスの `ConsolidationScheduler` が自動実行するため冗長）。
+  - MCP プロセスでの不要な OpenCode サーバー起動を排除。
 
 ## 3. 既知のバグ・要修正事項
 

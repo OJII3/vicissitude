@@ -4,17 +4,17 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, GatewayIntentBits } from "discord.js";
 
-import { OPENCODE_ALL_TOOLS_DISABLED } from "../core/constants.ts";
-import { CompositeLLMAdapter } from "../ltm/composite-llm-adapter.ts";
-import { type Ltm, LtmStorage, createLtm } from "../ltm/index.ts";
-import { LtmChatAdapter } from "../ltm/ltm-chat-adapter.ts";
+import type { LtmLlmPort } from "../ltm/llm-port.ts";
+import { EpisodicMemory } from "../ltm/episodic.ts";
+import { LtmStorage } from "../ltm/ltm-storage.ts";
+import { Retrieval } from "../ltm/retrieval.ts";
+import { SemanticMemory } from "../ltm/semantic-memory.ts";
 import { OllamaEmbeddingAdapter } from "../ollama/ollama-embedding-adapter.ts";
-import { OpencodeSessionAdapter } from "../opencode/session-adapter.ts";
 import { closeDb, createDb } from "../store/db.ts";
 import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
-import { registerLtmTools } from "./tools/ltm.ts";
+import { type LtmReadServices, registerLtmTools } from "./tools/ltm.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -22,9 +22,6 @@ import { registerScheduleTools } from "./tools/schedule.ts";
 // --- Configuration from environment ---
 
 const CORE_MCP_PORT = Number(process.env.CORE_MCP_PORT ?? "4095");
-const LTM_OPENCODE_PORT = Number(process.env.LTM_OPENCODE_PORT ?? "4094");
-const LTM_PROVIDER_ID = process.env.LTM_PROVIDER_ID ?? "github-copilot";
-const LTM_MODEL_ID = process.env.LTM_MODEL_ID ?? "gpt-4o";
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 const LTM_EMBEDDING_MODEL = process.env.LTM_EMBEDDING_MODEL ?? "embeddinggemma";
 const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/ltm";
@@ -56,25 +53,31 @@ try {
 
 const db = createDb(DATA_DIR);
 
-// --- LTM ---
-
-const ltmSessionPort = new OpencodeSessionAdapter({
-	port: LTM_OPENCODE_PORT,
-	mcpServers: {},
-	builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
-});
-const chatAdapter = new LtmChatAdapter(ltmSessionPort, LTM_PROVIDER_ID, LTM_MODEL_ID);
+// --- LTM (embed-only — consolidation runs in the main process) ---
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
-const llm = new CompositeLLMAdapter(chatAdapter, ollama);
+
+/** LtmLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
+const embedOnlyLlm: LtmLlmPort = {
+	async chat(): Promise<never> {
+		throw new Error("chat is not available in core-server (consolidation runs in main process)");
+	},
+	async chatStructured(): Promise<never> {
+		throw new Error(
+			"chatStructured is not available in core-server (consolidation runs in main process)",
+		);
+	},
+	embed: (text: string) => ollama.embed(text),
+};
 
 const MAX_LTM_INSTANCES = 50;
-const ltmInstances = new Map<string, Ltm>();
+
+const ltmInstances = new Map<string, LtmReadServices>();
 const ltmStorages = new Map<string, LtmStorage>();
 
 const GUILD_ID_REGEX = /^\d+$/;
 
-function getOrCreateLtm(guildId: string): Ltm {
+function getOrCreateLtm(guildId: string): LtmReadServices {
 	if (!GUILD_ID_REGEX.test(guildId)) {
 		throw new Error(`Invalid guildId: ${guildId}`);
 	}
@@ -99,7 +102,11 @@ function getOrCreateLtm(guildId: string): Ltm {
 	const dbDir = resolve(LTM_DATA_DIR, "guilds", guildId);
 	mkdirSync(dbDir, { recursive: true });
 	const storage = new LtmStorage(resolve(dbDir, "memory.db"));
-	const instance = createLtm({ llm, storage });
+	const episodic = new EpisodicMemory(storage);
+	const instance: LtmReadServices = {
+		retrieval: new Retrieval(embedOnlyLlm, storage, episodic),
+		semantic: new SemanticMemory(storage),
+	};
 	ltmInstances.set(guildId, instance);
 	ltmStorages.set(guildId, storage);
 	return instance;
@@ -140,7 +147,6 @@ async function shutdown() {
 	}
 	ltmInstances.clear();
 	ltmStorages.clear();
-	await chatAdapter.close();
 	closeDb(db);
 	process.exit(0);
 }

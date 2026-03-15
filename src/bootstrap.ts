@@ -149,6 +149,24 @@ function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logg
 	}
 }
 
+/** ltm-consolidate リマインダーを削除する（MCP ツール廃止に伴う移行） */
+function removeLtmConsolidateReminder(configPath: string, logger: Logger): void {
+	if (!existsSync(configPath)) return;
+	try {
+		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
+			reminders?: { id: string }[];
+		};
+		if (!raw.reminders) return;
+		const idx = raw.reminders.findIndex((r) => r.id === "ltm-consolidate");
+		if (idx === -1) return;
+		raw.reminders.splice(idx, 1);
+		writeFileSync(configPath, JSON.stringify(raw, null, 2));
+		logger.info("[bootstrap] Removed ltm-consolidate reminder (consolidation is now automatic)");
+	} catch {
+		// パース失敗時はスキップ
+	}
+}
+
 // ─── Channel Config ─────────────────────────────────────────────
 
 async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
@@ -268,9 +286,6 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		HOME: process.env.HOME ?? "",
 		DISCORD_TOKEN: config.discordToken,
 		CORE_MCP_PORT: String(config.coreMcpPort),
-		LTM_OPENCODE_PORT: String(config.opencode.basePort - 2),
-		LTM_PROVIDER_ID: config.ltm.providerId,
-		LTM_MODEL_ID: config.ltm.modelId,
 		OLLAMA_BASE_URL: config.ltm.ollamaBaseUrl,
 		LTM_EMBEDDING_MODEL: config.ltm.embeddingModel,
 		LTM_DATA_DIR: resolve(config.dataDir, "ltm"),
@@ -423,8 +438,10 @@ export async function bootstrap(): Promise<void> {
 		"polling",
 	);
 
-	// Heartbeat — mc-check リマインダーの自動有効化/無効化
-	syncMcCheckReminder(resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH), !!config.minecraft, logger);
+	// Heartbeat — リマインダー同期
+	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
+	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
+	removeLtmConsolidateReminder(heartbeatConfigPath, logger);
 	const heartbeatScheduler = new HeartbeatScheduler(routingAgent, logger, metrics.collector, root);
 
 	// Session gauge
