@@ -1,10 +1,12 @@
 /.claude/*.local.*
+/.claude/worktree
+/.claude/agent-memory
+/tmp/
 node_modules/
 .env
 .env.local
 /PLAN.md
 /artifacts/
-/tmp/
 data/
 .direnv/
 .pre-commit-config.yaml
