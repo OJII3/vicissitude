@@ -46,7 +46,7 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 OpenCode が使用する MCP サーバーを提供する。
 
 1. **discord**: Discord チャンネルへの読み書き
-   - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`（画像 URL をメッセージに含む）, `list_channels`
+   - `send_typing`, `send_message`, `reply`, `add_reaction`, `read_messages`（戻り値に添付画像の URL を含む）, `list_channels`
    - `send_message` / `reply` はオプションで画像ファイルパス（`file_path`）を受け取り、添付ファイルとして送信可能
 2. **code-exec**: コード実行
    - `execute_code` (JavaScript, TypeScript, Python, Shell)
@@ -57,6 +57,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `read_soul`: SOUL.md の読み取り
    - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
+   - `cleanup_old_logs`: 保持期間（7日）を超えた古い日次ログを削除
 5. **ltm**: 長期記憶（src/ltm/）
    - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
@@ -81,8 +82,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `eat_food`: 食料を食べる
    - `flee_from_entity`: 指定エンティティから逃走
    - `find_shelter`: 安全な避難場所を探す
+   - `attack_entity`: 指定エンティティに近接攻撃
 8. **mc-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft エージェント専用 MCP サーバー
-   - Minecraft 側ブリッジ: `mc_report`, `mc_read_commands`
+   - Minecraft 側ブリッジ: `mc_report`
    - メモリツール: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
 #### OpenCode SDK 組み込みツール
