@@ -1,6 +1,8 @@
 import type { OpencodeSessionPort } from "../core/types.ts";
 import type { ChatMessage } from "./types.ts";
 
+const MAX_CHAT_STRUCTURED_ATTEMPTS = 3;
+
 const JSON_INSTRUCTION =
 	"IMPORTANT: Respond ONLY with valid JSON. No markdown, no code fences, no explanation.";
 
@@ -41,9 +43,8 @@ export class LtmChatAdapter {
 
 	async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
 		const augmented = appendJsonInstruction(messages);
-		const maxAttempts = 3;
 
-		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+		for (let attempt = 0; attempt < MAX_CHAT_STRUCTURED_ATTEMPTS; attempt++) {
 			if (attempt > 0) {
 				// oxlint-disable-next-line no-await-in-loop -- intentional sequential retry with backoff
 				await sleep(1000);
@@ -51,13 +52,13 @@ export class LtmChatAdapter {
 
 			// oxlint-disable-next-line no-await-in-loop -- sequential retry attempts
 			const text = await this.chat(augmented);
+			const cleaned = cleanJsonResponse(text);
 
-			if (text.trim() === "") {
-				if (attempt < maxAttempts - 1) continue;
+			if (cleaned === "") {
+				if (attempt < MAX_CHAT_STRUCTURED_ATTEMPTS - 1) continue;
 				throw new Error("Empty response from LLM after retry limit exceeded");
 			}
 
-			const cleaned = cleanJsonResponse(text);
 			let parsed: unknown;
 			try {
 				parsed = JSON.parse(cleaned);

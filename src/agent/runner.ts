@@ -15,6 +15,7 @@ import type { SessionStore } from "./session-store.ts";
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
+const IDLE_COOLDOWN_MS = 2_000;
 
 export interface RunnerDeps {
 	profile: AgentProfile;
@@ -121,7 +122,7 @@ export class AgentRunner implements AiAgent {
 				if (event.type !== "error") {
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
-					await this.sleep(INITIAL_RECONNECT_DELAY_MS);
+					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
 				}
 			} catch (err) {

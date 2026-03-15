@@ -53,7 +53,7 @@ describe("chatStructured", () => {
 		const result = await adapter.chatStructured(messages, validSchema);
 
 		expect(result).toEqual({ key: "retried" });
-		expect(port.prompt).toHaveBeenCalledTimes(2);
+		expect(port.createSession).toHaveBeenCalledTimes(2);
 	});
 
 	it("should throw a clear error when retry limit is exceeded with empty responses", async () => {
