@@ -2,6 +2,7 @@ import { Client, Events, GatewayIntentBits, type Message, Partials } from "disco
 
 import type { IncomingMessage, Logger, MessageChannel } from "../core/types.ts";
 import { mapAttachments } from "../infrastructure/discord/attachment-mapper.ts";
+import { rewriteTwitterUrls } from "../infrastructure/discord/url-rewriter.ts";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
@@ -152,7 +153,7 @@ export class DiscordGateway {
 			authorName:
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
-			content: message.content.replaceAll(/<@!?\d+>/g, "").trim(),
+			content: rewriteTwitterUrls(message.content.replaceAll(/<@!?\d+>/g, "").trim()),
 			attachments,
 			timestamp: message.createdAt,
 			isBot: message.author.bot ?? false,

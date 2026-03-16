@@ -7,6 +7,7 @@
 ```mermaid
 graph LR
   discord_attachment_mapper["discord/attachment-mapper"]
+  discord_url_rewriter["discord/url-rewriter"]
   store_sqlite_buffered_event_store["store/sqlite-buffered-event-store"]
 ```
 
@@ -16,6 +17,10 @@ graph LR
 
 - 他モジュール依存: core/
 - 外部依存: discord.js
+
+### discord/url-rewriter.ts
+
+- 依存なし
 
 ### store/sqlite-buffered-event-store.ts
 
