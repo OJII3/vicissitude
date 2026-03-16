@@ -92,7 +92,7 @@ graph LR
 
 - 内部依存: core/
 - 外部依存: @opencode-ai/sdk/v2
-- ファイル数: 2
+- ファイル数: 3
 
 ### scheduling/
 

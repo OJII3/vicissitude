@@ -6,17 +6,24 @@
 
 ```mermaid
 graph LR
-  session_adapter["session-adapter"]
+  session_adapter["session-adapter"] --> stream_helpers["stream-helpers"]
   session_port["session-port"]
+  stream_helpers["stream-helpers"]
 ```
 
 ## ファイル別依存一覧
 
 ### session-adapter.ts
 
+- モジュール内依存: stream-helpers
 - 他モジュール依存: core/
 - 外部依存: @opencode-ai/sdk/v2
 
 ### session-port.ts
 
 - 他モジュール依存: core/
+
+### stream-helpers.ts
+
+- 他モジュール依存: core/
+- 外部依存: @opencode-ai/sdk/v2

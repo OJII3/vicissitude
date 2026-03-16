@@ -48,7 +48,8 @@ function sortBySimilarity<T extends { embedding: number[] }>(
 /** SQLite-based LTM storage */
 export class LtmStorage {
 	private db: Database;
-	private cachedDimension: number | null | undefined = undefined; // undefined = not loaded yet
+	/** undefined = not loaded yet */
+	private cachedDimension: number | null | undefined = undefined;
 
 	constructor(path = ":memory:") {
 		this.db = new Database(path);
@@ -74,7 +75,7 @@ export class LtmStorage {
 		const dim = this.inferDimensionFromExistingData();
 		if (dim !== null) {
 			this.upsertDimension(dim);
-			return this.cachedDimension!;
+			return dim;
 		}
 		this.cachedDimension = null;
 		return null;
