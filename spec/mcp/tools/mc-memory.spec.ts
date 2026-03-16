@@ -196,9 +196,11 @@ describe("mc_record_skill の追記ロジック", () => {
 		const preconditions = sanitizeSingleLine("石のピッケル以上が必要");
 		const failurePatterns = sanitizeSingleLine("夜間は敵mobで中断されやすい");
 
-		const lines = [`\n## ${safeName}\n\n${safeDescription}`];
-		lines.push(`\n**前提条件**: ${preconditions}`);
-		lines.push(`\n**失敗パターン**: ${failurePatterns}`);
+		const lines = [
+			`\n## ${safeName}\n\n${safeDescription}`,
+			`\n**前提条件**: ${preconditions}`,
+			`\n**失敗パターン**: ${failurePatterns}`,
+		];
 		const entry = `${lines.join("")}\n`;
 		const updated = existing + entry;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);
@@ -218,8 +220,10 @@ describe("mc_record_skill の追記ロジック", () => {
 		const safeDescription = sanitizeSkillDescription("説明文");
 		const preconditions = sanitizeSingleLine("条件1\n条件2\r\n条件3");
 
-		const lines = [`\n## ${safeName}\n\n${safeDescription}`];
-		lines.push(`\n**前提条件**: ${preconditions}`);
+		const lines = [
+			`\n## ${safeName}\n\n${safeDescription}`,
+			`\n**前提条件**: ${preconditions}`,
+		];
 		const entry = `${lines.join("")}\n`;
 		const updated = existing + entry;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);

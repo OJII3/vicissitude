@@ -59,12 +59,16 @@ const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, LTM_EMBEDDING_MODEL);
 
 /** LtmLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
 const embedOnlyLlm: LtmLlmPort = {
-	async chat(): Promise<never> {
-		throw new Error("chat is not available in core-server (consolidation runs in main process)");
+	chat(): Promise<never> {
+		return Promise.reject(
+			new Error("chat is not available in core-server (consolidation runs in main process)"),
+		);
 	},
-	async chatStructured(): Promise<never> {
-		throw new Error(
-			"chatStructured is not available in core-server (consolidation runs in main process)",
+	chatStructured(): Promise<never> {
+		return Promise.reject(
+			new Error(
+				"chatStructured is not available in core-server (consolidation runs in main process)",
+			),
 		);
 	},
 	embed: (text: string) => ollama.embed(text),
@@ -137,7 +141,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 
 // --- Graceful Shutdown ---
 
-async function shutdown() {
+function shutdown() {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();

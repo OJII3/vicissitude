@@ -54,14 +54,15 @@
 			}
 		},
 		{
-			"files": ["**/*.test.ts", "**/test-helpers.ts"],
+			"files": ["**/*.test.ts", "**/*.spec.ts", "**/test-helpers.ts"],
 			"rules": {
 				"eslint/max-lines-per-function": "off",
+				"eslint/max-lines": "off",
 				"import/max-dependencies": "off"
 			}
 		},
 		{
-			"files": ["**/mcp/tools/*.ts", "**/mcp/core-server.ts"],
+			"files": ["**/mcp/tools/*.ts", "**/mcp/core-server.ts", "**/mcp/minecraft/mcp-tools.ts"],
 			"rules": {
 				"eslint/max-lines-per-function": "off",
 				"import/max-dependencies": "off"
