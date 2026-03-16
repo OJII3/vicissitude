@@ -2,20 +2,8 @@ import { describe, expect, mock, test } from "bun:test";
 
 import type { BufferedEventStore } from "../../src/application/message-ingestion-service.ts";
 import { MessageIngestionService } from "../../src/application/message-ingestion-service.ts";
-import type {
-	BufferedEvent,
-	ConversationRecorder,
-	IncomingMessage,
-	Logger,
-} from "../../src/core/types.ts";
-
-function createMockLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		error: mock(() => {}),
-		warn: mock(() => {}),
-	};
-}
+import type { BufferedEvent, ConversationRecorder, IncomingMessage } from "../../src/core/types.ts";
+import { createMockLogger } from "../test-helpers.ts";
 
 function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {
 	return {

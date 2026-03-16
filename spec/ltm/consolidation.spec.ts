@@ -3,30 +3,17 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { ConsolidationOutput } from "../../src/ltm/consolidation.ts";
 import { ConsolidationPipeline } from "../../src/ltm/consolidation.ts";
-import { createEpisode } from "../../src/ltm/episode.ts";
 import { EpisodicMemory } from "../../src/ltm/episodic.ts";
 import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
 import { createFact } from "../../src/ltm/semantic-fact.ts";
 import type { ChatMessage } from "../../src/ltm/types.ts";
+import { createInvalidLLM, createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-// --- Mock LLM ---
-
-function createMockLLM(consolidationResponse?: ConsolidationOutput): LtmLlmPort {
-	return {
-		async chat(_messages: ChatMessage[]): Promise<string> {
-			return "mock response";
-		},
-		async chatStructured<T>(_messages: ChatMessage[], schema: Schema<T>): Promise<T> {
-			const response = consolidationResponse ?? { facts: [] };
-			return schema.parse(response);
-		},
-		async embed(_text: string): Promise<number[]> {
-			return [0.1, 0.2, 0.3];
-		},
-	};
+function createConsolidationLLM(consolidationResponse?: ConsolidationOutput): LtmLlmPort {
+	return createMockLLM({ structuredResponse: consolidationResponse ?? { facts: [] } });
 }
 
 function createDynamicMockLLM(
@@ -46,32 +33,6 @@ function createDynamicMockLLM(
 	};
 }
 
-function createInvalidLLM(invalidResponse: unknown): LtmLlmPort {
-	return {
-		chat: async () => "",
-		chatStructured: async <T>(_msgs: ChatMessage[], schema: Schema<T>) =>
-			schema.parse(invalidResponse),
-		embed: async () => [0.1, 0.2],
-	};
-}
-
-function makeEpisode(overrides: Partial<Parameters<typeof createEpisode>[0]> = {}) {
-	return createEpisode({
-		userId,
-		title: "Test Episode",
-		summary: "A conversation about TypeScript",
-		messages: [
-			{ role: "user", content: "I love TypeScript" },
-			{ role: "assistant", content: "That's great!" },
-		],
-		embedding: [0.1, 0.2, 0.3],
-		surprise: 0.2,
-		startAt: new Date(),
-		endAt: new Date(),
-		...overrides,
-	});
-}
-
 describe("ConsolidationPipeline — no episodes", () => {
 	let storage: LtmStorage;
 
@@ -84,7 +45,7 @@ describe("ConsolidationPipeline — no episodes", () => {
 	});
 
 	test("returns zero counts when no unconsolidated episodes", async () => {
-		const pipeline = new ConsolidationPipeline(createMockLLM(), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.processedEpisodes).toBe(0);
@@ -99,7 +60,7 @@ describe("ConsolidationPipeline — no episodes", () => {
 		await storage.saveEpisode(userId, episode);
 		await storage.markEpisodeConsolidated(userId, episode.id);
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.processedEpisodes).toBe(0);
@@ -132,7 +93,7 @@ describe("ConsolidationPipeline — new facts", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.processedEpisodes).toBe(1);
@@ -168,7 +129,7 @@ describe("ConsolidationPipeline — new facts", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.newFacts).toBe(2);
@@ -214,7 +175,7 @@ describe("ConsolidationPipeline — reinforce", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.reinforced).toBe(1);
@@ -242,7 +203,7 @@ describe("ConsolidationPipeline — reinforce", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.reinforced).toBe(0);
@@ -288,7 +249,7 @@ describe("ConsolidationPipeline — update", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.updated).toBe(1);
@@ -337,7 +298,7 @@ describe("ConsolidationPipeline — invalidate", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.invalidated).toBe(1);
@@ -389,7 +350,7 @@ describe("ConsolidationPipeline — multiple episodes", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createMockLLM(llmResponse), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.processedEpisodes).toBe(2);
@@ -556,7 +517,7 @@ describe("ConsolidationPipeline — episode marking", () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
-		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM({ facts: [] }), storage);
 		await pipeline.consolidate(userId);
 
 		const unconsolidated = await storage.getUnconsolidatedEpisodes(userId);
@@ -570,7 +531,7 @@ describe("ConsolidationPipeline — episode marking", () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
-		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM({ facts: [] }), storage);
 		await pipeline.consolidate(userId);
 
 		const ep = await storage.getEpisodeById(userId, episode.id);
@@ -799,7 +760,11 @@ describe("ConsolidationPipeline — FSRS learning loop", () => {
 		expect(before!.lastReviewedAt).toBeNull();
 
 		const episodic = new EpisodicMemory(storage);
-		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage, episodic);
+		const pipeline = new ConsolidationPipeline(
+			createConsolidationLLM({ facts: [] }),
+			storage,
+			episodic,
+		);
 		await pipeline.consolidate(userId);
 
 		// After: lastReviewedAt should be updated
@@ -811,7 +776,7 @@ describe("ConsolidationPipeline — FSRS learning loop", () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
-		const pipeline = new ConsolidationPipeline(createMockLLM({ facts: [] }), storage);
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM({ facts: [] }), storage);
 		await pipeline.consolidate(userId);
 
 		const after = await storage.getEpisodeById(userId, episode.id);

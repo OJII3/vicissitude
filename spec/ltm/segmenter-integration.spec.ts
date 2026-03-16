@@ -2,32 +2,17 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { EpisodicMemory } from "../../src/ltm/episodic.ts";
-import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
 import type { SegmentationOutput } from "../../src/ltm/segmenter.ts";
 import { Segmenter } from "../../src/ltm/segmenter.ts";
 import type { ChatMessage } from "../../src/ltm/types.ts";
 import { SURPRISE_VALUES } from "../../src/ltm/types.ts";
+import { createMockLLM, makeMessage } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-function createMockLLM(segmentationResponse?: SegmentationOutput): LtmLlmPort {
-	return {
-		async chat(_messages: ChatMessage[]): Promise<string> {
-			return "mock response";
-		},
-		async chatStructured<T>(_messages: ChatMessage[], schema: Schema<T>): Promise<T> {
-			const response = segmentationResponse ?? { segments: [] };
-			return schema.parse(response);
-		},
-		async embed(_text: string): Promise<number[]> {
-			return [0.1, 0.2, 0.3];
-		},
-	};
-}
-
-function makeMessage(content: string, role: ChatMessage["role"] = "user"): ChatMessage {
-	return { role, content, timestamp: new Date() };
+function createSegmentationLLM(segmentationResponse?: SegmentationOutput) {
+	return createMockLLM({ structuredResponse: segmentationResponse ?? { segments: [] } });
 }
 
 async function addMessagesSequentially(
@@ -64,7 +49,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const llm = createMockLLM(segResponse);
+		const llm = createSegmentationLLM(segResponse);
 		const segmenter = new Segmenter(llm, storage, {
 			minMessages: 3,
 			softTrigger: 5,
@@ -98,7 +83,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -125,7 +110,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -166,7 +151,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 20,
@@ -196,7 +181,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 20,
@@ -222,7 +207,7 @@ describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,

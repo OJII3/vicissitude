@@ -2,19 +2,11 @@ import { describe, expect, mock, test } from "bun:test";
 
 import type {
 	ConsolidationResult,
-	Logger,
 	MemoryConsolidator,
 	MetricsCollector,
 } from "../../src/core/types.ts";
 import { ConsolidationScheduler } from "../../src/scheduling/consolidation-scheduler.ts";
-
-function createMockLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		error: mock(() => {}),
-		warn: mock(() => {}),
-	};
-}
+import { createMockLogger } from "../test-helpers.ts";
 
 function createMockMetrics(): MetricsCollector {
 	return {

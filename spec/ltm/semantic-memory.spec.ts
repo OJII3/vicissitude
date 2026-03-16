@@ -2,22 +2,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import { createFact } from "../../src/ltm/semantic-fact.ts";
 import { SemanticMemory } from "../../src/ltm/semantic-memory.ts";
+import { makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";
-
-function makeFact(overrides: Partial<Parameters<typeof createFact>[0]> = {}) {
-	return createFact({
-		userId,
-		category: "preference",
-		fact: "User likes TypeScript",
-		keywords: ["typescript", "programming"],
-		sourceEpisodicIds: ["ep-1"],
-		embedding: [0.1, 0.2, 0.3],
-		...overrides,
-	});
-}
 
 describe("SemanticMemory — getFacts", () => {
 	let storage: LtmStorage;
