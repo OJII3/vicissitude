@@ -76,6 +76,8 @@ services:
     volumes:
       - bot-node-modules:/app/node_modules:ro
       - bot-dist:/app/dist:ro
+      - ./packages:/app/packages:ro
+      - ./apps:/app/apps:ro
       - ./data:/app/data:rw
       - ./context:/app/context:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
