@@ -1,6 +1,4 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { StoreDb } from "@vicissitude/store/db";
 import {
@@ -9,6 +7,7 @@ import {
 	tryAcquireSessionLock,
 } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
+import { z } from "zod";
 
 export interface McBridgeDeps {
 	db: StoreDb;

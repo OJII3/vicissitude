@@ -1,8 +1,8 @@
 /* oxlint-disable max-dependencies -- server entry requires auto-notifier + bridge DB dependencies */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
 import { parseMcAuthMode } from "@vicissitude/shared/config";
 import { createDb, closeDb } from "@vicissitude/store/db";
+
 import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";

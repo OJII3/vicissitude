@@ -7,7 +7,7 @@ import {
 	guildIdSchema,
 	readWithFallbackFrom,
 	resolveContextPaths,
-} from "../../src/mcp/memory-helpers.ts";
+} from "../../packages/mcp/src/memory-helpers.ts";
 
 describe("resolveContextPaths", () => {
 	it("guildId 未指定時はオーバーレイベースのグローバルパスを返す", () => {

@@ -2,19 +2,15 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-
-import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/shared/config";
+import { APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/shared/config";
 import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
+import { z } from "zod";
 
 const DATA_DIR = process.env.DATA_DIR;
 const CONFIG_PATH = DATA_DIR
 	? resolve(DATA_DIR, "heartbeat-config.json")
-	: resolve(
-			process.env.APP_ROOT ?? resolve(import.meta.dirname, "../../.."),
-			HEARTBEAT_CONFIG_RELATIVE_PATH,
-		);
+	: resolve(APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH);
 
 function loadConfig(): HeartbeatConfig {
 	if (!existsSync(CONFIG_PATH)) return createDefaultHeartbeatConfig();

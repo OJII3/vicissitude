@@ -4,6 +4,9 @@ import { z } from "zod";
 
 // ─── Constants ───────────────────────────────────────────────────
 
+/** プロジェクトルートパス（環境変数 or cwd） */
+export const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
+
 /** Heartbeat config JSON の相対パス（プロジェクトルート起点） */
 export const HEARTBEAT_CONFIG_RELATIVE_PATH = "data/heartbeat-config.json";
 

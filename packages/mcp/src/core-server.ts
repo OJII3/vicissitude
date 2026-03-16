@@ -2,8 +2,6 @@ import { mkdirSync } from "fs";
 import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { Client, GatewayIntentBits } from "discord.js";
-
 import { EpisodicMemory } from "@vicissitude/ltm/episodic";
 import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
 import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
@@ -11,6 +9,8 @@ import { Retrieval } from "@vicissitude/ltm/retrieval";
 import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { closeDb, createDb } from "@vicissitude/store/db";
+import { Client, GatewayIntentBits } from "discord.js";
+
 import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";

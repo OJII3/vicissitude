@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
-
 import { METRIC } from "@vicissitude/shared/constants";
 import type { MetricsCollector } from "@vicissitude/shared/types";
+import { z } from "zod";
+
 import { registerActionTools } from "./actions/index.ts";
 import type { BotContext } from "./bot-context.ts";
 import {

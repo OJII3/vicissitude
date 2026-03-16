@@ -6,6 +6,7 @@ import {
 	tryAcquireSessionLock,
 } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
+
 import { createTestDb } from "../../../packages/store/src/test-helpers.ts";
 
 describe("mc-bridge ラウンドトリップ結合テスト", () => {

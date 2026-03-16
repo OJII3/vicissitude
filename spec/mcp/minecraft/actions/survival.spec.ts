@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { listEdibleFoods } from "../../../../src/mcp/minecraft/actions/survival/index.ts";
+import { listEdibleFoods } from "../../../../packages/minecraft/src/actions/survival/index.ts";
 
 function makeBot(
 	foodsByName: Record<

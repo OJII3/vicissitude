@@ -3,6 +3,7 @@ import type { MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
+
 import type { Importance } from "./helpers.ts";
 
 /** Discord 自動通知の対象イベント種別 */

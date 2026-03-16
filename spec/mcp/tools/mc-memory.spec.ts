@@ -9,7 +9,7 @@ import {
 	sanitizeSkillDescription,
 	sanitizeSkillName,
 	writeOverlay,
-} from "../../../src/mcp/tools/mc-memory.ts";
+} from "../../../packages/mcp/src/tools/mc-memory.ts";
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));
@@ -220,10 +220,7 @@ describe("mc_record_skill の追記ロジック", () => {
 		const safeDescription = sanitizeSkillDescription("説明文");
 		const preconditions = sanitizeSingleLine("条件1\n条件2\r\n条件3");
 
-		const lines = [
-			`\n## ${safeName}\n\n${safeDescription}`,
-			`\n**前提条件**: ${preconditions}`,
-		];
+		const lines = [`\n## ${safeName}\n\n${safeDescription}`, `\n**前提条件**: ${preconditions}`];
 		const entry = `${lines.join("")}\n`;
 		const updated = existing + entry;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);

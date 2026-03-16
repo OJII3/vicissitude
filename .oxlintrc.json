@@ -62,7 +62,7 @@
 			}
 		},
 		{
-			"files": ["**/mcp/tools/*.ts", "**/mcp/core-server.ts", "**/mcp/minecraft/mcp-tools.ts"],
+			"files": ["**/mcp/**/tools/*.ts", "**/mcp/**/core-server.ts", "**/minecraft/**/mcp-tools.ts"],
 			"rules": {
 				"eslint/max-lines-per-function": "off",
 				"import/max-dependencies": "off"

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatEvents, pollEvents } from "../../../src/mcp/tools/event-buffer.ts";
 import { appendEvent } from "@vicissitude/store/queries";
+
+import { formatEvents, pollEvents } from "../../../packages/mcp/src/tools/event-buffer.ts";
 import { createTestDb } from "../../../packages/store/src/test-helpers.ts";
 
 describe("formatEvents", () => {

@@ -2,15 +2,14 @@ import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-
+import { registerMinecraftBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-minecraft";
+import { registerMcMemoryTools } from "@vicissitude/mcp/tools/mc-memory";
+import { APP_ROOT } from "@vicissitude/shared/config";
 import { closeDb, createDb } from "@vicissitude/store/db";
-import { registerMinecraftBridgeTools } from "../tools/mc-bridge-minecraft.ts";
-import { registerMcMemoryTools } from "../tools/mc-memory.ts";
 
 // --- Configuration from environment ---
 
-const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "../../..");
-const DATA_DIR = process.env.DATA_DIR ?? resolve(root, "data");
+const DATA_DIR = process.env.DATA_DIR ?? resolve(APP_ROOT, "data");
 
 // --- Drizzle DB ---
 

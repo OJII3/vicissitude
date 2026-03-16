@@ -45,6 +45,29 @@
     "packages/ltm": {
       "name": "@vicissitude/ltm",
     },
+    "packages/mcp": {
+      "name": "@vicissitude/mcp",
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.27.1",
+        "discord.js": "^14.25.1",
+        "zod": "^4.3.6",
+      },
+    },
+    "packages/minecraft": {
+      "name": "@vicissitude/minecraft",
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.27.1",
+        "canvas": "^3.2.1",
+        "mineflayer": "^4.35.0",
+        "mineflayer-pathfinder": "^2.4.5",
+        "prismarine-entity": "^2.5.0",
+        "prismarine-recipe": "^1.3.0",
+        "prismarine-viewer": "^1.33.0",
+        "three": "^0.183.2",
+        "vec3": "^0.1.7",
+        "zod": "^4.3.6",
+      },
+    },
     "packages/observability": {
       "name": "@vicissitude/observability",
     },
@@ -219,6 +242,10 @@
     "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
 
     "@vicissitude/ltm": ["@vicissitude/ltm@workspace:packages/ltm"],
+
+    "@vicissitude/mcp": ["@vicissitude/mcp@workspace:packages/mcp"],
+
+    "@vicissitude/minecraft": ["@vicissitude/minecraft@workspace:packages/minecraft"],
 
     "@vicissitude/observability": ["@vicissitude/observability@workspace:packages/observability"],
 

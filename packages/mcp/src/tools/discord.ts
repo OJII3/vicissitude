@@ -2,10 +2,9 @@ import { existsSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import type { Client } from "discord.js";
 import { z } from "zod";
-
-import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
 
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 

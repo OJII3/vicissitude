@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { createBotContext } from "../../../src/mcp/minecraft/bot-context.ts";
+import { createBotContext } from "../../../packages/minecraft/src/bot-context.ts";
 
 describe("createBotContext", () => {
 	test("初期状態: getBot() は null", () => {
