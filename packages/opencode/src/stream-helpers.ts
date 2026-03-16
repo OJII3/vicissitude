@@ -85,9 +85,7 @@ export function returnStreamOnce(stream: AbortableAsyncStream<unknown>): Promise
 }
 export async function abortSession(oc: OpencodeClient, sessionId: string): Promise<void> {
 	try {
-		const result = await oc.session.abort({ sessionID: sessionId });
-		if (result.error) {
-		}
+		await oc.session.abort({ sessionID: sessionId });
 	} catch {
 		// 停止経路ではベストエフォート。unhandled rejection にはしない。
 	}
