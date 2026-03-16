@@ -135,6 +135,10 @@ describe("ContextBuilder", () => {
 	describe("TOTAL_MAX による切り詰め", () => {
 		it("TOTAL_MAX を超えるとそれ以降のセクションが省略される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
+			// TOTAL_MAX は 150_000。各 SHARED_FILE + MEMORY_FILE にラージコンテンツを書いて総量を超過させる
+			// SHARED_FILES: IDENTITY, SOUL, AGENTS, TOOLS, HEARTBEAT, USER (6 files)
+			// MEMORY_FILES: MEMORY, LESSONS (2 files)
+			// PER_FILE_MAX は 20_000 なので、各ファイルに 20_000 文字書く → 8 files × 20_000 = 160_000 > 150_000
 			const largeContent = "x".repeat(20_000);
 			writeFile(baseDir, "IDENTITY.md", largeContent);
 			writeFile(baseDir, "SOUL.md", largeContent);
@@ -148,8 +152,12 @@ describe("ContextBuilder", () => {
 			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build();
 
+			// 全セクションは入り切らないはず（TOTAL_MAX 超過で break）
+			// LESSONS.md は末尾なので入らない可能性が高い
 			expect(result.length).toBeLessThanOrEqual(160_000);
+			// 最初のファイルは含まれる
 			expect(result).toContain("<IDENTITY.md>");
+			// 8 ファイル全てが含まれていないことを確認
 			const sectionCount = (
 				result.match(/<\/(IDENTITY|SOUL|AGENTS|TOOLS|HEARTBEAT|USER|MEMORY|LESSONS)\.md>/g) || []
 			).length;
