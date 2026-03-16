@@ -1,6 +1,7 @@
 /.claude/*.local.*
 /.claude/worktree
 /.claude/agent-memory
+/.claude/IDEA.md
 /tmp/
 node_modules/
 .env
