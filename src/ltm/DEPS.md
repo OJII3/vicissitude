@@ -85,7 +85,7 @@ graph LR
 ### composite-llm-adapter.ts
 
 - モジュール内依存: llm-port, ltm-chat-adapter, types
-- 他モジュール依存: ollama/
+- 外部依存: @vicissitude/ollama
 
 ### consolidation.ts
 

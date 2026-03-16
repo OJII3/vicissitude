@@ -12,13 +12,11 @@ graph LR
   gateway --> infrastructure
   infrastructure --> application
   infrastructure --> store
-  ltm --> ollama
+  ltm
   mcp --> infrastructure
   mcp --> ltm
-  mcp --> ollama
   mcp --> store
   observability
-  ollama
   opencode
   scheduling --> application
   scheduling --> observability
@@ -53,14 +51,14 @@ graph LR
 
 ### ltm/
 
-- 内部依存: ollama/
-- 外部依存: @vicissitude/shared/types, bun:sqlite, fs, path
+- 内部依存: なし
+- 外部依存: @vicissitude/ollama, @vicissitude/shared/types, bun:sqlite, fs, path
 - ファイル数: 21
 
 ### mcp/
 
-- 内部依存: infrastructure/, ltm/, ollama/, store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, @vicissitude/shared/config, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path, prismarine-entity, prismarine-recipe, vec3
+- 内部依存: infrastructure/, ltm/, store/
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, @vicissitude/ollama, @vicissitude/shared/config, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path, prismarine-entity, prismarine-recipe, vec3
 - ファイル数: 34
 
 ### observability/
@@ -68,12 +66,6 @@ graph LR
 - 内部依存: なし
 - 外部依存: @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types
 - ファイル数: 2
-
-### ollama/
-
-- 内部依存: なし
-- 外部依存: なし
-- ファイル数: 1
 
 ### opencode/
 

@@ -27,7 +27,7 @@ import {
 	METRIC,
 	InstrumentedAiAgent,
 } from "./observability/metrics.ts";
-import { OllamaEmbeddingAdapter } from "./ollama/ollama-embedding-adapter.ts";
+import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OpencodeSessionAdapter } from "./opencode/session-adapter.ts";
 import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts";
 import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";

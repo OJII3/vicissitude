@@ -88,8 +88,8 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: ltm/, ollama/, store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 他モジュール依存: ltm/, store/
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ollama, fs, path
 
 ### http-server.ts
 
