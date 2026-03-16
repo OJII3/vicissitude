@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
-import { OllamaEmbeddingAdapter } from "../../src/ollama/ollama-embedding-adapter.ts";
+import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 
 function mockFetch(response: { ok: boolean; status?: number; statusText?: string; body: unknown }) {
 	globalThis.fetch = (() =>

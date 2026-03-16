@@ -6,102 +6,119 @@
 
 ```mermaid
 graph LR
-  agent --> core
   agent --> opencode
+  agent --> shared
   agent --> store
-  application --> core
-  core
-  gateway --> core
-  gateway --> infrastructure
+  application --> shared
+  apps_discord["apps/discord"] --> agent
+  apps_discord["apps/discord"] --> application
+  apps_discord["apps/discord"] --> infrastructure
+  apps_discord["apps/discord"] --> ltm
+  apps_discord["apps/discord"] --> observability
+  apps_discord["apps/discord"] --> ollama
+  apps_discord["apps/discord"] --> opencode
+  apps_discord["apps/discord"] --> scheduling
+  apps_discord["apps/discord"] --> shared
+  apps_discord["apps/discord"] --> store
   infrastructure --> application
-  infrastructure --> core
+  infrastructure --> shared
   infrastructure --> store
-  ltm --> core
   ltm --> ollama
-  mcp --> core
+  ltm --> shared
   mcp --> infrastructure
   mcp --> ltm
   mcp --> ollama
+  mcp --> shared
   mcp --> store
-  observability --> core
+  minecraft --> mcp
+  minecraft --> shared
+  minecraft --> store
+  observability --> shared
   ollama
-  opencode --> core
+  opencode --> shared
   scheduling --> application
-  scheduling --> core
   scheduling --> observability
-  store --> core
+  scheduling --> shared
+  shared
+  store --> shared
 ```
 
 ## モジュール別依存一覧
 
-### agent/
+### agent
 
-- 内部依存: core/, opencode/, store/
-- 外部依存: drizzle-orm, path
-- ファイル数: 12
+- 内部依存: opencode, shared, store
+- 外部依存: .bun, path
+- ファイル数: 17
 
-### application/
+### application
 
-- 内部依存: core/
+- 内部依存: shared
 - 外部依存: なし
-- ファイル数: 2
-
-### core/
-
-- 内部依存: なし
-- 外部依存: path, zod
 - ファイル数: 4
 
-### gateway/
+### apps/discord
 
-- 内部依存: core/, infrastructure/
-- 外部依存: discord.js
-- ファイル数: 2
+- 内部依存: agent, application, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store
+- 外部依存: .bun, fs, path
+- ファイル数: 4
 
-### infrastructure/
+### infrastructure
 
-- 内部依存: application/, core/, store/
-- 外部依存: discord.js
-- ファイル数: 3
+- 内部依存: application, shared, store
+- 外部依存: .bun
+- ファイル数: 6
 
-### ltm/
+### ltm
 
-- 内部依存: core/, ollama/
+- 内部依存: ollama, shared
 - 外部依存: bun:sqlite, fs, path
-- ファイル数: 21
+- ファイル数: 31
 
-### mcp/
+### mcp
 
-- 内部依存: core/, infrastructure/, ltm/, ollama/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
-- ファイル数: 34
+- 内部依存: infrastructure, ltm, ollama, shared, store
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
+- ファイル数: 15
 
-### observability/
+### minecraft
 
-- 内部依存: core/
+- 内部依存: mcp, shared, store
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
+- ファイル数: 22
+
+### observability
+
+- 内部依存: shared
 - 外部依存: なし
-- ファイル数: 2
+- ファイル数: 4
 
-### ollama/
+### ollama
 
 - 内部依存: なし
 - 外部依存: なし
-- ファイル数: 1
+- ファイル数: 2
 
-### opencode/
+### opencode
 
-- 内部依存: core/
+- 内部依存: shared
 - 外部依存: @opencode-ai/sdk/v2
-- ファイル数: 3
+- ファイル数: 4
 
-### scheduling/
+### scheduling
 
-- 内部依存: application/, core/, observability/
-- 外部依存: fs, path, zod
-- ファイル数: 3
+- 内部依存: application, observability, shared
+- 外部依存: .bun, fs, path
+- ファイル数: 5
 
-### store/
+### shared
 
-- 内部依存: core/
-- 外部依存: bun:sqlite, drizzle-orm, fs, path
-- ファイル数: 6
+- 内部依存: なし
+- 外部依存: .bun, path
+- ファイル数: 8
+
+### store
+
+- 内部依存: shared
+- 外部依存: .bun, bun:sqlite, fs, path
+- ファイル数: 13

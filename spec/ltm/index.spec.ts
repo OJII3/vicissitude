@@ -1,9 +1,9 @@
 /* oxlint-disable require-await -- test mock */
 import { describe, expect, test } from "bun:test";
 
-import { createLtm } from "../../src/ltm/index.ts";
-import type { LtmLlmPort } from "../../src/ltm/llm-port.ts";
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
+import { createLtm } from "@vicissitude/ltm";
+import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 
 const mockLLM: LtmLlmPort = {
 	chat: async () => "mock",

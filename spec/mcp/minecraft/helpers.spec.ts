@@ -8,7 +8,7 @@ import {
 	formatInventoryText,
 	getTimePeriod,
 	isHostileMob,
-} from "../../../src/mcp/minecraft/helpers.ts";
+} from "@vicissitude/minecraft/helpers";
 
 describe("getTimePeriod", () => {
 	test("0 → 朝", () => expect(getTimePeriod(0)).toBe("朝"));

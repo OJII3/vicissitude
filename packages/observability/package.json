@@ -1,0 +1,8 @@
+{
+	"name": "@vicissitude/observability",
+	"private": true,
+	"exports": {
+		"./logger": "./src/logger.ts",
+		"./metrics": "./src/metrics.ts"
+	}
+}

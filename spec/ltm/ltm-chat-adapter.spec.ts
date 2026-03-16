@@ -1,13 +1,13 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { OpencodeSessionPort } from "../../src/core/types.ts";
 import {
 	LtmChatAdapter,
 	appendJsonInstruction,
 	cleanJsonResponse,
 	separateMessages,
-} from "../../src/ltm/ltm-chat-adapter.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+} from "@vicissitude/ltm/ltm-chat-adapter";
+import type { ChatMessage } from "@vicissitude/ltm/types";
+import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
 function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessionPort {
 	let callIndex = 0;

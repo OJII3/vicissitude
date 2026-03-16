@@ -1,0 +1,31 @@
+{
+	"name": "@vicissitude/minecraft",
+	"private": true,
+	"exports": {
+		"./server": "./src/server.ts",
+		"./mc-bridge-server": "./src/mc-bridge-server.ts",
+		"./mcp-tools": "./src/mcp-tools.ts",
+		"./bot-connection": "./src/bot-connection.ts",
+		"./bot-context": "./src/bot-context.ts",
+		"./bot-queries": "./src/bot-queries.ts",
+		"./job-manager": "./src/job-manager.ts",
+		"./state-summary": "./src/state-summary.ts",
+		"./auto-notifier": "./src/auto-notifier.ts",
+		"./http-server": "./src/http-server.ts",
+		"./mc-metrics": "./src/mc-metrics.ts",
+		"./helpers": "./src/helpers.ts",
+		"./actions/survival": "./src/actions/survival/index.ts"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.1",
+		"canvas": "^3.2.1",
+		"mineflayer": "^4.35.0",
+		"mineflayer-pathfinder": "^2.4.5",
+		"prismarine-entity": "^2.5.0",
+		"prismarine-recipe": "^1.3.0",
+		"prismarine-viewer": "^1.33.0",
+		"three": "^0.183.2",
+		"vec3": "^0.1.7",
+		"zod": "^4.3.6"
+	}
+}

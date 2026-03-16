@@ -1,8 +1,7 @@
 import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-import { startHttpServer } from "../../../src/mcp/minecraft/http-server.ts";
+import { startHttpServer } from "@vicissitude/minecraft/http-server";
 
 const MCP_INIT_BODY = JSON.stringify({
 	jsonrpc: "2.0",

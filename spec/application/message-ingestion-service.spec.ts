@@ -1,8 +1,13 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type { BufferedEventStore } from "../../src/application/message-ingestion-service.ts";
-import { MessageIngestionService } from "../../src/application/message-ingestion-service.ts";
-import type { BufferedEvent, ConversationRecorder, IncomingMessage } from "../../src/core/types.ts";
+import type { BufferedEventStore } from "@vicissitude/application/message-ingestion-service";
+import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
+import type {
+	BufferedEvent,
+	ConversationRecorder,
+	IncomingMessage,
+} from "@vicissitude/shared/types";
+
 import { createMockLogger } from "../test-helpers.ts";
 
 function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessage {

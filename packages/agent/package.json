@@ -1,0 +1,20 @@
+{
+	"name": "@vicissitude/agent",
+	"private": true,
+	"exports": {
+		"./runner": "./src/runner.ts",
+		"./session-store": "./src/session-store.ts",
+		"./profile": "./src/profile.ts",
+		"./mcp-config": "./src/mcp-config.ts",
+		"./discord/discord-agent": "./src/discord/discord-agent.ts",
+		"./discord/context-builder": "./src/discord/context-builder.ts",
+		"./discord/router": "./src/discord/router.ts",
+		"./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
+		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
+		"./discord/profile": "./src/discord/profile.ts",
+		"./minecraft/context-builder": "./src/minecraft/context-builder.ts"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.45.1"
+	}
+}

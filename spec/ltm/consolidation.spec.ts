@@ -1,13 +1,14 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await -- comprehensive consolidation tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { ConsolidationOutput } from "../../src/ltm/consolidation.ts";
-import { ConsolidationPipeline } from "../../src/ltm/consolidation.ts";
-import { EpisodicMemory } from "../../src/ltm/episodic.ts";
-import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import { createFact } from "../../src/ltm/semantic-fact.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import type { ConsolidationOutput } from "@vicissitude/ltm/consolidation";
+import { ConsolidationPipeline } from "@vicissitude/ltm/consolidation";
+import { EpisodicMemory } from "@vicissitude/ltm/episodic";
+import type { LtmLlmPort, Schema } from "@vicissitude/ltm/llm-port";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import { createFact } from "@vicissitude/ltm/semantic-fact";
+import type { ChatMessage } from "@vicissitude/ltm/types";
+
 import { createInvalidLLM, createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";

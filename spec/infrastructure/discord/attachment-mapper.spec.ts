@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { Collection } from "discord.js";
-import type { Attachment as DiscordAttachment } from "discord.js";
-
 import {
 	filterImageUrls,
 	mapAttachments,
-} from "../../../src/infrastructure/discord/attachment-mapper.ts";
+} from "@vicissitude/infrastructure/discord/attachment-mapper";
+import { Collection } from "discord.js";
+import type { Attachment as DiscordAttachment } from "discord.js";
 
 function makeAttachment(
 	overrides: Partial<DiscordAttachment> & { id?: string } = {},

@@ -3,10 +3,10 @@ import { mkdtempSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-import { createAutoNotifier } from "../../../src/mcp/minecraft/auto-notifier.ts";
-import { createDb, closeDb } from "../../../src/store/db.ts";
-import { getMcConnectionStatus, tryAcquireSessionLock } from "../../../src/store/mc-bridge.ts";
-import { consumeEvents } from "../../../src/store/queries.ts";
+import { createAutoNotifier } from "@vicissitude/minecraft/auto-notifier";
+import { createDb, closeDb } from "@vicissitude/store/db";
+import { getMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
+import { consumeEvents } from "@vicissitude/store/queries";
 
 function setupDb() {
 	const dir = mkdtempSync(join(tmpdir(), "vicissitude-auto-notifier-"));

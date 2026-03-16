@@ -1,0 +1,24 @@
+{
+	"name": "@vicissitude/mcp",
+	"private": true,
+	"exports": {
+		"./core-server": "./src/core-server.ts",
+		"./code-exec-server": "./src/code-exec-server.ts",
+		"./http-server": "./src/http-server.ts",
+		"./memory-helpers": "./src/memory-helpers.ts",
+		"./test-helpers": "./src/test-helpers.ts",
+		"./tools/discord": "./src/tools/discord.ts",
+		"./tools/event-buffer": "./src/tools/event-buffer.ts",
+		"./tools/ltm": "./src/tools/ltm.ts",
+		"./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",
+		"./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
+		"./tools/mc-memory": "./src/tools/mc-memory.ts",
+		"./tools/memory": "./src/tools/memory.ts",
+		"./tools/schedule": "./src/tools/schedule.ts"
+	},
+	"dependencies": {
+		"@modelcontextprotocol/sdk": "^1.27.1",
+		"discord.js": "^14.25.1",
+		"zod": "^4.3.6"
+	}
+}

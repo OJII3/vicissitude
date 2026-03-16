@@ -9,8 +9,8 @@ import {
 	getTopEmojis,
 	incrementEmoji,
 	saveSession,
-} from "../../src/store/queries.ts";
-import { createTestDb } from "../../src/store/test-helpers.ts";
+} from "@vicissitude/store/queries";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 describe("store", () => {
 	describe("table creation", () => {

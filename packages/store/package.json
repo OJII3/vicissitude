@@ -1,0 +1,16 @@
+{
+	"name": "@vicissitude/store",
+	"private": true,
+	"exports": {
+		"./db": "./src/db.ts",
+		"./queries": "./src/queries.ts",
+		"./schema": "./src/schema.ts",
+		"./event-buffer": "./src/event-buffer.ts",
+		"./mc-bridge": "./src/mc-bridge.ts",
+		"./mc-status-provider": "./src/mc-status-provider.ts",
+		"./test-helpers": "./src/test-helpers.ts"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.45.1"
+	}
+}

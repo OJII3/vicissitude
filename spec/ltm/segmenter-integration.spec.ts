@@ -1,12 +1,13 @@
 /* oxlint-disable no-non-null-assertion, require-await, no-await-in-loop -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { EpisodicMemory } from "../../src/ltm/episodic.ts";
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import type { SegmentationOutput } from "../../src/ltm/segmenter.ts";
-import { Segmenter } from "../../src/ltm/segmenter.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
-import { SURPRISE_VALUES } from "../../src/ltm/types.ts";
+import { EpisodicMemory } from "@vicissitude/ltm/episodic";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import type { SegmentationOutput } from "@vicissitude/ltm/segmenter";
+import { Segmenter } from "@vicissitude/ltm/segmenter";
+import type { ChatMessage } from "@vicissitude/ltm/types";
+import { SURPRISE_VALUES } from "@vicissitude/ltm/types";
+
 import { createMockLLM, makeMessage } from "./test-helpers.ts";
 
 const userId = "user-1";

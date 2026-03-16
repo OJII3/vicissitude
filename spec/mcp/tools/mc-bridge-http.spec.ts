@@ -1,12 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
-import { startHttpServer } from "../../../src/mcp/http-server.ts";
-import { parseMcpResponse } from "../../../src/mcp/test-helpers.ts";
-import { registerDiscordBridgeTools } from "../../../src/mcp/tools/mc-bridge-discord.ts";
-import { tryAcquireSessionLock, setMcConnectionStatus } from "../../../src/store/mc-bridge.ts";
-import { createTestDb } from "../../../src/store/test-helpers.ts";
+import { startHttpServer } from "@vicissitude/mcp/http-server";
+import { parseMcpResponse } from "@vicissitude/mcp/test-helpers";
+import { registerDiscordBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-discord";
+import { tryAcquireSessionLock, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 let baseUrl: string;
 

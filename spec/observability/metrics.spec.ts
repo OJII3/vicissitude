@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { PrometheusCollector, inferTrigger } from "../../src/observability/metrics.ts";
+import { PrometheusCollector, inferTrigger } from "@vicissitude/observability/metrics";
 
 // ─── Counter ─────────────────────────────────────────────────────
 

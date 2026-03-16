@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { loadConfig } from "../../src/core/config.ts";
+import { loadConfig } from "@vicissitude/shared/config";
 
 function baseEnv(overrides: Record<string, string> = {}): Record<string, string> {
 	return {

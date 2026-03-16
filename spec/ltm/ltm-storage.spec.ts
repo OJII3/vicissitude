@@ -1,8 +1,9 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive storage adapter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import type { ChatMessage } from "@vicissitude/ltm/types";
+
 import { makeEpisode, makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";
