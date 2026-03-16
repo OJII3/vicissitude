@@ -1,0 +1,10 @@
+{
+	"name": "@vicissitude/shared",
+	"private": true,
+	"exports": {
+		"./types": "./src/types.ts",
+		"./config": "./src/config.ts",
+		"./constants": "./src/constants.ts",
+		"./functions": "./src/functions.ts"
+	}
+}

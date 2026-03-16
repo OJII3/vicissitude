@@ -94,8 +94,7 @@ graph LR
 ### conversation-recorder.ts
 
 - モジュール内依存: consolidation, episode, episodic, llm-port, ltm-storage, segmenter
-- 他モジュール依存: core/
-- 外部依存: fs, path
+- 外部依存: @vicissitude/shared/types, fs, path
 
 ### episode.ts
 
@@ -108,8 +107,7 @@ graph LR
 ### fact-reader.ts
 
 - モジュール内依存: ltm-storage, retrieval, semantic-fact
-- 他モジュール依存: core/
-- 外部依存: fs, path
+- 外部依存: @vicissitude/shared/types, fs, path
 
 ### fsrs.ts
 
@@ -126,7 +124,7 @@ graph LR
 ### ltm-chat-adapter.ts
 
 - モジュール内依存: types
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### ltm-storage.ts
 

@@ -12,7 +12,7 @@ import type {
 	OpencodeSessionPort,
 	PromptResult,
 	TokenUsage,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";
 import {
 	abortSession,
 	classifyEvent,

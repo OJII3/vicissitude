@@ -1,4 +1,4 @@
-import type { AiAgent, DueReminder, Logger } from "../core/types.ts";
+import type { AiAgent, DueReminder, Logger } from "@vicissitude/shared/types";
 
 const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
 

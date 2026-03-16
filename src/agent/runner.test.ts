@@ -7,7 +7,7 @@ import type {
 	Logger,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";
 import type { AgentProfile } from "./profile.ts";
 import { AgentRunner, type RunnerDeps } from "./runner.ts";
 

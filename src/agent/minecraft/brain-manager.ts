@@ -1,5 +1,5 @@
-import { MINECRAFT_AGENT_ID } from "../../core/constants.ts";
-import type { Logger } from "../../core/types.ts";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
+import type { Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "../../store/db.ts";
 import { SqliteEventBuffer } from "../../store/event-buffer.ts";
 import { clearSessionLock, hasSessionLock } from "../../store/mc-bridge.ts";

@@ -83,13 +83,13 @@ graph LR
 
 ### code-exec-server.ts
 
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js
 
 ### core-server.ts
 
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
 - 他モジュール依存: ltm/, ollama/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### http-server.ts
 
@@ -97,12 +97,12 @@ graph LR
 
 ### memory-helpers.ts
 
-- 外部依存: fs, path, zod
+- 外部依存: .bun, fs, path
 
 ### minecraft/actions/combat.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, prismarine-entity
 
 ### minecraft/actions/index.ts
 
@@ -112,32 +112,32 @@ graph LR
 ### minecraft/actions/interaction.ts
 
 - モジュール内依存: minecraft/actions/shared
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, vec3, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, vec3
 
 ### minecraft/actions/jobs.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/job-manager
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-recipe, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, prismarine-recipe
 
 ### minecraft/actions/movement.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, prismarine-entity, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, prismarine-entity
 
 ### minecraft/actions/shared.ts
 
 - モジュール内依存: minecraft/job-manager
-- 外部依存: mineflayer, mineflayer-pathfinder
+- 外部依存: .bun
 
 ### minecraft/actions/survival/escape.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/bot-queries, minecraft/job-manager
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer-pathfinder, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/actions/survival/food.ts
 
 - モジュール内依存: minecraft/actions/shared
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### minecraft/actions/survival/index.ts
 
@@ -147,29 +147,28 @@ graph LR
 ### minecraft/actions/survival/shelter.ts
 
 - モジュール内依存: minecraft/actions/shared, minecraft/job-manager
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, mineflayer, mineflayer-pathfinder, vec3, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, vec3
 
 ### minecraft/auto-notifier.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: core/, store/
+- 他モジュール依存: store/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/bot-connection.ts
 
 - モジュール内依存: minecraft/bot-context, minecraft/bot-queries, minecraft/helpers
-- 他モジュール依存: core/
-- 外部依存: mineflayer, mineflayer-pathfinder, prismarine-entity, prismarine-viewer
+- 外部依存: .bun, @vicissitude/shared/config, prismarine-entity
 
 ### minecraft/bot-context.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: core/
-- 外部依存: mineflayer
+- 外部依存: .bun, @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/bot-queries.ts
 
 - モジュール内依存: minecraft/helpers
-- 外部依存: mineflayer, prismarine-entity, vec3
+- 外部依存: .bun, prismarine-entity, vec3
 
 ### minecraft/helpers.ts
 
@@ -182,7 +181,7 @@ graph LR
 ### minecraft/job-manager.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/mc-bridge-server.ts
 
@@ -192,19 +191,18 @@ graph LR
 
 ### minecraft/mc-metrics.ts
 
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types
 
 ### minecraft/mcp-tools.ts
 
 - モジュール内依存: minecraft/actions/index, minecraft/bot-context, minecraft/bot-queries, minecraft/job-manager, minecraft/state-summary
-- 他モジュール依存: core/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/server.ts
 
 - モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
-- 他モジュール依存: core/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js
+- 他モジュール依存: store/
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config
 
 ### minecraft/state-summary.ts
 
@@ -213,39 +211,38 @@ graph LR
 ### tools/discord.ts
 
 - 他モジュール依存: infrastructure/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, discord.js, fs, path, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/event-buffer.ts
 
 - 他モジュール依存: store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/ltm.ts
 
 - 他モジュール依存: ltm/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-discord.ts
 
-- 他モジュール依存: core/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+- 他モジュール依存: store/
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants
 
 ### tools/mc-bridge-minecraft.ts
 
 - 他モジュール依存: store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts
 
 - モジュール内依存: memory-helpers
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/memory.ts
 
 - モジュール内依存: memory-helpers
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/schedule.ts
 
-- 他モジュール依存: core/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, fs, path, zod
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path

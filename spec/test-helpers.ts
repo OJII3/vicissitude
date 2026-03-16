@@ -1,6 +1,6 @@
 import { mock } from "bun:test";
 
-import type { Logger, MetricsCollector } from "../src/core/types.ts";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 export function createMockLogger(): Logger {
 	return {

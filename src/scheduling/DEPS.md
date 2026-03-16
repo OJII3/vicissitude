@@ -15,15 +15,15 @@ graph LR
 
 ### consolidation-scheduler.ts
 
-- 他モジュール依存: core/, observability/
+- 他モジュール依存: observability/
+- 外部依存: @vicissitude/shared/functions, @vicissitude/shared/types
 
 ### heartbeat-config.ts
 
-- 他モジュール依存: core/
-- 外部依存: fs, path, zod
+- 外部依存: .bun, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path
 
 ### heartbeat-scheduler.ts
 
 - モジュール内依存: heartbeat-config
-- 他モジュール依存: application/, core/, observability/
-- 外部依存: path
+- 他モジュール依存: application/, observability/
+- 外部依存: @vicissitude/shared/config, @vicissitude/shared/functions, @vicissitude/shared/types, path

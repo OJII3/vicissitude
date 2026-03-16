@@ -1,7 +1,7 @@
 import type mineflayer from "mineflayer";
 
-import { METRIC } from "../../core/constants.ts";
-import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "@vicissitude/shared/constants";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 import type { ActionState, Importance } from "./helpers.ts";
 
 export interface BotEvent {

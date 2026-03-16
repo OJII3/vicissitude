@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { OpencodeSessionPort } from "../../src/core/types.ts";
+import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 import {
 	LtmChatAdapter,
 	appendJsonInstruction,

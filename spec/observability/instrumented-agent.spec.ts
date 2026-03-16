@@ -1,6 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse } from "../../src/core/types.ts";
+import type { AgentResponse } from "@vicissitude/shared/types";
 import {
 	InstrumentedAiAgent,
 	PrometheusCollector,

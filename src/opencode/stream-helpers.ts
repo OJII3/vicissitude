@@ -8,8 +8,8 @@ import type {
 	Part,
 } from "@opencode-ai/sdk/v2";
 
-import { withTimeout } from "../core/functions.ts";
-import type { OpencodeSessionEvent, TokenUsage } from "../core/types.ts";
+import { withTimeout } from "@vicissitude/shared/functions";
+import type { OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
 
 export type AbortableAsyncStream<T> = AsyncIterator<T> & {
 	return?: (value?: unknown) => Promise<IteratorResult<T>>;

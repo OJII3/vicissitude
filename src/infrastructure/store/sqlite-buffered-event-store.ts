@@ -1,5 +1,5 @@
 import type { BufferedEventStore } from "../../application/message-ingestion-service.ts";
-import type { BufferedEvent } from "../../core/types.ts";
+import type { BufferedEvent } from "@vicissitude/shared/types";
 import type { StoreDb } from "../../store/db.ts";
 import { appendEvent } from "../../store/queries.ts";
 

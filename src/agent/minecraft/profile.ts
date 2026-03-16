@@ -1,4 +1,4 @@
-import { OPENCODE_ALL_TOOLS_DISABLED } from "../../core/constants.ts";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
 const POLLING_PROMPT = `あなたは Minecraft エージェントです。生存を最優先にしながら、以下のループを実行してください。

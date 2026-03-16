@@ -1,6 +1,6 @@
-import { METRIC } from "../../core/constants.ts";
-import { labelsToKey } from "../../core/functions.ts";
-import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "@vicissitude/shared/constants";
+import { labelsToKey } from "@vicissitude/shared/functions";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 
 // ─── Lightweight Prometheus Collector for MC MCP process ────────
 // observability/ への依存を避けるため、MC プロセス専用の最小限実装

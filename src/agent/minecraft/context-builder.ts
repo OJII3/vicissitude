@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { ContextBuilderPort } from "../../core/types.ts";
+import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 const CONTEXT_FILES = [
 	"MINECRAFT-IDENTITY.md",

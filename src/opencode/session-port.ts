@@ -3,4 +3,4 @@ export type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";

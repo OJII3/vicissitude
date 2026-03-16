@@ -4,7 +4,7 @@ import type {
 	ConversationRecorder,
 	IncomingMessage,
 	Logger,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";
 
 export interface BufferedEventStore {
 	append(agentId: string, event: BufferedEvent): void;

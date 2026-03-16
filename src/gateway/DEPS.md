@@ -18,5 +18,5 @@ graph LR
 
 ### discord.ts
 
-- 他モジュール依存: core/, infrastructure/
-- 外部依存: discord.js
+- 他モジュール依存: infrastructure/
+- 外部依存: .bun, @vicissitude/shared/types

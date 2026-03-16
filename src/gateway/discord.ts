@@ -1,6 +1,6 @@
 import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
-import type { IncomingMessage, Logger, MessageChannel } from "../core/types.ts";
+import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
 import { mapAttachments } from "../infrastructure/discord/attachment-mapper.ts";
 import { rewriteTwitterUrls } from "../infrastructure/discord/url-rewriter.ts";
 

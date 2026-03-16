@@ -23,28 +23,28 @@ graph LR
 ### db.ts
 
 - モジュール内依存: schema
-- 外部依存: bun:sqlite, drizzle-orm, fs, path
+- 外部依存: .bun, bun:sqlite, fs, path
 
 ### event-buffer.ts
 
 - モジュール内依存: db, queries
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### mc-bridge.ts
 
 - モジュール内依存: db, schema
-- 外部依存: drizzle-orm
+- 外部依存: .bun
 
 ### mc-status-provider.ts
 
 - モジュール内依存: db, mc-bridge
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### queries.ts
 
 - モジュール内依存: db, schema
-- 外部依存: drizzle-orm
+- 外部依存: .bun
 
 ### schema.ts
 
-- 外部依存: drizzle-orm
+- 外部依存: .bun

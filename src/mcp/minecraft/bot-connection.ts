@@ -3,7 +3,7 @@ import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 import { mineflayer as prismarineViewer } from "prismarine-viewer";
 
-import type { McAuthMode } from "../../core/config.ts";
+import type { McAuthMode } from "@vicissitude/shared/config";
 import type { BotContext } from "./bot-context.ts";
 import { getTimePeriod, getWeather } from "./bot-queries.ts";
 import type { Importance } from "./helpers.ts";

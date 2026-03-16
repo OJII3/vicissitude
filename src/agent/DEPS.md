@@ -33,22 +33,22 @@ graph LR
 
 ### discord/context-builder.ts
 
-- 他モジュール依存: core/
-- 外部依存: path
+- 外部依存: @vicissitude/shared/types, path
 
 ### discord/discord-agent.ts
 
 - モジュール内依存: discord/profile, mcp-config, runner, session-store
-- 他モジュール依存: core/, opencode/, store/
+- 他モジュール依存: opencode/, store/
+- 外部依存: @vicissitude/shared/types
 
 ### discord/profile.ts
 
 - モジュール内依存: profile
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/constants
 
 ### discord/router.ts
 
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### mcp-config.ts
 
@@ -58,23 +58,23 @@ graph LR
 ### minecraft/brain-manager.ts
 
 - モジュール内依存: minecraft/minecraft-agent, session-store
-- 他モジュール依存: core/, store/
+- 他モジュール依存: store/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/context-builder.ts
 
-- 他モジュール依存: core/
-- 外部依存: path
+- 外部依存: @vicissitude/shared/types, path
 
 ### minecraft/minecraft-agent.ts
 
 - モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
-- 他モジュール依存: core/, opencode/
-- 外部依存: path
+- 他モジュール依存: opencode/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types, path
 
 ### minecraft/profile.ts
 
 - モジュール内依存: profile
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/constants
 
 ### profile.ts
 
@@ -83,9 +83,9 @@ graph LR
 ### runner.ts
 
 - モジュール内依存: profile, session-store
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/functions, @vicissitude/shared/types
 
 ### session-store.ts
 
 - 他モジュール依存: store/
-- 外部依存: drizzle-orm
+- 外部依存: .bun

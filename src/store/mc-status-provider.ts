@@ -1,4 +1,4 @@
-import type { McStatusProvider } from "../core/types.ts";
+import type { McStatusProvider } from "@vicissitude/shared/types";
 import type { StoreDb } from "./db.ts";
 import { getMcConnectionStatus } from "./mc-bridge.ts";
 

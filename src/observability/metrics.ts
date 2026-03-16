@@ -1,15 +1,15 @@
 /* oxlint-disable max-classes-per-file -- metrics module consolidates related classes */
-import { METRIC } from "../core/constants.ts";
-import { labelsToKey, recordTokenMetrics } from "../core/functions.ts";
+import { METRIC } from "@vicissitude/shared/constants";
+import { labelsToKey, recordTokenMetrics } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
 	Logger,
 	MetricsCollector,
 	SendOptions,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";
 
-export { METRIC } from "../core/constants.ts";
+export { METRIC } from "@vicissitude/shared/constants";
 
 // ─── Prometheus Collector ───────────────────────────────────────
 

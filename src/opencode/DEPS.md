@@ -16,14 +16,12 @@ graph LR
 ### session-adapter.ts
 
 - モジュール内依存: stream-helpers
-- 他モジュール依存: core/
-- 外部依存: @opencode-ai/sdk/v2
+- 外部依存: @opencode-ai/sdk/v2, @vicissitude/shared/types
 
 ### session-port.ts
 
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### stream-helpers.ts
 
-- 他モジュール依存: core/
-- 外部依存: @opencode-ai/sdk/v2
+- 外部依存: @opencode-ai/sdk/v2, @vicissitude/shared/functions, @vicissitude/shared/types

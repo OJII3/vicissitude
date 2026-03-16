@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
 import { createMockLogger, createMockMetrics } from "../../spec/test-helpers.ts";
-import type { AiAgent, HeartbeatConfig } from "../core/types.ts";
+import type { AiAgent, HeartbeatConfig } from "@vicissitude/shared/types";
 import { HeartbeatScheduler } from "./heartbeat-scheduler.ts";
 
 const TEMP_ROOT = `/tmp/vicissitude-heartbeat-scheduler-${process.pid}`;

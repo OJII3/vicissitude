@@ -1,5 +1,5 @@
-import { METRIC } from "../../core/constants.ts";
-import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "@vicissitude/shared/constants";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "../../store/db.ts";
 import { getSessionLockGuildId, setMcConnectionStatus } from "../../store/mc-bridge.ts";
 import { appendEvent } from "../../store/queries.ts";

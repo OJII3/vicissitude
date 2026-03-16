@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type { ConsolidationResult, MemoryConsolidator } from "../../src/core/types.ts";
+import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
 import { ConsolidationScheduler } from "../../src/scheduling/consolidation-scheduler.ts";
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 

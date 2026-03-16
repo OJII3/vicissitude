@@ -1,5 +1,5 @@
-import { METRIC } from "../../core/constants.ts";
-import type { MetricsCollector } from "../../core/types.ts";
+import { METRIC } from "@vicissitude/shared/constants";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 import { classifyFailure, totalTravelDistance } from "./helpers.ts";
 import type { ActionState, Importance, JobInfo, JobStatus } from "./helpers.ts";
 

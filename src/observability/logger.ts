@@ -1,4 +1,4 @@
-import type { Logger } from "../core/types.ts";
+import type { Logger } from "@vicissitude/shared/types";
 
 type LogLevel = "info" | "warn" | "error";
 

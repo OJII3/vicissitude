@@ -1,9 +1,9 @@
 import { resolve } from "path";
 
 import { HeartbeatService } from "../application/heartbeat-service.ts";
-import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "../core/config.ts";
-import { delayResolve, evaluateDueReminders, withTimeout } from "../core/functions.ts";
-import type { AiAgent, HeartbeatConfig, Logger, MetricsCollector } from "../core/types.ts";
+import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/shared/config";
+import { delayResolve, evaluateDueReminders, withTimeout } from "@vicissitude/shared/functions";
+import type { AiAgent, HeartbeatConfig, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { METRIC } from "../observability/metrics.ts";
 import { JsonHeartbeatConfigRepository } from "./heartbeat-config.ts";
 

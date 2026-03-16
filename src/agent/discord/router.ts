@@ -1,4 +1,4 @@
-import type { AgentResponse, AiAgent, SendOptions } from "../../core/types.ts";
+import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
 
 /**
  * ギルドIDに基づいて適切なギルド固有エージェントにルーティングするファサード。

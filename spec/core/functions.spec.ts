@@ -6,8 +6,8 @@ import {
 	formatTimestamp,
 	splitMessage,
 	withTimeout,
-} from "../../src/core/functions.ts";
-import type { HeartbeatConfig } from "../../src/core/types.ts";
+} from "@vicissitude/shared/functions";
+import type { HeartbeatConfig } from "@vicissitude/shared/types";
 
 // ─── splitMessage ────────────────────────────────────────────────
 

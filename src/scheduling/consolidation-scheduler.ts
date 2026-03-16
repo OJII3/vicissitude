@@ -1,5 +1,5 @@
-import { delayResolve, withTimeout } from "../core/functions.ts";
-import type { Logger, MemoryConsolidator, MetricsCollector } from "../core/types.ts";
+import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
 import { METRIC } from "../observability/metrics.ts";
 
 /** 30 minutes */

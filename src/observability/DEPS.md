@@ -14,8 +14,8 @@ graph LR
 
 ### logger.ts
 
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/types
 
 ### metrics.ts
 
-- 他モジュール依存: core/
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types

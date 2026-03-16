@@ -1,4 +1,4 @@
-import { recordTokenMetrics } from "../core/functions.ts";
+import { recordTokenMetrics } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -9,7 +9,7 @@ import type {
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SendOptions,
-} from "../core/types.ts";
+} from "@vicissitude/shared/types";
 import type { AgentProfile } from "./profile.ts";
 import type { SessionStore } from "./session-store.ts";
 

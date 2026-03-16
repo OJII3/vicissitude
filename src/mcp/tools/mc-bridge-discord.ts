@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import { MINECRAFT_AGENT_ID } from "../../core/constants.ts";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { StoreDb } from "../../store/db.ts";
 import {
 	getMcConnectionStatus,

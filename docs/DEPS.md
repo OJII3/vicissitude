@@ -6,80 +6,67 @@
 
 ```mermaid
 graph LR
-  agent --> core
   agent --> opencode
   agent --> store
-  application --> core
-  core
-  gateway --> core
+  application
   gateway --> infrastructure
   infrastructure --> application
-  infrastructure --> core
   infrastructure --> store
-  ltm --> core
   ltm --> ollama
-  mcp --> core
   mcp --> infrastructure
   mcp --> ltm
   mcp --> ollama
   mcp --> store
-  observability --> core
+  observability
   ollama
-  opencode --> core
+  opencode
   scheduling --> application
-  scheduling --> core
   scheduling --> observability
-  store --> core
+  store
 ```
 
 ## モジュール別依存一覧
 
 ### agent/
 
-- 内部依存: core/, opencode/, store/
-- 外部依存: drizzle-orm, path
+- 内部依存: opencode/, store/
+- 外部依存: .bun, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, path
 - ファイル数: 12
 
 ### application/
 
-- 内部依存: core/
-- 外部依存: なし
-- ファイル数: 2
-
-### core/
-
 - 内部依存: なし
-- 外部依存: path, zod
-- ファイル数: 4
+- 外部依存: @vicissitude/shared/types
+- ファイル数: 2
 
 ### gateway/
 
-- 内部依存: core/, infrastructure/
-- 外部依存: discord.js
+- 内部依存: infrastructure/
+- 外部依存: .bun, @vicissitude/shared/types
 - ファイル数: 2
 
 ### infrastructure/
 
-- 内部依存: application/, core/, store/
-- 外部依存: discord.js
+- 内部依存: application/, store/
+- 外部依存: .bun, @vicissitude/shared/types
 - ファイル数: 3
 
 ### ltm/
 
-- 内部依存: core/, ollama/
-- 外部依存: bun:sqlite, fs, path
+- 内部依存: ollama/
+- 外部依存: @vicissitude/shared/types, bun:sqlite, fs, path
 - ファイル数: 21
 
 ### mcp/
 
-- 内部依存: core/, infrastructure/, ltm/, ollama/, store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, discord.js, fs, mineflayer, mineflayer-pathfinder, path, prismarine-entity, prismarine-recipe, prismarine-viewer, vec3, zod
+- 内部依存: infrastructure/, ltm/, ollama/, store/
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, @vicissitude/shared/config, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path, prismarine-entity, prismarine-recipe, vec3
 - ファイル数: 34
 
 ### observability/
 
-- 内部依存: core/
-- 外部依存: なし
+- 内部依存: なし
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types
 - ファイル数: 2
 
 ### ollama/
@@ -90,18 +77,18 @@ graph LR
 
 ### opencode/
 
-- 内部依存: core/
-- 外部依存: @opencode-ai/sdk/v2
+- 内部依存: なし
+- 外部依存: @opencode-ai/sdk/v2, @vicissitude/shared/functions, @vicissitude/shared/types
 - ファイル数: 3
 
 ### scheduling/
 
-- 内部依存: application/, core/, observability/
-- 外部依存: fs, path, zod
+- 内部依存: application/, observability/
+- 外部依存: .bun, @vicissitude/shared/config, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path
 - ファイル数: 3
 
 ### store/
 
-- 内部依存: core/
-- 外部依存: bun:sqlite, drizzle-orm, fs, path
+- 内部依存: なし
+- 外部依存: .bun, @vicissitude/shared/types, bun:sqlite, fs, path
 - ファイル数: 6

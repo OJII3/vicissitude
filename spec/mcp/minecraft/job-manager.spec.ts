@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { METRIC } from "../../../src/core/constants.ts";
+import { METRIC } from "@vicissitude/shared/constants";
 import type { ActionState, Importance } from "../../../src/mcp/minecraft/helpers.ts";
 import { JobManager } from "../../../src/mcp/minecraft/job-manager.ts";
 import type { JobExecutor } from "../../../src/mcp/minecraft/job-manager.ts";

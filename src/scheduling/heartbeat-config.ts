@@ -3,8 +3,8 @@ import { dirname, resolve } from "path";
 
 import { z } from "zod";
 
-import { createDefaultHeartbeatConfig } from "../core/functions.ts";
-import type { HeartbeatConfig } from "../core/types.ts";
+import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
+import type { HeartbeatConfig } from "@vicissitude/shared/types";
 
 const heartbeatConfigSchema = z.object({
 	baseIntervalMinutes: z.number(),
