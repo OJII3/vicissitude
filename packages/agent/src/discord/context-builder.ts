@@ -1,6 +1,10 @@
 import { resolve } from "path";
 
-import type { ContextBuilderPort, LtmFactReader, McStatusProvider } from "@vicissitude/shared/types";
+import type {
+	ContextBuilderPort,
+	LtmFactReader,
+	McStatusProvider,
+} from "@vicissitude/shared/types";
 
 const GUILD_ID_REGEX = /^\d+$/;
 

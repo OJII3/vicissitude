@@ -1,6 +1,6 @@
+import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
-import { METRIC } from "@vicissitude/observability/metrics";
 
 /** 30 minutes */
 const CONSOLIDATION_TICK_INTERVAL_MS = 30 * 60_000;

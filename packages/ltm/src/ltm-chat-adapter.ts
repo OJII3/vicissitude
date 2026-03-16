@@ -1,4 +1,5 @@
 import type { OpencodeSessionPort } from "@vicissitude/shared/types";
+
 import type { ChatMessage } from "./types.ts";
 
 const MAX_CHAT_STRUCTURED_ATTEMPTS = 3;

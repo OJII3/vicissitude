@@ -5,7 +5,6 @@ import {
 	type McpRemoteConfig,
 	type OpencodeClient,
 } from "@opencode-ai/sdk/v2";
-
 import type {
 	OpencodePromptParams,
 	OpencodeSessionEvent,
@@ -13,6 +12,7 @@ import type {
 	PromptResult,
 	TokenUsage,
 } from "@vicissitude/shared/types";
+
 import {
 	abortSession,
 	classifyEvent,

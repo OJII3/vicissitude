@@ -1,8 +1,7 @@
-import { count } from "drizzle-orm";
-
 import type { StoreDb } from "@vicissitude/store/db";
 import { deleteSession, getSession, saveSession } from "@vicissitude/store/queries";
 import { sessions } from "@vicissitude/store/schema";
+import { count } from "drizzle-orm";
 
 export class SessionStore {
 	constructor(private readonly db: StoreDb) {}

@@ -1,8 +1,9 @@
 import { resolve } from "path";
 
+import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { EventBuffer, Logger } from "@vicissitude/shared/types";
-import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
+
 import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
 import type { SessionStore } from "../session-store.ts";

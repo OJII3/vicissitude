@@ -10,6 +10,7 @@ import type {
 	OpencodeSessionPort,
 	SendOptions,
 } from "@vicissitude/shared/types";
+
 import type { AgentProfile } from "./profile.ts";
 import type { SessionStore } from "./session-store.ts";
 

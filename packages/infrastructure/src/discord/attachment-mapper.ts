@@ -1,6 +1,5 @@
-import type { Attachment as DiscordAttachment, Collection } from "discord.js";
-
 import type { Attachment } from "@vicissitude/shared/types";
+import type { Attachment as DiscordAttachment, Collection } from "discord.js";
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 

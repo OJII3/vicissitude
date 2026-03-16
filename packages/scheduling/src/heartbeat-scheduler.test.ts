@@ -2,8 +2,9 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
-import { createMockLogger, createMockMetrics } from "../../../spec/test-helpers.ts";
 import type { AiAgent, HeartbeatConfig } from "@vicissitude/shared/types";
+
+import { createMockLogger, createMockMetrics } from "../../../spec/test-helpers.ts";
 import { HeartbeatScheduler } from "./heartbeat-scheduler.ts";
 
 const TEMP_ROOT = `/tmp/vicissitude-heartbeat-scheduler-${process.pid}`;

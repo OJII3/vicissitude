@@ -1,7 +1,8 @@
-import type { ContextBuilderPort, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
+import type { ContextBuilderPort, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
+
 import { mcpServerConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
 import type { SessionStore } from "../session-store.ts";

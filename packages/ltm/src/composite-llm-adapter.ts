@@ -1,4 +1,5 @@
 import type { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
+
 import type { LtmLlmPort, Schema } from "./llm-port.ts";
 import type { LtmChatAdapter } from "./ltm-chat-adapter.ts";
 import type { ChatMessage } from "./types.ts";

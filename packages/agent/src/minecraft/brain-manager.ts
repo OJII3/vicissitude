@@ -4,6 +4,7 @@ import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
+
 import type { SessionStore } from "../session-store.ts";
 import { MinecraftAgent } from "./minecraft-agent.ts";
 

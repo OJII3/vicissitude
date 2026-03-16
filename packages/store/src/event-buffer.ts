@@ -1,4 +1,5 @@
 import type { BufferedEvent, EventBuffer, Logger } from "@vicissitude/shared/types";
+
 import type { StoreDb } from "./db.ts";
 import { appendEvent, hasEvents } from "./queries.ts";
 

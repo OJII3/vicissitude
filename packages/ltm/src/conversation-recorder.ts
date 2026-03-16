@@ -7,6 +7,7 @@ import type {
 	ConversationRecorder,
 	MemoryConsolidator,
 } from "@vicissitude/shared/types";
+
 import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
 import { EpisodicMemory } from "./episodic.ts";

@@ -27,6 +27,12 @@
         "typescript": "^5",
       },
     },
+    "apps/discord": {
+      "name": "@vicissitude/discord",
+      "dependencies": {
+        "discord.js": "^14.25.1",
+      },
+    },
     "packages/agent": {
       "name": "@vicissitude/agent",
       "dependencies": {
@@ -238,6 +244,8 @@
     "@vicissitude/agent": ["@vicissitude/agent@workspace:packages/agent"],
 
     "@vicissitude/application": ["@vicissitude/application@workspace:packages/application"],
+
+    "@vicissitude/discord": ["@vicissitude/discord@workspace:apps/discord"],
 
     "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
 

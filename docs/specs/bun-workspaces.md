@@ -11,21 +11,21 @@
 
 Plan の提案を現行の依存関係グラフに基づき修正する。
 
-| パッケージ | 現行モジュール | 根拠 |
-|---|---|---|
-| `packages/shared` | `core/` | 型定義、定数、ユーティリティ。全パッケージの共通基盤。依存なし |
-| `packages/observability` | `observability/` | logger, metrics。shared のみに依存。agent に含めると shared と同格の基盤が agent に埋もれる |
-| `packages/application` | `application/` | HeartbeatService, MessageIngestionService。shared のみに依存する汎用サービス層 |
-| `packages/ollama` | `ollama/` | OllamaEmbeddingAdapter。外部依存なし・内部依存なし。ltm と mcp の両方から使われるため独立パッケージ |
-| `packages/store` | `store/` | DB スキーマ、クエリ、EventBuffer。shared のみに依存 |
-| `packages/opencode` | `opencode/` | OpenCode SDK アダプタ。shared のみに依存 |
-| `packages/ltm` | `ltm/` | 長期記憶。shared, ollama に依存 |
-| `packages/infrastructure` | `infrastructure/` | Discord 固有のアダプタ + SQLite BufferedEventStore。shared, application, store に依存 |
-| `packages/agent` | `agent/` | AgentRunner, Discord/Minecraft エージェント。shared, opencode, store に依存 |
-| `packages/scheduling` | `scheduling/` | HeartbeatScheduler, ConsolidationScheduler。shared, application, observability に依存 |
-| `packages/mcp` | `mcp/`（minecraft 除く） | MCP サーバー群。shared, infrastructure, ltm, ollama, store に依存 |
-| `packages/minecraft` | `mcp/minecraft/` | Minecraft 固有ロジック。重い外部依存（mineflayer 等）を分離 |
-| `apps/discord` | `gateway/`, `bootstrap.ts`, `index.ts` | エントリーポイント + Discord ゲートウェイ。全パッケージを組み立てる composition root |
+| パッケージ                | 現行モジュール                         | 根拠                                                                                                |
+| ------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `packages/shared`         | `core/`                                | 型定義、定数、ユーティリティ。全パッケージの共通基盤。依存なし                                      |
+| `packages/observability`  | `observability/`                       | logger, metrics。shared のみに依存。agent に含めると shared と同格の基盤が agent に埋もれる         |
+| `packages/application`    | `application/`                         | HeartbeatService, MessageIngestionService。shared のみに依存する汎用サービス層                      |
+| `packages/ollama`         | `ollama/`                              | OllamaEmbeddingAdapter。外部依存なし・内部依存なし。ltm と mcp の両方から使われるため独立パッケージ |
+| `packages/store`          | `store/`                               | DB スキーマ、クエリ、EventBuffer。shared のみに依存                                                 |
+| `packages/opencode`       | `opencode/`                            | OpenCode SDK アダプタ。shared のみに依存                                                            |
+| `packages/ltm`            | `ltm/`                                 | 長期記憶。shared, ollama に依存                                                                     |
+| `packages/infrastructure` | `infrastructure/`                      | Discord 固有のアダプタ + SQLite BufferedEventStore。shared, application, store に依存               |
+| `packages/agent`          | `agent/`                               | AgentRunner, Discord/Minecraft エージェント。shared, opencode, store に依存                         |
+| `packages/scheduling`     | `scheduling/`                          | HeartbeatScheduler, ConsolidationScheduler。shared, application, observability に依存               |
+| `packages/mcp`            | `mcp/`（minecraft 除く）               | MCP サーバー群。shared, infrastructure, ltm, ollama, store に依存                                   |
+| `packages/minecraft`      | `mcp/minecraft/`                       | Minecraft 固有ロジック。重い外部依存（mineflayer 等）を分離                                         |
+| `apps/discord`            | `gateway/`, `bootstrap.ts`, `index.ts` | エントリーポイント + Discord ゲートウェイ。全パッケージを組み立てる composition root                |
 
 ### 2.2 設計判断の詳細
 
@@ -36,17 +36,18 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 ```jsonc
 // packages/shared/package.json
 {
-  "name": "@vicissitude/shared",
-  "exports": {
-    "./types": "./src/types.ts",
-    "./config": "./src/config.ts",
-    "./constants": "./src/constants.ts",
-    "./functions": "./src/functions.ts"
-  }
+	"name": "@vicissitude/shared",
+	"exports": {
+		"./types": "./src/types.ts",
+		"./config": "./src/config.ts",
+		"./constants": "./src/constants.ts",
+		"./functions": "./src/functions.ts",
+	},
 }
 ```
 
 **根拠**:
+
 - barrel export（`"."` 単一エントリ）は tree-shaking に不利で、循環依存の温床になる。
 - サブパスエクスポートにより、消費側が必要なモジュールだけを import でき、依存の意図が明確になる。
 - Bun は `exports` フィールドを尊重するため、`*.ts` を直接指定可能（トランスパイル不要）。
@@ -57,6 +58,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **決定**: ルートの `spec/` にそのまま残す。
 
 **根拠**:
+
 - 仕様テスト（`*.spec.ts`）は公開 API の契約を検証するブラックボックステストであり、パッケージ内部構造に依存すべきでない。
 - ルートに一箇所にまとめることで、仕様テストの実行・管理が容易。
 - パッケージ移行後も `spec/` の import パスを `@vicissitude/*` に書き換えるだけで対応可能。
@@ -69,33 +71,34 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 ```jsonc
 // tsconfig.base.json（ルート）
 {
-  "compilerOptions": {
-    "lib": ["ESNext"],
-    "target": "ESNext",
-    "module": "Preserve",
-    "moduleDetection": "force",
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
-    "verbatimModuleSyntax": true,
-    "noEmit": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
-  }
+	"compilerOptions": {
+		"lib": ["ESNext"],
+		"target": "ESNext",
+		"module": "Preserve",
+		"moduleDetection": "force",
+		"moduleResolution": "bundler",
+		"allowImportingTsExtensions": true,
+		"verbatimModuleSyntax": true,
+		"noEmit": true,
+		"strict": true,
+		"skipLibCheck": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+	},
 }
 ```
 
 ```jsonc
 // packages/shared/tsconfig.json
 {
-  "extends": "../../tsconfig.base.json",
-  "include": ["src"]
+	"extends": "../../tsconfig.base.json",
+	"include": ["src"],
 }
 ```
 
 **根拠**:
+
 - 現在 `tsgo`（TypeScript Go 版）を使用しており、Project References のサポートが不完全な可能性がある。
 - Bun は `exports` フィールドによるパッケージ解決を行うため、Project References なしでも cross-package import が正しく解決される。
 - 各パッケージの `tsconfig.json` は `include` でスコープを限定し、型チェックの対象を明確化する。
@@ -106,6 +109,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **決定**: 統合しない。`packages/infrastructure` と `packages/store` を別パッケージとして維持。
 
 **根拠**:
+
 - `infrastructure/` は 2 つの異なる関心を持つ:
   - `infrastructure/discord/`: Discord 固有のアダプタ（`attachment-mapper.ts`, `url-rewriter.ts`）
   - `infrastructure/store/`: `SqliteBufferedEventStore`（`application/` のポートの SQLite 実装）
@@ -118,6 +122,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **決定**: 独立パッケージ `packages/ollama`。
 
 **根拠**:
+
 - `ollama/` は現在 3 箇所から使用されている:
   - `bootstrap.ts`（LTM 初期化時）
   - `ltm/composite-llm-adapter.ts`
@@ -131,6 +136,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **決定**: `packages/application` と `packages/scheduling` をそれぞれ独立パッケージにする。agent には含めない。
 
 **根拠**:
+
 - `application/` は `core/` のみに依存する汎用サービス層。`agent/` に含めると不必要な結合が生じる。
 - `scheduling/` は `application/`, `core/`, `observability/` に依存。`agent/` とは依存関係がなく、agent に含める論理的根拠がない。
 - 両者は `bootstrap.ts`（composition root）から組み立てられるが、`agent/` とは独立したライフサイクルを持つ。
@@ -141,6 +147,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **決定**: ルートに残す。パッケージには含めない。
 
 **根拠**:
+
 - `context/` と `data/` はランタイムデータ（人格定義、設定ファイル、DB ファイル等）であり、TypeScript コードパッケージではない。
 - これらは `apps/discord` の composition root（`bootstrap.ts`）からパスとして参照され、各パッケージには設定値（`dataDir`, `contextDir`）として注入される。
 - パッケージに含めると、パッケージの責務が曖昧になり、データファイルの配置ルールが複雑化する。
@@ -193,13 +200,13 @@ graph LR
 
 ### トポロジカル順（ビルド/テスト実行順）
 
-| レベル | パッケージ |
-|---|---|
-| L0（依存なし） | `shared`, `ollama` |
+| レベル              | パッケージ                                          |
+| ------------------- | --------------------------------------------------- |
+| L0（依存なし）      | `shared`, `ollama`                                  |
 | L1（L0 のみに依存） | `observability`, `application`, `store`, `opencode` |
-| L2 | `ltm`, `infrastructure`, `agent`, `scheduling` |
-| L3 | `mcp`, `minecraft` |
-| App | `apps/discord` |
+| L2                  | `ltm`, `infrastructure`, `agent`, `scheduling`      |
+| L3                  | `mcp`, `minecraft`                                  |
+| App                 | `apps/discord`                                      |
 
 ## 4. 各パッケージの exports 設計
 
@@ -207,14 +214,14 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/shared",
-  "private": true,
-  "exports": {
-    "./types": "./src/types.ts",
-    "./config": "./src/config.ts",
-    "./constants": "./src/constants.ts",
-    "./functions": "./src/functions.ts"
-  }
+	"name": "@vicissitude/shared",
+	"private": true,
+	"exports": {
+		"./types": "./src/types.ts",
+		"./config": "./src/config.ts",
+		"./constants": "./src/constants.ts",
+		"./functions": "./src/functions.ts",
+	},
 }
 ```
 
@@ -222,12 +229,12 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/observability",
-  "private": true,
-  "exports": {
-    "./logger": "./src/logger.ts",
-    "./metrics": "./src/metrics.ts"
-  }
+	"name": "@vicissitude/observability",
+	"private": true,
+	"exports": {
+		"./logger": "./src/logger.ts",
+		"./metrics": "./src/metrics.ts",
+	},
 }
 ```
 
@@ -235,12 +242,12 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/application",
-  "private": true,
-  "exports": {
-    "./heartbeat-service": "./src/heartbeat-service.ts",
-    "./message-ingestion-service": "./src/message-ingestion-service.ts"
-  }
+	"name": "@vicissitude/application",
+	"private": true,
+	"exports": {
+		"./heartbeat-service": "./src/heartbeat-service.ts",
+		"./message-ingestion-service": "./src/message-ingestion-service.ts",
+	},
 }
 ```
 
@@ -248,11 +255,11 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/ollama",
-  "private": true,
-  "exports": {
-    ".": "./src/ollama-embedding-adapter.ts"
-  }
+	"name": "@vicissitude/ollama",
+	"private": true,
+	"exports": {
+		".": "./src/ollama-embedding-adapter.ts",
+	},
 }
 ```
 
@@ -260,16 +267,16 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/store",
-  "private": true,
-  "exports": {
-    "./db": "./src/db.ts",
-    "./queries": "./src/queries.ts",
-    "./schema": "./src/schema.ts",
-    "./event-buffer": "./src/event-buffer.ts",
-    "./mc-bridge": "./src/mc-bridge.ts",
-    "./mc-status-provider": "./src/mc-status-provider.ts"
-  }
+	"name": "@vicissitude/store",
+	"private": true,
+	"exports": {
+		"./db": "./src/db.ts",
+		"./queries": "./src/queries.ts",
+		"./schema": "./src/schema.ts",
+		"./event-buffer": "./src/event-buffer.ts",
+		"./mc-bridge": "./src/mc-bridge.ts",
+		"./mc-status-provider": "./src/mc-status-provider.ts",
+	},
 }
 ```
 
@@ -277,13 +284,13 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/opencode",
-  "private": true,
-  "exports": {
-    "./session-adapter": "./src/session-adapter.ts",
-    "./session-port": "./src/session-port.ts",
-    "./stream-helpers": "./src/stream-helpers.ts"
-  }
+	"name": "@vicissitude/opencode",
+	"private": true,
+	"exports": {
+		"./session-adapter": "./src/session-adapter.ts",
+		"./session-port": "./src/session-port.ts",
+		"./stream-helpers": "./src/stream-helpers.ts",
+	},
 }
 ```
 
@@ -291,22 +298,22 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/ltm",
-  "private": true,
-  "exports": {
-    ".": "./src/index.ts",
-    "./composite-llm-adapter": "./src/composite-llm-adapter.ts",
-    "./conversation-recorder": "./src/conversation-recorder.ts",
-    "./fact-reader": "./src/fact-reader.ts",
-    "./ltm-chat-adapter": "./src/ltm-chat-adapter.ts",
-    "./ltm-storage": "./src/ltm-storage.ts",
-    "./episodic": "./src/episodic.ts",
-    "./retrieval": "./src/retrieval.ts",
-    "./semantic-memory": "./src/semantic-memory.ts",
-    "./semantic-fact": "./src/semantic-fact.ts",
-    "./llm-port": "./src/llm-port.ts",
-    "./types": "./src/types.ts"
-  }
+	"name": "@vicissitude/ltm",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./composite-llm-adapter": "./src/composite-llm-adapter.ts",
+		"./conversation-recorder": "./src/conversation-recorder.ts",
+		"./fact-reader": "./src/fact-reader.ts",
+		"./ltm-chat-adapter": "./src/ltm-chat-adapter.ts",
+		"./ltm-storage": "./src/ltm-storage.ts",
+		"./episodic": "./src/episodic.ts",
+		"./retrieval": "./src/retrieval.ts",
+		"./semantic-memory": "./src/semantic-memory.ts",
+		"./semantic-fact": "./src/semantic-fact.ts",
+		"./llm-port": "./src/llm-port.ts",
+		"./types": "./src/types.ts",
+	},
 }
 ```
 
@@ -316,13 +323,13 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/infrastructure",
-  "private": true,
-  "exports": {
-    "./discord/attachment-mapper": "./src/discord/attachment-mapper.ts",
-    "./discord/url-rewriter": "./src/discord/url-rewriter.ts",
-    "./store/sqlite-buffered-event-store": "./src/store/sqlite-buffered-event-store.ts"
-  }
+	"name": "@vicissitude/infrastructure",
+	"private": true,
+	"exports": {
+		"./discord/attachment-mapper": "./src/discord/attachment-mapper.ts",
+		"./discord/url-rewriter": "./src/discord/url-rewriter.ts",
+		"./store/sqlite-buffered-event-store": "./src/store/sqlite-buffered-event-store.ts",
+	},
 }
 ```
 
@@ -330,19 +337,19 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/agent",
-  "private": true,
-  "exports": {
-    "./runner": "./src/runner.ts",
-    "./session-store": "./src/session-store.ts",
-    "./profile": "./src/profile.ts",
-    "./mcp-config": "./src/mcp-config.ts",
-    "./discord/discord-agent": "./src/discord/discord-agent.ts",
-    "./discord/context-builder": "./src/discord/context-builder.ts",
-    "./discord/router": "./src/discord/router.ts",
-    "./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
-    "./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts"
-  }
+	"name": "@vicissitude/agent",
+	"private": true,
+	"exports": {
+		"./runner": "./src/runner.ts",
+		"./session-store": "./src/session-store.ts",
+		"./profile": "./src/profile.ts",
+		"./mcp-config": "./src/mcp-config.ts",
+		"./discord/discord-agent": "./src/discord/discord-agent.ts",
+		"./discord/context-builder": "./src/discord/context-builder.ts",
+		"./discord/router": "./src/discord/router.ts",
+		"./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
+		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
+	},
 }
 ```
 
@@ -350,13 +357,13 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/scheduling",
-  "private": true,
-  "exports": {
-    "./heartbeat-scheduler": "./src/heartbeat-scheduler.ts",
-    "./heartbeat-config": "./src/heartbeat-config.ts",
-    "./consolidation-scheduler": "./src/consolidation-scheduler.ts"
-  }
+	"name": "@vicissitude/scheduling",
+	"private": true,
+	"exports": {
+		"./heartbeat-scheduler": "./src/heartbeat-scheduler.ts",
+		"./heartbeat-config": "./src/heartbeat-config.ts",
+		"./consolidation-scheduler": "./src/consolidation-scheduler.ts",
+	},
 }
 ```
 
@@ -364,22 +371,22 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/mcp",
-  "private": true,
-  "exports": {
-    "./core-server": "./src/core-server.ts",
-    "./code-exec-server": "./src/code-exec-server.ts",
-    "./http-server": "./src/http-server.ts",
-    "./memory-helpers": "./src/memory-helpers.ts",
-    "./tools/discord": "./src/tools/discord.ts",
-    "./tools/event-buffer": "./src/tools/event-buffer.ts",
-    "./tools/ltm": "./src/tools/ltm.ts",
-    "./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",
-    "./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
-    "./tools/mc-memory": "./src/tools/mc-memory.ts",
-    "./tools/memory": "./src/tools/memory.ts",
-    "./tools/schedule": "./src/tools/schedule.ts"
-  }
+	"name": "@vicissitude/mcp",
+	"private": true,
+	"exports": {
+		"./core-server": "./src/core-server.ts",
+		"./code-exec-server": "./src/code-exec-server.ts",
+		"./http-server": "./src/http-server.ts",
+		"./memory-helpers": "./src/memory-helpers.ts",
+		"./tools/discord": "./src/tools/discord.ts",
+		"./tools/event-buffer": "./src/tools/event-buffer.ts",
+		"./tools/ltm": "./src/tools/ltm.ts",
+		"./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",
+		"./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
+		"./tools/mc-memory": "./src/tools/mc-memory.ts",
+		"./tools/memory": "./src/tools/memory.ts",
+		"./tools/schedule": "./src/tools/schedule.ts",
+	},
 }
 ```
 
@@ -387,21 +394,21 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/minecraft",
-  "private": true,
-  "exports": {
-    "./server": "./src/server.ts",
-    "./mc-bridge-server": "./src/mc-bridge-server.ts",
-    "./mcp-tools": "./src/mcp-tools.ts",
-    "./bot-connection": "./src/bot-connection.ts",
-    "./bot-context": "./src/bot-context.ts",
-    "./bot-queries": "./src/bot-queries.ts",
-    "./job-manager": "./src/job-manager.ts",
-    "./state-summary": "./src/state-summary.ts",
-    "./auto-notifier": "./src/auto-notifier.ts",
-    "./http-server": "./src/http-server.ts",
-    "./mc-metrics": "./src/mc-metrics.ts"
-  }
+	"name": "@vicissitude/minecraft",
+	"private": true,
+	"exports": {
+		"./server": "./src/server.ts",
+		"./mc-bridge-server": "./src/mc-bridge-server.ts",
+		"./mcp-tools": "./src/mcp-tools.ts",
+		"./bot-connection": "./src/bot-connection.ts",
+		"./bot-context": "./src/bot-context.ts",
+		"./bot-queries": "./src/bot-queries.ts",
+		"./job-manager": "./src/job-manager.ts",
+		"./state-summary": "./src/state-summary.ts",
+		"./auto-notifier": "./src/auto-notifier.ts",
+		"./http-server": "./src/http-server.ts",
+		"./mc-metrics": "./src/mc-metrics.ts",
+	},
 }
 ```
 
@@ -409,9 +416,9 @@ graph LR
 
 ```jsonc
 {
-  "name": "@vicissitude/discord",
-  "private": true,
-  "module": "src/index.ts"
+	"name": "@vicissitude/discord",
+	"private": true,
+	"module": "src/index.ts",
 }
 ```
 
@@ -419,26 +426,23 @@ graph LR
 
 ```jsonc
 {
-  "name": "vicissitude",
-  "private": true,
-  "workspaces": [
-    "packages/*",
-    "apps/*"
-  ],
-  "scripts": {
-    "start": "bun run apps/discord/src/index.ts",
-    "dev": "bun --watch run apps/discord/src/index.ts",
-    "check": "tsgo --noEmit",
-    "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
-    "fmt": "oxfmt .",
-    "fmt:check": "oxfmt --check .",
-    "test": "bun test",
-    "test:spec": "bun test spec",
-    "test:unit": "bun test packages apps scripts",
-    "validate": "bun run fmt:check && bun run lint && bun run check"
-    // deploy 系スクリプトは変更なし
-  }
+	"name": "vicissitude",
+	"private": true,
+	"workspaces": ["packages/*", "apps/*"],
+	"scripts": {
+		"start": "bun run apps/discord/src/index.ts",
+		"dev": "bun --watch run apps/discord/src/index.ts",
+		"check": "tsgo --noEmit",
+		"lint": "oxlint",
+		"lint:fix": "oxlint --fix",
+		"fmt": "oxfmt .",
+		"fmt:check": "oxfmt --check .",
+		"test": "bun test",
+		"test:spec": "bun test spec",
+		"test:unit": "bun test packages apps scripts",
+		"validate": "bun run fmt:check && bun run lint && bun run check",
+		// deploy 系スクリプトは変更なし
+	},
 }
 ```
 
@@ -446,15 +450,15 @@ graph LR
 
 外部依存は使用するパッケージの `package.json` に移動する。
 
-| 外部依存 | 移動先パッケージ |
-|---|---|
-| `zod` | `shared`, `scheduling`, `mcp` |
-| `discord.js` | `infrastructure`, `mcp`, `apps/discord` |
-| `@opencode-ai/sdk` | `opencode` |
-| `drizzle-orm` | `store`, `agent` |
-| `@modelcontextprotocol/sdk` | `mcp`, `minecraft` |
-| `mineflayer`, `mineflayer-pathfinder` | `minecraft` |
-| `prismarine-viewer`, `three`, `canvas` | `minecraft` |
+| 外部依存                               | 移動先パッケージ                        |
+| -------------------------------------- | --------------------------------------- |
+| `zod`                                  | `shared`, `scheduling`, `mcp`           |
+| `discord.js`                           | `infrastructure`, `mcp`, `apps/discord` |
+| `@opencode-ai/sdk`                     | `opencode`                              |
+| `drizzle-orm`                          | `store`, `agent`                        |
+| `@modelcontextprotocol/sdk`            | `mcp`, `minecraft`                      |
+| `mineflayer`, `mineflayer-pathfinder`  | `minecraft`                             |
+| `prismarine-viewer`, `three`, `canvas` | `minecraft`                             |
 
 devDependencies（`@types/bun`, `oxlint`, `oxfmt`, `@typescript/native-preview`, `dependency-cruiser`）はルートに残す。
 
@@ -659,14 +663,14 @@ vicissitude/
 
 以下の 6 箇所で `import.meta.dirname` を基準にした相対パスで `context/` や `data/` にアクセスしている。パッケージ移動によりディレクトリ階層が変わると壊れる。
 
-| ファイル | 現在の解決方法 |
-|---|---|
-| `src/bootstrap.ts:376` | `process.env.APP_ROOT ?? resolve(import.meta.dirname, "..")` |
-| `src/core/config.ts:76` | 同上 |
-| `src/agent/mcp-config.ts:8` | 同上 |
-| `src/mcp/memory-helpers.ts:6` | 同上 |
-| `src/mcp/tools/schedule.ts:15` | 同上 |
-| `src/mcp/minecraft/mc-bridge-server.ts:12` | 同上 |
+| ファイル                                   | 現在の解決方法                                               |
+| ------------------------------------------ | ------------------------------------------------------------ |
+| `src/bootstrap.ts:376`                     | `process.env.APP_ROOT ?? resolve(import.meta.dirname, "..")` |
+| `src/core/config.ts:76`                    | 同上                                                         |
+| `src/agent/mcp-config.ts:8`                | 同上                                                         |
+| `src/mcp/memory-helpers.ts:6`              | 同上                                                         |
+| `src/mcp/tools/schedule.ts:15`             | 同上                                                         |
+| `src/mcp/minecraft/mc-bridge-server.ts:12` | 同上                                                         |
 
 ### 対策
 
@@ -690,12 +694,12 @@ export const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
 
 ### 現在のヘルパー
 
-| ファイル | import 元 | 移行先 |
-|---|---|---|
-| `spec/test-helpers.ts` | `../src/core/types.ts` | `spec/test-helpers.ts`（import を `@vicissitude/shared/types` に変更） |
-| `spec/ltm/test-helpers.ts` | `../../src/ltm/*` | `spec/ltm/test-helpers.ts`（import を `@vicissitude/ltm/*` に変更） |
-| `src/store/test-helpers.ts` | `bun:sqlite` | `packages/store/src/test-helpers.ts`（パッケージ内移動） |
-| `src/mcp/test-helpers.ts` | `./http-server.ts` 等 | `packages/mcp/src/test-helpers.ts`（パッケージ内移動） |
+| ファイル                    | import 元              | 移行先                                                                 |
+| --------------------------- | ---------------------- | ---------------------------------------------------------------------- |
+| `spec/test-helpers.ts`      | `../src/core/types.ts` | `spec/test-helpers.ts`（import を `@vicissitude/shared/types` に変更） |
+| `spec/ltm/test-helpers.ts`  | `../../src/ltm/*`      | `spec/ltm/test-helpers.ts`（import を `@vicissitude/ltm/*` に変更）    |
+| `src/store/test-helpers.ts` | `bun:sqlite`           | `packages/store/src/test-helpers.ts`（パッケージ内移動）               |
+| `src/mcp/test-helpers.ts`   | `./http-server.ts` 等  | `packages/mcp/src/test-helpers.ts`（パッケージ内移動）                 |
 
 ### 方針
 
@@ -710,12 +714,12 @@ export const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
 
 現在のビルドコマンド 5 箇所のパスを更新:
 
-| 現在 | 移行後 |
-|---|---|
-| `src/index.ts` | `apps/discord/src/index.ts` |
-| `src/mcp/core-server.ts` | `packages/mcp/src/core-server.ts` |
-| `src/mcp/code-exec-server.ts` | `packages/mcp/src/code-exec-server.ts` |
-| `src/mcp/minecraft/server.ts` | `packages/minecraft/src/server.ts` |
+| 現在                                    | 移行後                                       |
+| --------------------------------------- | -------------------------------------------- |
+| `src/index.ts`                          | `apps/discord/src/index.ts`                  |
+| `src/mcp/core-server.ts`                | `packages/mcp/src/core-server.ts`            |
+| `src/mcp/code-exec-server.ts`           | `packages/mcp/src/code-exec-server.ts`       |
+| `src/mcp/minecraft/server.ts`           | `packages/minecraft/src/server.ts`           |
 | `src/mcp/minecraft/mc-bridge-server.ts` | `packages/minecraft/src/mc-bridge-server.ts` |
 
 #### volumes マッピング
@@ -738,8 +742,8 @@ volumes:
 volumes:
   - ./package.json:/app/package.json:ro
   - ./bun.lock:/app/bun.lock:ro
-  - ./packages:/app/packages:ro    # 各パッケージの package.json を含む
-  - ./apps:/app/apps:ro            # apps の package.json を含む
+  - ./packages:/app/packages:ro # 各パッケージの package.json を含む
+  - ./apps:/app/apps:ro # apps の package.json を含む
 ```
 
 ### pre-commit フック
@@ -762,13 +766,13 @@ volumes:
 
 ## 13. リスクと緩和策
 
-| リスク | 深刻度 | 影響 | 緩和策 |
-|---|---|---|---|
-| `tsgo` が workspace の `exports` 解決に未対応 | 高 | 型チェックが壊れる | Step 0 で `tsgo` の動作を先行検証。非対応の場合は `paths` マッピングで回避 |
-| `bun test` が workspace 跨ぎの import を解決できない | 高 | テスト実行失敗 | Step 1 完了時点で cross-package import のテストを実行して早期検出 |
-| spec テストの相対パス全壊 | 高 | 48 ファイルの import が壊れる | Step 7 で `@vicissitude/*` への一括書き換え。全 spec を `bun test spec` で一括検証 |
-| compose.yaml / builder 全壊 | 高 | デプロイ不可 | Step 9 でエントリポイントパス・volumes マッピング・installer を一括更新。移行中はデプロイ凍結 |
-| `import.meta.dirname` の解決先変更 | 中 | ランタイムパスの不整合 | Section 9 の方針で `APP_ROOT` を `shared/config` に集約し、相対パスを排除 |
-| depcruise / pre-commit フックの破損 | 中 | commit 時にフックが失敗 | Step 8 でツーリングを更新。移行中の一時的な失敗は PR マージ時のバリデーションで補完 |
-| Bun workspaces の hoisting による依存解決の違い | 中 | 意図しないパッケージが見える | 各パッケージの `package.json` に明示的に依存を記述し、暗黙の hoisting に頼らない |
-| 移行中の長期ブランチと main の乖離 | 低 | コンフリクト | 移行中は main への大きな機能追加を控え、必要なら定期的に rebase |
+| リスク                                               | 深刻度 | 影響                          | 緩和策                                                                                        |
+| ---------------------------------------------------- | ------ | ----------------------------- | --------------------------------------------------------------------------------------------- |
+| `tsgo` が workspace の `exports` 解決に未対応        | 高     | 型チェックが壊れる            | Step 0 で `tsgo` の動作を先行検証。非対応の場合は `paths` マッピングで回避                    |
+| `bun test` が workspace 跨ぎの import を解決できない | 高     | テスト実行失敗                | Step 1 完了時点で cross-package import のテストを実行して早期検出                             |
+| spec テストの相対パス全壊                            | 高     | 48 ファイルの import が壊れる | Step 7 で `@vicissitude/*` への一括書き換え。全 spec を `bun test spec` で一括検証            |
+| compose.yaml / builder 全壊                          | 高     | デプロイ不可                  | Step 9 でエントリポイントパス・volumes マッピング・installer を一括更新。移行中はデプロイ凍結 |
+| `import.meta.dirname` の解決先変更                   | 中     | ランタイムパスの不整合        | Section 9 の方針で `APP_ROOT` を `shared/config` に集約し、相対パスを排除                     |
+| depcruise / pre-commit フックの破損                  | 中     | commit 時にフックが失敗       | Step 8 でツーリングを更新。移行中の一時的な失敗は PR マージ時のバリデーションで補完           |
+| Bun workspaces の hoisting による依存解決の違い      | 中     | 意図しないパッケージが見える  | 各パッケージの `package.json` に明示的に依存を記述し、暗黙の hoisting に頼らない              |
+| 移行中の長期ブランチと main の乖離                   | 低     | コンフリクト                  | 移行中は main への大きな機能追加を控え、必要なら定期的に rebase                               |

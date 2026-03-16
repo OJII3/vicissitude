@@ -2,6 +2,7 @@ import { existsSync } from "fs";
 import { resolve } from "path";
 
 import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
+
 import { LtmStorage } from "./ltm-storage.ts";
 import { reciprocalRankFusion } from "./retrieval.ts";
 import type { SemanticFact } from "./semantic-fact.ts";

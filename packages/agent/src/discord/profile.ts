@@ -1,4 +1,5 @@
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
+
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
 const POLLING_PROMPT = `あなたは Discord bot「ふあ」です。以下のループを実行してください:
