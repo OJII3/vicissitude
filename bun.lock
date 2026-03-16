@@ -27,8 +27,23 @@
         "typescript": "^5",
       },
     },
+    "packages/agent": {
+      "name": "@vicissitude/agent",
+      "dependencies": {
+        "drizzle-orm": "^0.45.1",
+      },
+    },
     "packages/application": {
       "name": "@vicissitude/application",
+    },
+    "packages/infrastructure": {
+      "name": "@vicissitude/infrastructure",
+      "dependencies": {
+        "discord.js": "^14.19.3",
+      },
+    },
+    "packages/ltm": {
+      "name": "@vicissitude/ltm",
     },
     "packages/observability": {
       "name": "@vicissitude/observability",
@@ -40,6 +55,12 @@
       "name": "@vicissitude/opencode",
       "dependencies": {
         "@opencode-ai/sdk": "^1.2.15",
+      },
+    },
+    "packages/scheduling": {
+      "name": "@vicissitude/scheduling",
+      "dependencies": {
+        "zod": "^3.24.4",
       },
     },
     "packages/shared": {
@@ -191,13 +212,21 @@
 
     "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260228.1", "", { "os": "win32", "cpu": "x64" }, "sha512-9Wq1d0ZbrJcF6NoODw4+SRNdcZtKMmm2w32Wlo+r6ZIziBF5HFWvJcwGXNE0pbFpX6H/Gs8dhLaDKZU2dLoWOA=="],
 
+    "@vicissitude/agent": ["@vicissitude/agent@workspace:packages/agent"],
+
     "@vicissitude/application": ["@vicissitude/application@workspace:packages/application"],
+
+    "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
+
+    "@vicissitude/ltm": ["@vicissitude/ltm@workspace:packages/ltm"],
 
     "@vicissitude/observability": ["@vicissitude/observability@workspace:packages/observability"],
 
     "@vicissitude/ollama": ["@vicissitude/ollama@workspace:packages/ollama"],
 
     "@vicissitude/opencode": ["@vicissitude/opencode@workspace:packages/opencode"],
+
+    "@vicissitude/scheduling": ["@vicissitude/scheduling@workspace:packages/scheduling"],
 
     "@vicissitude/shared": ["@vicissitude/shared@workspace:packages/shared"],
 
@@ -746,6 +775,8 @@
     "@discordjs/rest/@discordjs/collection": ["@discordjs/collection@2.1.1", "", {}, "sha512-LiSusze9Tc7qF03sLCujF5iZp7K+vRNEDBZ86FT9aQAv3vxMLihUvKvpsCWiQ2DJq1tVckopKm1rxomgNUc9hg=="],
 
     "@discordjs/ws/@discordjs/collection": ["@discordjs/collection@2.1.1", "", {}, "sha512-LiSusze9Tc7qF03sLCujF5iZp7K+vRNEDBZ86FT9aQAv3vxMLihUvKvpsCWiQ2DJq1tVckopKm1rxomgNUc9hg=="],
+
+    "@vicissitude/scheduling/zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
 
     "accepts/negotiator": ["negotiator@1.0.0", "", {}, "sha512-8Ofs/AUQh8MaEcrlq5xOX0CQ9ypTF5dl78mjlMNfOK08fzpgTHQRQPBxcPlEtIw0yRpws+Zo/3r+5WRby7u3Gg=="],
 

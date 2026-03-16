@@ -88,8 +88,7 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: ltm/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ollama, @vicissitude/store/db, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ltm/episodic, @vicissitude/ltm/llm-port, @vicissitude/ltm/ltm-storage, @vicissitude/ltm/retrieval, @vicissitude/ltm/semantic-memory, @vicissitude/ollama, @vicissitude/store/db, fs, path
 
 ### http-server.ts
 
@@ -152,7 +151,7 @@ graph LR
 ### minecraft/auto-notifier.ts
 
 - モジュール内依存: minecraft/helpers
-- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, @vicissitude/shared/constants, @vicissitude/shared/types
+- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types, @vicissitude/store/db, @vicissitude/store/mc-bridge, @vicissitude/store/queries
 
 ### minecraft/bot-connection.ts
 
@@ -185,7 +184,7 @@ graph LR
 ### minecraft/mc-bridge-server.ts
 
 - モジュール内依存: tools/mc-bridge-minecraft, tools/mc-memory
-- 外部依存: ../../store/db.ts, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @vicissitude/store/db, path
 
 ### minecraft/mc-metrics.ts
 
@@ -199,7 +198,7 @@ graph LR
 ### minecraft/server.ts
 
 - モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
-- 外部依存: ../../store/db.ts, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config, @vicissitude/store/db
 
 ### minecraft/state-summary.ts
 
@@ -207,25 +206,23 @@ graph LR
 
 ### tools/discord.ts
 
-- 他モジュール依存: infrastructure/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/infrastructure/discord/attachment-mapper, fs, path
 
 ### tools/event-buffer.ts
 
-- 外部依存: ../../store/db.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/store/db, @vicissitude/store/queries
 
 ### tools/ltm.ts
 
-- 他モジュール依存: ltm/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ltm/retrieval, @vicissitude/ltm/semantic-fact, @vicissitude/ltm/semantic-memory
 
 ### tools/mc-bridge-discord.ts
 
-- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants, @vicissitude/store/db, @vicissitude/store/mc-bridge, @vicissitude/store/queries
 
 ### tools/mc-bridge-minecraft.ts
 
-- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/store/db, @vicissitude/store/mc-bridge, @vicissitude/store/queries
 
 ### tools/mc-memory.ts
 

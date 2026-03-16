@@ -6,8 +6,8 @@ import {
 	appendJsonInstruction,
 	cleanJsonResponse,
 	separateMessages,
-} from "../../src/ltm/ltm-chat-adapter.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+} from "../../packages/ltm/src/ltm-chat-adapter.ts";
+import type { ChatMessage } from "../../packages/ltm/src/types.ts";
 
 function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessionPort {
 	let callIndex = 0;

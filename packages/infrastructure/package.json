@@ -1,0 +1,12 @@
+{
+	"name": "@vicissitude/infrastructure",
+	"private": true,
+	"exports": {
+		"./discord/attachment-mapper": "./src/discord/attachment-mapper.ts",
+		"./discord/url-rewriter": "./src/discord/url-rewriter.ts",
+		"./store/sqlite-buffered-event-store": "./src/store/sqlite-buffered-event-store.ts"
+	},
+	"dependencies": {
+		"discord.js": "^14.19.3"
+	}
+}

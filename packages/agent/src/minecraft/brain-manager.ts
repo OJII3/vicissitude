@@ -1,9 +1,9 @@
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { Logger } from "@vicissitude/shared/types";
-import type { StoreDb } from "../../store/db.ts";
-import { SqliteEventBuffer } from "../../store/event-buffer.ts";
-import { clearSessionLock, hasSessionLock } from "../../store/mc-bridge.ts";
-import { appendEvent } from "../../store/queries.ts";
+import type { StoreDb } from "@vicissitude/store/db";
+import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
+import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
+import { appendEvent } from "@vicissitude/store/queries";
 import type { SessionStore } from "../session-store.ts";
 import { MinecraftAgent } from "./minecraft-agent.ts";
 

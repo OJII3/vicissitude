@@ -1,13 +1,13 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await -- comprehensive consolidation tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { ConsolidationOutput } from "../../src/ltm/consolidation.ts";
-import { ConsolidationPipeline } from "../../src/ltm/consolidation.ts";
-import { EpisodicMemory } from "../../src/ltm/episodic.ts";
-import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import { createFact } from "../../src/ltm/semantic-fact.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import type { ConsolidationOutput } from "../../packages/ltm/src/consolidation.ts";
+import { ConsolidationPipeline } from "../../packages/ltm/src/consolidation.ts";
+import { EpisodicMemory } from "../../packages/ltm/src/episodic.ts";
+import type { LtmLlmPort, Schema } from "../../packages/ltm/src/llm-port.ts";
+import { LtmStorage } from "../../packages/ltm/src/ltm-storage.ts";
+import { createFact } from "../../packages/ltm/src/semantic-fact.ts";
+import type { ChatMessage } from "../../packages/ltm/src/types.ts";
 import { createInvalidLLM, createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";

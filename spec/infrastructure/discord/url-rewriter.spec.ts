@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { rewriteTwitterUrls } from "../../../src/infrastructure/discord/url-rewriter.ts";
+import { rewriteTwitterUrls } from "../../../packages/infrastructure/src/discord/url-rewriter.ts";
 
 describe("rewriteTwitterUrls", () => {
 	test("x.com URL を fxtwitter.com に置換する", () => {

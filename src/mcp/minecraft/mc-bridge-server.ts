@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
-import { closeDb, createDb } from "../../store/db.ts";
+import { closeDb, createDb } from "@vicissitude/store/db";
 import { registerMinecraftBridgeTools } from "../tools/mc-bridge-minecraft.ts";
 import { registerMcMemoryTools } from "../tools/mc-memory.ts";
 

@@ -4,11 +4,11 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { Client, GatewayIntentBits } from "discord.js";
 
-import { EpisodicMemory } from "../ltm/episodic.ts";
-import type { LtmLlmPort } from "../ltm/llm-port.ts";
-import { LtmStorage } from "../ltm/ltm-storage.ts";
-import { Retrieval } from "../ltm/retrieval.ts";
-import { SemanticMemory } from "../ltm/semantic-memory.ts";
+import { EpisodicMemory } from "@vicissitude/ltm/episodic";
+import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import { Retrieval } from "@vicissitude/ltm/retrieval";
+import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { startHttpServer } from "./http-server.ts";

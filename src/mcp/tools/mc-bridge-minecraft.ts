@@ -1,9 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { StoreDb } from "../../store/db.ts";
-import { getSessionLockGuildId } from "../../store/mc-bridge.ts";
-import { appendEvent } from "../../store/queries.ts";
+import type { StoreDb } from "@vicissitude/store/db";
+import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
+import { appendEvent } from "@vicissitude/store/queries";
 
 const MAX_REPORT_CHARS = 10_000;
 

@@ -1,10 +1,10 @@
 /* oxlint-disable no-non-null-assertion, require-await -- FSRS learning loop integration tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { EpisodicMemory } from "../../src/ltm/episodic.ts";
-import { retrievability } from "../../src/ltm/fsrs.ts";
-import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import { Retrieval } from "../../src/ltm/retrieval.ts";
+import { EpisodicMemory } from "../../packages/ltm/src/episodic.ts";
+import { retrievability } from "../../packages/ltm/src/fsrs.ts";
+import { LtmStorage } from "../../packages/ltm/src/ltm-storage.ts";
+import { Retrieval } from "../../packages/ltm/src/retrieval.ts";
 import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";

@@ -4,22 +4,22 @@ import { resolve } from "path";
 
 import { spawn, type Subprocess } from "bun";
 
-import { ContextBuilder } from "./agent/discord/context-builder.ts";
-import { DiscordAgent } from "./agent/discord/discord-agent.ts";
-import { GuildRouter } from "./agent/discord/router.ts";
-import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
-import { SessionStore } from "./agent/session-store.ts";
+import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import { GuildRouter } from "@vicissitude/agent/discord/router";
+import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
+import { SessionStore } from "@vicissitude/agent/session-store";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "@vicissitude/shared/config";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
-import { SqliteBufferedEventStore } from "./infrastructure/store/sqlite-buffered-event-store.ts";
-import { CompositeLLMAdapter } from "./ltm/composite-llm-adapter.ts";
-import { LtmConversationRecorder } from "./ltm/conversation-recorder.ts";
-import { type EmbeddingPort, LtmFactReaderImpl } from "./ltm/fact-reader.ts";
-import { LtmChatAdapter } from "./ltm/ltm-chat-adapter.ts";
+import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqlite-buffered-event-store";
+import { CompositeLLMAdapter } from "@vicissitude/ltm/composite-llm-adapter";
+import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
+import { type EmbeddingPort, LtmFactReaderImpl } from "@vicissitude/ltm/fact-reader";
+import { LtmChatAdapter } from "@vicissitude/ltm/ltm-chat-adapter";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -29,8 +29,8 @@ import {
 } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts";
-import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";
+import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
+import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";

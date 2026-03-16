@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import { ContextBuilder } from "../../../src/agent/discord/context-builder.ts";
+import { ContextBuilder } from "../../../packages/agent/src/discord/context-builder.ts";
 import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────

@@ -2,13 +2,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
-import type { StoreDb } from "../../store/db.ts";
+import type { StoreDb } from "@vicissitude/store/db";
 import {
 	getMcConnectionStatus,
 	releaseSessionLock,
 	tryAcquireSessionLock,
-} from "../../store/mc-bridge.ts";
-import { appendEvent } from "../../store/queries.ts";
+} from "@vicissitude/store/mc-bridge";
+import { appendEvent } from "@vicissitude/store/queries";
 
 export interface McBridgeDeps {
 	db: StoreDb;

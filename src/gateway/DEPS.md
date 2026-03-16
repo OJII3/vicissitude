@@ -18,5 +18,4 @@ graph LR
 
 ### discord.ts
 
-- 他モジュール依存: infrastructure/
-- 外部依存: .bun, @vicissitude/shared/types
+- 外部依存: .bun, @vicissitude/infrastructure/discord/attachment-mapper, @vicissitude/infrastructure/discord/url-rewriter, @vicissitude/shared/types

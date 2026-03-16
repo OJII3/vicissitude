@@ -1,8 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { StoreDb } from "../../store/db.ts";
-import { consumeEvents, hasEvents } from "../../store/queries.ts";
+import type { StoreDb } from "@vicissitude/store/db";
+import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
 
 export interface EventBufferDeps {
 	db: StoreDb;

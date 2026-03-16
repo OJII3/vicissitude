@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import { clearSessionLock, tryAcquireSessionLock } from "../../store/mc-bridge.ts";
-import { createTestDb } from "../../store/test-helpers.ts";
+import { clearSessionLock, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
+import { createTestDb } from "../../../store/src/test-helpers.ts";
 import type { McBrainManagerDeps } from "./brain-manager.ts";
 import { McBrainManager } from "./brain-manager.ts";
 

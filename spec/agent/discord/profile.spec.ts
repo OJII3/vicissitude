@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { createConversationProfile } from "../../../src/agent/discord/profile.ts";
+import { createConversationProfile } from "../../../packages/agent/src/discord/profile.ts";
 
 describe("createConversationProfile", () => {
 	test("Discord runner は新着イベント待ちで再起動する", () => {

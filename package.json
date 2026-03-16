@@ -8,6 +8,7 @@
 	],
 	"module": "src/index.ts",
 	"scripts": {
+		"postinstall": "bun scripts/link-workspaces.ts",
 		"start": "bun run src/index.ts",
 		"dev": "bun --watch run src/index.ts",
 		"check": "tsgo --noEmit",

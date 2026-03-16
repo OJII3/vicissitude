@@ -1,9 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { Retrieval } from "../../ltm/retrieval.ts";
-import type { SemanticFact } from "../../ltm/semantic-fact.ts";
-import type { SemanticMemory } from "../../ltm/semantic-memory.ts";
+import type { Retrieval } from "@vicissitude/ltm/retrieval";
+import type { SemanticFact } from "@vicissitude/ltm/semantic-fact";
+import type { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
 
 const GUILD_ID_REGEX = /^\d+$/;
 const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
