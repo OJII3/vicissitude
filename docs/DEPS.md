@@ -20,6 +20,8 @@ graph LR
   apps_discord["apps/discord"] --> scheduling
   apps_discord["apps/discord"] --> shared
   apps_discord["apps/discord"] --> store
+  apps_web["apps/web"] --> shared
+  gateway --> shared
   infrastructure --> application
   infrastructure --> shared
   infrastructure --> store
@@ -62,6 +64,18 @@ graph LR
 - 内部依存: agent, application, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store
 - 外部依存: .bun, fs, path
 - ファイル数: 4
+
+### apps/web
+
+- 内部依存: shared
+- 外部依存: なし
+- ファイル数: 1
+
+### gateway
+
+- 内部依存: shared
+- 外部依存: .bun
+- ファイル数: 2
 
 ### infrastructure
 
@@ -115,7 +129,7 @@ graph LR
 
 - 内部依存: なし
 - 外部依存: .bun, path
-- ファイル数: 11
+- ファイル数: 14
 
 ### store
 

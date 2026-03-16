@@ -1,0 +1,11 @@
+{
+	"name": "@vicissitude/gateway",
+	"private": true,
+	"exports": {
+		"./ws-handler": "./src/ws-handler.ts",
+		"./server": "./src/server.ts"
+	},
+	"dependencies": {
+		"elysia": "^1.4.27"
+	}
+}
