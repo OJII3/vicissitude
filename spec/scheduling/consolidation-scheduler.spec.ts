@@ -1,23 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type {
-	ConsolidationResult,
-	MemoryConsolidator,
-	MetricsCollector,
-} from "../../src/core/types.ts";
+import type { ConsolidationResult, MemoryConsolidator } from "../../src/core/types.ts";
 import { ConsolidationScheduler } from "../../src/scheduling/consolidation-scheduler.ts";
-import { createMockLogger } from "../test-helpers.ts";
-
-function createMockMetrics(): MetricsCollector {
-	return {
-		incrementCounter: mock(() => {}),
-		addCounter: mock(() => {}),
-		setGauge: mock(() => {}),
-		incrementGauge: mock(() => {}),
-		decrementGauge: mock(() => {}),
-		observeHistogram: mock(() => {}),
-	};
-}
+import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 
 function createMockConsolidator(overrides: Partial<MemoryConsolidator> = {}): MemoryConsolidator {
 	return {
