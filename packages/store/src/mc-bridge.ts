@@ -42,14 +42,19 @@ export function releaseSessionLock(db: StoreDb, guildId: string): boolean {
 	return db.transaction((tx) => {
 		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
 		if (!existing || existing.guildId !== guildId) return false;
-		tx.delete(mcSessionLock).where(eq(mcSessionLock.id, 1)).run();
+		tx.update(mcSessionLock).set({ acquiredAt: 0 }).where(eq(mcSessionLock.id, 1)).run();
 		return true;
 	});
 }
 
 /** セッションロックを強制クリアする（プロセス再起動時用） */
 export function clearSessionLock(db: StoreDb): void {
-	db.delete(mcSessionLock).run();
+	const existing = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	if (!existing) return;
+	db.update(mcSessionLock)
+		.set({ connected: 0, connectedAt: null, acquiredAt: 0 })
+		.where(eq(mcSessionLock.id, 1))
+		.run();
 }
 
 // ─── MC 接続状態 ─────────────────────────────────────────────────
