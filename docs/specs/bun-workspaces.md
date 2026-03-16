@@ -627,20 +627,128 @@ vicissitude/
 
 ## 8. 移行手順（実行ステップ概要）
 
-1. **Step 0（準備）**: `tsconfig.base.json` を作成、ルート `package.json` に `workspaces` を追加
-2. **Step 1（shared）**: `packages/shared/` を作成し `src/core/` のファイルを移動。import パスを更新
+### 移行方式: Big Bang（1 ブランチ完結）
+
+段階的マージ（ステップごとに main にマージ）は**不可能**。理由:
+
+- Step 1 で `core/` を移動した瞬間に 30+ ファイルの import が壊れ、main が壊れる
+- `compose.yaml` の builder が `src/index.ts` を前提としており、移行完了まで deploy 不可
+- spec テストの相対パスが全壊する
+
+したがって、**1 ブランチで全ステップを完了し、最後にまとめてマージする**。移行中はデプロイ凍結（main からの deploy は可能だが、移行ブランチからは不可）。
+
+### ステップ
+
+1. **Step 0（準備・先行検証）**: `tsconfig.base.json` を作成、ルート `package.json` に `workspaces` を追加。**先行検証**: `tsgo` が workspace の `exports` 解決に対応しているか確認。非対応の場合は `paths` マッピングで回避策を用意。
+2. **Step 1（shared）**: `packages/shared/` を作成し `src/core/` のファイルを移動。import パスを更新。**検証**: cross-package import が `bun test` と `tsgo` の両方で動くことを確認。
 3. **Step 2（L0 残り）**: `packages/ollama/` を作成
 4. **Step 3（L1）**: `packages/observability/`, `packages/application/`, `packages/store/`, `packages/opencode/` を作成
 5. **Step 4（L2）**: `packages/ltm/`, `packages/infrastructure/`, `packages/agent/`, `packages/scheduling/` を作成
 6. **Step 5（L3）**: `packages/mcp/`, `packages/minecraft/` を作成
 7. **Step 6（App）**: `apps/discord/` を作成し、`bootstrap.ts`, `index.ts`, `gateway/` を移動
-8. **Step 7（テスト）**: `spec/` の import パスを `@vicissitude/*` に更新、全テスト実行
-9. **Step 8（ツーリング）**: `dependency-cruiser` 設定の更新、`DEPS.md` 生成スクリプトの調整
-10. **Step 9（クリーンアップ）**: 旧 `src/` ディレクトリの削除、CI 設定の確認
+8. **Step 7（テスト）**: `spec/` の import パスを `@vicissitude/*` に更新、テストヘルパーの移行（後述）、全テスト実行
+9. **Step 8（ツーリング）**: `dependency-cruiser` 設定、`DEPS.md` 生成スクリプト、`.oxlintrc.json` のパスパターン更新
+10. **Step 9（デプロイ設定）**: `compose.yaml`、Containerfile のパス更新（後述）
+11. **Step 10（クリーンアップ）**: 旧 `src/` ディレクトリの削除、CI 設定の確認
 
-各ステップ完了後に `nr validate && nr test` で動作確認を行う。
+各ステップ完了後にブランチ内で `bun install && nr validate && nr test` を実行して壊れていないことを確認する（全ステップ通過後にマージ）。
 
-## 9. 受け入れ条件
+## 9. ランタイムパス解決
+
+### 問題
+
+以下の 6 箇所で `import.meta.dirname` を基準にした相対パスで `context/` や `data/` にアクセスしている。パッケージ移動によりディレクトリ階層が変わると壊れる。
+
+| ファイル | 現在の解決方法 |
+|---|---|
+| `src/bootstrap.ts:376` | `process.env.APP_ROOT ?? resolve(import.meta.dirname, "..")` |
+| `src/core/config.ts:76` | 同上 |
+| `src/agent/mcp-config.ts:8` | 同上 |
+| `src/mcp/memory-helpers.ts:6` | 同上 |
+| `src/mcp/tools/schedule.ts:15` | 同上 |
+| `src/mcp/minecraft/mc-bridge-server.ts:12` | 同上 |
+
+### 対策
+
+APP_ROOT 解決ロジックを `@vicissitude/shared/config` に集約する。
+
+```typescript
+// packages/shared/src/config.ts
+import { resolve } from "node:path";
+
+// APP_ROOT は apps/discord の index.ts で設定するか、環境変数で指定
+export const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
+```
+
+- ローカル開発時: プロジェクトルートで `bun run` するため `process.cwd()` で解決
+- コンテナ内: `APP_ROOT` 環境変数で明示指定（compose.yaml で設定済み）
+- `import.meta.dirname` からの相対パス（`..`, `../..`）は使わない
+
+各パッケージは `APP_ROOT` を import して `resolve(APP_ROOT, "context", ...)` のように使用する。
+
+## 10. テストヘルパーの移行
+
+### 現在のヘルパー
+
+| ファイル | import 元 | 移行先 |
+|---|---|---|
+| `spec/test-helpers.ts` | `../src/core/types.ts` | `spec/test-helpers.ts`（import を `@vicissitude/shared/types` に変更） |
+| `spec/ltm/test-helpers.ts` | `../../src/ltm/*` | `spec/ltm/test-helpers.ts`（import を `@vicissitude/ltm/*` に変更） |
+| `src/store/test-helpers.ts` | `bun:sqlite` | `packages/store/src/test-helpers.ts`（パッケージ内移動） |
+| `src/mcp/test-helpers.ts` | `./http-server.ts` 等 | `packages/mcp/src/test-helpers.ts`（パッケージ内移動） |
+
+### 方針
+
+- spec/ 配下のヘルパーは spec/ に残し、import パスだけ `@vicissitude/*` に書き換え
+- src/ 配下のヘルパーはパッケージと一緒に移動（co-locate 維持）
+
+## 11. デプロイ設定の更新
+
+### compose.yaml
+
+#### builder ステージ
+
+現在のビルドコマンド 5 箇所のパスを更新:
+
+| 現在 | 移行後 |
+|---|---|
+| `src/index.ts` | `apps/discord/src/index.ts` |
+| `src/mcp/core-server.ts` | `packages/mcp/src/core-server.ts` |
+| `src/mcp/code-exec-server.ts` | `packages/mcp/src/code-exec-server.ts` |
+| `src/mcp/minecraft/server.ts` | `packages/minecraft/src/server.ts` |
+| `src/mcp/minecraft/mc-bridge-server.ts` | `packages/minecraft/src/mc-bridge-server.ts` |
+
+#### volumes マッピング
+
+現在の `./src:/app/src:ro` を以下に変更:
+
+```yaml
+volumes:
+  - ./packages:/app/packages:ro
+  - ./apps:/app/apps:ro
+  - ./context:/app/context:ro
+  # data/ は既存のまま
+```
+
+#### installer ステージ
+
+現在は `package.json` と `bun.lock` のみマウント。workspaces 化後は各パッケージの `package.json` もマウントが必要:
+
+```yaml
+volumes:
+  - ./package.json:/app/package.json:ro
+  - ./bun.lock:/app/bun.lock:ro
+  - ./packages:/app/packages:ro    # 各パッケージの package.json を含む
+  - ./apps:/app/apps:ro            # apps の package.json を含む
+```
+
+### pre-commit フック
+
+- `deps:graph` スクリプトは `depcruise src` → `depcruise packages/*/src apps/*/src` に変更
+- `.dependency-cruiser.mjs` の `from.path` / `to.path` パターンを全面書き換え
+- 移行ブランチでは pre-commit フックが一時的に壊れるため、**フック修正を Step 8（ツーリング）に含める**
+
+## 12. 受け入れ条件
 
 本 Phase はアーキテクチャ移行であり、API の振る舞い変更はない。以下を受け入れ条件とする。
 
@@ -650,12 +758,17 @@ vicissitude/
 4. **パッケージ間の依存方向が仕様通りであること**: 依存関係グラフ（Section 3）に違反する import がないこと
 5. **Bun workspaces の解決が正しく動作すること**: `bun install` でワークスペース間リンクが正しく張られること
 6. **デプロイが動作すること**: `nr deploy` でコンテナが正常に起動すること（`Cipher` ホスト上で検証）
+7. **ランタイムパス解決が正しいこと**: `context/` と `data/` へのアクセスがローカル/コンテナ両方で動作すること
 
-## 10. リスクと緩和策
+## 13. リスクと緩和策
 
-| リスク | 影響 | 緩和策 |
-|---|---|---|
-| `tsgo` が workspace の `exports` 解決に未対応 | 型チェックが壊れる | Step 0 で `tsgo` の動作を先行検証。非対応の場合は `paths` マッピングで回避 |
-| `bun test` が workspace 跨ぎの import を解決できない | テスト実行失敗 | Step 1 完了時点で cross-package import のテストを実行して早期検出 |
-| Containerfile のパス変更 | デプロイ失敗 | 移行時に `compose.yaml` と `Containerfile` のマウントパスを合わせて更新 |
-| `import.meta.dirname` の解決先変更 | ランタイムパスの不整合 | `APP_ROOT` 環境変数によるルート解決を徹底し、相対パスに頼らない |
+| リスク | 深刻度 | 影響 | 緩和策 |
+|---|---|---|---|
+| `tsgo` が workspace の `exports` 解決に未対応 | 高 | 型チェックが壊れる | Step 0 で `tsgo` の動作を先行検証。非対応の場合は `paths` マッピングで回避 |
+| `bun test` が workspace 跨ぎの import を解決できない | 高 | テスト実行失敗 | Step 1 完了時点で cross-package import のテストを実行して早期検出 |
+| spec テストの相対パス全壊 | 高 | 48 ファイルの import が壊れる | Step 7 で `@vicissitude/*` への一括書き換え。全 spec を `bun test spec` で一括検証 |
+| compose.yaml / builder 全壊 | 高 | デプロイ不可 | Step 9 でエントリポイントパス・volumes マッピング・installer を一括更新。移行中はデプロイ凍結 |
+| `import.meta.dirname` の解決先変更 | 中 | ランタイムパスの不整合 | Section 9 の方針で `APP_ROOT` を `shared/config` に集約し、相対パスを排除 |
+| depcruise / pre-commit フックの破損 | 中 | commit 時にフックが失敗 | Step 8 でツーリングを更新。移行中の一時的な失敗は PR マージ時のバリデーションで補完 |
+| Bun workspaces の hoisting による依存解決の違い | 中 | 意図しないパッケージが見える | 各パッケージの `package.json` に明示的に依存を記述し、暗黙の hoisting に頼らない |
+| 移行中の長期ブランチと main の乖離 | 低 | コンフリクト | 移行中は main への大きな機能追加を控え、必要なら定期的に rebase |
