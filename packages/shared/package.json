@@ -5,6 +5,7 @@
 		"./types": "./src/types.ts",
 		"./config": "./src/config.ts",
 		"./constants": "./src/constants.ts",
-		"./functions": "./src/functions.ts"
+		"./functions": "./src/functions.ts",
+		"./test-helpers": "./src/test-helpers.ts"
 	}
 }
