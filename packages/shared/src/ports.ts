@@ -1,0 +1,76 @@
+import type { Emotion, VrmExpressionWeight } from "./emotion";
+import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
+
+// ─── EmotionToExpressionMapper ─────────────────────────────────
+//
+// VAD → VRM Expression マッピングのポート。
+// 実装は avatar パッケージ（将来）に置く。
+
+/** VAD → VRM Expression マッピングのポートインターフェース */
+export interface EmotionToExpressionMapper {
+	mapToExpression(emotion: Emotion): VrmExpressionWeight;
+}
+
+// ─── EmotionAnalyzer ────────────────────────────────────────────
+//
+// Agent パッケージが感情推定結果を返すためのポート。
+// LLM の structured output で VAD 値を出力し、テキストと共に返す。
+
+/** 感情推定の入力 */
+export interface EmotionAnalysisInput {
+	/** 分析対象のテキスト（LLM の応答テキスト） */
+	readonly text: string;
+	/** 会話コンテキスト（直近の会話履歴など） */
+	readonly context?: string;
+}
+
+/** 感情推定の結果 */
+export interface EmotionAnalysisResult {
+	readonly emotion: Emotion;
+	readonly confidence: number;
+}
+
+/** 感情推定ポート。agent パッケージが実装する */
+export interface EmotionAnalyzer {
+	analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult>;
+}
+
+// ─── AvatarController ───────────────────────────────────────────
+//
+// Avatar パッケージが表情・アニメーション制御を受け付けるポート。
+// gateway 経由で WebSocket クライアントへ指示を転送する。
+
+/** アバター制御の指示 */
+export interface AvatarCommand {
+	/** 適用する表情と強度 */
+	readonly expressionWeight: VrmExpressionWeight;
+	/** ボディアニメーションのプリセット */
+	readonly animation?: BodyAnimationPreset;
+	/** アニメーション強度 [0, 1] */
+	readonly animationIntensity?: number;
+}
+
+/** アバター制御ポート。avatar パッケージが実装する */
+export interface AvatarController {
+	applyEmotion(emotion: Emotion): Promise<AvatarCommand>;
+	playAnimation(preset: BodyAnimationPreset, intensity: number): Promise<void>;
+}
+
+// ─── GatewayPort ────────────────────────────────────────────────
+//
+// Gateway パッケージが WebSocket 接続管理を提供するポート。
+// サーバーメッセージの送信とクライアントメッセージの受信を抽象化する。
+
+/** WebSocket 接続の識別子 */
+export type ConnectionId = string;
+
+/** クライアントメッセージを受信したときのハンドラ */
+export type ClientMessageHandler = (connectionId: ConnectionId, message: ClientMessage) => void;
+
+/** WebSocket 接続管理ポート。gateway パッケージが実装する */
+export interface GatewayPort {
+	send(connectionId: ConnectionId, message: ServerMessage): void;
+	broadcast(message: ServerMessage): void;
+	onMessage(handler: ClientMessageHandler): void;
+	getConnectionCount(): number;
+}

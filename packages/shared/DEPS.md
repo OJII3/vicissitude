@@ -8,9 +8,13 @@
 graph LR
   config
   constants
+  emotion
   functions --> constants
   functions --> types
-  types
+  ports --> emotion
+  ports --> ws_protocol["ws-protocol"]
+  types --> emotion
+  ws_protocol["ws-protocol"] --> emotion
 ```
 
 ## ファイル別依存一覧
@@ -23,10 +27,23 @@ graph LR
 
 - 依存なし
 
+### emotion.ts
+
+- 外部依存: .bun
+
 ### functions.ts
 
 - モジュール内依存: constants, types
 
+### ports.ts
+
+- モジュール内依存: emotion, ws-protocol
+
 ### types.ts
 
-- 依存なし
+- モジュール内依存: emotion
+
+### ws-protocol.ts
+
+- モジュール内依存: emotion
+- 外部依存: .bun
