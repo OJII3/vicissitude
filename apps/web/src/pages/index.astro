@@ -1,0 +1,61 @@
+---
+// 静的ページ
+---
+
+<html lang="ja">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width" />
+		<title>ふあ - Web Chat</title>
+	</head>
+	<body>
+		<h1>ふあ Chat</h1>
+		<div id="messages"></div>
+		<form id="chat-form">
+			<input type="text" id="input" placeholder="メッセージを入力..." autocomplete="off" />
+			<button type="submit">送信</button>
+		</form>
+		<script>
+			import { WsClient } from "../lib/ws-client";
+
+			const messagesDiv = document.getElementById("messages")!;
+			const form = document.getElementById("chat-form") as HTMLFormElement;
+			const input = document.getElementById("input") as HTMLInputElement;
+
+			const wsUrl = `ws://${window.location.hostname}:3001`;
+			const client = new WsClient(wsUrl);
+
+			client.onMessage((message) => {
+				const el = document.createElement("div");
+				if (message.type === "chat_message") {
+					el.textContent = `ふあ: ${message.text}`;
+				} else if (message.type === "error") {
+					el.textContent = `Error: ${message.message}`;
+				} else {
+					el.textContent = JSON.stringify(message);
+				}
+				messagesDiv.appendChild(el);
+			});
+
+			form.addEventListener("submit", (e) => {
+				e.preventDefault();
+				const text = input.value.trim();
+				if (!text) return;
+
+				const el = document.createElement("div");
+				el.textContent = `あなた: ${text}`;
+				messagesDiv.appendChild(el);
+
+				client.send({
+					type: "chat_input",
+					text,
+					timestamp: new Date().toISOString(),
+				});
+				input.value = "";
+			});
+
+			client.connect();
+		</script>
+	</body>
+</html>

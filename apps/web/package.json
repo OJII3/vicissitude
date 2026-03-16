@@ -1,0 +1,15 @@
+{
+	"name": "@vicissitude/web",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro": "astro"
+	},
+	"dependencies": {
+		"@vicissitude/shared": "workspace:*",
+		"astro": "^6.0.5"
+	}
+}
