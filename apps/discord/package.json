@@ -1,0 +1,8 @@
+{
+	"name": "@vicissitude/discord",
+	"private": true,
+	"module": "src/index.ts",
+	"dependencies": {
+		"discord.js": "^14.25.1"
+	}
+}

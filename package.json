@@ -1,16 +1,16 @@
 {
 	"name": "vicissitude",
 	"private": true,
-	"type": "module",
 	"workspaces": [
 		"packages/*",
 		"apps/*"
 	],
-	"module": "src/index.ts",
+	"type": "module",
+	"module": "apps/discord/src/index.ts",
 	"scripts": {
 		"postinstall": "bun scripts/link-workspaces.ts",
-		"start": "bun run src/index.ts",
-		"dev": "bun --watch run src/index.ts",
+		"start": "bun run apps/discord/src/index.ts",
+		"dev": "bun --watch run apps/discord/src/index.ts",
 		"check": "tsgo --noEmit",
 		"lint": "oxlint",
 		"lint:fix": "oxlint --fix",
@@ -18,7 +18,7 @@
 		"fmt:check": "oxfmt --check .",
 		"test": "bun test",
 		"test:spec": "bun test spec",
-		"test:unit": "bun test src scripts",
+		"test:unit": "bun test packages apps scripts",
 		"test:quality": "bun scripts/test-quality.ts",
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"deps:graph": "depcruise src --config .dependency-cruiser.mjs --output-type json | bun scripts/generate-deps-md.ts && oxfmt docs/DEPS.md 'src/*/DEPS.md'",

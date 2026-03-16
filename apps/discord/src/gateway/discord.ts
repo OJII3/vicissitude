@@ -1,8 +1,7 @@
-import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
-
-import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
 import { mapAttachments } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
+import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
+import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;

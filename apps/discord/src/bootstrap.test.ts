@@ -1,7 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { createStoreLayer, createMetrics } from "./bootstrap.ts";
 import type { AppConfig } from "@vicissitude/shared/config";
+
+import { createStoreLayer, createMetrics } from "./bootstrap.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 	return {
