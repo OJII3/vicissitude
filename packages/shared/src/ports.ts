@@ -1,6 +1,16 @@
 import type { Emotion, VrmExpressionWeight } from "./emotion";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
+// ─── EmotionToExpressionMapper ─────────────────────────────────
+//
+// VAD → VRM Expression マッピングのポート。
+// 実装は avatar パッケージ（将来）に置く。
+
+/** VAD → VRM Expression マッピングのポートインターフェース */
+export interface EmotionToExpressionMapper {
+	mapToExpression(emotion: Emotion): VrmExpressionWeight;
+}
+
 // ─── EmotionAnalyzer ────────────────────────────────────────────
 //
 // Agent パッケージが感情推定結果を返すためのポート。

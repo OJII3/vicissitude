@@ -3,7 +3,6 @@ import { describe, expect, it } from "bun:test";
 import {
 	type Emotion,
 	EmotionSchema,
-	type EmotionToExpressionMapper,
 	NEUTRAL_EMOTION,
 	type VrmExpression,
 	VrmExpressionSchema,
@@ -11,6 +10,7 @@ import {
 	VrmExpressionWeightSchema,
 	createEmotion,
 } from "@vicissitude/shared/emotion";
+import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
 
 // ─── Emotion type & factory ─────────────────────────────────────
 

@@ -31,7 +31,7 @@ export interface EmotionUpdateMessage {
 }
 
 /** チャット応答メッセージ（ストリーミング対応） */
-export interface ChatMessageMessage {
+export interface ChatResponseMessage {
 	readonly type: "chat_message";
 	/** "chunk": 増分テキスト, "complete": 最終テキスト */
 	readonly status: "chunk" | "complete";
@@ -60,7 +60,7 @@ export interface ErrorMessage {
 /** サーバー → クライアント メッセージの discriminated union */
 export type ServerMessage =
 	| EmotionUpdateMessage
-	| ChatMessageMessage
+	| ChatResponseMessage
 	| AnimationCommandMessage
 	| ErrorMessage;
 
@@ -98,7 +98,7 @@ export const EmotionUpdateMessageSchema = z
 	})
 	.readonly();
 
-export const ChatMessageMessageSchema = z
+export const ChatResponseMessageSchema = z
 	.object({
 		type: z.literal("chat_message"),
 		status: z.enum(["chunk", "complete"]),
@@ -128,7 +128,7 @@ export const ErrorMessageSchema = z
 
 export const ServerMessageSchema = z.discriminatedUnion("type", [
 	EmotionUpdateMessageSchema,
-	ChatMessageMessageSchema,
+	ChatResponseMessageSchema,
 	AnimationCommandMessageSchema,
 	ErrorMessageSchema,
 ]);
@@ -145,7 +145,7 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [ChatInputMessag
 
 export const WsMessageSchema = z.discriminatedUnion("type", [
 	EmotionUpdateMessageSchema,
-	ChatMessageMessageSchema,
+	ChatResponseMessageSchema,
 	AnimationCommandMessageSchema,
 	ErrorMessageSchema,
 	ChatInputMessageSchema,
@@ -153,12 +153,26 @@ export const WsMessageSchema = z.discriminatedUnion("type", [
 
 // ─── Parse Helpers ──────────────────────────────────────────────
 
+function safeJsonParse(raw: string): unknown {
+	try {
+		return JSON.parse(raw);
+	} catch {
+		throw new z.ZodError([
+			{
+				code: z.ZodIssueCode.custom,
+				path: [],
+				message: "Invalid JSON",
+			},
+		]);
+	}
+}
+
 /** JSON 文字列をパースしてサーバーメッセージとして検証する */
 export function parseServerMessage(raw: string): ServerMessage {
-	return ServerMessageSchema.parse(JSON.parse(raw));
+	return ServerMessageSchema.parse(safeJsonParse(raw));
 }
 
 /** JSON 文字列をパースしてクライアントメッセージとして検証する */
 export function parseClientMessage(raw: string): ClientMessage {
-	return ClientMessageSchema.parse(JSON.parse(raw));
+	return ClientMessageSchema.parse(safeJsonParse(raw));
 }

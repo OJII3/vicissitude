@@ -78,13 +78,3 @@ export function createEmotion(valence: number, arousal: number, dominance: numbe
 
 /** 原点 (neutral) の Emotion */
 export const NEUTRAL_EMOTION: Emotion = Object.freeze({ valence: 0, arousal: 0, dominance: 0 });
-
-// ─── VAD → VRM Expression Mapping Port ──────────────────────────
-//
-// マッピングの型シグネチャのみ shared で定義。
-// 実装は avatar パッケージ（将来）に置く。
-
-/** VAD → VRM Expression マッピングのポートインターフェース */
-export interface EmotionToExpressionMapper {
-	mapToExpression(emotion: Emotion): VrmExpressionWeight;
-}

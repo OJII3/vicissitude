@@ -4,7 +4,7 @@ import type {
 	AnimationCommandMessage,
 	BodyAnimationPreset,
 	ChatInputMessage,
-	ChatMessageMessage,
+	ChatResponseMessage,
 	ClientMessage,
 	EmotionUpdateMessage,
 	ErrorMessage,
@@ -15,7 +15,7 @@ import {
 	AnimationCommandMessageSchema,
 	BodyAnimationPresetSchema,
 	ChatInputMessageSchema,
-	ChatMessageMessageSchema,
+	ChatResponseMessageSchema,
 	ClientMessageSchema,
 	EmotionUpdateMessageSchema,
 	ErrorMessageSchema,
@@ -24,6 +24,7 @@ import {
 	parseClientMessage,
 	parseServerMessage,
 } from "@vicissitude/shared/ws-protocol";
+import { ZodError } from "zod";
 
 // ─── Test Fixtures ──────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ const validEmotionUpdate: EmotionUpdateMessage = {
 	timestamp: NOW,
 };
 
-const validChatMessageChunk: ChatMessageMessage = {
+const validChatMessageChunk: ChatResponseMessage = {
 	type: "chat_message",
 	status: "chunk",
 	text: "やっ",
@@ -44,7 +45,7 @@ const validChatMessageChunk: ChatMessageMessage = {
 	timestamp: NOW,
 };
 
-const validChatMessageComplete: ChatMessageMessage = {
+const validChatMessageComplete: ChatResponseMessage = {
 	type: "chat_message",
 	status: "complete",
 	text: "やったー！",
@@ -137,35 +138,35 @@ describe("EmotionUpdateMessageSchema", () => {
 	});
 });
 
-// ─── ChatMessageMessage ─────────────────────────────────────────
+// ─── ChatResponseMessage ─────────────────────────────────────────
 
-describe("ChatMessageMessageSchema", () => {
+describe("ChatResponseMessageSchema", () => {
 	it("parses a chunk message", () => {
-		const result = ChatMessageMessageSchema.parse(validChatMessageChunk);
+		const result = ChatResponseMessageSchema.parse(validChatMessageChunk);
 		expect(result.type).toBe("chat_message");
 		expect(result.status).toBe("chunk");
 		expect(result.text).toBe("やっ");
 	});
 
 	it("parses a complete message", () => {
-		const result = ChatMessageMessageSchema.parse(validChatMessageComplete);
+		const result = ChatResponseMessageSchema.parse(validChatMessageComplete);
 		expect(result.status).toBe("complete");
 		expect(result.text).toBe("やったー！");
 	});
 
 	it("allows empty text for chunk (incremental streaming)", () => {
 		const msg = { ...validChatMessageChunk, text: "" };
-		expect(() => ChatMessageMessageSchema.parse(msg)).not.toThrow();
+		expect(() => ChatResponseMessageSchema.parse(msg)).not.toThrow();
 	});
 
 	it("rejects invalid status value", () => {
 		const msg = { ...validChatMessageChunk, status: "partial" };
-		expect(() => ChatMessageMessageSchema.parse(msg)).toThrow();
+		expect(() => ChatResponseMessageSchema.parse(msg)).toThrow();
 	});
 
 	it("rejects empty messageId", () => {
 		const msg = { ...validChatMessageChunk, messageId: "" };
-		expect(() => ChatMessageMessageSchema.parse(msg)).toThrow();
+		expect(() => ChatResponseMessageSchema.parse(msg)).toThrow();
 	});
 });
 
@@ -315,8 +316,8 @@ describe("parseServerMessage", () => {
 		expect(result.type).toBe("emotion_update");
 	});
 
-	it("throws on invalid JSON", () => {
-		expect(() => parseServerMessage("not json")).toThrow();
+	it("throws ZodError on invalid JSON", () => {
+		expect(() => parseServerMessage("not json")).toThrow(ZodError);
 	});
 
 	it("throws on valid JSON but invalid message", () => {
@@ -335,8 +336,8 @@ describe("parseClientMessage", () => {
 		expect(result.type).toBe("chat_input");
 	});
 
-	it("throws on invalid JSON", () => {
-		expect(() => parseClientMessage("not json")).toThrow();
+	it("throws ZodError on invalid JSON", () => {
+		expect(() => parseClientMessage("not json")).toThrow(ZodError);
 	});
 
 	it("throws on valid JSON but server message type", () => {
