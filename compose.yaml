@@ -28,6 +28,10 @@ services:
     volumes:
       - ./package.json:/app/package.json:ro
       - ./bun.lock:/app/bun.lock:ro
+      - ./bunfig.toml:/app/bunfig.toml:ro
+      - ./packages:/app/packages:ro
+      - ./apps:/app/apps:ro
+      - ./scripts:/app/scripts:ro
       - bot-node-modules:/app/node_modules
     command: ["bun", "install", "--frozen-lockfile", "--production"]
     restart: "no"
@@ -37,19 +41,21 @@ services:
     <<: *bot-base
     container_name: vicissitude-builder
     volumes:
-      - ./src:/app/src:ro
+      - ./packages:/app/packages:ro
+      - ./apps:/app/apps:ro
       - ./tsconfig.json:/app/tsconfig.json:ro
+      - ./tsconfig.base.json:/app/tsconfig.base.json:ro
       - bot-node-modules:/app/node_modules:ro
       - bot-dist:/app/dist
     command:
       - sh
       - -c
       - |
-        bun build src/index.ts --outdir dist --target bun --packages external &&
-        bun build src/mcp/core-server.ts --outfile dist/core-server.js --target bun --packages external &&
-        bun build src/mcp/code-exec-server.ts --outfile dist/code-exec-server.js --target bun --packages external &&
-        bun build src/mcp/minecraft/server.ts --outfile dist/minecraft-server.js --target bun --packages external &&
-        bun build src/mcp/minecraft/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external
+        bun build apps/discord/src/index.ts --outdir dist --target bun --packages external &&
+        bun build packages/mcp/src/core-server.ts --outfile dist/core-server.js --target bun --packages external &&
+        bun build packages/mcp/src/code-exec-server.ts --outfile dist/code-exec-server.js --target bun --packages external &&
+        bun build packages/minecraft/src/server.ts --outfile dist/minecraft-server.js --target bun --packages external &&
+        bun build packages/minecraft/src/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external
     depends_on:
       installer:
         condition: service_completed_successfully
