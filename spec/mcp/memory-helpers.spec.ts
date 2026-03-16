@@ -5,10 +5,8 @@ import { resolve } from "path";
 import {
 	OVERLAY_CONTEXT_DIR,
 	guildIdSchema,
-	isDateWithinRange,
 	readWithFallbackFrom,
 	resolveContextPaths,
-	todayDateString,
 } from "../../src/mcp/memory-helpers.ts";
 
 describe("resolveContextPaths", () => {
@@ -17,7 +15,6 @@ describe("resolveContextPaths", () => {
 
 		expect(paths.memoryPath).toContain("data/context/MEMORY.md");
 		expect(paths.lessonsPath).toContain("data/context/LESSONS.md");
-		expect(paths.memoryDir).toContain("data/context/memory");
 		expect(paths.memoryPath).not.toContain("guilds");
 	});
 
@@ -26,7 +23,6 @@ describe("resolveContextPaths", () => {
 
 		expect(paths.memoryPath).toContain("data/context/guilds/123456789/MEMORY.md");
 		expect(paths.lessonsPath).toContain("data/context/guilds/123456789/LESSONS.md");
-		expect(paths.memoryDir).toContain("data/context/guilds/123456789/memory");
 	});
 
 	it("OVERLAY_CONTEXT_DIR をベースにしたパスを返す", () => {
@@ -96,30 +92,6 @@ describe("readWithFallbackFrom", () => {
 			TEST_BASE,
 		);
 		expect(content).toBe("  \n");
-	});
-});
-
-describe("isDateWithinRange", () => {
-	it("今日の日付は範囲内", () => {
-		expect(isDateWithinRange(todayDateString())).toBe(true);
-	});
-
-	it("7 日前は範囲内", () => {
-		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 - 7 * 24 * 60 * 60 * 1000);
-		const dateStr = d.toISOString().slice(0, 10);
-		expect(isDateWithinRange(dateStr)).toBe(true);
-	});
-
-	it("8 日前は範囲外", () => {
-		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 - 8 * 24 * 60 * 60 * 1000);
-		const dateStr = d.toISOString().slice(0, 10);
-		expect(isDateWithinRange(dateStr)).toBe(false);
-	});
-
-	it("未来の日付は範囲外", () => {
-		const d = new Date(Date.now() + 9 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000);
-		const dateStr = d.toISOString().slice(0, 10);
-		expect(isDateWithinRange(dateStr)).toBe(false);
 	});
 });
 
