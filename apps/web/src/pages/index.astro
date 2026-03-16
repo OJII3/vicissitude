@@ -23,7 +23,8 @@
 			const form = document.getElementById("chat-form") as HTMLFormElement;
 			const input = document.getElementById("input") as HTMLInputElement;
 
-			const wsUrl = `ws://${window.location.hostname}:3001`;
+			const GATEWAY_PORT = 3001;
+			const wsUrl = `ws://${window.location.hostname}:${GATEWAY_PORT}`;
 			const client = new WsClient(wsUrl);
 
 			client.onMessage((message) => {

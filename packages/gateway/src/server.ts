@@ -4,7 +4,6 @@ import type { WsConnectionManager } from "./ws-handler";
 
 export function createGatewayServer(port: number, manager: WsConnectionManager) {
 	const wsToId = new WeakMap<object, string>();
-	let nextId = 0;
 
 	return new Elysia()
 		.get("/health", () => ({
@@ -13,7 +12,7 @@ export function createGatewayServer(port: number, manager: WsConnectionManager) 
 		}))
 		.ws("/ws", {
 			open(ws) {
-				const connectionId = `ws-${++nextId}`;
+				const connectionId = crypto.randomUUID();
 				wsToId.set(ws, connectionId);
 				manager.handleOpen(connectionId, { send: (data) => ws.send(data) });
 			},
