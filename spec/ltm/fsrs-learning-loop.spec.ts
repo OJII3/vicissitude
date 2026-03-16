@@ -1,37 +1,16 @@
 /* oxlint-disable no-non-null-assertion, require-await -- FSRS learning loop integration tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { createEpisode } from "../../src/ltm/episode.ts";
 import { EpisodicMemory } from "../../src/ltm/episodic.ts";
 import { retrievability } from "../../src/ltm/fsrs.ts";
-import type { LtmLlmPort } from "../../src/ltm/llm-port.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
 import { Retrieval } from "../../src/ltm/retrieval.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-function mockLlm(embedding: number[]): LtmLlmPort {
-	return {
-		chat: async () => "",
-		chatStructured: async <T>(_: ChatMessage[], schema: { parse: (d: unknown) => T }) =>
-			schema.parse({}),
-		embed: async () => embedding,
-	};
-}
-
-function makeEpisode(overrides: Record<string, unknown> = {}) {
-	return createEpisode({
-		userId,
-		title: "Test Episode",
-		summary: "A summary",
-		messages: [{ role: "user", content: "hello" }] as ChatMessage[],
-		embedding: [1, 0, 0],
-		surprise: 0.5,
-		startAt: new Date("2026-01-01T00:00:00Z"),
-		endAt: new Date("2026-01-01T01:00:00Z"),
-		...overrides,
-	});
+function mockLlm(embedding: number[]) {
+	return createMockLLM({ embedding });
 }
 
 describe("FSRS learning loop — retrieve auto-review", () => {
@@ -50,7 +29,7 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	});
 
 	test("retrieve fires review and updates lastReviewedAt asynchronously", async () => {
-		const ep = makeEpisode({ title: "TypeScript Guide" });
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
 		const before = await storage.getEpisodeById(userId, ep.id);
@@ -65,7 +44,7 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	});
 
 	test("returned scores reflect pre-review state", async () => {
-		const ep = makeEpisode({ title: "TypeScript Guide" });
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
 		// Episode has null lastReviewedAt → retrievability = 1.0
@@ -83,7 +62,7 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	});
 
 	test("episode retrieved twice has more recent lastReviewedAt", async () => {
-		const ep = makeEpisode({ title: "TypeScript Guide" });
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
 		const t1 = new Date("2026-03-01T00:00:00Z");
@@ -120,7 +99,7 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	test("without episodic, retrieve does not update FSRS", async () => {
 		const bareRetrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
 
-		const ep = makeEpisode({ title: "TypeScript Bare" });
+		const ep = makeEpisode({ title: "TypeScript Bare", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
 		const now = new Date("2026-06-01T00:00:00Z");
@@ -134,8 +113,8 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 	test("recently reviewed episode scores higher in search results", async () => {
 		const now = new Date("2026-06-01T00:00:00Z");
 
-		const epRecent = makeEpisode({ title: "TypeScript Recent" });
-		const epStale = makeEpisode({ title: "TypeScript Stale" });
+		const epRecent = makeEpisode({ title: "TypeScript Recent", embedding: [1, 0, 0] });
+		const epStale = makeEpisode({ title: "TypeScript Stale", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, epRecent);
 		await storage.saveEpisode(userId, epStale);
 

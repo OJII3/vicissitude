@@ -2,38 +2,15 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { Episode } from "../../src/ltm/episode.ts";
-import type { LtmLlmPort, Schema } from "../../src/ltm/llm-port.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
 import type { SegmentationOutput } from "../../src/ltm/segmenter.ts";
 import { Segmenter } from "../../src/ltm/segmenter.ts";
 import type { ChatMessage, SurpriseLevel } from "../../src/ltm/types.ts";
 import { SURPRISE_VALUES } from "../../src/ltm/types.ts";
+import { createInvalidLLM, createMockLLM, makeMessage, makeMessages } from "./test-helpers.ts";
 
-// --- Mock LtmLlmPort ---
-
-function createMockLLM(segmentationResponse?: SegmentationOutput): LtmLlmPort {
-	return {
-		async chat(_messages: ChatMessage[]): Promise<string> {
-			return "mock response";
-		},
-		async chatStructured<T>(_messages: ChatMessage[], schema: Schema<T>): Promise<T> {
-			const response = segmentationResponse ?? { segments: [] };
-			return schema.parse(response);
-		},
-		async embed(_text: string): Promise<number[]> {
-			return [0.1, 0.2, 0.3];
-		},
-	};
-}
-
-function makeMessage(content: string, role: ChatMessage["role"] = "user"): ChatMessage {
-	return { role, content, timestamp: new Date() };
-}
-
-function makeMessages(count: number): ChatMessage[] {
-	return Array.from({ length: count }, (_, i) =>
-		makeMessage(`message ${i}`, i % 2 === 0 ? "user" : "assistant"),
-	);
+function createSegmentationLLM(segmentationResponse?: SegmentationOutput) {
+	return createMockLLM({ structuredResponse: segmentationResponse ?? { segments: [] } });
 }
 
 async function addMessagesSequentially(
@@ -60,7 +37,7 @@ describe("Segmenter — threshold checks", () => {
 	});
 
 	test("below softTrigger returns no episodes", async () => {
-		const segmenter = new Segmenter(createMockLLM(), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(), storage, {
 			minMessages: 5,
 			softTrigger: 20,
 			hardTrigger: 40,
@@ -88,7 +65,7 @@ describe("Segmenter — threshold checks", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 20,
@@ -114,7 +91,7 @@ describe("Segmenter — threshold checks", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 5,
@@ -128,7 +105,7 @@ describe("Segmenter — threshold checks", () => {
 	});
 
 	test("LLM returns no segments at softTrigger returns no episodes", async () => {
-		const segmenter = new Segmenter(createMockLLM({ segments: [] }), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM({ segments: [] }), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -165,7 +142,7 @@ describe("Segmenter — episode creation", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -198,7 +175,7 @@ describe("Segmenter — episode creation", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -231,7 +208,7 @@ describe("Segmenter — episode creation", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 20,
@@ -262,7 +239,7 @@ describe("Segmenter — episode creation", () => {
 				],
 			};
 
-			const segmenter = new Segmenter(createMockLLM(segResponse), localStorage, {
+			const segmenter = new Segmenter(createSegmentationLLM(segResponse), localStorage, {
 				minMessages: 3,
 				softTrigger: 5,
 				hardTrigger: 20,
@@ -301,7 +278,7 @@ describe("Segmenter — queue management", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -326,7 +303,7 @@ describe("Segmenter — queue management", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 10,
 			hardTrigger: 20,
@@ -352,7 +329,7 @@ describe("Segmenter — queue management", () => {
 			],
 		};
 
-		const segmenter = new Segmenter(createMockLLM(segResponse), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(segResponse), storage, {
 			minMessages: 3,
 			softTrigger: 5,
 			hardTrigger: 20,
@@ -371,17 +348,6 @@ describe("Segmenter — queue management", () => {
 		expect(user1Episodes).toHaveLength(1);
 	});
 });
-
-// --- Invalid LLM mock for schema validation tests ---
-
-function createInvalidLLM(invalidResponse: unknown): LtmLlmPort {
-	return {
-		chat: async () => "",
-		chatStructured: async <T>(_msgs: ChatMessage[], schema: Schema<T>) =>
-			schema.parse(invalidResponse),
-		embed: async () => [0.1, 0.2],
-	};
-}
 
 describe("Segmenter — schema validation", () => {
 	let storage: LtmStorage;
@@ -500,7 +466,7 @@ describe("Segmenter — maxQueueSize", () => {
 	});
 
 	test("throws when queue exceeds maxQueueSize", async () => {
-		const segmenter = new Segmenter(createMockLLM(), storage, {
+		const segmenter = new Segmenter(createSegmentationLLM(), storage, {
 			minMessages: 5,
 			softTrigger: 100,
 			hardTrigger: 200,

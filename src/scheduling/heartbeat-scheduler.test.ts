@@ -2,18 +2,11 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
-import type { AiAgent, HeartbeatConfig, Logger, MetricsCollector } from "../core/types.ts";
+import { createMockLogger } from "../../spec/test-helpers.ts";
+import type { AiAgent, HeartbeatConfig, MetricsCollector } from "../core/types.ts";
 import { HeartbeatScheduler } from "./heartbeat-scheduler.ts";
 
 const TEMP_ROOT = `/tmp/vicissitude-heartbeat-scheduler-${process.pid}`;
-
-function createMockLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		error: mock(() => {}),
-		warn: mock(() => {}),
-	};
-}
 
 function createMockMetrics(): MetricsCollector {
 	return {

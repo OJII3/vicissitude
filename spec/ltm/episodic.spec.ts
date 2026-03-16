@@ -2,26 +2,11 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { Episode } from "../../src/ltm/episode.ts";
-import { createEpisode } from "../../src/ltm/episode.ts";
 import { EpisodicMemory } from "../../src/ltm/episodic.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import { makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
-
-function makeEpisode(overrides: Record<string, unknown> = {}): Episode {
-	return createEpisode({
-		userId,
-		title: "Test Episode",
-		summary: "A test summary",
-		messages: [{ role: "user", content: "hello" }] as ChatMessage[],
-		embedding: [0.1, 0.2],
-		surprise: 0.5,
-		startAt: new Date("2026-01-01T00:00:00Z"),
-		endAt: new Date("2026-01-01T01:00:00Z"),
-		...overrides,
-	});
-}
 
 describe("EpisodicMemory — retrieval", () => {
 	let storage: LtmStorage;

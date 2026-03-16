@@ -5,15 +5,8 @@ import {
 	buildHeartbeatPrompt,
 	groupByGuild,
 } from "../../src/application/heartbeat-service.ts";
-import type { AiAgent, DueReminder, Logger } from "../../src/core/types.ts";
-
-function createMockLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		error: mock(() => {}),
-		warn: mock(() => {}),
-	};
-}
+import type { AiAgent, DueReminder } from "../../src/core/types.ts";
+import { createMockLogger } from "../test-helpers.ts";
 
 describe("buildHeartbeatPrompt", () => {
 	test("due reminder を人間可読な prompt に変換する", () => {

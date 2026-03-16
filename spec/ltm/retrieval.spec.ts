@@ -1,48 +1,14 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive retrieval tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { createEpisode } from "../../src/ltm/episode.ts";
-import type { LtmLlmPort } from "../../src/ltm/llm-port.ts";
 import { LtmStorage } from "../../src/ltm/ltm-storage.ts";
 import { Retrieval, reciprocalRankFusion } from "../../src/ltm/retrieval.ts";
-import { createFact } from "../../src/ltm/semantic-fact.ts";
-import type { ChatMessage } from "../../src/ltm/types.ts";
+import { createMockLLM, makeEpisode, makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-function mockLlm(embedding: number[]): LtmLlmPort {
-	return {
-		chat: async () => "",
-		chatStructured: async <T>(_: ChatMessage[], schema: { parse: (d: unknown) => T }) =>
-			schema.parse({}),
-		embed: async () => embedding,
-	};
-}
-
-function makeEpisode(overrides: Record<string, unknown> = {}) {
-	return createEpisode({
-		userId,
-		title: "Test Episode",
-		summary: "A summary",
-		messages: [{ role: "user", content: "hello" }] as ChatMessage[],
-		embedding: [0.1, 0.2, 0.3],
-		surprise: 0.5,
-		startAt: new Date("2026-01-01T00:00:00Z"),
-		endAt: new Date("2026-01-01T01:00:00Z"),
-		...overrides,
-	});
-}
-
-function makeFact(overrides: Record<string, unknown> = {}) {
-	return createFact({
-		userId,
-		category: "preference",
-		fact: "Likes TypeScript",
-		keywords: ["typescript"],
-		sourceEpisodicIds: ["ep-1"],
-		embedding: [0.1, 0.2, 0.3],
-		...overrides,
-	});
+function mockLlm(embedding: number[]) {
+	return createMockLLM({ embedding });
 }
 
 describe("reciprocalRankFusion", () => {
