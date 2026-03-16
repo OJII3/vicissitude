@@ -62,7 +62,7 @@ graph LR
 
 - 内部依存: application/, core/, store/
 - 外部依存: discord.js
-- ファイル数: 2
+- ファイル数: 3
 
 ### ltm/
 
