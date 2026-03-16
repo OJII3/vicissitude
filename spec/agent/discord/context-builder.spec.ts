@@ -21,10 +21,10 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	writeFileSync(fullPath, content);
 }
 
-function createMockLtmReader(facts: LtmFact[], relevantFacts?: LtmFact[]): LtmFactReader {
+function createMockLtmReader(facts: LtmFact[]): LtmFactReader {
 	return {
 		getFacts: mock(() => Promise.resolve(facts)),
-		getRelevantFacts: mock(() => Promise.resolve(relevantFacts ?? facts)),
+		getRelevantFacts: mock(() => Promise.resolve(facts)),
 		close: mock(() => Promise.resolve()),
 	};
 }
@@ -109,81 +109,6 @@ describe("ContextBuilder", () => {
 
 			expect(result).not.toContain("<ltm-facts>");
 			expect(reader.getFacts).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("LTM ファクト関連性フィルタリング", () => {
-		it("日次ログがある場合は getRelevantFacts が呼ばれる", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-			const today = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
-			writeFile(overlayDir, `memory/${today}.md`, "今日はMinecraftで建築した");
-
-			const allFacts: LtmFact[] = [
-				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
-				{ content: "建築が得意", category: "interest", createdAt: "2026-01-02" },
-			];
-			const relevantFacts: LtmFact[] = [
-				{ content: "建築が得意", category: "interest", createdAt: "2026-01-02" },
-			];
-			const reader = createMockLtmReader(allFacts, relevantFacts);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			const result = await builder.build("123456789");
-
-			expect(result).toContain("<ltm-facts>");
-			expect(result).toContain("[interest] 建築が得意");
-			expect(result).not.toContain("猫が好き");
-			expect(reader.getRelevantFacts).toHaveBeenCalled();
-			expect(reader.getFacts).not.toHaveBeenCalled();
-		});
-
-		it("日次ログがない場合は getFacts にフォールバックする", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			const facts: LtmFact[] = [
-				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
-			];
-			const reader = createMockLtmReader(facts);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			const result = await builder.build("123456789");
-
-			expect(result).toContain("[preference] ユーザーAは猫が好き");
-			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
-			expect(reader.getRelevantFacts).not.toHaveBeenCalled();
-		});
-
-		it("日次ログが TOTAL_MAX 超過で切り詰められた場合は getFacts にフォールバックする", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			// SHARED_FILES × PER_FILE_MAX で TOTAL_MAX を埋め尽くす
-			const largeContent = "x".repeat(20_000);
-			writeFile(baseDir, "IDENTITY.md", largeContent);
-			writeFile(baseDir, "SOUL.md", largeContent);
-			writeFile(baseDir, "AGENTS.md", largeContent);
-			writeFile(baseDir, "TOOLS.md", largeContent);
-			writeFile(baseDir, "HEARTBEAT.md", largeContent);
-			writeFile(baseDir, "USER.md", largeContent);
-			writeFile(baseDir, "MEMORY.md", largeContent);
-
-			writeFile(baseDir, "LESSONS.md", largeContent);
-
-			// 日次ログも大きくして TOTAL_MAX 超過させる
-			// 8 ファイルのうち 7 件で ~140K 使用、残り ~10K に収まらない日次ログ
-			const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-			const today = new Date(Date.now() + JST_OFFSET_MS).toISOString().slice(0, 10);
-			writeFile(overlayDir, `memory/${today}.md`, "y".repeat(15_000));
-
-			const facts: LtmFact[] = [
-				{ content: "テスト", category: "preference", createdAt: "2026-01-01" },
-			];
-			const reader = createMockLtmReader(facts);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			await builder.build("123456789");
-
-			// 日次ログが入りきらなかったので getFacts にフォールバック
-			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
-			expect(reader.getRelevantFacts).not.toHaveBeenCalled();
 		});
 	});
 

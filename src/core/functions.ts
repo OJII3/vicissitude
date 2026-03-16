@@ -44,7 +44,7 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 			{
 				id: "memory-update",
 				description:
-					"memory MCP ツールを使ってメモリを更新する。手順: daily log → MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
+					"memory MCP ツールを使ってメモリを更新する。手順: MEMORY.md → LESSONS.md → SOUL.md の順で確認・更新",
 				schedule: { type: "interval", minutes: 360 },
 				lastExecutedAt: null,
 				enabled: true,

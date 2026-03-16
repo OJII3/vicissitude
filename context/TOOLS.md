@@ -39,15 +39,11 @@
   - **MEMORY.md に記録しない情報**（LTM ファクトに自動蓄積される）:
     - ユーザーの背景・経歴・プロジェクト参加情報
     - ユーザーの性格・好み・関係性
-    - 過去の出来事の詳細（日次ログや LTM エピソードに記録済み）
+    - 過去の出来事の詳細（LTM エピソードに記録済み）
     - 関連プロジェクトの説明
 - `read_soul` - SOUL.md を読み取る
-- `append_daily_log(entry, date?)` - memory/YYYY-MM-DD.md に追記する（heartbeat 実行記録・自省メモ専用。会話まとめは LTM に自動記録されるため不要。追記のみ、過去7日以内、1日 20,000 文字上限）
-- `read_daily_log(date?)` - 日次ログを読み取る（デフォルト: 今日）
-- `list_daily_logs(limit?)` - 日次ログ一覧を表示する（デフォルト: 7件）
 - `read_lessons` - LESSONS.md を読み取る
 - `update_lessons(content)` - LESSONS.md を上書き更新する（更新前に `ltm_get_facts(category: "guideline")` で LTM guideline を確認し重複を避ける。.bak バックアップ作成、空文字禁止、30,000 文字上限）
-- `cleanup_old_logs` - 7日より古い日次ログを削除する
 
 ### ltm サーバー（長期記憶）
 

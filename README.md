@@ -55,9 +55,7 @@ OpenCode が使用する MCP サーバーを提供する。
 4. **memory**: メモリ・人格の自己更新
    - `read_memory`, `update_memory`: MEMORY.md の読み書き
    - `read_soul`: SOUL.md の読み取り
-   - `append_daily_log`, `read_daily_log`, `list_daily_logs`: 日次ログ管理
    - `read_lessons`, `update_lessons`: LESSONS.md の読み書き
-   - `cleanup_old_logs`: 保持期間（7日）を超えた古い日次ログを削除
 5. **ltm**: 長期記憶（src/ltm/）
    - 会話メッセージの取り込み（ingestion）はメインプロセスで自動化（ホームチャンネルのメッセージのみ、bot 自身の発言を含む）
    - `ltm_retrieve`: ハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で関連記憶を取得
@@ -97,14 +95,13 @@ OpenCode が使用する MCP サーバーを提供する。
 - オーバーレイ方式でコンテキストを管理する: `context/`（git 管理・ベース）に人格定義やデフォルト値を配置し、`data/context/`（gitignore・オーバーレイ）にランタイム記憶やデプロイ固有設定を配置する。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/` に行う。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
 - チャンネル設定: `channels.json`（ホームチャンネル一覧、guildId、guildName・channelName（人間用ラベル）、クールダウン設定）
-- 日次ログ: `memory/{YYYY-MM-DD}.md`
 - ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 - **LTM ファクト注入**: `loadBootstrapContext()` 時に LTM（src/ltm/）から蓄積済みファクト（SemanticFact）を読み取り、`<ltm-facts>` セクションとしてシステムプロンプトに注入する。これにより AI は過去の会話から抽出された意味記憶（ユーザー情報、関係性、嗜好等）を常時参照できる。
 
 ### 3.5 Guild 跨ぎコンテキスト分離
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全 Guild で共有。
-- 記憶分離: `MEMORY.md`, `LESSONS.md`, 日次ログ (`memory/`) は Guild ごとに `guilds/{guildId}/` で分離（オーバーレイ方式で `data/context/` → `context/` のフォールバック）。
+- 記憶分離: `MEMORY.md`, `LESSONS.md` は Guild ごとに `guilds/{guildId}/` で分離（オーバーレイ方式で `data/context/` → `context/` のフォールバック）。
 - LTM も Guild ごとに `data/ltm/guilds/{guildId}/memory.db` で分離。
 - DM やフォールバック時はグローバルを使用。
 - MCP memory ツールでは `guild_id` パラメータで Guild 固有メモリにアクセス。
@@ -112,23 +109,20 @@ OpenCode が使用する MCP サーバーを提供する。
 
 ### 3.6 記憶システムの責務分離
 
-ファイルベースメモリ（MEMORY.md, LESSONS.md, 日次ログ）と LTM（Episodes, SemanticFacts）を併用し、情報の種類に応じて担当を分離する。
+ファイルベースメモリ（MEMORY.md, LESSONS.md）と LTM（Episodes, SemanticFacts）を併用し、情報の種類に応じて担当を分離する。
 
-| 情報の種類                         | 担当システム     | 保持期間       | 備考                                        |
-| ---------------------------------- | ---------------- | -------------- | ------------------------------------------- |
-| ユーザー情報（名前、特徴、関係性） | LTM SemanticFact | 永続           | 会話から自動抽出                            |
-| メンバーの性格・好み               | LTM SemanticFact | 永続           | 会話から自動抽出                            |
-| 会話内容の要約                     | LTM Episodes     | 永続           | 会話から自動生成                            |
-| 個別の行動ガイドライン             | LTM guideline    | 永続           | 会話から自動抽出。状況固有                  |
-| チャンネル設定メモ                 | MEMORY.md        | 永続           | 運用固有、自動抽出不適                      |
-| 行動ルール                         | MEMORY.md        | 永続           | AI の自己指示、構造化が必要                 |
-| 週次目標・運用メモ                 | MEMORY.md        | 永続           | 時限的、手動管理が適切                      |
-| 運用ルール                         | MEMORY.md        | 永続           | 開発者が設定する行動指示                    |
-| 精選教訓（原則）                   | LESSONS.md       | 永続           | AI が複数経験から一般化。手動キュレーション |
-| Heartbeat 実行ログ                 | 日次ログ         | 7 日           | 時系列の実行記録。古いものは自動削除        |
-| 会話中の自省・気づき               | 日次ログ → LTM   | 日次ログ: 7 日 | 重要なものは consolidate で LTM に移行      |
-
-日次ログの保持期間（7 日）は `memory` MCP ツールの `cleanup_old_logs` で実装する。
+| 情報の種類                         | 担当システム     | 保持期間 | 備考                                        |
+| ---------------------------------- | ---------------- | -------- | ------------------------------------------- |
+| ユーザー情報（名前、特徴、関係性） | LTM SemanticFact | 永続     | 会話から自動抽出                            |
+| メンバーの性格・好み               | LTM SemanticFact | 永続     | 会話から自動抽出                            |
+| 会話内容の要約                     | LTM Episodes     | 永続     | 会話から自動生成                            |
+| 個別の行動ガイドライン             | LTM guideline    | 永続     | 会話から自動抽出。状況固有                  |
+| 会話中の自省・気づき               | LTM Episodes     | 永続     | 会話から自動記録・consolidation で抽出      |
+| チャンネル設定メモ                 | MEMORY.md        | 永続     | 運用固有、自動抽出不適                      |
+| 行動ルール                         | MEMORY.md        | 永続     | AI の自己指示、構造化が必要                 |
+| 週次目標・運用メモ                 | MEMORY.md        | 永続     | 時限的、手動管理が適切                      |
+| 運用ルール                         | MEMORY.md        | 永続     | 開発者が設定する行動指示                    |
+| 精選教訓（原則）                   | LESSONS.md       | 永続     | AI が複数経験から一般化。手動キュレーション |
 
 ### 3.7 エラー応答
 

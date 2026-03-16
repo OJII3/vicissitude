@@ -19,13 +19,12 @@
 
 記憶の読み書きは memory MCP ツール経由で行う。直接ファイルを編集しない。
 
-- **日次ログ**: `append_daily_log` で heartbeat 実行記録・自省メモのみ追記する（追記のみ、改変不可。会話まとめは LTM に自動記録されるため不要）
 - **MEMORY.md**: `update_memory` で整理・更新する（バックアップ自動作成）
 - **LESSONS.md**: `update_lessons` で教訓を更新する（バックアップ自動作成）
 - **SOUL.md**: `read_soul` で読み取り専用（変更不可）
+- **LTM**: 会話内容・自省・気づきは LTM に自動記録される（手動操作不要）
 
 ### 更新の優先順位
 
-1. まず日次ログに自省・運用メモのみ記録する（heartbeat 実行記録、判断の振り返り、エラー記録。「変化なし」は不要。会話まとめは LTM に自動記録済み）
-2. パターンが見えたら MEMORY.md を整理する
-3. 教訓があれば `ltm_get_facts(category: "guideline")` で LTM guideline を確認し、重複しない教訓のみ LESSONS.md に反映する
+1. パターンが見えたら MEMORY.md を整理する
+2. 教訓があれば `ltm_get_facts(category: "guideline")` で LTM guideline を確認し、重複しない教訓のみ LESSONS.md に反映する
