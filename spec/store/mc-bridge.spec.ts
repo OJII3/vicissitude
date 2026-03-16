@@ -77,6 +77,25 @@ describe("mc-bridge", () => {
 			const db = createTestDb();
 			expect(() => clearSessionLock(db)).not.toThrow();
 		});
+
+		test("clearSessionLock 後に setMcConnectionStatus が正常に動作する", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			clearSessionLock(db);
+			setMcConnectionStatus(db, true);
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(true);
+		});
+
+		test("clearSessionLock 後に setMcConnectionStatus → tryAcquireSessionLock で接続状態が維持される", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			clearSessionLock(db);
+			setMcConnectionStatus(db, true);
+			tryAcquireSessionLock(db, "guild-2");
+			const status = getMcConnectionStatus(db);
+			expect(status.connected).toBe(true);
+		});
 	});
 
 	describe("setMcConnectionStatus", () => {
