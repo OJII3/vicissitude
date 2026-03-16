@@ -1,7 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-
 import { startHttpServer } from "@vicissitude/mcp/http-server";
 import { parseMcpResponse } from "@vicissitude/mcp/test-helpers";
 import { createBotContext } from "@vicissitude/minecraft/bot-context";

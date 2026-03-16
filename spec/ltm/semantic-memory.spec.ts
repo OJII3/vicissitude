@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
+
 import { makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";

@@ -1,7 +1,7 @@
 /**
- * depcruise JSON → docs/DEPS.md + src/{module}/DEPS.md 生成スクリプト
+ * depcruise JSON → docs/DEPS.md + packages/{module}/DEPS.md 生成スクリプト
  *
- * Usage: depcruise src --config .dependency-cruiser.cjs --output-type json | bun scripts/generate-deps-md.ts
+ * Usage: nr deps:graph
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -19,25 +19,44 @@ interface DepcruiseOutput {
 	modules: DepcruiseModule[];
 }
 
-const SRC_PREFIX = "src/";
-
+/**
+ * ファイルパスまたは import 指定子からモジュール名を抽出する。
+ * - `packages/{name}/src/...` → `{name}`
+ * - `apps/{name}/src/...` → `apps/{name}`
+ * - `@vicissitude/{name}` or `@vicissitude/{name}/...` → `{name}`
+ *   (depcruise が workspace import を解決できない場合のフォールバック)
+ */
 function getModuleName(filePath: string): string | null {
-	if (!filePath.startsWith(SRC_PREFIX)) return null;
-	const rest = filePath.slice(SRC_PREFIX.length);
-	if (rest === "bootstrap.ts" || rest === "index.ts") return null;
-	const firstSlash = rest.indexOf("/");
-	if (firstSlash === -1) return null;
-	return rest.slice(0, firstSlash);
+	const packagesMatch = filePath.match(/^packages\/([^/]+)\/src\//);
+	if (packagesMatch?.[1]) return packagesMatch[1];
+
+	const appsMatch = filePath.match(/^apps\/([^/]+)\/src\//);
+	if (appsMatch?.[1]) return `apps/${appsMatch[1]}`;
+
+	const scopeMatch = filePath.match(/^@vicissitude\/([^/]+)/);
+	if (scopeMatch?.[1]) return scopeMatch[1];
+
+	return null;
+}
+
+/** モジュールのベースパスを返す（packages/{name}/ or apps/{name}/） */
+function getModuleBase(moduleName: string): string {
+	if (moduleName.startsWith("apps/")) return `${moduleName}/`;
+	return `packages/${moduleName}/`;
 }
 
 /** ファイル名（.ts 拡張子なし、モジュールプレフィックスなし） */
 function getFileName(filePath: string, moduleName: string): string {
-	const prefix = `${SRC_PREFIX}${moduleName}/`;
+	const prefix = `${getModuleBase(moduleName)}src/`;
 	return filePath.slice(prefix.length).replace(/\.ts$/, "");
 }
 
 function isExternalDep(resolved: string): boolean {
-	return !resolved.startsWith("src/");
+	return (
+		!resolved.startsWith("packages/") &&
+		!resolved.startsWith("apps/") &&
+		!resolved.startsWith("@vicissitude/")
+	);
 }
 
 function getExternalPackage(resolved: string): string {
@@ -95,11 +114,12 @@ function generateTopLevelMermaid(modules: Map<string, ModuleInfo>): string {
 	for (const name of sortedNames) {
 		const info = modules.get(name);
 		if (!info) continue;
+		const nodeId = mermaidId(name);
 		if (info.internalDeps.size === 0) {
-			lines.push(`  ${name}`);
+			lines.push(`  ${nodeId}`);
 		}
 		for (const dep of [...info.internalDeps].toSorted()) {
-			lines.push(`  ${name} --> ${dep}`);
+			lines.push(`  ${nodeId} --> ${mermaidId(dep)}`);
 		}
 	}
 
@@ -114,17 +134,12 @@ function generateModuleDetails(modules: Map<string, ModuleInfo>): string {
 		const info = modules.get(name);
 		if (!info) continue;
 		const internalDeps =
-			info.internalDeps.size > 0
-				? [...info.internalDeps]
-						.toSorted()
-						.map((d) => `${d}/`)
-						.join(", ")
-				: "なし";
+			info.internalDeps.size > 0 ? [...info.internalDeps].toSorted().join(", ") : "なし";
 		const externalDeps =
 			info.externalDeps.size > 0 ? [...info.externalDeps].toSorted().join(", ") : "なし";
 
 		sections.push(
-			`### ${name}/\n- 内部依存: ${internalDeps}\n- 外部依存: ${externalDeps}\n- ファイル数: ${info.fileCount}`,
+			`### ${name}\n- 内部依存: ${internalDeps}\n- 外部依存: ${externalDeps}\n- ファイル数: ${info.fileCount}`,
 		);
 	}
 
@@ -162,7 +177,7 @@ interface FileInfo {
 
 function analyzeModuleFiles(data: DepcruiseOutput, moduleName: string): Map<string, FileInfo> {
 	const files = new Map<string, FileInfo>();
-	const prefix = `${SRC_PREFIX}${moduleName}/`;
+	const prefix = `${getModuleBase(moduleName)}src/`;
 
 	for (const mod of data.modules) {
 		if (!mod.source.startsWith(prefix)) continue;
@@ -188,7 +203,7 @@ function analyzeModuleFiles(data: DepcruiseOutput, moduleName: string): Map<stri
 			} else {
 				const depMod = getModuleName(dep.resolved);
 				if (depMod !== null) {
-					info.crossModuleDeps.add(`${depMod}/`);
+					info.crossModuleDeps.add(depMod);
 				} else if (isExternalDep(dep.resolved)) {
 					info.externalDeps.add(getExternalPackage(dep.resolved));
 				}
@@ -297,7 +312,7 @@ function main() {
 	// トップレベル docs/DEPS.md
 	writeFile("docs/DEPS.md", generateTopLevelDeps(data));
 
-	// モジュール別 src/{module}/DEPS.md
+	// モジュール別 DEPS.md
 	const moduleNames = new Set<string>();
 	for (const mod of data.modules) {
 		const name = getModuleName(mod.source);
@@ -307,7 +322,8 @@ function main() {
 	for (const moduleName of [...moduleNames].toSorted()) {
 		const content = generateModuleDeps(data, moduleName);
 		if (content) {
-			writeFile(`src/${moduleName}/DEPS.md`, content);
+			// packages/{name}/DEPS.md or apps/{name}/DEPS.md
+			writeFile(`${getModuleBase(moduleName)}DEPS.md`, content);
 		}
 	}
 }

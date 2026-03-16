@@ -14,8 +14,8 @@ graph LR
 
 ### heartbeat-service.ts
 
-- 外部依存: @vicissitude/shared/types
+- 他モジュール依存: shared
 
 ### message-ingestion-service.ts
 
-- 外部依存: @vicissitude/shared/types
+- 他モジュール依存: shared

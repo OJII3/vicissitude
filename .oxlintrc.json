@@ -69,15 +69,15 @@
 			}
 		},
 		{
-			"files": ["**/core/*.ts"],
+			"files": ["packages/shared/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama|opencode)/",
-								"message": "core/ は他の内部モジュールに依存できません"
+								"regex": "@vicissitude/",
+								"message": "shared は他の workspace パッケージに依存できません"
 							}
 						]
 					}
@@ -85,15 +85,15 @@
 			}
 		},
 		{
-			"files": ["**/opencode/*.ts"],
+			"files": ["packages/ollama/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|ollama)/",
-								"message": "opencode/ は core/ のみに依存できます"
+								"regex": "@vicissitude/",
+								"message": "ollama は他の workspace パッケージに依存できません"
 							}
 						]
 					}
@@ -101,15 +101,15 @@
 			}
 		},
 		{
-			"files": ["**/observability/*.ts"],
+			"files": ["packages/opencode/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama|opencode)/",
-								"message": "observability/ は core/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/)",
+								"message": "opencode は shared のみに依存できます"
 							}
 						]
 					}
@@ -117,15 +117,15 @@
 			}
 		},
 		{
-			"files": ["**/ollama/*.ts"],
+			"files": ["packages/observability/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability|fenghuang|opencode)/",
-								"message": "ollama/ は core/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/)",
+								"message": "observability は shared のみに依存できます"
 							}
 						]
 					}
@@ -133,15 +133,15 @@
 			}
 		},
 		{
-			"files": ["**/store/*.ts"],
+			"files": ["packages/store/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|observability|fenghuang|ollama|opencode)/",
-								"message": "store/ は core/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/)",
+								"message": "store は shared のみに依存できます"
 							}
 						]
 					}
@@ -149,15 +149,15 @@
 			}
 		},
 		{
-			"files": ["**/agent/**/*.ts"],
+			"files": ["packages/application/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(gateway|mcp|observability|fenghuang|ollama)/",
-								"message": "agent/ は core/, store/, opencode/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/)",
+								"message": "application は shared のみに依存できます"
 							}
 						]
 					}
@@ -165,15 +165,15 @@
 			}
 		},
 		{
-			"files": ["**/fenghuang/*.ts"],
+			"files": ["packages/agent/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|observability)/",
-								"message": "fenghuang/ は core/, ollama/, opencode/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/|opencode/|store/)",
+								"message": "agent は shared, opencode, store のみに依存できます"
 							}
 						]
 					}
@@ -181,15 +181,15 @@
 			}
 		},
 		{
-			"files": ["**/scheduling/*.ts"],
+			"files": ["packages/ltm/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|gateway|mcp|store|fenghuang|ollama|opencode)/",
-								"message": "scheduling/ は core/, observability/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/|ollama)",
+								"message": "ltm は shared, ollama のみに依存できます"
 							}
 						]
 					}
@@ -197,15 +197,15 @@
 			}
 		},
 		{
-			"files": ["**/gateway/*.ts"],
+			"files": ["packages/infrastructure/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(mcp|fenghuang|ollama|opencode)/",
-								"message": "gateway/ は core/, agent/, store/, observability/ のみに依存できます"
+								"regex": "@vicissitude/(?!shared/|application/|store/)",
+								"message": "infrastructure は shared, application, store のみに依存できます"
 							}
 						]
 					}
@@ -213,19 +213,57 @@
 			}
 		},
 		{
-			"files": ["**/mcp/**/*.ts"],
+			"files": ["packages/scheduling/src/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
 					{
 						"patterns": [
 							{
-								"regex": "/(agent|observability)/",
-								"message": "mcp/ は agent/, observability/ に依存できません"
+								"regex": "@vicissitude/(?!shared/|application/|observability/)",
+								"message": "scheduling は shared, application, observability のみに依存できます"
 							}
 						]
 					}
 				]
+			}
+		},
+		{
+			"files": ["packages/mcp/src/**/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "@vicissitude/(?!shared/|infrastructure/|ltm/|ltm$|ollama|store/)",
+								"message": "mcp は shared, infrastructure, ltm, ollama, store のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["packages/minecraft/src/**/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": [
+					"error",
+					{
+						"patterns": [
+							{
+								"regex": "@vicissitude/(?!shared/|store/)",
+								"message": "minecraft は shared, store のみに依存できます"
+							}
+						]
+					}
+				]
+			}
+		},
+		{
+			"files": ["apps/discord/src/**/*.ts"],
+			"rules": {
+				"eslint/no-restricted-imports": "off"
 			}
 		}
 	],

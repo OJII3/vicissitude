@@ -10,7 +10,6 @@ import {
 	incrementEmoji,
 	saveSession,
 } from "@vicissitude/store/queries";
-
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
 describe("store", () => {

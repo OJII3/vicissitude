@@ -85,7 +85,7 @@ graph LR
 ### composite-llm-adapter.ts
 
 - モジュール内依存: llm-port, ltm-chat-adapter, types
-- 外部依存: @vicissitude/ollama
+- 他モジュール依存: ollama
 
 ### consolidation.ts
 
@@ -94,7 +94,8 @@ graph LR
 ### conversation-recorder.ts
 
 - モジュール内依存: consolidation, episode, episodic, llm-port, ltm-storage, segmenter
-- 外部依存: @vicissitude/shared/types, fs, path
+- 他モジュール依存: shared
+- 外部依存: fs, path
 
 ### episode.ts
 
@@ -107,7 +108,8 @@ graph LR
 ### fact-reader.ts
 
 - モジュール内依存: ltm-storage, retrieval, semantic-fact
-- 外部依存: @vicissitude/shared/types, fs, path
+- 他モジュール依存: shared
+- 外部依存: fs, path
 
 ### fsrs.ts
 
@@ -124,7 +126,7 @@ graph LR
 ### ltm-chat-adapter.ts
 
 - モジュール内依存: types
-- 外部依存: @vicissitude/shared/types
+- 他モジュール依存: shared
 
 ### ltm-storage.ts
 

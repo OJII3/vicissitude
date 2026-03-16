@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 import { Retrieval, reciprocalRankFusion } from "@vicissitude/ltm/retrieval";
+
 import { createMockLLM, makeEpisode, makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";

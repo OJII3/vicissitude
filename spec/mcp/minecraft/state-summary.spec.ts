@@ -6,10 +6,7 @@ import {
 	formatJobStatus,
 	summarizeState,
 } from "@vicissitude/minecraft/state-summary";
-import type {
-	BotEventInput,
-	BotStateInput,
-} from "@vicissitude/minecraft/state-summary";
+import type { BotEventInput, BotStateInput } from "@vicissitude/minecraft/state-summary";
 
 function makeState(overrides: Partial<BotStateInput> = {}): BotStateInput {
 	return {

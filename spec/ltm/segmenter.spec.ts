@@ -7,6 +7,7 @@ import type { SegmentationOutput } from "@vicissitude/ltm/segmenter";
 import { Segmenter } from "@vicissitude/ltm/segmenter";
 import type { ChatMessage, SurpriseLevel } from "@vicissitude/ltm/types";
 import { SURPRISE_VALUES } from "@vicissitude/ltm/types";
+
 import { createInvalidLLM, createMockLLM, makeMessage, makeMessages } from "./test-helpers.ts";
 
 function createSegmentationLLM(segmentationResponse?: SegmentationOutput) {

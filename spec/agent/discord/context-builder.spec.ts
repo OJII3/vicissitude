@@ -3,9 +3,8 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
-
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 

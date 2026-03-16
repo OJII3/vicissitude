@@ -15,7 +15,8 @@ graph LR
 
 ### discord/attachment-mapper.ts
 
-- 外部依存: .bun, @vicissitude/shared/types
+- 他モジュール依存: shared
+- 外部依存: .bun
 
 ### discord/url-rewriter.ts
 
@@ -23,4 +24,4 @@ graph LR
 
 ### store/sqlite-buffered-event-store.ts
 
-- 外部依存: ../../application/message-ingestion-service.ts, ../../store/db.ts, ../../store/queries.ts, @vicissitude/shared/types
+- 他モジュール依存: application, shared, store

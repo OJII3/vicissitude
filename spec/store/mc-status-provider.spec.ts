@@ -5,7 +5,6 @@ import { join } from "path";
 
 import { setMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
-
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
 function createTmpDir(): string {

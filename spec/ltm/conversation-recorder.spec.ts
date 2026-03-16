@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
-import type {
-	GuildInstance,
-	GuildInstanceFactory,
-} from "@vicissitude/ltm/conversation-recorder";
+import type { GuildInstance, GuildInstanceFactory } from "@vicissitude/ltm/conversation-recorder";
 import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
 import type { Episode } from "@vicissitude/ltm/episode";
 import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";

@@ -28,7 +28,7 @@ graph LR
 ### event-buffer.ts
 
 - モジュール内依存: db, queries
-- 外部依存: @vicissitude/shared/types
+- 他モジュール依存: shared
 
 ### mc-bridge.ts
 
@@ -38,7 +38,7 @@ graph LR
 ### mc-status-provider.ts
 
 - モジュール内依存: db, mc-bridge
-- 外部依存: @vicissitude/shared/types
+- 他モジュール依存: shared
 
 ### queries.ts
 

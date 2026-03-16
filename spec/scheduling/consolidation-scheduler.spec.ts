@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
+import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
 
-import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 
 function createMockConsolidator(overrides: Partial<MemoryConsolidator> = {}): MemoryConsolidator {

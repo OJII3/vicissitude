@@ -1,8 +1,7 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
-
 import { GuildRouter } from "@vicissitude/agent/discord/router";
+import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 

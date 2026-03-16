@@ -1,11 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
-import { METRIC } from "@vicissitude/shared/constants";
-
 import type { ActionState, Importance } from "@vicissitude/minecraft/helpers";
 import { JobManager } from "@vicissitude/minecraft/job-manager";
 import type { JobExecutor } from "@vicissitude/minecraft/job-manager";
 import { McMetricsCollector } from "@vicissitude/minecraft/mc-metrics";
+import { METRIC } from "@vicissitude/shared/constants";
 function setup() {
 	const events: { kind: string; description: string; importance: Importance }[] = [];
 	const states: ActionState[] = [];
