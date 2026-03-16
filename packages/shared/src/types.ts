@@ -1,9 +1,13 @@
 // ─── Agent Response ──────────────────────────────────────────────
 
+import type { Emotion } from "./emotion";
+
 export interface AgentResponse {
 	text: string;
 	sessionId: string;
 	tokens?: TokenUsage;
+	/** 応答時の感情状態（VAD 3 次元）。avatar 連携時に使用 */
+	emotion?: Emotion;
 }
 
 // ─── Attachment ──────────────────────────────────────────────────
