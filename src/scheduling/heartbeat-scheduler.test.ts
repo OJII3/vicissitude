@@ -2,22 +2,11 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync } from "fs";
 import { join } from "path";
 
-import { createMockLogger } from "../../spec/test-helpers.ts";
-import type { AiAgent, HeartbeatConfig, MetricsCollector } from "../core/types.ts";
+import { createMockLogger, createMockMetrics } from "../../spec/test-helpers.ts";
+import type { AiAgent, HeartbeatConfig } from "../core/types.ts";
 import { HeartbeatScheduler } from "./heartbeat-scheduler.ts";
 
 const TEMP_ROOT = `/tmp/vicissitude-heartbeat-scheduler-${process.pid}`;
-
-function createMockMetrics(): MetricsCollector {
-	return {
-		incrementCounter: mock(() => {}),
-		addCounter: mock(() => {}),
-		setGauge: mock(() => {}),
-		incrementGauge: mock(() => {}),
-		decrementGauge: mock(() => {}),
-		observeHistogram: mock(() => {}),
-	};
-}
 
 function createMockAgent(): AiAgent {
 	return {
