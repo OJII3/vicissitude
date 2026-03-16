@@ -38,8 +38,7 @@ graph LR
 ### discord/discord-agent.ts
 
 - モジュール内依存: discord/profile, mcp-config, runner, session-store
-- 他モジュール依存: opencode/, store/
-- 外部依存: @vicissitude/shared/types
+- 外部依存: ../../opencode/session-adapter.ts, ../../store/db.ts, ../../store/event-buffer.ts, @vicissitude/shared/types
 
 ### discord/profile.ts
 
@@ -58,8 +57,7 @@ graph LR
 ### minecraft/brain-manager.ts
 
 - モジュール内依存: minecraft/minecraft-agent, session-store
-- 他モジュール依存: store/
-- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types
+- 外部依存: ../../store/db.ts, ../../store/event-buffer.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/context-builder.ts
 
@@ -68,8 +66,7 @@ graph LR
 ### minecraft/minecraft-agent.ts
 
 - モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
-- 他モジュール依存: opencode/
-- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types, path
+- 外部依存: ../../opencode/session-adapter.ts, @vicissitude/shared/constants, @vicissitude/shared/types, path
 
 ### minecraft/profile.ts
 
@@ -87,5 +84,4 @@ graph LR
 
 ### session-store.ts
 
-- 他モジュール依存: store/
-- 外部依存: .bun
+- 外部依存: .bun, @vicissitude/store/db, @vicissitude/store/queries, @vicissitude/store/schema

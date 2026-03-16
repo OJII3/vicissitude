@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
-import { SqliteEventBuffer } from "../../src/store/event-buffer.ts";
-import { appendEvent } from "../../src/store/queries.ts";
-import { createTestDb } from "../../src/store/test-helpers.ts";
+import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
+import { appendEvent } from "@vicissitude/store/queries";
+import { createTestDb } from "../../packages/store/src/test-helpers.ts";
 
 describe("SqliteEventBuffer", () => {
 	test("event_buffer にイベントがあれば waitForEvents が解決する", async () => {

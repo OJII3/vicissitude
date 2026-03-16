@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { buildHeartbeatPrompt, groupByGuild } from "../../src/application/heartbeat-service.ts";
+import { buildHeartbeatPrompt, groupByGuild } from "@vicissitude/application/heartbeat-service";
 import type { DueReminder } from "@vicissitude/shared/types";
 
 // ─── buildHeartbeatPrompt ────────────────────────────────────────

@@ -27,11 +27,29 @@
         "typescript": "^5",
       },
     },
+    "packages/application": {
+      "name": "@vicissitude/application",
+    },
+    "packages/observability": {
+      "name": "@vicissitude/observability",
+    },
     "packages/ollama": {
       "name": "@vicissitude/ollama",
     },
+    "packages/opencode": {
+      "name": "@vicissitude/opencode",
+      "dependencies": {
+        "@opencode-ai/sdk": "^1.2.15",
+      },
+    },
     "packages/shared": {
       "name": "@vicissitude/shared",
+    },
+    "packages/store": {
+      "name": "@vicissitude/store",
+      "dependencies": {
+        "drizzle-orm": "^0.45.1",
+      },
     },
   },
   "packages": {
@@ -173,9 +191,17 @@
 
     "@typescript/native-preview-win32-x64": ["@typescript/native-preview-win32-x64@7.0.0-dev.20260228.1", "", { "os": "win32", "cpu": "x64" }, "sha512-9Wq1d0ZbrJcF6NoODw4+SRNdcZtKMmm2w32Wlo+r6ZIziBF5HFWvJcwGXNE0pbFpX6H/Gs8dhLaDKZU2dLoWOA=="],
 
+    "@vicissitude/application": ["@vicissitude/application@workspace:packages/application"],
+
+    "@vicissitude/observability": ["@vicissitude/observability@workspace:packages/observability"],
+
     "@vicissitude/ollama": ["@vicissitude/ollama@workspace:packages/ollama"],
 
+    "@vicissitude/opencode": ["@vicissitude/opencode@workspace:packages/opencode"],
+
     "@vicissitude/shared": ["@vicissitude/shared@workspace:packages/shared"],
+
+    "@vicissitude/store": ["@vicissitude/store@workspace:packages/store"],
 
     "@vladfrangu/async_event_emitter": ["@vladfrangu/async_event_emitter@2.4.7", "", {}, "sha512-Xfe6rpCTxSxfbswi/W/Pz7zp1WWSNn4A0eW4mLkQUewCrXXtMj31lCg+iQyTkh/CkusZSq9eDflu7tjEDXUY6g=="],
 

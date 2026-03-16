@@ -3,9 +3,9 @@ import { mkdirSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 
-import { setMcConnectionStatus, tryAcquireSessionLock } from "../../src/store/mc-bridge.ts";
-import { SqliteMcStatusProvider } from "../../src/store/mc-status-provider.ts";
-import { createTestDb } from "../../src/store/test-helpers.ts";
+import { setMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
+import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
+import { createTestDb } from "../../packages/store/src/test-helpers.ts";
 
 function createTmpDir(): string {
 	const dir = join(tmpdir(), `mc-status-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);

@@ -1,0 +1,8 @@
+{
+	"name": "@vicissitude/application",
+	"private": true,
+	"exports": {
+		"./heartbeat-service": "./src/heartbeat-service.ts",
+		"./message-ingestion-service": "./src/message-ingestion-service.ts"
+	}
+}

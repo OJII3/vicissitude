@@ -6,36 +6,22 @@
 
 ```mermaid
 graph LR
-  agent --> opencode
-  agent --> store
-  application
+  agent
   gateway --> infrastructure
-  infrastructure --> application
-  infrastructure --> store
+  infrastructure
   ltm
   mcp --> infrastructure
   mcp --> ltm
-  mcp --> store
-  observability
-  opencode
-  scheduling --> application
-  scheduling --> observability
-  store
+  scheduling
 ```
 
 ## モジュール別依存一覧
 
 ### agent/
 
-- 内部依存: opencode/, store/
-- 外部依存: .bun, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, path
-- ファイル数: 12
-
-### application/
-
 - 内部依存: なし
-- 外部依存: @vicissitude/shared/types
-- ファイル数: 2
+- 外部依存: ../../opencode/session-adapter.ts, ../../store/db.ts, ../../store/event-buffer.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, @vicissitude/store/db, @vicissitude/store/queries, @vicissitude/store/schema, path
+- ファイル数: 12
 
 ### gateway/
 
@@ -45,8 +31,8 @@ graph LR
 
 ### infrastructure/
 
-- 内部依存: application/, store/
-- 外部依存: .bun, @vicissitude/shared/types
+- 内部依存: なし
+- 外部依存: ../../application/message-ingestion-service.ts, ../../store/db.ts, ../../store/queries.ts, .bun, @vicissitude/shared/types
 - ファイル数: 3
 
 ### ltm/
@@ -57,30 +43,12 @@ graph LR
 
 ### mcp/
 
-- 内部依存: infrastructure/, ltm/, store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, @vicissitude/ollama, @vicissitude/shared/config, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path, prismarine-entity, prismarine-recipe, vec3
+- 内部依存: infrastructure/, ltm/
+- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, @vicissitude/ollama, @vicissitude/shared/config, @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types, @vicissitude/store/db, fs, path, prismarine-entity, prismarine-recipe, vec3
 - ファイル数: 34
-
-### observability/
-
-- 内部依存: なし
-- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/functions, @vicissitude/shared/types
-- ファイル数: 2
-
-### opencode/
-
-- 内部依存: なし
-- 外部依存: @opencode-ai/sdk/v2, @vicissitude/shared/functions, @vicissitude/shared/types
-- ファイル数: 3
 
 ### scheduling/
 
-- 内部依存: application/, observability/
-- 外部依存: .bun, @vicissitude/shared/config, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path
-- ファイル数: 3
-
-### store/
-
 - 内部依存: なし
-- 外部依存: .bun, @vicissitude/shared/types, bun:sqlite, fs, path
-- ファイル数: 6
+- 外部依存: .bun, @vicissitude/application/heartbeat-service, @vicissitude/observability/metrics, @vicissitude/shared/config, @vicissitude/shared/functions, @vicissitude/shared/types, fs, path
+- ファイル数: 3

@@ -1,0 +1,12 @@
+{
+	"name": "@vicissitude/opencode",
+	"private": true,
+	"exports": {
+		"./session-adapter": "./src/session-adapter.ts",
+		"./session-port": "./src/session-port.ts",
+		"./stream-helpers": "./src/stream-helpers.ts"
+	},
+	"dependencies": {
+		"@opencode-ai/sdk": "^1.2.15"
+	}
+}

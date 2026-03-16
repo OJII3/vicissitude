@@ -8,8 +8,8 @@ import {
 	releaseSessionLock,
 	setMcConnectionStatus,
 	tryAcquireSessionLock,
-} from "../../src/store/mc-bridge.ts";
-import { createTestDb } from "../../src/store/test-helpers.ts";
+} from "@vicissitude/store/mc-bridge";
+import { createTestDb } from "../../packages/store/src/test-helpers.ts";
 
 describe("mc-bridge", () => {
 	describe("tryAcquireSessionLock", () => {

@@ -23,5 +23,4 @@ graph LR
 
 ### store/sqlite-buffered-event-store.ts
 
-- 他モジュール依存: application/, store/
-- 外部依存: @vicissitude/shared/types
+- 外部依存: ../../application/message-ingestion-service.ts, ../../store/db.ts, ../../store/queries.ts, @vicissitude/shared/types

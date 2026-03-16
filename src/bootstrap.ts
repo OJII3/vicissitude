@@ -9,7 +9,7 @@ import { DiscordAgent } from "./agent/discord/discord-agent.ts";
 import { GuildRouter } from "./agent/discord/router.ts";
 import { McBrainManager } from "./agent/minecraft/brain-manager.ts";
 import { SessionStore } from "./agent/session-store.ts";
-import { MessageIngestionService } from "./application/message-ingestion-service.ts";
+import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { type AppConfig, HEARTBEAT_CONFIG_RELATIVE_PATH, loadConfig } from "@vicissitude/shared/config";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
 import type { AiAgent, ContextBuilderPort, Logger, MetricsCollector } from "@vicissitude/shared/types";
@@ -20,21 +20,21 @@ import { CompositeLLMAdapter } from "./ltm/composite-llm-adapter.ts";
 import { LtmConversationRecorder } from "./ltm/conversation-recorder.ts";
 import { type EmbeddingPort, LtmFactReaderImpl } from "./ltm/fact-reader.ts";
 import { LtmChatAdapter } from "./ltm/ltm-chat-adapter.ts";
-import { ConsoleLogger } from "./observability/logger.ts";
+import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
 	PrometheusServer,
 	METRIC,
 	InstrumentedAiAgent,
-} from "./observability/metrics.ts";
+} from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
-import { OpencodeSessionAdapter } from "./opencode/session-adapter.ts";
+import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { ConsolidationScheduler } from "./scheduling/consolidation-scheduler.ts";
 import { HeartbeatScheduler } from "./scheduling/heartbeat-scheduler.ts";
-import type { StoreDb } from "./store/db.ts";
-import { createDb, closeDb } from "./store/db.ts";
-import { SqliteMcStatusProvider } from "./store/mc-status-provider.ts";
-import { incrementEmoji } from "./store/queries.ts";
+import type { StoreDb } from "@vicissitude/store/db";
+import { createDb, closeDb } from "@vicissitude/store/db";
+import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
+import { incrementEmoji } from "@vicissitude/store/queries";
 
 // ─── Store Layer ────────────────────────────────────────────────
 

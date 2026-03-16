@@ -10,7 +10,7 @@ import { LtmStorage } from "../ltm/ltm-storage.ts";
 import { Retrieval } from "../ltm/retrieval.ts";
 import { SemanticMemory } from "../ltm/semantic-memory.ts";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
-import { closeDb, createDb } from "../store/db.ts";
+import { closeDb, createDb } from "@vicissitude/store/db";
 import { startHttpServer } from "./http-server.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";

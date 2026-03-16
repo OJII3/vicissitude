@@ -88,8 +88,8 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: ltm/, store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ollama, fs, path
+- 他モジュール依存: ltm/
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/ollama, @vicissitude/store/db, fs, path
 
 ### http-server.ts
 
@@ -152,8 +152,7 @@ graph LR
 ### minecraft/auto-notifier.ts
 
 - モジュール内依存: minecraft/helpers
-- 他モジュール依存: store/
-- 外部依存: @vicissitude/shared/constants, @vicissitude/shared/types
+- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, @vicissitude/shared/constants, @vicissitude/shared/types
 
 ### minecraft/bot-connection.ts
 
@@ -186,8 +185,7 @@ graph LR
 ### minecraft/mc-bridge-server.ts
 
 - モジュール内依存: tools/mc-bridge-minecraft, tools/mc-memory
-- 他モジュール依存: store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
+- 外部依存: ../../store/db.ts, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 
 ### minecraft/mc-metrics.ts
 
@@ -201,8 +199,7 @@ graph LR
 ### minecraft/server.ts
 
 - モジュール内依存: minecraft/auto-notifier, minecraft/bot-connection, minecraft/bot-context, minecraft/http-server, minecraft/job-manager, minecraft/mc-metrics, minecraft/mcp-tools
-- 他モジュール依存: store/
-- 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config
+- 外部依存: ../../store/db.ts, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/config
 
 ### minecraft/state-summary.ts
 
@@ -215,8 +212,7 @@ graph LR
 
 ### tools/event-buffer.ts
 
-- 他モジュール依存: store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../store/db.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/ltm.ts
 
@@ -225,13 +221,11 @@ graph LR
 
 ### tools/mc-bridge-discord.ts
 
-- 他モジュール依存: store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants
+- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js, @vicissitude/shared/constants
 
 ### tools/mc-bridge-minecraft.ts
 
-- 他モジュール依存: store/
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../store/db.ts, ../../store/mc-bridge.ts, ../../store/queries.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts
 

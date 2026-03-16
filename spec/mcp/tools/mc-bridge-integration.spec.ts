@@ -4,9 +4,9 @@ import {
 	getSessionLockGuildId,
 	releaseSessionLock,
 	tryAcquireSessionLock,
-} from "../../../src/store/mc-bridge.ts";
-import { appendEvent, consumeEvents } from "../../../src/store/queries.ts";
-import { createTestDb } from "../../../src/store/test-helpers.ts";
+} from "@vicissitude/store/mc-bridge";
+import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
+import { createTestDb } from "../../../packages/store/src/test-helpers.ts";
 
 describe("mc-bridge ラウンドトリップ結合テスト", () => {
 	test("Discord→Minecraft→Discord のラウンドトリップ", () => {

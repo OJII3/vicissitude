@@ -5,7 +5,7 @@ import {
 	InstrumentedAiAgent,
 	PrometheusCollector,
 	METRIC,
-} from "../../src/observability/metrics.ts";
+} from "@vicissitude/observability/metrics";
 
 function createSetup() {
 	const collector = new PrometheusCollector();
