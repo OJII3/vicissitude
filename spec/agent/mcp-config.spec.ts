@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "bun:test";
 
-import { mcpMinecraftConfigs, mcpServerConfigs } from "../../packages/agent/src/mcp-config.ts";
+import { mcpMinecraftConfigs, mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 
 // ─── mcpServerConfigs ────────────────────────────────────────────
 

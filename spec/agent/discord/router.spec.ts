@@ -1,7 +1,8 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import { GuildRouter } from "../../../packages/agent/src/discord/router.ts";
 import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
+
+import { GuildRouter } from "@vicissitude/agent/discord/router";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 

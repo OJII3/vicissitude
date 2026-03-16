@@ -12,7 +12,9 @@
 		"./state-summary": "./src/state-summary.ts",
 		"./auto-notifier": "./src/auto-notifier.ts",
 		"./http-server": "./src/http-server.ts",
-		"./mc-metrics": "./src/mc-metrics.ts"
+		"./mc-metrics": "./src/mc-metrics.ts",
+		"./helpers": "./src/helpers.ts",
+		"./actions/survival": "./src/actions/survival/index.ts"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",

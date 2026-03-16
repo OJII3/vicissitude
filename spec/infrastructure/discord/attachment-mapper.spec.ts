@@ -6,7 +6,7 @@ import type { Attachment as DiscordAttachment } from "discord.js";
 import {
 	filterImageUrls,
 	mapAttachments,
-} from "../../../packages/infrastructure/src/discord/attachment-mapper.ts";
+} from "@vicissitude/infrastructure/discord/attachment-mapper";
 
 function makeAttachment(
 	overrides: Partial<DiscordAttachment> & { id?: string } = {},

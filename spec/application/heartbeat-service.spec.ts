@@ -6,6 +6,7 @@ import {
 	groupByGuild,
 } from "@vicissitude/application/heartbeat-service";
 import type { AiAgent, DueReminder } from "@vicissitude/shared/types";
+
 import { createMockLogger } from "../test-helpers.ts";
 
 describe("buildHeartbeatPrompt", () => {

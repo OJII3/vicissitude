@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 
 import { METRIC } from "@vicissitude/shared/constants";
 
-import type { ActionState, Importance } from "../../../packages/minecraft/src/helpers.ts";
-import { JobManager } from "../../../packages/minecraft/src/job-manager.ts";
-import type { JobExecutor } from "../../../packages/minecraft/src/job-manager.ts";
-import { McMetricsCollector } from "../../../packages/minecraft/src/mc-metrics.ts";
+import type { ActionState, Importance } from "@vicissitude/minecraft/helpers";
+import { JobManager } from "@vicissitude/minecraft/job-manager";
+import type { JobExecutor } from "@vicissitude/minecraft/job-manager";
+import { McMetricsCollector } from "@vicissitude/minecraft/mc-metrics";
 function setup() {
 	const events: { kind: string; description: string; importance: Importance }[] = [];
 	const states: ActionState[] = [];

@@ -7,7 +7,7 @@ import {
 } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 
-import { createTestDb } from "../../../packages/store/src/test-helpers.ts";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 describe("mc-bridge ラウンドトリップ結合テスト", () => {
 	test("Discord→Minecraft→Discord のラウンドトリップ", () => {

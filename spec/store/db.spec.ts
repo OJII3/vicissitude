@@ -10,7 +10,8 @@ import {
 	incrementEmoji,
 	saveSession,
 } from "@vicissitude/store/queries";
-import { createTestDb } from "../../packages/store/src/test-helpers.ts";
+
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 describe("store", () => {
 	describe("table creation", () => {

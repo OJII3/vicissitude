@@ -13,6 +13,10 @@
 		"./semantic-memory": "./src/semantic-memory.ts",
 		"./semantic-fact": "./src/semantic-fact.ts",
 		"./llm-port": "./src/llm-port.ts",
-		"./types": "./src/types.ts"
+		"./types": "./src/types.ts",
+		"./episode": "./src/episode.ts",
+		"./segmenter": "./src/segmenter.ts",
+		"./consolidation": "./src/consolidation.ts",
+		"./fsrs": "./src/fsrs.ts"
 	}
 }

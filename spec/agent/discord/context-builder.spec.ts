@@ -3,8 +3,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import { ContextBuilder } from "../../../packages/agent/src/discord/context-builder.ts";
 import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
+
+import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 

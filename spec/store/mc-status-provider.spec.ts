@@ -5,7 +5,8 @@ import { join } from "path";
 
 import { setMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
-import { createTestDb } from "../../packages/store/src/test-helpers.ts";
+
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 function createTmpDir(): string {
 	const dir = join(tmpdir(), `mc-status-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);

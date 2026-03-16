@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
-import type { GuildInstance, GuildInstanceFactory } from "../../packages/ltm/src/conversation-recorder.ts";
-import { LtmConversationRecorder } from "../../packages/ltm/src/conversation-recorder.ts";
-import type { Episode } from "../../packages/ltm/src/episode.ts";
-import type { LtmLlmPort } from "../../packages/ltm/src/llm-port.ts";
+import type {
+	GuildInstance,
+	GuildInstanceFactory,
+} from "@vicissitude/ltm/conversation-recorder";
+import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
+import type { Episode } from "@vicissitude/ltm/episode";
+import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
 
 const TEMP_DIR = `/tmp/vicissitude-ltm-test-${process.pid}`;
 

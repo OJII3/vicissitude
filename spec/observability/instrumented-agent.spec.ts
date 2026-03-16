@@ -1,11 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 
-import type { AgentResponse } from "@vicissitude/shared/types";
 import {
 	InstrumentedAiAgent,
 	PrometheusCollector,
 	METRIC,
 } from "@vicissitude/observability/metrics";
+import type { AgentResponse } from "@vicissitude/shared/types";
 
 function createSetup() {
 	const collector = new PrometheusCollector();

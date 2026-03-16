@@ -1,12 +1,12 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive segmenter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { Episode } from "../../packages/ltm/src/episode.ts";
-import { LtmStorage } from "../../packages/ltm/src/ltm-storage.ts";
-import type { SegmentationOutput } from "../../packages/ltm/src/segmenter.ts";
-import { Segmenter } from "../../packages/ltm/src/segmenter.ts";
-import type { ChatMessage, SurpriseLevel } from "../../packages/ltm/src/types.ts";
-import { SURPRISE_VALUES } from "../../packages/ltm/src/types.ts";
+import type { Episode } from "@vicissitude/ltm/episode";
+import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import type { SegmentationOutput } from "@vicissitude/ltm/segmenter";
+import { Segmenter } from "@vicissitude/ltm/segmenter";
+import type { ChatMessage, SurpriseLevel } from "@vicissitude/ltm/types";
+import { SURPRISE_VALUES } from "@vicissitude/ltm/types";
 import { createInvalidLLM, createMockLLM, makeMessage, makeMessages } from "./test-helpers.ts";
 
 function createSegmentationLLM(segmentationResponse?: SegmentationOutput) {

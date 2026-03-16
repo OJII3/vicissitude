@@ -10,7 +10,9 @@
 		"./discord/context-builder": "./src/discord/context-builder.ts",
 		"./discord/router": "./src/discord/router.ts",
 		"./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
-		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts"
+		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
+		"./discord/profile": "./src/discord/profile.ts",
+		"./minecraft/context-builder": "./src/minecraft/context-builder.ts"
 	},
 	"dependencies": {
 		"drizzle-orm": "^0.45.1"

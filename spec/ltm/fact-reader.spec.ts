@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 import { mkdirSync, rmSync } from "fs";
 import { resolve } from "path";
 
-import type { EmbeddingPort } from "../../packages/ltm/src/fact-reader.ts";
-import { LtmFactReaderImpl } from "../../packages/ltm/src/fact-reader.ts";
-import type { FactCategory } from "../../packages/ltm/src/types.ts";
+import type { EmbeddingPort } from "@vicissitude/ltm/fact-reader";
+import { LtmFactReaderImpl } from "@vicissitude/ltm/fact-reader";
+import type { FactCategory } from "@vicissitude/ltm/types";
 
 const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";

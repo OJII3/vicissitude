@@ -7,7 +7,7 @@ import { createDb, closeDb } from "@vicissitude/store/db";
 import { getMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { consumeEvents } from "@vicissitude/store/queries";
 
-import { createAutoNotifier } from "../../../packages/minecraft/src/auto-notifier.ts";
+import { createAutoNotifier } from "@vicissitude/minecraft/auto-notifier";
 
 function setupDb() {
 	const dir = mkdtempSync(join(tmpdir(), "vicissitude-auto-notifier-"));

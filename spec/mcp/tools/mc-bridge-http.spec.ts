@@ -3,10 +3,10 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { tryAcquireSessionLock, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 
-import { startHttpServer } from "../../../packages/mcp/src/http-server.ts";
-import { parseMcpResponse } from "../../../packages/mcp/src/test-helpers.ts";
-import { registerDiscordBridgeTools } from "../../../packages/mcp/src/tools/mc-bridge-discord.ts";
-import { createTestDb } from "../../../packages/store/src/test-helpers.ts";
+import { startHttpServer } from "@vicissitude/mcp/http-server";
+import { parseMcpResponse } from "@vicissitude/mcp/test-helpers";
+import { registerDiscordBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-discord";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 let baseUrl: string;
 

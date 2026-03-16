@@ -9,7 +9,7 @@ import {
 	sanitizeSkillDescription,
 	sanitizeSkillName,
 	writeOverlay,
-} from "../../../packages/mcp/src/tools/mc-memory.ts";
+} from "@vicissitude/mcp/tools/mc-memory";
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));

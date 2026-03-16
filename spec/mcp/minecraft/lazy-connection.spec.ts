@@ -2,11 +2,11 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { startHttpServer } from "../../../packages/mcp/src/http-server.ts";
-import { parseMcpResponse } from "../../../packages/mcp/src/test-helpers.ts";
-import { createBotContext } from "../../../packages/minecraft/src/bot-context.ts";
-import { JobManager } from "../../../packages/minecraft/src/job-manager.ts";
-import { registerMinecraftTools } from "../../../packages/minecraft/src/mcp-tools.ts";
+import { startHttpServer } from "@vicissitude/mcp/http-server";
+import { parseMcpResponse } from "@vicissitude/mcp/test-helpers";
+import { createBotContext } from "@vicissitude/minecraft/bot-context";
+import { JobManager } from "@vicissitude/minecraft/job-manager";
+import { registerMinecraftTools } from "@vicissitude/minecraft/mcp-tools";
 
 describe("BotContext — bot null 時の安全性", () => {
 	test("getBot() === null の状態で pushEvent が正常動作", () => {

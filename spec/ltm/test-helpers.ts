@@ -1,9 +1,9 @@
 /* oxlint-disable require-await -- mock implementations */
-import type { Episode } from "../../packages/ltm/src/episode.ts";
-import { createEpisode } from "../../packages/ltm/src/episode.ts";
-import type { LtmLlmPort, Schema } from "../../packages/ltm/src/llm-port.ts";
-import { createFact } from "../../packages/ltm/src/semantic-fact.ts";
-import type { ChatMessage } from "../../packages/ltm/src/types.ts";
+import type { Episode } from "@vicissitude/ltm/episode";
+import { createEpisode } from "@vicissitude/ltm/episode";
+import type { LtmLlmPort, Schema } from "@vicissitude/ltm/llm-port";
+import { createFact } from "@vicissitude/ltm/semantic-fact";
+import type { ChatMessage } from "@vicissitude/ltm/types";
 
 const defaultUserId = "user-1";
 

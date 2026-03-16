@@ -9,7 +9,8 @@ import {
 	setMcConnectionStatus,
 	tryAcquireSessionLock,
 } from "@vicissitude/store/mc-bridge";
-import { createTestDb } from "../../packages/store/src/test-helpers.ts";
+
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 describe("mc-bridge", () => {
 	describe("tryAcquireSessionLock", () => {
