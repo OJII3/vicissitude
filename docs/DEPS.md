@@ -21,6 +21,7 @@ graph LR
   apps_discord["apps/discord"] --> shared
   apps_discord["apps/discord"] --> store
   apps_web["apps/web"] --> shared
+  avatar --> shared
   gateway --> shared
   infrastructure --> application
   infrastructure --> shared
@@ -70,6 +71,12 @@ graph LR
 - 内部依存: shared
 - 外部依存: .bun
 - ファイル数: 6
+
+### avatar
+
+- 内部依存: shared
+- 外部依存: なし
+- ファイル数: 2
 
 ### gateway
 
@@ -129,7 +136,7 @@ graph LR
 
 - 内部依存: なし
 - 外部依存: .bun, path
-- ファイル数: 14
+- ファイル数: 15
 
 ### store
 

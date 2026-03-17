@@ -61,6 +61,12 @@
     "packages/application": {
       "name": "@vicissitude/application",
     },
+    "packages/avatar": {
+      "name": "@vicissitude/avatar",
+      "dependencies": {
+        "@vicissitude/shared": "workspace:*",
+      },
+    },
     "packages/gateway": {
       "name": "@vicissitude/gateway",
       "dependencies": {
@@ -495,6 +501,8 @@
     "@vicissitude/agent": ["@vicissitude/agent@workspace:packages/agent"],
 
     "@vicissitude/application": ["@vicissitude/application@workspace:packages/application"],
+
+    "@vicissitude/avatar": ["@vicissitude/avatar@workspace:packages/avatar"],
 
     "@vicissitude/discord": ["@vicissitude/discord@workspace:apps/discord"],
 
