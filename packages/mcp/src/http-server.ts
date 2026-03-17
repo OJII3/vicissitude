@@ -105,5 +105,5 @@ export function startHttpServer(
 
 	console.error(`[${label}] MCP server listening on port ${httpServer.port}`);
 
-	return { port: httpServer.port, cleanupTimer, closeAllSessions, stopServer };
+	return { port: httpServer.port ?? port, cleanupTimer, closeAllSessions, stopServer };
 }

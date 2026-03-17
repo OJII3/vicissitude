@@ -7,6 +7,8 @@ import { createStoreLayer, createMetrics } from "./bootstrap.ts";
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 	return {
 		discordToken: "test-token",
+		webPort: 4000,
+		gatewayPort: 4001,
 		opencode: {
 			providerId: "test-provider",
 			modelId: "test-model",

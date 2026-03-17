@@ -43,6 +43,8 @@ const minecraftSchema = z.object({
 
 const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
+	webPort: safeInt,
+	gatewayPort: safeInt,
 	opencode: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
@@ -84,6 +86,8 @@ export function loadConfig(
 
 	const raw = {
 		discordToken: env.DISCORD_TOKEN ?? "",
+		webPort: Number(env.WEB_PORT ?? "4000"),
+		gatewayPort: Number(env.GATEWAY_PORT ?? "4001"),
 		opencode: {
 			providerId: openCodeProviderId,
 			modelId: env.OPENCODE_MODEL_ID ?? "big-pickle",
