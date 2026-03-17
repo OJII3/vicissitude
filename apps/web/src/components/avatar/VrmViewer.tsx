@@ -19,13 +19,17 @@ function useAutoBlink(vrm: VRM | null) {
 	useEffect(() => {
 		if (!vrm) return;
 
-		let timeoutId: ReturnType<typeof setTimeout>;
+		let cancelled = false;
+		let outerTimeout: ReturnType<typeof setTimeout>;
+		let innerTimeout: ReturnType<typeof setTimeout>;
 
 		function scheduleNextBlink() {
 			const delay = BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN);
-			timeoutId = setTimeout(() => {
+			outerTimeout = setTimeout(() => {
+				if (cancelled) return;
 				blinkingRef.current = true;
-				setTimeout(() => {
+				innerTimeout = setTimeout(() => {
+					if (cancelled) return;
 					blinkingRef.current = false;
 					scheduleNextBlink();
 				}, BLINK_DURATION);
@@ -33,7 +37,11 @@ function useAutoBlink(vrm: VRM | null) {
 		}
 
 		scheduleNextBlink();
-		return () => clearTimeout(timeoutId);
+		return () => {
+			cancelled = true;
+			clearTimeout(outerTimeout);
+			clearTimeout(innerTimeout);
+		};
 	}, [vrm]);
 
 	return blinkingRef;
@@ -41,47 +49,66 @@ function useAutoBlink(vrm: VRM | null) {
 
 // ─── VRM Loader Hook ────────────────────────────────────────────
 
+interface VrmLoadContext {
+	disposed: boolean;
+	scene: THREE.Scene;
+	vrmRef: React.RefObject<VRM | null>;
+	setVrm: (vrm: VRM) => void;
+	onErrorRef: React.RefObject<(message: string) => void>;
+	onLoadedRef: React.RefObject<() => void>;
+}
+
+function handleVrmLoad(
+	gltf: { userData: Record<string, unknown>; scene: THREE.Object3D },
+	ctx: VrmLoadContext,
+) {
+	if (ctx.disposed) return;
+	const loadedVrm = gltf.userData["vrm"] as VRM | undefined;
+	if (!loadedVrm) {
+		ctx.onErrorRef.current("VRM データが見つかりません");
+		return;
+	}
+	VRMUtils.removeUnnecessaryJoints(gltf.scene);
+	VRMUtils.removeUnnecessaryVertices(gltf.scene);
+	VRMUtils.rotateVRM0(loadedVrm);
+	ctx.scene.add(loadedVrm.scene);
+	ctx.vrmRef.current = loadedVrm;
+	ctx.setVrm(loadedVrm);
+	ctx.onLoadedRef.current();
+}
+
 function useVrmLoader(url: string, onError: (message: string) => void, onLoaded: () => void) {
 	const [vrm, setVrm] = useState<VRM | null>(null);
+	const vrmRef = useRef<VRM | null>(null);
 	const { scene } = useThree();
+	const onErrorRef = useRef(onError);
+	onErrorRef.current = onError;
+	const onLoadedRef = useRef(onLoaded);
+	onLoadedRef.current = onLoaded;
 
 	useEffect(() => {
 		const loader = new GLTFLoader();
 		loader.register((parser) => new VRMLoaderPlugin(parser));
-
-		let disposed = false;
+		const ctx: VrmLoadContext = { disposed: false, scene, vrmRef, setVrm, onErrorRef, onLoadedRef };
 
 		loader.load(
 			url,
-			(gltf) => {
-				if (disposed) return;
-				const loadedVrm = gltf.userData["vrm"] as VRM | undefined;
-				if (!loadedVrm) {
-					onError("VRM データが見つかりません");
-					return;
-				}
-				VRMUtils.removeUnnecessaryJoints(gltf.scene);
-				VRMUtils.removeUnnecessaryVertices(gltf.scene);
-				VRMUtils.rotateVRM0(loadedVrm);
-				scene.add(loadedVrm.scene);
-				setVrm(loadedVrm);
-				onLoaded();
-			},
+			(gltf) => handleVrmLoad(gltf, ctx),
 			undefined,
 			() => {
-				if (disposed) return;
-				onError("モデルの読み込みに失敗しました");
+				if (!ctx.disposed) onErrorRef.current("モデルの読み込みに失敗しました");
 			},
 		);
 
 		return () => {
-			disposed = true;
-			if (vrm) {
-				scene.remove(vrm.scene);
-				VRMUtils.deepDispose(vrm.scene);
+			ctx.disposed = true;
+			if (vrmRef.current) {
+				scene.remove(vrmRef.current.scene);
+				VRMUtils.deepDispose(vrmRef.current.scene);
+				vrmRef.current = null;
 			}
 		};
-	}, [url]);
+	}, [url, scene]);
 
 	return vrm;
 }

@@ -6,6 +6,8 @@ export type ServerMessageListener = (message: ServerMessage) => void;
 export class WsClient {
 	private ws: WebSocket | null = null;
 	private listeners: Set<ServerMessageListener> = new Set();
+	private openListeners: Set<() => void> = new Set();
+	private closeListeners: Set<() => void> = new Set();
 	private url: string;
 
 	constructor(url: string) {
@@ -14,10 +16,20 @@ export class WsClient {
 
 	connect(): void {
 		this.ws = new WebSocket(this.url);
+		this.ws.addEventListener("open", () => {
+			for (const listener of this.openListeners) listener();
+		});
+		this.ws.addEventListener("close", () => {
+			for (const listener of this.closeListeners) listener();
+		});
 		this.ws.addEventListener("message", (event) => {
-			const message = parseServerMessage(String(event.data));
-			for (const listener of this.listeners) {
-				listener(message);
+			try {
+				const message = parseServerMessage(String(event.data));
+				for (const listener of this.listeners) {
+					listener(message);
+				}
+			} catch {
+				// 不正なメッセージは無視する
 			}
 		});
 	}
@@ -29,6 +41,16 @@ export class WsClient {
 	onMessage(listener: ServerMessageListener): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);
+	}
+
+	onOpen(listener: () => void): () => void {
+		this.openListeners.add(listener);
+		return () => this.openListeners.delete(listener);
+	}
+
+	onClose(listener: () => void): () => void {
+		this.closeListeners.add(listener);
+		return () => this.closeListeners.delete(listener);
 	}
 
 	disconnect(): void {

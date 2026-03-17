@@ -18,12 +18,11 @@ interface ChatPanelProps {
 
 // ─── Constants ──────────────────────────────────────────────────
 
-const GATEWAY_PORT = 4001;
-
 function getWsUrl(): string {
 	const host = window.location.hostname;
+	const port = import.meta.env.VITE_GATEWAY_PORT ?? "4001";
 	const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-	return `${protocol}//${host}:${GATEWAY_PORT}/ws`;
+	return `${protocol}//${host}:${port}/ws`;
 }
 
 // ─── WS Hook ────────────────────────────────────────────────────
@@ -32,12 +31,14 @@ function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [connected, setConnected] = useState(false);
 	const clientRef = useRef<WsClient | null>(null);
+	const expressionRef = useRef(onExpressionChange);
+	expressionRef.current = onExpressionChange;
 
 	useEffect(() => {
 		const client = new WsClient(getWsUrl());
 		clientRef.current = client;
 
-		const unsubscribe = client.onMessage((message: ServerMessage) => {
+		const unsubMessage = client.onMessage((message: ServerMessage) => {
 			if (message.type === "chat_message") {
 				if (message.status === "complete") {
 					setMessages((prev) => [
@@ -46,19 +47,21 @@ function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 					]);
 				}
 			} else if (message.type === "emotion_update") {
-				onExpressionChange(message.expressionWeight);
+				expressionRef.current(message.expressionWeight);
 			}
 		});
+		const unsubOpen = client.onOpen(() => setConnected(true));
+		const unsubClose = client.onClose(() => setConnected(false));
 
 		client.connect();
-		setConnected(true);
 
 		return () => {
-			unsubscribe();
+			unsubMessage();
+			unsubOpen();
+			unsubClose();
 			client.disconnect();
-			setConnected(false);
 		};
-	}, [onExpressionChange]);
+	}, []);
 
 	return { messages, setMessages, connected, clientRef };
 }
