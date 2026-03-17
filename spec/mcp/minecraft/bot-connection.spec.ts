@@ -181,7 +181,9 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(fakeBot.respawn).toHaveBeenCalledTimes(1);
 
 		// 1秒待ってクールダウンを超える
-		await new Promise((resolve) => setTimeout(resolve, 1100));
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 1100);
+		});
 
 		// 3回目の death → respawn() が再び呼ばれる
 		fakeBot.emit("death");
