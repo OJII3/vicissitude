@@ -19,4 +19,4 @@ graph LR
 
 ### ws-handler.ts
 
-- 他モジュール依存: shared
+- 他モジュール依存: avatar, shared

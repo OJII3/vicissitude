@@ -6,6 +6,8 @@
 
 ```mermaid
 graph LR
+  components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
+  components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"] --> lib_ws_client["lib/ws-client"]
   index.css
   lib_ws_client["lib/ws-client"]
   main.tsx --> index.css
@@ -13,10 +15,22 @@ graph LR
   routeTree.gen --> routes___root.tsx["routes/__root.tsx"]
   routeTree.gen --> routes_index.tsx["routes/index.tsx"]
   routes___root.tsx["routes/__root.tsx"]
-  routes_index.tsx["routes/index.tsx"]
+  routes_index.tsx["routes/index.tsx"] --> components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
+  routes_index.tsx["routes/index.tsx"] --> components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"]
 ```
 
 ## ファイル別依存一覧
+
+### components/avatar/VrmViewer.tsx.ts
+
+- 他モジュール依存: shared
+- 外部依存: .bun, three/addons/loaders/GLTFLoader.js
+
+### components/chat/ChatPanel.tsx.ts
+
+- モジュール内依存: lib/ws-client
+- 他モジュール依存: shared
+- 外部依存: .bun
 
 ### index.css.ts
 
@@ -41,4 +55,6 @@ graph LR
 
 ### routes/index.tsx.ts
 
+- モジュール内依存: components/avatar/VrmViewer.tsx, components/chat/ChatPanel.tsx
+- 他モジュール依存: shared
 - 外部依存: .bun
