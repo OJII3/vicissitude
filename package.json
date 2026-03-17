@@ -41,7 +41,6 @@
 		"mineflayer": "^4.35.0",
 		"mineflayer-pathfinder": "^2.4.5",
 		"prismarine-viewer": "^1.33.0",
-		"three": "^0.183.2",
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {

@@ -1,9 +1,22 @@
+import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
+import { createEmotion } from "@vicissitude/shared/emotion";
 import type { ClientMessageHandler, ConnectionId, GatewayPort } from "@vicissitude/shared/ports";
-import type { ErrorMessage, ServerMessage } from "@vicissitude/shared/ws-protocol";
+import type {
+	ChatResponseMessage,
+	EmotionUpdateMessage,
+	ErrorMessage,
+	ServerMessage,
+} from "@vicissitude/shared/ws-protocol";
 import { parseClientMessage } from "@vicissitude/shared/ws-protocol";
 
 export interface WebSocketConnection {
 	send(data: string): void;
+}
+
+const emotionMapper = createEmotionToExpressionMapper();
+
+function randomVad(): number {
+	return Math.random() * 2 - 1;
 }
 
 export class WsConnectionManager implements GatewayPort {
@@ -26,6 +39,29 @@ export class WsConnectionManager implements GatewayPort {
 			const message = parseClientMessage(rawMessage);
 			for (const handler of this.handlers) {
 				handler(connectionId, message);
+			}
+
+			// ダミー応答: chat_input に対してエコー + ランダム emotion を返す
+			if (message.type === "chat_input") {
+				const now = new Date().toISOString();
+				const chatResponse: ChatResponseMessage = {
+					type: "chat_message",
+					status: "complete",
+					text: message.text,
+					messageId: crypto.randomUUID(),
+					timestamp: now,
+				};
+				this.send(connectionId, chatResponse);
+
+				const emotion = createEmotion(randomVad(), randomVad(), randomVad());
+				const expressionWeight = emotionMapper.mapToExpression(emotion);
+				const emotionUpdate: EmotionUpdateMessage = {
+					type: "emotion_update",
+					emotion,
+					expressionWeight,
+					timestamp: now,
+				};
+				this.broadcast(emotionUpdate);
 			}
 		} catch {
 			const errorMsg: ErrorMessage = {

@@ -3,13 +3,28 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "astro dev",
-		"build": "astro build",
-		"preview": "astro preview",
-		"astro": "astro"
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview"
 	},
 	"dependencies": {
+		"@pixiv/three-vrm": "^3.5.1",
+		"@react-three/drei": "^10.7.7",
+		"@react-three/fiber": "^9.5.0",
+		"@tanstack/react-router": "^1",
 		"@vicissitude/shared": "workspace:*",
-		"astro": "^6.0.5"
+		"react": "^19",
+		"react-dom": "^19",
+		"three": "^0.183.2"
+	},
+	"devDependencies": {
+		"@tailwindcss/vite": "^4",
+		"@tanstack/router-plugin": "^1",
+		"@types/react": "^19",
+		"@types/react-dom": "^19",
+		"@types/three": "^0.183.1",
+		"@vitejs/plugin-react": "^4",
+		"tailwindcss": "^4",
+		"vite": "^6"
 	}
 }

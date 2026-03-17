@@ -21,6 +21,8 @@ graph LR
   apps_discord["apps/discord"] --> shared
   apps_discord["apps/discord"] --> store
   apps_web["apps/web"] --> shared
+  avatar --> shared
+  gateway --> avatar
   gateway --> shared
   infrastructure --> application
   infrastructure --> shared
@@ -68,12 +70,18 @@ graph LR
 ### apps/web
 
 - 内部依存: shared
+- 外部依存: .bun, three/addons/loaders/GLTFLoader.js
+- ファイル数: 9
+
+### avatar
+
+- 内部依存: shared
 - 外部依存: なし
-- ファイル数: 1
+- ファイル数: 3
 
 ### gateway
 
-- 内部依存: shared
+- 内部依存: avatar, shared
 - 外部依存: .bun
 - ファイル数: 2
 
