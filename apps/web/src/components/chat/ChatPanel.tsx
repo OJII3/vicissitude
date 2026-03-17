@@ -162,7 +162,10 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 	const handleSend = useCallback(
 		(text: string) => {
 			if (!clientRef.current) return;
-			setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", text }]);
+			setMessages((prev) => [
+				...prev,
+				{ id: Math.random().toString(36).slice(2), role: "user", text },
+			]);
 			clientRef.current.send({
 				type: "chat_input",
 				text,
