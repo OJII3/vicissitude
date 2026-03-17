@@ -1,10 +1,18 @@
 {
-	"extends": "astro/tsconfigs/strict",
 	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "bundler",
+		"jsx": "react-jsx",
+		"strict": true,
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
-		"noFallthroughCasesInSwitch": true
+		"noFallthroughCasesInSwitch": true,
+		"skipLibCheck": true,
+		"paths": {
+			"@/*": ["./src/*"]
+		}
 	},
-	"include": [".astro/types.d.ts", "**/*"],
+	"include": ["src", "vite.config.ts"],
 	"exclude": ["dist"]
 }

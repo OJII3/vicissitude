@@ -68,8 +68,8 @@ graph LR
 ### apps/web
 
 - 内部依存: shared
-- 外部依存: なし
-- ファイル数: 1
+- 外部依存: .bun
+- ファイル数: 6
 
 ### gateway
 

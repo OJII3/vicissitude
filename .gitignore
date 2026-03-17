@@ -12,3 +12,4 @@ data/
 .direnv/
 .pre-commit-config.yaml
 dist/
+routeTree.gen.ts
