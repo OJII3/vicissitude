@@ -1,6 +1,16 @@
 {
 	"$schema": "./node_modules/oxlint/configuration_schema.json",
-	"plugins": ["eslint", "typescript", "unicorn", "oxc", "import", "promise", "node"],
+	"plugins": [
+		"eslint",
+		"typescript",
+		"unicorn",
+		"oxc",
+		"import",
+		"promise",
+		"node",
+		"react",
+		"jsx-a11y"
+	],
 	"env": {
 		"es2024": true,
 		"node": true
@@ -16,6 +26,12 @@
 	"rules": {
 		"eslint/no-console": "off",
 		"eslint/no-unused-vars": "error",
+		"eslint/max-lines": ["error", { "max": 300, "skipBlankLines": true, "skipComments": true }],
+		"eslint/max-lines-per-function": [
+			"error",
+			{ "max": 80, "skipBlankLines": true, "skipComments": true }
+		],
+		"eslint/max-params": ["error", { "max": 4 }],
 		"typescript/no-explicit-any": "error",
 		"typescript/consistent-type-imports": "error",
 		"typescript/no-non-null-assertion": "error",
@@ -36,35 +52,50 @@
 		"import/no-anonymous-default-export": "error",
 		"promise/no-return-wrap": "error",
 		"promise/param-names": "error",
-		"promise/catch-or-return": "error"
+		"promise/catch-or-return": "error",
+		"react/react-in-jsx-scope": "off"
 	},
 	"overrides": [
 		{
 			"files": ["scripts/**/*.ts"],
 			"rules": {
-				"eslint/max-lines": "off",
-				"eslint/max-lines-per-function": "off"
+				"eslint/max-lines": ["warn", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+				"eslint/max-lines-per-function": [
+					"warn",
+					{ "max": 200, "skipBlankLines": true, "skipComments": true }
+				]
 			}
 		},
 		{
 			"files": ["**/bootstrap.ts"],
 			"rules": {
 				"import/max-dependencies": "off",
-				"eslint/max-lines-per-function": "off"
+				"eslint/max-lines": ["warn", { "max": 600, "skipBlankLines": true, "skipComments": true }],
+				"eslint/max-lines-per-function": [
+					"warn",
+					{ "max": 200, "skipBlankLines": true, "skipComments": true }
+				]
 			}
 		},
 		{
 			"files": ["**/*.test.ts", "**/*.spec.ts", "**/test-helpers.ts"],
 			"rules": {
-				"eslint/max-lines-per-function": "off",
-				"eslint/max-lines": "off",
+				"eslint/max-lines": ["warn", { "max": 500, "skipBlankLines": true, "skipComments": true }],
+				"eslint/max-lines-per-function": [
+					"warn",
+					{ "max": 300, "skipBlankLines": true, "skipComments": true }
+				],
+				"eslint/max-params": "off",
 				"import/max-dependencies": "off"
 			}
 		},
 		{
 			"files": ["**/mcp/**/tools/*.ts", "**/mcp/**/core-server.ts", "**/minecraft/**/mcp-tools.ts"],
 			"rules": {
-				"eslint/max-lines-per-function": "off",
+				"eslint/max-lines-per-function": [
+					"warn",
+					{ "max": 200, "skipBlankLines": true, "skipComments": true }
+				],
 				"import/max-dependencies": "off"
 			}
 		},
@@ -247,6 +278,7 @@
 		{
 			"files": ["packages/minecraft/src/**/*.ts"],
 			"rules": {
+				"eslint/max-params": ["warn", { "max": 5 }],
 				"eslint/no-restricted-imports": [
 					"error",
 					{
