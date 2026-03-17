@@ -34,3 +34,6 @@ description: impl-agent 専用スキル
 - 仕様にない機能の追加
 - ドキュメントの更新（明示的に指示された場合を除く）
 - デプロイ作業
+- **ブランチの作成・切り替え (`git checkout -b`, `git switch -c`)**。Team Lead が事前に作業ブランチを用意する。
+- **コミット (`git commit`)**。Team Lead がまとめてコミットする。
+- **PR の作成 (`gh pr create`) や push (`git push`)**。Team Lead が PR を管理する。
