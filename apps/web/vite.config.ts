@@ -8,5 +8,6 @@ export default defineConfig({
 	server: {
 		port: Number(process.env.WEB_PORT ?? 4000),
 		host: true,
+		allowedHosts: true,
 	},
 });
