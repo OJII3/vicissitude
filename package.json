@@ -38,6 +38,7 @@
 		"canvas": "^3.2.1",
 		"discord.js": "^14.25.1",
 		"drizzle-orm": "^0.45.1",
+		"elysia": "^1.4.28",
 		"mineflayer": "^4.35.0",
 		"mineflayer-pathfinder": "^2.4.5",
 		"prismarine-viewer": "^1.33.0",
