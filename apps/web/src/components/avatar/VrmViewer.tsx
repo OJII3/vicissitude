@@ -1,11 +1,11 @@
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import type { VRM } from "@pixiv/three-vrm";
+import { OrbitControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 // ─── Auto Blink ─────────────────────────────────────────────────
 
@@ -22,8 +22,7 @@ function useAutoBlink(vrm: VRM | null) {
 		let timeoutId: ReturnType<typeof setTimeout>;
 
 		function scheduleNextBlink() {
-			const delay =
-				BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN);
+			const delay = BLINK_INTERVAL_MIN + Math.random() * (BLINK_INTERVAL_MAX - BLINK_INTERVAL_MIN);
 			timeoutId = setTimeout(() => {
 				blinkingRef.current = true;
 				setTimeout(() => {
@@ -40,22 +39,12 @@ function useAutoBlink(vrm: VRM | null) {
 	return blinkingRef;
 }
 
-// ─── VRM Scene (Canvas 内部) ────────────────────────────────────
+// ─── VRM Loader Hook ────────────────────────────────────────────
 
-interface VrmSceneProps {
-	url: string;
-	expressionWeight: VrmExpressionWeight | null;
-	onError: (message: string) => void;
-	onLoaded: () => void;
-}
-
-function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
+function useVrmLoader(url: string, onError: (message: string) => void, onLoaded: () => void) {
 	const [vrm, setVrm] = useState<VRM | null>(null);
-	const blinkingRef = useAutoBlink(vrm);
 	const { scene } = useThree();
-	const clockRef = useRef(new THREE.Clock());
 
-	// VRM ロード
 	useEffect(() => {
 		const loader = new GLTFLoader();
 		loader.register((parser) => new VRMLoaderPlugin(parser));
@@ -92,32 +81,47 @@ function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
 				VRMUtils.deepDispose(vrm.scene);
 			}
 		};
-		// url 変更時のみ再ロード
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [url]);
 
-	// 表情反映
+	return vrm;
+}
+
+// ─── Expression Sync Hook ───────────────────────────────────────
+
+const EXPRESSION_NAMES = ["happy", "angry", "sad", "relaxed", "surprised"] as const;
+
+function useExpressionSync(vrm: VRM | null, expressionWeight: VrmExpressionWeight | null) {
 	useEffect(() => {
 		if (!vrm?.expressionManager) return;
-		// 全表情をリセット
-		vrm.expressionManager.setValue("happy", 0);
-		vrm.expressionManager.setValue("angry", 0);
-		vrm.expressionManager.setValue("sad", 0);
-		vrm.expressionManager.setValue("relaxed", 0);
-		vrm.expressionManager.setValue("surprised", 0);
-
+		for (const name of EXPRESSION_NAMES) {
+			vrm.expressionManager.setValue(name, 0);
+		}
 		if (expressionWeight && expressionWeight.expression !== "neutral") {
 			vrm.expressionManager.setValue(expressionWeight.expression, expressionWeight.weight);
 		}
 	}, [vrm, expressionWeight]);
+}
 
-	// 毎フレーム更新
+// ─── VRM Scene (Canvas 内部) ────────────────────────────────────
+
+interface VrmSceneProps {
+	url: string;
+	expressionWeight: VrmExpressionWeight | null;
+	onError: (message: string) => void;
+	onLoaded: () => void;
+}
+
+function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
+	const vrm = useVrmLoader(url, onError, onLoaded);
+	const blinkingRef = useAutoBlink(vrm);
+	const clockRef = useRef(new THREE.Clock());
+
+	useExpressionSync(vrm, expressionWeight);
+
 	useFrame(() => {
 		if (!vrm) return;
 		const delta = clockRef.current.getDelta();
 		vrm.update(delta);
-
-		// auto blink
 		if (vrm.expressionManager) {
 			vrm.expressionManager.setValue("blink", blinkingRef.current ? 1 : 0);
 		}
@@ -133,10 +137,7 @@ interface VrmViewerProps {
 	expressionWeight: VrmExpressionWeight | null;
 }
 
-export function VrmViewer({
-	modelUrl = "/models/sample.vrm",
-	expressionWeight,
-}: VrmViewerProps) {
+export function VrmViewer({ modelUrl = "/models/sample.vrm", expressionWeight }: VrmViewerProps) {
 	const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 	const [errorMessage, setErrorMessage] = useState("");
 

@@ -71,7 +71,7 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: .bun, three/addons/loaders/GLTFLoader.js
-- ファイル数: 8
+- ファイル数: 9
 
 ### avatar
 

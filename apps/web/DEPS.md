@@ -17,6 +17,7 @@ graph LR
   routes___root.tsx["routes/__root.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"]
+  vite_env.d["vite-env.d"]
 ```
 
 ## ファイル別依存一覧
@@ -57,4 +58,8 @@ graph LR
 
 - モジュール内依存: components/avatar/VrmViewer.tsx, components/chat/ChatPanel.tsx
 - 他モジュール依存: shared
+- 外部依存: .bun
+
+### vite-env.d.ts
+
 - 外部依存: .bun

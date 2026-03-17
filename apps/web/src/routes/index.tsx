@@ -1,6 +1,7 @@
-import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import { createFileRoute } from "@tanstack/react-router";
+import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import { useCallback, useState } from "react";
+
 import { VrmViewer } from "../components/avatar/VrmViewer";
 import { ChatPanel } from "../components/chat/ChatPanel";
 

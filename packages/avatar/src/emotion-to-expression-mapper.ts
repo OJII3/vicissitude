@@ -1,4 +1,4 @@
-import type { Emotion, VrmExpression, VrmExpressionWeight } from "@vicissitude/shared/emotion";
+import type { Emotion, VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
 
 /**
@@ -28,39 +28,44 @@ function mapToExpression(emotion: Emotion): VrmExpressionWeight {
 
 	// 2. neutral
 	if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) {
-		// 原点に近いほど weight が高い
-		const distance = Math.sqrt(v * v + a * a + d * d);
-		const maxDistance = Math.sqrt(0.2 * 0.2 * 3); // neutral 領域の最大距離
-		return { expression: "neutral", weight: clampWeight(1 - distance / maxDistance) };
+		return mapNeutral(v, a, d);
 	}
 
-	// 3. happy: V > 0, A > 0
+	// 3-7: 主要ルール
+	const primary = mapPrimaryExpression(v, a, d);
+	if (primary) return primary;
+
+	// fallback: V=0 等で主要ルールに合致しない境界ケース
+	return mapFallback(a, d);
+}
+
+function mapNeutral(v: number, a: number, d: number): VrmExpressionWeight {
+	const distance = Math.sqrt(v * v + a * a + d * d);
+	// neutral 領域の最大距離
+	const maxDistance = Math.sqrt(0.2 * 0.2 * 3);
+	return { expression: "neutral", weight: clampWeight(1 - distance / maxDistance) };
+}
+
+function mapPrimaryExpression(v: number, a: number, d: number): VrmExpressionWeight | null {
 	if (v > 0 && a > 0) {
 		return { expression: "happy", weight: computeWeight(v, a, Math.abs(d)) };
 	}
-
-	// 4. relaxed: V > 0, A < 0
 	if (v > 0 && a < 0) {
 		return { expression: "relaxed", weight: computeWeight(v, Math.abs(a), Math.abs(d)) };
 	}
-
-	// 5. angry: V < 0, A > 0, D > 0
 	if (v < 0 && a > 0 && d > 0) {
 		return { expression: "angry", weight: computeWeight(Math.abs(v), a, d) };
 	}
-
-	// 6. fear: V < 0, A > 0, D < 0
 	if (v < 0 && a > 0 && d < 0) {
 		return { expression: "fear", weight: computeWeight(Math.abs(v), a, Math.abs(d)) };
 	}
-
-	// 7. sad: V < 0, A < 0
 	if (v < 0 && a < 0) {
 		return { expression: "sad", weight: computeWeight(Math.abs(v), Math.abs(a), Math.abs(d)) };
 	}
+	return null;
+}
 
-	// fallback: V=0 等で主要ルールに合致しない境界ケース
-	// A と D の符号で最も近い表情を選択する
+function mapFallback(a: number, d: number): VrmExpressionWeight {
 	if (a > 0 && d > 0) {
 		return { expression: "angry", weight: computeWeight(Math.abs(a), Math.abs(d)) };
 	}
@@ -68,15 +73,12 @@ function mapToExpression(emotion: Emotion): VrmExpressionWeight {
 		return { expression: "fear", weight: computeWeight(Math.abs(a), Math.abs(d)) };
 	}
 	if (a > 0) {
-		// D = 0, A > 0: surprised 条件(A>=0.7)を満たさないケース
 		return { expression: "happy", weight: computeWeight(Math.abs(a)) };
 	}
 	if (a < 0) {
 		return { expression: "sad", weight: computeWeight(Math.abs(a), Math.abs(d)) };
 	}
-
-	// A = 0: 覚醒度なし → neutral
-	return { expression: "neutral", weight: computeWeight(Math.abs(v), Math.abs(d)) };
+	return { expression: "neutral", weight: computeWeight(Math.abs(a), Math.abs(d)) };
 }
 
 /** 関連する軸の絶対値の平均を [0, 1] に clamp して weight を算出する */

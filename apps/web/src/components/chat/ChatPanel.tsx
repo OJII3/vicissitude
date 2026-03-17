@@ -1,6 +1,7 @@
 import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
+
 import { WsClient } from "../../lib/ws-client";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -25,16 +26,13 @@ function getWsUrl(): string {
 	return `${protocol}//${host}:${GATEWAY_PORT}/ws`;
 }
 
-// ─── Component ──────────────────────────────────────────────────
+// ─── WS Hook ────────────────────────────────────────────────────
 
-export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
+function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
-	const [input, setInput] = useState("");
 	const [connected, setConnected] = useState(false);
 	const clientRef = useRef<WsClient | null>(null);
-	const messagesEndRef = useRef<HTMLDivElement>(null);
 
-	// WsClient 接続
 	useEffect(() => {
 		const client = new WsClient(getWsUrl());
 		clientRef.current = client;
@@ -44,11 +42,7 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 				if (message.status === "complete") {
 					setMessages((prev) => [
 						...prev,
-						{
-							id: message.messageId,
-							role: "assistant",
-							text: message.text,
-						},
+						{ id: message.messageId, role: "assistant", text: message.text },
 					]);
 				}
 			} else if (message.type === "emotion_update") {
@@ -66,30 +60,62 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 		};
 	}, [onExpressionChange]);
 
-	// 自動スクロール
+	return { messages, setMessages, connected, clientRef };
+}
+
+// ─── Sub-components ─────────────────────────────────────────────
+
+function MessageBubble({ msg }: { msg: ChatMessage }) {
+	return (
+		<div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+			<div
+				className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+					msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"
+				}`}
+			>
+				{msg.text}
+			</div>
+		</div>
+	);
+}
+
+// ─── Message List ───────────────────────────────────────────────
+
+function MessageList({ messages }: { messages: ChatMessage[] }) {
+	const messagesEndRef = useRef<HTMLDivElement>(null);
+
 	useEffect(() => {
 		messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
 	}, [messages]);
 
+	return (
+		<div className="flex-1 overflow-y-auto p-4 space-y-3">
+			{messages.length === 0 && (
+				<p className="text-center text-sm text-gray-400">メッセージを送信してください</p>
+			)}
+			{messages.map((msg) => (
+				<MessageBubble key={msg.id} msg={msg} />
+			))}
+			<div ref={messagesEndRef} />
+		</div>
+	);
+}
+
+// ─── Chat Input ─────────────────────────────────────────────────
+
+interface ChatInputProps {
+	onSend: (text: string) => void;
+}
+
+function ChatInput({ onSend }: ChatInputProps) {
+	const [input, setInput] = useState("");
+
 	const handleSend = useCallback(() => {
 		const trimmed = input.trim();
-		if (!trimmed || !clientRef.current) return;
-
-		const userMessage: ChatMessage = {
-			id: crypto.randomUUID(),
-			role: "user",
-			text: trimmed,
-		};
-		setMessages((prev) => [...prev, userMessage]);
-
-		clientRef.current.send({
-			type: "chat_input",
-			text: trimmed,
-			timestamp: new Date().toISOString(),
-		});
-
+		if (!trimmed) return;
+		onSend(trimmed);
 		setInput("");
-	}, [input]);
+	}, [input, onSend]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
@@ -102,8 +128,49 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 	);
 
 	return (
+		<div className="border-t border-gray-200 p-3">
+			<div className="flex gap-2">
+				<input
+					type="text"
+					value={input}
+					onChange={(e) => setInput(e.target.value)}
+					onKeyDown={handleKeyDown}
+					placeholder="メッセージを入力..."
+					className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+				/>
+				<button
+					type="button"
+					onClick={handleSend}
+					disabled={!input.trim()}
+					className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+				>
+					送信
+				</button>
+			</div>
+		</div>
+	);
+}
+
+// ─── Component ──────────────────────────────────────────────────
+
+export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
+	const { messages, setMessages, connected, clientRef } = useWsConnection(onExpressionChange);
+
+	const handleSend = useCallback(
+		(text: string) => {
+			if (!clientRef.current) return;
+			setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", text }]);
+			clientRef.current.send({
+				type: "chat_input",
+				text,
+				timestamp: new Date().toISOString(),
+			});
+		},
+		[clientRef, setMessages],
+	);
+
+	return (
 		<div className="flex h-full flex-col">
-			{/* ヘッダー */}
 			<div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
 				<h2 className="text-lg font-semibold">Chat</h2>
 				<span
@@ -111,52 +178,8 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 					title={connected ? "接続中" : "未接続"}
 				/>
 			</div>
-
-			{/* メッセージリスト */}
-			<div className="flex-1 overflow-y-auto p-4 space-y-3">
-				{messages.length === 0 && (
-					<p className="text-center text-sm text-gray-400">メッセージを送信してください</p>
-				)}
-				{messages.map((msg) => (
-					<div
-						key={msg.id}
-						className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-					>
-						<div
-							className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-								msg.role === "user"
-									? "bg-blue-500 text-white"
-									: "bg-gray-200 text-gray-800"
-							}`}
-						>
-							{msg.text}
-						</div>
-					</div>
-				))}
-				<div ref={messagesEndRef} />
-			</div>
-
-			{/* 入力フォーム */}
-			<div className="border-t border-gray-200 p-3">
-				<div className="flex gap-2">
-					<input
-						type="text"
-						value={input}
-						onChange={(e) => setInput(e.target.value)}
-						onKeyDown={handleKeyDown}
-						placeholder="メッセージを入力..."
-						className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
-					/>
-					<button
-						type="button"
-						onClick={handleSend}
-						disabled={!input.trim()}
-						className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-					>
-						送信
-					</button>
-				</div>
-			</div>
+			<MessageList messages={messages} />
+			<ChatInput onSend={handleSend} />
 		</div>
 	);
 }
