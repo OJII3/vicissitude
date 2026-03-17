@@ -106,7 +106,11 @@ function registerCoreEvents(
 		onSpawnReady();
 		startViewer(b, viewerPort);
 	});
-	b.on("death", () => ctx.pushEvent("death", "Bot died", "high"));
+	b.on("death", () => {
+		ctx.pushEvent("death", "Bot died", "high");
+		b.respawn();
+		console.error("[minecraft] Auto-respawned after death");
+	});
 	b.on("health", () => handleHealthChange(b, ctx, tracking));
 	b.on("chat", (username: string, message: string) => {
 		if (username !== b.username) ctx.pushEvent("chat", `<${username}> ${message}`, "medium");
