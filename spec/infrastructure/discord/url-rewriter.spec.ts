@@ -33,4 +33,26 @@ describe("rewriteTwitterUrls", () => {
 	test("空文字列はそのまま返す", () => {
 		expect(rewriteTwitterUrls("")).toBe("");
 	});
+
+	test("mobile.x.com URL を fxtwitter.com に置換する", () => {
+		expect(rewriteTwitterUrls("https://mobile.x.com/user/status/789")).toBe(
+			"https://fxtwitter.com/user/status/789",
+		);
+	});
+
+	test("mobile.twitter.com URL を fxtwitter.com に置換する", () => {
+		expect(rewriteTwitterUrls("https://mobile.twitter.com/user/status/101")).toBe(
+			"https://fxtwitter.com/user/status/101",
+		);
+	});
+
+	test("コードブロック内の URL は置換しない", () => {
+		const input = "見て ```https://x.com/user/status/1``` これ";
+		expect(rewriteTwitterUrls(input)).toBe(input);
+	});
+
+	test("インラインコード内の URL は置換しない", () => {
+		const input = "`https://x.com/user/status/1`";
+		expect(rewriteTwitterUrls(input)).toBe(input);
+	});
 });

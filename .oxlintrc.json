@@ -297,6 +297,12 @@
 			"rules": {
 				"eslint/no-restricted-imports": "off"
 			}
+		},
+		{
+			"files": ["apps/web/src/**/*.{ts,tsx}"],
+			"rules": {
+				"eslint/no-restricted-imports": "off"
+			}
 		}
 	],
 	"ignorePatterns": ["node_modules", "data", ".direnv", "context"]
