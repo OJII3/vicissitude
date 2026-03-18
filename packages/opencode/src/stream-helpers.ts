@@ -62,7 +62,11 @@ function waitForNextStreamEvent(
 		}
 		void (async () => {
 			try {
-				const result = await stream.next();
+				const result = await withTimeout(
+					stream.next(),
+					STREAM_NEXT_TIMEOUT_MS,
+					"stream.next() timed out after 5 minutes",
+				);
 				finish(() =>
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
