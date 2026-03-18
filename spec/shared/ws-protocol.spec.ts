@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import type {
 	AnimationCommandMessage,
+	AudioDataMessage,
 	BodyAnimationPreset,
 	ChatInputMessage,
 	ChatResponseMessage,
@@ -13,6 +14,7 @@ import type {
 } from "@vicissitude/shared/ws-protocol";
 import {
 	AnimationCommandMessageSchema,
+	AudioDataMessageSchema,
 	BodyAnimationPresetSchema,
 	ChatInputMessageSchema,
 	ChatResponseMessageSchema,
@@ -64,6 +66,15 @@ const validError: ErrorMessage = {
 	type: "error",
 	code: "AGENT_TIMEOUT",
 	message: "Agent did not respond in time",
+	timestamp: NOW,
+};
+
+const validAudioData: AudioDataMessage = {
+	type: "audio_data",
+	messageId: "msg-001",
+	audio: "UklGRiQAAABXQVZFZm10IBAAAAABAAEA",
+	format: "wav",
+	durationSec: 1.5,
 	timestamp: NOW,
 };
 
@@ -170,6 +181,46 @@ describe("ChatResponseMessageSchema", () => {
 	});
 });
 
+// ─── AudioDataMessage ───────────────────────────────────────────
+
+describe("AudioDataMessageSchema", () => {
+	it("parses a valid audio data message", () => {
+		const result = AudioDataMessageSchema.parse(validAudioData);
+		expect(result.type).toBe("audio_data");
+		expect(result.messageId).toBe("msg-001");
+		expect(result.audio).toBe("UklGRiQAAABXQVZFZm10IBAAAAABAAEA");
+		expect(result.format).toBe("wav");
+		expect(result.durationSec).toBeCloseTo(1.5);
+	});
+
+	it("rejects empty messageId", () => {
+		expect(() => AudioDataMessageSchema.parse({ ...validAudioData, messageId: "" })).toThrow();
+	});
+
+	it("rejects empty audio data", () => {
+		expect(() => AudioDataMessageSchema.parse({ ...validAudioData, audio: "" })).toThrow();
+	});
+
+	it("rejects non-positive durationSec", () => {
+		expect(() => AudioDataMessageSchema.parse({ ...validAudioData, durationSec: 0 })).toThrow();
+		expect(() => AudioDataMessageSchema.parse({ ...validAudioData, durationSec: -1 })).toThrow();
+	});
+
+	it("rejects invalid format", () => {
+		expect(() => AudioDataMessageSchema.parse({ ...validAudioData, format: "mp3" })).toThrow();
+	});
+
+	it("rejects invalid timestamp format", () => {
+		expect(() =>
+			AudioDataMessageSchema.parse({ ...validAudioData, timestamp: "not-a-date" }),
+		).toThrow();
+	});
+
+	it("rejects missing fields", () => {
+		expect(() => AudioDataMessageSchema.parse({ type: "audio_data" })).toThrow();
+	});
+});
+
 // ─── AnimationCommandMessage ────────────────────────────────────
 
 describe("AnimationCommandMessageSchema", () => {
@@ -255,6 +306,11 @@ describe("ServerMessageSchema", () => {
 		expect(result.type).toBe("chat_message");
 	});
 
+	it("dispatches audio_data correctly", () => {
+		const result = ServerMessageSchema.parse(validAudioData);
+		expect(result.type).toBe("audio_data");
+	});
+
 	it("dispatches animation_command correctly", () => {
 		const result = ServerMessageSchema.parse(validAnimationCommand);
 		expect(result.type).toBe("animation_command");
@@ -294,6 +350,7 @@ describe("WsMessageSchema", () => {
 	it("accepts all valid server message types", () => {
 		expect(WsMessageSchema.parse(validEmotionUpdate).type).toBe("emotion_update");
 		expect(WsMessageSchema.parse(validChatMessageComplete).type).toBe("chat_message");
+		expect(WsMessageSchema.parse(validAudioData).type).toBe("audio_data");
 		expect(WsMessageSchema.parse(validAnimationCommand).type).toBe("animation_command");
 		expect(WsMessageSchema.parse(validError).type).toBe("error");
 	});
@@ -352,6 +409,7 @@ describe("Type contracts", () => {
 		const messages: ServerMessage[] = [
 			validEmotionUpdate,
 			validChatMessageComplete,
+			validAudioData,
 			validAnimationCommand,
 			validError,
 		];
@@ -362,6 +420,9 @@ describe("Type contracts", () => {
 					break;
 				case "chat_message":
 					expect(msg.status).toBeDefined();
+					break;
+				case "audio_data":
+					expect(msg.audio).toBeDefined();
 					break;
 				case "animation_command":
 					expect(msg.preset).toBeDefined();
@@ -386,10 +447,11 @@ describe("Type contracts", () => {
 		const messages: WsMessage[] = [
 			validEmotionUpdate,
 			validChatMessageComplete,
+			validAudioData,
 			validAnimationCommand,
 			validError,
 			validChatInput,
 		];
-		expect(messages).toHaveLength(5);
+		expect(messages).toHaveLength(6);
 	});
 });

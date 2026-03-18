@@ -12,7 +12,9 @@ graph LR
   functions --> constants
   functions --> types
   ports --> emotion
+  ports --> tts
   ports --> ws_protocol["ws-protocol"]
+  tts
   types --> emotion
   ws_protocol["ws-protocol"] --> emotion
 ```
@@ -37,7 +39,11 @@ graph LR
 
 ### ports.ts
 
-- モジュール内依存: emotion, ws-protocol
+- モジュール内依存: emotion, tts, ws-protocol
+
+### tts.ts
+
+- 外部依存: .bun
 
 ### types.ts
 
