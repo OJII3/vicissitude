@@ -39,4 +39,32 @@ describe("rewriteTwitterUrls — 境界条件", () => {
 	test("パスなしの URL も置換する", () => {
 		expect(rewriteTwitterUrls("https://x.com/")).toBe("https://fxtwitter.com/");
 	});
+
+	test("mobile.x.com を置換する", () => {
+		expect(rewriteTwitterUrls("https://mobile.x.com/user/status/1")).toBe(
+			"https://fxtwitter.com/user/status/1",
+		);
+	});
+
+	test("mobile.twitter.com を置換する", () => {
+		expect(rewriteTwitterUrls("https://mobile.twitter.com/user/status/1")).toBe(
+			"https://fxtwitter.com/user/status/1",
+		);
+	});
+
+	test("インラインコード内の URL は置換しない", () => {
+		const input = "見て `https://x.com/user/status/1` これ";
+		expect(rewriteTwitterUrls(input)).toBe(input);
+	});
+
+	test("コードブロック内の URL は置換しない", () => {
+		const input = "```\nhttps://x.com/user/status/1\n```";
+		expect(rewriteTwitterUrls(input)).toBe(input);
+	});
+
+	test("コードブロック外の URL は置換しつつコードブロック内は保持する", () => {
+		const input = "https://x.com/a/1 `https://x.com/b/2` https://x.com/c/3";
+		const expected = "https://fxtwitter.com/a/1 `https://x.com/b/2` https://fxtwitter.com/c/3";
+		expect(rewriteTwitterUrls(input)).toBe(expected);
+	});
 });

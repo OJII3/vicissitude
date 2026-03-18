@@ -1,5 +1,9 @@
-const TWITTER_URL_RE = /https?:\/\/(?:www\.)?(?:x\.com|twitter\.com)\//g;
+const CODE_OR_TWITTER_RE =
+	/(`{1,3})[\s\S]*?\1|https?:\/\/(?:(?:www|mobile)\.)?(?:x\.com|twitter\.com)\//g;
 
 export function rewriteTwitterUrls(content: string): string {
-	return content.replace(TWITTER_URL_RE, "https://fxtwitter.com/");
+	return content.replaceAll(CODE_OR_TWITTER_RE, (match) => {
+		if (match.startsWith("`")) return match;
+		return "https://fxtwitter.com/";
+	});
 }
