@@ -1,0 +1,10 @@
+{
+	"name": "@vicissitude/tts",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts"
+	},
+	"dependencies": {
+		"@vicissitude/shared": "workspace:*"
+	}
+}
