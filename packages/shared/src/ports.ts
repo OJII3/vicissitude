@@ -1,4 +1,5 @@
 import type { Emotion, VrmExpressionWeight } from "./emotion";
+import type { TtsResult, TtsStyleParams } from "./tts";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
 // ─── EmotionToExpressionMapper ─────────────────────────────────
@@ -54,6 +55,27 @@ export interface AvatarCommand {
 export interface AvatarController {
 	applyEmotion(emotion: Emotion): Promise<AvatarCommand>;
 	playAnimation(preset: BodyAnimationPreset, intensity: number): Promise<void>;
+}
+
+// ─── EmotionToTtsStyleMapper ────────────────────────────────────
+//
+// VAD → TTS スタイルパラメータのマッピングポート。
+// EmotionToExpressionMapper と並行して、感情を音声スタイルに変換する。
+
+/** VAD → TTS スタイルパラメータのマッピングポート */
+export interface EmotionToTtsStyleMapper {
+	mapToStyle(emotion: Emotion): TtsStyleParams;
+}
+
+// ─── TtsSynthesizer ─────────────────────────────────────────────
+//
+// TTS 音声合成のポート。TTS エンジン（Style-Bert-VITS2 等）を抽象化する。
+// GPU PC オフライン時は null を返す（graceful degradation）。
+
+/** TTS 音声合成ポート */
+export interface TtsSynthesizer {
+	synthesize(text: string, style: TtsStyleParams): Promise<TtsResult | null>;
+	isAvailable(): Promise<boolean>;
 }
 
 // ─── GatewayPort ────────────────────────────────────────────────

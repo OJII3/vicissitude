@@ -49,6 +49,20 @@ export interface AnimationCommandMessage {
 	readonly timestamp: string;
 }
 
+/** 音声データメッセージ（TTS 合成結果） */
+export interface AudioDataMessage {
+	readonly type: "audio_data";
+	/** 対応する chat_message の messageId */
+	readonly messageId: string;
+	/** base64 エンコードされた音声データ */
+	readonly audio: string;
+	/** 音声フォーマット */
+	readonly format: "wav";
+	/** 音声の長さ (秒) */
+	readonly durationSec: number;
+	readonly timestamp: string;
+}
+
 /** サーバーエラー通知 */
 export interface ErrorMessage {
 	readonly type: "error";
@@ -61,6 +75,7 @@ export interface ErrorMessage {
 export type ServerMessage =
 	| EmotionUpdateMessage
 	| ChatResponseMessage
+	| AudioDataMessage
 	| AnimationCommandMessage
 	| ErrorMessage;
 
@@ -108,6 +123,17 @@ export const ChatResponseMessageSchema = z
 	})
 	.readonly();
 
+export const AudioDataMessageSchema = z
+	.object({
+		type: z.literal("audio_data"),
+		messageId: z.string().min(1),
+		audio: z.string().min(1),
+		format: z.literal("wav"),
+		durationSec: z.number().positive(),
+		timestamp: isoTimestamp,
+	})
+	.readonly();
+
 export const AnimationCommandMessageSchema = z
 	.object({
 		type: z.literal("animation_command"),
@@ -129,6 +155,7 @@ export const ErrorMessageSchema = z
 export const ServerMessageSchema = z.discriminatedUnion("type", [
 	EmotionUpdateMessageSchema,
 	ChatResponseMessageSchema,
+	AudioDataMessageSchema,
 	AnimationCommandMessageSchema,
 	ErrorMessageSchema,
 ]);
@@ -146,6 +173,7 @@ export const ClientMessageSchema = z.discriminatedUnion("type", [ChatInputMessag
 export const WsMessageSchema = z.discriminatedUnion("type", [
 	EmotionUpdateMessageSchema,
 	ChatResponseMessageSchema,
+	AudioDataMessageSchema,
 	AnimationCommandMessageSchema,
 	ErrorMessageSchema,
 	ChatInputMessageSchema,
