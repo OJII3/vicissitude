@@ -14,6 +14,7 @@ function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMe
 	return {
 		platform: "discord",
 		channelId: "ch-1",
+		channelName: "general",
 		guildId: "guild-1",
 		authorId: "user-1",
 		authorName: "TestUser",

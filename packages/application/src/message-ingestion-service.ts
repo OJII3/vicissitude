@@ -40,6 +40,7 @@ export class MessageIngestionService {
 			attachments: message.attachments.length > 0 ? message.attachments : undefined,
 			metadata: {
 				channelId: message.channelId,
+				channelName: message.channelName,
 				guildId: message.guildId,
 				isBot: message.isBot,
 				isMentioned: message.isMentioned,
