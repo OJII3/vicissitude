@@ -45,6 +45,7 @@ graph LR
   scheduling --> shared
   shared
   store --> shared
+  tts --> shared
 ```
 
 ## モジュール別依存一覧
@@ -137,10 +138,16 @@ graph LR
 
 - 内部依存: なし
 - 外部依存: .bun, path
-- ファイル数: 15
+- ファイル数: 16
 
 ### store
 
 - 内部依存: shared
 - 外部依存: .bun, bun:sqlite, fs, path
 - ファイル数: 13
+
+### tts
+
+- 内部依存: shared
+- 外部依存: なし
+- ファイル数: 3

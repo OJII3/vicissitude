@@ -139,6 +139,12 @@
         "drizzle-orm": "^0.45.1",
       },
     },
+    "packages/tts": {
+      "name": "@vicissitude/tts",
+      "dependencies": {
+        "@vicissitude/shared": "workspace:*",
+      },
+    },
   },
   "packages": {
     "@azure/msal-common": ["@azure/msal-common@14.16.1", "", {}, "sha512-nyxsA6NA4SVKh5YyRpbSXiMr7oQbwark7JU9LMeg6tJYTSPyAGkdx61wPT4gyxZfxlSxMMEyAsWaubBlNyIa1w=="],
@@ -590,6 +596,8 @@
     "@vicissitude/shared": ["@vicissitude/shared@workspace:packages/shared"],
 
     "@vicissitude/store": ["@vicissitude/store@workspace:packages/store"],
+
+    "@vicissitude/tts": ["@vicissitude/tts@workspace:packages/tts"],
 
     "@vicissitude/web": ["@vicissitude/web@workspace:apps/web"],
 
