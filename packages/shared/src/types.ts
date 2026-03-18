@@ -85,6 +85,7 @@ export interface BufferedEvent {
 export interface IncomingMessage {
 	platform: string;
 	channelId: string;
+	channelName?: string;
 	guildId?: string;
 	authorId: string;
 	authorName: string;
