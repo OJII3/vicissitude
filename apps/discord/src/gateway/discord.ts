@@ -147,7 +147,7 @@ export class DiscordGateway {
 		return {
 			platform: "discord",
 			channelId: message.channel.id,
-			channelName: ("name" in message.channel ? message.channel.name : undefined) ?? undefined,
+			channelName: "name" in message.channel ? (message.channel.name ?? undefined) : undefined,
 			guildId: message.guildId ?? undefined,
 			authorId: message.author.id,
 			authorName:

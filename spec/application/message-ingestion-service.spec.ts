@@ -63,6 +63,7 @@ describe("MessageIngestionService", () => {
 		expect(buffered).toHaveLength(1);
 		expect(buffered[0]?.agentId).toBe("discord:guild-1");
 		expect(buffered[0]?.event.attachments?.[0]?.filename).toBe("image.png");
+		expect(buffered[0]?.event.metadata?.channelName).toBe("general");
 	});
 
 	test("recorder があれば会話記録も行う", async () => {
