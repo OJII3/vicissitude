@@ -50,8 +50,9 @@ OpenCode が使用する MCP サーバーを提供する。
    - `send_message` / `reply` はオプションで画像ファイルパス（`file_path`）を受け取り、添付ファイルとして送信可能
 2. **code-exec**: コード実行
    - `execute_code` (JavaScript, TypeScript, Python, Shell)
-3. **schedule**: Heartbeat スケジュール管理
-   - `get_heartbeat_config`, `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`, `set_base_interval`
+3. **schedule**: Heartbeat スケジュール管理（ギルドスコープ対応）
+   - `get_heartbeat_config`, `list_reminders(guild_id)`, `add_reminder(guild_id, ..., global?)`, `update_reminder(guild_id, ...)`, `remove_reminder(guild_id, ...)`, `set_base_interval`
+   - `list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder` は `guild_id` 必須。現在のギルド＋グローバルリマインダーのみ操作可能。`add_reminder` の `global` オプションでギルド横断リマインダーを作成可能。
 4. **memory**: メモリ・人格の自己更新
    - `read_memory`, `update_memory`: MEMORY.md の読み書き
    - `read_soul`: SOUL.md の読み取り

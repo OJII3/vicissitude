@@ -120,7 +120,7 @@ export class ContextBuilder implements ContextBuilderPort {
 	private appendGuildContext(guildId: string | undefined, sections: string[]): void {
 		if (guildId) {
 			sections.push(
-				`<guild-context>\ncurrent_guild_id: ${guildId}\nメモリツール使用時は guild_id: "${guildId}" を必ず指定してください。\n</guild-context>`,
+				`<guild-context>\ncurrent_guild_id: ${guildId}\nメモリツール・スケジュールツール使用時は guild_id: "${guildId}" を必ず指定してください。\n</guild-context>`,
 			);
 		}
 	}

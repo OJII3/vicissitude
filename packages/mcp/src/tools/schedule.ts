@@ -7,6 +7,20 @@ import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
+const GUILD_ID_REGEX = /^\d+$/;
+const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
+
+export function filterRemindersByGuild(
+	reminders: HeartbeatReminder[],
+	guildId: string,
+): HeartbeatReminder[] {
+	return reminders.filter((r) => checkGuildScope(r, guildId));
+}
+
+export function checkGuildScope(reminder: HeartbeatReminder, guildId: string): boolean {
+	return reminder.guildId === guildId || reminder.guildId === undefined;
+}
+
 const DATA_DIR = process.env.DATA_DIR;
 const CONFIG_PATH = DATA_DIR
 	? resolve(DATA_DIR, "heartbeat-config.json")
@@ -33,32 +47,55 @@ export function registerScheduleTools(server: McpServer): void {
 		return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
 	});
 
-	server.tool("list_reminders", "リマインダー一覧を表示する", {}, () => {
-		const config = loadConfig();
-		const lines = config.reminders.map((r) => {
-			const schedule =
-				r.schedule.type === "interval"
-					? `${String(r.schedule.minutes)}分ごと`
-					: `毎日 ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
-			const status = r.enabled ? "有効" : "無効";
-			const last = r.lastExecutedAt ?? "未実行";
-			return `- [${r.id}] ${r.description} (${schedule}, ${status}, 最後: ${last})`;
-		});
-		return { content: [{ type: "text", text: lines.join("\n") || "リマインダーなし" }] };
-	});
+	server.tool(
+		"list_reminders",
+		"リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
+		{ guild_id: guildIdSchema },
+		({ guild_id }) => {
+			const config = loadConfig();
+			const visible = filterRemindersByGuild(config.reminders, guild_id);
+			const lines = visible.map((r) => {
+				const schedule =
+					r.schedule.type === "interval"
+						? `${String(r.schedule.minutes)}分ごと`
+						: `毎日 ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
+				const status = r.enabled ? "有効" : "無効";
+				const last = r.lastExecutedAt ?? "未実行";
+				const scope = r.guildId ? `guild:${r.guildId}` : "global";
+				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, 最後: ${last})`;
+			});
+			return { content: [{ type: "text", text: lines.join("\n") || "リマインダーなし" }] };
+		},
+	);
 
 	server.tool(
 		"add_reminder",
-		"新しいリマインダーを追加する",
+		"新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
 		{
+			guild_id: guildIdSchema,
 			id: z.string().describe("一意の識別子"),
 			description: z.string().describe("リマインダーの説明"),
 			schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
 			interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
 			daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
 			daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+			global: z
+				.boolean()
+				.optional()
+				.describe(
+					"true にするとギルドに紐づかないグローバルリマインダーになる（デフォルト: false）",
+				),
 		},
-		async ({ id, description, schedule_type, interval_minutes, daily_hour, daily_minute }) => {
+		async ({
+			guild_id,
+			id,
+			description,
+			schedule_type,
+			interval_minutes,
+			daily_hour,
+			daily_minute,
+			global: isGlobal,
+		}) => {
 			const config = loadConfig();
 
 			if (config.reminders.some((r) => r.id === id)) {
@@ -66,6 +103,8 @@ export function registerScheduleTools(server: McpServer): void {
 					content: [{ type: "text", text: `エラー: ID "${id}" は既に存在します` }],
 				};
 			}
+
+			const guildId = isGlobal ? undefined : guild_id;
 
 			let reminder: HeartbeatReminder;
 			if (schedule_type === "interval") {
@@ -80,6 +119,7 @@ export function registerScheduleTools(server: McpServer): void {
 					schedule: { type: "interval", minutes: interval_minutes },
 					lastExecutedAt: null,
 					enabled: true,
+					guildId,
 				};
 			} else {
 				reminder = {
@@ -92,6 +132,7 @@ export function registerScheduleTools(server: McpServer): void {
 					},
 					lastExecutedAt: null,
 					enabled: true,
+					guildId,
 				};
 			}
 
@@ -105,8 +146,9 @@ export function registerScheduleTools(server: McpServer): void {
 
 	server.tool(
 		"update_reminder",
-		"リマインダーを更新する",
+		"リマインダーを更新する（自ギルドまたはグローバルのみ）",
 		{
+			guild_id: guildIdSchema,
 			id: z.string().describe("更新するリマインダーの ID"),
 			description: z.string().optional().describe("新しい説明"),
 			enabled: z.boolean().optional().describe("有効/無効"),
@@ -116,6 +158,7 @@ export function registerScheduleTools(server: McpServer): void {
 			daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
 		},
 		async ({
+			guild_id,
 			id,
 			description,
 			enabled,
@@ -130,6 +173,17 @@ export function registerScheduleTools(server: McpServer): void {
 			if (!reminder) {
 				return {
 					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
+				};
+			}
+
+			if (!checkGuildScope(reminder, guild_id)) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `エラー: リマインダー "${id}" は他のギルドに属しているため更新できません`,
+						},
+					],
 				};
 			}
 
@@ -155,19 +209,33 @@ export function registerScheduleTools(server: McpServer): void {
 
 	server.tool(
 		"remove_reminder",
-		"リマインダーを削除する",
-		{ id: z.string().describe("削除するリマインダーの ID") },
-		async ({ id }) => {
+		"リマインダーを削除する（自ギルドまたはグローバルのみ）",
+		{
+			guild_id: guildIdSchema,
+			id: z.string().describe("削除するリマインダーの ID"),
+		},
+		async ({ guild_id, id }) => {
 			const config = loadConfig();
-			const index = config.reminders.findIndex((r) => r.id === id);
+			const reminder = config.reminders.find((r) => r.id === id);
 
-			if (index === -1) {
+			if (!reminder) {
 				return {
 					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
 				};
 			}
 
-			config.reminders.splice(index, 1);
+			if (!checkGuildScope(reminder, guild_id)) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `エラー: リマインダー "${id}" は他のギルドに属しているため削除できません`,
+						},
+					],
+				};
+			}
+
+			config.reminders.splice(config.reminders.indexOf(reminder), 1);
 			await saveConfig(config);
 			return {
 				content: [{ type: "text", text: `リマインダー "${id}" を削除しました` }],
