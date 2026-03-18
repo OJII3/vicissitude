@@ -20,10 +20,10 @@
 ### schedule サーバー
 
 - `get_heartbeat_config` - 現在の heartbeat 設定を表示
-- `list_reminders` - リマインダー一覧
-- `add_reminder(id, description, schedule_type, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー追加
-- `update_reminder(id, description?, enabled?, schedule_type?, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー更新
-- `remove_reminder(id)` - リマインダー削除
+- `list_reminders(guild_id)` - リマインダー一覧（現在のギルド＋グローバルのみ表示）
+- `add_reminder(guild_id, id, description, schedule_type, interval_minutes?, daily_hour?, daily_minute?, global?)` - リマインダー追加（デフォルトで現在のギルドに紐づく。`global: true` でギルド横断リマインダー）
+- `update_reminder(guild_id, id, description?, enabled?, schedule_type?, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー更新（自ギルドまたはグローバルのみ）
+- `remove_reminder(guild_id, id)` - リマインダー削除（自ギルドまたはグローバルのみ）
 - `set_base_interval(minutes)` - ベースチェック間隔を変更
 
 ### memory サーバー
