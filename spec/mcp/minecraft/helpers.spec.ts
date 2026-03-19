@@ -128,4 +128,10 @@ describe("formatActionState", () => {
 				progress: "3/20 攻撃 (武器: iron_sword)",
 			}),
 		).toBe("zombie を攻撃中 (3/20 攻撃 (武器: iron_sword))"));
+	test("smelting", () =>
+		expect(formatActionState({ type: "smelting", target: "raw_iron" })).toBe("raw_iron を精錬中"));
+	test("smelting with progress", () =>
+		expect(formatActionState({ type: "smelting", target: "raw_iron", progress: "精錬中..." })).toBe(
+			"raw_iron を精錬中 (精錬中...)",
+		));
 });

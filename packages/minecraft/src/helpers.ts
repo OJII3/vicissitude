@@ -7,6 +7,7 @@ export interface ActionState {
 		| "moving"
 		| "collecting"
 		| "crafting"
+		| "smelting"
 		| "sleeping"
 		| "fleeing"
 		| "sheltering"
@@ -144,6 +145,9 @@ export function formatActionState(action: ActionState): string {
 		case "crafting":
 			base = `${action.target ?? "?"} をクラフト中`;
 			break;
+		case "smelting":
+			base = `${action.target ?? "?"} を精錬中`;
+			break;
 		case "sleeping":
 			base = `${action.target ?? "?"} で就寝中`;
 			break;
@@ -169,7 +173,10 @@ export function classifyFailure(error?: string): string {
 		normalized.includes("recipe") ||
 		normalized.includes("レシピ") ||
 		normalized.includes("食料") ||
-		normalized.includes("作業台")
+		normalized.includes("作業台") ||
+		normalized.includes("かまど") ||
+		normalized.includes("燃料") ||
+		normalized.includes("furnace")
 	) {
 		return "resource shortage";
 	}

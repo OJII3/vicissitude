@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { JobManager } from "../job-manager.ts";
 import { registerAttackEntity } from "./combat.ts";
 import { registerSendChat, registerEquipItem, registerPlaceBlock } from "./interaction.ts";
-import { registerCraftItem, registerSleepInBed } from "./jobs.ts";
+import { registerCraftItem, registerSleepInBed, registerSmeltItem } from "./jobs.ts";
 import {
 	registerFollowPlayer,
 	registerGoTo,
@@ -26,6 +26,7 @@ export function registerActionTools(
 	registerEquipItem(server, getBot);
 	registerPlaceBlock(server, getBot);
 	registerCraftItem(server, getBot, jobManager);
+	registerSmeltItem(server, getBot, jobManager);
 	registerSleepInBed(server, getBot, jobManager);
 	registerSurvivalTools(server, getBot, jobManager);
 	registerAttackEntity(server, getBot, jobManager);
