@@ -1,7 +1,15 @@
 import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
 import { createEmotion } from "@vicissitude/shared/emotion";
-import type { ClientMessageHandler, ConnectionId, GatewayPort } from "@vicissitude/shared/ports";
 import type {
+	ClientMessageHandler,
+	ConnectionId,
+	EmotionToTtsStyleMapper,
+	GatewayPort,
+	TtsSynthesizer,
+} from "@vicissitude/shared/ports";
+import type { TtsStyleParams } from "@vicissitude/shared/tts";
+import type {
+	AudioDataMessage,
 	ChatResponseMessage,
 	EmotionUpdateMessage,
 	ErrorMessage,
@@ -19,9 +27,21 @@ function randomVad(): number {
 	return Math.random() * 2 - 1;
 }
 
+export interface WsConnectionManagerDeps {
+	ttsSynthesizer?: TtsSynthesizer;
+	ttsStyleMapper?: EmotionToTtsStyleMapper;
+}
+
 export class WsConnectionManager implements GatewayPort {
 	private readonly connections = new Map<ConnectionId, WebSocketConnection>();
 	private readonly handlers: ClientMessageHandler[] = [];
+	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
+	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
+
+	constructor(deps?: WsConnectionManagerDeps) {
+		this.ttsSynthesizer = deps?.ttsSynthesizer;
+		this.ttsStyleMapper = deps?.ttsStyleMapper;
+	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
 		this.connections.set(connectionId, connection);
@@ -62,6 +82,18 @@ export class WsConnectionManager implements GatewayPort {
 					timestamp: now,
 				};
 				this.broadcast(emotionUpdate);
+
+				// TTS 合成（非同期・fire-and-forget）
+				if (this.ttsSynthesizer && this.ttsStyleMapper) {
+					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
+					void this.synthesizeAndSend({
+						connectionId,
+						messageId: chatResponse.messageId,
+						text: message.text,
+						style: ttsStyle,
+						synthesizer: this.ttsSynthesizer,
+					});
+				}
 			}
 		} catch {
 			const errorMsg: ErrorMessage = {
@@ -93,5 +125,30 @@ export class WsConnectionManager implements GatewayPort {
 
 	getConnectionCount(): number {
 		return this.connections.size;
+	}
+
+	private async synthesizeAndSend(params: {
+		connectionId: ConnectionId;
+		messageId: string;
+		text: string;
+		style: TtsStyleParams;
+		synthesizer: TtsSynthesizer;
+	}): Promise<void> {
+		try {
+			const result = await params.synthesizer.synthesize(params.text, params.style);
+			if (!result) return;
+
+			const audioDataMessage: AudioDataMessage = {
+				type: "audio_data",
+				messageId: params.messageId,
+				audio: Buffer.from(result.audio).toString("base64"),
+				format: "wav",
+				durationSec: result.durationSec,
+				timestamp: new Date().toISOString(),
+			};
+			this.send(params.connectionId, audioDataMessage);
+		} catch {
+			// TTS 失敗は静かに無視（graceful degradation）
+		}
 	}
 }

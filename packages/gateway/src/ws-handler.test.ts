@@ -1,5 +1,7 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
+import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
+import { createTtsStyleParams } from "@vicissitude/shared/tts";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
 import { WsConnectionManager, type WebSocketConnection } from "./ws-handler.ts";
@@ -169,6 +171,183 @@ describe("WsConnectionManager (unit)", () => {
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
 
 			expect(secondCalled).toBe(false);
+		});
+	});
+
+	// ─── TTS 統合 ────────────────────────────────────────────────
+
+	describe("TTS 統合", () => {
+		const dummyAudio = new Uint8Array([0x52, 0x49, 0x46, 0x46]);
+
+		const mockStyleMapper: EmotionToTtsStyleMapper = {
+			mapToStyle: () => createTtsStyleParams("happy", 0.8, 1.0),
+		};
+
+		const mockSynthesizer: TtsSynthesizer = {
+			synthesize: () =>
+				Promise.resolve({
+					audio: dummyAudio,
+					format: "wav" as const,
+					durationSec: 2.0,
+				}),
+			isAvailable: () => Promise.resolve(true),
+		};
+
+		it("deps 省略時、既存動作が変わらない（ChatResponseMessage + EmotionUpdateMessage のみ）", () => {
+			const manager = new WsConnectionManager();
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			// chat_message + emotion_update の2つだけ
+			expect(conn.sent).toHaveLength(2);
+			const msg0 = JSON.parse(conn.sent[0] as string);
+			const msg1 = JSON.parse(conn.sent[1] as string);
+			expect(msg0.type).toBe("chat_message");
+			expect(msg1.type).toBe("emotion_update");
+		});
+
+		it("TTS 合成成功時、AudioDataMessage が送信される", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: mockSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			// fire-and-forget の非同期処理を待つ
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const audioMsg = conn.sent.find((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "audio_data";
+			});
+			expect(audioMsg).toBeDefined();
+
+			const parsed = JSON.parse(audioMsg as string);
+			expect(parsed.type).toBe("audio_data");
+			expect(parsed.format).toBe("wav");
+			expect(parsed.durationSec).toBe(2.0);
+		});
+
+		it("AudioDataMessage の audio フィールドが base64 エンコードされている", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: mockSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const audioMsg = conn.sent.find((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "audio_data";
+			});
+			expect(audioMsg).toBeDefined();
+
+			const parsed = JSON.parse(audioMsg as string);
+			const decoded = Buffer.from(parsed.audio, "base64");
+			expect(new Uint8Array(decoded)).toEqual(dummyAudio);
+		});
+
+		it("TTS 合成が null を返した場合、AudioDataMessage は送信されない", async () => {
+			const nullSynthesizer: TtsSynthesizer = {
+				synthesize: () => Promise.resolve(null),
+				isAvailable: () => Promise.resolve(true),
+			};
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: nullSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const hasAudio = conn.sent.some((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "audio_data";
+			});
+			expect(hasAudio).toBe(false);
+		});
+
+		it("TTS 合成が reject した場合、エラーは握りつぶされテキスト応答は正常に返る", async () => {
+			const failingSynthesizer: TtsSynthesizer = {
+				synthesize: () => Promise.reject(new Error("TTS service unavailable")),
+				isAvailable: () => Promise.resolve(false),
+			};
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: failingSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			// テキスト応答は即座に返る
+			const chatMsg = JSON.parse(conn.sent[0] as string);
+			expect(chatMsg.type).toBe("chat_message");
+			expect(chatMsg.text).toBe("hello");
+
+			// 非同期処理を待っても AudioDataMessage は送信されない
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const hasAudio = conn.sent.some((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "audio_data";
+			});
+			expect(hasAudio).toBe(false);
+		});
+
+		it("ttsStyleMapper のみ設定して ttsSynthesizer がない場合、TTS は実行されない", async () => {
+			const manager = new WsConnectionManager({
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			// chat_message + emotion_update のみ
+			expect(conn.sent).toHaveLength(2);
+		});
+
+		it("ttsSynthesizer のみ設定して ttsStyleMapper がない場合、TTS は実行されない", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: mockSynthesizer,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			// chat_message + emotion_update のみ
+			expect(conn.sent).toHaveLength(2);
 		});
 	});
 });
