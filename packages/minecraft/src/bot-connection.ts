@@ -238,7 +238,7 @@ export function createBotConnection(
 	config: BotConfig,
 	ctx: BotContext,
 	logger: Logger,
-): { start(): void; shutdown(): void } {
+): { start(): void; shutdown(): void; triggerReconnect(): void } {
 	const reconnect: ReconnectState = { delay: 1000, shuttingDown: false, timer: null };
 	const tracking: TrackingState = {
 		lastHealth: -1,
@@ -264,6 +264,11 @@ export function createBotConnection(
 				cleanupBot(currentBot);
 				ctx.setBot(null);
 			}
+		},
+		triggerReconnect() {
+			if (reconnect.shuttingDown) return;
+			reconnect.delay = 0;
+			scheduleReconnect(reconnect, ctx, logger, botFactory);
 		},
 	};
 }
