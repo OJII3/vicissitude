@@ -19,6 +19,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
+		"@vicissitude/observability": "workspace:*",
 		"canvas": "^3.2.1",
 		"mineflayer": "^4.35.0",
 		"mineflayer-pathfinder": "^2.4.5",

@@ -7,6 +7,8 @@ import { createBotContext } from "@vicissitude/minecraft/bot-context";
 import { JobManager } from "@vicissitude/minecraft/job-manager";
 import { registerMinecraftTools } from "@vicissitude/minecraft/mcp-tools";
 
+import { stubLogger } from "./stub-logger.ts";
+
 describe("BotContext — bot null 時の安全性", () => {
 	test("getBot() === null の状態で pushEvent が正常動作", () => {
 		const ctx = createBotContext();
@@ -42,7 +44,7 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 
 	function createTestServer(): McpServer {
 		const server = new McpServer({ name: "test-minecraft", version: "0.1.0" });
-		registerMinecraftTools(server, ctx, jobManager, 3007);
+		registerMinecraftTools(server, ctx, jobManager, 3007, { logger: stubLogger });
 		return server;
 	}
 

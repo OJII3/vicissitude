@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { METRIC } from "@vicissitude/shared/constants";
-import type { MetricsCollector } from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { z } from "zod";
 
 import { registerActionTools } from "./actions/index.ts";
@@ -161,17 +161,22 @@ function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): Mc
 	});
 }
 
+interface MinecraftToolsOptions {
+	metrics?: MetricsCollector;
+	logger: Logger;
+}
+
 export function registerMinecraftTools(
 	server: McpServer,
 	ctx: BotContext,
 	jobManager: JobManager,
 	viewerPort: number,
-	metrics?: MetricsCollector,
+	options: MinecraftToolsOptions,
 ): void {
-	const s = metrics ? wrapServerWithMetrics(server, metrics) : server;
+	const s = options.metrics ? wrapServerWithMetrics(server, options.metrics) : server;
 	registerObserveStateTool(s, ctx, jobManager);
 	registerRecentEventsTool(s, ctx);
-	registerActionTools(s, () => ctx.getBot(), jobManager);
+	registerActionTools(s, () => ctx.getBot(), jobManager, options.logger);
 	registerJobStatusTool(s, jobManager);
 	registerViewerUrlTool(s, ctx, viewerPort);
 }

@@ -35,6 +35,7 @@ graph LR
   mcp --> shared
   mcp --> store
   minecraft --> mcp
+  minecraft --> observability
   minecraft --> shared
   minecraft --> store
   observability --> shared
@@ -106,7 +107,7 @@ graph LR
 
 ### minecraft
 
-- 内部依存: mcp, shared, store
+- 内部依存: mcp, observability, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 - ファイル数: 22
 
