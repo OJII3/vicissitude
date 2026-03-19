@@ -4,12 +4,11 @@ import { tmpdir } from "os";
 import { join } from "path";
 
 import { createAutoNotifier } from "@vicissitude/minecraft/auto-notifier";
-import type { Logger } from "@vicissitude/shared/types";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { getMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { consumeEvents } from "@vicissitude/store/queries";
 
-const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+import { stubLogger } from "./stub-logger.ts";
 
 function setupDb() {
 	const dir = mkdtempSync(join(tmpdir(), "vicissitude-auto-notifier-"));
@@ -30,7 +29,7 @@ describe("createAutoNotifier", () => {
 		({ db, dir } = setupDb());
 		// guildId を mc_session_lock に登録して、対象の agentId を特定可能にする
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("death", "Bot died", "high");
 
@@ -44,7 +43,7 @@ describe("createAutoNotifier", () => {
 	test("kicked イベントで event_buffer に report が挿入される", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("kicked", "Kicked: timeout", "high");
 
@@ -55,7 +54,7 @@ describe("createAutoNotifier", () => {
 	test("disconnect イベントで接続状態が false に設定される", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("disconnect", "Disconnected: server closed", "high");
 
@@ -66,7 +65,7 @@ describe("createAutoNotifier", () => {
 	test("spawn イベントで接続状態が true に設定される", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("spawn", "Spawned at (0, 64, 0)", "high");
 
@@ -77,7 +76,7 @@ describe("createAutoNotifier", () => {
 	test("対象外のイベント種別は通知しない", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("chat", "<player> hello", "medium");
 		notifier("health", "Health: 20, Food: 10", "low");
@@ -89,7 +88,7 @@ describe("createAutoNotifier", () => {
 	test("同一種別のクールダウン期間中は通知をスキップする", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("death", "Bot died (1st)", "high");
 		notifier("death", "Bot died (2nd)", "high");
@@ -103,7 +102,7 @@ describe("createAutoNotifier", () => {
 	test("異なる種別は独立してクールダウンする", () => {
 		({ db, dir } = setupDb());
 		tryAcquireSessionLock(db, "guild-1");
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("death", "Bot died", "high");
 		notifier("kicked", "Kicked: reason", "high");
@@ -114,7 +113,7 @@ describe("createAutoNotifier", () => {
 
 	test("session lock がない場合は event_buffer に挿入されない", () => {
 		({ db, dir } = setupDb());
-		const notifier = createAutoNotifier(db, undefined, stubLogger);
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
 
 		notifier("death", "Bot died", "high");
 
@@ -137,7 +136,7 @@ describe("createAutoNotifier", () => {
 			decrementGauge: () => {},
 			observeHistogram: () => {},
 		};
-		const notifier = createAutoNotifier(db, metrics, stubLogger);
+		const notifier = createAutoNotifier(db, { metrics, logger: stubLogger });
 
 		notifier("death", "Bot died", "high");
 

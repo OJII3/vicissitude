@@ -62,7 +62,9 @@ mcMetricsServer.start();
 
 // ── Bridge DB (auto-notification) ─────────────────────────────────────────────
 const bridgeDb = DATA_DIR ? createDb(DATA_DIR) : undefined;
-const autoNotifier = bridgeDb ? createAutoNotifier(bridgeDb, mcCollector, logger) : undefined;
+const autoNotifier = bridgeDb
+	? createAutoNotifier(bridgeDb, { metrics: mcCollector, logger })
+	: undefined;
 if (!bridgeDb) {
 	logger.warn("[minecraft] DATA_DIR not set; Discord auto-notifications disabled");
 }

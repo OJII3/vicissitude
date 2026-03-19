@@ -20,12 +20,14 @@ export interface AutoNotifier {
 	(kind: string, description: string, importance: Importance): void;
 }
 
+interface AutoNotifierOptions {
+	metrics?: MetricsCollector;
+	logger: Logger;
+}
+
 /** BotContext.pushEvent から呼ばれる自動通知コールバックを生成する */
-export function createAutoNotifier(
-	db: StoreDb,
-	metrics: MetricsCollector | undefined,
-	logger: Logger,
-): AutoNotifier {
+export function createAutoNotifier(db: StoreDb, options: AutoNotifierOptions): AutoNotifier {
+	const { metrics, logger } = options;
 	const lastNotified = new Map<string, number>();
 
 	return (kind: string, description: string, _importance: Importance) => {

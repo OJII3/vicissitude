@@ -3,7 +3,7 @@ import { labelsToKey } from "@vicissitude/shared/functions";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 // ─── Lightweight Prometheus Collector for MC MCP process ────────
-// observability/ への依存を避けるため、MC プロセス専用の最小限実装
+// PrometheusCollector の再利用ではなく、MC プロセス専用の最小限実装
 
 export class McMetricsCollector implements MetricsCollector {
 	private counters = new Map<string, { help: string; values: Map<string, number> }>();

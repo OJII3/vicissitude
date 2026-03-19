@@ -3,7 +3,6 @@ import { EventEmitter } from "events";
 
 import type { BotContext, BotEvent } from "@vicissitude/minecraft/bot-context";
 import type { ActionState } from "@vicissitude/minecraft/helpers";
-import type { Logger } from "@vicissitude/shared/types";
 
 // ---------------------------------------------------------------------------
 // mineflayer モジュールモック
@@ -63,7 +62,7 @@ mock.module("prismarine-viewer", () => ({
 // モックが確定してから動的 import する
 const { createBotConnection } = await import("@vicissitude/minecraft/bot-connection");
 
-const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+const { stubLogger } = await import("./stub-logger.ts");
 
 // ---------------------------------------------------------------------------
 // BotContext スタブ
