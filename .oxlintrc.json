@@ -100,7 +100,7 @@
 			}
 		},
 		{
-			"files": ["packages/shared/src/*.ts"],
+			"files": ["packages/shared/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -116,7 +116,7 @@
 			}
 		},
 		{
-			"files": ["packages/ollama/src/*.ts"],
+			"files": ["packages/ollama/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -132,7 +132,7 @@
 			}
 		},
 		{
-			"files": ["packages/opencode/src/*.ts"],
+			"files": ["packages/opencode/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -148,7 +148,7 @@
 			}
 		},
 		{
-			"files": ["packages/observability/src/*.ts"],
+			"files": ["packages/observability/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -164,7 +164,7 @@
 			}
 		},
 		{
-			"files": ["packages/store/src/*.ts"],
+			"files": ["packages/store/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -180,7 +180,7 @@
 			}
 		},
 		{
-			"files": ["packages/application/src/*.ts"],
+			"files": ["packages/application/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -244,7 +244,7 @@
 			}
 		},
 		{
-			"files": ["packages/scheduling/src/*.ts"],
+			"files": ["packages/scheduling/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
