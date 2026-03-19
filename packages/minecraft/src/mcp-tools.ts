@@ -15,11 +15,13 @@ import {
 } from "./bot-queries.ts";
 import type { JobManager } from "./job-manager.ts";
 import { formatEvents, formatJobStatus, summarizeState } from "./state-summary.ts";
+import { attemptStuckRecovery, respawnWithRetry } from "./stuck-recovery.ts";
 
 function registerObserveStateTool(
 	server: McpServer,
 	ctx: BotContext,
 	jobManager: JobManager,
+	stuckRecovery?: MinecraftToolsOptions["stuckRecovery"],
 ): void {
 	server.registerTool(
 		"observe_state",
@@ -30,14 +32,16 @@ function registerObserveStateTool(
 				return { content: [{ type: "text", text: "ボット未接続" }] };
 			}
 
-			// 死亡画面でスタックしている場合、リスポーンを試みる
+			// 死亡画面でスタックしている場合、リスポーンリトライを試みる
 			if (bot.health <= 0) {
-				bot.respawn();
+				const ok = await respawnWithRetry(ctx);
 				return {
 					content: [
 						{
 							type: "text",
-							text: "ボットは死亡状態です。リスポーンを試みました。少し待ってから再度確認してください。",
+							text: ok
+								? "ボットは死亡状態でしたが、リスポーンに成功しました。再度確認してください。"
+								: "ボットは死亡状態です。リスポーンに失敗しました。",
 						},
 					],
 				};
@@ -48,6 +52,21 @@ function registerObserveStateTool(
 			const roundedPos = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) };
 			jobManager.recordPositionSnapshot(roundedPos);
 			const stuckResult = jobManager.isStuck();
+
+			let stuckRecoveryNote: string | undefined;
+			if (stuckResult.stuck && stuckRecovery) {
+				const recovered = await attemptStuckRecovery({
+					ctx,
+					reconnect: stuckRecovery.reconnect,
+					onRecoverySuccess: stuckRecovery.onRecoverySuccess,
+					requestSessionRotation: stuckRecovery.requestSessionRotation,
+					cooldownMs: stuckRecovery.cooldownMs,
+				});
+				stuckRecoveryNote = recovered
+					? "スタック復帰: リスポーン/移動に成功"
+					: "スタック復帰: 再接続をトリガー";
+			}
+
 			const summary = summarizeState({
 				position: roundedPos,
 				health: bot.health,
@@ -59,7 +78,9 @@ function registerObserveStateTool(
 				inventory: getInventorySummary(bot),
 				equipment: getEquipment(bot),
 				recentEvents: ctx.getEvents().slice(-10),
-				stuckWarning: stuckResult.stuck ? stuckResult.reason : undefined,
+				stuckWarning: stuckResult.stuck
+					? [stuckResult.reason, stuckRecoveryNote].filter(Boolean).join(" / ")
+					: undefined,
 			});
 
 			return { content: [{ type: "text", text: summary }] };
@@ -166,6 +187,12 @@ function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): Mc
 interface MinecraftToolsOptions {
 	metrics?: MetricsCollector;
 	logger: Logger;
+	stuckRecovery?: {
+		reconnect: () => void;
+		onRecoverySuccess: () => void;
+		requestSessionRotation?: () => Promise<void>;
+		cooldownMs?: number;
+	};
 }
 
 export function registerMinecraftTools(
@@ -176,7 +203,7 @@ export function registerMinecraftTools(
 	options: MinecraftToolsOptions,
 ): void {
 	const s = options.metrics ? wrapServerWithMetrics(server, options.metrics) : server;
-	registerObserveStateTool(s, ctx, jobManager);
+	registerObserveStateTool(s, ctx, jobManager, options.stuckRecovery);
 	registerRecentEventsTool(s, ctx);
 	registerActionTools(s, () => ctx.getBot(), jobManager, options.logger);
 	registerJobStatusTool(s, jobManager);

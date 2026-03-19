@@ -53,6 +53,7 @@ graph LR
   mcp_tools["mcp-tools"] --> bot_queries["bot-queries"]
   mcp_tools["mcp-tools"] --> job_manager["job-manager"]
   mcp_tools["mcp-tools"] --> state_summary["state-summary"]
+  mcp_tools["mcp-tools"] --> stuck_recovery["stuck-recovery"]
   server --> auto_notifier["auto-notifier"]
   server --> bot_connection["bot-connection"]
   server --> bot_context["bot-context"]
@@ -61,6 +62,7 @@ graph LR
   server --> mc_metrics["mc-metrics"]
   server --> mcp_tools["mcp-tools"]
   state_summary["state-summary"] --> helpers
+  stuck_recovery["stuck-recovery"] --> bot_context["bot-context"]
 ```
 
 ## ファイル別依存一覧
@@ -168,7 +170,7 @@ graph LR
 
 ### mcp-tools.ts
 
-- モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary
+- モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary, stuck-recovery
 - 他モジュール依存: shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
@@ -181,3 +183,7 @@ graph LR
 ### state-summary.ts
 
 - モジュール内依存: helpers
+
+### stuck-recovery.ts
+
+- モジュール内依存: bot-context

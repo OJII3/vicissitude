@@ -38,6 +38,8 @@ export class AgentRunner implements AiAgent {
 	private sessionCreatedAt: number | null = null;
 	private sessionWatch: Promise<OpencodeSessionEvent> | null = null;
 	private hasStartedSession = false;
+	private lastRotationRequestAt: number | null = null;
+	private readonly minRotationIntervalMs = 300_000;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -142,6 +144,30 @@ export class AgentRunner implements AiAgent {
 			await this.sleep(delay);
 			delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
 		}
+	}
+
+	async requestSessionRotation(): Promise<void> {
+		const now = Date.now();
+		if (
+			this.lastRotationRequestAt &&
+			now - this.lastRotationRequestAt < this.minRotationIntervalMs
+		) {
+			return;
+		}
+		this.lastRotationRequestAt = now;
+		const sessionKey = `__polling__:${this.agentId}`;
+		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
+		if (!sessionId) return;
+		try {
+			await this.sessionPort.deleteSession(sessionId);
+		} catch (err) {
+			this.logger.error(`[${this.profile.name}:${this.agentId}] forced rotation failed`, err);
+		}
+		this.sessionStore.delete(this.profile.name, sessionKey);
+		this.sessionCreatedAt = null;
+		this.logger.info(
+			`[${this.profile.name}:${this.agentId}] session force-rotated (stuck recovery)`,
+		);
 	}
 
 	stop(): void {

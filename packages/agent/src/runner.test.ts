@@ -1,4 +1,4 @@
-/* oxlint-disable max-lines -- テストファイルはケース数に応じて長くなるため許容 */
+/* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import type {
@@ -374,6 +374,127 @@ describe("AgentRunner", () => {
 
 		runner.stop();
 		thirdSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("requestSessionRotation: セッションが存在する場合 deleteSession → sessionStore.delete が呼ばれる", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const sessionStore = createSessionStore();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		// セッションを事前に保存
+		sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+		await runner.requestSessionRotation();
+
+		expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-abc");
+		expect(sessionStore.delete).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("requestSessionRotation: セッションが存在しない場合は何もしない", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const sessionStore = createSessionStore();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		await runner.requestSessionRotation();
+
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(0);
+		expect(sessionStore.delete).toHaveBeenCalledTimes(0);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("requestSessionRotation: minRotationIntervalMs 以内の連続呼び出しは無視される", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const sessionStore = createSessionStore();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+		await runner.requestSessionRotation();
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(1);
+
+		// 再度セッションを保存して2回目を呼ぶ
+		sessionStore.save("conversation", "__polling__:guild-1", "session-def");
+		await runner.requestSessionRotation();
+		// minRotationIntervalMs 以内なので無視される
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("requestSessionRotation: deleteSession がエラーを投げても sessionStore.delete は呼ばれクラッシュしない", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		sessionPort.deleteSession = mock(() => Promise.reject(new Error("API error")));
+		const sessionStore = createSessionStore();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+		// エラーが投げられてもクラッシュしない
+		await runner.requestSessionRotation();
+
+		expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-abc");
+		expect(sessionStore.delete).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
 	});
 
 	test("send() はポーリングループが未起動なら自動起動する", async () => {

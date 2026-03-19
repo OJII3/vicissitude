@@ -13,6 +13,7 @@
 		"./auto-notifier": "./src/auto-notifier.ts",
 		"./http-server": "./src/http-server.ts",
 		"./mc-metrics": "./src/mc-metrics.ts",
+		"./stuck-recovery": "./src/stuck-recovery.ts",
 		"./helpers": "./src/helpers.ts",
 		"./actions/jobs": "./src/actions/jobs.ts",
 		"./actions/smelting": "./src/actions/smelting.ts",

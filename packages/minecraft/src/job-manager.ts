@@ -246,6 +246,11 @@ export class JobManager {
 		}
 	}
 
+	/** スタック通知フラグをリセットする（復帰成功時に外部から呼ばれる） */
+	resetStuckNotification(): void {
+		this.stuckNotified = false;
+	}
+
 	/** 位置スナップショットを記録する（リングバッファ） */
 	recordPositionSnapshot(pos: { x: number; y: number; z: number }): void {
 		this.positionSnapshots.push({ x: pos.x, y: pos.y, z: pos.z });
