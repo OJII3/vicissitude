@@ -237,15 +237,17 @@ function waitForSmeltComplete(
 	});
 }
 
-async function executeSmelt(
-	bot: mineflayer.Bot,
-	itemId: number,
-	itemName: string,
-	fuelId: number,
-	fuelName: string,
-	count: number,
-	signal: AbortSignal,
-): Promise<void> {
+interface SmeltParams {
+	bot: mineflayer.Bot;
+	itemId: number;
+	fuelId: number;
+	fuelName: string;
+	count: number;
+	signal: AbortSignal;
+}
+
+async function executeSmelt(params: SmeltParams): Promise<void> {
+	const { bot, itemId, fuelId, fuelName, count, signal } = params;
 	const furnaceIds = collectFurnaceIds(bot);
 	if (furnaceIds.length === 0) throw new Error("かまどブロックの定義が見つかりません");
 
@@ -265,6 +267,11 @@ async function executeSmelt(
 
 	const furnace = await bot.openFurnace(furnaceBlock);
 	try {
+		// 既存の output を先に回収し、完了判定の誤検知を防ぐ
+		if (furnace.outputItem()) {
+			await furnace.takeOutput();
+		}
+
 		if (!furnace.fuelItem()) {
 			const fuelInInventory = bot.inventory.items().find((i) => i.name === fuelName);
 			if (!fuelInInventory) throw new Error(`インベントリに燃料 "${fuelName}" がありません`);
@@ -323,7 +330,14 @@ export function registerSmeltItem(server: McpServer, getBot: GetBot, jobManager:
 			const started = tryStartJob(jobManager, "smelting", itemName, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
-				await executeSmelt(bot, itemType.id, itemName, fuelType.id, fuelName, count, signal);
+				await executeSmelt({
+					bot,
+					itemId: itemType.id,
+					fuelId: fuelType.id,
+					fuelName,
+					count,
+					signal,
+				});
 			});
 			if (!started.ok) return started.result;
 
