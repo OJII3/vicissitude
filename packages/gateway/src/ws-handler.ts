@@ -86,7 +86,13 @@ export class WsConnectionManager implements GatewayPort {
 				// TTS 合成（非同期・fire-and-forget）
 				if (this.ttsSynthesizer && this.ttsStyleMapper) {
 					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
-					void this.synthesizeAndSend(connectionId, chatResponse.messageId, message.text, ttsStyle);
+					void this.synthesizeAndSend({
+						connectionId,
+						messageId: chatResponse.messageId,
+						text: message.text,
+						style: ttsStyle,
+						synthesizer: this.ttsSynthesizer,
+					});
 				}
 			}
 		} catch {
@@ -121,26 +127,26 @@ export class WsConnectionManager implements GatewayPort {
 		return this.connections.size;
 	}
 
-	private async synthesizeAndSend(
-		connectionId: ConnectionId,
-		messageId: string,
-		text: string,
-		style: TtsStyleParams,
-	): Promise<void> {
+	private async synthesizeAndSend(params: {
+		connectionId: ConnectionId;
+		messageId: string;
+		text: string;
+		style: TtsStyleParams;
+		synthesizer: TtsSynthesizer;
+	}): Promise<void> {
 		try {
-			if (!this.ttsSynthesizer) return;
-			const result = await this.ttsSynthesizer.synthesize(text, style);
+			const result = await params.synthesizer.synthesize(params.text, params.style);
 			if (!result) return;
 
 			const audioDataMessage: AudioDataMessage = {
 				type: "audio_data",
-				messageId,
+				messageId: params.messageId,
 				audio: Buffer.from(result.audio).toString("base64"),
 				format: "wav",
 				durationSec: result.durationSec,
 				timestamp: new Date().toISOString(),
 			};
-			this.send(connectionId, audioDataMessage);
+			this.send(params.connectionId, audioDataMessage);
 		} catch {
 			// TTS 失敗は静かに無視（graceful degradation）
 		}

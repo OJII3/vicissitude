@@ -2,8 +2,7 @@ import { describe, expect, it } from "bun:test";
 
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
-import { createTtsStyleParams } from "@vicissitude/shared/tts";
-import type { TtsResult } from "@vicissitude/shared/tts";
+import { createTtsStyleParams, type TtsResult } from "@vicissitude/shared/tts";
 import type {
 	AudioDataMessage,
 	ChatInputMessage,
