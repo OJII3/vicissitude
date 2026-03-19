@@ -12,7 +12,6 @@ networks:
 
 volumes:
   ollama-data:
-  minecraft-data:
   bot-node-modules:
   bot-dist:
 
@@ -95,38 +94,6 @@ services:
       ollama:
         condition: service_healthy
     command: ["xvfb-run", "-a", "bun", "run", "dist/index.js"]
-
-  minecraft:
-    container_name: vicissitude-minecraft
-    image: docker.io/itzg/minecraft-server:java21
-    environment:
-      EULA: "TRUE"
-      ONLINE_MODE: "FALSE"
-      TYPE: "VANILLA"
-      VERSION: "1.21.4"
-      MEMORY: "1G"
-      MAX_MEMORY: "1G"
-      DIFFICULTY: "normal"
-      SPAWN_PROTECTION: "0"
-      VIEW_DISTANCE: "8"
-      SIMULATION_DISTANCE: "6"
-    mem_limit: 2g
-    cpus: 2
-    volumes:
-      - minecraft-data:/data
-    networks:
-      - vicissitude-net
-    healthcheck:
-      test: ["CMD", "mc-health"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 120s
-    logging:
-      driver: journald
-      options:
-        tag: vicissitude-minecraft
-    restart: unless-stopped
 
   ollama:
     container_name: vicissitude-ollama
