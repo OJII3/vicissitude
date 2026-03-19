@@ -112,16 +112,19 @@ export function registerFindShelter(
 	getBot: GetBot,
 	jobManager: JobManager,
 ): void {
-	server.tool(
+	server.registerTool(
 		"find_shelter",
-		"安全な避難場所を探して移動する（ベッド検索 → ベッド付近に移動、なければ足元を掘って緊急シェルター構築）",
 		{
-			maxDistance: z
-				.number()
-				.min(1)
-				.max(64)
-				.default(48)
-				.describe("ベッド検索範囲（デフォルト: 48）"),
+			description:
+				"安全な避難場所を探して移動する（ベッド検索 → ベッド付近に移動、なければ足元を掘って緊急シェルター構築）",
+			inputSchema: {
+				maxDistance: z
+					.number()
+					.min(1)
+					.max(64)
+					.default(48)
+					.describe("ベッド検索範囲（デフォルト: 48）"),
+			},
 		},
 		({ maxDistance }) => {
 			const bot = getBot();

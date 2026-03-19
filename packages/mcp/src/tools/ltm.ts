@@ -19,13 +19,16 @@ export interface LtmDeps {
 export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 	const { getOrCreateLtm } = deps;
 
-	server.tool(
+	server.registerTool(
 		"ltm_retrieve",
-		"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
 		{
-			guild_id: guildIdSchema,
-			query: z.string().min(1).describe("検索クエリ"),
-			limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
+			description:
+				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				query: z.string().min(1).describe("検索クエリ"),
+				limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
+			},
 		},
 		async ({ guild_id, query, limit }) => {
 			try {
@@ -71,24 +74,26 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"ltm_get_facts",
-		"蓄積されたファクト（意味記憶）一覧を取得する",
 		{
-			guild_id: guildIdSchema,
-			category: z
-				.enum([
-					"identity",
-					"preference",
-					"interest",
-					"personality",
-					"relationship",
-					"experience",
-					"goal",
-					"guideline",
-				])
-				.optional()
-				.describe("カテゴリでフィルタ（省略で全件）"),
+			description: "蓄積されたファクト（意味記憶）一覧を取得する",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				category: z
+					.enum([
+						"identity",
+						"preference",
+						"interest",
+						"personality",
+						"relationship",
+						"experience",
+						"goal",
+						"guideline",
+					])
+					.optional()
+					.describe("カテゴリでフィルタ（省略で全件）"),
+			},
 		},
 		async ({ guild_id, category }) => {
 			try {

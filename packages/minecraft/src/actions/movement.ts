@@ -101,12 +101,14 @@ export function registerFollowPlayer(
 	getBot: GetBot,
 	jobManager: JobManager,
 ): void {
-	server.tool(
+	server.registerTool(
 		"follow_player",
-		"指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す）",
 		{
-			username: z.string().describe("追従対象のプレイヤー名"),
-			range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
+			description: "指定プレイヤーへの追従を開始する（非同期ジョブ: 即座に jobId を返す）",
+			inputSchema: {
+				username: z.string().describe("追従対象のプレイヤー名"),
+				range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
+			},
 		},
 		async ({ username, range }) => {
 			const bot = getBot();
@@ -130,14 +132,16 @@ export function registerFollowPlayer(
 }
 
 export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
-	server.tool(
+	server.registerTool(
 		"go_to",
-		"指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）",
 		{
-			x: z.number().describe("X 座標"),
-			y: z.number().describe("Y 座標"),
-			z: z.number().describe("Z 座標"),
-			range: z.number().min(0).default(2).describe("目標地点からの許容距離（デフォルト: 2）"),
+			description: "指定座標への移動を開始する（非同期ジョブ: 即座に jobId を返す）",
+			inputSchema: {
+				x: z.number().describe("X 座標"),
+				y: z.number().describe("Y 座標"),
+				z: z.number().describe("Z 座標"),
+				range: z.number().min(0).default(2).describe("目標地点からの許容距離（デフォルト: 2）"),
+			},
 		},
 		({ x, y, z: zCoord, range }) => {
 			const bot = getBot();
@@ -162,19 +166,22 @@ export function registerCollectBlock(
 	getBot: GetBot,
 	jobManager: JobManager,
 ): void {
-	server.tool(
+	server.registerTool(
 		"collect_block",
-		"指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、最適ツール自動装備）",
 		{
-			blockName: z.string().describe('ブロック名（例: "oak_log", "diamond_ore"）'),
-			count: z
-				.number()
-				.int()
-				.min(1)
-				.max(MAX_COLLECT_COUNT)
-				.default(1)
-				.describe(`採集する個数（デフォルト: 1、最大: ${String(MAX_COLLECT_COUNT)}）`),
-			maxDistance: z.number().min(1).default(32).describe("検索範囲（デフォルト: 32）"),
+			description:
+				"指定ブロックの採集を開始する（非同期ジョブ: 即座に jobId を返す、最適ツール自動装備）",
+			inputSchema: {
+				blockName: z.string().describe('ブロック名（例: "oak_log", "diamond_ore"）'),
+				count: z
+					.number()
+					.int()
+					.min(1)
+					.max(MAX_COLLECT_COUNT)
+					.default(1)
+					.describe(`採集する個数（デフォルト: 1、最大: ${String(MAX_COLLECT_COUNT)}）`),
+				maxDistance: z.number().min(1).default(32).describe("検索範囲（デフォルト: 32）"),
+			},
 		},
 		({ blockName, count, maxDistance }) => {
 			const bot = getBot();
@@ -196,11 +203,15 @@ export function registerCollectBlock(
 }
 
 export function registerStop(server: McpServer, jobManager: JobManager): void {
-	server.tool("stop", "現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する", {}, () => {
-		const cancelled = jobManager.cancelCurrentJob();
-		if (cancelled) {
-			return textResult("ジョブを停止しました");
-		}
-		return textResult("実行中のジョブはありません");
-	});
+	server.registerTool(
+		"stop",
+		{ description: "現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する" },
+		() => {
+			const cancelled = jobManager.cancelCurrentJob();
+			if (cancelled) {
+				return textResult("ジョブを停止しました");
+			}
+			return textResult("実行中のジョブはありません");
+		},
+	);
 }

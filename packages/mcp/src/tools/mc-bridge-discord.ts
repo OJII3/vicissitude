@@ -19,11 +19,13 @@ const MAX_COMMAND_CHARS = 10_000;
 export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps): void {
 	const { db } = deps;
 
-	server.tool(
+	server.registerTool(
 		"minecraft_delegate",
-		"マイクラの自分に指示を出す。次のポーリングで反映される。",
 		{
-			command: z.string().min(1).max(MAX_COMMAND_CHARS).describe("マイクラでやること"),
+			description: "マイクラの自分に指示を出す。次のポーリングで反映される。",
+			inputSchema: {
+				command: z.string().min(1).max(MAX_COMMAND_CHARS).describe("マイクラでやること"),
+			},
 		},
 		({ command }) => {
 			const event = {
@@ -41,7 +43,7 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		},
 	);
 
-	server.tool("minecraft_status", "マイクラの最新状況を確認する。", {}, () => {
+	server.registerTool("minecraft_status", { description: "マイクラの最新状況を確認する。" }, () => {
 		const status = getMcConnectionStatus(db);
 		const label = status.connected ? "接続中" : "未接続";
 		const text = `接続状態: ${label}${status.since ? ` (${status.since})` : ""}`;
@@ -51,11 +53,13 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		};
 	});
 
-	server.tool(
+	server.registerTool(
 		"minecraft_start_session",
-		"マイクラのセッションを開始する。マイクラが停止中のときに使う。",
 		{
-			guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+			description: "マイクラのセッションを開始する。マイクラが停止中のときに使う。",
+			inputSchema: {
+				guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+			},
 		},
 		({ guild_id }) => {
 			const lock = tryAcquireSessionLock(db, guild_id);
@@ -80,11 +84,13 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"minecraft_stop_session",
-		"マイクラのセッションを停止する。",
 		{
-			guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+			description: "マイクラのセッションを停止する。",
+			inputSchema: {
+				guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
+			},
 		},
 		({ guild_id }) => {
 			const released = releaseSessionLock(db, guild_id);
