@@ -129,9 +129,10 @@ function registerCoreEvents(
 	b.on("chat", (username: string, message: string) => {
 		if (username !== b.username) ctx.pushEvent("chat", `<${username}> ${message}`, "medium");
 	});
-	b.on("kicked", (reason: string) => {
-		logger.warn(`[minecraft] Kicked: ${reason}`);
-		ctx.pushEvent("kicked", `Kicked: ${reason}`, "high");
+	b.on("kicked", (reason: string | Record<string, unknown>) => {
+		const text = typeof reason === "string" ? reason : JSON.stringify(reason);
+		logger.warn(`[minecraft] Kicked: ${text}`);
+		ctx.pushEvent("kicked", `Kicked: ${text}`, "high");
 	});
 	b.on("entityHurt", (entity: Entity) => {
 		if (entity === b.entity) ctx.pushEvent("damage", "Bot took damage", "medium");
