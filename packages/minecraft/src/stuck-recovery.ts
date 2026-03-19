@@ -4,9 +4,12 @@ export interface StuckRecoveryOptions {
 	ctx: BotContext;
 	reconnect?: () => void;
 	onRecoverySuccess?: () => void;
+	requestSessionRotation?: () => Promise<void>;
 	cooldownMs?: number;
 	/** ランダム移動の待機時間（テスト用にオーバーライド可能） */
 	walkDurationMs?: number;
+	/** リスポーン待機時間（テスト用にオーバーライド可能） */
+	respawnWaitMs?: number;
 }
 
 const RESPAWN_MAX_RETRIES = 3;
@@ -24,7 +27,10 @@ export function _resetState(): void {
 	lastRecoveryAt = 0;
 }
 
-export async function respawnWithRetry(ctx: BotContext): Promise<boolean> {
+export async function respawnWithRetry(
+	ctx: BotContext,
+	waitMs: number = RESPAWN_WAIT_MS,
+): Promise<boolean> {
 	const bot = ctx.getBot();
 	if (!bot) return false;
 	if (bot.health > 0) return true;
@@ -33,7 +39,7 @@ export async function respawnWithRetry(ctx: BotContext): Promise<boolean> {
 		bot.respawn();
 		// oxlint-disable-next-line no-await-in-loop -- sequential retry: each attempt must complete before checking health
 		await new Promise<void>((resolve) => {
-			setTimeout(resolve, RESPAWN_WAIT_MS);
+			setTimeout(resolve, waitMs);
 		});
 		if (bot.health > 0) return true;
 	}
@@ -47,8 +53,10 @@ export async function attemptStuckRecovery(options: StuckRecoveryOptions): Promi
 		ctx,
 		reconnect,
 		onRecoverySuccess,
+		requestSessionRotation,
 		cooldownMs = DEFAULT_COOLDOWN_MS,
 		walkDurationMs = DEFAULT_WALK_DURATION_MS,
+		respawnWaitMs = RESPAWN_WAIT_MS,
 	} = options;
 
 	if (isRecovering) return false;
@@ -67,15 +75,17 @@ export async function attemptStuckRecovery(options: StuckRecoveryOptions): Promi
 
 		// 段階1: リスポーン
 		if (bot.health <= 0) {
-			const ok = await respawnWithRetry(ctx);
+			const ok = await respawnWithRetry(ctx, respawnWaitMs);
 			if (ok) {
 				markRecovery();
 				onRecoverySuccess?.();
+				void requestSessionRotation?.();
 				return true;
 			}
 			// リスポーン失敗 → 段階3 へ
 			reconnect?.();
 			markRecovery();
+			void requestSessionRotation?.();
 			return false;
 		}
 
@@ -96,12 +106,14 @@ export async function attemptStuckRecovery(options: StuckRecoveryOptions): Promi
 		if (distance >= MOVE_THRESHOLD) {
 			markRecovery();
 			onRecoverySuccess?.();
+			void requestSessionRotation?.();
 			return true;
 		}
 
 		// 段階3: reconnect
 		reconnect?.();
 		markRecovery();
+		void requestSessionRotation?.();
 		return false;
 	} finally {
 		isRecovering = false;

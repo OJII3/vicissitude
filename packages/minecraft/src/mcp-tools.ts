@@ -59,6 +59,7 @@ function registerObserveStateTool(
 					ctx,
 					reconnect: stuckRecovery.reconnect,
 					onRecoverySuccess: stuckRecovery.onRecoverySuccess,
+					requestSessionRotation: stuckRecovery.requestSessionRotation,
 					cooldownMs: stuckRecovery.cooldownMs,
 				});
 				stuckRecoveryNote = recovered
@@ -189,6 +190,7 @@ interface MinecraftToolsOptions {
 	stuckRecovery?: {
 		reconnect: () => void;
 		onRecoverySuccess: () => void;
+		requestSessionRotation?: () => Promise<void>;
 		cooldownMs?: number;
 	};
 }

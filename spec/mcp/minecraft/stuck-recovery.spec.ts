@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { EventEmitter } from "events";
 
 import type { BotContext, BotEvent } from "@vicissitude/minecraft/bot-context";
@@ -83,8 +83,15 @@ mock.module("prismarine-viewer", () => ({
 }));
 
 // モックが確定してから動的 import する
-const { respawnWithRetry, attemptStuckRecovery } =
+const { respawnWithRetry, attemptStuckRecovery, _resetState } =
 	await import("@vicissitude/minecraft/stuck-recovery");
+
+beforeEach(() => {
+	_resetState();
+});
+afterEach(() => {
+	_resetState();
+});
 
 // ---------------------------------------------------------------------------
 // respawnWithRetry

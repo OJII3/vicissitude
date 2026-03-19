@@ -269,6 +269,8 @@ export function createBotConnection(
 			if (reconnect.shuttingDown) return;
 			reconnect.delay = 0;
 			scheduleReconnect(reconnect, ctx, logger, botFactory);
+			// scheduleReconnect 内の *2 で 0 のままになるのを防ぎ、次回以降の指数バックオフを維持する
+			reconnect.delay = 1000;
 		},
 	};
 }
