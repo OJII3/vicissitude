@@ -69,7 +69,7 @@ export interface EmotionToTtsStyleMapper {
 
 // ─── TtsSynthesizer ─────────────────────────────────────────────
 //
-// TTS 音声合成のポート。TTS エンジン（Style-Bert-VITS2 等）を抽象化する。
+// TTS 音声合成のポート。TTS エンジン（AivisSpeech 等）を抽象化する。
 // GPU PC オフライン時は null を返す（graceful degradation）。
 
 /** TTS 音声合成ポート */

@@ -2,19 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 import type { TtsSynthesizer } from "@vicissitude/shared/ports";
 import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
-import { createStyleBertVits2Synthesizer } from "@vicissitude/tts";
+import { createAivisSpeechSynthesizer } from "@vicissitude/tts";
 
 // ─── テスト対象のファクトリ ─────────────────────────────────────
 //
-// packages/tts が公開する Style-Bert-VITS2 アダプターを生成する関数。
+// packages/tts が公開する AivisSpeech アダプターを生成する関数。
 // ブラックボックステスト: TtsSynthesizer ポートの契約のみ検証する。
 // 外部 HTTP 依存は global.fetch をモックして差し替える。
 
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "http://localhost:10101";
 
-function synthesizer(config?: { baseUrl?: string; timeout?: number }): TtsSynthesizer {
-	return createStyleBertVits2Synthesizer({
+function synthesizer(config?: {
+	baseUrl?: string;
+	speakerId?: number;
+	timeout?: number;
+}): TtsSynthesizer {
+	return createAivisSpeechSynthesizer({
 		baseUrl: config?.baseUrl ?? BASE_URL,
+		speakerId: config?.speakerId,
 		timeout: config?.timeout,
 	});
 }
@@ -51,6 +56,9 @@ const DUMMY_WAV_HEADER = new Uint8Array([
 	0x00, 0x00, 0x00, 0x00,
 ]);
 
+// AudioQuery のダミーレスポンス
+const DUMMY_AUDIO_QUERY = { speedScale: 1.0, pitchScale: 0.0 };
+
 const originalFetch = globalThis.fetch;
 let mockFetch: ReturnType<typeof mock>;
 
@@ -67,8 +75,16 @@ const DEFAULT_STYLE: TtsStyleParams = createTtsStyleParams("happy", 0.7, 1.0);
 
 // ─── synthesize: 正常系 ─────────────────────────────────────────
 
-describe("StyleBertVits2Synthesizer — synthesize", () => {
+describe("AivisSpeechSynthesizer — synthesize", () => {
 	it("テキストとスタイルを渡して TtsResult を返す", async () => {
+		// audio_query
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		// synthesis
 		mockFetch.mockResolvedValueOnce(
 			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
 				status: 200,
@@ -87,6 +103,9 @@ describe("StyleBertVits2Synthesizer — synthesize", () => {
 
 	it("返り値の format が 'wav'", async () => {
 		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
 			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
@@ -100,6 +119,9 @@ describe("StyleBertVits2Synthesizer — synthesize", () => {
 	});
 
 	it("durationSec が正の数または 0", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
 		mockFetch.mockResolvedValueOnce(
 			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
 				status: 200,
@@ -116,8 +138,19 @@ describe("StyleBertVits2Synthesizer — synthesize", () => {
 
 // ─── synthesize: エラー系 ───────────────────────────────────────
 
-describe("StyleBertVits2Synthesizer — synthesize errors", () => {
-	it("HTTP 5xx エラー時に null を返す", async () => {
+describe("AivisSpeechSynthesizer — synthesize errors", () => {
+	it("audio_query で HTTP 5xx エラー時に null を返す", async () => {
+		mockFetch.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
+
+		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
+
+		expect(result).toBeNull();
+	});
+
+	it("synthesis で HTTP 5xx エラー時に null を返す", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
 		mockFetch.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
 
 		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
@@ -136,7 +169,7 @@ describe("StyleBertVits2Synthesizer — synthesize errors", () => {
 
 // ─── isAvailable ────────────────────────────────────────────────
 
-describe("StyleBertVits2Synthesizer — isAvailable", () => {
+describe("AivisSpeechSynthesizer — isAvailable", () => {
 	it("ヘルスチェック成功時に true を返す", async () => {
 		mockFetch.mockResolvedValueOnce(new Response("OK", { status: 200 }));
 
