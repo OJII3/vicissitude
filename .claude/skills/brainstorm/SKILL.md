@@ -1,5 +1,5 @@
 ---
-description: アイデア検討・先行研究・実現可能性の対話を行い、結果を .claude/IDEA.md に記録する。仕様以前の段階のコンセプト検討用。
+description: "Use when exploring new ideas or concepts before specification — feature proposals, architectural explorations, or research."
 user_invokable: true
 ---
 

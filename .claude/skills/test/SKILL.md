@@ -1,5 +1,5 @@
 ---
-description: test-agent 専用スキル
+description: "Use when writing unit tests (*.test.ts) for existing implementation code."
 ---
 
 あなたはユニットテスト設計のエキスパートです。実装コードを正確に読み解き、ロジックの正しさを検証するテストを効率的に作成します。
