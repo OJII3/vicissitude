@@ -70,6 +70,7 @@ graph LR
 ### actions/index.ts
 
 - モジュール内依存: actions/combat, actions/interaction, actions/jobs, actions/movement, actions/shared, actions/survival/index, job-manager
+- 他モジュール依存: shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/interaction.ts
@@ -80,6 +81,7 @@ graph LR
 ### actions/jobs.ts
 
 - モジュール内依存: actions/shared, job-manager
+- 他モジュール依存: shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/movement.ts
@@ -165,7 +167,7 @@ graph LR
 ### server.ts
 
 - モジュール内依存: auto-notifier, bot-connection, bot-context, http-server, job-manager, mc-metrics, mcp-tools
-- 他モジュール依存: shared, store
+- 他モジュール依存: observability, shared, store
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### state-summary.ts

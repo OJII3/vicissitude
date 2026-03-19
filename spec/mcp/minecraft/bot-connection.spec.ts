@@ -3,6 +3,7 @@ import { EventEmitter } from "events";
 
 import type { BotContext, BotEvent } from "@vicissitude/minecraft/bot-context";
 import type { ActionState } from "@vicissitude/minecraft/helpers";
+import type { Logger } from "@vicissitude/shared/types";
 
 // ---------------------------------------------------------------------------
 // mineflayer モジュールモック
@@ -62,6 +63,8 @@ mock.module("prismarine-viewer", () => ({
 // モックが確定してから動的 import する
 const { createBotConnection } = await import("@vicissitude/minecraft/bot-connection");
 
+const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+
 // ---------------------------------------------------------------------------
 // BotContext スタブ
 // ---------------------------------------------------------------------------
@@ -119,6 +122,7 @@ describe("bot-connection — death イベントハンドラ", () => {
 				viewerPort: 0,
 			},
 			ctx,
+			stubLogger,
 		);
 		conn.start();
 		// spawn を先に発火して内部状態を初期化する

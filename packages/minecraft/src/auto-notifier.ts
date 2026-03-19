@@ -1,5 +1,5 @@
 import { METRIC } from "@vicissitude/shared/constants";
-import type { MetricsCollector } from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
@@ -21,7 +21,11 @@ export interface AutoNotifier {
 }
 
 /** BotContext.pushEvent から呼ばれる自動通知コールバックを生成する */
-export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): AutoNotifier {
+export function createAutoNotifier(
+	db: StoreDb,
+	metrics: MetricsCollector | undefined,
+	logger: Logger,
+): AutoNotifier {
 	const lastNotified = new Map<string, number>();
 
 	return (kind: string, description: string, _importance: Importance) => {
@@ -30,13 +34,13 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 			try {
 				setMcConnectionStatus(db, true);
 			} catch (err) {
-				console.error("[auto-notifier] connection status update failed:", err);
+				logger.error("[auto-notifier] connection status update failed:", err);
 			}
 		} else if (DISCONNECT_KINDS.has(kind)) {
 			try {
 				setMcConnectionStatus(db, false);
 			} catch (err) {
-				console.error("[auto-notifier] connection status update failed:", err);
+				logger.error("[auto-notifier] connection status update failed:", err);
 			}
 		}
 
@@ -64,7 +68,7 @@ export function createAutoNotifier(db: StoreDb, metrics?: MetricsCollector): Aut
 			appendEvent(db, targetAgentId, JSON.stringify(event));
 			metrics?.incrementCounter(METRIC.MC_AUTO_NOTIFICATIONS, { kind });
 		} catch (err) {
-			console.error("[auto-notifier] event buffer insert failed:", err);
+			logger.error("[auto-notifier] event buffer insert failed:", err);
 		}
 	};
 }

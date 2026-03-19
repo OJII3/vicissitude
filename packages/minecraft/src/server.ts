@@ -1,5 +1,6 @@
 /* oxlint-disable max-dependencies -- server entry requires auto-notifier + bridge DB dependencies */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { parseMcAuthMode } from "@vicissitude/shared/config";
 import { createDb, closeDb } from "@vicissitude/store/db";
 
@@ -10,6 +11,9 @@ import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
 import { createMcMetrics } from "./mc-metrics.ts";
 import { registerMinecraftTools } from "./mcp-tools.ts";
+
+// ── Logger ───────────────────────────────────────────────────────────────────
+const logger = new ConsoleLogger();
 
 // ── Environment ──────────────────────────────────────────────────────────────
 const viewerPortRaw = Number(process.env.MC_VIEWER_PORT ?? "3007");
@@ -40,7 +44,7 @@ try {
 }
 const MC_PROFILES_FOLDER = process.env.MC_PROFILES_FOLDER;
 if (MC_AUTH_MODE === "offline" && MC_PROFILES_FOLDER) {
-	console.error(
+	logger.warn(
 		"[minecraft] MC_PROFILES_FOLDER is set but MC_AUTH_MODE is 'offline'; it will be ignored",
 	);
 }
@@ -53,14 +57,14 @@ const MC_MCP_PORT = mcpPortRaw;
 const DATA_DIR = process.env.DATA_DIR;
 
 // ── Metrics ───────────────────────────────────────────────────────────────────
-const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics();
+const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics(logger);
 mcMetricsServer.start();
 
 // ── Bridge DB (auto-notification) ─────────────────────────────────────────────
 const bridgeDb = DATA_DIR ? createDb(DATA_DIR) : undefined;
-const autoNotifier = bridgeDb ? createAutoNotifier(bridgeDb, mcCollector) : undefined;
+const autoNotifier = bridgeDb ? createAutoNotifier(bridgeDb, mcCollector, logger) : undefined;
 if (!bridgeDb) {
-	console.error("[minecraft] DATA_DIR not set; Discord auto-notifications disabled");
+	logger.warn("[minecraft] DATA_DIR not set; Discord auto-notifications disabled");
 }
 
 // ── Bootstrap ────────────────────────────────────────────────────────────────
@@ -81,13 +85,14 @@ const connection = createBotConnection(
 		viewerPort: MC_VIEWER_PORT,
 	},
 	ctx,
+	logger,
 );
 
 const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState, mcCollector);
 
 function createServer(): McpServer {
 	const server = new McpServer({ name: "minecraft", version: "0.1.0" });
-	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT, mcCollector);
+	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT, { metrics: mcCollector, logger });
 	return server;
 }
 
@@ -111,6 +116,6 @@ const shutdown = (): void => {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 process.on("uncaughtException", (err) =>
-	console.error("[minecraft] uncaughtException:", err.message),
+	logger.error("[minecraft] uncaughtException:", err.message),
 );
-process.on("unhandledRejection", (err) => console.error("[minecraft] unhandledRejection:", err));
+process.on("unhandledRejection", (err) => logger.error("[minecraft] unhandledRejection:", err));

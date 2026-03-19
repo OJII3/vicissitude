@@ -1,6 +1,6 @@
 import { METRIC } from "@vicissitude/shared/constants";
 import { labelsToKey } from "@vicissitude/shared/functions";
-import type { MetricsCollector } from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 // ─── Lightweight Prometheus Collector for MC MCP process ────────
 // observability/ への依存を避けるため、MC プロセス専用の最小限実装
@@ -53,7 +53,10 @@ export interface McMetricsServer {
 	stop(): void;
 }
 
-export function createMcMetrics(): { collector: McMetricsCollector; server: McMetricsServer } {
+export function createMcMetrics(logger: Logger): {
+	collector: McMetricsCollector;
+	server: McMetricsServer;
+} {
 	const port = Number(process.env.MC_METRICS_PORT) || 9092;
 	const collector = new McMetricsCollector();
 	collector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
@@ -86,13 +89,13 @@ export function createMcMetrics(): { collector: McMetricsCollector; server: McMe
 					return new Response("Not Found", { status: 404 });
 				},
 			});
-			console.error(`[mc-metrics] Prometheus server listening on ${hostname}:${String(port)}`);
+			logger.info(`[mc-metrics] Prometheus server listening on ${hostname}:${String(port)}`);
 		},
 		stop() {
 			if (bunServer) {
 				bunServer.stop();
 				bunServer = null;
-				console.error("[mc-metrics] Prometheus server stopped");
+				logger.info("[mc-metrics] Prometheus server stopped");
 			}
 		},
 	};

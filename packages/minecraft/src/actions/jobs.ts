@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Logger } from "@vicissitude/shared/types";
 import type mineflayer from "mineflayer";
 import type { Furnace } from "mineflayer";
 import { goals } from "mineflayer-pathfinder";
@@ -34,7 +35,11 @@ function findRecipe(
 }
 
 /** wake イベントまたは abort で解決する Promise を返す */
-function waitForWakeOrAbort(bot: mineflayer.Bot, signal: AbortSignal): Promise<void> {
+function waitForWakeOrAbort(
+	bot: mineflayer.Bot,
+	signal: AbortSignal,
+	logger: Logger,
+): Promise<void> {
 	return new Promise<void>((resolve) => {
 		const onWake = () => {
 			signal.removeEventListener("abort", onAbort);
@@ -43,7 +48,7 @@ function waitForWakeOrAbort(bot: mineflayer.Bot, signal: AbortSignal): Promise<v
 		const onAbort = () => {
 			bot.removeListener("wake", onWake);
 			void bot.wake().catch((err) => {
-				console.error(
+				logger.error(
 					`[minecraft] wake failed during abort: ${err instanceof Error ? err.message : String(err)}`,
 				);
 			});
@@ -89,6 +94,7 @@ async function executeSleep(
 	bedIds: number[],
 	maxDistance: number,
 	signal: AbortSignal,
+	logger: Logger,
 ): Promise<void> {
 	const bedBlock = bot.findBlock({ matching: bedIds, maxDistance });
 	if (!bedBlock) throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません`);
@@ -104,7 +110,7 @@ async function executeSleep(
 	}
 
 	await bot.sleep(current);
-	await waitForWakeOrAbort(bot, signal);
+	await waitForWakeOrAbort(bot, signal, logger);
 }
 
 export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager: JobManager): void {
@@ -146,6 +152,7 @@ export function registerSleepInBed(
 	server: McpServer,
 	getBot: GetBot,
 	jobManager: JobManager,
+	logger: Logger,
 ): void {
 	server.tool(
 		"sleep_in_bed",
@@ -168,7 +175,7 @@ export function registerSleepInBed(
 			const started = tryStartJob(jobManager, "sleeping", "ベッド", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
-				await executeSleep(bot, bedIds, maxDistance, signal);
+				await executeSleep(bot, bedIds, maxDistance, signal, logger);
 			});
 			if (!started.ok) return started.result;
 

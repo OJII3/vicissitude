@@ -1,4 +1,5 @@
 import type { McAuthMode } from "@vicissitude/shared/config";
+import type { Logger } from "@vicissitude/shared/types";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
@@ -69,9 +70,9 @@ function cleanupBot(b: mineflayer.Bot): void {
 	if (typeof b.quit === "function") b.quit();
 }
 
-function startViewer(b: mineflayer.Bot, viewerPort: number): void {
+function startViewer(b: mineflayer.Bot, viewerPort: number, logger: Logger): void {
 	prismarineViewer(b, { viewDistance: 4, firstPerson: true, port: viewerPort });
-	console.error(`[minecraft] Viewer running on *:${String(viewerPort)}`);
+	logger.info(`[minecraft] Viewer running on *:${String(viewerPort)}`);
 }
 
 function handleHealthChange(b: mineflayer.Bot, ctx: BotContext, tracking: TrackingState): void {
@@ -96,15 +97,16 @@ function registerCoreEvents(
 	ctx: BotContext,
 	tracking: TrackingState,
 	viewerPort: number,
+	logger: Logger,
 	onSpawnReady: () => void,
 	onDisconnect: () => void,
 	onAuthFailure: () => void,
 ): void {
 	b.once("spawn", () => {
-		console.error(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
+		logger.info(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
 		ctx.pushEvent("spawn", `Spawned at ${b.entity.position}`, "high");
 		onSpawnReady();
-		startViewer(b, viewerPort);
+		startViewer(b, viewerPort, logger);
 	});
 	let lastRespawnTime = 0;
 	const RESPAWN_COOLDOWN_MS = 1000;
@@ -115,12 +117,12 @@ function registerCoreEvents(
 			try {
 				b.respawn();
 				lastRespawnTime = now;
-				console.error("[minecraft] Auto-respawned after death");
+				logger.info("[minecraft] Auto-respawned after death");
 			} catch (err) {
-				console.error("[minecraft] respawn() failed:", err);
+				logger.error("[minecraft] respawn() failed:", err);
 			}
 		} else {
-			console.error("[minecraft] Respawn skipped (cooldown)");
+			logger.warn("[minecraft] Respawn skipped (cooldown)");
 		}
 	});
 	b.on("health", () => handleHealthChange(b, ctx, tracking));
@@ -128,21 +130,21 @@ function registerCoreEvents(
 		if (username !== b.username) ctx.pushEvent("chat", `<${username}> ${message}`, "medium");
 	});
 	b.on("kicked", (reason: string) => {
-		console.error(`[minecraft] Kicked: ${reason}`);
+		logger.warn(`[minecraft] Kicked: ${reason}`);
 		ctx.pushEvent("kicked", `Kicked: ${reason}`, "high");
 	});
 	b.on("entityHurt", (entity: Entity) => {
 		if (entity === b.entity) ctx.pushEvent("damage", "Bot took damage", "medium");
 	});
 	b.on("end", (reason: string) => {
-		console.error(`[minecraft] Disconnected: ${reason}`);
+		logger.info(`[minecraft] Disconnected: ${reason}`);
 		ctx.pushEvent("disconnect", `Disconnected: ${reason}`, "high");
 		onDisconnect();
 	});
 	b.on("error", (err: Error) => {
-		console.error(`[minecraft] Error: ${err.message}`);
+		logger.error(`[minecraft] Error: ${err.message}`);
 		if (isAuthError(err)) {
-			console.error("[minecraft] Authentication failed — disabling reconnect");
+			logger.error("[minecraft] Authentication failed — disabling reconnect");
 			onAuthFailure();
 		}
 	});
@@ -173,11 +175,13 @@ function registerWorldEvents(b: mineflayer.Bot, ctx: BotContext, tracking: Track
 	});
 }
 
+// oxlint-disable-next-line max-params -- internal wiring function, params are all distinct concerns
 function initBot(
 	config: BotConfig,
 	ctx: BotContext,
 	tracking: TrackingState,
 	reconnect: ReconnectState,
+	logger: Logger,
 	botFactory: () => mineflayer.Bot,
 ): mineflayer.Bot {
 	const botOptions: Parameters<typeof mineflayer.createBot>[0] = {
@@ -197,11 +201,12 @@ function initBot(
 		ctx,
 		tracking,
 		config.viewerPort,
+		logger,
 		() => {
 			reconnect.delay = 1000;
 		},
 		() => {
-			if (!reconnect.shuttingDown) scheduleReconnect(reconnect, ctx, botFactory);
+			if (!reconnect.shuttingDown) scheduleReconnect(reconnect, ctx, logger, botFactory);
 		},
 		() => {
 			reconnect.shuttingDown = true;
@@ -214,10 +219,11 @@ function initBot(
 function scheduleReconnect(
 	state: ReconnectState,
 	ctx: BotContext,
+	logger: Logger,
 	botFactory: () => mineflayer.Bot,
 ): void {
 	if (state.timer) clearTimeout(state.timer);
-	console.error(`[minecraft] Reconnecting in ${String(state.delay)}ms...`);
+	logger.info(`[minecraft] Reconnecting in ${String(state.delay)}ms...`);
 	state.timer = setTimeout(() => {
 		state.timer = null;
 		if (state.shuttingDown) return;
@@ -231,6 +237,7 @@ function scheduleReconnect(
 export function createBotConnection(
 	config: BotConfig,
 	ctx: BotContext,
+	logger: Logger,
 ): { start(): void; shutdown(): void } {
 	const reconnect: ReconnectState = { delay: 1000, shuttingDown: false, timer: null };
 	const tracking: TrackingState = {
@@ -239,7 +246,8 @@ export function createBotConnection(
 		lastTimePeriod: "",
 		lastWeather: "",
 	};
-	const botFactory = (): mineflayer.Bot => initBot(config, ctx, tracking, reconnect, botFactory);
+	const botFactory = (): mineflayer.Bot =>
+		initBot(config, ctx, tracking, reconnect, logger, botFactory);
 
 	return {
 		start() {
