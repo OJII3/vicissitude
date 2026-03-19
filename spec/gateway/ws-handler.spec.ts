@@ -1,8 +1,13 @@
 import { describe, expect, it } from "bun:test";
 
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
+import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
+import { createTtsStyleParams } from "@vicissitude/shared/tts";
+import type { TtsResult } from "@vicissitude/shared/tts";
 import type {
+	AudioDataMessage,
 	ChatInputMessage,
+	ChatResponseMessage,
 	ErrorMessage,
 	ServerMessage,
 } from "@vicissitude/shared/ws-protocol";
@@ -247,6 +252,170 @@ describe("WsConnectionManager", () => {
 			expect(conn1.sent).toHaveLength(1);
 			// 影響なし
 			expect(conn2.sent).toHaveLength(0);
+		});
+	});
+
+	// ─── TTS 統合 ──────────────────────────────────────────────────
+
+	describe("TTS 統合", () => {
+		const dummyWavAudio = new Uint8Array(44);
+
+		const mockStyleMapper: EmotionToTtsStyleMapper = {
+			mapToStyle: () => createTtsStyleParams("happy", 0.8, 1.0),
+		};
+
+		function createMockSynthesizer(result?: TtsResult | null): TtsSynthesizer {
+			const r =
+				result === undefined
+					? { audio: dummyWavAudio, format: "wav" as const, durationSec: 1.5 }
+					: result;
+			return {
+				synthesize: () => Promise.resolve(r),
+				isAvailable: () => Promise.resolve(true),
+			};
+		}
+
+		it("chat_input 受信時、TTS が利用可能な場合は AudioDataMessage が送信される", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: createMockSynthesizer(),
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			// TTS 合成は非同期なので少し待つ
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const chatMessages = messages.filter(
+				(m): m is ChatResponseMessage => m.type === "chat_message",
+			);
+			const audioMessages = messages.filter((m): m is AudioDataMessage => m.type === "audio_data");
+
+			expect(chatMessages.length).toBeGreaterThanOrEqual(1);
+			expect(audioMessages.length).toBeGreaterThanOrEqual(1);
+		});
+
+		it("AudioDataMessage の messageId は対応する ChatResponseMessage と一致する", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: createMockSynthesizer(),
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const chatMsg = messages.find(
+				(m): m is ChatResponseMessage => m.type === "chat_message" && m.status === "complete",
+			);
+			const audioMsg = messages.find((m): m is AudioDataMessage => m.type === "audio_data");
+
+			expect(chatMsg).toBeDefined();
+			expect(audioMsg).toBeDefined();
+			if (!audioMsg || !chatMsg) throw new Error("unreachable");
+			expect(audioMsg.messageId).toBe(chatMsg.messageId);
+		});
+
+		it("AudioDataMessage の format は 'wav'、audio は空でない文字列、durationSec は正の数", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: createMockSynthesizer(),
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const audioMsg = messages.find((m): m is AudioDataMessage => m.type === "audio_data");
+
+			expect(audioMsg).toBeDefined();
+			if (!audioMsg) throw new Error("unreachable");
+			expect(audioMsg.format).toBe("wav");
+			expect(audioMsg.audio.length).toBeGreaterThan(0);
+			expect(audioMsg.durationSec).toBeGreaterThan(0);
+		});
+
+		it("TTS synthesizer 未設定時はテキスト応答のみ（AudioDataMessage なし）", async () => {
+			const manager = new WsConnectionManager();
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const audioMessages = messages.filter((m) => m.type === "audio_data");
+
+			expect(audioMessages).toHaveLength(0);
+		});
+
+		it("TTS 合成が null を返した場合はテキスト応答のみ", async () => {
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: createMockSynthesizer(null),
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const chatMessages = messages.filter((m) => m.type === "chat_message");
+			const audioMessages = messages.filter((m) => m.type === "audio_data");
+
+			expect(chatMessages.length).toBeGreaterThanOrEqual(1);
+			expect(audioMessages).toHaveLength(0);
+		});
+
+		it("TTS 合成エラー時もテキスト応答は正常に返る", async () => {
+			const failingSynthesizer: TtsSynthesizer = {
+				synthesize: () => Promise.reject(new Error("TTS engine unavailable")),
+				isAvailable: () => Promise.resolve(true),
+			};
+
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: failingSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 50);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const chatMessages = messages.filter(
+				(m): m is ChatResponseMessage => m.type === "chat_message",
+			);
+			const audioMessages = messages.filter((m) => m.type === "audio_data");
+
+			expect(chatMessages.length).toBeGreaterThanOrEqual(1);
+			expect(audioMessages).toHaveLength(0);
 		});
 	});
 });
