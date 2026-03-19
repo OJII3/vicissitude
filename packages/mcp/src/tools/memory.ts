@@ -17,10 +17,12 @@ import {
 } from "../memory-helpers.ts";
 
 export function registerMemoryTools(server: McpServer): void {
-	server.tool(
+	server.registerTool(
 		"read_memory",
-		"MEMORY.md を読み取る（guild_id 指定時は Guild 固有のメモリ）",
-		{ guild_id: guildIdSchema },
+		{
+			description: "MEMORY.md を読み取る（guild_id 指定時は Guild 固有のメモリ）",
+			inputSchema: { guild_id: guildIdSchema },
+		},
 		({ guild_id }) => {
 			const { memoryPath } = resolveContextPaths(guild_id);
 			const content = readWithFallback(memoryPath);
@@ -30,16 +32,19 @@ export function registerMemoryTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"update_memory",
-		"MEMORY.md を上書き更新する（.bak バックアップ自動作成、guild_id 指定時は Guild 固有。運用設定・行動ルール・週次目標が対象、ユーザー背景情報は LTM に委譲）",
 		{
-			content: z
-				.string()
-				.min(1)
-				.max(MAX_MEMORY_CHARS)
-				.describe("新しい MEMORY.md の内容（最大 50,000 文字）"),
-			guild_id: guildIdSchema,
+			description:
+				"MEMORY.md を上書き更新する（.bak バックアップ自動作成、guild_id 指定時は Guild 固有。運用設定・行動ルール・週次目標が対象、ユーザー背景情報は LTM に委譲）",
+			inputSchema: {
+				content: z
+					.string()
+					.min(1)
+					.max(MAX_MEMORY_CHARS)
+					.describe("新しい MEMORY.md の内容（最大 50,000 文字）"),
+				guild_id: guildIdSchema,
+			},
 		},
 		({ content, guild_id }) => {
 			const { memoryPath } = resolveContextPaths(guild_id);
@@ -57,17 +62,19 @@ export function registerMemoryTools(server: McpServer): void {
 		},
 	);
 
-	server.tool("read_soul", "SOUL.md を読み取る", {}, () => {
+	server.registerTool("read_soul", { description: "SOUL.md を読み取る" }, () => {
 		const content = readWithFallback(SOUL_PATH);
 		return {
 			content: [{ type: "text", text: content || "(SOUL.md は空です)" }],
 		};
 	});
 
-	server.tool(
+	server.registerTool(
 		"read_lessons",
-		"LESSONS.md を読み取る（guild_id 指定時は Guild 固有）",
-		{ guild_id: guildIdSchema },
+		{
+			description: "LESSONS.md を読み取る（guild_id 指定時は Guild 固有）",
+			inputSchema: { guild_id: guildIdSchema },
+		},
 		({ guild_id }) => {
 			const { lessonsPath } = resolveContextPaths(guild_id);
 			const content = readWithFallback(lessonsPath);
@@ -82,16 +89,19 @@ export function registerMemoryTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"update_lessons",
-		"LESSONS.md を上書き更新する（更新前に ltm_get_facts で guideline カテゴリを確認し重複を避ける。バックアップ自動作成、guild_id 指定時は Guild 固有）",
 		{
-			content: z
-				.string()
-				.min(1)
-				.max(MAX_LESSONS_CHARS)
-				.describe("新しい LESSONS.md の内容（最大 30,000 文字）"),
-			guild_id: guildIdSchema,
+			description:
+				"LESSONS.md を上書き更新する（更新前に ltm_get_facts で guideline カテゴリを確認し重複を避ける。バックアップ自動作成、guild_id 指定時は Guild 固有）",
+			inputSchema: {
+				content: z
+					.string()
+					.min(1)
+					.max(MAX_LESSONS_CHARS)
+					.describe("新しい LESSONS.md の内容（最大 30,000 文字）"),
+				guild_id: guildIdSchema,
+			},
 		},
 		({ content, guild_id }) => {
 			const { lessonsPath } = resolveContextPaths(guild_id);

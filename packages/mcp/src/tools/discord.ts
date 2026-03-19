@@ -60,10 +60,13 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		return channel;
 	}
 
-	server.tool(
+	server.registerTool(
 		"send_typing",
-		"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called, or 60s timeout.",
-		{ channel_id: z.string() },
+		{
+			description:
+				"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called, or 60s timeout.",
+			inputSchema: { channel_id: z.string() },
+		},
 		async ({ channel_id }) => {
 			const channel = await getTextChannel(channel_id);
 			if (!("sendTyping" in channel)) {
@@ -82,13 +85,15 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"send_message",
-		"Send a message to a Discord channel (optionally with a file attachment)",
 		{
-			channel_id: z.string(),
-			content: z.string(),
-			file_path: z.string().optional().describe("添付するファイルのパス"),
+			description: "Send a message to a Discord channel (optionally with a file attachment)",
+			inputSchema: {
+				channel_id: z.string(),
+				content: z.string(),
+				file_path: z.string().optional().describe("添付するファイルのパス"),
+			},
 		},
 		async ({ channel_id, content, file_path }) => {
 			clearTyping(channel_id);
@@ -103,14 +108,17 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"reply",
-		"Reply to a specific message in a Discord channel (optionally with a file attachment)",
 		{
-			channel_id: z.string(),
-			message_id: z.string(),
-			content: z.string(),
-			file_path: z.string().optional().describe("添付するファイルのパス"),
+			description:
+				"Reply to a specific message in a Discord channel (optionally with a file attachment)",
+			inputSchema: {
+				channel_id: z.string(),
+				message_id: z.string(),
+				content: z.string(),
+				file_path: z.string().optional().describe("添付するファイルのパス"),
+			},
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
 			clearTyping(channel_id);
@@ -126,10 +134,12 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"add_reaction",
-		"Add a reaction emoji to a message",
-		{ channel_id: z.string(), message_id: z.string(), emoji: z.string() },
+		{
+			description: "Add a reaction emoji to a message",
+			inputSchema: { channel_id: z.string(), message_id: z.string(), emoji: z.string() },
+		},
 		async ({ channel_id, message_id, emoji }) => {
 			const channel = await getTextChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
@@ -138,10 +148,12 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"read_messages",
-		"Read recent messages from a Discord channel",
-		{ channel_id: z.string(), limit: z.number().min(1).max(50).default(10) },
+		{
+			description: "Read recent messages from a Discord channel",
+			inputSchema: { channel_id: z.string(), limit: z.number().min(1).max(50).default(10) },
+		},
 		async ({ channel_id, limit }) => {
 			const channel = await getTextChannel(channel_id);
 			const messages = await channel.messages.fetch({ limit });
@@ -154,10 +166,12 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"list_channels",
-		"List text channels in a Discord guild",
-		{ guild_id: z.string() },
+		{
+			description: "List text channels in a Discord guild",
+			inputSchema: { guild_id: z.string() },
+		},
 		async ({ guild_id }) => {
 			const guild = await discordClient.guilds.fetch(guild_id);
 			const channels = await guild.channels.fetch();

@@ -52,14 +52,16 @@ export function listEdibleFoods(bot: mineflayer.Bot, emergency: boolean): FoodIn
 }
 
 export function registerEatFood(server: McpServer, getBot: GetBot): void {
-	server.tool(
+	server.registerTool(
 		"eat_food",
-		"インベントリから食料を選んで食べる（空腹度を回復）",
 		{
-			emergency: z
-				.boolean()
-				.default(false)
-				.describe("緊急時のみ true（golden_apple の使用を許可）"),
+			description: "インベントリから食料を選んで食べる（空腹度を回復）",
+			inputSchema: {
+				emergency: z
+					.boolean()
+					.default(false)
+					.describe("緊急時のみ true（golden_apple の使用を許可）"),
+			},
 		},
 		async ({ emergency }) => {
 			const bot = getBot();

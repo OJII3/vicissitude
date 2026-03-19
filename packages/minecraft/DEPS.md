@@ -14,6 +14,7 @@ graph LR
   actions_index["actions/index"] --> actions_jobs["actions/jobs"]
   actions_index["actions/index"] --> actions_movement["actions/movement"]
   actions_index["actions/index"] --> actions_shared["actions/shared"]
+  actions_index["actions/index"] --> actions_smelting["actions/smelting"]
   actions_index["actions/index"] --> actions_survival_index["actions/survival/index"]
   actions_index["actions/index"] --> job_manager["job-manager"]
   actions_interaction["actions/interaction"] --> actions_shared["actions/shared"]
@@ -23,6 +24,8 @@ graph LR
   actions_movement["actions/movement"] --> bot_queries["bot-queries"]
   actions_movement["actions/movement"] --> job_manager["job-manager"]
   actions_shared["actions/shared"] --> job_manager["job-manager"]
+  actions_smelting["actions/smelting"] --> actions_shared["actions/shared"]
+  actions_smelting["actions/smelting"] --> job_manager["job-manager"]
   actions_survival_escape["actions/survival/escape"] --> actions_shared["actions/shared"]
   actions_survival_escape["actions/survival/escape"] --> bot_queries["bot-queries"]
   actions_survival_escape["actions/survival/escape"] --> job_manager["job-manager"]
@@ -69,7 +72,7 @@ graph LR
 
 ### actions/index.ts
 
-- モジュール内依存: actions/combat, actions/interaction, actions/jobs, actions/movement, actions/shared, actions/survival/index, job-manager
+- モジュール内依存: actions/combat, actions/interaction, actions/jobs, actions/movement, actions/shared, actions/smelting, actions/survival/index, job-manager
 - 他モジュール依存: shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
@@ -93,6 +96,11 @@ graph LR
 
 - モジュール内依存: job-manager
 - 外部依存: .bun
+
+### actions/smelting.ts
+
+- モジュール内依存: actions/shared, job-manager
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/survival/escape.ts
 

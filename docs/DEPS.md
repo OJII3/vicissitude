@@ -109,7 +109,7 @@ graph LR
 
 - 内部依存: mcp, observability, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
-- ファイル数: 22
+- ファイル数: 23
 
 ### observability
 

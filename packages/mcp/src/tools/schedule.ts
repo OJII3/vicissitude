@@ -42,15 +42,21 @@ async function saveConfig(config: HeartbeatConfig): Promise<void> {
 }
 
 export function registerScheduleTools(server: McpServer): void {
-	server.tool("get_heartbeat_config", "現在の heartbeat 設定を表示する", {}, () => {
-		const config = loadConfig();
-		return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
-	});
+	server.registerTool(
+		"get_heartbeat_config",
+		{ description: "現在の heartbeat 設定を表示する" },
+		() => {
+			const config = loadConfig();
+			return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
+		},
+	);
 
-	server.tool(
+	server.registerTool(
 		"list_reminders",
-		"リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
-		{ guild_id: guildIdSchema },
+		{
+			description: "リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
+			inputSchema: { guild_id: guildIdSchema },
+		},
 		({ guild_id }) => {
 			const config = loadConfig();
 			const visible = filterRemindersByGuild(config.reminders, guild_id);
@@ -68,23 +74,25 @@ export function registerScheduleTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"add_reminder",
-		"新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
 		{
-			guild_id: guildIdSchema,
-			id: z.string().describe("一意の識別子"),
-			description: z.string().describe("リマインダーの説明"),
-			schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
-			interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-			daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-			daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
-			global: z
-				.boolean()
-				.optional()
-				.describe(
-					"true にするとギルドに紐づかないグローバルリマインダーになる（デフォルト: false）",
-				),
+			description: "新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				id: z.string().describe("一意の識別子"),
+				description: z.string().describe("リマインダーの説明"),
+				schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
+				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
+				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
+				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+				global: z
+					.boolean()
+					.optional()
+					.describe(
+						"true にするとギルドに紐づかないグローバルリマインダーになる（デフォルト: false）",
+					),
+			},
 		},
 		async ({
 			guild_id,
@@ -144,18 +152,23 @@ export function registerScheduleTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"update_reminder",
-		"リマインダーを更新する（自ギルドまたはグローバルのみ）",
 		{
-			guild_id: guildIdSchema,
-			id: z.string().describe("更新するリマインダーの ID"),
-			description: z.string().optional().describe("新しい説明"),
-			enabled: z.boolean().optional().describe("有効/無効"),
-			schedule_type: z.enum(["interval", "daily"]).optional().describe("新しいスケジュールタイプ"),
-			interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-			daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-			daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+			description: "リマインダーを更新する（自ギルドまたはグローバルのみ）",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				id: z.string().describe("更新するリマインダーの ID"),
+				description: z.string().optional().describe("新しい説明"),
+				enabled: z.boolean().optional().describe("有効/無効"),
+				schedule_type: z
+					.enum(["interval", "daily"])
+					.optional()
+					.describe("新しいスケジュールタイプ"),
+				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
+				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
+				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+			},
 		},
 		async ({
 			guild_id,
@@ -207,12 +220,14 @@ export function registerScheduleTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"remove_reminder",
-		"リマインダーを削除する（自ギルドまたはグローバルのみ）",
 		{
-			guild_id: guildIdSchema,
-			id: z.string().describe("削除するリマインダーの ID"),
+			description: "リマインダーを削除する（自ギルドまたはグローバルのみ）",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				id: z.string().describe("削除するリマインダーの ID"),
+			},
 		},
 		async ({ guild_id, id }) => {
 			const config = loadConfig();
@@ -243,10 +258,12 @@ export function registerScheduleTools(server: McpServer): void {
 		},
 	);
 
-	server.tool(
+	server.registerTool(
 		"set_base_interval",
-		"ベースチェック間隔を変更する（分）",
-		{ minutes: z.number().min(1).describe("チェック間隔（分）") },
+		{
+			description: "ベースチェック間隔を変更する（分）",
+			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
+		},
 		async ({ minutes }) => {
 			const config = loadConfig();
 			config.baseIntervalMinutes = minutes;

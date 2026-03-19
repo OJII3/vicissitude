@@ -47,15 +47,18 @@ export async function pollEvents(
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
 	const { db } = deps;
 
-	server.tool(
+	server.registerTool(
 		"wait_for_events",
-		"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
 		{
-			agent_id: z
-				.string()
-				.min(1)
-				.describe("対象のエージェント ID (例: discord:123456, minecraft:brain)"),
-			timeout_seconds: z.number().min(1).max(172800).default(60),
+			description:
+				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
+			inputSchema: {
+				agent_id: z
+					.string()
+					.min(1)
+					.describe("対象のエージェント ID (例: discord:123456, minecraft:brain)"),
+				timeout_seconds: z.number().min(1).max(172800).default(60),
+			},
 		},
 		async ({ agent_id, timeout_seconds }) => {
 			const immediate = consumeEvents(db, agent_id, MAX_BATCH_SIZE);

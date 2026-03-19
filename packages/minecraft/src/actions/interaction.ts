@@ -38,15 +38,17 @@ async function placeOnAdjacentBlock(
 }
 
 export function registerSendChat(server: McpServer, getBot: GetBot): void {
-	server.tool(
+	server.registerTool(
 		"send_chat",
-		"Minecraft ゲーム内チャットにメッセージを送信する（コマンド送信不可）",
 		{
-			message: z
-				.string()
-				.min(1)
-				.max(MAX_CHAT_LENGTH)
-				.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字、"/" 始まり禁止）`),
+			description: "Minecraft ゲーム内チャットにメッセージを送信する（コマンド送信不可）",
+			inputSchema: {
+				message: z
+					.string()
+					.min(1)
+					.max(MAX_CHAT_LENGTH)
+					.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字、"/" 始まり禁止）`),
+			},
 		},
 		({ message }) => {
 			const bot = getBot();
@@ -59,15 +61,17 @@ export function registerSendChat(server: McpServer, getBot: GetBot): void {
 }
 
 export function registerEquipItem(server: McpServer, getBot: GetBot): void {
-	server.tool(
+	server.registerTool(
 		"equip_item",
-		"インベントリのアイテムを装備する",
 		{
-			itemName: z.string().describe('アイテム名（例: "diamond_sword", "iron_helmet"）'),
-			destination: z
-				.enum(["hand", "head", "torso", "legs", "feet", "off-hand"])
-				.default("hand")
-				.describe("装備先（デフォルト: hand）"),
+			description: "インベントリのアイテムを装備する",
+			inputSchema: {
+				itemName: z.string().describe('アイテム名（例: "diamond_sword", "iron_helmet"）'),
+				destination: z
+					.enum(["hand", "head", "torso", "legs", "feet", "off-hand"])
+					.default("hand")
+					.describe("装備先（デフォルト: hand）"),
+			},
 		},
 		async ({ itemName, destination }) => {
 			const bot = getBot();
@@ -83,16 +87,18 @@ export function registerEquipItem(server: McpServer, getBot: GetBot): void {
 }
 
 export function registerPlaceBlock(server: McpServer, getBot: GetBot): void {
-	server.tool(
+	server.registerTool(
 		"place_block",
-		"指定座標にブロックを設置する（インベントリからアイテムを自動装備）",
 		{
-			blockName: z
-				.string()
-				.describe('設置するブロックのアイテム名（例: "cobblestone", "oak_planks"）'),
-			x: z.number().int().describe("設置先の X 座標"),
-			y: z.number().int().describe("設置先の Y 座標"),
-			z: z.number().int().describe("設置先の Z 座標"),
+			description: "指定座標にブロックを設置する（インベントリからアイテムを自動装備）",
+			inputSchema: {
+				blockName: z
+					.string()
+					.describe('設置するブロックのアイテム名（例: "cobblestone", "oak_planks"）'),
+				x: z.number().int().describe("設置先の X 座標"),
+				y: z.number().int().describe("設置先の Y 座標"),
+				z: z.number().int().describe("設置先の Z 座標"),
+			},
 		},
 		async ({ blockName, x, y, z: zCoord }) => {
 			const bot = getBot();

@@ -15,6 +15,7 @@
 		"./mc-metrics": "./src/mc-metrics.ts",
 		"./helpers": "./src/helpers.ts",
 		"./actions/jobs": "./src/actions/jobs.ts",
+		"./actions/smelting": "./src/actions/smelting.ts",
 		"./actions/survival": "./src/actions/survival/index.ts"
 	},
 	"dependencies": {

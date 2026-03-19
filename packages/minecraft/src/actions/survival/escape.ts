@@ -17,21 +17,23 @@ export function registerFleeFromEntity(
 	getBot: GetBot,
 	jobManager: JobManager,
 ): void {
-	server.tool(
+	server.registerTool(
 		"flee_from_entity",
-		"指定エンティティから逃走する（非同期ジョブ: 即座に jobId を返す）",
 		{
-			entityName: z
-				.string()
-				.min(1)
-				.max(64)
-				.describe('逃走対象のエンティティ名（例: "creeper", "warden"）'),
-			distance: z
-				.number()
-				.min(8)
-				.max(64)
-				.default(32)
-				.describe("逃走距離（デフォルト: 32ブロック）"),
+			description: "指定エンティティから逃走する（非同期ジョブ: 即座に jobId を返す）",
+			inputSchema: {
+				entityName: z
+					.string()
+					.min(1)
+					.max(64)
+					.describe('逃走対象のエンティティ名（例: "creeper", "warden"）'),
+				distance: z
+					.number()
+					.min(8)
+					.max(64)
+					.default(32)
+					.describe("逃走距離（デフォルト: 32ブロック）"),
+			},
 		},
 		async ({ entityName, distance }) => {
 			const bot = getBot();

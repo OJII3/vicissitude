@@ -117,12 +117,14 @@ async function checkPodmanSetup(): Promise<void> {
 	}
 }
 
-server.tool(
+server.registerTool(
 	"execute_code",
-	"Execute code in a sandboxed container and return the output",
 	{
-		language: z.enum(SUPPORTED_LANGUAGES),
-		code: z.string().max(MAX_CODE_LENGTH),
+		description: "Execute code in a sandboxed container and return the output",
+		inputSchema: {
+			language: z.enum(SUPPORTED_LANGUAGES),
+			code: z.string().max(MAX_CODE_LENGTH),
+		},
 	},
 	async ({ language, code }) => {
 		const cmd = buildPodmanCmd(language, code);

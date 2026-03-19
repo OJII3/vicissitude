@@ -10,21 +10,23 @@ const MAX_REPORT_CHARS = 10_000;
 export function registerMinecraftBridgeTools(server: McpServer, deps: { db: StoreDb }): void {
 	const { db } = deps;
 
-	server.tool(
+	server.registerTool(
 		"mc_report",
-		"Discord 側にレポートを送信する。",
 		{
-			message: z.string().min(1).max(MAX_REPORT_CHARS).describe("レポート内容"),
-			importance: z
-				.enum(["low", "medium", "high", "critical"])
-				.default("medium")
-				.describe("重要度"),
-			category: z
-				.enum(["progress", "completion", "stuck", "danger", "discovery", "status"])
-				.default("status")
-				.describe(
-					"レポート種別: progress=作業中間報告, completion=目標達成, stuck=行き詰まり, danger=危険回避, discovery=新発見, status=一般状態",
-				),
+			description: "Discord 側にレポートを送信する。",
+			inputSchema: {
+				message: z.string().min(1).max(MAX_REPORT_CHARS).describe("レポート内容"),
+				importance: z
+					.enum(["low", "medium", "high", "critical"])
+					.default("medium")
+					.describe("重要度"),
+				category: z
+					.enum(["progress", "completion", "stuck", "danger", "discovery", "status"])
+					.default("status")
+					.describe(
+						"レポート種別: progress=作業中間報告, completion=目標達成, stuck=行き詰まり, danger=危険回避, discovery=新発見, status=一般状態",
+					),
+			},
 		},
 		({ message, importance, category }) => {
 			const guildId = getSessionLockGuildId(db);

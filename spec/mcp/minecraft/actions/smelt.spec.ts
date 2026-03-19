@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { registerSmeltItem } from "@vicissitude/minecraft/actions/jobs";
+import { registerSmeltItem } from "@vicissitude/minecraft/actions/smelting";
 
 type ToolHandler = (args: { itemName: string; count: number; fuelName: string }) => unknown;
 
 function captureSmeltHandler(getBot: () => unknown): ToolHandler {
 	const result: { handler: ToolHandler | null } = { handler: null };
 	const fakeServer = {
-		tool: (_name: string, _desc: string, _schema: unknown, handler: ToolHandler) => {
+		registerTool: (_name: string, _config: unknown, handler: ToolHandler) => {
 			result.handler = handler;
 		},
 	};

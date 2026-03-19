@@ -156,22 +156,25 @@ export function registerAttackEntity(
 	getBot: GetBot,
 	jobManager: JobManager,
 ): void {
-	server.tool(
+	server.registerTool(
 		"attack_entity",
-		"指定エンティティを攻撃する（非同期ジョブ: 即座に jobId を返す、最適武器自動装備）",
 		{
-			entityName: z
-				.string()
-				.min(1)
-				.max(64)
-				.describe('攻撃対象のエンティティ名（例: "zombie", "cow"）'),
-			maxHits: z
-				.number()
-				.int()
-				.min(1)
-				.max(100)
-				.default(20)
-				.describe("最大攻撃回数（デフォルト: 20、安全弁）"),
+			description:
+				"指定エンティティを攻撃する（非同期ジョブ: 即座に jobId を返す、最適武器自動装備）",
+			inputSchema: {
+				entityName: z
+					.string()
+					.min(1)
+					.max(64)
+					.describe('攻撃対象のエンティティ名（例: "zombie", "cow"）'),
+				maxHits: z
+					.number()
+					.int()
+					.min(1)
+					.max(100)
+					.default(20)
+					.describe("最大攻撃回数（デフォルト: 20、安全弁）"),
+			},
 		},
 		async ({ entityName, maxHits }) => {
 			const bot = getBot();
