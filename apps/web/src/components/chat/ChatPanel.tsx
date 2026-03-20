@@ -2,6 +2,7 @@ import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { AudioPlayer } from "../../lib/audio-player";
 import { WsClient } from "../../lib/ws-client";
 
 // ─── Types ──────────────────────────────────────────────────────
@@ -30,13 +31,21 @@ function getWsUrl(): string {
 function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 	const [messages, setMessages] = useState<ChatMessage[]>([]);
 	const [connected, setConnected] = useState(false);
+	const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
 	const clientRef = useRef<WsClient | null>(null);
+	const audioPlayerRef = useRef<AudioPlayer | null>(null);
 	const expressionRef = useRef(onExpressionChange);
 	expressionRef.current = onExpressionChange;
 
 	useEffect(() => {
 		const client = new WsClient(getWsUrl());
 		clientRef.current = client;
+
+		const audioPlayer = new AudioPlayer({
+			onPlayStart: (messageId) => setPlayingMessageId(messageId),
+			onPlayEnd: (_messageId) => setPlayingMessageId(null),
+		});
+		audioPlayerRef.current = audioPlayer;
 
 		const unsubMessage = client.onMessage((message: ServerMessage) => {
 			if (message.type === "chat_message") {
@@ -46,6 +55,8 @@ function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 						{ id: message.messageId, role: "assistant", text: message.text },
 					]);
 				}
+			} else if (message.type === "audio_data") {
+				audioPlayer.enqueue(message.messageId, message.audio);
 			} else if (message.type === "emotion_update") {
 				expressionRef.current(message.expressionWeight);
 			}
@@ -60,17 +71,18 @@ function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 			unsubOpen();
 			unsubClose();
 			client.disconnect();
+			audioPlayer.destroy();
 		};
 	}, []);
 
-	return { messages, setMessages, connected, clientRef };
+	return { messages, setMessages, connected, clientRef, playingMessageId };
 }
 
 // ─── Sub-components ─────────────────────────────────────────────
 
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({ msg, isPlaying }: { msg: ChatMessage; isPlaying: boolean }) {
 	return (
-		<div className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+		<div className={`flex items-center ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
 			<div
 				className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
 					msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"
@@ -78,13 +90,24 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
 			>
 				{msg.text}
 			</div>
+			{isPlaying && msg.role === "assistant" && (
+				<span className="ml-2 animate-pulse text-blue-500" title="再生中">
+					&#x1f50a;
+				</span>
+			)}
 		</div>
 	);
 }
 
 // ─── Message List ───────────────────────────────────────────────
 
-function MessageList({ messages }: { messages: ChatMessage[] }) {
+function MessageList({
+	messages,
+	playingMessageId,
+}: {
+	messages: ChatMessage[];
+	playingMessageId: string | null;
+}) {
 	const messagesEndRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
@@ -97,7 +120,7 @@ function MessageList({ messages }: { messages: ChatMessage[] }) {
 				<p className="text-center text-sm text-gray-400">メッセージを送信してください</p>
 			)}
 			{messages.map((msg) => (
-				<MessageBubble key={msg.id} msg={msg} />
+				<MessageBubble key={msg.id} msg={msg} isPlaying={msg.id === playingMessageId} />
 			))}
 			<div ref={messagesEndRef} />
 		</div>
@@ -157,7 +180,8 @@ function ChatInput({ onSend }: ChatInputProps) {
 // ─── Component ──────────────────────────────────────────────────
 
 export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
-	const { messages, setMessages, connected, clientRef } = useWsConnection(onExpressionChange);
+	const { messages, setMessages, connected, clientRef, playingMessageId } =
+		useWsConnection(onExpressionChange);
 
 	const handleSend = useCallback(
 		(text: string) => {
@@ -184,7 +208,7 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 					title={connected ? "接続中" : "未接続"}
 				/>
 			</div>
-			<MessageList messages={messages} />
+			<MessageList messages={messages} playingMessageId={playingMessageId} />
 			<ChatInput onSend={handleSend} />
 		</div>
 	);

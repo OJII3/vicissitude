@@ -313,12 +313,7 @@ describe("AudioPlayer", () => {
 			secondNode._simulateEnded();
 			await flushMicrotasks();
 
-			expect(events).toEqual([
-				"start:msg-001",
-				"end:msg-001",
-				"start:msg-002",
-				"end:msg-002",
-			]);
+			expect(events).toEqual(["start:msg-001", "end:msg-001", "start:msg-002", "end:msg-002"]);
 
 			player.destroy();
 		});
