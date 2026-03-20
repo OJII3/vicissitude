@@ -7,8 +7,10 @@
 ```mermaid
 graph LR
   components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
+  components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"] --> lib_audio_player["lib/audio-player"]
   components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"] --> lib_ws_client["lib/ws-client"]
   index.css
+  lib_audio_player["lib/audio-player"]
   lib_ws_client["lib/ws-client"]
   main.tsx --> index.css
   main.tsx --> routeTree.gen
@@ -29,11 +31,15 @@ graph LR
 
 ### components/chat/ChatPanel.tsx.ts
 
-- モジュール内依存: lib/ws-client
+- モジュール内依存: lib/audio-player, lib/ws-client
 - 他モジュール依存: shared
 - 外部依存: .bun
 
 ### index.css.ts
+
+- 依存なし
+
+### lib/audio-player.ts
 
 - 依存なし
 
