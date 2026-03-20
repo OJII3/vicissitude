@@ -7,6 +7,8 @@ import { createAutoNotifier } from "@vicissitude/minecraft/auto-notifier";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { getMcConnectionStatus, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { consumeEvents } from "@vicissitude/store/queries";
+import { mcSessionLock } from "@vicissitude/store/schema";
+import { eq } from "drizzle-orm";
 
 import { stubLogger } from "./stub-logger.ts";
 
@@ -118,6 +120,20 @@ describe("createAutoNotifier", () => {
 		notifier("death", "Bot died", "high");
 
 		// guildId が特定できないため挿入されない
+		const events = consumeEvents(db, "discord:guild-1");
+		expect(events).toHaveLength(0);
+	});
+
+	test("セッションロックが期限切れの場合は通知しない", () => {
+		({ db, dir } = setupDb());
+		tryAcquireSessionLock(db, "guild-1");
+		// acquiredAt を 2 時間超過に設定してロックを期限切れにする
+		const expired = Date.now() - 2 * 60 * 60 * 1000 - 1;
+		db.update(mcSessionLock).set({ acquiredAt: expired }).where(eq(mcSessionLock.id, 1)).run();
+
+		const notifier = createAutoNotifier(db, { logger: stubLogger });
+		notifier("death", "Bot died", "high");
+
 		const events = consumeEvents(db, "discord:guild-1");
 		expect(events).toHaveLength(0);
 	});

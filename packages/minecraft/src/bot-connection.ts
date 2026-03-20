@@ -252,6 +252,7 @@ export function createBotConnection(
 
 	return {
 		start() {
+			reconnect.shuttingDown = false;
 			ctx.setBot(botFactory());
 		},
 		shutdown() {

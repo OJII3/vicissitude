@@ -30,7 +30,12 @@ export function createAivisSpeechSynthesizer(config: {
 }): TtsSynthesizer {
 	const { baseUrl, speakerId = 0, styleSpeakerMap = {}, timeout = DEFAULT_TIMEOUT } = config;
 
-	const synthConfig: SynthesizeConfig = { baseUrl, timeout, defaultSpeakerId: speakerId, styleSpeakerMap };
+	const synthConfig: SynthesizeConfig = {
+		baseUrl,
+		timeout,
+		defaultSpeakerId: speakerId,
+		styleSpeakerMap,
+	};
 
 	return {
 		synthesize: (text, style) => synthesize(synthConfig, text, style),

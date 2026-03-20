@@ -202,5 +202,19 @@ describe("mc-bridge", () => {
 			tryAcquireSessionLock(db, "guild-1");
 			expect(getSessionLockGuildId(db)).toBe("guild-1");
 		});
+
+		test("returns null after releaseSessionLock", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			releaseSessionLock(db, "guild-1");
+			expect(getSessionLockGuildId(db)).toBeNull();
+		});
+
+		test("returns null after clearSessionLock", () => {
+			const db = createTestDb();
+			tryAcquireSessionLock(db, "guild-1");
+			clearSessionLock(db);
+			expect(getSessionLockGuildId(db)).toBeNull();
+		});
 	});
 });

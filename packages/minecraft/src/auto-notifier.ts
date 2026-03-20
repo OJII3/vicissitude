@@ -1,7 +1,11 @@
 import { METRIC } from "@vicissitude/shared/constants";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { getSessionLockGuildId, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
+import {
+	getSessionLockGuildId,
+	hasSessionLock,
+	setMcConnectionStatus,
+} from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
 
 import type { Importance } from "./helpers.ts";
@@ -53,6 +57,8 @@ export function createAutoNotifier(db: StoreDb, options: AutoNotifierOptions): A
 		if (now - last < NOTIFY_COOLDOWN_MS) return;
 		lastNotified.set(kind, now);
 
+		// ロックが有効でなければ通知しない
+		if (!hasSessionLock(db)) return;
 		// 対象 Discord エージェントの agentId を mc_session_lock から特定
 		const guildId = getSessionLockGuildId(db);
 		if (!guildId) return;
