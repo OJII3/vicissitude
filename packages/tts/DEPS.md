@@ -6,13 +6,17 @@
 
 ```mermaid
 graph LR
+  aivis_speech_synthesizer["aivis-speech-synthesizer"]
   emotion_to_tts_style_mapper["emotion-to-tts-style-mapper"]
+  index --> aivis_speech_synthesizer["aivis-speech-synthesizer"]
   index --> emotion_to_tts_style_mapper["emotion-to-tts-style-mapper"]
-  index --> style_bert_vits2_synthesizer["style-bert-vits2-synthesizer"]
-  style_bert_vits2_synthesizer["style-bert-vits2-synthesizer"]
 ```
 
 ## ファイル別依存一覧
+
+### aivis-speech-synthesizer.ts
+
+- 他モジュール依存: shared
 
 ### emotion-to-tts-style-mapper.ts
 
@@ -20,8 +24,4 @@ graph LR
 
 ### index.ts
 
-- モジュール内依存: emotion-to-tts-style-mapper, style-bert-vits2-synthesizer
-
-### style-bert-vits2-synthesizer.ts
-
-- 他モジュール依存: shared
+- モジュール内依存: aivis-speech-synthesizer, emotion-to-tts-style-mapper
