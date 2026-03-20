@@ -1,0 +1,22 @@
+# AivisSpeech Engine — Windows (Cyrene) の Docker Desktop で起動する
+# 使い方: docker compose -f containers/aivispeech/compose.yaml up -d
+
+volumes:
+  aivispeech-data:
+
+services:
+  aivispeech-engine:
+    image: ghcr.io/aivis-project/aivisspeech-engine:nvidia-latest
+    container_name: aivispeech-engine
+    ports:
+      - "10101:10101"
+    volumes:
+      - aivispeech-data:/home/user/.local/share/AivisSpeech-Engine-Dev
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
