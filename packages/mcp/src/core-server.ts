@@ -13,6 +13,7 @@ import { closeDb, createDb } from "@vicissitude/store/db";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
+import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { type LtmReadServices, registerLtmTools } from "./tools/ltm.ts";
@@ -124,23 +125,6 @@ const toolCallCounts = new Map<string, number>();
 // 5 分ごとにログ出力
 const METRICS_LOG_INTERVAL_MS = 5 * 60 * 1000;
 
-function wrapServerWithMetrics(server: McpServer): McpServer {
-	return new Proxy(server, {
-		get(target, prop, receiver) {
-			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
-			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
-			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
-				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
-				const wrappedCb = (...handlerArgs: any[]) => {
-					toolCallCounts.set(name, (toolCallCounts.get(name) ?? 0) + 1);
-					return cb(...handlerArgs);
-				};
-				return target.registerTool(name, config, wrappedCb);
-			};
-		},
-	});
-}
-
 const metricsLogTimer = setInterval(() => {
 	if (toolCallCounts.size === 0) return;
 	const snapshot: Record<string, number> = {};
@@ -149,12 +133,13 @@ const metricsLogTimer = setInterval(() => {
 	}
 	console.error(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, JSON.stringify(snapshot));
 }, METRICS_LOG_INTERVAL_MS);
+metricsLogTimer.unref();
 
 // --- MCP Server Factory ---
 
 function createServer(): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
-	const server = wrapServerWithMetrics(rawServer);
+	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
 	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
