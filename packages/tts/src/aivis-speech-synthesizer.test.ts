@@ -251,9 +251,7 @@ describe("readUint32LE — byte order verification via WAV parsing", () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
-		mockFetch.mockResolvedValueOnce(
-			new Response(buildWav(16909060, 16909060), { status: 200 }),
-		);
+		mockFetch.mockResolvedValueOnce(new Response(buildWav(16909060, 16909060), { status: 200 }));
 
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
