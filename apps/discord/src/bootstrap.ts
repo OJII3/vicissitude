@@ -8,6 +8,8 @@ import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
+import { createGatewayServer } from "@vicissitude/gateway/server";
+import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqlite-buffered-event-store";
 import { CompositeLLMAdapter } from "@vicissitude/ltm/composite-llm-adapter";
 import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
@@ -40,6 +42,7 @@ import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
 import { incrementEmoji } from "@vicissitude/store/queries";
+import { createAivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
@@ -408,6 +411,23 @@ export async function bootstrap(): Promise<void> {
 	const gateway = new DiscordGateway(config.discordToken, logger);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
 
+	// Gateway WebSocket server (with optional TTS)
+	const ttsSynthesizer = config.tts
+		? createAivisSpeechSynthesizer({
+				baseUrl: config.tts.baseUrl,
+				speakerId: config.tts.speakerId,
+			})
+		: undefined;
+	const ttsStyleMapper = config.tts ? createEmotionToTtsStyleMapper() : undefined;
+	const wsManager = new WsConnectionManager({
+		ttsSynthesizer,
+		ttsStyleMapper,
+	});
+	const gatewayServer = createGatewayServer(config.gatewayPort, wsManager);
+	logger.info(
+		`[bootstrap] Gateway server started (port=${config.gatewayPort}, tts=${!!config.tts})`,
+	);
+
 	// Core MCP + Minecraft MCP (start in parallel)
 	const coreReady = startCoreMcp(config, root, logger);
 	const mcReady = startMinecraftMcp(config, root, logger);
@@ -489,6 +509,7 @@ export async function bootstrap(): Promise<void> {
 			await ltmResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
+			await gatewayServer.stop();
 			mcBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();

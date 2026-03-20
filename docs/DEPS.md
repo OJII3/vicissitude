@@ -12,6 +12,7 @@ graph LR
   application --> shared
   apps_discord["apps/discord"] --> agent
   apps_discord["apps/discord"] --> application
+  apps_discord["apps/discord"] --> gateway
   apps_discord["apps/discord"] --> infrastructure
   apps_discord["apps/discord"] --> ltm
   apps_discord["apps/discord"] --> observability
@@ -20,6 +21,7 @@ graph LR
   apps_discord["apps/discord"] --> scheduling
   apps_discord["apps/discord"] --> shared
   apps_discord["apps/discord"] --> store
+  apps_discord["apps/discord"] --> tts
   apps_web["apps/web"] --> shared
   avatar --> shared
   gateway --> avatar
@@ -65,7 +67,7 @@ graph LR
 
 ### apps/discord
 
-- 内部依存: agent, application, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store
+- 内部依存: agent, application, gateway, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
 - ファイル数: 4
 
@@ -85,7 +87,7 @@ graph LR
 
 - 内部依存: avatar, shared
 - 外部依存: .bun
-- ファイル数: 2
+- ファイル数: 4
 
 ### infrastructure
 
@@ -151,4 +153,4 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: なし
-- ファイル数: 3
+- ファイル数: 4

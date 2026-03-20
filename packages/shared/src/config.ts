@@ -41,6 +41,11 @@ const minecraftSchema = z.object({
 	viewerPort: safeInt,
 });
 
+const ttsSchema = z.object({
+	baseUrl: z.string(),
+	speakerId: safeInt,
+});
+
 const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
 	webPort: safeInt,
@@ -62,6 +67,7 @@ const appConfigSchema = z.object({
 		providerId: z.string(),
 		modelId: z.string(),
 	}),
+	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
@@ -69,6 +75,7 @@ const appConfigSchema = z.object({
 
 // ─── Types ───────────────────────────────────────────────────────
 
+export type TtsConfig = z.infer<typeof ttsSchema>;
 export type MinecraftConfig = z.infer<typeof minecraftSchema>;
 export type AppConfig = z.infer<typeof appConfigSchema>;
 
@@ -105,6 +112,12 @@ export function loadConfig(
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
 		},
+		tts: env.AIVIS_SPEECH_URL
+			? {
+					baseUrl: env.AIVIS_SPEECH_URL,
+					speakerId: Number(env.AIVIS_SPEECH_SPEAKER_ID ?? "0"),
+				}
+			: undefined,
 		minecraft: env.MC_HOST
 			? {
 					host: env.MC_HOST,

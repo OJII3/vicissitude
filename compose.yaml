@@ -71,6 +71,7 @@ services:
       - .env
     ports:
       - "127.0.0.1:9091:9091"
+      - "0.0.0.0:4001:4001" # gateway WebSocket
       - "0.0.0.0:3007:3007" # prismarine-viewer
     volumes:
       - bot-node-modules:/app/node_modules:ro
