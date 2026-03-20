@@ -7,6 +7,19 @@ const HEALTH_CHECK_TIMEOUT = 5_000;
 /** style → speaker ID のマッピング設定 */
 export type StyleSpeakerMap = Partial<Record<TtsStyleParams["style"], number>>;
 
+interface SynthesizeConfig {
+	baseUrl: string;
+	timeout: number;
+	defaultSpeakerId: number;
+	styleSpeakerMap: StyleSpeakerMap;
+}
+
+/** AivisSpeech Engine の AudioQuery レスポンスの最小型 */
+interface AudioQuery {
+	speedScale: number;
+	[key: string]: unknown;
+}
+
 export function createAivisSpeechSynthesizer(config: {
 	baseUrl: string;
 	/** デフォルトの speaker ID */
@@ -33,13 +46,6 @@ function resolveSpeakerId(
 	return styleSpeakerMap[style] ?? defaultId;
 }
 
-interface SynthesizeConfig {
-	baseUrl: string;
-	timeout: number;
-	defaultSpeakerId: number;
-	styleSpeakerMap: StyleSpeakerMap;
-}
-
 async function synthesize(
 	config: SynthesizeConfig,
 	text: string,
@@ -61,9 +67,8 @@ async function synthesize(
 
 		if (!queryResponse.ok) return null;
 
-		const audioQuery = (await queryResponse.json()) as Record<string, unknown>;
+		const audioQuery = (await queryResponse.json()) as AudioQuery;
 
-		// Apply speed from style params
 		audioQuery.speedScale = style.speed;
 
 		// Step 2: synthesis

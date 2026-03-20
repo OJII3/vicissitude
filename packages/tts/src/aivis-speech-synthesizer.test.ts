@@ -133,6 +133,22 @@ describe("synthesize — timeout", () => {
 		const [, init] = mockFetch.mock.calls[0] as [URL, RequestInit];
 		expect(init.signal).toBeInstanceOf(AbortSignal);
 	});
+
+	it("カスタムタイムアウトを設定できる", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
+
+		const synth = createAivisSpeechSynthesizer({
+			baseUrl: BASE_URL,
+			timeout: 10_000,
+		});
+		await synth.synthesize("test", DEFAULT_STYLE);
+
+		const [, init] = mockFetch.mock.calls[0] as [URL, RequestInit];
+		expect(init.signal).toBeInstanceOf(AbortSignal);
+	});
 });
 
 // ─── computeWavDuration ──────────────────────────────────────────
@@ -162,6 +178,88 @@ describe("computeWavDuration — calculation precision", () => {
 
 		expect(result).not.toBeNull();
 		expect(result?.durationSec).toBeCloseTo(0.5, 5);
+	});
+});
+
+describe("computeWavDuration — edge cases", () => {
+	it("44 bytes 未満のバッファ → durationSec=0", async () => {
+		const shortBuffer = new ArrayBuffer(20);
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(new Response(shortBuffer, { status: 200 }));
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).not.toBeNull();
+		expect(result?.durationSec).toBe(0);
+	});
+
+	it("byteRate=0 → durationSec=0", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(new Response(buildWav(0, 96000), { status: 200 }));
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).not.toBeNull();
+		expect(result?.durationSec).toBe(0);
+	});
+
+	it("data chunk が存在しない → durationSec=0", async () => {
+		const noDataChunk = new Uint8Array(64);
+		noDataChunk.set([0x52, 0x49, 0x46, 0x46], 0);
+		noDataChunk.set([0x57, 0x41, 0x56, 0x45], 8);
+		noDataChunk.set([0x66, 0x6d, 0x74, 0x20], 12);
+		writeUint32LE(noDataChunk, 28, 48000);
+
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(noDataChunk.buffer as ArrayBuffer, { status: 200 }),
+		);
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).not.toBeNull();
+		expect(result?.durationSec).toBe(0);
+	});
+});
+
+// ─── readUint32LE — byte order ───────────────────────────────────
+
+describe("readUint32LE — byte order verification via WAV parsing", () => {
+	it("byteRate=0x00_01_00_00 (65536) が正しく読まれる", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(new Response(buildWav(65536, 65536), { status: 200 }));
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).not.toBeNull();
+		expect(result?.durationSec).toBeCloseTo(1.0, 5);
+	});
+
+	it("byteRate=0x01_02_03_04 が正しくリトルエンディアンで読まれる", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(buildWav(16909060, 16909060), { status: 200 }),
+		);
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).not.toBeNull();
+		expect(result?.durationSec).toBeCloseTo(1.0, 5);
 	});
 });
 
