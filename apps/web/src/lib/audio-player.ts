@@ -63,13 +63,23 @@ export class AudioPlayer {
 		this.isPlaying = true;
 		this.currentMessageId = item.messageId;
 
+		if (this.ctx.state === "suspended") {
+			await this.ctx.resume();
+		}
+
 		const binaryString = atob(item.audioBase64);
 		const bytes = new Uint8Array(binaryString.length);
 		for (let i = 0; i < binaryString.length; i++) {
 			bytes[i] = binaryString.codePointAt(i) ?? 0;
 		}
 
-		const audioBuffer = await this.ctx.decodeAudioData(bytes.buffer as ArrayBuffer);
+		let audioBuffer: AudioBuffer;
+		try {
+			audioBuffer = await this.ctx.decodeAudioData(bytes.buffer as ArrayBuffer);
+		} catch {
+			this.advanceQueue();
+			return;
+		}
 		if (this.destroyed) return;
 
 		const source = this.ctx.createBufferSource();
@@ -80,22 +90,24 @@ export class AudioPlayer {
 
 		this.callbacks.onPlayStart?.(item.messageId);
 
-		// eslint-disable-next-line unicorn/prefer-add-event-listener -- モックが onended プロパティを参照するため
-		source.onended = () => {
+		source.addEventListener("ended", () => {
 			if (this.destroyed) return;
 
 			this.callbacks.onPlayEnd?.(item.messageId);
 			this.currentSource = null;
-
-			const next = this.queue.shift();
-			if (next) {
-				void this.playItem(next);
-			} else {
-				this.isPlaying = false;
-				this.currentMessageId = null;
-			}
-		};
+			this.advanceQueue();
+		});
 
 		source.start();
+	}
+
+	private advanceQueue(): void {
+		const next = this.queue.shift();
+		if (next) {
+			void this.playItem(next);
+		} else {
+			this.isPlaying = false;
+			this.currentMessageId = null;
+		}
 	}
 }

@@ -6,16 +6,15 @@ import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 // AudioBufferSourceNode) に依存する。テスト環境では globalThis 上に
 // モックを配置して振る舞いを検証する。
 
-type EndedHandler = (() => void) | null;
-
 interface MockAudioBufferSourceNode {
 	buffer: unknown;
 	connect: ReturnType<typeof mock>;
 	start: ReturnType<typeof mock>;
 	stop: ReturnType<typeof mock>;
-	onended: EndedHandler;
-	/** テスト用: onended コールバックを発火させて再生完了をシミュレートする */
+	addEventListener: ReturnType<typeof mock>;
+	/** テスト用: addEventListener("ended", ...) で登録されたコールバックを発火させて再生完了をシミュレートする */
 	_simulateEnded: () => void;
+	_endedListeners: Array<() => void>;
 }
 
 interface MockAudioContext {
@@ -28,14 +27,18 @@ interface MockAudioContext {
 }
 
 function createMockSourceNode(): MockAudioBufferSourceNode {
+	const endedListeners: Array<() => void> = [];
 	const node: MockAudioBufferSourceNode = {
 		buffer: null,
 		connect: mock(() => {}),
 		start: mock(() => {}),
 		stop: mock(() => {}),
-		onended: null,
+		addEventListener: mock((event: string, handler: () => void) => {
+			if (event === "ended") endedListeners.push(handler);
+		}),
+		_endedListeners: endedListeners,
 		_simulateEnded() {
-			if (node.onended) node.onended();
+			for (const listener of endedListeners) listener();
 		},
 	};
 	return node;

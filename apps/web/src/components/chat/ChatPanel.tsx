@@ -43,7 +43,7 @@ function useWsConnection(onExpressionChange: (w: VrmExpressionWeight) => void) {
 
 		const audioPlayer = new AudioPlayer({
 			onPlayStart: (messageId) => setPlayingMessageId(messageId),
-			onPlayEnd: (_messageId) => setPlayingMessageId(null),
+			onPlayEnd: () => setPlayingMessageId(null),
 		});
 		audioPlayerRef.current = audioPlayer;
 
