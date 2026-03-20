@@ -8,6 +8,7 @@ import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 import { Retrieval } from "@vicissitude/ltm/retrieval";
 import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
+import { METRIC } from "@vicissitude/shared/constants";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { Client, GatewayIntentBits } from "discord.js";
 
@@ -116,10 +117,44 @@ function getOrCreateLtm(guildId: string): LtmReadServices {
 	return instance;
 }
 
+// --- MCP Tool Call Metrics ---
+
+const toolCallCounts = new Map<string, number>();
+
+// 5 分ごとにログ出力
+const METRICS_LOG_INTERVAL_MS = 5 * 60 * 1000;
+
+function wrapServerWithMetrics(server: McpServer): McpServer {
+	return new Proxy(server, {
+		get(target, prop, receiver) {
+			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
+			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
+			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
+				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
+				const wrappedCb = (...handlerArgs: any[]) => {
+					toolCallCounts.set(name, (toolCallCounts.get(name) ?? 0) + 1);
+					return cb(...handlerArgs);
+				};
+				return target.registerTool(name, config, wrappedCb);
+			};
+		},
+	});
+}
+
+const metricsLogTimer = setInterval(() => {
+	if (toolCallCounts.size === 0) return;
+	const snapshot: Record<string, number> = {};
+	for (const [tool, count] of toolCallCounts) {
+		snapshot[tool] = count;
+	}
+	console.error(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, JSON.stringify(snapshot));
+}, METRICS_LOG_INTERVAL_MS);
+
 // --- MCP Server Factory ---
 
 function createServer(): McpServer {
-	const server = new McpServer({ name: "core", version: "1.0.0" });
+	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
+	const server = wrapServerWithMetrics(rawServer);
 
 	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
@@ -128,7 +163,7 @@ function createServer(): McpServer {
 	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
 
-	return server;
+	return rawServer;
 }
 
 // --- Start HTTP Server ---
@@ -142,6 +177,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 // --- Graceful Shutdown ---
 
 function shutdown() {
+	clearInterval(metricsLogTimer);
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();

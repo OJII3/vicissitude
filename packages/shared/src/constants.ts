@@ -19,6 +19,8 @@ export const METRIC = {
 	LLM_INPUT_TOKENS: "llm_input_tokens_total",
 	LLM_OUTPUT_TOKENS: "llm_output_tokens_total",
 	LLM_CACHE_READ_TOKENS: "llm_cache_read_tokens_total",
+	// Core MCP metrics
+	MCP_TOOL_CALLS: "mcp_tool_calls_total",
 	// Minecraft metrics
 	MC_JOBS: "mc_jobs_total",
 	MC_BOT_EVENTS: "mc_bot_events_total",
