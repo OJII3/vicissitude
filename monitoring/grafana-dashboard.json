@@ -1113,12 +1113,64 @@
 			"type": "timeseries"
 		},
 		{
+			"datasource": {
+				"type": "loki",
+				"uid": "${DS_LOKI}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "bars",
+						"fillOpacity": 30,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 63
+			},
+			"id": 25,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "{job=\"vicissitude\"} |= `mcp_tool_calls_total` | regexp `mcp_tool_calls_total: (?P<json>.+)$` | json tools=\"json\" | unpack",
+					"legendFormat": "core MCP tool calls"
+				}
+			],
+			"title": "Core MCP Tool Calls (log-based)",
+			"type": "timeseries"
+		},
+		{
 			"collapsed": false,
 			"gridPos": {
 				"h": 1,
 				"w": 24,
 				"x": 0,
-				"y": 63
+				"y": 71
 			},
 			"id": 600,
 			"title": "Logs",
@@ -1201,7 +1253,7 @@
 				"h": 6,
 				"w": 12,
 				"x": 0,
-				"y": 64
+				"y": 72
 			},
 			"id": 14,
 			"options": {
@@ -1253,7 +1305,7 @@
 				"h": 6,
 				"w": 12,
 				"x": 12,
-				"y": 64
+				"y": 72
 			},
 			"id": 15,
 			"options": {
@@ -1283,7 +1335,7 @@
 				"h": 10,
 				"w": 24,
 				"x": 0,
-				"y": 70
+				"y": 78
 			},
 			"id": 16,
 			"maxDataPoints": 200,
@@ -1315,7 +1367,7 @@
 				"h": 12,
 				"w": 24,
 				"x": 0,
-				"y": 80
+				"y": 88
 			},
 			"id": 17,
 			"maxDataPoints": 500,

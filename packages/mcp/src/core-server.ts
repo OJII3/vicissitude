@@ -8,10 +8,12 @@ import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 import { Retrieval } from "@vicissitude/ltm/retrieval";
 import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
+import { METRIC } from "@vicissitude/shared/constants";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
+import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { type LtmReadServices, registerLtmTools } from "./tools/ltm.ts";
@@ -116,10 +118,28 @@ function getOrCreateLtm(guildId: string): LtmReadServices {
 	return instance;
 }
 
+// --- MCP Tool Call Metrics ---
+
+const toolCallCounts = new Map<string, number>();
+
+// 5 分ごとにログ出力
+const METRICS_LOG_INTERVAL_MS = 5 * 60 * 1000;
+
+const metricsLogTimer = setInterval(() => {
+	if (toolCallCounts.size === 0) return;
+	const snapshot: Record<string, number> = {};
+	for (const [tool, count] of toolCallCounts) {
+		snapshot[tool] = count;
+	}
+	console.error(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, JSON.stringify(snapshot));
+}, METRICS_LOG_INTERVAL_MS);
+metricsLogTimer.unref();
+
 // --- MCP Server Factory ---
 
 function createServer(): McpServer {
-	const server = new McpServer({ name: "core", version: "1.0.0" });
+	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
+	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
 	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
@@ -128,7 +148,7 @@ function createServer(): McpServer {
 	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
 
-	return server;
+	return rawServer;
 }
 
 // --- Start HTTP Server ---
@@ -142,6 +162,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 // --- Graceful Shutdown ---
 
 function shutdown() {
+	clearInterval(metricsLogTimer);
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();

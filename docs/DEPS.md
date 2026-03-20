@@ -103,7 +103,7 @@ graph LR
 
 - 内部依存: infrastructure, ltm, ollama, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
-- ファイル数: 15
+- ファイル数: 16
 
 ### minecraft
 
