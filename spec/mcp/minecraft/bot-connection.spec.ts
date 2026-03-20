@@ -172,6 +172,44 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(deathEvents).toHaveLength(1);
 	});
 
+	test("shutdown 後に start を呼ぶと再接続できる", () => {
+		fakeBot = createFakeBot();
+		ctx = createStubContext();
+		conn = createBotConnection(
+			{
+				host: "localhost",
+				port: 25565,
+				username: "test-bot",
+				version: undefined,
+				authMode: "offline",
+				profilesFolder: undefined,
+				viewerPort: 0,
+			},
+			ctx,
+			stubLogger,
+		);
+
+		// 1. start → spawn → bot が存在する
+		conn.start();
+		fakeBot.emit("spawn");
+		expect(ctx.getBot()).not.toBeNull();
+
+		// 2. shutdown → bot がクリーンアップされる
+		conn.shutdown();
+		expect(ctx.getBot()).toBeNull();
+
+		// 3. 新しい fakeBot を用意して再度 start
+		fakeBot = createFakeBot();
+		conn.start();
+		fakeBot.emit("spawn");
+
+		// 再接続後に bot が存在し、イベントを受信できる
+		expect(ctx.getBot()).not.toBeNull();
+		fakeBot.emit("death");
+		const deathEvents = ctx.events.filter((e) => e.kind === "death");
+		expect(deathEvents.length).toBeGreaterThanOrEqual(1);
+	});
+
 	test("死亡ループ防止: クールダウン(1秒)経過後は再び respawn() が呼ばれる", async () => {
 		setup();
 

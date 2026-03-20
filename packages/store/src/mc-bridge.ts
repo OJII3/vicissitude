@@ -42,7 +42,10 @@ export function releaseSessionLock(db: StoreDb, guildId: string): boolean {
 	return db.transaction((tx) => {
 		const existing = tx.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
 		if (!existing || existing.guildId !== guildId) return false;
-		tx.update(mcSessionLock).set({ acquiredAt: 0 }).where(eq(mcSessionLock.id, 1)).run();
+		tx.update(mcSessionLock)
+			.set({ guildId: "", acquiredAt: 0 })
+			.where(eq(mcSessionLock.id, 1))
+			.run();
 		return true;
 	});
 }
@@ -52,7 +55,7 @@ export function clearSessionLock(db: StoreDb): void {
 	const existing = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
 	if (!existing) return;
 	db.update(mcSessionLock)
-		.set({ connected: 0, connectedAt: null, acquiredAt: 0 })
+		.set({ guildId: "", connected: 0, connectedAt: null, acquiredAt: 0 })
 		.where(eq(mcSessionLock.id, 1))
 		.run();
 }
@@ -93,5 +96,5 @@ export function hasSessionLock(db: StoreDb): boolean {
 /** セッションロックの guildId を取得する */
 export function getSessionLockGuildId(db: StoreDb): string | null {
 	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
-	return row?.guildId ?? null;
+	return row?.guildId || null;
 }

@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { parseMcAuthMode } from "@vicissitude/shared/config";
 import { createDb, closeDb } from "@vicissitude/store/db";
+import { hasSessionLock } from "@vicissitude/store/mc-bridge";
 
 import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
@@ -113,10 +114,38 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 	MC_MCP_PORT,
 	"minecraft",
 );
-connection.start();
+
+// ── Session Lock Polling ──────────────────────────────────────────────────────
+const SESSION_LOCK_POLL_MS = 10_000;
+let sessionLockTimer: ReturnType<typeof setInterval> | null = null;
+
+if (bridgeDb) {
+	// bridgeDb がある場合: セッションロックに連動して bot を接続/切断する
+	let botConnected = false;
+	sessionLockTimer = setInterval(() => {
+		try {
+			const locked = hasSessionLock(bridgeDb);
+			if (locked && !botConnected) {
+				logger.info("[minecraft] Session lock detected — starting bot connection");
+				connection.start();
+				botConnected = true;
+			} else if (!locked && botConnected) {
+				logger.info("[minecraft] Session lock released — shutting down bot connection");
+				connection.shutdown();
+				botConnected = false;
+			}
+		} catch (err) {
+			logger.error("[minecraft] Session lock polling error:", err);
+		}
+	}, SESSION_LOCK_POLL_MS);
+} else {
+	// bridgeDb なし（開発環境）: 従来通り即座に接続
+	connection.start();
+}
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
 const shutdown = (): void => {
+	if (sessionLockTimer) clearInterval(sessionLockTimer);
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();
