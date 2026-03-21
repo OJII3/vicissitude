@@ -33,3 +33,4 @@ graph LR
 ### index.ts
 
 - モジュール内依存: bootstrap
+- 他モジュール依存: observability

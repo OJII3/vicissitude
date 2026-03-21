@@ -2,6 +2,9 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { startHttpServer } from "@vicissitude/minecraft/http-server";
+import type { Logger } from "@vicissitude/shared/types";
+
+const stubLogger: Logger = { info() {}, warn() {}, error() {} };
 
 const MCP_INIT_BODY = JSON.stringify({
 	jsonrpc: "2.0",
@@ -24,7 +27,12 @@ function createTestServer(): McpServer {
 }
 
 describe("MCP HTTP Server ライフサイクル", () => {
-	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(createTestServer, 0);
+	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
+		createTestServer,
+		0,
+		"test",
+		stubLogger,
+	);
 	const baseUrl = `http://localhost:${port}`;
 
 	afterAll(() => {
@@ -115,6 +123,8 @@ describe("createServer 例外ハンドリング", () => {
 	const { port, cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 		createFailingServer,
 		0,
+		"test-fail",
+		stubLogger,
 	);
 	const baseUrl = `http://localhost:${port}`;
 

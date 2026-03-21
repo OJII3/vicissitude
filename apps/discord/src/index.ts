@@ -1,11 +1,15 @@
+import { ConsoleLogger } from "@vicissitude/observability/logger";
+
 import { bootstrap } from "./bootstrap.ts";
 
-console.log("Starting Vicissitude...");
+const logger = new ConsoleLogger();
+
+logger.info("Starting Vicissitude...");
 
 try {
 	await bootstrap();
-	console.log("Vicissitude is running.");
+	logger.info("Vicissitude is running.");
 } catch (error) {
-	console.error("Failed to start:", error);
+	logger.error("Failed to start:", error);
 	process.exit(1);
 }

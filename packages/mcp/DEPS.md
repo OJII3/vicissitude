@@ -37,11 +37,12 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: ltm, ollama, shared, store
+- 他モジュール依存: ltm, observability, ollama, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### http-server.ts
 
+- 他モジュール依存: shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js
 
 ### memory-helpers.ts

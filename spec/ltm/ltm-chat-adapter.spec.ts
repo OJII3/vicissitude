@@ -7,7 +7,7 @@ import {
 	separateMessages,
 } from "@vicissitude/ltm/ltm-chat-adapter";
 import type { ChatMessage } from "@vicissitude/ltm/types";
-import type { OpencodeSessionPort } from "@vicissitude/shared/types";
+import type { Logger, OpencodeSessionPort } from "@vicissitude/shared/types";
 
 function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessionPort {
 	let callIndex = 0;
@@ -30,6 +30,12 @@ function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessi
 	} as unknown as OpencodeSessionPort;
 }
 
+const noopLogger: Logger = {
+	info() {},
+	warn() {},
+	error() {},
+};
+
 const validSchema = {
 	parse: (data: unknown) => data as { key: string },
 };
@@ -39,7 +45,7 @@ describe("chatStructured", () => {
 
 	it("should return parsed result when LLM returns valid JSON on first attempt", async () => {
 		const port = createMockSessionPort([{ text: '{"key": "value"}' }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model");
+		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
 
 		const result = await adapter.chatStructured(messages, validSchema);
 
@@ -48,7 +54,7 @@ describe("chatStructured", () => {
 
 	it("should retry when LLM returns empty string, and succeed on second attempt", async () => {
 		const port = createMockSessionPort([{ text: "" }, { text: '{"key": "retried"}' }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model");
+		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
 
 		const result = await adapter.chatStructured(messages, validSchema);
 
@@ -58,7 +64,7 @@ describe("chatStructured", () => {
 
 	it("should throw a clear error when retry limit is exceeded with empty responses", async () => {
 		const port = createMockSessionPort([{ text: "" }, { text: "" }, { text: "" }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model");
+		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
 
 		await expect(adapter.chatStructured(messages, validSchema)).rejects.toThrow(
 			/empty.*response|retry/i,
