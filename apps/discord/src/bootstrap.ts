@@ -217,6 +217,7 @@ export function setupLtmRecording(
 			ltmSessionPort,
 			config.ltm.providerId,
 			config.ltm.modelId,
+			logger,
 		);
 
 		const ollama =

@@ -7,6 +7,8 @@ import { registerDiscordBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-dis
 import { tryAcquireSessionLock, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
+import { stubLogger } from "../minecraft/stub-logger.ts";
+
 let baseUrl: string;
 
 const MCP_HEADERS = {
@@ -76,6 +78,7 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 		createTestMcpServer,
 		0,
 		"test-mc-bridge",
+		stubLogger,
 	);
 	baseUrl = `http://localhost:${port}`;
 

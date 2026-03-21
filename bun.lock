@@ -93,6 +93,8 @@
       "name": "@vicissitude/mcp",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@vicissitude/observability": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
         "discord.js": "^14.25.1",
         "zod": "^4.3.6",
       },
@@ -101,6 +103,7 @@
       "name": "@vicissitude/minecraft",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@vicissitude/observability": "workspace:*",
         "canvas": "^3.2.1",
         "mineflayer": "^4.35.0",
         "mineflayer-pathfinder": "^2.4.5",

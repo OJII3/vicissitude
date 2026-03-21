@@ -7,6 +7,7 @@ import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
 import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
 import { Retrieval } from "@vicissitude/ltm/retrieval";
 import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
+import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { METRIC } from "@vicissitude/shared/constants";
 import { closeDb, createDb } from "@vicissitude/store/db";
@@ -21,6 +22,10 @@ import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 
+// --- Logger ---
+
+const logger = new ConsoleLogger();
+
 // --- Configuration from environment ---
 
 const CORE_MCP_PORT = Number(process.env.CORE_MCP_PORT ?? "4095");
@@ -30,7 +35,7 @@ const LTM_DATA_DIR = process.env.LTM_DATA_DIR ?? "data/ltm";
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 
 if (!process.env.DISCORD_TOKEN) {
-	console.error("[core-server] DISCORD_TOKEN environment variable is required");
+	logger.error("[core-server] DISCORD_TOKEN environment variable is required");
 	process.exit(1);
 }
 
@@ -47,7 +52,7 @@ const discordClient = new Client({
 try {
 	await discordClient.login(process.env.DISCORD_TOKEN);
 } catch (err) {
-	console.error("[core-server] Failed to login to Discord:", err);
+	logger.error("[core-server] Failed to login to Discord:", err);
 	process.exit(1);
 }
 
@@ -131,7 +136,7 @@ const metricsLogTimer = setInterval(() => {
 	for (const [tool, count] of toolCallCounts) {
 		snapshot[tool] = count;
 	}
-	console.error(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, JSON.stringify(snapshot));
+	logger.info(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, snapshot);
 }, METRICS_LOG_INTERVAL_MS);
 metricsLogTimer.unref();
 
@@ -157,6 +162,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 	createServer,
 	CORE_MCP_PORT,
 	"core",
+	logger,
 );
 
 // --- Graceful Shutdown ---

@@ -1,4 +1,4 @@
-import type { OpencodeSessionPort } from "@vicissitude/shared/types";
+import type { Logger, OpencodeSessionPort } from "@vicissitude/shared/types";
 
 import type { ChatMessage } from "./types.ts";
 
@@ -17,6 +17,7 @@ export class LtmChatAdapter {
 		private readonly sessionPort: OpencodeSessionPort,
 		private readonly providerId: string,
 		private readonly modelId: string,
+		private readonly logger: Logger,
 	) {}
 
 	async chat(messages: ChatMessage[]): Promise<string> {
@@ -37,7 +38,7 @@ export class LtmChatAdapter {
 			try {
 				await this.sessionPort.deleteSession(sessionId);
 			} catch (e) {
-				console.error("Failed to delete session:", e);
+				this.logger.error("[ltm-chat-adapter] Failed to delete session:", e);
 			}
 		}
 	}

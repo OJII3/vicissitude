@@ -33,6 +33,7 @@ graph LR
   ltm --> shared
   mcp --> infrastructure
   mcp --> ltm
+  mcp --> observability
   mcp --> ollama
   mcp --> shared
   mcp --> store
@@ -103,7 +104,7 @@ graph LR
 
 ### mcp
 
-- 内部依存: infrastructure, ltm, ollama, shared, store
+- 内部依存: infrastructure, ltm, observability, ollama, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 16
 

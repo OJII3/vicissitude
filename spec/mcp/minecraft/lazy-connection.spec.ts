@@ -52,6 +52,7 @@ describe("HTTP 経由で bot 未接続ツールが graceful に応答", () => {
 		createTestServer,
 		0,
 		"test-minecraft",
+		stubLogger,
 	);
 	baseUrl = `http://localhost:${port}`;
 

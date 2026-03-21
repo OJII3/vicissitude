@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
+import type { Logger } from "@vicissitude/shared/types";
 
 interface SessionEntry {
 	server: McpServer;
@@ -16,6 +17,7 @@ function createFetchHandler(
 	createServer: () => McpServer,
 	sessions: Map<string, SessionEntry>,
 	label: string,
+	logger: Logger,
 ): (req: Request) => Response | Promise<Response> {
 	return async (req) => {
 		const pathname = new URL(req.url).pathname;
@@ -37,7 +39,7 @@ function createFetchHandler(
 			try {
 				server = createServer();
 			} catch (err) {
-				console.error(`[${label}] failed to create MCP server session:`, err);
+				logger.error(`[${label}] failed to create MCP server session:`, err);
 				return new Response("Internal Server Error", { status: 500 });
 			}
 			const t = new WebStandardStreamableHTTPServerTransport({
@@ -71,13 +73,14 @@ export interface HttpServerHandle {
 export function startHttpServer(
 	createServer: () => McpServer,
 	port: number,
-	label = "mcp",
+	label: string,
+	logger: Logger,
 ): HttpServerHandle {
 	const sessions = new Map<string, SessionEntry>();
 	const httpServer = Bun.serve({
 		port,
 		idleTimeout: 255,
-		fetch: createFetchHandler(createServer, sessions, label),
+		fetch: createFetchHandler(createServer, sessions, label, logger),
 	});
 
 	const closeAllSessions = (): void => {
@@ -103,7 +106,7 @@ export function startHttpServer(
 		}
 	}, SESSION_CLEANUP_INTERVAL_MS);
 
-	console.error(`[${label}] MCP server listening on port ${httpServer.port}`);
+	logger.info(`[${label}] MCP server listening on port ${httpServer.port}`);
 
 	return { port: httpServer.port ?? port, cleanupTimer, closeAllSessions, stopServer };
 }

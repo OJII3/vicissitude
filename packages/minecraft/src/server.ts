@@ -19,18 +19,18 @@ const logger = new ConsoleLogger();
 // ── Environment ──────────────────────────────────────────────────────────────
 const viewerPortRaw = Number(process.env.MC_VIEWER_PORT ?? "3007");
 if (!Number.isInteger(viewerPortRaw) || viewerPortRaw < 1 || viewerPortRaw > 65535) {
-	console.error("MC_VIEWER_PORT must be a valid port number (1-65535)");
+	logger.error("[minecraft] MC_VIEWER_PORT must be a valid port number (1-65535)");
 	process.exit(1);
 }
 const MC_VIEWER_PORT = viewerPortRaw;
 const MC_HOST = process.env.MC_HOST;
 if (!MC_HOST) {
-	console.error("MC_HOST is required");
+	logger.error("[minecraft] MC_HOST is required");
 	process.exit(1);
 }
 const portRaw = Number(process.env.MC_PORT ?? "25565");
 if (!Number.isInteger(portRaw) || portRaw < 1 || portRaw > 65535) {
-	console.error("MC_PORT must be a valid port number (1-65535)");
+	logger.error("[minecraft] MC_PORT must be a valid port number (1-65535)");
 	process.exit(1);
 }
 const MC_PORT = portRaw;
@@ -40,7 +40,7 @@ let MC_AUTH_MODE: ReturnType<typeof parseMcAuthMode>;
 try {
 	MC_AUTH_MODE = parseMcAuthMode(process.env.MC_AUTH_MODE ?? "offline");
 } catch (e) {
-	console.error((e as Error).message);
+	logger.error("[minecraft] " + (e as Error).message);
 	process.exit(1);
 }
 const MC_PROFILES_FOLDER = process.env.MC_PROFILES_FOLDER;
@@ -51,7 +51,7 @@ if (MC_AUTH_MODE === "offline" && MC_PROFILES_FOLDER) {
 }
 const mcpPortRaw = Number(process.env.MC_MCP_PORT ?? "3001");
 if (!Number.isInteger(mcpPortRaw) || mcpPortRaw < 1 || mcpPortRaw > 65535) {
-	console.error("MC_MCP_PORT must be a valid port number (1-65535)");
+	logger.error("[minecraft] MC_MCP_PORT must be a valid port number (1-65535)");
 	process.exit(1);
 }
 const MC_MCP_PORT = mcpPortRaw;
@@ -113,6 +113,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 	createServer,
 	MC_MCP_PORT,
 	"minecraft",
+	logger,
 );
 
 // ── Session Lock Polling ──────────────────────────────────────────────────────

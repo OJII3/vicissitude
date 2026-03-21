@@ -1,3 +1,3 @@
-import type { Logger } from "@vicissitude/shared/types";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
-export const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+export const stubLogger = createMockLogger();
