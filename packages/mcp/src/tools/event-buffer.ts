@@ -9,7 +9,7 @@ export interface EventBufferDeps {
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
-const MAX_BATCH_SIZE = 10;
+export const MAX_BATCH_SIZE = 10;
 
 function sleep(ms: number): Promise<void> {
 	return new Promise<void>((resolve) => {

@@ -5,10 +5,9 @@ import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
-import { formatEvents } from "./event-buffer.ts";
+import { MAX_BATCH_SIZE, formatEvents } from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
-const MAX_BATCH_SIZE = 10;
 
 /** Minecraft 側のブリッジツールを登録する */
 export function registerMinecraftBridgeTools(server: McpServer, deps: { db: StoreDb }): void {
@@ -65,7 +64,6 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 		{
 			description:
 				"Discord 側からの指示を確認する。指示があれば消費して返し、なければ空配列を返す。ブロッキングしない。",
-			inputSchema: {},
 		},
 		() => {
 			const rows = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);

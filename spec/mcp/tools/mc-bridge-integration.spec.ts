@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { MAX_BATCH_SIZE } from "@vicissitude/mcp/tools/event-buffer";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import {
 	getSessionLockGuildId,
@@ -109,8 +110,6 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		expect(parsed.content).toBe("discord向け");
 	});
 });
-
-const MAX_BATCH_SIZE = 10;
 
 describe("check_commands データアクセス層テスト", () => {
 	test("check_commands: イベントがない場合に空配列を返す", () => {
