@@ -85,21 +85,14 @@ export class AgentRunner implements AiAgent {
 	 * タイマーベース EventBuffer など `send()` なしで起動が必要な場合のみ直接呼ぶ。
 	 */
 	ensurePolling(): void {
-		if (this.running) {
-			this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: already running`);
-			return;
-		}
-		{
-			this.logger.info(
-				`[${this.profile.name}:${this.agentId}] ensurePolling: starting polling loop`,
+		if (this.running) return;
+		this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: starting polling loop`);
+		this.startPollingLoop().catch((err) => {
+			this.logger.error(
+				`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
+				err,
 			);
-			this.startPollingLoop().catch((err) => {
-				this.logger.error(
-					`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
-					err,
-				);
-			});
-		}
+		});
 	}
 
 	protected async startPollingLoop(): Promise<void> {
