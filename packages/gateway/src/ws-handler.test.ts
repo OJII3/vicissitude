@@ -2,6 +2,7 @@ import { describe, expect, it, spyOn } from "bun:test";
 
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
 import { WsConnectionManager, type WebSocketConnection } from "./ws-handler.ts";
@@ -33,6 +34,22 @@ const sampleServerMessage: ServerMessage = {
 	messageId: "msg-001",
 	timestamp: NOW,
 };
+
+function createMockLogger(): Logger & { calls: { method: string; args: unknown[] }[] } {
+	const calls: { method: string; args: unknown[] }[] = [];
+	return {
+		calls,
+		info(...args: unknown[]) {
+			calls.push({ method: "info", args });
+		},
+		error(...args: unknown[]) {
+			calls.push({ method: "error", args });
+		},
+		warn(...args: unknown[]) {
+			calls.push({ method: "warn", args });
+		},
+	};
+}
 
 // ─── handleMessage: 存在しない connectionId ─────────────────────
 
@@ -135,8 +152,9 @@ describe("WsConnectionManager (unit)", () => {
 	// ─── handleMessage: ハンドラ例外の影響 ──────────────────────
 
 	describe("handleMessage - ハンドラ内例外", () => {
-		it("ハンドラが例外を投げた場合、catch ブロックで捕捉されエラーメッセージが返る", () => {
-			const manager = new WsConnectionManager();
+		it("ハンドラが例外を投げても外に伝播せず、Logger.error でログが出力される", () => {
+			const logger = createMockLogger();
+			const manager = new WsConnectionManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -144,18 +162,29 @@ describe("WsConnectionManager (unit)", () => {
 				throw new Error("handler error");
 			});
 
-			// try ブロックがハンドラ呼び出しも包んでいるため、例外は外に伝播しない
+			// 例外は外に伝播しない
 			expect(() => manager.handleMessage("conn-1", JSON.stringify(validChatInput))).not.toThrow();
 
-			// catch ブロックでエラーメッセージが送信される
-			expect(conn.sent).toHaveLength(1);
-			const errorMsg = JSON.parse(conn.sent[0] as string);
-			expect(errorMsg.type).toBe("error");
-			expect(errorMsg.code).toBe("INVALID_MESSAGE");
+			// INVALID_MESSAGE エラーメッセージは送信されない（パースは成功しているため）
+			const errorMessages = conn.sent.filter((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "error";
+			});
+			expect(errorMessages).toHaveLength(0);
+
+			// Logger.error が呼ばれる
+			const errorCalls = logger.calls.filter((c) => c.method === "error");
+			expect(errorCalls).toHaveLength(1);
+			expect(errorCalls[0]?.args[0]).toBe("[gateway] Message handler threw an exception");
+			const detail = errorCalls[0]?.args[1] as Record<string, unknown>;
+			expect(detail.connectionId).toBe("conn-1");
+			expect(detail.messageType).toBe("chat_input");
+			expect(detail.error).toBeInstanceOf(Error);
 		});
 
-		it("先行ハンドラが例外を投げると、後続ハンドラは呼ばれない", () => {
-			const manager = new WsConnectionManager();
+		it("先行ハンドラが例外を投げても、後続ハンドラは呼ばれる", () => {
+			const logger = createMockLogger();
+			const manager = new WsConnectionManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -170,7 +199,8 @@ describe("WsConnectionManager (unit)", () => {
 
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
 
-			expect(secondCalled).toBe(false);
+			// 先行ハンドラの例外にかかわらず後続ハンドラが実行される
+			expect(secondCalled).toBe(true);
 		});
 	});
 

@@ -224,6 +224,19 @@ describe("WsConnectionManager", () => {
 			expect(errorMsg.type).toBe("error");
 		});
 
+		it("パースエラー時の ErrorMessage の code は INVALID_MESSAGE である", () => {
+			const manager = new WsConnectionManager();
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", "not valid json");
+
+			expect(conn.sent).toHaveLength(1);
+			const errorMsg = JSON.parse(conn.sent[0] as string) as ErrorMessage;
+			expect(errorMsg.type).toBe("error");
+			expect(errorMsg.code).toBe("INVALID_MESSAGE");
+		});
+
 		it("不正メッセージ時にハンドラは呼ばれない", () => {
 			const manager = new WsConnectionManager();
 			let handlerCalled = false;
@@ -251,6 +264,66 @@ describe("WsConnectionManager", () => {
 			expect(conn1.sent).toHaveLength(1);
 			// 影響なし
 			expect(conn2.sent).toHaveLength(0);
+		});
+	});
+
+	// ─── ハンドラ例外の隔離（Issue #197）─────────────────────────
+
+	describe("ハンドラ例外の隔離", () => {
+		it("ハンドラが例外を投げても INVALID_MESSAGE ErrorMessage は送信されない", () => {
+			const manager = new WsConnectionManager();
+			manager.onMessage(() => {
+				throw new Error("handler crashed");
+			});
+
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			const errorMessages = conn.sent
+				.map((s) => JSON.parse(s) as ServerMessage)
+				.filter(
+					(m): m is ErrorMessage =>
+						m.type === "error" && (m as ErrorMessage).code === "INVALID_MESSAGE",
+				);
+			expect(errorMessages).toHaveLength(0);
+		});
+
+		it("先行ハンドラが例外を投げても後続ハンドラは呼ばれる", () => {
+			const manager = new WsConnectionManager();
+			let secondHandlerCalled = false;
+
+			manager.onMessage(() => {
+				throw new Error("first handler crashed");
+			});
+			manager.onMessage(() => {
+				secondHandlerCalled = true;
+			});
+
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			expect(secondHandlerCalled).toBe(true);
+		});
+
+		it("ハンドラが例外を投げてもパース自体は成功しているのでメッセージは有効である", () => {
+			const manager = new WsConnectionManager();
+			const received: unknown[] = [];
+
+			manager.onMessage(() => {
+				throw new Error("first handler crashed");
+			});
+			manager.onMessage((_connectionId, message) => {
+				received.push(message);
+			});
+
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+
+			expect(received).toHaveLength(1);
+			expect(received[0]).toEqual(validChatInput);
 		});
 	});
 

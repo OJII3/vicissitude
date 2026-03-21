@@ -1,4 +1,5 @@
 import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
+import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type {
 	ClientMessageHandler,
@@ -8,6 +9,7 @@ import type {
 	TtsSynthesizer,
 } from "@vicissitude/shared/ports";
 import type { TtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 import type {
 	AudioDataMessage,
 	ChatResponseMessage,
@@ -30,6 +32,7 @@ function randomVad(): number {
 export interface WsConnectionManagerDeps {
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
+	logger?: Logger;
 }
 
 export class WsConnectionManager implements GatewayPort {
@@ -37,10 +40,12 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
+	private readonly logger: Logger;
 
 	constructor(deps?: WsConnectionManagerDeps) {
 		this.ttsSynthesizer = deps?.ttsSynthesizer;
 		this.ttsStyleMapper = deps?.ttsStyleMapper;
+		this.logger = deps?.logger ?? new ConsoleLogger();
 	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
@@ -55,14 +60,37 @@ export class WsConnectionManager implements GatewayPort {
 		const connection = this.connections.get(connectionId);
 		if (!connection) return;
 
+		// 1. パース（失敗時は INVALID_MESSAGE を返して早期 return）
+		let message: ReturnType<typeof parseClientMessage>;
 		try {
-			const message = parseClientMessage(rawMessage);
-			for (const handler of this.handlers) {
-				handler(connectionId, message);
-			}
+			message = parseClientMessage(rawMessage);
+		} catch {
+			const errorMsg: ErrorMessage = {
+				type: "error",
+				code: "INVALID_MESSAGE",
+				message: "Failed to parse client message",
+				timestamp: new Date().toISOString(),
+			};
+			connection.send(JSON.stringify(errorMsg));
+			return;
+		}
 
-			// ダミー応答: chat_input に対してエコー + ランダム emotion を返す
-			if (message.type === "chat_input") {
+		// 2. ハンドラ呼び出し（ハンドラ単位で try-catch、例外時はログに記録して続行）
+		for (const handler of this.handlers) {
+			try {
+				handler(connectionId, message);
+			} catch (error) {
+				this.logger.error("[gateway] Message handler threw an exception", {
+					connectionId,
+					messageType: message.type,
+					error,
+				});
+			}
+		}
+
+		// 3. ダミー応答: chat_input に対してエコー + ランダム emotion を返す
+		if (message.type === "chat_input") {
+			try {
 				const now = new Date().toISOString();
 				const chatResponse: ChatResponseMessage = {
 					type: "chat_message",
@@ -94,15 +122,12 @@ export class WsConnectionManager implements GatewayPort {
 						synthesizer: this.ttsSynthesizer,
 					});
 				}
+			} catch (error) {
+				this.logger.error("[gateway] Dummy response handler failed", {
+					connectionId,
+					error,
+				});
 			}
-		} catch {
-			const errorMsg: ErrorMessage = {
-				type: "error",
-				code: "INVALID_MESSAGE",
-				message: "Failed to parse client message",
-				timestamp: new Date().toISOString(),
-			};
-			connection.send(JSON.stringify(errorMsg));
 		}
 	}
 
