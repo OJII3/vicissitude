@@ -2,6 +2,7 @@ import { describe, expect, it, spyOn } from "bun:test";
 
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
 import { WsConnectionManager, type WebSocketConnection } from "./ws-handler.ts";
@@ -33,6 +34,22 @@ const sampleServerMessage: ServerMessage = {
 	messageId: "msg-001",
 	timestamp: NOW,
 };
+
+function createMockLogger(): Logger & { calls: { method: string; args: unknown[] }[] } {
+	const calls: { method: string; args: unknown[] }[] = [];
+	return {
+		calls,
+		info(...args: unknown[]) {
+			calls.push({ method: "info", args });
+		},
+		error(...args: unknown[]) {
+			calls.push({ method: "error", args });
+		},
+		warn(...args: unknown[]) {
+			calls.push({ method: "warn", args });
+		},
+	};
+}
 
 // ─── handleMessage: 存在しない connectionId ─────────────────────
 
@@ -135,10 +152,9 @@ describe("WsConnectionManager (unit)", () => {
 	// ─── handleMessage: ハンドラ例外の影響 ──────────────────────
 
 	describe("handleMessage - ハンドラ内例外", () => {
-		it("ハンドラが例外を投げても外に伝播せず、console.error で構造化ログが出力される", () => {
-			const errorSpy = spyOn(console, "error").mockImplementation(() => {});
-
-			const manager = new WsConnectionManager();
+		it("ハンドラが例外を投げても外に伝播せず、Logger.error でログが出力される", () => {
+			const logger = createMockLogger();
+			const manager = new WsConnectionManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -156,23 +172,19 @@ describe("WsConnectionManager (unit)", () => {
 			});
 			expect(errorMessages).toHaveLength(0);
 
-			// console.error に構造化 JSON ログが出力される
-			expect(errorSpy).toHaveBeenCalledTimes(1);
-			const logArg = errorSpy.mock.calls[0]?.[0] as string;
-			const logObj = JSON.parse(logArg);
-			expect(logObj.level).toBe("error");
-			expect(logObj.msg).toBe("Message handler threw an exception");
-			expect(logObj.connectionId).toBe("conn-1");
-			expect(logObj.messageType).toBe("chat_input");
-			expect(logObj.error).toBe("handler error");
-
-			errorSpy.mockRestore();
+			// Logger.error が呼ばれる
+			const errorCalls = logger.calls.filter((c) => c.method === "error");
+			expect(errorCalls).toHaveLength(1);
+			expect(errorCalls[0]?.args[0]).toBe("[gateway] Message handler threw an exception");
+			const detail = errorCalls[0]?.args[1] as Record<string, unknown>;
+			expect(detail.connectionId).toBe("conn-1");
+			expect(detail.messageType).toBe("chat_input");
+			expect(detail.error).toBeInstanceOf(Error);
 		});
 
 		it("先行ハンドラが例外を投げても、後続ハンドラは呼ばれる", () => {
-			const errorSpy = spyOn(console, "error").mockImplementation(() => {});
-
-			const manager = new WsConnectionManager();
+			const logger = createMockLogger();
+			const manager = new WsConnectionManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -189,8 +201,6 @@ describe("WsConnectionManager (unit)", () => {
 
 			// 先行ハンドラの例外にかかわらず後続ハンドラが実行される
 			expect(secondCalled).toBe(true);
-
-			errorSpy.mockRestore();
 		});
 	});
 

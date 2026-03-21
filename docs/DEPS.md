@@ -25,6 +25,7 @@ graph LR
   apps_web["apps/web"] --> shared
   avatar --> shared
   gateway --> avatar
+  gateway --> observability
   gateway --> shared
   infrastructure --> application
   infrastructure --> shared
@@ -86,7 +87,7 @@ graph LR
 
 ### gateway
 
-- 内部依存: avatar, shared
+- 内部依存: avatar, observability, shared
 - 外部依存: .bun
 - ファイル数: 4
 

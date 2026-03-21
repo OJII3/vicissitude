@@ -1,4 +1,5 @@
 import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
+import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type {
 	ClientMessageHandler,
@@ -8,6 +9,7 @@ import type {
 	TtsSynthesizer,
 } from "@vicissitude/shared/ports";
 import type { TtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 import type {
 	AudioDataMessage,
 	ChatResponseMessage,
@@ -30,6 +32,7 @@ function randomVad(): number {
 export interface WsConnectionManagerDeps {
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
+	logger?: Logger;
 }
 
 export class WsConnectionManager implements GatewayPort {
@@ -37,10 +40,12 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
+	private readonly logger: Logger;
 
 	constructor(deps?: WsConnectionManagerDeps) {
 		this.ttsSynthesizer = deps?.ttsSynthesizer;
 		this.ttsStyleMapper = deps?.ttsStyleMapper;
+		this.logger = deps?.logger ?? new ConsoleLogger();
 	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
@@ -75,49 +80,52 @@ export class WsConnectionManager implements GatewayPort {
 			try {
 				handler(connectionId, message);
 			} catch (error) {
-				console.error(
-					JSON.stringify({
-						level: "error",
-						msg: "Message handler threw an exception",
-						connectionId,
-						messageType: message.type,
-						error: error instanceof Error ? error.message : String(error),
-					}),
-				);
+				this.logger.error("[gateway] Message handler threw an exception", {
+					connectionId,
+					messageType: message.type,
+					error,
+				});
 			}
 		}
 
 		// 3. ダミー応答: chat_input に対してエコー + ランダム emotion を返す
 		if (message.type === "chat_input") {
-			const now = new Date().toISOString();
-			const chatResponse: ChatResponseMessage = {
-				type: "chat_message",
-				status: "complete",
-				text: message.text,
-				messageId: crypto.randomUUID(),
-				timestamp: now,
-			};
-			this.send(connectionId, chatResponse);
-
-			const emotion = createEmotion(randomVad(), randomVad(), randomVad());
-			const expressionWeight = emotionMapper.mapToExpression(emotion);
-			const emotionUpdate: EmotionUpdateMessage = {
-				type: "emotion_update",
-				emotion,
-				expressionWeight,
-				timestamp: now,
-			};
-			this.broadcast(emotionUpdate);
-
-			// TTS 合成（非同期・fire-and-forget）
-			if (this.ttsSynthesizer && this.ttsStyleMapper) {
-				const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
-				void this.synthesizeAndSend({
-					connectionId,
-					messageId: chatResponse.messageId,
+			try {
+				const now = new Date().toISOString();
+				const chatResponse: ChatResponseMessage = {
+					type: "chat_message",
+					status: "complete",
 					text: message.text,
-					style: ttsStyle,
-					synthesizer: this.ttsSynthesizer,
+					messageId: crypto.randomUUID(),
+					timestamp: now,
+				};
+				this.send(connectionId, chatResponse);
+
+				const emotion = createEmotion(randomVad(), randomVad(), randomVad());
+				const expressionWeight = emotionMapper.mapToExpression(emotion);
+				const emotionUpdate: EmotionUpdateMessage = {
+					type: "emotion_update",
+					emotion,
+					expressionWeight,
+					timestamp: now,
+				};
+				this.broadcast(emotionUpdate);
+
+				// TTS 合成（非同期・fire-and-forget）
+				if (this.ttsSynthesizer && this.ttsStyleMapper) {
+					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
+					void this.synthesizeAndSend({
+						connectionId,
+						messageId: chatResponse.messageId,
+						text: message.text,
+						style: ttsStyle,
+						synthesizer: this.ttsSynthesizer,
+					});
+				}
+			} catch (error) {
+				this.logger.error("[gateway] Dummy response handler failed", {
+					connectionId,
+					error,
 				});
 			}
 		}
