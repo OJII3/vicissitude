@@ -25,7 +25,12 @@ export class MessageIngestionService {
 	constructor(private readonly deps: MessageIngestionServiceDeps) {}
 
 	handleIncomingMessage(message: IncomingMessage, options: MessageIngestionOptions = {}): void {
-		if (!message.content && message.attachments.length === 0) return;
+		if (!message.content && message.attachments.length === 0) {
+			this.deps.logger.info(
+				`[message-ingestion] empty message from ${message.authorName}, dropping`,
+			);
+			return;
+		}
 		if (!message.guildId) {
 			this.deps.logger.warn("[message-ingestion] No guildId for message, dropping event");
 			return;

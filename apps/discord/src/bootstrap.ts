@@ -236,12 +236,14 @@ export function setupLtmRecording(
 
 // ─── Event Handlers ─────────────────────────────────────────────
 
-function setupEventHandlers(
-	gateway: DiscordGateway,
-	ingestionService: MessageIngestionService,
-	metricsCollector: PrometheusCollector,
-	agents: Map<string, DiscordAgent>,
-): void {
+function setupEventHandlers(deps: {
+	gateway: DiscordGateway;
+	ingestionService: MessageIngestionService;
+	metricsCollector: PrometheusCollector;
+	agents: Map<string, DiscordAgent>;
+	logger: Logger;
+}): void {
+	const { gateway, ingestionService, metricsCollector, agents, logger } = deps;
 	gateway.onHomeChannelMessage((msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
@@ -250,7 +252,11 @@ function setupEventHandlers(
 			bufferEvent: msg.authorId !== selfUserId,
 		});
 		if (msg.guildId && msg.authorId !== selfUserId) {
-			agents.get(msg.guildId)?.ensurePolling();
+			const agent = agents.get(msg.guildId);
+			if (!agent) {
+				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, message will not be processed`);
+			}
+			agent?.ensurePolling();
 		}
 		return Promise.resolve();
 	});
@@ -261,7 +267,11 @@ function setupEventHandlers(
 		});
 		ingestionService.handleIncomingMessage(msg);
 		if (msg.guildId) {
-			agents.get(msg.guildId)?.ensurePolling();
+			const agent = agents.get(msg.guildId);
+			if (!agent) {
+				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, mention will not be processed`);
+			}
+			agent?.ensurePolling();
 		}
 		return Promise.resolve();
 	});
@@ -451,7 +461,13 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Event handlers
-	setupEventHandlers(gateway, ingestionService, metrics.collector, agents);
+	setupEventHandlers({
+		gateway,
+		ingestionService,
+		metricsCollector: metrics.collector,
+		agents,
+		logger,
+	});
 
 	// Emoji tracking
 	gateway.onEmojiUsed((guildId, emojiName) => incrementEmoji(db, guildId, emojiName));
