@@ -55,46 +55,10 @@ export class WsConnectionManager implements GatewayPort {
 		const connection = this.connections.get(connectionId);
 		if (!connection) return;
 
+		// 1. パース（失敗時は INVALID_MESSAGE を返して早期 return）
+		let message: ReturnType<typeof parseClientMessage>;
 		try {
-			const message = parseClientMessage(rawMessage);
-			for (const handler of this.handlers) {
-				handler(connectionId, message);
-			}
-
-			// ダミー応答: chat_input に対してエコー + ランダム emotion を返す
-			if (message.type === "chat_input") {
-				const now = new Date().toISOString();
-				const chatResponse: ChatResponseMessage = {
-					type: "chat_message",
-					status: "complete",
-					text: message.text,
-					messageId: crypto.randomUUID(),
-					timestamp: now,
-				};
-				this.send(connectionId, chatResponse);
-
-				const emotion = createEmotion(randomVad(), randomVad(), randomVad());
-				const expressionWeight = emotionMapper.mapToExpression(emotion);
-				const emotionUpdate: EmotionUpdateMessage = {
-					type: "emotion_update",
-					emotion,
-					expressionWeight,
-					timestamp: now,
-				};
-				this.broadcast(emotionUpdate);
-
-				// TTS 合成（非同期・fire-and-forget）
-				if (this.ttsSynthesizer && this.ttsStyleMapper) {
-					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
-					void this.synthesizeAndSend({
-						connectionId,
-						messageId: chatResponse.messageId,
-						text: message.text,
-						style: ttsStyle,
-						synthesizer: this.ttsSynthesizer,
-					});
-				}
-			}
+			message = parseClientMessage(rawMessage);
 		} catch {
 			const errorMsg: ErrorMessage = {
 				type: "error",
@@ -103,6 +67,57 @@ export class WsConnectionManager implements GatewayPort {
 				timestamp: new Date().toISOString(),
 			};
 			connection.send(JSON.stringify(errorMsg));
+			return;
+		}
+
+		// 2. ハンドラ呼び出し（ハンドラ単位で try-catch、例外時はログに記録して続行）
+		for (const handler of this.handlers) {
+			try {
+				handler(connectionId, message);
+			} catch (error) {
+				console.error(JSON.stringify({
+					level: "error",
+					msg: "Message handler threw an exception",
+					connectionId,
+					messageType: message.type,
+					error: error instanceof Error ? error.message : String(error),
+				}));
+			}
+		}
+
+		// 3. ダミー応答: chat_input に対してエコー + ランダム emotion を返す
+		if (message.type === "chat_input") {
+			const now = new Date().toISOString();
+			const chatResponse: ChatResponseMessage = {
+				type: "chat_message",
+				status: "complete",
+				text: message.text,
+				messageId: crypto.randomUUID(),
+				timestamp: now,
+			};
+			this.send(connectionId, chatResponse);
+
+			const emotion = createEmotion(randomVad(), randomVad(), randomVad());
+			const expressionWeight = emotionMapper.mapToExpression(emotion);
+			const emotionUpdate: EmotionUpdateMessage = {
+				type: "emotion_update",
+				emotion,
+				expressionWeight,
+				timestamp: now,
+			};
+			this.broadcast(emotionUpdate);
+
+			// TTS 合成（非同期・fire-and-forget）
+			if (this.ttsSynthesizer && this.ttsStyleMapper) {
+				const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
+				void this.synthesizeAndSend({
+					connectionId,
+					messageId: chatResponse.messageId,
+					text: message.text,
+					style: ttsStyle,
+					synthesizer: this.ttsSynthesizer,
+				});
+			}
 		}
 	}
 
