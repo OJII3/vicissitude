@@ -37,6 +37,7 @@ export class DiscordAgent extends AgentRunner {
 				port: deps.opencodePort,
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
+				logger: deps.logger,
 			}),
 			eventBuffer: new SqliteEventBuffer(deps.db, `discord:${deps.guildId}`, deps.logger),
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,

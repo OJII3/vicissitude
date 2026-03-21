@@ -68,6 +68,9 @@ export class DiscordGateway {
 		this.registerMessageHandler(client);
 		this.registerReactionHandler(client);
 
+		this.logger.info(
+			`[discord] connecting... (homeChannels=${this.homeChannelIds.size}, handler=${!!this.handler}, homeHandler=${!!this.homeChannelHandler})`,
+		);
 		await client.login(this.token);
 		this.client = client;
 	}
@@ -89,7 +92,10 @@ export class DiscordGateway {
 	private registerMessageHandler(client: Client): void {
 		client.on(Events.MessageCreate, async (message) => {
 			try {
-				if (!client.user) return;
+				if (!client.user) {
+					this.logger.warn("[discord] messageCreate: client.user is null, dropping message");
+					return;
+				}
 
 				// bot 自身のメッセージ: ホームチャンネルなら LTM 記録用にハンドラへ流す
 				if (message.author.id === client.user.id) {
@@ -103,15 +109,25 @@ export class DiscordGateway {
 				this.trackEmojiUsage(message);
 
 				const isMentioned = message.mentions.has(client.user);
+				const isHome = this.isHomeMessage(message);
+
+				this.logger.info(
+					`[discord] messageCreate: author=${message.author.username} ch=${message.channel.id} guild=${message.guildId ?? "none"} home=${isHome} mentioned=${isMentioned}`,
+				);
+
 				const adapted = this.adaptMessage(message, isMentioned, message.channel.isThread());
 				const channel = this.adaptChannel(message);
 
-				if (this.isHomeMessage(message)) {
+				if (isHome) {
 					if (this.homeChannelHandler) await this.homeChannelHandler(adapted, channel);
 					return;
 				}
 
-				if (isMentioned && this.handler) await this.handler(adapted, channel);
+				if (isMentioned && this.handler) {
+					await this.handler(adapted, channel);
+				} else if (!isMentioned) {
+					this.logger.info("[discord] messageCreate: not mentioned and not home, ignoring");
+				}
 			} catch (err) {
 				this.logger.error("[discord] messageCreate handler error:", err);
 			}

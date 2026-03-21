@@ -40,6 +40,7 @@ export class MinecraftAgent extends AgentRunner {
 				port: deps.opencodePort,
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
+				logger: deps.logger,
 			}),
 			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,

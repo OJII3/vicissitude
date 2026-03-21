@@ -85,7 +85,14 @@ export class AgentRunner implements AiAgent {
 	 * タイマーベース EventBuffer など `send()` なしで起動が必要な場合のみ直接呼ぶ。
 	 */
 	ensurePolling(): void {
-		if (!this.running) {
+		if (this.running) {
+			this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: already running`);
+			return;
+		}
+		{
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] ensurePolling: starting polling loop`,
+			);
 			this.startPollingLoop().catch((err) => {
 				this.logger.error(
 					`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
@@ -257,10 +264,12 @@ export class AgentRunner implements AiAgent {
 		if (realId) {
 			const row = this.sessionStore.getRow(this.profile.name, sessionKey);
 			this.sessionCreatedAt = row?.createdAt ?? Date.now();
+			this.logger.info(`[${this.profile.name}:${this.agentId}] reusing existing session ${realId}`);
 		} else {
 			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.agentId}`);
 			this.sessionStore.save(this.profile.name, sessionKey, realId);
 			this.sessionCreatedAt = Date.now();
+			this.logger.info(`[${this.profile.name}:${this.agentId}] created new session ${realId}`);
 		}
 
 		return realId;

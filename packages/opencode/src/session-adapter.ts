@@ -6,6 +6,7 @@ import {
 	type OpencodeClient,
 } from "@opencode-ai/sdk/v2";
 import type {
+	Logger,
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
@@ -29,13 +30,18 @@ export interface OpencodeSessionAdapterConfig {
 	mcpServers: Record<string, McpLocalConfig | McpRemoteConfig | { enabled: boolean }>;
 	builtinTools: Record<string, boolean>;
 	clientFactory?: typeof createOpencode;
+	logger?: Logger;
 }
 
 export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
-	constructor(private readonly config: OpencodeSessionAdapterConfig) {}
+	private readonly logger?: Logger;
+	constructor(private readonly config: OpencodeSessionAdapterConfig) {
+		this.logger = config.logger;
+	}
 	async createSession(title: string): Promise<string> {
+		this.logger?.info(`[opencode] creating session: ${title}`);
 		const oc = await this.getClient();
 		const result = await oc.session.create({ title });
 		if (result.error || !result.data) {
@@ -43,6 +49,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				`Failed to create session: ${result.error ? JSON.stringify(result.error) : "no data returned"}`,
 			);
 		}
+		this.logger?.info(`[opencode] session created: ${result.data.id}`);
 		return result.data.id;
 	}
 
@@ -86,8 +93,12 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		params: OpencodePromptParams,
 		signal?: AbortSignal,
 	): Promise<OpencodeSessionEvent> {
+		this.logger?.info(
+			`[opencode] promptAsyncAndWatch: session=${params.sessionId} model=${params.model.providerId}/${params.model.modelId}`,
+		);
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();
+		this.logger?.info("[opencode] event stream subscribed");
 		const tokensByMessage = new Map<string, TokenUsage>();
 		try {
 			const result = await oc.session.promptAsync({
@@ -99,16 +110,27 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			if (result.error) {
 				throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
 			}
+			this.logger?.info("[opencode] promptAsync sent, watching events...");
 
 			while (true) {
 				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
 				const event = await nextStreamEvent(stream, signal, () =>
 					abortSession(oc, params.sessionId),
 				);
-				if (event.type === "aborted") return { type: "cancelled" };
-				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
-				const classified = classifyEvent(event.value as Event, params.sessionId, tokensByMessage);
-				if (classified) return classified;
+				if (event.type === "aborted") {
+					this.logger?.info("[opencode] event stream aborted");
+					return { type: "cancelled" };
+				}
+				if (event.type === "done") {
+					this.logger?.info("[opencode] event stream done (idle)");
+					return { type: "idle", tokens: sumTokens(tokensByMessage) };
+				}
+				const typed = event.value as Event;
+				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
+				if (classified) {
+					this.logger?.info(`[opencode] session event: ${classified.type}`);
+					return classified;
+				}
 			}
 		} finally {
 			await returnStreamOnce(stream);
@@ -146,6 +168,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 	private async getClient(): Promise<OpencodeClient> {
 		if (this.client) return this.client;
+		this.logger?.info(`[opencode] initializing client (port=${this.config.port})`);
 		const result = await (this.config.clientFactory ?? createOpencode)({
 			port: this.config.port,
 			config: {
@@ -155,6 +178,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		});
 		this.client = result.client;
 		this.closeServer = result.server.close;
+		this.logger?.info(`[opencode] client initialized (port=${this.config.port})`);
 		return this.client;
 	}
 }
