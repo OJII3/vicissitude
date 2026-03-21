@@ -151,6 +151,8 @@ function createServer(agentId: string | null): McpServer {
 	registerScheduleTools(server);
 	if (agentId) {
 		registerEventBufferTools(server, { db, agentId });
+	} else {
+		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}
 	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
