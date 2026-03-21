@@ -22,7 +22,7 @@ graph LR
   tools_event_buffer["tools/event-buffer"]
   tools_ltm["tools/ltm"]
   tools_mc_bridge_discord["tools/mc-bridge-discord"]
-  tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"]
+  tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_event_buffer["tools/event-buffer"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
   tools_memory["tools/memory"] --> memory_helpers["memory-helpers"]
   tools_schedule["tools/schedule"]
@@ -76,7 +76,8 @@ graph LR
 
 ### tools/mc-bridge-minecraft.ts
 
-- 他モジュール依存: store
+- モジュール内依存: tools/event-buffer
+- 他モジュール依存: shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts

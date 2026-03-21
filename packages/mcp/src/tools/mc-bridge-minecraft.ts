@@ -1,8 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
-import { appendEvent } from "@vicissitude/store/queries";
+import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
+
+import { MAX_BATCH_SIZE, formatEvents } from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 
@@ -53,6 +56,19 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 			return {
 				content: [{ type: "text" as const, text: "レポートを Discord 側に送信しました。" }],
 			};
+		},
+	);
+
+	server.registerTool(
+		"check_commands",
+		{
+			description:
+				"Discord 側からの指示を確認する。指示があれば消費して返し、なければ空配列を返す。ブロッキングしない。",
+		},
+		() => {
+			const rows = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
+			const text = rows.length > 0 ? formatEvents(rows) : "[]";
+			return { content: [{ type: "text" as const, text }] };
 		},
 	);
 }
