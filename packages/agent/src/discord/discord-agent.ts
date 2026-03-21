@@ -23,13 +23,14 @@ export interface DiscordAgentDeps {
 
 export class DiscordAgent extends AgentRunner {
 	constructor(deps: DiscordAgentDeps) {
+		const agentId = `discord:${deps.guildId}`;
 		const profile = createConversationProfile({
 			...deps.model,
-			mcpServers: mcpServerConfigs(),
+			mcpServers: mcpServerConfigs(agentId),
 		});
 		super({
 			profile,
-			agentId: `discord:${deps.guildId}`,
+			agentId,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
@@ -39,7 +40,7 @@ export class DiscordAgent extends AgentRunner {
 				builtinTools: profile.builtinTools,
 				logger: deps.logger,
 			}),
-			eventBuffer: new SqliteEventBuffer(deps.db, `discord:${deps.guildId}`, deps.logger),
+			eventBuffer: new SqliteEventBuffer(deps.db, agentId, deps.logger),
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,

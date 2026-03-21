@@ -5,6 +5,7 @@ import { z } from "zod";
 
 export interface EventBufferDeps {
 	db: StoreDb;
+	agentId: string;
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
@@ -45,7 +46,7 @@ export async function pollEvents(
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db } = deps;
+	const { db, agentId } = deps;
 
 	server.registerTool(
 		"wait_for_events",
@@ -53,15 +54,11 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			description:
 				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
 			inputSchema: {
-				agent_id: z
-					.string()
-					.min(1)
-					.describe("対象のエージェント ID (例: discord:123456, minecraft:brain)"),
 				timeout_seconds: z.number().min(1).max(172800).default(60),
 			},
 		},
-		async ({ agent_id, timeout_seconds }) => {
-			const immediate = consumeEvents(db, agent_id, MAX_BATCH_SIZE);
+		async ({ timeout_seconds }) => {
+			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				return {
 					content: [{ type: "text" as const, text: formatEvents(immediate) }],
@@ -69,7 +66,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			}
 
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, agent_id, deadline);
+			const result = await pollEvents(db, agentId, deadline);
 			return { content: [{ type: "text" as const, text: result ?? "[]" }] };
 		},
 	);

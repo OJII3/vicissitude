@@ -142,14 +142,18 @@ metricsLogTimer.unref();
 
 // --- MCP Server Factory ---
 
-function createServer(): McpServer {
+function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
 	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
 	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
 	registerScheduleTools(server);
-	registerEventBufferTools(server, { db });
+	if (agentId) {
+		registerEventBufferTools(server, { db, agentId });
+	} else {
+		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
+	}
 	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
 
