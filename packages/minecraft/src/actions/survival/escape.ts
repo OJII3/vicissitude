@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { goals } from "mineflayer-pathfinder";
+import pathfinderPkg from "mineflayer-pathfinder";
 import { z } from "zod";
 
 import { findPerceivedEntityByName } from "../../bot-queries.ts";
@@ -11,6 +11,8 @@ import {
 	textResult,
 	tryStartJob,
 } from "../shared.ts";
+
+const { goals } = pathfinderPkg;
 
 export function registerFleeFromEntity(
 	server: McpServer,
