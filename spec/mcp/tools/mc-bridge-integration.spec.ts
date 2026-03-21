@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import {
 	getSessionLockGuildId,
 	releaseSessionLock,
@@ -106,5 +107,51 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		expect(discordEvents).toHaveLength(1);
 		const parsed = JSON.parse(discordEvents.at(0)?.payload ?? "{}");
 		expect(parsed.content).toBe("discord向け");
+	});
+});
+
+const MAX_BATCH_SIZE = 10;
+
+describe("check_commands データアクセス層テスト", () => {
+	test("check_commands: イベントがない場合に空配列を返す", () => {
+		const db = createTestDb();
+
+		const events = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
+
+		expect(events).toEqual([]);
+	});
+
+	test("check_commands: イベントがある場合にイベントを消費して返す", () => {
+		const db = createTestDb();
+		const command = {
+			ts: new Date().toISOString(),
+			content: "ダイヤモンドを掘って",
+			authorId: "discord",
+			authorName: "Discord Agent",
+			messageId: `cmd-${Date.now()}`,
+			metadata: { type: "command" },
+		};
+		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(command));
+
+		const events = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
+
+		expect(events).toHaveLength(1);
+		const parsed = JSON.parse(events.at(0)?.payload ?? "{}");
+		expect(parsed.content).toBe("ダイヤモンドを掘って");
+		expect(parsed.authorId).toBe("discord");
+	});
+
+	test("check_commands: 消費後にイベントが削除される", () => {
+		const db = createTestDb();
+		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify({ content: "最初のコマンド" }));
+		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify({ content: "次のコマンド" }));
+
+		// 1回目の消費でイベントを取得
+		const firstBatch = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
+		expect(firstBatch).toHaveLength(2);
+
+		// 2回目の消費では空配列が返る
+		const secondBatch = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
+		expect(secondBatch).toEqual([]);
 	});
 });

@@ -83,7 +83,7 @@ OpenCode が使用する MCP サーバーを提供する。
    - `find_shelter`: 安全な避難場所を探す
    - `attack_entity`: 指定エンティティに近接攻撃
 8. **mc-bridge**（`MC_HOST` 設定時のみ有効）: Minecraft エージェント専用 MCP サーバー
-   - Minecraft 側ブリッジ: `mc_report`
+   - Minecraft 側ブリッジ: `mc_report`, `check_commands`
    - メモリツール: `mc_read_goals`, `mc_update_goals`, `mc_read_skills`, `mc_record_skill`, `mc_read_progress`, `mc_update_progress`
 
 #### OpenCode SDK 組み込みツール
