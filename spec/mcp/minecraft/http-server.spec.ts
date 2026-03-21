@@ -2,9 +2,8 @@ import { afterAll, describe, expect, test } from "bun:test";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { startHttpServer } from "@vicissitude/minecraft/http-server";
-import type { Logger } from "@vicissitude/shared/types";
 
-const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+import { stubLogger } from "./stub-logger.ts";
 
 const MCP_INIT_BODY = JSON.stringify({
 	jsonrpc: "2.0",

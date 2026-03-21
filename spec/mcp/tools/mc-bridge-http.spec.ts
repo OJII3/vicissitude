@@ -4,11 +4,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { startHttpServer } from "@vicissitude/mcp/http-server";
 import { parseMcpResponse } from "@vicissitude/mcp/test-helpers";
 import { registerDiscordBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-discord";
-import type { Logger } from "@vicissitude/shared/types";
 import { tryAcquireSessionLock, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
-const stubLogger: Logger = { info() {}, warn() {}, error() {} };
+import { stubLogger } from "../minecraft/stub-logger.ts";
 
 let baseUrl: string;
 

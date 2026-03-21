@@ -7,7 +7,8 @@ import {
 	separateMessages,
 } from "@vicissitude/ltm/ltm-chat-adapter";
 import type { ChatMessage } from "@vicissitude/ltm/types";
-import type { Logger, OpencodeSessionPort } from "@vicissitude/shared/types";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
+import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
 function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessionPort {
 	let callIndex = 0;
@@ -30,11 +31,7 @@ function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessi
 	} as unknown as OpencodeSessionPort;
 }
 
-const noopLogger: Logger = {
-	info() {},
-	warn() {},
-	error() {},
-};
+const noopLogger = createMockLogger();
 
 const validSchema = {
 	parse: (data: unknown) => data as { key: string },
