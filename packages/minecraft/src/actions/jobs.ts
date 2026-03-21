@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "@vicissitude/shared/types";
 import type mineflayer from "mineflayer";
-import { goals } from "mineflayer-pathfinder";
+import pathfinderPkg from "mineflayer-pathfinder";
 import type { Recipe } from "prismarine-recipe";
 import { z } from "zod";
 
@@ -14,6 +14,8 @@ import {
 	textResult,
 	tryStartJob,
 } from "./shared.ts";
+
+const { goals } = pathfinderPkg;
 
 const MAX_CRAFT_COUNT = 64;
 

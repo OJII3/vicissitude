@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
-import { goals } from "mineflayer-pathfinder";
+import pathfinderPkg from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
 import { z } from "zod";
 
@@ -13,6 +13,8 @@ import {
 	textResult,
 	tryStartJob,
 } from "../shared.ts";
+
+const { goals } = pathfinderPkg;
 
 /** 天井を塞ぐのに適したソリッドブロックの候補（優先度順） */
 const SHELTER_BLOCK_NAMES = new Set([

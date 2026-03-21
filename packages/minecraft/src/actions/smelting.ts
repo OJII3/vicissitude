@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import type { Furnace } from "mineflayer";
-import { goals } from "mineflayer-pathfinder";
+import pathfinderPkg from "mineflayer-pathfinder";
 import { z } from "zod";
 
 import type { JobManager } from "../job-manager.ts";
@@ -12,6 +12,8 @@ import {
 	textResult,
 	tryStartJob,
 } from "./shared.ts";
+
+const { goals } = pathfinderPkg;
 
 const SMELT_TIMEOUT_PER_ITEM_MS = 12_000;
 const SMELT_TIMEOUT_BUFFER_MS = 5_000;

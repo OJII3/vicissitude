@@ -1,7 +1,9 @@
 import type mineflayer from "mineflayer";
-import { Movements } from "mineflayer-pathfinder";
+import pathfinderPkg from "mineflayer-pathfinder";
 
 import type { JobExecutor, JobManager } from "../job-manager.ts";
+
+const { Movements } = pathfinderPkg;
 
 export type GetBot = () => mineflayer.Bot | null;
 export type TextResult = { content: { type: "text"; text: string }[] };
