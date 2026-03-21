@@ -11,8 +11,9 @@ function getRoot(): string {
 /**
  * MCP サーバー設定を返す。
  * core MCP は HTTP サーバーとして全 guild で共有。
+ * agentId は URL クエリパラメータとしてサーバーに渡され、wait_for_events のバインドに使われる。
  */
-export function mcpServerConfigs() {
+export function mcpServerConfigs(agentId: string) {
 	const root = getRoot();
 	const basePort = Number(process.env.OPENCODE_BASE_PORT ?? String(DEFAULT_BASE_PORT));
 	const coreMcpPort = Number(process.env.CORE_MCP_PORT ?? String(basePort - 1));
@@ -20,7 +21,7 @@ export function mcpServerConfigs() {
 	const configs: Record<string, McpServerConfig> = {
 		core: {
 			type: "remote",
-			url: `http://localhost:${coreMcpPort}/mcp`,
+			url: `http://localhost:${coreMcpPort}/mcp?agent_id=${encodeURIComponent(agentId)}`,
 		},
 		"code-exec": {
 			type: "local",

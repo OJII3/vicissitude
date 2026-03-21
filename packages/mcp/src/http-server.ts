@@ -14,13 +14,14 @@ const SESSION_TTL_MS = 30 * 60 * 1000;
 const SESSION_CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
 function createFetchHandler(
-	createServer: () => McpServer,
+	createServer: (agentId: string | null) => McpServer,
 	sessions: Map<string, SessionEntry>,
 	label: string,
 	logger: Logger,
 ): (req: Request) => Response | Promise<Response> {
 	return async (req) => {
-		const pathname = new URL(req.url).pathname;
+		const url = new URL(req.url);
+		const pathname = url.pathname;
 		if (pathname === "/health")
 			return new Response(JSON.stringify({ status: "ok" }), {
 				status: 200,
@@ -35,9 +36,10 @@ function createFetchHandler(
 		}
 		if (sessionId) return new Response("Session Not Found", { status: 404 });
 		if (req.method === "POST") {
+			const agentId = url.searchParams.get("agent_id");
 			let server: McpServer;
 			try {
-				server = createServer();
+				server = createServer(agentId);
 			} catch (err) {
 				logger.error(`[${label}] failed to create MCP server session:`, err);
 				return new Response("Internal Server Error", { status: 500 });
@@ -71,7 +73,7 @@ export interface HttpServerHandle {
 }
 
 export function startHttpServer(
-	createServer: () => McpServer,
+	createServer: (agentId: string | null) => McpServer,
 	port: number,
 	label: string,
 	logger: Logger,

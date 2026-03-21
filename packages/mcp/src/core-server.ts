@@ -142,14 +142,16 @@ metricsLogTimer.unref();
 
 // --- MCP Server Factory ---
 
-function createServer(): McpServer {
+function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
 	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
 	registerDiscordTools(server, { discordClient });
 	registerMemoryTools(server);
 	registerScheduleTools(server);
-	registerEventBufferTools(server, { db });
+	if (agentId) {
+		registerEventBufferTools(server, { db, agentId });
+	}
 	registerLtmTools(server, { getOrCreateLtm });
 	registerDiscordBridgeTools(server, { db });
 
