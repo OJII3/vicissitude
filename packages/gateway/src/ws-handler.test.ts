@@ -135,7 +135,9 @@ describe("WsConnectionManager (unit)", () => {
 	// ─── handleMessage: ハンドラ例外の影響 ──────────────────────
 
 	describe("handleMessage - ハンドラ内例外", () => {
-		it("ハンドラが例外を投げた場合、catch ブロックで捕捉されエラーメッセージが返る", () => {
+		it("ハンドラが例外を投げても外に伝播せず、console.error で構造化ログが出力される", () => {
+			const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+
 			const manager = new WsConnectionManager();
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -144,17 +146,32 @@ describe("WsConnectionManager (unit)", () => {
 				throw new Error("handler error");
 			});
 
-			// try ブロックがハンドラ呼び出しも包んでいるため、例外は外に伝播しない
+			// 例外は外に伝播しない
 			expect(() => manager.handleMessage("conn-1", JSON.stringify(validChatInput))).not.toThrow();
 
-			// catch ブロックでエラーメッセージが送信される
-			expect(conn.sent).toHaveLength(1);
-			const errorMsg = JSON.parse(conn.sent[0] as string);
-			expect(errorMsg.type).toBe("error");
-			expect(errorMsg.code).toBe("INVALID_MESSAGE");
+			// INVALID_MESSAGE エラーメッセージは送信されない（パースは成功しているため）
+			const errorMessages = conn.sent.filter((s) => {
+				const parsed = JSON.parse(s);
+				return parsed.type === "error";
+			});
+			expect(errorMessages).toHaveLength(0);
+
+			// console.error に構造化 JSON ログが出力される
+			expect(errorSpy).toHaveBeenCalledTimes(1);
+			const logArg = errorSpy.mock.calls[0]?.[0] as string;
+			const logObj = JSON.parse(logArg);
+			expect(logObj.level).toBe("error");
+			expect(logObj.msg).toBe("Message handler threw an exception");
+			expect(logObj.connectionId).toBe("conn-1");
+			expect(logObj.messageType).toBe("chat_input");
+			expect(logObj.error).toBe("handler error");
+
+			errorSpy.mockRestore();
 		});
 
-		it("先行ハンドラが例外を投げると、後続ハンドラは呼ばれない", () => {
+		it("先行ハンドラが例外を投げても、後続ハンドラは呼ばれる", () => {
+			const errorSpy = spyOn(console, "error").mockImplementation(() => {});
+
 			const manager = new WsConnectionManager();
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -170,7 +187,10 @@ describe("WsConnectionManager (unit)", () => {
 
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
 
-			expect(secondCalled).toBe(false);
+			// 先行ハンドラの例外にかかわらず後続ハンドラが実行される
+			expect(secondCalled).toBe(true);
+
+			errorSpy.mockRestore();
 		});
 	});
 

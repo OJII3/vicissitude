@@ -75,13 +75,15 @@ export class WsConnectionManager implements GatewayPort {
 			try {
 				handler(connectionId, message);
 			} catch (error) {
-				console.error(JSON.stringify({
-					level: "error",
-					msg: "Message handler threw an exception",
-					connectionId,
-					messageType: message.type,
-					error: error instanceof Error ? error.message : String(error),
-				}));
+				console.error(
+					JSON.stringify({
+						level: "error",
+						msg: "Message handler threw an exception",
+						connectionId,
+						messageType: message.type,
+						error: error instanceof Error ? error.message : String(error),
+					}),
+				);
 			}
 		}
 
