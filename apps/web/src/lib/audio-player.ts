@@ -76,7 +76,8 @@ export class AudioPlayer {
 		let audioBuffer: AudioBuffer;
 		try {
 			audioBuffer = await this.ctx.decodeAudioData(bytes.buffer as ArrayBuffer);
-		} catch {
+		} catch (error) {
+			console.warn("[audio] decodeAudioData failed", error);
 			this.advanceQueue();
 			return;
 		}

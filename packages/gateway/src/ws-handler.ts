@@ -172,8 +172,8 @@ export class WsConnectionManager implements GatewayPort {
 				timestamp: new Date().toISOString(),
 			};
 			this.send(params.connectionId, audioDataMessage);
-		} catch {
-			// TTS 失敗は静かに無視（graceful degradation）
+		} catch (error) {
+			this.logger.warn("[gateway] TTS synthesize failed", { error });
 		}
 	}
 }

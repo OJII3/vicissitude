@@ -182,7 +182,7 @@ describe("computeWavDuration — calculation precision", () => {
 });
 
 describe("computeWavDuration — edge cases", () => {
-	it("44 bytes 未満のバッファ → durationSec=0", async () => {
+	it("44 bytes 未満のバッファ → null を返す", async () => {
 		const shortBuffer = new ArrayBuffer(20);
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
@@ -192,11 +192,10 @@ describe("computeWavDuration — edge cases", () => {
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
-		expect(result).not.toBeNull();
-		expect(result?.durationSec).toBe(0);
+		expect(result).toBeNull();
 	});
 
-	it("byteRate=0 → durationSec=0", async () => {
+	it("byteRate=0 → null を返す", async () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
@@ -205,11 +204,10 @@ describe("computeWavDuration — edge cases", () => {
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
-		expect(result).not.toBeNull();
-		expect(result?.durationSec).toBe(0);
+		expect(result).toBeNull();
 	});
 
-	it("data chunk が存在しない → durationSec=0", async () => {
+	it("data chunk が存在しない → null を返す", async () => {
 		const noDataChunk = new Uint8Array(64);
 		noDataChunk.set([0x52, 0x49, 0x46, 0x46], 0);
 		noDataChunk.set([0x57, 0x41, 0x56, 0x45], 8);
@@ -226,8 +224,7 @@ describe("computeWavDuration — edge cases", () => {
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
-		expect(result).not.toBeNull();
-		expect(result?.durationSec).toBe(0);
+		expect(result).toBeNull();
 	});
 });
 
