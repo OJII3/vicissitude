@@ -12,6 +12,8 @@ services:
       - "10101:10101"
     volumes:
       - aivispeech-data:/home/user/.local/share/AivisSpeech-Engine-Dev
+    tmpfs:
+      - /home/user/.local/share/AivisSpeech-Engine-Dev/Logs
     deploy:
       resources:
         reservations:
