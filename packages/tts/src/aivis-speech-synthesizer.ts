@@ -96,7 +96,7 @@ async function synthesize(
 
 		return { audio, format: "wav", durationSec };
 	} catch (error) {
-		console.warn("[tts] AivisSpeech synthesis failed", { text, error });
+		console.warn("[tts] AivisSpeech synthesis failed", error);
 		return null;
 	}
 }
