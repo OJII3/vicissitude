@@ -60,6 +60,15 @@ describe("mapFallback — fallback 分岐の expression と weight", () => {
 		// computeWeight(0, 0.8) = (0 + 0.8) / 2 = 0.4
 		expect(result.weight).toBeCloseTo(0.4, 5);
 	});
+
+	it("surprised 条件 (A>=0.7, D<0) は mapToExpression 冒頭で捕捉され fallback に到達しない", () => {
+		// V=0, A=0.8, D=-0.5 → surprised ルール（最優先）で処理される
+		// fallback の angry/fear 分岐には到達しない
+		const result = mapper.mapToExpression(createEmotion(0, 0.8, -0.5));
+		expect(result.expression).toBe("surprised");
+		// computeWeight(0.8, 0.5) = 1.3/2 = 0.65
+		expect(result.weight).toBeCloseTo(0.65, 5);
+	});
 });
 
 // ─── computeWeight — 主要ルールの具体値 ──────────────────────────
@@ -191,12 +200,12 @@ describe("clampWeight — 境界", () => {
 		expect(result.weight).toBeCloseTo(1.0, 5);
 	});
 
-	it("非常に小さい主要値 → weight は 0 にクランプされない限り正", () => {
-		// V=0.01, A=0.01, D=0 → happy, computeWeight(0.01, 0.01, 0) ≈ 0.00667
+	it("neutral 境界を超えた直後の主要値 → weight は小さいが正", () => {
+		// V=0.21, A=0.21, D=0 → neutral 境界 (0.2) をギリギリ超えて happy に分岐
+		// computeWeight(0.21, 0.21, 0) = 0.42/3 = 0.14
 		const result = mapper.mapToExpression(createEmotion(0.21, 0.21, 0));
 		expect(result.expression).toBe("happy");
-		// computeWeight(0.21, 0.21, 0) = 0.42/3 = 0.14
-		expect(result.weight).toBeCloseTo(0.14, 2);
+		expect(result.weight).toBeCloseTo(0.42 / 3, 5);
 	});
 
 	it("fallback の最終分岐で A=0, D=0 → weight=0 (clamp 下限)", () => {
