@@ -92,9 +92,11 @@ async function synthesize(
 		const buffer = await synthResponse.arrayBuffer();
 		const audio = new Uint8Array(buffer);
 		const durationSec = computeWavDuration(audio);
+		if (durationSec <= 0) return null;
 
 		return { audio, format: "wav", durationSec };
-	} catch {
+	} catch (error) {
+		console.warn("[tts] AivisSpeech synthesis failed", { text, error });
 		return null;
 	}
 }

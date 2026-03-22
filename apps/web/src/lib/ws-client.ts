@@ -28,8 +28,8 @@ export class WsClient {
 				for (const listener of this.listeners) {
 					listener(message);
 				}
-			} catch {
-				// 不正なメッセージは無視する
+			} catch (error) {
+				console.warn("[ws] Failed to parse server message", error);
 			}
 		});
 	}

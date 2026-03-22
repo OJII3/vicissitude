@@ -26,8 +26,8 @@ function synthesizer(config?: {
 
 // ─── fetch モック ───────────────────────────────────────────────
 
-// 最小限の WAV ヘッダー (44 bytes)
-const DUMMY_WAV_HEADER = new Uint8Array([
+// data chunk size が 0 の WAV（durationSec が 0 になる不正な WAV）
+const ZERO_LENGTH_WAV = new Uint8Array([
 	// "RIFF"
 	0x52, 0x49, 0x46, 0x46,
 	// chunk size (36 bytes of header + 0 data)
@@ -55,6 +55,45 @@ const DUMMY_WAV_HEADER = new Uint8Array([
 	// data size (0)
 	0x00, 0x00, 0x00, 0x00,
 ]);
+
+// 有効な WAV データ（44 bytes ヘッダー + 100 bytes ダミーデータ）
+// data size = 100, chunk size = 36 + 100 = 136 (0x88)
+// byte rate = 48000 → durationSec = 100 / 48000 ≈ 0.00208
+const VALID_WAV = (() => {
+	const dataSize = 100;
+	const header = new Uint8Array([
+		// "RIFF"
+		0x52, 0x49, 0x46, 0x46,
+		// chunk size (36 + dataSize = 136 = 0x88)
+		0x88, 0x00, 0x00, 0x00,
+		// "WAVE"
+		0x57, 0x41, 0x56, 0x45,
+		// "fmt " sub-chunk
+		0x66, 0x6d, 0x74, 0x20,
+		// sub-chunk size (16)
+		0x10, 0x00, 0x00, 0x00,
+		// audio format (1 = PCM)
+		0x01, 0x00,
+		// channels (1)
+		0x01, 0x00,
+		// sample rate (24000)
+		0xc0, 0x5d, 0x00, 0x00,
+		// byte rate (48000)
+		0x80, 0xbb, 0x00, 0x00,
+		// block align (2)
+		0x02, 0x00,
+		// bits per sample (16)
+		0x10, 0x00,
+		// "data" sub-chunk
+		0x64, 0x61, 0x74, 0x61,
+		// data size (100 = 0x64)
+		0x64, 0x00, 0x00, 0x00,
+	]);
+	const wav = new Uint8Array(44 + dataSize);
+	wav.set(header);
+	// ダミー音声データ（0 埋め）は既に初期化済み
+	return wav;
+})();
 
 // AudioQuery のダミーレスポンス
 const DUMMY_AUDIO_QUERY = { speedScale: 1.0, pitchScale: 0.0 };
@@ -86,7 +125,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		);
 		// synthesis
 		mockFetch.mockResolvedValueOnce(
-			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer as ArrayBuffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -98,7 +137,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		expect(result?.audio).toBeInstanceOf(Uint8Array);
 		expect(result?.audio.length).toBeGreaterThan(0);
 		expect(result?.format).toBe("wav");
-		expect(result?.durationSec).toBeGreaterThanOrEqual(0);
+		expect(result?.durationSec).toBeGreaterThan(0);
 	});
 
 	it("返り値の format が 'wav'", async () => {
@@ -106,7 +145,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer as ArrayBuffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -118,12 +157,12 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		expect(result?.format).toBe("wav");
 	});
 
-	it("durationSec が正の数または 0", async () => {
+	it("durationSec が正の数", async () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(DUMMY_WAV_HEADER.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer as ArrayBuffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -132,7 +171,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		const result = await synthesizer().synthesize("テスト", DEFAULT_STYLE);
 
 		expect(result).not.toBeNull();
-		expect(result?.durationSec).toBeGreaterThanOrEqual(0);
+		expect(result?.durationSec).toBeGreaterThan(0);
 	});
 });
 
@@ -160,6 +199,25 @@ describe("AivisSpeechSynthesizer — synthesize errors", () => {
 
 	it("ネットワーク不達時に null を返す", async () => {
 		mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
+
+		expect(result).toBeNull();
+	});
+
+	it("WAV の data chunk size が 0 の場合、synthesize は null を返す", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(ZERO_LENGTH_WAV.buffer as ArrayBuffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
 
 		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
 
