@@ -23,14 +23,7 @@
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"deps:graph": "depcruise packages/*/src apps/*/src --config .dependency-cruiser.mjs --output-type json | bun scripts/generate-deps-md.ts && oxfmt docs/DEPS.md 'packages/*/DEPS.md' 'apps/*/DEPS.md'",
 		"validate": "bun run fmt:check && bun run lint && bun run check",
-		"container:build": "podman build -t vicissitude-code-exec containers/code-exec",
-		"container:build:base": "podman build -t vicissitude-base -f containers/bot/Containerfile containers/bot",
-		"container:build:all": "bun run container:build && bun run container:build:base",
-		"deploy": "podman image exists vicissitude-base || bun run container:build:base; podman-compose rm -f -s installer builder bot 2>/dev/null; podman-compose up -d && echo 'Deployed: nr deploy:logs to follow logs'",
-		"deploy:rebuild": "bun run deploy",
-		"deploy:rebuild-base": "bun run container:build:base && podman-compose down && podman volume ls --format '{{.Name}}' | grep -E 'bot-(node-modules|dist)$' | xargs -r podman volume rm -f; podman-compose up -d && echo 'Base rebuilt and deployed: nr deploy:logs to follow logs'",
-		"deploy:logs": "podman-compose logs -f",
-		"deploy:stop": "podman-compose down"
+		"deploy": "podman-compose rm -f -s installer builder bot 2>/dev/null; podman-compose up -d && echo 'Deployed: podman-compose logs -f to follow logs'"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
