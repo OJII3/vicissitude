@@ -61,6 +61,11 @@ async function executeCollectBlock(
 		collected++;
 		updateProgress(`${String(collected)}/${String(count)} 採集済み`);
 	}
+	if (collected < count && !signal.aborted) {
+		throw new Error(
+			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に追加の対象ブロックが見つかりません`,
+		);
+	}
 }
 
 /** 追従ジョブの executor: プレイヤーが離脱するか abort されるまで追従し続ける */
