@@ -43,7 +43,7 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 			},
 			{
 				id: "memory-update",
-				description: "最近の会話を振り返り、LTM に蓄積された行動ガイドラインを確認する",
+				description: "最近の会話を振り返り、記憶に蓄積された行動ガイドラインを確認する",
 				schedule: { type: "interval", minutes: 360 },
 				lastExecutedAt: null,
 				enabled: true,

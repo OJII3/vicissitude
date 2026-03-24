@@ -1,0 +1,135 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Retrieval } from "@vicissitude/memory/retrieval";
+import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
+import type { SemanticMemory } from "@vicissitude/memory/semantic-memory";
+import { z } from "zod";
+
+const GUILD_ID_REGEX = /^\d+$/;
+const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
+
+export interface MemoryReadServices {
+	retrieval: Retrieval;
+	semantic: SemanticMemory;
+}
+
+export interface MemoryDeps {
+	getOrCreateMemory: (guildId: string) => MemoryReadServices;
+}
+
+export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
+	const { getOrCreateMemory } = deps;
+
+	server.registerTool(
+		"memory_retrieve",
+		{
+			description:
+				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				query: z.string().min(1).describe("検索クエリ"),
+				limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
+			},
+		},
+		async ({ guild_id, query, limit }) => {
+			try {
+				const mem = getOrCreateMemory(guild_id);
+				const result = await mem.retrieval.retrieve(guild_id, query, {
+					limit: limit ?? 10,
+				});
+
+				const parts: string[] = [];
+
+				if (result.episodes.length > 0) {
+					parts.push("## エピソード記憶");
+					for (const ep of result.episodes) {
+						parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
+						parts.push(ep.episode.summary);
+						parts.push("");
+					}
+				}
+
+				if (result.facts.length > 0) {
+					parts.push("## 意味記憶（ファクト）");
+					for (const f of result.facts) {
+						parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
+					}
+				}
+
+				if (parts.length === 0) {
+					parts.push("関連する記憶は見つかりませんでした。");
+				}
+
+				return { content: [{ type: "text", text: parts.join("\n") }] };
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `memory_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
+						},
+					],
+					isError: true,
+				};
+			}
+		},
+	);
+
+	server.registerTool(
+		"memory_get_facts",
+		{
+			description: "蓄積されたファクト（意味記憶）一覧を取得する",
+			inputSchema: {
+				guild_id: guildIdSchema,
+				category: z
+					.enum([
+						"identity",
+						"preference",
+						"interest",
+						"personality",
+						"relationship",
+						"experience",
+						"goal",
+						"guideline",
+					])
+					.optional()
+					.describe("カテゴリでフィルタ（省略で全件）"),
+			},
+		},
+		async ({ guild_id, category }) => {
+			try {
+				const mem = getOrCreateMemory(guild_id);
+				const facts = category
+					? await mem.semantic.getFactsByCategory(guild_id, category)
+					: await mem.semantic.getFacts(guild_id);
+
+				if (facts.length === 0) {
+					return {
+						content: [{ type: "text", text: "ファクトはまだありません。" }],
+					};
+				}
+
+				const lines = facts.map(
+					(f: SemanticFact) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`,
+				);
+				return {
+					content: [
+						{
+							type: "text",
+							text: `${facts.length} 件のファクト:\n${lines.join("\n")}`,
+						},
+					],
+				};
+			} catch (error) {
+				return {
+					content: [
+						{
+							type: "text",
+							text: `memory_get_facts エラー: ${error instanceof Error ? error.message : String(error)}`,
+						},
+					],
+					isError: true,
+				};
+			}
+		},
+	);
+}

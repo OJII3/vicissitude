@@ -97,7 +97,7 @@ export class DiscordGateway {
 					return;
 				}
 
-				// bot 自身のメッセージ: ホームチャンネルなら LTM 記録用にハンドラへ流す
+				// bot 自身のメッセージ: ホームチャンネルなら Memory 記録用にハンドラへ流す
 				if (message.author.id === client.user.id) {
 					if (this.isHomeMessage(message) && this.homeChannelHandler) {
 						const adapted = this.adaptMessage(message, false, message.channel.isThread());

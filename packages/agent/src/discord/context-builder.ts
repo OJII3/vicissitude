@@ -2,7 +2,7 @@ import { resolve } from "path";
 
 import type {
 	ContextBuilderPort,
-	LtmFactReader,
+	MemoryFactReader,
 	McStatusProvider,
 } from "@vicissitude/shared/types";
 
@@ -27,7 +27,7 @@ export class ContextBuilder implements ContextBuilderPort {
 	constructor(
 		private readonly overlayDir: string,
 		private readonly baseDir: string,
-		private readonly ltmFactReader?: LtmFactReader,
+		private readonly memoryFactReader?: MemoryFactReader,
 		private readonly mcStatusProvider?: McStatusProvider,
 	) {}
 
@@ -40,7 +40,7 @@ export class ContextBuilder implements ContextBuilderPort {
 		let totalLength = 0;
 
 		totalLength = await this.loadFileSections(guildId, sections, totalLength);
-		totalLength = await this.loadLtmFacts(guildId, sections, totalLength);
+		totalLength = await this.loadMemoryFacts(guildId, sections, totalLength);
 		totalLength = await this.loadMinecraftStatus(sections, totalLength);
 		this.appendGuildContext(guildId, sections);
 
@@ -79,24 +79,24 @@ export class ContextBuilder implements ContextBuilderPort {
 		return len;
 	}
 
-	private async loadLtmFacts(
+	private async loadMemoryFacts(
 		guildId: string | undefined,
 		sections: string[],
 		totalLength: number,
 	): Promise<number> {
-		if (!guildId || !this.ltmFactReader) return totalLength;
+		if (!guildId || !this.memoryFactReader) return totalLength;
 		try {
-			const facts = await this.ltmFactReader.getFacts(guildId);
+			const facts = await this.memoryFactReader.getFacts(guildId);
 			if (facts.length > 0) {
 				const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
-				const section = `<ltm-facts>\n${lines.join("\n")}\n</ltm-facts>`;
+				const section = `<memory-facts>\n${lines.join("\n")}\n</memory-facts>`;
 				if (totalLength + section.length <= TOTAL_MAX) {
 					sections.push(section);
 					return totalLength + section.length;
 				}
 			}
 		} catch {
-			// LTM ファクト取得失敗時はスキップして続行
+			// Memory ファクト取得失敗時はスキップして続行
 		}
 		return totalLength;
 	}

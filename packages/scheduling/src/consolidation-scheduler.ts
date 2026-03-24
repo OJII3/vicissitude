@@ -23,7 +23,7 @@ export class ConsolidationScheduler {
 
 	start(): void {
 		if (this.timer || this.initialTimer) return;
-		this.logger.info("[ltm-consolidation] スケジューラ開始（30分間隔、初回5分後）");
+		this.logger.info("[memory-consolidation] スケジューラ開始（30分間隔、初回5分後）");
 		this.initialTimer = setTimeout(() => {
 			this.initialTimer = null;
 			void this.tick();
@@ -43,12 +43,12 @@ export class ConsolidationScheduler {
 		if (this.executePromise) {
 			await this.executePromise.catch(() => {});
 		}
-		this.logger.info("[ltm-consolidation] スケジューラ停止");
+		this.logger.info("[memory-consolidation] スケジューラ停止");
 	}
 
 	private async tick(): Promise<void> {
 		if (this.running) {
-			this.logger.info("[ltm-consolidation] 前回の実行がまだ進行中、スキップ");
+			this.logger.info("[memory-consolidation] 前回の実行がまだ進行中、スキップ");
 			return;
 		}
 
@@ -60,15 +60,15 @@ export class ConsolidationScheduler {
 			await withTimeout(
 				execution,
 				CONSOLIDATION_TICK_TIMEOUT_MS,
-				"ltm consolidation tick timed out",
+				"memory consolidation tick timed out",
 			);
-			this.metrics?.incrementCounter(METRIC.LTM_CONSOLIDATION_TICKS, { outcome: "success" });
+			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "success" });
 		} catch (error) {
-			this.metrics?.incrementCounter(METRIC.LTM_CONSOLIDATION_TICKS, { outcome: "error" });
-			this.logger.error("[ltm-consolidation] tick エラー:", error);
+			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "error" });
+			this.logger.error("[memory-consolidation] tick エラー:", error);
 		} finally {
 			const duration = (performance.now() - start) / 1000;
-			this.metrics?.observeHistogram(METRIC.LTM_CONSOLIDATION_TICK_DURATION, duration);
+			this.metrics?.observeHistogram(METRIC.MEMORY_CONSOLIDATION_TICK_DURATION, duration);
 		}
 
 		// Wait for execution to complete, but cap to prevent deadlock
@@ -78,7 +78,7 @@ export class ConsolidationScheduler {
 		]);
 		if (!settled) {
 			this.logger.error(
-				"[ltm-consolidation] execution did not settle after force timeout, resetting running flag",
+				"[memory-consolidation] execution did not settle after force timeout, resetting running flag",
 			);
 		}
 		this.executePromise = null;
@@ -89,7 +89,7 @@ export class ConsolidationScheduler {
 	private async executeConsolidation(): Promise<void> {
 		const guildIds = this.consolidator.getActiveGuildIds();
 		if (guildIds.length === 0) {
-			this.logger.info("[ltm-consolidation] アクティブなギルドなし、スキップ");
+			this.logger.info("[memory-consolidation] アクティブなギルドなし、スキップ");
 			return;
 		}
 
@@ -99,11 +99,11 @@ export class ConsolidationScheduler {
 				const result = await this.consolidator.consolidate(guildId);
 				if (result.processedEpisodes > 0) {
 					this.logger.info(
-						`[ltm-consolidation] guild=${guildId}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
+						`[memory-consolidation] guild=${guildId}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
 					);
 				}
 			} catch (err) {
-				this.logger.error(`[ltm-consolidation] guild=${guildId} failed:`, err);
+				this.logger.error(`[memory-consolidation] guild=${guildId} failed:`, err);
 			}
 		}
 	}

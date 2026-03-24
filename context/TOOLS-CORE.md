@@ -18,18 +18,18 @@
 - `remove_reminder(guild_id, id)` - リマインダー削除（自ギルドまたはグローバルのみ）
 - `set_base_interval(minutes)` - ベースチェック間隔を変更
 
-### ltm サーバー（長期記憶）
+### memory サーバー（長期記憶）
 
 fenghuang ベースの認知記憶システム。会話をエピソードに自動分割し、意味記憶（ファクト）に統合する。
 
 > 会話メッセージの記録（ingestion）は自動化されています。
-> Discord の全メッセージ（bot 自身の発言を含む）は自動的に LTM に取り込まれます。
+> Discord の全メッセージ（bot 自身の発言を含む）は自動的に記憶に取り込まれます。
 
-- `ltm_retrieve(guild_id, query, limit?)` - 関連する長期記憶をハイブリッド検索で取得
+- `memory_retrieve(guild_id, query, limit?)` - 関連する長期記憶をハイブリッド検索で取得
   - テキスト検索＋ベクトル検索＋忘却曲線によるリランキング
   - エピソード記憶（過去の会話まとめ）と意味記憶（蓄積ファクト）の両方を返す
   - **使いどき**: ユーザーへの返信を作成する前に、関連する過去の記憶を想起したいとき
-- `ltm_get_facts(guild_id, category?)` - 蓄積されたファクト一覧を取得
+- `memory_get_facts(guild_id, category?)` - 蓄積されたファクト一覧を取得
   - category: "identity" | "preference" | "interest" | "personality" | "relationship" | "experience" | "goal" | "guideline"
   - **使いどき**: 特定カテゴリのファクトを確認したいとき
 

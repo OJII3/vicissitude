@@ -11,18 +11,18 @@ graph LR
   core_server["core-server"] --> tool_metrics["tool-metrics"]
   core_server["core-server"] --> tools_discord["tools/discord"]
   core_server["core-server"] --> tools_event_buffer["tools/event-buffer"]
-  core_server["core-server"] --> tools_ltm["tools/ltm"]
   core_server["core-server"] --> tools_mc_bridge_discord["tools/mc-bridge-discord"]
+  core_server["core-server"] --> tools_memory["tools/memory"]
   core_server["core-server"] --> tools_schedule["tools/schedule"]
   http_server["http-server"]
   memory_helpers["memory-helpers"]
   tool_metrics["tool-metrics"]
   tools_discord["tools/discord"]
   tools_event_buffer["tools/event-buffer"]
-  tools_ltm["tools/ltm"]
   tools_mc_bridge_discord["tools/mc-bridge-discord"]
   tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_event_buffer["tools/event-buffer"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
+  tools_memory["tools/memory"]
   tools_schedule["tools/schedule"]
 ```
 
@@ -34,8 +34,8 @@ graph LR
 
 ### core-server.ts
 
-- モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/ltm, tools/mc-bridge-discord, tools/schedule
-- 他モジュール依存: ltm, observability, ollama, shared, store
+- モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/mc-bridge-discord, tools/memory, tools/schedule
+- 他モジュール依存: memory, observability, ollama, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### http-server.ts
@@ -62,11 +62,6 @@ graph LR
 - 他モジュール依存: store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
-### tools/ltm.ts
-
-- 他モジュール依存: ltm
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
-
 ### tools/mc-bridge-discord.ts
 
 - 他モジュール依存: shared, store
@@ -82,6 +77,11 @@ graph LR
 
 - モジュール内依存: memory-helpers
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+
+### tools/memory.ts
+
+- 他モジュール依存: memory
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/schedule.ts
 

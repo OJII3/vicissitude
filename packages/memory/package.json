@@ -1,0 +1,22 @@
+{
+	"name": "@vicissitude/memory",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./composite-llm-adapter": "./src/composite-llm-adapter.ts",
+		"./conversation-recorder": "./src/conversation-recorder.ts",
+		"./fact-reader": "./src/fact-reader.ts",
+		"./chat-adapter": "./src/chat-adapter.ts",
+		"./storage": "./src/storage.ts",
+		"./episodic": "./src/episodic.ts",
+		"./retrieval": "./src/retrieval.ts",
+		"./semantic-memory": "./src/semantic-memory.ts",
+		"./semantic-fact": "./src/semantic-fact.ts",
+		"./llm-port": "./src/llm-port.ts",
+		"./types": "./src/types.ts",
+		"./episode": "./src/episode.ts",
+		"./segmenter": "./src/segmenter.ts",
+		"./consolidation": "./src/consolidation.ts",
+		"./fsrs": "./src/fsrs.ts"
+	}
+}

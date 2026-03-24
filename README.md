@@ -54,7 +54,7 @@ MCP サーバー経由で各種操作を提供する。
 | コード実行   | code-exec    | execute_code                                       |
 | スケジュール | schedule     | list_reminders, add_reminder                       |
 | 記憶（短期） | memory       | read_memory, update_memory, read_soul              |
-| 記憶（長期） | ltm          | ltm_retrieve, ltm_get_facts                        |
+| 記憶（長期） | memory       | memory_retrieve, memory_get_facts                  |
 | ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block |
 | ゲーム通信   | mc-bridge    | mc_report, mc_read_goals, mc_update_goals          |
 
@@ -64,32 +64,32 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
-- LTM ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
+- Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
 ### 3.6 マルチテナント分離
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `AGENTS.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全テナントで共有。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
-- LTM 分離: テナントごとに独立した DB。
+- Memory 分離: テナントごとに独立した DB。
 - テナント間で会話内容・メンバー情報・教訓が漏洩しない。
 
 ### 3.7 記憶システム
 
-ファイルベースメモリと LTM を併用し、情報の種類に応じて担当を分離する。
+ファイルベースメモリと Memory パッケージを併用し、情報の種類に応じて担当を分離する。
 
-| 情報の種類                         | 担当             | 備考                         |
-| ---------------------------------- | ---------------- | ---------------------------- |
-| ユーザー情報（名前、特徴、関係性） | LTM SemanticFact | 会話から自動抽出             |
-| メンバーの性格・好み               | LTM SemanticFact | 会話から自動抽出             |
-| 会話内容の要約                     | LTM Episodes     | 会話から自動生成             |
-| 個別の行動ガイドライン             | LTM guideline    | 会話から自動抽出。状況固有   |
-| 会話中の自省・気づき               | LTM Episodes     | consolidation で抽出         |
-| チャンネル設定メモ                 | MEMORY.md        | 運用固有、自動抽出不適       |
-| 行動ルール                         | MEMORY.md        | AI の自己指示、構造化が必要  |
-| 週次目標・運用メモ                 | MEMORY.md        | 時限的、手動管理が適切       |
-| 運用ルール                         | MEMORY.md        | 開発者が設定する行動指示     |
-| 精選教訓（原則）                   | LESSONS.md       | 複数経験から一般化。手動管理 |
+| 情報の種類                         | 担当                | 備考                         |
+| ---------------------------------- | ------------------- | ---------------------------- |
+| ユーザー情報（名前、特徴、関係性） | Memory SemanticFact | 会話から自動抽出             |
+| メンバーの性格・好み               | Memory SemanticFact | 会話から自動抽出             |
+| 会話内容の要約                     | Memory Episodes     | 会話から自動生成             |
+| 個別の行動ガイドライン             | Memory guideline    | 会話から自動抽出。状況固有   |
+| 会話中の自省・気づき               | Memory Episodes     | consolidation で抽出         |
+| チャンネル設定メモ                 | MEMORY.md           | 運用固有、自動抽出不適       |
+| 行動ルール                         | MEMORY.md           | AI の自己指示、構造化が必要  |
+| 週次目標・運用メモ                 | MEMORY.md           | 時限的、手動管理が適切       |
+| 運用ルール                         | MEMORY.md           | 開発者が設定する行動指示     |
+| 精選教訓（原則）                   | LESSONS.md          | 複数経験から一般化。手動管理 |
 
 ### 3.8 エラー応答
 

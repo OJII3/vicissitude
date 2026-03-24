@@ -20,7 +20,7 @@ for i in $(seq 1 60); do
 done
 
 # モデルプル（既に存在する場合はスキップされる）
-MODEL="${LTM_EMBEDDING_MODEL:-embeddinggemma}"
+MODEL="${MEMORY_EMBEDDING_MODEL:-embeddinggemma}"
 echo "Pulling model: ${MODEL}"
 ollama pull "$MODEL"
 

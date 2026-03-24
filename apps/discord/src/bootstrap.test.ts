@@ -16,7 +16,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			sessionMaxAgeHours: 48,
 		},
 		coreMcpPort: 4095,
-		ltm: {
+		memory: {
 			providerId: "test-provider",
 			modelId: "test-model",
 			ollamaBaseUrl: "http://localhost:11434",

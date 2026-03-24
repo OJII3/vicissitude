@@ -361,7 +361,7 @@
 				"y": 18
 			},
 			"id": 300,
-			"title": "LTM",
+			"title": "Memory",
 			"type": "row"
 		},
 		{
@@ -409,11 +409,11 @@
 			},
 			"targets": [
 				{
-					"expr": "sum by (outcome) (increase(ltm_consolidation_ticks_total[1h]))",
+					"expr": "sum by (outcome) (increase(memory_consolidation_ticks_total[1h]))",
 					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "LTM Consolidation Ticks (1h)",
+			"title": "Memory Consolidation Ticks (1h)",
 			"type": "timeseries"
 		},
 		{
@@ -457,19 +457,19 @@
 			},
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.50, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p50"
 				},
 				{
-					"expr": "histogram_quantile(0.90, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p90"
 				},
 				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(ltm_consolidation_tick_duration_seconds_bucket[5m])))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
 					"legendFormat": "p99"
 				}
 			],
-			"title": "LTM Consolidation Latency",
+			"title": "Memory Consolidation Latency",
 			"type": "timeseries"
 		},
 		{
