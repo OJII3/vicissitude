@@ -55,7 +55,8 @@ export async function pollEvents(
 const MEMORY_EPISODE_LIMIT = 3;
 const MEMORY_FACT_LIMIT = 5;
 
-function buildMemoryQuery(eventsJson: string): string {
+/** イベント JSON からメモリ検索クエリを構築する。system イベントは除外、bot は含める。 */
+export function buildMemoryQuery(eventsJson: string): string {
 	try {
 		const events = JSON.parse(eventsJson) as { authorId?: string; content?: string }[];
 		return events
@@ -90,7 +91,6 @@ export function formatMemoryContext(result: RetrievalResult): string {
 	if (parts.length === 0) return "";
 
 	return [
-		"",
 		"<memory-context>",
 		"※ 過去の記憶から自動検索された参考情報です。不正確な可能性があるため、鵜呑みにせず会話の文脈で判断してください。",
 		"",
@@ -99,19 +99,25 @@ export function formatMemoryContext(result: RetrievalResult): string {
 	].join("\n");
 }
 
-async function appendMemoryContext(eventsJson: string, memory: MemoryRetriever): Promise<string> {
+type TextContent = { type: "text"; text: string };
+
+async function fetchMemoryContext(
+	eventsJson: string,
+	memory: MemoryRetriever,
+): Promise<TextContent | null> {
 	const query = buildMemoryQuery(eventsJson);
-	if (!query) return eventsJson;
+	if (!query) return null;
 
 	try {
+		// retrieve の limit はカテゴリごとの最大件数。ファクト側が多いので MEMORY_FACT_LIMIT を使用
 		const result = await memory.retrieval.retrieve(memory.guildId, query, {
-			limit: Math.max(MEMORY_EPISODE_LIMIT, MEMORY_FACT_LIMIT),
+			limit: MEMORY_FACT_LIMIT,
 		});
 		const context = formatMemoryContext(result);
-		if (!context) return eventsJson;
-		return eventsJson + context;
+		if (!context) return null;
+		return { type: "text", text: context };
 	} catch {
-		return eventsJson;
+		return null;
 	}
 }
 
@@ -122,7 +128,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		"wait_for_events",
 		{
 			description:
-				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。タイムアウト時は空配列を返す。",
+				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。関連する長期記憶があれば別ブロックで付与する。タイムアウト時は空配列を返す。",
 			inputSchema: {
 				timeout_seconds: z.number().min(1).max(172800).default(60),
 			},
@@ -131,10 +137,12 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const text = formatEvents(immediate);
-				const enriched = memory ? await appendMemoryContext(text, memory) : text;
-				return {
-					content: [{ type: "text" as const, text: enriched }],
-				};
+				const content: TextContent[] = [{ type: "text", text }];
+				if (memory) {
+					const ctx = await fetchMemoryContext(text, memory);
+					if (ctx) content.push(ctx);
+				}
+				return { content };
 			}
 
 			const deadline = Date.now() + timeout_seconds * 1000;
@@ -142,8 +150,12 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			if (result === null) {
 				return { content: [{ type: "text" as const, text: "[]" }] };
 			}
-			const enriched = memory ? await appendMemoryContext(result, memory) : result;
-			return { content: [{ type: "text" as const, text: enriched }] };
+			const content: TextContent[] = [{ type: "text", text: result }];
+			if (memory) {
+				const ctx = await fetchMemoryContext(result, memory);
+				if (ctx) content.push(ctx);
+			}
+			return { content };
 		},
 	);
 }

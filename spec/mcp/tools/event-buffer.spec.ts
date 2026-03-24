@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatEvents, formatMemoryContext, pollEvents } from "@vicissitude/mcp/tools/event-buffer";
+import {
+	buildMemoryQuery,
+	formatEvents,
+	formatMemoryContext,
+	pollEvents,
+} from "@vicissitude/mcp/tools/event-buffer";
 import type { RetrievalResult } from "@vicissitude/memory/retrieval";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -25,6 +30,49 @@ describe("formatEvents", () => {
 	test("空配列なら空の JSON 配列を返す", () => {
 		const result = formatEvents([]);
 		expect(JSON.parse(result)).toEqual([]);
+	});
+});
+
+describe("buildMemoryQuery", () => {
+	test("system イベントを除外してクエリを構築する", () => {
+		const json = JSON.stringify([
+			{ authorId: "system", content: "internal event" },
+			{ authorId: "user1", content: "こんにちは" },
+		]);
+		expect(buildMemoryQuery(json)).toBe("こんにちは");
+	});
+
+	test("bot イベントは含める", () => {
+		const json = JSON.stringify([
+			{ authorId: "bot1", content: "bot発言", isBot: true },
+			{ authorId: "user1", content: "人間の発言" },
+		]);
+		const query = buildMemoryQuery(json);
+		expect(query).toContain("bot発言");
+		expect(query).toContain("人間の発言");
+	});
+
+	test("content が空のイベントはスキップする", () => {
+		const json = JSON.stringify([
+			{ authorId: "user1", content: "" },
+			{ authorId: "user2", content: "有効" },
+		]);
+		expect(buildMemoryQuery(json)).toBe("有効");
+	});
+
+	test("1000文字を超える場合は切り詰める", () => {
+		const longContent = "あ".repeat(1200);
+		const json = JSON.stringify([{ authorId: "user1", content: longContent }]);
+		expect(buildMemoryQuery(json).length).toBe(1000);
+	});
+
+	test("不正な JSON なら空文字を返す", () => {
+		expect(buildMemoryQuery("not json")).toBe("");
+	});
+
+	test("全てが system イベントなら空文字を返す", () => {
+		const json = JSON.stringify([{ authorId: "system", content: "event" }]);
+		expect(buildMemoryQuery(json)).toBe("");
 	});
 });
 
