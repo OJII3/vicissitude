@@ -10,14 +10,15 @@ const GUILD_ID_REGEX = /^\d+$/;
 
 const SHARED_FILES = [
 	"IDENTITY.md",
-	"SOUL.md",
 	"AGENTS.md",
-	"TOOLS.md",
+	"DISCORD.md",
 	"HEARTBEAT.md",
-	"USER.md",
+	"TOOLS-CORE.md",
+	"TOOLS-CODE.md",
+	"TOOLS-MINECRAFT.md",
 ] as const;
 
-const MEMORY_FILES = ["MEMORY.md", "LESSONS.md"] as const;
+const GUILD_FILES = ["SERVER.md"] as const;
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
@@ -52,17 +53,17 @@ export class ContextBuilder implements ContextBuilderPort {
 		totalLength: number,
 	): Promise<number> {
 		const sharedContents = await Promise.all(SHARED_FILES.map((f) => this.readOverlaid(f)));
-		const memoryContents = await Promise.all(
-			MEMORY_FILES.map((f) => {
+		const guildContents = await Promise.all(
+			GUILD_FILES.map((f) => {
 				if (guildId) {
-					return this.readOverlaidWithGuildFallback(`guilds/${guildId}/${f}`, f);
+					return this.readOverlaid(`guilds/${guildId}/${f}`);
 				}
-				return this.readOverlaid(f);
+				return Promise.resolve(null);
 			}),
 		);
 
-		const allFiles = [...SHARED_FILES, ...MEMORY_FILES];
-		const allContents = [...sharedContents, ...memoryContents];
+		const allFiles = [...SHARED_FILES, ...GUILD_FILES];
+		const allContents = [...sharedContents, ...guildContents];
 		let len = totalLength;
 
 		for (let i = 0; i < allFiles.length; i++) {
@@ -123,15 +124,6 @@ export class ContextBuilder implements ContextBuilderPort {
 				`<guild-context>\ncurrent_guild_id: ${guildId}\nメモリツール・スケジュールツール使用時は guild_id: "${guildId}" を必ず指定してください。\n</guild-context>`,
 			);
 		}
-	}
-
-	private async readOverlaidWithGuildFallback(
-		guildRelativePath: string,
-		globalRelativePath: string,
-	): Promise<string | null> {
-		const content = await this.readOverlaid(guildRelativePath);
-		if (content) return content;
-		return this.readOverlaid(globalRelativePath);
 	}
 
 	private async readOverlaid(relativePath: string): Promise<string | null> {

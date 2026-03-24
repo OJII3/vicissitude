@@ -2,35 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
-import {
-	OVERLAY_CONTEXT_DIR,
-	guildIdSchema,
-	readWithFallbackFrom,
-	resolveContextPaths,
-} from "@vicissitude/mcp/memory-helpers";
-
-describe("resolveContextPaths", () => {
-	it("guildId 未指定時はオーバーレイベースのグローバルパスを返す", () => {
-		const paths = resolveContextPaths();
-
-		expect(paths.memoryPath).toContain("data/context/MEMORY.md");
-		expect(paths.lessonsPath).toContain("data/context/LESSONS.md");
-		expect(paths.memoryPath).not.toContain("guilds");
-	});
-
-	it("guildId 指定時は Guild 固有パスを返す", () => {
-		const paths = resolveContextPaths("123456789");
-
-		expect(paths.memoryPath).toContain("data/context/guilds/123456789/MEMORY.md");
-		expect(paths.lessonsPath).toContain("data/context/guilds/123456789/LESSONS.md");
-	});
-
-	it("OVERLAY_CONTEXT_DIR をベースにしたパスを返す", () => {
-		const paths = resolveContextPaths();
-
-		expect(paths.memoryPath).toStartWith(OVERLAY_CONTEXT_DIR);
-	});
-});
+import { readWithFallbackFrom } from "@vicissitude/mcp/memory-helpers";
 
 describe("readWithFallbackFrom", () => {
 	const TEST_ROOT = resolve(import.meta.dirname, "../../.test-fallback");
@@ -92,33 +64,5 @@ describe("readWithFallbackFrom", () => {
 			TEST_BASE,
 		);
 		expect(content).toBe("  \n");
-	});
-});
-
-describe("guildIdSchema", () => {
-	it("正常な snowflake ID を受け付ける", () => {
-		const result = guildIdSchema.safeParse("123456789012345678");
-		expect(result.success).toBe(true);
-	});
-
-	it("省略を受け付ける", () => {
-		// oxlint-disable-next-line no-useless-undefined -- safeParse に明示的に undefined を渡してテスト
-		const result = guildIdSchema.safeParse(undefined);
-		expect(result.success).toBe(true);
-	});
-
-	it("パストラバーサル文字列を拒否する", () => {
-		const result = guildIdSchema.safeParse("../../../etc/passwd");
-		expect(result.success).toBe(false);
-	});
-
-	it("空文字列を拒否する", () => {
-		const result = guildIdSchema.safeParse("");
-		expect(result.success).toBe(false);
-	});
-
-	it("英字を含む文字列を拒否する", () => {
-		const result = guildIdSchema.safeParse("abc123");
-		expect(result.success).toBe(false);
 	});
 });

@@ -56,27 +56,24 @@ describe("ContextBuilder", () => {
 		});
 	});
 
-	describe("Guild 固有ファイルのフォールバック", () => {
-		it("Guild 固有ファイルがなければグローバルにフォールバックする", async () => {
+	describe("Guild 固有ファイル", () => {
+		it("Guild 固有の SERVER.md が読み込まれる", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			writeFile(baseDir, "MEMORY.md", "global memory");
+			writeFile(overlayDir, "guilds/123456789/SERVER.md", "guild server info");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build("123456789");
 
-			expect(result).toContain("global memory");
+			expect(result).toContain("guild server info");
 		});
 
-		it("Guild 固有ファイルがあればそちらが優先される", async () => {
+		it("Guild 固有ファイルがなくてもエラーにならない", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			writeFile(baseDir, "MEMORY.md", "global memory");
-			writeFile(overlayDir, "guilds/123456789/MEMORY.md", "guild memory");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build("123456789");
 
-			expect(result).toContain("guild memory");
-			expect(result).not.toContain("global memory");
+			expect(result).not.toContain("<SERVER.md>");
 		});
 	});
 
@@ -126,7 +123,6 @@ describe("ContextBuilder", () => {
 			const builder = new ContextBuilder(overlayDir, baseDir, failingReader);
 			const result = await builder.build("123456789");
 
-			// エラーがスローされずに結果が返る
 			expect(result).toContain("identity content");
 			expect(result).not.toContain("<ltm-facts>");
 		});
@@ -135,31 +131,29 @@ describe("ContextBuilder", () => {
 	describe("TOTAL_MAX による切り詰め", () => {
 		it("TOTAL_MAX を超えるとそれ以降のセクションが省略される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			// TOTAL_MAX は 150_000。各 SHARED_FILE + MEMORY_FILE にラージコンテンツを書いて総量を超過させる
-			// SHARED_FILES: IDENTITY, SOUL, AGENTS, TOOLS, HEARTBEAT, USER (6 files)
-			// MEMORY_FILES: MEMORY, LESSONS (2 files)
+			// TOTAL_MAX は 150_000。各 SHARED_FILE にラージコンテンツを書いて総量を超過させる
+			// SHARED_FILES: IDENTITY, AGENTS, DISCORD, HEARTBEAT, TOOLS-CORE, TOOLS-CODE, TOOLS-MINECRAFT (7 files)
+			// GUILD_FILES: SERVER (1 file)
 			// PER_FILE_MAX は 20_000 なので、各ファイルに 20_000 文字書く → 8 files × 20_000 = 160_000 > 150_000
 			const largeContent = "x".repeat(20_000);
 			writeFile(baseDir, "IDENTITY.md", largeContent);
-			writeFile(baseDir, "SOUL.md", largeContent);
 			writeFile(baseDir, "AGENTS.md", largeContent);
-			writeFile(baseDir, "TOOLS.md", largeContent);
+			writeFile(baseDir, "DISCORD.md", largeContent);
 			writeFile(baseDir, "HEARTBEAT.md", largeContent);
-			writeFile(baseDir, "USER.md", largeContent);
-			writeFile(baseDir, "MEMORY.md", largeContent);
-			writeFile(baseDir, "LESSONS.md", largeContent);
+			writeFile(baseDir, "TOOLS-CORE.md", largeContent);
+			writeFile(baseDir, "TOOLS-CODE.md", largeContent);
+			writeFile(baseDir, "TOOLS-MINECRAFT.md", largeContent);
+			writeFile(overlayDir, "guilds/999/SERVER.md", largeContent);
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build();
+			const result = await builder.build("999");
 
-			// 全セクションは入り切らないはず（TOTAL_MAX 超過で break）
-			// LESSONS.md は末尾なので入らない可能性が高い
 			expect(result.length).toBeLessThanOrEqual(160_000);
-			// 最初のファイルは含まれる
 			expect(result).toContain("<IDENTITY.md>");
-			// 8 ファイル全てが含まれていないことを確認
 			const sectionCount = (
-				result.match(/<\/(IDENTITY|SOUL|AGENTS|TOOLS|HEARTBEAT|USER|MEMORY|LESSONS)\.md>/g) || []
+				result.match(
+					/<\/(IDENTITY|AGENTS|DISCORD|HEARTBEAT|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER)\.md>/g,
+				) || []
 			).length;
 			expect(sectionCount).toBeLessThan(8);
 		});

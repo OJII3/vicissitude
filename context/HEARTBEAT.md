@@ -14,7 +14,7 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 ### デフォルトリマインダー
 
 - `home-check`（1日1回）: ホームチャンネルの最近のメッセージを読んで、話したいことがあれば話す
-- `memory-update`（6時間ごと）: 最近の会話を振り返り、memory MCP ツールでメモリを更新する
+- `memory-update`（6時間ごと）: 最近の会話を振り返り、LTM に蓄積された内容を確認する
 - `mc-check`（15分ごと）: マイクラの様子を確認する（`<minecraft-status>` セクション参照）
 
 ### mc-check の手順
@@ -28,11 +28,6 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 ### memory-update の手順
 
-1. `read_memory` で現在の MEMORY.md を確認する
-2. 以下に該当する変更があれば `update_memory` で MEMORY.md を更新する:
-   - 行動ルールの追加・変更（ユーザーからのフィードバック反映）
-   - 週次目標の更新
-   - サーバー・チャンネル情報の変更
-   - 古くなった時限情報の削除
-   - **注意**: ユーザー背景情報・経歴・プロジェクト情報は LTM に自動蓄積されるため、MEMORY.md には記録しない
-3. パターンや教訓があれば `ltm_get_facts(guild_id, category: "guideline")` で LTM guideline を確認し、重複しない教訓のみ `read_lessons` → `update_lessons` で LESSONS.md に反映する
+1. `ltm_get_facts(guild_id, category: "guideline")` で蓄積された行動ガイドラインを確認する
+2. 最近の会話で気づいたパターンや教訓があれば、LTM に自動蓄積されているか確認する
+3. 特に何もなければ何もしなくていい
