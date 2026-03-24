@@ -7,7 +7,7 @@ import {
 	createEpisodeTables,
 	createFactTables,
 	createMessageQueue,
-} from "./ltm-storage-schema.ts";
+} from "./storage-schema.ts";
 
 interface SqliteMasterRow {
 	name: string;

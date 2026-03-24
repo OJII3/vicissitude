@@ -5,8 +5,8 @@ export interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** LTM LLM Port — Core depends only on this interface */
-export interface LtmLlmPort {
+/** Memory LLM Port — Core depends only on this interface */
+export interface MemoryLlmPort {
 	/** Free-form chat response */
 	chat(messages: ChatMessage[]): Promise<string>;
 	/** Structured output (JSON Schema compliant) */

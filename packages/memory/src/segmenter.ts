@@ -1,8 +1,8 @@
 /* oxlint-disable max-lines, require-await, no-await-in-loop -- sequential processing required */
 import type { Episode } from "./episode.ts";
 import { createEpisode } from "./episode.ts";
-import type { LtmLlmPort, Schema } from "./llm-port.ts";
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryLlmPort, Schema } from "./llm-port.ts";
+import type { MemoryStorage } from "./storage.ts";
 import type { ChatMessage, SurpriseLevel } from "./types.ts";
 import { SURPRISE_VALUES } from "./types.ts";
 import { escapeXmlContent, validateUserId } from "./utils.ts";
@@ -45,8 +45,8 @@ export interface SegmentationOutput {
 /** Event segmentation service — splits conversations into episodes */
 export class Segmenter {
 	constructor(
-		protected llm: LtmLlmPort,
-		protected storage: LtmStorage,
+		protected llm: MemoryLlmPort,
+		protected storage: MemoryStorage,
 		protected config: SegmenterConfig = DEFAULT_SEGMENTER_CONFIG,
 	) {}
 

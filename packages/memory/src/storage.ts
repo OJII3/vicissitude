@@ -3,9 +3,9 @@ import { Database } from "bun:sqlite";
 
 import type { Episode } from "./episode.ts";
 import type { FSRSCard } from "./fsrs.ts";
-import type { EpisodeRow, FactRow, MessageRow } from "./ltm-storage-rows.ts";
-import { rowToEpisode, rowToFact, rowToMessage } from "./ltm-storage-rows.ts";
-import { createAllTables } from "./ltm-storage-schema.ts";
+import type { EpisodeRow, FactRow, MessageRow } from "./storage-rows.ts";
+import { rowToEpisode, rowToFact, rowToMessage } from "./storage-rows.ts";
+import { createAllTables } from "./storage-schema.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "./types.ts";
 import { cosineSimilarity } from "./vector-math.ts";
@@ -45,8 +45,8 @@ function sortBySimilarity<T extends { embedding: number[] }>(
 		.map((r) => r.item);
 }
 
-/** SQLite-based LTM storage */
-export class LtmStorage {
+/** SQLite-based memory storage */
+export class MemoryStorage {
 	private db: Database;
 	/** undefined = not loaded yet */
 	private cachedDimension: number | null | undefined = undefined;

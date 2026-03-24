@@ -1,13 +1,13 @@
 {
-	"name": "@vicissitude/ltm",
+	"name": "@vicissitude/memory",
 	"private": true,
 	"exports": {
 		".": "./src/index.ts",
 		"./composite-llm-adapter": "./src/composite-llm-adapter.ts",
 		"./conversation-recorder": "./src/conversation-recorder.ts",
 		"./fact-reader": "./src/fact-reader.ts",
-		"./ltm-chat-adapter": "./src/ltm-chat-adapter.ts",
-		"./ltm-storage": "./src/ltm-storage.ts",
+		"./chat-adapter": "./src/chat-adapter.ts",
+		"./storage": "./src/storage.ts",
 		"./episodic": "./src/episodic.ts",
 		"./retrieval": "./src/retrieval.ts",
 		"./semantic-memory": "./src/semantic-memory.ts",

@@ -2,7 +2,7 @@
 import type { Episode } from "./episode.ts";
 import type { FSRSCard } from "./fsrs.ts";
 import { retrievability, reviewCard } from "./fsrs.ts";
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryStorage } from "./storage.ts";
 import type { ReviewRating } from "./types.ts";
 import { validateUserId } from "./utils.ts";
 
@@ -14,7 +14,7 @@ export interface ReviewOptions {
 
 /** Episodic memory service — manages episode lifecycle */
 export class EpisodicMemory {
-	constructor(protected storage: LtmStorage) {}
+	constructor(protected storage: MemoryStorage) {}
 
 	/** Get all episodes for a user */
 	async getEpisodes(userId: string): Promise<Episode[]> {

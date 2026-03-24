@@ -11,8 +11,8 @@ interface Schema<T> {
 	parse(data: unknown): T;
 }
 
-/** Adapter that uses OpencodeSessionPort for LTM chat / chatStructured */
-export class LtmChatAdapter {
+/** Adapter that uses OpencodeSessionPort for memory chat / chatStructured */
+export class MemoryChatAdapter {
 	constructor(
 		private readonly sessionPort: OpencodeSessionPort,
 		private readonly providerId: string,
@@ -23,7 +23,7 @@ export class LtmChatAdapter {
 	async chat(messages: ChatMessage[]): Promise<string> {
 		const { system, userContent } = separateMessages(messages);
 
-		const sessionId = await this.sessionPort.createSession("ltm-chat");
+		const sessionId = await this.sessionPort.createSession("memory-chat");
 
 		try {
 			const result = await this.sessionPort.prompt({
@@ -38,7 +38,7 @@ export class LtmChatAdapter {
 			try {
 				await this.sessionPort.deleteSession(sessionId);
 			} catch (e) {
-				this.logger.error("[ltm-chat-adapter] Failed to delete session:", e);
+				this.logger.error("[memory-chat-adapter] Failed to delete session:", e);
 			}
 		}
 	}

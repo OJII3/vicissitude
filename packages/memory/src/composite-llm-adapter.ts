@@ -1,13 +1,13 @@
 import type { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 
-import type { LtmLlmPort, Schema } from "./llm-port.ts";
-import type { LtmChatAdapter } from "./ltm-chat-adapter.ts";
+import type { MemoryLlmPort, Schema } from "./llm-port.ts";
+import type { MemoryChatAdapter } from "./chat-adapter.ts";
 import type { ChatMessage } from "./types.ts";
 
-/** Composite LtmLlmPort: chat/chatStructured via OpenCode, embed via Ollama */
-export class CompositeLLMAdapter implements LtmLlmPort {
+/** Composite MemoryLlmPort: chat/chatStructured via OpenCode, embed via Ollama */
+export class CompositeLLMAdapter implements MemoryLlmPort {
 	constructor(
-		private readonly chatAdapter: LtmChatAdapter,
+		private readonly chatAdapter: MemoryChatAdapter,
 		private readonly embeddingAdapter: OllamaEmbeddingAdapter,
 	) {}
 

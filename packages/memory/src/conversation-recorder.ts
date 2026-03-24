@@ -11,8 +11,8 @@ import type {
 import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
 import { EpisodicMemory } from "./episodic.ts";
-import type { LtmLlmPort } from "./llm-port.ts";
-import { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryLlmPort } from "./llm-port.ts";
+import { MemoryStorage } from "./storage.ts";
 import { Segmenter } from "./segmenter.ts";
 
 const GUILD_ID_RE = /^\d+$/;
@@ -23,24 +23,24 @@ export interface GuildInstance {
 	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }
 
-export type GuildInstanceFactory = (dbPath: string, llm: LtmLlmPort) => GuildInstance;
+export type GuildInstanceFactory = (dbPath: string, llm: MemoryLlmPort) => GuildInstance;
 
 const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
-	const storage = new LtmStorage(dbPath);
+	const storage = new MemoryStorage(dbPath);
 	const episodic = new EpisodicMemory(storage);
 	const segmenter = new Segmenter(llm, storage);
 	const consolidation = new ConsolidationPipeline(llm, storage, episodic);
 	return { segmenter, storage, consolidation };
 };
 
-export class LtmConversationRecorder implements ConversationRecorder, MemoryConsolidator {
+export class MemoryConversationRecorder implements ConversationRecorder, MemoryConsolidator {
 	private readonly instances = new Map<string, GuildInstance>();
 	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
 	private readonly factory: GuildInstanceFactory;
 
 	constructor(
-		private readonly llm: LtmLlmPort,
+		private readonly llm: MemoryLlmPort,
 		private readonly dataDir: string,
 		factory?: GuildInstanceFactory,
 	) {

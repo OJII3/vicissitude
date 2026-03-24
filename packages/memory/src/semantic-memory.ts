@@ -1,12 +1,12 @@
 /* oxlint-disable require-await -- methods are async for API compatibility */
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryStorage } from "./storage.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import type { FactCategory } from "./types.ts";
 import { validateUserId } from "./utils.ts";
 
 /** Semantic memory service — manages persistent facts extracted from episodes */
 export class SemanticMemory {
-	constructor(protected storage: LtmStorage) {}
+	constructor(protected storage: MemoryStorage) {}
 
 	/** Get all valid facts for a user */
 	async getFacts(userId: string): Promise<SemanticFact[]> {

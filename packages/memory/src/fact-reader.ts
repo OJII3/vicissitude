@@ -1,9 +1,9 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
 
-import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
+import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
-import { LtmStorage } from "./ltm-storage.ts";
+import { MemoryStorage } from "./storage.ts";
 import { reciprocalRankFusion } from "./retrieval.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 
@@ -12,26 +12,26 @@ const GUILD_ID_RE = /^\d+$/;
 /** Candidate limit for text/vector search before RRF ranking */
 const CANDIDATE_LIMIT = 50;
 
-/** Embedding-only port — subset of LtmLlmPort needed for fact relevance filtering */
+/** Embedding-only port — subset of MemoryLlmPort needed for fact relevance filtering */
 export interface EmbeddingPort {
 	embed(text: string): Promise<number[]>;
 }
 
-export class LtmFactReaderImpl implements LtmFactReader {
-	private readonly instances = new Map<string, LtmStorage>();
+export class MemoryFactReaderImpl implements MemoryFactReader {
+	private readonly instances = new Map<string, MemoryStorage>();
 
 	constructor(
 		private readonly dataDir: string,
 		private readonly embedding?: EmbeddingPort,
 	) {}
 
-	async getFacts(guildId?: string): Promise<LtmFact[]> {
+	async getFacts(guildId?: string): Promise<MemoryFact[]> {
 		if (!guildId) return [];
 		const rawFacts = await this.loadAllFacts(guildId);
 		return rawFacts.map((f) => toFact(f));
 	}
 
-	async getRelevantFacts(guildId: string, context: string, limit: number): Promise<LtmFact[]> {
+	async getRelevantFacts(guildId: string, context: string, limit: number): Promise<MemoryFact[]> {
 		const allFacts = await this.loadAllFacts(guildId);
 		if (allFacts.length <= limit) {
 			return allFacts.map((f) => toFact(f));
@@ -94,17 +94,17 @@ export class LtmFactReaderImpl implements LtmFactReader {
 			.toSorted((a, b) => b.score - a.score);
 	}
 
-	private getOrCreate(guildId: string, dbPath: string): LtmStorage {
+	private getOrCreate(guildId: string, dbPath: string): MemoryStorage {
 		const existing = this.instances.get(guildId);
 		if (existing) return existing;
 
-		const storage = new LtmStorage(dbPath);
+		const storage = new MemoryStorage(dbPath);
 		this.instances.set(guildId, storage);
 		return storage;
 	}
 }
 
-function toFact(f: SemanticFact): LtmFact {
+function toFact(f: SemanticFact): MemoryFact {
 	return {
 		content: f.fact,
 		category: f.category,

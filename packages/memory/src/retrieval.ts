@@ -1,8 +1,8 @@
 import type { Episode } from "./episode.ts";
 import type { EpisodicMemory } from "./episodic.ts";
 import { retrievability } from "./fsrs.ts";
-import type { LtmLlmPort } from "./llm-port.ts";
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryLlmPort } from "./llm-port.ts";
+import type { MemoryStorage } from "./storage.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import { validateUserId } from "./utils.ts";
 
@@ -191,8 +191,8 @@ export class Retrieval {
 	private pendingReview: Promise<void> = Promise.resolve();
 
 	constructor(
-		private llm: LtmLlmPort,
-		private storage: LtmStorage,
+		private llm: MemoryLlmPort,
+		private storage: MemoryStorage,
 		private episodic: EpisodicMemory | null = null,
 	) {}
 

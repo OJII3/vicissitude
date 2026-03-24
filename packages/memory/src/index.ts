@@ -1,7 +1,7 @@
 import { ConsolidationPipeline } from "./consolidation.ts";
 import { EpisodicMemory } from "./episodic.ts";
-import type { LtmLlmPort } from "./llm-port.ts";
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryLlmPort } from "./llm-port.ts";
+import type { MemoryStorage } from "./storage.ts";
 import { Retrieval } from "./retrieval.ts";
 import { Segmenter } from "./segmenter.ts";
 import { SemanticMemory } from "./semantic-memory.ts";
@@ -23,7 +23,7 @@ export type {
 export { SURPRISE_VALUES } from "./types.ts";
 
 // Re-export LLM port
-export type { LtmLlmPort, Schema } from "./llm-port.ts";
+export type { MemoryLlmPort, Schema } from "./llm-port.ts";
 
 // Re-export core services
 export { Segmenter } from "./segmenter.ts";
@@ -37,10 +37,10 @@ export { Retrieval, reciprocalRankFusion } from "./retrieval.ts";
 export type { RetrievalOptions, RetrievalResult, ScoredEpisode, ScoredFact } from "./retrieval.ts";
 
 // Re-export storage
-export { LtmStorage } from "./ltm-storage.ts";
+export { MemoryStorage } from "./storage.ts";
 
-/** Ltm instance — the main entry point */
-export interface Ltm {
+/** Memory instance — the main entry point */
+export interface Memory {
 	segmenter: Segmenter;
 	episodic: EpisodicMemory;
 	consolidation: ConsolidationPipeline;
@@ -48,14 +48,14 @@ export interface Ltm {
 	retrieval: Retrieval;
 }
 
-/** Options for creating an Ltm instance */
-export interface CreateLtmOptions {
-	llm: LtmLlmPort;
-	storage: LtmStorage;
+/** Options for creating a Memory instance */
+export interface CreateMemoryOptions {
+	llm: MemoryLlmPort;
+	storage: MemoryStorage;
 }
 
-/** Create an Ltm instance with the given adapters */
-export function createLtm(opts: CreateLtmOptions): Ltm {
+/** Create a Memory instance with the given adapters */
+export function createMemory(opts: CreateMemoryOptions): Memory {
 	const { llm, storage } = opts;
 
 	const episodic = new EpisodicMemory(storage);

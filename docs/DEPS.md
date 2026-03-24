@@ -30,14 +30,15 @@ graph LR
   infrastructure --> application
   infrastructure --> shared
   infrastructure --> store
-  ltm --> ollama
-  ltm --> shared
+  ltm
   mcp --> infrastructure
   mcp --> ltm
   mcp --> observability
   mcp --> ollama
   mcp --> shared
   mcp --> store
+  memory --> ollama
+  memory --> shared
   minecraft --> mcp
   minecraft --> observability
   minecraft --> shared
@@ -99,15 +100,21 @@ graph LR
 
 ### ltm
 
-- 内部依存: ollama, shared
-- 外部依存: bun:sqlite, fs, path
-- ファイル数: 31
+- 内部依存: なし
+- 外部依存: なし
+- ファイル数: 10
 
 ### mcp
 
 - 内部依存: infrastructure, ltm, observability, ollama, shared, store
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
+- 外部依存: ./tools/ltm.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
+
+### memory
+
+- 内部依存: ollama, shared
+- 外部依存: bun:sqlite, fs, path
+- ファイル数: 21
 
 ### minecraft
 

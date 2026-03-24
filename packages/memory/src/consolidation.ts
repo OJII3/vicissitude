@@ -1,8 +1,8 @@
 /* oxlint-disable max-lines, require-await -- consolidation pipeline with schema validation */
 import type { Episode } from "./episode.ts";
 import type { EpisodicMemory } from "./episodic.ts";
-import type { LtmLlmPort, Schema } from "./llm-port.ts";
-import type { LtmStorage } from "./ltm-storage.ts";
+import type { MemoryLlmPort, Schema } from "./llm-port.ts";
+import type { MemoryStorage } from "./storage.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import { createFact } from "./semantic-fact.ts";
 import type { ConsolidationAction, FactCategory } from "./types.ts";
@@ -39,8 +39,8 @@ interface ActionContext {
 /** Consolidation pipeline — converts episodes into semantic facts */
 export class ConsolidationPipeline {
 	constructor(
-		protected llm: LtmLlmPort,
-		protected storage: LtmStorage,
+		protected llm: MemoryLlmPort,
+		protected storage: MemoryStorage,
 		private episodic: EpisodicMemory | null = null,
 	) {}
 
