@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatEvents, pollEvents } from "@vicissitude/mcp/tools/event-buffer";
+import { formatEvents, formatMemoryContext, pollEvents } from "@vicissitude/mcp/tools/event-buffer";
+import type { RetrievalResult } from "@vicissitude/memory/retrieval";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -24,6 +25,70 @@ describe("formatEvents", () => {
 	test("空配列なら空の JSON 配列を返す", () => {
 		const result = formatEvents([]);
 		expect(JSON.parse(result)).toEqual([]);
+	});
+});
+
+describe("formatMemoryContext", () => {
+	test("エピソードと意味記憶を含む結果をフォーマットする", () => {
+		const result: RetrievalResult = {
+			episodes: [
+				{
+					episode: { title: "お菓子の話", summary: "チョコが好きだと判明" } as never,
+					score: 0.9,
+					retrievability: 0.8,
+				},
+			],
+			facts: [
+				{
+					fact: { category: "preference", fact: "チョコレートが好き" } as never,
+					score: 0.85,
+				},
+			],
+		};
+		const text = formatMemoryContext(result);
+		expect(text).toContain("<memory-context>");
+		expect(text).toContain("</memory-context>");
+		expect(text).toContain("お菓子の話");
+		expect(text).toContain("チョコが好きだと判明");
+		expect(text).toContain("[preference] チョコレートが好き");
+		expect(text).toContain("不正確な可能性");
+	});
+
+	test("エピソードのみの場合は意味記憶セクションを含まない", () => {
+		const result: RetrievalResult = {
+			episodes: [
+				{
+					episode: { title: "テスト", summary: "要約" } as never,
+					score: 0.5,
+					retrievability: 0.5,
+				},
+			],
+			facts: [],
+		};
+		const text = formatMemoryContext(result);
+		expect(text).toContain("## エピソード記憶");
+		expect(text).not.toContain("## 意味記憶");
+	});
+
+	test("空の結果なら空文字を返す", () => {
+		const result: RetrievalResult = { episodes: [], facts: [] };
+		expect(formatMemoryContext(result)).toBe("");
+	});
+
+	test("件数上限を超えた場合は切り詰められる", () => {
+		const episodes = Array.from({ length: 10 }, (_, i) => ({
+			episode: { title: `ep${i}`, summary: `summary${i}` } as never,
+			score: 1 - i * 0.1,
+			retrievability: 0.5,
+		}));
+		const facts = Array.from({ length: 10 }, (_, i) => ({
+			fact: { category: "interest" as const, fact: `fact${i}` } as never,
+			score: 1 - i * 0.1,
+		}));
+		const text = formatMemoryContext({ episodes, facts });
+		// エピソード3件、ファクト5件まで
+		expect(text.match(/^- ep\d/gm)?.length).toBe(3);
+		expect(text.match(/\[interest\]/g)?.length).toBe(5);
 	});
 });
 
