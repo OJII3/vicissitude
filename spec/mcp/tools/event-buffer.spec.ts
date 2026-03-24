@@ -1,6 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
-import { formatEvents, pollEvents } from "@vicissitude/mcp/tools/event-buffer";
+import {
+	buildMemoryQuery,
+	formatEvents,
+	formatMemoryContext,
+	pollEvents,
+} from "@vicissitude/mcp/tools/event-buffer";
+import type { RetrievalResult } from "@vicissitude/memory/retrieval";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -24,6 +30,113 @@ describe("formatEvents", () => {
 	test("空配列なら空の JSON 配列を返す", () => {
 		const result = formatEvents([]);
 		expect(JSON.parse(result)).toEqual([]);
+	});
+});
+
+describe("buildMemoryQuery", () => {
+	test("system イベントを除外してクエリを構築する", () => {
+		const json = JSON.stringify([
+			{ authorId: "system", content: "internal event" },
+			{ authorId: "user1", content: "こんにちは" },
+		]);
+		expect(buildMemoryQuery(json)).toBe("こんにちは");
+	});
+
+	test("bot イベントは含める", () => {
+		const json = JSON.stringify([
+			{ authorId: "bot1", content: "bot発言", isBot: true },
+			{ authorId: "user1", content: "人間の発言" },
+		]);
+		const query = buildMemoryQuery(json);
+		expect(query).toContain("bot発言");
+		expect(query).toContain("人間の発言");
+	});
+
+	test("content が空のイベントはスキップする", () => {
+		const json = JSON.stringify([
+			{ authorId: "user1", content: "" },
+			{ authorId: "user2", content: "有効" },
+		]);
+		expect(buildMemoryQuery(json)).toBe("有効");
+	});
+
+	test("1000文字を超える場合は切り詰める", () => {
+		const longContent = "あ".repeat(1200);
+		const json = JSON.stringify([{ authorId: "user1", content: longContent }]);
+		expect(buildMemoryQuery(json).length).toBe(1000);
+	});
+
+	test("不正な JSON なら空文字を返す", () => {
+		expect(buildMemoryQuery("not json")).toBe("");
+	});
+
+	test("全てが system イベントなら空文字を返す", () => {
+		const json = JSON.stringify([{ authorId: "system", content: "event" }]);
+		expect(buildMemoryQuery(json)).toBe("");
+	});
+});
+
+describe("formatMemoryContext", () => {
+	test("エピソードと意味記憶を含む結果をフォーマットする", () => {
+		const result: RetrievalResult = {
+			episodes: [
+				{
+					episode: { title: "お菓子の話", summary: "チョコが好きだと判明" } as never,
+					score: 0.9,
+					retrievability: 0.8,
+				},
+			],
+			facts: [
+				{
+					fact: { category: "preference", fact: "チョコレートが好き" } as never,
+					score: 0.85,
+				},
+			],
+		};
+		const text = formatMemoryContext(result);
+		expect(text).toContain("<memory-context>");
+		expect(text).toContain("</memory-context>");
+		expect(text).toContain("お菓子の話");
+		expect(text).toContain("チョコが好きだと判明");
+		expect(text).toContain("[preference] チョコレートが好き");
+		expect(text).toContain("不正確な可能性");
+	});
+
+	test("エピソードのみの場合は意味記憶セクションを含まない", () => {
+		const result: RetrievalResult = {
+			episodes: [
+				{
+					episode: { title: "テスト", summary: "要約" } as never,
+					score: 0.5,
+					retrievability: 0.5,
+				},
+			],
+			facts: [],
+		};
+		const text = formatMemoryContext(result);
+		expect(text).toContain("## エピソード記憶");
+		expect(text).not.toContain("## 意味記憶");
+	});
+
+	test("空の結果なら空文字を返す", () => {
+		const result: RetrievalResult = { episodes: [], facts: [] };
+		expect(formatMemoryContext(result)).toBe("");
+	});
+
+	test("件数上限を超えた場合は切り詰められる", () => {
+		const episodes = Array.from({ length: 10 }, (_, i) => ({
+			episode: { title: `ep${i}`, summary: `summary${i}` } as never,
+			score: 1 - i * 0.1,
+			retrievability: 0.5,
+		}));
+		const facts = Array.from({ length: 10 }, (_, i) => ({
+			fact: { category: "interest" as const, fact: `fact${i}` } as never,
+			score: 1 - i * 0.1,
+		}));
+		const text = formatMemoryContext({ episodes, facts });
+		// エピソード3件、ファクト5件まで
+		expect(text.match(/^- ep\d/gm)?.length).toBe(3);
+		expect(text.match(/\[interest\]/g)?.length).toBe(5);
 	});
 });
 

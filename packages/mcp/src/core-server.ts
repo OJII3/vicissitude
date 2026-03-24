@@ -148,7 +148,12 @@ function createServer(agentId: string | null): McpServer {
 	registerDiscordTools(server, { discordClient });
 	registerScheduleTools(server);
 	if (agentId) {
-		registerEventBufferTools(server, { db, agentId });
+		const guildMatch = agentId.match(/^discord:(\d+)$/);
+		const matchedGuildId = guildMatch?.[1];
+		const memory = matchedGuildId
+			? { retrieval: getOrCreateMemory(matchedGuildId).retrieval, guildId: matchedGuildId }
+			: undefined;
+		registerEventBufferTools(server, { db, agentId, memory });
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}
