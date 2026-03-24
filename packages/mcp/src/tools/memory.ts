@@ -1,26 +1,26 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Retrieval } from "@vicissitude/ltm/retrieval";
-import type { SemanticFact } from "@vicissitude/ltm/semantic-fact";
-import type { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
+import type { Retrieval } from "@vicissitude/memory/retrieval";
+import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
+import type { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { z } from "zod";
 
 const GUILD_ID_REGEX = /^\d+$/;
 const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
 
-export interface LtmReadServices {
+export interface MemoryReadServices {
 	retrieval: Retrieval;
 	semantic: SemanticMemory;
 }
 
-export interface LtmDeps {
-	getOrCreateLtm: (guildId: string) => LtmReadServices;
+export interface MemoryDeps {
+	getOrCreateMemory: (guildId: string) => MemoryReadServices;
 }
 
-export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
-	const { getOrCreateLtm } = deps;
+export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
+	const { getOrCreateMemory } = deps;
 
 	server.registerTool(
-		"ltm_retrieve",
+		"memory_retrieve",
 		{
 			description:
 				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
@@ -32,8 +32,8 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 		async ({ guild_id, query, limit }) => {
 			try {
-				const ltm = getOrCreateLtm(guild_id);
-				const result = await ltm.retrieval.retrieve(guild_id, query, {
+				const mem = getOrCreateMemory(guild_id);
+				const result = await mem.retrieval.retrieve(guild_id, query, {
 					limit: limit ?? 10,
 				});
 
@@ -65,7 +65,7 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 					content: [
 						{
 							type: "text",
-							text: `ltm_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
+							text: `memory_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
 						},
 					],
 					isError: true,
@@ -75,7 +75,7 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 	);
 
 	server.registerTool(
-		"ltm_get_facts",
+		"memory_get_facts",
 		{
 			description: "蓄積されたファクト（意味記憶）一覧を取得する",
 			inputSchema: {
@@ -97,10 +97,10 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 		},
 		async ({ guild_id, category }) => {
 			try {
-				const ltm = getOrCreateLtm(guild_id);
+				const mem = getOrCreateMemory(guild_id);
 				const facts = category
-					? await ltm.semantic.getFactsByCategory(guild_id, category)
-					: await ltm.semantic.getFacts(guild_id);
+					? await mem.semantic.getFactsByCategory(guild_id, category)
+					: await mem.semantic.getFacts(guild_id);
 
 				if (facts.length === 0) {
 					return {
@@ -124,7 +124,7 @@ export function registerLtmTools(server: McpServer, deps: LtmDeps): void {
 					content: [
 						{
 							type: "text",
-							text: `ltm_get_facts エラー: ${error instanceof Error ? error.message : String(error)}`,
+							text: `memory_get_facts エラー: ${error instanceof Error ? error.message : String(error)}`,
 						},
 					],
 					isError: true,

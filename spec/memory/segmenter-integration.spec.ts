@@ -1,12 +1,12 @@
 /* oxlint-disable no-non-null-assertion, require-await, no-await-in-loop -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { EpisodicMemory } from "@vicissitude/ltm/episodic";
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import type { SegmentationOutput } from "@vicissitude/ltm/segmenter";
-import { Segmenter } from "@vicissitude/ltm/segmenter";
-import type { ChatMessage } from "@vicissitude/ltm/types";
-import { SURPRISE_VALUES } from "@vicissitude/ltm/types";
+import { EpisodicMemory } from "@vicissitude/memory/episodic";
+import type { SegmentationOutput } from "@vicissitude/memory/segmenter";
+import { Segmenter } from "@vicissitude/memory/segmenter";
+import { MemoryStorage } from "@vicissitude/memory/storage";
+import type { ChatMessage } from "@vicissitude/memory/types";
+import { SURPRISE_VALUES } from "@vicissitude/memory/types";
 
 import { createMockLLM, makeMessage } from "./test-helpers.ts";
 
@@ -26,11 +26,11 @@ async function addMessagesSequentially(
 	}
 }
 
-describe("Integration: Segmenter + LtmStorage + EpisodicMemory", () => {
-	let storage: LtmStorage;
+describe("Integration: Segmenter + MemoryStorage + EpisodicMemory", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {

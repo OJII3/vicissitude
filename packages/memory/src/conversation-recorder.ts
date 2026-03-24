@@ -12,8 +12,8 @@ import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
 import { EpisodicMemory } from "./episodic.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
-import { MemoryStorage } from "./storage.ts";
 import { Segmenter } from "./segmenter.ts";
+import { MemoryStorage } from "./storage.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 

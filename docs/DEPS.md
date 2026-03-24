@@ -14,7 +14,7 @@ graph LR
   apps_discord["apps/discord"] --> application
   apps_discord["apps/discord"] --> gateway
   apps_discord["apps/discord"] --> infrastructure
-  apps_discord["apps/discord"] --> ltm
+  apps_discord["apps/discord"] --> memory
   apps_discord["apps/discord"] --> observability
   apps_discord["apps/discord"] --> ollama
   apps_discord["apps/discord"] --> opencode
@@ -30,9 +30,8 @@ graph LR
   infrastructure --> application
   infrastructure --> shared
   infrastructure --> store
-  ltm
   mcp --> infrastructure
-  mcp --> ltm
+  mcp --> memory
   mcp --> observability
   mcp --> ollama
   mcp --> shared
@@ -70,7 +69,7 @@ graph LR
 
 ### apps/discord
 
-- 内部依存: agent, application, gateway, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store, tts
+- 内部依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
 - ファイル数: 4
 
@@ -98,23 +97,17 @@ graph LR
 - 外部依存: .bun
 - ファイル数: 6
 
-### ltm
-
-- 内部依存: なし
-- 外部依存: なし
-- ファイル数: 10
-
 ### mcp
 
-- 内部依存: infrastructure, ltm, observability, ollama, shared, store
-- 外部依存: ./tools/ltm.ts, .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
+- 内部依存: infrastructure, memory, observability, ollama, shared, store
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
 
 ### memory
 
 - 内部依存: ollama, shared
 - 外部依存: bun:sqlite, fs, path
-- ファイル数: 21
+- ファイル数: 31
 
 ### minecraft
 

@@ -1,18 +1,18 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive storage adapter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import type { ChatMessage } from "@vicissitude/ltm/types";
+import { MemoryStorage } from "@vicissitude/memory/storage";
+import type { ChatMessage } from "@vicissitude/memory/types";
 
 import { makeEpisode, makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-describe("LtmStorage — episodic memory", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — episodic memory", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -120,11 +120,11 @@ describe("LtmStorage — episodic memory", () => {
 	});
 });
 
-describe("LtmStorage — tenant isolation (episodes)", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — tenant isolation (episodes)", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -159,11 +159,11 @@ describe("LtmStorage — tenant isolation (episodes)", () => {
 	});
 });
 
-describe("LtmStorage — semantic memory", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — semantic memory", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -226,11 +226,11 @@ describe("LtmStorage — semantic memory", () => {
 	});
 });
 
-describe("LtmStorage — tenant isolation (facts)", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — tenant isolation (facts)", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -256,11 +256,11 @@ describe("LtmStorage — tenant isolation (facts)", () => {
 	});
 });
 
-describe("LtmStorage — message queue", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — message queue", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -347,11 +347,11 @@ describe("LtmStorage — message queue", () => {
 	});
 });
 
-describe("LtmStorage — tenant isolation (message queue)", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — tenant isolation (message queue)", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -381,11 +381,11 @@ describe("LtmStorage — tenant isolation (message queue)", () => {
 	});
 });
 
-describe("LtmStorage — updateFact edge cases", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — updateFact edge cases", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -399,11 +399,11 @@ describe("LtmStorage — updateFact edge cases", () => {
 	});
 });
 
-describe("LtmStorage — search episodes", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — search episodes", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -454,11 +454,11 @@ describe("LtmStorage — search episodes", () => {
 	});
 });
 
-describe("LtmStorage — vector search episodes", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — vector search episodes", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -497,11 +497,11 @@ describe("LtmStorage — vector search episodes", () => {
 	});
 });
 
-describe("LtmStorage — vector search facts", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — vector search facts", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -546,11 +546,11 @@ describe("LtmStorage — vector search facts", () => {
 	});
 });
 
-describe("LtmStorage — search facts", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — search facts", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -594,11 +594,11 @@ describe("LtmStorage — search facts", () => {
 	});
 });
 
-describe("LtmStorage — FTS5 episodes", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — FTS5 episodes", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -639,11 +639,11 @@ describe("LtmStorage — FTS5 episodes", () => {
 	});
 });
 
-describe("LtmStorage — FTS5 facts", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — FTS5 facts", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -676,11 +676,11 @@ describe("LtmStorage — FTS5 facts", () => {
 	});
 });
 
-describe("LtmStorage — search limit clamping", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — search limit clamping", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -724,11 +724,11 @@ describe("LtmStorage — search limit clamping", () => {
 	});
 });
 
-describe("LtmStorage — escapeLike wildcards", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — escapeLike wildcards", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -772,11 +772,11 @@ describe("LtmStorage — escapeLike wildcards", () => {
 	});
 });
 
-describe("LtmStorage — embedding dimension validation", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — embedding dimension validation", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -900,11 +900,11 @@ describe("LtmStorage — embedding dimension validation", () => {
 	});
 });
 
-describe("LtmStorage — legacy DB upgrade (backfill from existing data)", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — legacy DB upgrade (backfill from existing data)", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -939,11 +939,11 @@ describe("LtmStorage — legacy DB upgrade (backfill from existing data)", () =>
 	});
 });
 
-describe("LtmStorage — FTS5 special character fallback", () => {
-	let storage: LtmStorage;
+describe("MemoryStorage — FTS5 special character fallback", () => {
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {

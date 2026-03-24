@@ -4,7 +4,7 @@ import os from "os";
 import { join } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
-import type { LtmFact, LtmFactReader } from "@vicissitude/shared/types";
+import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 
@@ -21,7 +21,7 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	writeFileSync(fullPath, content);
 }
 
-function createMockLtmReader(facts: LtmFact[]): LtmFactReader {
+function createMockMemoryReader(facts: MemoryFact[]): MemoryFactReader {
 	return {
 		getFacts: mock(() => Promise.resolve(facts)),
 		getRelevantFacts: mock(() => Promise.resolve(facts)),
@@ -77,46 +77,46 @@ describe("ContextBuilder", () => {
 		});
 	});
 
-	describe("LTM ファクト注入", () => {
-		it("guildId ありの場合に LTM ファクトが注入される", async () => {
+	describe("Memory ファクト注入", () => {
+		it("guildId ありの場合に Memory ファクトが注入される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			const facts: LtmFact[] = [
+			const facts: MemoryFact[] = [
 				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
 				{ content: "サーバー名はテスト鯖", category: "fact", createdAt: "2026-01-02" },
 			];
-			const reader = createMockLtmReader(facts);
+			const reader = createMockMemoryReader(facts);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, reader);
 			const result = await builder.build("123456789");
 
-			expect(result).toContain("<ltm-facts>");
+			expect(result).toContain("<memory-facts>");
 			expect(result).toContain("[preference] ユーザーAは猫が好き");
 			expect(result).toContain("[fact] サーバー名はテスト鯖");
 			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
 		});
 
-		it("guildId なしの場合は LTM ファクトが注入されない", async () => {
+		it("guildId なしの場合は Memory ファクトが注入されない", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			const reader = createMockLtmReader([
+			const reader = createMockMemoryReader([
 				{ content: "test", category: "cat", createdAt: "2026-01-01" },
 			]);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, reader);
 			const result = await builder.build();
 
-			expect(result).not.toContain("<ltm-facts>");
+			expect(result).not.toContain("<memory-facts>");
 			expect(reader.getFacts).not.toHaveBeenCalled();
 		});
 	});
 
-	describe("LTM ファクト取得の graceful degradation", () => {
-		it("LTM ファクト取得で例外発生時はスキップして続行する", async () => {
+	describe("Memory ファクト取得の graceful degradation", () => {
+		it("Memory ファクト取得で例外発生時はスキップして続行する", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			writeFile(baseDir, "IDENTITY.md", "identity content");
 
-			const failingReader: LtmFactReader = {
-				getFacts: mock(() => Promise.reject(new Error("LTM connection failed"))),
-				getRelevantFacts: mock(() => Promise.reject(new Error("LTM connection failed"))),
+			const failingReader: MemoryFactReader = {
+				getFacts: mock(() => Promise.reject(new Error("Memory connection failed"))),
+				getRelevantFacts: mock(() => Promise.reject(new Error("Memory connection failed"))),
 				close: mock(() => Promise.resolve()),
 			};
 
@@ -124,7 +124,7 @@ describe("ContextBuilder", () => {
 			const result = await builder.build("123456789");
 
 			expect(result).toContain("identity content");
-			expect(result).not.toContain("<ltm-facts>");
+			expect(result).not.toContain("<memory-facts>");
 		});
 	});
 

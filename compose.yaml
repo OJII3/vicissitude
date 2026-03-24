@@ -101,7 +101,7 @@ services:
     image: docker.io/ollama/ollama:latest
     entrypoint: ["/entrypoint.sh"]
     environment:
-      LTM_EMBEDDING_MODEL: ${LTM_EMBEDDING_MODEL:-embeddinggemma}
+      MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL:-embeddinggemma}
     volumes:
       - ollama-data:/root/.ollama
       - ./containers/ollama/entrypoint.sh:/entrypoint.sh:ro

@@ -1,8 +1,8 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive retrieval tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import { Retrieval, reciprocalRankFusion } from "@vicissitude/ltm/retrieval";
+import { Retrieval, reciprocalRankFusion } from "@vicissitude/memory/retrieval";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 
 import { createMockLLM, makeEpisode, makeFact } from "./test-helpers.ts";
 
@@ -62,11 +62,11 @@ describe("reciprocalRankFusion", () => {
 });
 
 describe("Retrieval — text-only match", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		retrieval = new Retrieval(mockLlm([0, 0, 1]), storage);
 	});
 
@@ -96,11 +96,11 @@ describe("Retrieval — text-only match", () => {
 });
 
 describe("Retrieval — vector-only match", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
 	});
 
@@ -128,11 +128,11 @@ describe("Retrieval — vector-only match", () => {
 });
 
 describe("Retrieval — hybrid score combination", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
 	});
 
@@ -154,11 +154,11 @@ describe("Retrieval — hybrid score combination", () => {
 });
 
 describe("Retrieval — FSRS retrievability", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
 	});
 
@@ -201,11 +201,11 @@ describe("Retrieval — FSRS retrievability", () => {
 });
 
 describe("Retrieval — edge cases", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
 	});
 
@@ -271,10 +271,10 @@ describe("Retrieval — edge cases", () => {
 });
 
 describe("Retrieval — custom weight options", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {

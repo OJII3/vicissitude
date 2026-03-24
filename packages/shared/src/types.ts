@@ -116,9 +116,9 @@ export interface ConversationMessage {
 	timestamp?: Date;
 }
 
-// ─── LTM Fact ────────────────────────────────────────────────────
+// ─── Memory Fact ─────────────────────────────────────────────────
 
-export interface LtmFact {
+export interface MemoryFact {
 	content: string;
 	category: string;
 	createdAt: string;
@@ -205,11 +205,11 @@ export interface McStatusProvider {
 	getStatusSummary(): Promise<string | null>;
 }
 
-// ─── LTM Fact Reader ─────────────────────────────────────────────
+// ─── Memory Fact Reader ──────────────────────────────────────────
 
-export interface LtmFactReader {
-	getFacts(guildId?: string): Promise<LtmFact[]>;
-	getRelevantFacts(guildId: string, context: string, limit: number): Promise<LtmFact[]>;
+export interface MemoryFactReader {
+	getFacts(guildId?: string): Promise<MemoryFact[]>;
+	getRelevantFacts(guildId: string, context: string, limit: number): Promise<MemoryFact[]>;
 	close(): Promise<void>;
 }
 

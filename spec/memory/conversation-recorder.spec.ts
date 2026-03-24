@@ -1,12 +1,15 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, rmSync } from "fs";
 
-import type { GuildInstance, GuildInstanceFactory } from "@vicissitude/ltm/conversation-recorder";
-import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
-import type { Episode } from "@vicissitude/ltm/episode";
-import type { LtmLlmPort } from "@vicissitude/ltm/llm-port";
+import type {
+	GuildInstance,
+	GuildInstanceFactory,
+} from "@vicissitude/memory/conversation-recorder";
+import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
+import type { Episode } from "@vicissitude/memory/episode";
+import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 
-const TEMP_DIR = `/tmp/vicissitude-ltm-test-${process.pid}`;
+const TEMP_DIR = `/tmp/vicissitude-memory-test-${process.pid}`;
 
 afterEach(() => {
 	if (existsSync(TEMP_DIR)) {
@@ -33,8 +36,8 @@ const mockFactory: GuildInstanceFactory = (): GuildInstance => ({
 });
 
 function createRecorder() {
-	const llm = {} as LtmLlmPort;
-	return new LtmConversationRecorder(llm, TEMP_DIR, mockFactory);
+	const llm = {} as MemoryLlmPort;
+	return new MemoryConversationRecorder(llm, TEMP_DIR, mockFactory);
 }
 
 const sampleMessage = {
@@ -44,7 +47,7 @@ const sampleMessage = {
 	timestamp: new Date(),
 };
 
-describe("LtmConversationRecorder", () => {
+describe("MemoryConversationRecorder", () => {
 	test("record() で guildId が非数字 → Error throw", async () => {
 		const recorder = createRecorder();
 		await expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");

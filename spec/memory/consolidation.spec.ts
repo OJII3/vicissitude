@@ -1,25 +1,25 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await -- comprehensive consolidation tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { ConsolidationOutput } from "@vicissitude/ltm/consolidation";
-import { ConsolidationPipeline } from "@vicissitude/ltm/consolidation";
-import { EpisodicMemory } from "@vicissitude/ltm/episodic";
-import type { LtmLlmPort, Schema } from "@vicissitude/ltm/llm-port";
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import { createFact } from "@vicissitude/ltm/semantic-fact";
-import type { ChatMessage } from "@vicissitude/ltm/types";
+import type { ConsolidationOutput } from "@vicissitude/memory/consolidation";
+import { ConsolidationPipeline } from "@vicissitude/memory/consolidation";
+import { EpisodicMemory } from "@vicissitude/memory/episodic";
+import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
+import { createFact } from "@vicissitude/memory/semantic-fact";
+import { MemoryStorage } from "@vicissitude/memory/storage";
+import type { ChatMessage } from "@vicissitude/memory/types";
 
 import { createInvalidLLM, createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
 
-function createConsolidationLLM(consolidationResponse?: ConsolidationOutput): LtmLlmPort {
+function createConsolidationLLM(consolidationResponse?: ConsolidationOutput): MemoryLlmPort {
 	return createMockLLM({ structuredResponse: consolidationResponse ?? { facts: [] } });
 }
 
 function createDynamicMockLLM(
 	responseFn: (messages: ChatMessage[]) => ConsolidationOutput,
-): LtmLlmPort {
+): MemoryLlmPort {
 	return {
 		async chat(_messages: ChatMessage[]): Promise<string> {
 			return "mock response";
@@ -35,10 +35,10 @@ function createDynamicMockLLM(
 }
 
 describe("ConsolidationPipeline — no episodes", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -69,10 +69,10 @@ describe("ConsolidationPipeline — no episodes", () => {
 });
 
 describe("ConsolidationPipeline — new facts", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -140,10 +140,10 @@ describe("ConsolidationPipeline — new facts", () => {
 });
 
 describe("ConsolidationPipeline — reinforce", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -214,10 +214,10 @@ describe("ConsolidationPipeline — reinforce", () => {
 });
 
 describe("ConsolidationPipeline — update", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -263,10 +263,10 @@ describe("ConsolidationPipeline — update", () => {
 });
 
 describe("ConsolidationPipeline — invalidate", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -324,10 +324,10 @@ describe("ConsolidationPipeline — invalidate", () => {
 });
 
 describe("ConsolidationPipeline — multiple episodes", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -395,10 +395,10 @@ describe("ConsolidationPipeline — multiple episodes", () => {
 });
 
 describe("ConsolidationPipeline — prompt construction", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -504,10 +504,10 @@ describe("ConsolidationPipeline — prompt construction", () => {
 });
 
 describe("ConsolidationPipeline — episode marking", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -541,10 +541,10 @@ describe("ConsolidationPipeline — episode marking", () => {
 });
 
 describe("ConsolidationPipeline — schema validation", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -742,10 +742,10 @@ describe("ConsolidationPipeline — schema validation", () => {
 });
 
 describe("ConsolidationPipeline — FSRS learning loop", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {

@@ -1,10 +1,10 @@
 /* oxlint-disable no-non-null-assertion, require-await -- FSRS learning loop integration tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { EpisodicMemory } from "@vicissitude/ltm/episodic";
-import { retrievability } from "@vicissitude/ltm/fsrs";
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import { Retrieval } from "@vicissitude/ltm/retrieval";
+import { EpisodicMemory } from "@vicissitude/memory/episodic";
+import { retrievability } from "@vicissitude/memory/fsrs";
+import { Retrieval } from "@vicissitude/memory/retrieval";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 
 import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
@@ -15,12 +15,12 @@ function mockLlm(embedding: number[]) {
 }
 
 describe("FSRS learning loop — retrieve auto-review", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 	let retrieval: Retrieval;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage, episodic);
 	});

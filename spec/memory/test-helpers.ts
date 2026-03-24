@@ -1,9 +1,9 @@
 /* oxlint-disable require-await -- mock implementations */
-import type { Episode } from "@vicissitude/ltm/episode";
-import { createEpisode } from "@vicissitude/ltm/episode";
-import type { LtmLlmPort, Schema } from "@vicissitude/ltm/llm-port";
-import { createFact } from "@vicissitude/ltm/semantic-fact";
-import type { ChatMessage } from "@vicissitude/ltm/types";
+import type { Episode } from "@vicissitude/memory/episode";
+import { createEpisode } from "@vicissitude/memory/episode";
+import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
+import { createFact } from "@vicissitude/memory/semantic-fact";
+import type { ChatMessage } from "@vicissitude/memory/types";
 
 const defaultUserId = "user-1";
 
@@ -38,7 +38,7 @@ export interface MockLLMOptions {
 	embedding?: number[];
 }
 
-export function createMockLLM(opts: MockLLMOptions = {}): LtmLlmPort {
+export function createMockLLM(opts: MockLLMOptions = {}): MemoryLlmPort {
 	const { structuredResponse, embedding = [0.1, 0.2, 0.3] } = opts;
 	return {
 		chat: async () => "mock response",
@@ -48,7 +48,7 @@ export function createMockLLM(opts: MockLLMOptions = {}): LtmLlmPort {
 	};
 }
 
-export function createInvalidLLM(invalidResponse: unknown): LtmLlmPort {
+export function createInvalidLLM(invalidResponse: unknown): MemoryLlmPort {
 	return {
 		chat: async () => "",
 		chatStructured: async <T>(_: ChatMessage[], schema: Schema<T>) => schema.parse(invalidResponse),

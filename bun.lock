@@ -87,9 +87,6 @@
         "discord.js": "^14.19.3",
       },
     },
-    "packages/ltm": {
-      "name": "@vicissitude/ltm",
-    },
     "packages/mcp": {
       "name": "@vicissitude/mcp",
       "dependencies": {
@@ -99,6 +96,9 @@
         "discord.js": "^14.25.1",
         "zod": "^4.3.6",
       },
+    },
+    "packages/memory": {
+      "name": "@vicissitude/memory",
     },
     "packages/minecraft": {
       "name": "@vicissitude/minecraft",
@@ -583,9 +583,9 @@
 
     "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
 
-    "@vicissitude/ltm": ["@vicissitude/ltm@workspace:packages/ltm"],
-
     "@vicissitude/mcp": ["@vicissitude/mcp@workspace:packages/mcp"],
+
+    "@vicissitude/memory": ["@vicissitude/memory@workspace:packages/memory"],
 
     "@vicissitude/minecraft": ["@vicissitude/minecraft@workspace:packages/minecraft"],
 

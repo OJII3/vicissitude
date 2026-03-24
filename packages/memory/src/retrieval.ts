@@ -2,8 +2,8 @@ import type { Episode } from "./episode.ts";
 import type { EpisodicMemory } from "./episodic.ts";
 import { retrievability } from "./fsrs.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
-import type { MemoryStorage } from "./storage.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
+import type { MemoryStorage } from "./storage.ts";
 import { validateUserId } from "./utils.ts";
 
 /** Options for configuring retrieval behavior */

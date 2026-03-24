@@ -1,5 +1,5 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { existsSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
@@ -11,10 +11,10 @@ import { MessageIngestionService } from "@vicissitude/application/message-ingest
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqlite-buffered-event-store";
-import { CompositeLLMAdapter } from "@vicissitude/ltm/composite-llm-adapter";
-import { LtmConversationRecorder } from "@vicissitude/ltm/conversation-recorder";
-import { type EmbeddingPort, LtmFactReaderImpl } from "@vicissitude/ltm/fact-reader";
-import { LtmChatAdapter } from "@vicissitude/ltm/ltm-chat-adapter";
+import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
+import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
+import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
+import { type EmbeddingPort, MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -64,7 +64,7 @@ export function createContextLayer(
 	db: StoreDb,
 	embedding?: EmbeddingPort,
 ) {
-	const ltmFactReader = new LtmFactReaderImpl(resolve(config.dataDir, "ltm"), embedding);
+	const memoryFactReader = new MemoryFactReaderImpl(resolve(config.dataDir, "memory"), embedding);
 	const mcStatusProvider = config.minecraft
 		? new SqliteMcStatusProvider(
 				db,
@@ -75,10 +75,10 @@ export function createContextLayer(
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
-		ltmFactReader,
+		memoryFactReader,
 		mcStatusProvider,
 	);
-	return { ltmFactReader, mcStatusProvider, contextBuilder };
+	return { memoryFactReader, mcStatusProvider, contextBuilder };
 }
 
 // ─── Guild Agents ───────────────────────────────────────────────
@@ -127,10 +127,13 @@ export function createMetrics(logger: Logger) {
 	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
 	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
 	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
-	collector.registerCounter(METRIC.LTM_CONSOLIDATION_TICKS, "LTM consolidation scheduler ticks");
+	collector.registerCounter(
+		METRIC.MEMORY_CONSOLIDATION_TICKS,
+		"Memory consolidation scheduler ticks",
+	);
 	collector.registerHistogram(
-		METRIC.LTM_CONSOLIDATION_TICK_DURATION,
-		"LTM consolidation tick duration in seconds",
+		METRIC.MEMORY_CONSOLIDATION_TICK_DURATION,
+		"Memory consolidation tick duration in seconds",
 	);
 	// Token metrics
 	collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "LLM input tokens total");
@@ -190,47 +193,47 @@ async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
 	return new ChannelConfigLoader(channelsJson as ChannelConfigData);
 }
 
-// ─── LTM Recording ─────────────────────────────────────────────
+// ─── Memory Recording ───────────────────────────────────────────
 
-interface LtmResources {
-	chatAdapter: LtmChatAdapter;
-	recorder: LtmConversationRecorder;
+interface MemoryResources {
+	chatAdapter: MemoryChatAdapter;
+	recorder: MemoryConversationRecorder;
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-export function setupLtmRecording(
+export function setupMemoryRecording(
 	config: AppConfig,
 	logger: Logger,
 	metricsCollector?: PrometheusCollector,
 	embeddingAdapter?: OllamaEmbeddingAdapter,
-): LtmResources | undefined {
-	const ltmPort = config.opencode.basePort - 2;
-	const dataDir = resolve(config.dataDir, "ltm");
+): MemoryResources | undefined {
+	const memoryPort = config.opencode.basePort - 2;
+	const dataDir = resolve(config.dataDir, "memory");
 
 	try {
-		const ltmSessionPort = new OpencodeSessionAdapter({
-			port: ltmPort,
+		const memorySessionPort = new OpencodeSessionAdapter({
+			port: memoryPort,
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		});
-		const chatAdapter = new LtmChatAdapter(
-			ltmSessionPort,
-			config.ltm.providerId,
-			config.ltm.modelId,
+		const chatAdapter = new MemoryChatAdapter(
+			memorySessionPort,
+			config.memory.providerId,
+			config.memory.modelId,
 			logger,
 		);
 
 		const ollama =
 			embeddingAdapter ??
-			new OllamaEmbeddingAdapter(config.ltm.ollamaBaseUrl, config.ltm.embeddingModel);
+			new OllamaEmbeddingAdapter(config.memory.ollamaBaseUrl, config.memory.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
-		const recorder = new LtmConversationRecorder(llm, dataDir);
+		const recorder = new MemoryConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(recorder, logger, metricsCollector);
 
-		logger.info(`[bootstrap] LTM auto-recording enabled (port=${ltmPort})`);
+		logger.info(`[bootstrap] Memory auto-recording enabled (port=${memoryPort})`);
 		return { chatAdapter, recorder, consolidationScheduler };
 	} catch (err) {
-		logger.error("[bootstrap] LTM auto-recording init failed, continuing without LTM", err);
+		logger.error("[bootstrap] Memory auto-recording init failed, continuing without memory", err);
 		return undefined;
 	}
 }
@@ -309,9 +312,9 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		HOME: process.env.HOME ?? "",
 		DISCORD_TOKEN: config.discordToken,
 		CORE_MCP_PORT: String(config.coreMcpPort),
-		OLLAMA_BASE_URL: config.ltm.ollamaBaseUrl,
-		LTM_EMBEDDING_MODEL: config.ltm.embeddingModel,
-		LTM_DATA_DIR: resolve(config.dataDir, "ltm"),
+		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
+		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
+		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
 	};
 
@@ -399,17 +402,30 @@ export async function bootstrap(): Promise<void> {
 	const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "..");
 	const logger = new ConsoleLogger();
 
+	// Migrate data/ltm → data/memory
+	const oldMemoryDir = resolve(config.dataDir, "ltm");
+	const newMemoryDir = resolve(config.dataDir, "memory");
+	if (existsSync(oldMemoryDir) && !existsSync(newMemoryDir)) {
+		renameSync(oldMemoryDir, newMemoryDir);
+		logger.info("[bootstrap] Migrated data/ltm → data/memory");
+	}
+
 	// Store
 	const { db, sessionStore } = createStoreLayer(config);
 
-	// Embedding adapter (shared between context layer and LTM recording)
+	// Embedding adapter (shared between context layer and memory recording)
 	const ollamaEmbedding = new OllamaEmbeddingAdapter(
-		config.ltm.ollamaBaseUrl,
-		config.ltm.embeddingModel,
+		config.memory.ollamaBaseUrl,
+		config.memory.embeddingModel,
 	);
 
 	// Context
-	const { ltmFactReader, contextBuilder } = createContextLayer(config, root, db, ollamaEmbedding);
+	const { memoryFactReader, contextBuilder } = createContextLayer(
+		config,
+		root,
+		db,
+		ollamaEmbedding,
+	);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -453,12 +469,12 @@ export async function bootstrap(): Promise<void> {
 		metrics: metrics.collector,
 	});
 
-	// LTM recording
-	const ltmResources = setupLtmRecording(config, logger, metrics.collector, ollamaEmbedding);
+	// Memory recording
+	const memoryResources = setupMemoryRecording(config, logger, metrics.collector, ollamaEmbedding);
 	const ingestionService = new MessageIngestionService({
 		eventStore: new SqliteBufferedEventStore(db),
 		logger,
-		recorder: ltmResources?.recorder,
+		recorder: memoryResources?.recorder,
 	});
 
 	// Event handlers
@@ -523,16 +539,16 @@ export async function bootstrap(): Promise<void> {
 		const forceTimer = setTimeout(() => process.exit(1), 5000);
 		try {
 			clearInterval(sessionGaugeTimer);
-			await ltmResources?.consolidationScheduler.stop();
+			await memoryResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
 			gateway.stop();
 			await gatewayServer.stop();
 			mcBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
-			await ltmResources?.chatAdapter.close();
-			await ltmResources?.recorder.close();
-			await ltmFactReader.close();
+			await memoryResources?.chatAdapter.close();
+			await memoryResources?.recorder.close();
+			await memoryFactReader.close();
 			coreProcess.kill();
 			mcProcess?.kill();
 			closeDb(db);
@@ -549,7 +565,7 @@ export async function bootstrap(): Promise<void> {
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
 	await gateway.start();
 	heartbeatScheduler.start();
-	ltmResources?.consolidationScheduler.start();
+	memoryResources?.consolidationScheduler.start();
 	// DiscordAgent は lazy start: 最初の send() 呼び出しで自動的にポーリングループが起動する
 	mcBrainManager?.start();
 }

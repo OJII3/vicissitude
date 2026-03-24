@@ -1,7 +1,7 @@
 import type { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 
-import type { MemoryLlmPort, Schema } from "./llm-port.ts";
 import type { MemoryChatAdapter } from "./chat-adapter.ts";
+import type { MemoryLlmPort, Schema } from "./llm-port.ts";
 import type { ChatMessage } from "./types.ts";
 
 /** Composite MemoryLlmPort: chat/chatStructured via OpenCode, embed via Ollama */

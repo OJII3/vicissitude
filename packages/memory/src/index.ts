@@ -1,10 +1,10 @@
 import { ConsolidationPipeline } from "./consolidation.ts";
 import { EpisodicMemory } from "./episodic.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
-import type { MemoryStorage } from "./storage.ts";
 import { Retrieval } from "./retrieval.ts";
 import { Segmenter } from "./segmenter.ts";
 import { SemanticMemory } from "./semantic-memory.ts";
+import type { MemoryStorage } from "./storage.ts";
 
 // Re-export domain types
 export type { CreateEpisodeParams, Episode } from "./episode.ts";

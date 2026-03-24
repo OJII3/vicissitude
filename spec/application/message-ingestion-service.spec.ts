@@ -95,7 +95,7 @@ describe("MessageIngestionService", () => {
 		);
 	});
 
-	test("bufferEvent=false なら LTM 記録だけ行い event buffer には積まない", async () => {
+	test("bufferEvent=false なら Memory 記録だけ行い event buffer には積まない", async () => {
 		const eventStore: BufferedEventStore = { append: mock(() => {}) };
 		const recorder: ConversationRecorder = {
 			record: mock(() => Promise.resolve()),
@@ -117,7 +117,7 @@ describe("MessageIngestionService", () => {
 		expect(recorder.record).toHaveBeenCalledTimes(1);
 	});
 
-	test("recordConversation 未指定なら LTM 記録しない", async () => {
+	test("recordConversation 未指定なら Memory 記録しない", async () => {
 		const eventStore: BufferedEventStore = { append: mock(() => {}) };
 		const recorder: ConversationRecorder = {
 			record: mock(() => Promise.resolve()),

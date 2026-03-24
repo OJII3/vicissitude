@@ -1,6 +1,6 @@
+import type { SemanticFact } from "./semantic-fact.ts";
 /* oxlint-disable require-await -- methods are async for API compatibility */
 import type { MemoryStorage } from "./storage.ts";
-import type { SemanticFact } from "./semantic-fact.ts";
 import type { FactCategory } from "./types.ts";
 import { validateUserId } from "./utils.ts";
 

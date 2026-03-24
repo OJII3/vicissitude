@@ -1,20 +1,20 @@
 /* oxlint-disable no-non-null-assertion, require-await -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { Episode } from "@vicissitude/ltm/episode";
-import { EpisodicMemory } from "@vicissitude/ltm/episodic";
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
+import type { Episode } from "@vicissitude/memory/episode";
+import { EpisodicMemory } from "@vicissitude/memory/episodic";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 
 import { makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
 
 describe("EpisodicMemory — retrieval", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 	});
 
@@ -60,11 +60,11 @@ describe("EpisodicMemory — retrieval", () => {
 });
 
 describe("EpisodicMemory — search", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 	});
 
@@ -101,11 +101,11 @@ describe("EpisodicMemory — search", () => {
 });
 
 describe("EpisodicMemory — FSRS review", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 	});
 
@@ -178,11 +178,11 @@ describe("EpisodicMemory — FSRS review", () => {
 });
 
 describe("EpisodicMemory — consolidation", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 	});
 
@@ -203,11 +203,11 @@ describe("EpisodicMemory — consolidation", () => {
 });
 
 describe("EpisodicMemory — retrievability", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
 	});
 

@@ -56,7 +56,7 @@ describe("ConsolidationScheduler", () => {
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(consolidator.consolidate).toHaveBeenCalledWith("12345");
-		expect(metrics.incrementCounter).toHaveBeenCalledWith("ltm_consolidation_ticks_total", {
+		expect(metrics.incrementCounter).toHaveBeenCalledWith("memory_consolidation_ticks_total", {
 			outcome: "success",
 		});
 	});

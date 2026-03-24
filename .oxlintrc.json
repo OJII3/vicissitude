@@ -212,7 +212,7 @@
 			}
 		},
 		{
-			"files": ["packages/ltm/src/**/*.ts"],
+			"files": ["packages/memory/src/**/*.ts"],
 			"rules": {
 				"eslint/no-restricted-imports": [
 					"error",
@@ -220,7 +220,7 @@
 						"patterns": [
 							{
 								"regex": "@vicissitude/(?!shared/|ollama(?:/|$))",
-								"message": "ltm は shared, ollama のみに依存できます"
+								"message": "memory は shared, ollama のみに依存できます"
 							}
 						]
 					}
@@ -267,8 +267,8 @@
 					{
 						"patterns": [
 							{
-								"regex": "@vicissitude/(?!shared/|infrastructure/|ltm/|ltm$|ollama(?:/|$)|store/)",
-								"message": "mcp は shared, infrastructure, ltm, ollama, store のみに依存できます"
+								"regex": "@vicissitude/(?!shared/|infrastructure/|memory/|memory$|ollama(?:/|$)|store/)",
+								"message": "mcp は shared, infrastructure, memory, ollama, store のみに依存できます"
 							}
 						]
 					}

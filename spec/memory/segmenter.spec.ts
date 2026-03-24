@@ -1,12 +1,12 @@
 /* oxlint-disable max-lines, no-non-null-assertion, require-await, no-await-in-loop -- comprehensive segmenter tests */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { Episode } from "@vicissitude/ltm/episode";
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import type { SegmentationOutput } from "@vicissitude/ltm/segmenter";
-import { Segmenter } from "@vicissitude/ltm/segmenter";
-import type { ChatMessage, SurpriseLevel } from "@vicissitude/ltm/types";
-import { SURPRISE_VALUES } from "@vicissitude/ltm/types";
+import type { Episode } from "@vicissitude/memory/episode";
+import type { SegmentationOutput } from "@vicissitude/memory/segmenter";
+import { Segmenter } from "@vicissitude/memory/segmenter";
+import { MemoryStorage } from "@vicissitude/memory/storage";
+import type { ChatMessage, SurpriseLevel } from "@vicissitude/memory/types";
+import { SURPRISE_VALUES } from "@vicissitude/memory/types";
 
 import { createInvalidLLM, createMockLLM, makeMessage, makeMessages } from "./test-helpers.ts";
 
@@ -27,10 +27,10 @@ async function addMessagesSequentially(
 const userId = "user-1";
 
 describe("Segmenter — threshold checks", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -120,10 +120,10 @@ describe("Segmenter — threshold checks", () => {
 });
 
 describe("Segmenter — episode creation", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -227,7 +227,7 @@ describe("Segmenter — episode creation", () => {
 		const levels: SurpriseLevel[] = ["low", "high", "extremely_high"];
 
 		for (const level of levels) {
-			const localStorage = new LtmStorage(":memory:");
+			const localStorage = new MemoryStorage(":memory:");
 			const segResponse: SegmentationOutput = {
 				segments: [
 					{
@@ -256,10 +256,10 @@ describe("Segmenter — episode creation", () => {
 });
 
 describe("Segmenter — queue management", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -351,10 +351,10 @@ describe("Segmenter — queue management", () => {
 });
 
 describe("Segmenter — schema validation", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -456,10 +456,10 @@ describe("Segmenter — schema validation", () => {
 });
 
 describe("Segmenter — maxQueueSize", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {
@@ -485,10 +485,10 @@ describe("Segmenter — maxQueueSize", () => {
 });
 
 describe("Segmenter — edge cases", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 	});
 
 	afterEach(() => {

@@ -1,12 +1,12 @@
 import { describe, expect, it, mock } from "bun:test";
 
 import {
-	LtmChatAdapter,
+	MemoryChatAdapter,
 	appendJsonInstruction,
 	cleanJsonResponse,
 	separateMessages,
-} from "@vicissitude/ltm/ltm-chat-adapter";
-import type { ChatMessage } from "@vicissitude/ltm/types";
+} from "@vicissitude/memory/chat-adapter";
+import type { ChatMessage } from "@vicissitude/memory/types";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
@@ -42,7 +42,7 @@ describe("chatStructured", () => {
 
 	it("should return parsed result when LLM returns valid JSON on first attempt", async () => {
 		const port = createMockSessionPort([{ text: '{"key": "value"}' }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
+		const adapter = new MemoryChatAdapter(port, "provider", "model", noopLogger);
 
 		const result = await adapter.chatStructured(messages, validSchema);
 
@@ -51,7 +51,7 @@ describe("chatStructured", () => {
 
 	it("should retry when LLM returns empty string, and succeed on second attempt", async () => {
 		const port = createMockSessionPort([{ text: "" }, { text: '{"key": "retried"}' }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
+		const adapter = new MemoryChatAdapter(port, "provider", "model", noopLogger);
 
 		const result = await adapter.chatStructured(messages, validSchema);
 
@@ -61,7 +61,7 @@ describe("chatStructured", () => {
 
 	it("should throw a clear error when retry limit is exceeded with empty responses", async () => {
 		const port = createMockSessionPort([{ text: "" }, { text: "" }, { text: "" }]);
-		const adapter = new LtmChatAdapter(port, "provider", "model", noopLogger);
+		const adapter = new MemoryChatAdapter(port, "provider", "model", noopLogger);
 
 		await expect(adapter.chatStructured(messages, validSchema)).rejects.toThrow(
 			/empty.*response|retry/i,

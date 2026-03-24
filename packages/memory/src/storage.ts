@@ -3,10 +3,10 @@ import { Database } from "bun:sqlite";
 
 import type { Episode } from "./episode.ts";
 import type { FSRSCard } from "./fsrs.ts";
+import type { SemanticFact } from "./semantic-fact.ts";
 import type { EpisodeRow, FactRow, MessageRow } from "./storage-rows.ts";
 import { rowToEpisode, rowToFact, rowToMessage } from "./storage-rows.ts";
 import { createAllTables } from "./storage-schema.ts";
-import type { SemanticFact } from "./semantic-fact.ts";
 import type { ChatMessage, FactCategory } from "./types.ts";
 import { cosineSimilarity } from "./vector-math.ts";
 

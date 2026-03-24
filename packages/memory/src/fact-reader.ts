@@ -3,9 +3,9 @@ import { resolve } from "path";
 
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
-import { MemoryStorage } from "./storage.ts";
 import { reciprocalRankFusion } from "./retrieval.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
+import { MemoryStorage } from "./storage.ts";
 
 const GUILD_ID_RE = /^\d+$/;
 

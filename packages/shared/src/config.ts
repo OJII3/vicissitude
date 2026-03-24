@@ -57,7 +57,7 @@ const appConfigSchema = z.object({
 		sessionMaxAgeHours: safeNumber,
 	}),
 	coreMcpPort: safeInt,
-	ltm: z.object({
+	memory: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
 		ollamaBaseUrl: z.string(),
@@ -102,11 +102,11 @@ export function loadConfig(
 			sessionMaxAgeHours: Number(env.SESSION_MAX_AGE_HOURS ?? "48"),
 		},
 		coreMcpPort: Number(env.CORE_MCP_PORT ?? String(basePort - 1)),
-		ltm: {
-			providerId: env.LTM_PROVIDER_ID ?? openCodeProviderId,
-			modelId: env.LTM_MODEL_ID ?? "gpt-4o",
+		memory: {
+			providerId: env.MEMORY_PROVIDER_ID ?? openCodeProviderId,
+			modelId: env.MEMORY_MODEL_ID ?? "gpt-4o",
 			ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://ollama:11434",
-			embeddingModel: env.LTM_EMBEDDING_MODEL ?? "embeddinggemma",
+			embeddingModel: env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma",
 		},
 		mcBrain: {
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,

@@ -1,19 +1,19 @@
 /* oxlint-disable no-non-null-assertion, require-await, no-await-in-loop -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { LtmStorage } from "@vicissitude/ltm/ltm-storage";
-import { SemanticMemory } from "@vicissitude/ltm/semantic-memory";
+import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 
 import { makeFact } from "./test-helpers.ts";
 
 const userId = "user-1";
 
 describe("SemanticMemory — getFacts", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let semantic: SemanticMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		semantic = new SemanticMemory(storage);
 	});
 
@@ -58,11 +58,11 @@ describe("SemanticMemory — getFacts", () => {
 });
 
 describe("SemanticMemory — getFactsByCategory", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let semantic: SemanticMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		semantic = new SemanticMemory(storage);
 	});
 
@@ -95,11 +95,11 @@ describe("SemanticMemory — getFactsByCategory", () => {
 });
 
 describe("SemanticMemory — search", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let semantic: SemanticMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		semantic = new SemanticMemory(storage);
 	});
 
@@ -146,11 +146,11 @@ describe("SemanticMemory — search", () => {
 });
 
 describe("SemanticMemory — invalidate", () => {
-	let storage: LtmStorage;
+	let storage: MemoryStorage;
 	let semantic: SemanticMemory;
 
 	beforeEach(() => {
-		storage = new LtmStorage(":memory:");
+		storage = new MemoryStorage(":memory:");
 		semantic = new SemanticMemory(storage);
 	});
 

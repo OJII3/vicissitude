@@ -20,10 +20,10 @@ describe("loadConfig", () => {
 		expect(config.opencode.modelId).toBe("big-pickle");
 		expect(config.opencode.basePort).toBe(4096);
 		expect(config.opencode.sessionMaxAgeHours).toBe(48);
-		expect(config.ltm.providerId).toBe("github-copilot");
-		expect(config.ltm.modelId).toBe("gpt-4o");
-		expect(config.ltm.ollamaBaseUrl).toBe("http://ollama:11434");
-		expect(config.ltm.embeddingModel).toBe("embeddinggemma");
+		expect(config.memory.providerId).toBe("github-copilot");
+		expect(config.memory.modelId).toBe("gpt-4o");
+		expect(config.memory.ollamaBaseUrl).toBe("http://ollama:11434");
+		expect(config.memory.embeddingModel).toBe("embeddinggemma");
 		expect(config.minecraft).toBeUndefined();
 		expect(config.dataDir).toBe("/tmp/test-vicissitude/data");
 		expect(config.contextDir).toBe("/tmp/test-vicissitude/context");
@@ -44,10 +44,10 @@ describe("loadConfig", () => {
 				OPENCODE_MODEL_ID: "custom-model",
 				OPENCODE_BASE_PORT: "5000",
 				SESSION_MAX_AGE_HOURS: "24",
-				LTM_PROVIDER_ID: "ltm-provider",
-				LTM_MODEL_ID: "ltm-model",
+				MEMORY_PROVIDER_ID: "memory-provider",
+				MEMORY_MODEL_ID: "memory-model",
 				OLLAMA_BASE_URL: "http://localhost:11434",
-				LTM_EMBEDDING_MODEL: "custom-embedding",
+				MEMORY_EMBEDDING_MODEL: "custom-embedding",
 			}),
 			root,
 		);
@@ -56,13 +56,13 @@ describe("loadConfig", () => {
 		expect(config.opencode.modelId).toBe("custom-model");
 		expect(config.opencode.basePort).toBe(5000);
 		expect(config.opencode.sessionMaxAgeHours).toBe(24);
-		expect(config.ltm.providerId).toBe("ltm-provider");
-		expect(config.ltm.modelId).toBe("ltm-model");
-		expect(config.ltm.ollamaBaseUrl).toBe("http://localhost:11434");
-		expect(config.ltm.embeddingModel).toBe("custom-embedding");
+		expect(config.memory.providerId).toBe("memory-provider");
+		expect(config.memory.modelId).toBe("memory-model");
+		expect(config.memory.ollamaBaseUrl).toBe("http://localhost:11434");
+		expect(config.memory.embeddingModel).toBe("custom-embedding");
 	});
 
-	it("LTM_PROVIDER_ID 未指定時は OPENCODE_PROVIDER_ID にフォールバック", () => {
+	it("MEMORY_PROVIDER_ID 未指定時は OPENCODE_PROVIDER_ID にフォールバック", () => {
 		const config = loadConfig(
 			baseEnv({
 				OPENCODE_PROVIDER_ID: "my-provider",
@@ -70,7 +70,7 @@ describe("loadConfig", () => {
 			root,
 		);
 
-		expect(config.ltm.providerId).toBe("my-provider");
+		expect(config.memory.providerId).toBe("my-provider");
 	});
 
 	describe("Minecraft", () => {

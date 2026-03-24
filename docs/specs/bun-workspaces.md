@@ -11,21 +11,21 @@
 
 Plan の提案を現行の依存関係グラフに基づき修正する。
 
-| パッケージ                | 現行モジュール                         | 根拠                                                                                                |
-| ------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `packages/shared`         | `core/`                                | 型定義、定数、ユーティリティ。全パッケージの共通基盤。依存なし                                      |
-| `packages/observability`  | `observability/`                       | logger, metrics。shared のみに依存。agent に含めると shared と同格の基盤が agent に埋もれる         |
-| `packages/application`    | `application/`                         | HeartbeatService, MessageIngestionService。shared のみに依存する汎用サービス層                      |
-| `packages/ollama`         | `ollama/`                              | OllamaEmbeddingAdapter。外部依存なし・内部依存なし。ltm と mcp の両方から使われるため独立パッケージ |
-| `packages/store`          | `store/`                               | DB スキーマ、クエリ、EventBuffer。shared のみに依存                                                 |
-| `packages/opencode`       | `opencode/`                            | OpenCode SDK アダプタ。shared のみに依存                                                            |
-| `packages/ltm`            | `ltm/`                                 | 長期記憶。shared, ollama に依存                                                                     |
-| `packages/infrastructure` | `infrastructure/`                      | Discord 固有のアダプタ + SQLite BufferedEventStore。shared, application, store に依存               |
-| `packages/agent`          | `agent/`                               | AgentRunner, Discord/Minecraft エージェント。shared, opencode, store に依存                         |
-| `packages/scheduling`     | `scheduling/`                          | HeartbeatScheduler, ConsolidationScheduler。shared, application, observability に依存               |
-| `packages/mcp`            | `mcp/`（minecraft 除く）               | MCP サーバー群。shared, infrastructure, ltm, ollama, store に依存                                   |
-| `packages/minecraft`      | `mcp/minecraft/`                       | Minecraft 固有ロジック。重い外部依存（mineflayer 等）を分離                                         |
-| `apps/discord`            | `gateway/`, `bootstrap.ts`, `index.ts` | エントリーポイント + Discord ゲートウェイ。全パッケージを組み立てる composition root                |
+| パッケージ                | 現行モジュール                         | 根拠                                                                                                   |
+| ------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `packages/shared`         | `core/`                                | 型定義、定数、ユーティリティ。全パッケージの共通基盤。依存なし                                         |
+| `packages/observability`  | `observability/`                       | logger, metrics。shared のみに依存。agent に含めると shared と同格の基盤が agent に埋もれる            |
+| `packages/application`    | `application/`                         | HeartbeatService, MessageIngestionService。shared のみに依存する汎用サービス層                         |
+| `packages/ollama`         | `ollama/`                              | OllamaEmbeddingAdapter。外部依存なし・内部依存なし。memory と mcp の両方から使われるため独立パッケージ |
+| `packages/store`          | `store/`                               | DB スキーマ、クエリ、EventBuffer。shared のみに依存                                                    |
+| `packages/opencode`       | `opencode/`                            | OpenCode SDK アダプタ。shared のみに依存                                                               |
+| `packages/memory`         | `memory/`                              | 長期記憶。shared, ollama に依存                                                                        |
+| `packages/infrastructure` | `infrastructure/`                      | Discord 固有のアダプタ + SQLite BufferedEventStore。shared, application, store に依存                  |
+| `packages/agent`          | `agent/`                               | AgentRunner, Discord/Minecraft エージェント。shared, opencode, store に依存                            |
+| `packages/scheduling`     | `scheduling/`                          | HeartbeatScheduler, ConsolidationScheduler。shared, application, observability に依存                  |
+| `packages/mcp`            | `mcp/`（minecraft 除く）               | MCP サーバー群。shared, infrastructure, memory, ollama, store に依存                                   |
+| `packages/minecraft`      | `mcp/minecraft/`                       | Minecraft 固有ロジック。重い外部依存（mineflayer 等）を分離                                            |
+| `apps/discord`            | `gateway/`, `bootstrap.ts`, `index.ts` | エントリーポイント + Discord ゲートウェイ。全パッケージを組み立てる composition root                   |
 
 ### 2.2 設計判断の詳細
 
@@ -115,7 +115,7 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
   - `infrastructure/store/`: `SqliteBufferedEventStore`（`application/` のポートの SQLite 実装）
 - `store/` は純粋な DB アクセス層（スキーマ、クエリ、EventBuffer）で、shared のみに依存。
 - `infrastructure/` は `application/`, `core/`, `store/` に依存し、Discord 固有の外部依存（`discord.js`）を持つ。
-- 統合すると `store/` に不要な `discord.js` 依存が混入し、LTM や MCP など `store/` だけを使いたいパッケージが重くなる。
+- 統合すると `store/` に不要な `discord.js` 依存が混入し、Memory や MCP など `store/` だけを使いたいパッケージが重くなる。
 
 #### D5: ollama の配置判断
 
@@ -124,10 +124,10 @@ Plan の提案を現行の依存関係グラフに基づき修正する。
 **根拠**:
 
 - `ollama/` は現在 3 箇所から使用されている:
-  - `bootstrap.ts`（LTM 初期化時）
-  - `ltm/composite-llm-adapter.ts`
+  - `bootstrap.ts`（Memory 初期化時）
+  - `memory/composite-llm-adapter.ts`
   - `mcp/core-server.ts`
-- `ltm` に含めると `mcp` が `ltm` に依存するか、重複実装が必要になる。
+- `memory` に含めると `mcp` が `memory` に依存するか、重複実装が必要になる。
 - `shared` に含めると shared の「内部依存なし・外部依存最小」という性質が崩れる（HTTP fetch アダプタは shared の責務外）。
 - ファイルが 1 つだけだが、独立パッケージのオーバーヘッドは `package.json` と `tsconfig.json` の 2 ファイルのみ。凝集度と依存方向の明確さを優先する。
 
@@ -164,8 +164,8 @@ graph LR
   store --> shared
   opencode --> shared
 
-  ltm --> shared
-  ltm --> ollama
+  memory --> shared
+  memory --> ollama
   infrastructure --> shared
   infrastructure --> application
   infrastructure --> store
@@ -178,7 +178,7 @@ graph LR
 
   mcp --> shared
   mcp --> infrastructure
-  mcp --> ltm
+  mcp --> memory
   mcp --> ollama
   mcp --> store
   minecraft --> shared
@@ -190,7 +190,7 @@ graph LR
   discord_app --> ollama
   discord_app --> store
   discord_app --> opencode
-  discord_app --> ltm
+  discord_app --> memory
   discord_app --> infrastructure
   discord_app --> agent
   discord_app --> scheduling
@@ -204,7 +204,7 @@ graph LR
 | ------------------- | --------------------------------------------------- |
 | L0（依存なし）      | `shared`, `ollama`                                  |
 | L1（L0 のみに依存） | `observability`, `application`, `store`, `opencode` |
-| L2                  | `ltm`, `infrastructure`, `agent`, `scheduling`      |
+| L2                  | `memory`, `infrastructure`, `agent`, `scheduling`   |
 | L3                  | `mcp`, `minecraft`                                  |
 | App                 | `apps/discord`                                      |
 
@@ -294,19 +294,19 @@ graph LR
 }
 ```
 
-### `@vicissitude/ltm`
+### `@vicissitude/memory`
 
 ```jsonc
 {
-	"name": "@vicissitude/ltm",
+	"name": "@vicissitude/memory",
 	"private": true,
 	"exports": {
 		".": "./src/index.ts",
 		"./composite-llm-adapter": "./src/composite-llm-adapter.ts",
 		"./conversation-recorder": "./src/conversation-recorder.ts",
 		"./fact-reader": "./src/fact-reader.ts",
-		"./ltm-chat-adapter": "./src/ltm-chat-adapter.ts",
-		"./ltm-storage": "./src/ltm-storage.ts",
+		"./chat-adapter": "./src/chat-adapter.ts",
+		"./storage": "./src/storage.ts",
 		"./episodic": "./src/episodic.ts",
 		"./retrieval": "./src/retrieval.ts",
 		"./semantic-memory": "./src/semantic-memory.ts",
@@ -317,7 +317,7 @@ graph LR
 }
 ```
 
-注: `ltm` は内部ファイルが多く、相互参照も多い。barrel export（`"."`）を主に使い、外部パッケージからの import が必要なモジュールのみサブパスエクスポートする。実装フェーズで実際の外部参照を精査し、不要なサブパスは削除する。
+注: `memory` は内部ファイルが多く、相互参照も多い。barrel export（`"."`）を主に使い、外部パッケージからの import が必要なモジュールのみサブパスエクスポートする。実装フェーズで実際の外部参照を精査し、不要なサブパスは削除する。
 
 ### `@vicissitude/infrastructure`
 
@@ -380,7 +380,7 @@ graph LR
 		"./memory-helpers": "./src/memory-helpers.ts",
 		"./tools/discord": "./src/tools/discord.ts",
 		"./tools/event-buffer": "./src/tools/event-buffer.ts",
-		"./tools/ltm": "./src/tools/ltm.ts",
+		"./tools/memory": "./src/tools/memory.ts",
 		"./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",
 		"./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
 		"./tools/mc-memory": "./src/tools/mc-memory.ts",
@@ -528,7 +528,7 @@ vicissitude/
       package.json
       tsconfig.json
       src/
-        ...（現行 src/ltm/ の全ファイル）
+        ...（現行 src/memory/ の全ファイル）
     infrastructure/
       package.json
       tsconfig.json
@@ -579,7 +579,7 @@ vicissitude/
         tools/
           discord.ts
           event-buffer.ts
-          ltm.ts
+          memory.ts
           mc-bridge-discord.ts
           mc-bridge-minecraft.ts
           mc-memory.ts
@@ -647,7 +647,7 @@ vicissitude/
 2. **Step 1（shared）**: `packages/shared/` を作成し `src/core/` のファイルを移動。import パスを更新。**検証**: cross-package import が `bun test` と `tsgo` の両方で動くことを確認。
 3. **Step 2（L0 残り）**: `packages/ollama/` を作成
 4. **Step 3（L1）**: `packages/observability/`, `packages/application/`, `packages/store/`, `packages/opencode/` を作成
-5. **Step 4（L2）**: `packages/ltm/`, `packages/infrastructure/`, `packages/agent/`, `packages/scheduling/` を作成
+5. **Step 4（L2）**: `packages/memory/`, `packages/infrastructure/`, `packages/agent/`, `packages/scheduling/` を作成
 6. **Step 5（L3）**: `packages/mcp/`, `packages/minecraft/` を作成
 7. **Step 6（App）**: `apps/discord/` を作成し、`bootstrap.ts`, `index.ts`, `gateway/` を移動
 8. **Step 7（テスト）**: `spec/` の import パスを `@vicissitude/*` に更新、テストヘルパーの移行（後述）、全テスト実行
@@ -694,12 +694,12 @@ export const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
 
 ### 現在のヘルパー
 
-| ファイル                    | import 元              | 移行先                                                                 |
-| --------------------------- | ---------------------- | ---------------------------------------------------------------------- |
-| `spec/test-helpers.ts`      | `../src/core/types.ts` | `spec/test-helpers.ts`（import を `@vicissitude/shared/types` に変更） |
-| `spec/ltm/test-helpers.ts`  | `../../src/ltm/*`      | `spec/ltm/test-helpers.ts`（import を `@vicissitude/ltm/*` に変更）    |
-| `src/store/test-helpers.ts` | `bun:sqlite`           | `packages/store/src/test-helpers.ts`（パッケージ内移動）               |
-| `src/mcp/test-helpers.ts`   | `./http-server.ts` 等  | `packages/mcp/src/test-helpers.ts`（パッケージ内移動）                 |
+| ファイル                      | import 元              | 移行先                                                                    |
+| ----------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `spec/test-helpers.ts`        | `../src/core/types.ts` | `spec/test-helpers.ts`（import を `@vicissitude/shared/types` に変更）    |
+| `spec/memory/test-helpers.ts` | `../../src/memory/*`   | `spec/memory/test-helpers.ts`（import を `@vicissitude/memory/*` に変更） |
+| `src/store/test-helpers.ts`   | `bun:sqlite`           | `packages/store/src/test-helpers.ts`（パッケージ内移動）                  |
+| `src/mcp/test-helpers.ts`     | `./http-server.ts` 等  | `packages/mcp/src/test-helpers.ts`（パッケージ内移動）                    |
 
 ### 方針
 

@@ -18,7 +18,7 @@ graph LR
 ### bootstrap.ts
 
 - モジュール内依存: gateway/channel-config-loader, gateway/discord
-- 他モジュール依存: agent, application, gateway, infrastructure, ltm, observability, ollama, opencode, scheduling, shared, store, tts
+- 他モジュール依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
 
 ### gateway/channel-config-loader.ts
