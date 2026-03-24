@@ -2,35 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
-import {
-	OVERLAY_CONTEXT_DIR,
-	guildIdSchema,
-	readWithFallbackFrom,
-	resolveContextPaths,
-} from "@vicissitude/mcp/memory-helpers";
-
-describe("resolveContextPaths", () => {
-	it("guildId 未指定時はオーバーレイベースのグローバルパスを返す", () => {
-		const paths = resolveContextPaths();
-
-		expect(paths.memoryPath).toContain("data/context/MEMORY.md");
-		expect(paths.lessonsPath).toContain("data/context/LESSONS.md");
-		expect(paths.memoryPath).not.toContain("guilds");
-	});
-
-	it("guildId 指定時は Guild 固有パスを返す", () => {
-		const paths = resolveContextPaths("123456789");
-
-		expect(paths.memoryPath).toContain("data/context/guilds/123456789/MEMORY.md");
-		expect(paths.lessonsPath).toContain("data/context/guilds/123456789/LESSONS.md");
-	});
-
-	it("OVERLAY_CONTEXT_DIR をベースにしたパスを返す", () => {
-		const paths = resolveContextPaths();
-
-		expect(paths.memoryPath).toStartWith(OVERLAY_CONTEXT_DIR);
-	});
-});
+import { guildIdSchema, readWithFallbackFrom } from "@vicissitude/mcp/memory-helpers";
 
 describe("readWithFallbackFrom", () => {
 	const TEST_ROOT = resolve(import.meta.dirname, "../../.test-fallback");

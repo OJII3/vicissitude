@@ -24,7 +24,7 @@ graph LR
   tools_mc_bridge_discord["tools/mc-bridge-discord"]
   tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_event_buffer["tools/event-buffer"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
-  tools_memory["tools/memory"] --> memory_helpers["memory-helpers"]
+  tools_memory["tools/memory"]
   tools_schedule["tools/schedule"]
 ```
 
@@ -87,8 +87,7 @@ graph LR
 
 ### tools/memory.ts
 
-- モジュール内依存: memory-helpers
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/schedule.ts
 

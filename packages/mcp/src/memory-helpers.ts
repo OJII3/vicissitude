@@ -7,10 +7,6 @@ import { z } from "zod";
 const root = APP_ROOT;
 export const BASE_CONTEXT_DIR = resolve(root, "context");
 export const OVERLAY_CONTEXT_DIR = resolve(root, "data/context");
-export const SOUL_PATH = resolve(OVERLAY_CONTEXT_DIR, "SOUL.md");
-
-export const MAX_MEMORY_CHARS = 50_000;
-export const MAX_LESSONS_CHARS = 30_000;
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -19,25 +15,6 @@ export const guildIdSchema = z
 	.regex(GUILD_ID_REGEX, "guild_id は Discord snowflake（数字のみ）である必要があります")
 	.optional()
 	.describe("Guild ID（指定時は Guild 固有のメモリを使用、省略時はグローバル）");
-
-export interface ContextPaths {
-	memoryPath: string;
-	lessonsPath: string;
-}
-
-export function resolveContextPaths(guildId?: string): ContextPaths {
-	if (guildId) {
-		const guildDir = resolve(OVERLAY_CONTEXT_DIR, "guilds", guildId);
-		return {
-			memoryPath: resolve(guildDir, "MEMORY.md"),
-			lessonsPath: resolve(guildDir, "LESSONS.md"),
-		};
-	}
-	return {
-		memoryPath: resolve(OVERLAY_CONTEXT_DIR, "MEMORY.md"),
-		lessonsPath: resolve(OVERLAY_CONTEXT_DIR, "LESSONS.md"),
-	};
-}
 
 export function ensureDir(dir: string): void {
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

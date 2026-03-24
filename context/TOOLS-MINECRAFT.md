@@ -1,64 +1,4 @@
-## MCP ツール一覧
-
-### discord サーバー
-
-- `send_typing(channel_id)` - タイピングインジケーター送信（8秒間隔で自動リピート、send_message/reply で自動停止、60秒タイムアウト）
-- `send_message(channel_id, content, file_path?)` - チャンネルにメッセージ送信（オプションでファイル添付）
-- `reply(channel_id, message_id, content, file_path?)` - メッセージに返信（オプションでファイル添付）
-- `add_reaction(channel_id, message_id, emoji)` - リアクション追加
-- `read_messages(channel_id, limit?)` - チャンネルの最近のメッセージを読む
-- `list_channels(guild_id)` - サーバーのテキストチャンネル一覧
-
-### code-exec サーバー
-
-- `execute_code(language, code)` - サンドボックスコンテナ内でコード実行
-  - language: "javascript" | "typescript" | "python" | "shell"
-  - コード長上限: 10,000 文字
-  - タイムアウト: 15秒（コンテナ起動含む）
-  - ネットワークアクセス不可、ファイルシステム読み取り専用（/tmp のみ書き込み可、10MB 上限）
-
-### schedule サーバー
-
-- `get_heartbeat_config` - 現在の heartbeat 設定を表示
-- `list_reminders(guild_id)` - リマインダー一覧（現在のギルド＋グローバルのみ表示）
-- `add_reminder(guild_id, id, description, schedule_type, interval_minutes?, daily_hour?, daily_minute?, global?)` - リマインダー追加（デフォルトで現在のギルドに紐づく。`global: true` でギルド横断リマインダー）
-- `update_reminder(guild_id, id, description?, enabled?, schedule_type?, interval_minutes?, daily_hour?, daily_minute?)` - リマインダー更新（自ギルドまたはグローバルのみ）
-- `remove_reminder(guild_id, id)` - リマインダー削除（自ギルドまたはグローバルのみ）
-- `set_base_interval(minutes)` - ベースチェック間隔を変更
-
-### memory サーバー
-
-- `read_memory` - MEMORY.md を読み取る
-- `update_memory(content)` - MEMORY.md を上書き更新する（.bak バックアップ作成、空文字禁止、50,000 文字上限）
-  - **MEMORY.md に記録する情報**:
-    - サーバー・チャンネル情報（guild_id、チャンネル用途）
-    - 行動ルール（メッセージ送信ルール、反応頻度、禁止事項）
-    - 週次目標
-    - 自己情報（使用モデルなど）
-    - 時間に敏感な予定・制約（今週の会議予定など、不要になったら削除）
-  - **MEMORY.md に記録しない情報**（LTM ファクトに自動蓄積される）:
-    - ユーザーの背景・経歴・プロジェクト参加情報
-    - ユーザーの性格・好み・関係性
-    - 過去の出来事の詳細（LTM エピソードに記録済み）
-    - 関連プロジェクトの説明
-- `read_soul` - SOUL.md を読み取る
-- `read_lessons` - LESSONS.md を読み取る
-- `update_lessons(content)` - LESSONS.md を上書き更新する（更新前に `ltm_get_facts(category: "guideline")` で LTM guideline を確認し重複を避ける。.bak バックアップ作成、空文字禁止、30,000 文字上限）
-
-### ltm サーバー（長期記憶）
-
-fenghuang ベースの認知記憶システム。会話をエピソードに自動分割し、意味記憶（ファクト）に統合する。
-
-> 会話メッセージの記録（ingestion）は自動化されています。
-> Discord の全メッセージ（bot 自身の発言を含む）は自動的に LTM に取り込まれます。
-
-- `ltm_retrieve(guild_id, query, limit?)` - 関連する長期記憶をハイブリッド検索で取得
-  - テキスト検索＋ベクトル検索＋忘却曲線によるリランキング
-  - エピソード記憶（過去の会話まとめ）と意味記憶（蓄積ファクト）の両方を返す
-  - **使いどき**: ユーザーへの返信を作成する前に、関連する過去の記憶を想起したいとき
-- `ltm_get_facts(guild_id, category?)` - 蓄積されたファクト一覧を取得
-  - category: "identity" | "preference" | "interest" | "personality" | "relationship" | "experience" | "goal" | "guideline"
-  - **使いどき**: 特定カテゴリのファクトを確認したいとき
+## MCP ツール一覧（Minecraft）
 
 ### minecraft サーバー（MC_HOST 設定時のみ有効）
 
@@ -121,8 +61,3 @@ Minecraft ワールドに接続中のボットを操作する。
 4. セッション管理は通常不要（自動起動済み）。ユーザーから明示的に要求された場合のみ使用
 5. 行き詰まり (stuck) レポートを見たら → 代替案を指示するか、ユーザーに判断を仰ぐ
 6. danger レポートを見たら → ユーザーに状況を伝える（自動通知と重複しないよう確認）
-
-### 組み込みツール（OpenCode SDK）
-
-- `webfetch(url)` - 指定 URL の内容を取得して返す
-- `websearch(query)` - Web 検索を実行して結果を返す
