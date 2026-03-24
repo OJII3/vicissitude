@@ -1,5 +1,14 @@
 ## MCP ツール一覧（Minecraft）
 
+### mc-memory（Minecraft 記憶管理）
+
+- `mc_read_goals` - 現在の Minecraft 目標を読む
+- `mc_update_goals(content)` - 目標ファイルを上書き更新する（バックアップ自動作成）
+- `mc_read_progress` - ワールド進捗を読む（装備段階、拠点、探索範囲、主要資源、達成済み目標）
+- `mc_update_progress(content)` - ワールド進捗を更新する（バックアップ自動作成）
+- `mc_read_skills` - スキルライブラリを読む
+- `mc_record_skill(name, description, preconditions?, failure_patterns?)` - スキルを追記する
+
 ### minecraft サーバー（MC_HOST 設定時のみ有効）
 
 Minecraft ワールドに接続中のボットを操作する。

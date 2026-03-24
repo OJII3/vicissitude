@@ -126,15 +126,6 @@ export class ContextBuilder implements ContextBuilderPort {
 		}
 	}
 
-	private async readOverlaidWithGuildFallback(
-		guildRelativePath: string,
-		globalRelativePath: string,
-	): Promise<string | null> {
-		const content = await this.readOverlaid(guildRelativePath);
-		if (content) return content;
-		return this.readOverlaid(globalRelativePath);
-	}
-
 	private async readOverlaid(relativePath: string): Promise<string | null> {
 		const overlayPath = resolve(this.overlayDir, relativePath);
 		const content = await this.readContextFile(overlayPath);

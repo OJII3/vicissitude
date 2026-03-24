@@ -19,7 +19,6 @@ import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { type LtmReadServices, registerLtmTools } from "./tools/ltm.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
-import { registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 
 // --- Logger ---
@@ -147,7 +146,6 @@ function createServer(agentId: string | null): McpServer {
 	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
 	registerDiscordTools(server, { discordClient });
-	registerMemoryTools(server);
 	registerScheduleTools(server);
 	if (agentId) {
 		registerEventBufferTools(server, { db, agentId });
