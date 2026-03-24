@@ -165,7 +165,7 @@ function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logg
 }
 
 /** ltm-consolidate リマインダーを削除する（MCP ツール廃止に伴う移行） */
-function removeLtmConsolidateReminder(configPath: string, logger: Logger): void {
+function removeLegacyConsolidateReminder(configPath: string, logger: Logger): void {
 	if (!existsSync(configPath)) return;
 	try {
 		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
@@ -503,7 +503,7 @@ export async function bootstrap(): Promise<void> {
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
 	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
-	removeLtmConsolidateReminder(heartbeatConfigPath, logger);
+	removeLegacyConsolidateReminder(heartbeatConfigPath, logger);
 	const heartbeatScheduler = new HeartbeatScheduler(routingAgent, logger, metrics.collector, root);
 
 	// Session gauge
