@@ -61,8 +61,10 @@ async function executeCollectBlock(
 		collected++;
 		updateProgress(`${String(collected)}/${String(count)} 採集済み`);
 	}
-	if (collected === 0 && !signal.aborted) {
-		throw new Error(`${String(maxDistance)} ブロック以内に対象ブロックが見つかりません`);
+	if (collected < count && !signal.aborted) {
+		throw new Error(
+			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に追加の対象ブロックが見つかりません`,
+		);
 	}
 }
 
