@@ -10,7 +10,7 @@ const GUILD_ID_REGEX = /^\d+$/;
 
 const SHARED_FILES = [
 	"IDENTITY.md",
-	"AGENTS.md",
+	"SOUL.md",
 	"DISCORD.md",
 	"HEARTBEAT.md",
 	"TOOLS-CORE.md",
