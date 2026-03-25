@@ -40,6 +40,7 @@ export class MinecraftAgent extends AgentRunner {
 				port: deps.opencodePort,
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
+				temperature: 0.7,
 				logger: deps.logger,
 			}),
 			eventBuffer: deps.eventBuffer,
