@@ -36,6 +36,8 @@ export class MessageIngestionService {
 			return;
 		}
 
+		// bot メッセージもバッファに含める: 他のエージェント bot との会話を継続するため。
+		// isBot フラグはイベント消費側で「読むだけ / 返信する」の判断に使われる。
 		const event: BufferedEvent = {
 			ts: message.timestamp.toISOString(),
 			authorId: message.authorId,

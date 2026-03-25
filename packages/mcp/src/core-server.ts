@@ -145,20 +145,21 @@ function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
 	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
 
-	registerDiscordTools(server, { discordClient });
-	registerScheduleTools(server);
+	const guildMatch = agentId?.match(/^discord:(\d+)$/);
+	const boundGuildId = guildMatch?.[1];
+
+	registerDiscordTools(server, { discordClient }, boundGuildId);
+	registerScheduleTools(server, boundGuildId);
 	if (agentId) {
-		const guildMatch = agentId.match(/^discord:(\d+)$/);
-		const matchedGuildId = guildMatch?.[1];
-		const memory = matchedGuildId
-			? { retrieval: getOrCreateMemory(matchedGuildId).retrieval, guildId: matchedGuildId }
+		const memory = boundGuildId
+			? { retrieval: getOrCreateMemory(boundGuildId).retrieval, guildId: boundGuildId }
 			: undefined;
 		registerEventBufferTools(server, { db, agentId, memory });
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}
-	registerMemoryTools(server, { getOrCreateMemory });
-	registerDiscordBridgeTools(server, { db });
+	registerMemoryTools(server, { getOrCreateMemory }, boundGuildId);
+	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
 	return rawServer;
 }

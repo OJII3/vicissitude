@@ -16,7 +16,11 @@ export interface McBridgeDeps {
 const MAX_COMMAND_CHARS = 10_000;
 
 /** Discord 側のブリッジツールを登録する */
-export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps): void {
+export function registerDiscordBridgeTools(
+	server: McpServer,
+	deps: McBridgeDeps,
+	boundGuildId?: string,
+): void {
 	const { db } = deps;
 
 	server.registerTool(
@@ -57,12 +61,16 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		"minecraft_start_session",
 		{
 			description: "マイクラのセッションを開始する。マイクラが停止中のときに使う。",
-			inputSchema: {
-				guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
-			},
+			inputSchema: boundGuildId
+				? {}
+				: { guild_id: z.string().min(1).describe("呼び出し元の guild ID") },
 		},
-		({ guild_id }) => {
-			const lock = tryAcquireSessionLock(db, guild_id);
+		({ guild_id }: { guild_id?: string }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
+			const lock = tryAcquireSessionLock(db, gid);
 			if (!lock.ok) {
 				return {
 					content: [
@@ -88,12 +96,16 @@ export function registerDiscordBridgeTools(server: McpServer, deps: McBridgeDeps
 		"minecraft_stop_session",
 		{
 			description: "マイクラのセッションを停止する。",
-			inputSchema: {
-				guild_id: z.string().min(1).describe("呼び出し元の guild ID"),
-			},
+			inputSchema: boundGuildId
+				? {}
+				: { guild_id: z.string().min(1).describe("呼び出し元の guild ID") },
 		},
-		({ guild_id }) => {
-			const released = releaseSessionLock(db, guild_id);
+		({ guild_id }: { guild_id?: string }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
+			const released = releaseSessionLock(db, gid);
 			if (!released) {
 				return {
 					content: [

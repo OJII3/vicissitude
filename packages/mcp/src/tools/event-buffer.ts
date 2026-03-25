@@ -55,7 +55,10 @@ export async function pollEvents(
 const MEMORY_EPISODE_LIMIT = 3;
 const MEMORY_FACT_LIMIT = 5;
 
-/** イベント JSON からメモリ検索クエリを構築する。system イベントは除外、bot は含める。 */
+/**
+ * イベント JSON からメモリ検索クエリを構築する。system イベントは除外、bot は含める。
+ * bot を含める理由: 他のエージェント bot との会話コンテキストを記憶検索でヒットさせるため。
+ */
 export function buildMemoryQuery(eventsJson: string): string {
 	try {
 		const events = JSON.parse(eventsJson) as { authorId?: string; content?: string }[];
