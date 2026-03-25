@@ -154,7 +154,13 @@ function createServer(agentId: string | null): McpServer {
 		const memory = boundGuildId
 			? { retrieval: getOrCreateMemory(boundGuildId).retrieval, guildId: boundGuildId }
 			: undefined;
-		registerEventBufferTools(server, { db, agentId, memory });
+		const typingSender = async (channelId: string) => {
+			const ch = await discordClient.channels.fetch(channelId);
+			if (ch?.isTextBased() && "sendTyping" in ch) {
+				await ch.sendTyping();
+			}
+		};
+		registerEventBufferTools(server, { db, agentId, memory, typingSender });
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}
