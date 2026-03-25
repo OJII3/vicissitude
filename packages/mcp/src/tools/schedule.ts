@@ -119,13 +119,13 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 		}) => {
 			const resolvedGuildId = boundGuildId ?? guild_id;
 			if (!resolvedGuildId) {
-				return { content: [{ type: "text", text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
 			}
 			const config = loadConfig();
 
 			if (config.reminders.some((r) => r.id === id)) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" は既に存在します` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" は既に存在します` }],
 				};
 			}
 
@@ -135,7 +135,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 			if (schedule_type === "interval") {
 				if (interval_minutes === undefined) {
 					return {
-						content: [{ type: "text", text: "エラー: interval_minutes が必要です" }],
+						content: [{ type: "text" as const, text: "エラー: interval_minutes が必要です" }],
 					};
 				}
 				reminder = {
@@ -164,7 +164,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 			config.reminders.push(reminder);
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を追加しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を追加しました` }],
 			};
 		},
 	);
@@ -208,14 +208,14 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 		}) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text", text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
 			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
 				};
 			}
 
@@ -223,7 +223,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 				return {
 					content: [
 						{
-							type: "text",
+							type: "text" as const,
 							text: `エラー: リマインダー "${id}" は他のギルドに属しているため更新できません`,
 						},
 					],
@@ -245,7 +245,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を更新しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を更新しました` }],
 			};
 		},
 	);
@@ -262,14 +262,14 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text", text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
 			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
 				};
 			}
 
@@ -277,7 +277,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 				return {
 					content: [
 						{
-							type: "text",
+							type: "text" as const,
 							text: `エラー: リマインダー "${id}" は他のギルドに属しているため削除できません`,
 						},
 					],
@@ -287,7 +287,7 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を削除しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を削除しました` }],
 			};
 		},
 	);

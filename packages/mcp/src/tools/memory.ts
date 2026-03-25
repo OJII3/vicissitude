@@ -38,7 +38,7 @@ export function registerMemoryTools(
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return {
-					content: [{ type: "text", text: "エラー: guild_id が必要です" }],
+					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
 					isError: true,
 				};
 			}
@@ -124,7 +124,7 @@ export function registerMemoryTools(
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return {
-					content: [{ type: "text", text: "エラー: guild_id が必要です" }],
+					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
 					isError: true,
 				};
 			}
