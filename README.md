@@ -63,13 +63,13 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 ### 3.5 コンテキスト管理
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
-- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md`, `MEMORY.md`, `LESSONS.md`
+- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md`
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
 ### 3.6 マルチテナント分離
 
-- 人格共通: `IDENTITY.md`, `SOUL.md`, `TOOLS.md`, `HEARTBEAT.md`, `USER.md` は全テナントで共有。
+- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は全テナントで共有。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
 - Memory 分離: テナントごとに独立した DB。
 - テナント間で会話内容・メンバー情報・教訓が漏洩しない。
