@@ -16,7 +16,11 @@ export interface MemoryDeps {
 	getOrCreateMemory: (guildId: string) => MemoryReadServices;
 }
 
-export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
+export function registerMemoryTools(
+	server: McpServer,
+	deps: MemoryDeps,
+	boundGuildId?: string,
+): void {
 	const { getOrCreateMemory } = deps;
 
 	server.registerTool(
@@ -25,15 +29,22 @@ export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
 			description:
 				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
 			inputSchema: {
-				guild_id: guildIdSchema,
+				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
 				query: z.string().min(1).describe("検索クエリ"),
 				limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
 			},
 		},
-		async ({ guild_id, query, limit }) => {
+		async ({ guild_id, query, limit }: { guild_id?: string; query: string; limit?: number }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return {
+					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
+					isError: true,
+				};
+			}
 			try {
-				const mem = getOrCreateMemory(guild_id);
-				const result = await mem.retrieval.retrieve(guild_id, query, {
+				const mem = getOrCreateMemory(gid);
+				const result = await mem.retrieval.retrieve(gid, query, {
 					limit: limit ?? 10,
 				});
 
@@ -79,7 +90,7 @@ export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
 		{
 			description: "蓄積されたファクト（意味記憶）一覧を取得する",
 			inputSchema: {
-				guild_id: guildIdSchema,
+				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
 				category: z
 					.enum([
 						"identity",
@@ -95,12 +106,33 @@ export function registerMemoryTools(server: McpServer, deps: MemoryDeps): void {
 					.describe("カテゴリでフィルタ（省略で全件）"),
 			},
 		},
-		async ({ guild_id, category }) => {
+		async ({
+			guild_id,
+			category,
+		}: {
+			guild_id?: string;
+			category?:
+				| "identity"
+				| "preference"
+				| "interest"
+				| "personality"
+				| "relationship"
+				| "experience"
+				| "goal"
+				| "guideline";
+		}) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return {
+					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
+					isError: true,
+				};
+			}
 			try {
-				const mem = getOrCreateMemory(guild_id);
+				const mem = getOrCreateMemory(gid);
 				const facts = category
-					? await mem.semantic.getFactsByCategory(guild_id, category)
-					: await mem.semantic.getFacts(guild_id);
+					? await mem.semantic.getFactsByCategory(gid, category)
+					: await mem.semantic.getFacts(gid);
 
 				if (facts.length === 0) {
 					return {

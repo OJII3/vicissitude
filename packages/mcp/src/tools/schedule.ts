@@ -41,7 +41,7 @@ async function saveConfig(config: HeartbeatConfig): Promise<void> {
 	await Bun.write(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export function registerScheduleTools(server: McpServer): void {
+export function registerScheduleTools(server: McpServer, boundGuildId?: string): void {
 	server.registerTool(
 		"get_heartbeat_config",
 		{ description: "現在の heartbeat 設定を表示する" },
@@ -55,11 +55,15 @@ export function registerScheduleTools(server: McpServer): void {
 		"list_reminders",
 		{
 			description: "リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
-			inputSchema: { guild_id: guildIdSchema },
+			inputSchema: boundGuildId ? {} : { guild_id: guildIdSchema },
 		},
-		({ guild_id }) => {
+		({ guild_id }: { guild_id?: string }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
 			const config = loadConfig();
-			const visible = filterRemindersByGuild(config.reminders, guild_id);
+			const visible = filterRemindersByGuild(config.reminders, gid);
 			const lines = visible.map((r) => {
 				const schedule =
 					r.schedule.type === "interval"
@@ -70,7 +74,7 @@ export function registerScheduleTools(server: McpServer): void {
 				const scope = r.guildId ? `guild:${r.guildId}` : "global";
 				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, 最後: ${last})`;
 			});
-			return { content: [{ type: "text", text: lines.join("\n") || "リマインダーなし" }] };
+			return { content: [{ type: "text" as const, text: lines.join("\n") || "リマインダーなし" }] };
 		},
 	);
 
@@ -79,7 +83,7 @@ export function registerScheduleTools(server: McpServer): void {
 		{
 			description: "新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
 			inputSchema: {
-				guild_id: guildIdSchema,
+				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
 				id: z.string().describe("一意の識別子"),
 				description: z.string().describe("リマインダーの説明"),
 				schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
@@ -103,22 +107,35 @@ export function registerScheduleTools(server: McpServer): void {
 			daily_hour,
 			daily_minute,
 			global: isGlobal,
+		}: {
+			guild_id?: string;
+			id: string;
+			description: string;
+			schedule_type: "interval" | "daily";
+			interval_minutes?: number;
+			daily_hour?: number;
+			daily_minute?: number;
+			global?: boolean;
 		}) => {
+			const resolvedGuildId = boundGuildId ?? guild_id;
+			if (!resolvedGuildId) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
 			const config = loadConfig();
 
 			if (config.reminders.some((r) => r.id === id)) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" は既に存在します` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" は既に存在します` }],
 				};
 			}
 
-			const guildId = isGlobal ? undefined : guild_id;
+			const guildId = isGlobal ? undefined : resolvedGuildId;
 
 			let reminder: HeartbeatReminder;
 			if (schedule_type === "interval") {
 				if (interval_minutes === undefined) {
 					return {
-						content: [{ type: "text", text: "エラー: interval_minutes が必要です" }],
+						content: [{ type: "text" as const, text: "エラー: interval_minutes が必要です" }],
 					};
 				}
 				reminder = {
@@ -147,7 +164,7 @@ export function registerScheduleTools(server: McpServer): void {
 			config.reminders.push(reminder);
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を追加しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を追加しました` }],
 			};
 		},
 	);
@@ -157,7 +174,7 @@ export function registerScheduleTools(server: McpServer): void {
 		{
 			description: "リマインダーを更新する（自ギルドまたはグローバルのみ）",
 			inputSchema: {
-				guild_id: guildIdSchema,
+				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
 				id: z.string().describe("更新するリマインダーの ID"),
 				description: z.string().optional().describe("新しい説明"),
 				enabled: z.boolean().optional().describe("有効/無効"),
@@ -179,21 +196,34 @@ export function registerScheduleTools(server: McpServer): void {
 			interval_minutes,
 			daily_hour,
 			daily_minute,
+		}: {
+			guild_id?: string;
+			id: string;
+			description?: string;
+			enabled?: boolean;
+			schedule_type?: "interval" | "daily";
+			interval_minutes?: number;
+			daily_hour?: number;
+			daily_minute?: number;
 		}) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
 				};
 			}
 
-			if (!checkGuildScope(reminder, guild_id)) {
+			if (!checkGuildScope(reminder, gid)) {
 				return {
 					content: [
 						{
-							type: "text",
+							type: "text" as const,
 							text: `エラー: リマインダー "${id}" は他のギルドに属しているため更新できません`,
 						},
 					],
@@ -215,7 +245,7 @@ export function registerScheduleTools(server: McpServer): void {
 
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を更新しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を更新しました` }],
 			};
 		},
 	);
@@ -225,25 +255,29 @@ export function registerScheduleTools(server: McpServer): void {
 		{
 			description: "リマインダーを削除する（自ギルドまたはグローバルのみ）",
 			inputSchema: {
-				guild_id: guildIdSchema,
+				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
 				id: z.string().describe("削除するリマインダーの ID"),
 			},
 		},
-		async ({ guild_id, id }) => {
+		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text", text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
 				};
 			}
 
-			if (!checkGuildScope(reminder, guild_id)) {
+			if (!checkGuildScope(reminder, gid)) {
 				return {
 					content: [
 						{
-							type: "text",
+							type: "text" as const,
 							text: `エラー: リマインダー "${id}" は他のギルドに属しているため削除できません`,
 						},
 					],
@@ -253,7 +287,7 @@ export function registerScheduleTools(server: McpServer): void {
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
 			await saveConfig(config);
 			return {
-				content: [{ type: "text", text: `リマインダー "${id}" を削除しました` }],
+				content: [{ type: "text" as const, text: `リマインダー "${id}" を削除しました` }],
 			};
 		},
 	);

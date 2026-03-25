@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	buildMemoryQuery,
+	extractTypingChannels,
 	formatEvents,
 	formatMemoryContext,
 	pollEvents,
@@ -137,6 +138,49 @@ describe("formatMemoryContext", () => {
 		// エピソード3件、ファクト5件まで
 		expect(text.match(/^- ep\d/gm)?.length).toBe(3);
 		expect(text.match(/\[interest\]/g)?.length).toBe(5);
+	});
+});
+
+describe("extractTypingChannels", () => {
+	test("人間のイベントから channelId を抽出する", () => {
+		const json = JSON.stringify([
+			{ authorId: "user1", metadata: { channelId: "ch1", isBot: false } },
+			{ authorId: "user2", metadata: { channelId: "ch2", isBot: false } },
+		]);
+		expect(extractTypingChannels(json)).toEqual(["ch1", "ch2"]);
+	});
+
+	test("system イベントは除外する", () => {
+		const json = JSON.stringify([
+			{ authorId: "system", metadata: { channelId: "ch1" } },
+			{ authorId: "user1", metadata: { channelId: "ch2" } },
+		]);
+		expect(extractTypingChannels(json)).toEqual(["ch2"]);
+	});
+
+	test("bot イベントは除外する", () => {
+		const json = JSON.stringify([
+			{ authorId: "bot1", metadata: { channelId: "ch1", isBot: true } },
+			{ authorId: "user1", metadata: { channelId: "ch2", isBot: false } },
+		]);
+		expect(extractTypingChannels(json)).toEqual(["ch2"]);
+	});
+
+	test("同一チャンネルの重複は除去する", () => {
+		const json = JSON.stringify([
+			{ authorId: "user1", metadata: { channelId: "ch1" } },
+			{ authorId: "user2", metadata: { channelId: "ch1" } },
+		]);
+		expect(extractTypingChannels(json)).toEqual(["ch1"]);
+	});
+
+	test("metadata がないイベントはスキップする", () => {
+		const json = JSON.stringify([{ authorId: "user1", content: "hello" }]);
+		expect(extractTypingChannels(json)).toEqual([]);
+	});
+
+	test("不正な JSON は空配列を返す", () => {
+		expect(extractTypingChannels("invalid")).toEqual([]);
 	});
 });
 

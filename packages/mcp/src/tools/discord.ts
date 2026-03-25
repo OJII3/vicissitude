@@ -33,7 +33,11 @@ interface TypingState {
 }
 
 /** Returns a cleanup function that clears all active typing timers */
-export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () => void {
+export function registerDiscordTools(
+	server: McpServer,
+	deps: DiscordDeps,
+	boundGuildId?: string,
+): () => void {
 	const { discordClient } = deps;
 	const typingStates = new Map<string, TypingState>();
 
@@ -170,15 +174,19 @@ export function registerDiscordTools(server: McpServer, deps: DiscordDeps): () =
 		"list_channels",
 		{
 			description: "List text channels in a Discord guild",
-			inputSchema: { guild_id: z.string() },
+			inputSchema: boundGuildId ? {} : { guild_id: z.string() },
 		},
-		async ({ guild_id }) => {
-			const guild = await discordClient.guilds.fetch(guild_id);
+		async ({ guild_id }: { guild_id?: string }) => {
+			const gid = boundGuildId ?? guild_id;
+			if (!gid) {
+				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+			}
+			const guild = await discordClient.guilds.fetch(gid);
 			const channels = await guild.channels.fetch();
 			const textChannels = channels
 				.filter((c): c is NonNullable<typeof c> => c?.isTextBased() ?? false)
 				.map((c) => `${c.name} (${c.id})`);
-			return { content: [{ type: "text", text: textChannels.join("\n") }] };
+			return { content: [{ type: "text" as const, text: textChannels.join("\n") }] };
 		},
 	);
 

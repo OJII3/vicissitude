@@ -28,6 +28,6 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 ### memory-update の手順
 
-1. `memory_get_facts(guild_id, category: "guideline")` で蓄積された行動ガイドラインを確認する
+1. `memory_get_facts(category: "guideline")` で蓄積された行動ガイドラインを確認する
 2. 最近の会話で気づいたパターンや教訓があれば、記憶に自動蓄積されているか確認する
 3. 特に何もなければ何もしなくていい
