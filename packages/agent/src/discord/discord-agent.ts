@@ -1,5 +1,10 @@
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type { ContextBuilderPort, Logger, MetricsCollector } from "@vicissitude/shared/types";
+import type {
+	ContextBuilderPort,
+	Logger,
+	MetricsCollector,
+	SessionSummaryWriter,
+} from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 
@@ -19,6 +24,7 @@ export interface DiscordAgentDeps {
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
 	model: { providerId: string; modelId: string };
+	summaryWriter?: SessionSummaryWriter;
 }
 
 export class DiscordAgent extends AgentRunner {
@@ -45,6 +51,7 @@ export class DiscordAgent extends AgentRunner {
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,
+			summaryWriter: deps.summaryWriter,
 		});
 	}
 }

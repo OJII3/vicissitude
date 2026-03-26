@@ -96,6 +96,7 @@ function createSessionPort(waitImpl: () => Promise<OpencodeSessionEvent>): Openc
 		promptAsync: mock(() => Promise.resolve()),
 		promptAsyncAndWatchSession: mock((_params, _signal) => waitImpl()),
 		waitForSessionIdle: mock(waitImpl),
+		summarizeSession: mock(() => Promise.resolve("")),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	};
@@ -159,6 +160,7 @@ describe("AgentRunner", () => {
 			promptAsync: mock(() => Promise.resolve()),
 			promptAsyncAndWatchSession: mock((_params, _signal) => waitForSessionIdle()),
 			waitForSessionIdle,
+			summarizeSession: mock(() => Promise.resolve("")),
 			deleteSession: mock(() => Promise.resolve()),
 			close: mock(() => {}),
 		} satisfies OpencodeSessionPort;

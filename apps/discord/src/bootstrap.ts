@@ -1,5 +1,5 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { existsSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
@@ -37,6 +37,7 @@ import type {
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
+	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
@@ -74,6 +75,17 @@ export function createContextLayer(
 
 // ─── Guild Agents ───────────────────────────────────────────────
 
+function createFileSessionSummaryWriter(overlayDir: string): SessionSummaryWriter {
+	return {
+		write(guildId: string, content: string): Promise<void> {
+			const dir = resolve(overlayDir, `guilds/${guildId}`);
+			mkdirSync(dir, { recursive: true });
+			writeFileSync(resolve(dir, "SESSION-SUMMARY.md"), content);
+			return Promise.resolve();
+		},
+	};
+}
+
 export function createGuildAgents(
 	config: AppConfig,
 	guildIds: string[],
@@ -83,6 +95,7 @@ export function createGuildAgents(
 		contextBuilder: ContextBuilderPort;
 		logger: Logger;
 		metrics?: MetricsCollector;
+		summaryWriter?: SessionSummaryWriter;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
@@ -98,6 +111,7 @@ export function createGuildAgents(
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
 			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
+			summaryWriter: deps.summaryWriter,
 		});
 		agents.set(guildId, agent);
 	}
@@ -452,12 +466,14 @@ export async function bootstrap(): Promise<void> {
 
 	// Guild agents
 	const guildIds = channelConfig.getGuildIds();
+	const summaryWriter = createFileSessionSummaryWriter(resolve(root, "data/context"));
 	const agents = createGuildAgents(config, guildIds, {
 		db,
 		sessionStore,
 		contextBuilder,
 		logger,
 		metrics: metrics.collector,
+		summaryWriter,
 	});
 
 	// Memory recording

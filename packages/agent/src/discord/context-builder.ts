@@ -16,6 +16,7 @@ const CONTEXT_FILES = [
 	{ name: "SOUL.md", scope: "shared" },
 	{ name: "LESSONS.md", scope: "guild" },
 	{ name: "MEMORY.md", scope: "guild" },
+	{ name: "SESSION-SUMMARY.md", scope: "guild" },
 	// → memory-facts inserted after this phase
 	// Phase 2: Behavior
 	{ name: "DISCORD.md", scope: "shared" },
@@ -29,7 +30,7 @@ const CONTEXT_FILES = [
 ] as const satisfies readonly FileEntry[];
 
 type ContextFileName = (typeof CONTEXT_FILES)[number]["name"];
-const MEMORY_FACTS_AFTER: ContextFileName = "MEMORY.md";
+const MEMORY_FACTS_AFTER: ContextFileName = "SESSION-SUMMARY.md";
 const GUILD_CONTEXT_AFTER: ContextFileName = "HEARTBEAT.md";
 
 const PER_FILE_MAX = 20_000;

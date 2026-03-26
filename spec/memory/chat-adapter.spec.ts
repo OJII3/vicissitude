@@ -26,6 +26,7 @@ function createMockSessionPort(promptResults: { text: string }[]): OpencodeSessi
 			Promise.resolve({ type: "idle" as const, messages: [] }),
 		),
 		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const, messages: [] })),
+		summarizeSession: mock(() => Promise.resolve("")),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	} as unknown as OpencodeSessionPort;

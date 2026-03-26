@@ -233,6 +233,13 @@ export interface OpencodeSessionPort {
 		signal?: AbortSignal,
 	): Promise<OpencodeSessionEvent>;
 	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
+	summarizeSession(sessionId: string, providerId: string, modelId: string): Promise<string>;
 	deleteSession(sessionId: string): Promise<void>;
 	close(): void;
+}
+
+// ─── Session Summary Writer ─────────────────────────────────────
+
+export interface SessionSummaryWriter {
+	write(guildId: string, content: string): Promise<void>;
 }
