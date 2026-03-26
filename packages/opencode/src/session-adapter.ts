@@ -4,6 +4,7 @@ import {
 	type McpLocalConfig,
 	type McpRemoteConfig,
 	type OpencodeClient,
+	type PermissionConfig,
 } from "@opencode-ai/sdk/v2";
 import type {
 	Logger,
@@ -29,6 +30,7 @@ export interface OpencodeSessionAdapterConfig {
 	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
 	mcpServers: Record<string, McpLocalConfig | McpRemoteConfig | { enabled: boolean }>;
 	builtinTools: Record<string, boolean>;
+	permission?: Record<string, unknown>;
 	temperature?: number;
 	clientFactory?: typeof createOpencode;
 	logger?: Logger;
@@ -175,9 +177,11 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			config: {
 				mcp: this.config.mcpServers,
 				tools: this.config.builtinTools,
-				agent: this.config.temperature != null
-					? { build: { temperature: this.config.temperature } }
-					: undefined,
+				permission: this.config.permission as PermissionConfig,
+				agent:
+					this.config.temperature != null
+						? { build: { temperature: this.config.temperature } }
+						: undefined,
 			},
 		});
 		this.client = result.client;

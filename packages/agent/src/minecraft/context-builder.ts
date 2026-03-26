@@ -14,14 +14,14 @@ const TOTAL_MAX = 150_000;
 
 /**
  * Minecraft エージェント専用コンテキストビルダー。
- * オーバーレイ方式（data/context/minecraft/ → context/minecraft/）で
- * Minecraft 用コンテキストファイルを読み込む。
+ * data → static のフォールバック方式で Minecraft 用コンテキストファイルを読み込む。
+ * GOALS/PROGRESS はランタイム書き換え対象のため、data 側を優先する。
  * Guild 非依存（guildId 引数は無視）。
  */
 export class MinecraftContextBuilder implements ContextBuilderPort {
 	constructor(
-		private readonly overlayDir: string,
-		private readonly baseDir: string,
+		private readonly dataDir: string,
+		private readonly staticDir: string,
 	) {}
 
 	async build(_guildId?: string): Promise<string> {
@@ -30,7 +30,7 @@ export class MinecraftContextBuilder implements ContextBuilderPort {
 
 		for (const filename of CONTEXT_FILES) {
 			// oxlint-disable-next-line no-await-in-loop -- sequential file loading is intentional
-			const content = await this.readOverlaid(filename);
+			const content = await this.readWithFallback(filename);
 			if (!content) continue;
 			const section = `<${filename}>\n${content}\n</${filename}>`;
 			if (totalLength + section.length > TOTAL_MAX) break;
@@ -41,13 +41,13 @@ export class MinecraftContextBuilder implements ContextBuilderPort {
 		return sections.join("\n\n");
 	}
 
-	private async readOverlaid(relativePath: string): Promise<string | null> {
-		const overlayPath = resolve(this.overlayDir, relativePath);
-		const content = await this.readFile(overlayPath);
+	private async readWithFallback(relativePath: string): Promise<string | null> {
+		const dataPath = resolve(this.dataDir, relativePath);
+		const content = await this.readFile(dataPath);
 		if (content) return content;
 
-		const basePath = resolve(this.baseDir, relativePath);
-		return this.readFile(basePath);
+		const staticPath = resolve(this.staticDir, relativePath);
+		return this.readFile(staticPath);
 	}
 
 	private async readFile(filepath: string): Promise<string | null> {

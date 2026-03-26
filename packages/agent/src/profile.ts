@@ -5,6 +5,8 @@ export interface AgentProfile {
 	mcpServers: Record<string, McpServerConfig>;
 	/** OpenCode 組み込みツール設定 */
 	builtinTools: Record<string, boolean>;
+	/** OpenCode permission 設定 */
+	permission?: Record<string, unknown>;
 	/** ポーリングプロンプト */
 	pollingPrompt: string;
 	/** セッション再起動前の待機方針 */

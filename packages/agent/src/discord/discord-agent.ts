@@ -38,6 +38,7 @@ export class DiscordAgent extends AgentRunner {
 				port: deps.opencodePort,
 				mcpServers: profile.mcpServers,
 				builtinTools: profile.builtinTools,
+				permission: profile.permission,
 				temperature: 0.7,
 				logger: deps.logger,
 			}),
