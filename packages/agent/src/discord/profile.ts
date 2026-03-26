@@ -39,6 +39,14 @@ export function createConversationProfile(options: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
 			websearch: true,
+			skill: true,
+		},
+		permission: {
+			skill: {
+				"discord-*": "allow",
+				"shared-*": "allow",
+				"*": "deny",
+			},
 		},
 		pollingPrompt: POLLING_PROMPT,
 		restartPolicy: "wait_for_events",

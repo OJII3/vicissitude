@@ -1,3 +1,8 @@
+---
+name: discord-heartbeat
+description: Heartbeat 自律行動の仕組みとルール
+---
+
 ## Heartbeat — 自律行動
 
 heartbeat はふあが定期的に自律的に行動するための仕組み。

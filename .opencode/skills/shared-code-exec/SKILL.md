@@ -1,3 +1,8 @@
+---
+name: shared-code-exec
+description: サンドボックスコンテナ内でのコード実行ツール
+---
+
 ## MCP ツール一覧（コード実行）
 
 ### code-exec サーバー
