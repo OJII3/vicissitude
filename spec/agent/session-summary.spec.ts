@@ -41,6 +41,8 @@ function deferred<T>() {
 	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
 }
 
+const TEST_SUMMARY_PROMPT = "テスト用要約プロンプト";
+
 function createProfile(): AgentProfile {
 	return {
 		name: "conversation",
@@ -49,6 +51,7 @@ function createProfile(): AgentProfile {
 		pollingPrompt: "loop forever",
 		restartPolicy: "immediate",
 		model: { providerId: "test-provider", modelId: "test-model" },
+		summaryPrompt: TEST_SUMMARY_PROMPT,
 	};
 }
 
@@ -687,6 +690,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				"session-xyz",
 				"test-provider",
 				"test-model",
+				TEST_SUMMARY_PROMPT,
 			);
 		});
 	});
