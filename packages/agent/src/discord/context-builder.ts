@@ -1,10 +1,6 @@
 import { resolve } from "path";
 
-import type {
-	ContextBuilderPort,
-	MemoryFactReader,
-	McStatusProvider,
-} from "@vicissitude/shared/types";
+import type { ContextBuilderPort, MemoryFactReader } from "@vicissitude/shared/types";
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -28,7 +24,6 @@ export class ContextBuilder implements ContextBuilderPort {
 		private readonly overlayDir: string,
 		private readonly baseDir: string,
 		private readonly memoryFactReader?: MemoryFactReader,
-		private readonly mcStatusProvider?: McStatusProvider,
 	) {}
 
 	async build(guildId?: string): Promise<string> {
@@ -41,7 +36,6 @@ export class ContextBuilder implements ContextBuilderPort {
 
 		totalLength = await this.loadFileSections(guildId, sections, totalLength);
 		totalLength = await this.loadMemoryFacts(guildId, sections, totalLength);
-		totalLength = await this.loadMinecraftStatus(sections, totalLength);
 		this.appendGuildContext(guildId, sections);
 
 		return sections.join("\n\n");
@@ -97,23 +91,6 @@ export class ContextBuilder implements ContextBuilderPort {
 			}
 		} catch {
 			// Memory ファクト取得失敗時はスキップして続行
-		}
-		return totalLength;
-	}
-
-	private async loadMinecraftStatus(sections: string[], totalLength: number): Promise<number> {
-		if (!this.mcStatusProvider) return totalLength;
-		try {
-			const summary = await this.mcStatusProvider.getStatusSummary();
-			if (summary) {
-				const section = `<minecraft-status>\n${summary}\n</minecraft-status>`;
-				if (totalLength + section.length <= TOTAL_MAX) {
-					sections.push(section);
-					return totalLength + section.length;
-				}
-			}
-		} catch {
-			// Minecraft ステータス取得失敗時はスキップして続行
 		}
 		return totalLength;
 	}

@@ -40,7 +40,6 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
-import { SqliteMcStatusProvider } from "@vicissitude/store/mc-status-provider";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { createAivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
@@ -65,20 +64,12 @@ export function createContextLayer(
 	embedding?: EmbeddingPort,
 ) {
 	const memoryFactReader = new MemoryFactReaderImpl(resolve(config.dataDir, "memory"), embedding);
-	const mcStatusProvider = config.minecraft
-		? new SqliteMcStatusProvider(
-				db,
-				resolve(root, "data/context/minecraft/MINECRAFT-GOALS.md"),
-				resolve(root, "context/minecraft/MINECRAFT-GOALS.md"),
-			)
-		: undefined;
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 		memoryFactReader,
-		mcStatusProvider,
 	);
-	return { memoryFactReader, mcStatusProvider, contextBuilder };
+	return { memoryFactReader, contextBuilder };
 }
 
 // ─── Guild Agents ───────────────────────────────────────────────

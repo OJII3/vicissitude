@@ -11,8 +11,6 @@ graph LR
   event_buffer["event-buffer"] --> queries
   mc_bridge["mc-bridge"] --> db
   mc_bridge["mc-bridge"] --> schema
-  mc_status_provider["mc-status-provider"] --> db
-  mc_status_provider["mc-status-provider"] --> mc_bridge["mc-bridge"]
   queries --> db
   queries --> schema
   schema
@@ -34,11 +32,6 @@ graph LR
 
 - モジュール内依存: db, schema
 - 外部依存: .bun
-
-### mc-status-provider.ts
-
-- モジュール内依存: db, mc-bridge
-- 他モジュール依存: shared
 
 ### queries.ts
 
