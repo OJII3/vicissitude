@@ -1,3 +1,4 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -36,14 +37,15 @@ describe("parseEvents", () => {
 		];
 		const result = parseEvents(rows);
 		expect(result).toHaveLength(1);
-		expect(result[0].ts).toBe("2026-03-27T01:30:00.000Z");
-		expect(result[0].content).toBe("hello");
-		expect(result[0].authorId).toBe("user1");
-		expect(result[0].authorName).toBe("おかず");
-		expect(result[0].messageId).toBe("msg1");
-		expect(result[0].metadata?.channelId).toBe("ch1");
-		expect(result[0].metadata?.channelName).toBe("general");
-		expect(result[0].metadata?.isMentioned).toBe(true);
+		const event = result[0]!;
+		expect(event.ts).toBe("2026-03-27T01:30:00.000Z");
+		expect(event.content).toBe("hello");
+		expect(event.authorId).toBe("user1");
+		expect(event.authorName).toBe("おかず");
+		expect(event.messageId).toBe("msg1");
+		expect(event.metadata?.channelId).toBe("ch1");
+		expect(event.metadata?.channelName).toBe("general");
+		expect(event.metadata?.isMentioned).toBe(true);
 	});
 
 	test("添付ファイルを含むペイロードをパースする", () => {
@@ -62,16 +64,16 @@ describe("parseEvents", () => {
 			},
 		];
 		const result = parseEvents(rows);
-		expect(result[0].attachments).toHaveLength(1);
-		expect(result[0].attachments?.[0].url).toBe("https://example.com/img.png");
+		expect(result[0]!.attachments).toHaveLength(1);
+		expect(result[0]!.attachments?.[0]?.url).toBe("https://example.com/img.png");
 	});
 
 	test("不正な JSON ペイロードにはエラー情報を付与する", () => {
 		const rows = [{ payload: "not-json" }];
 		const result = parseEvents(rows);
 		expect(result).toHaveLength(1);
-		expect(result[0]).toHaveProperty("_raw", "not-json");
-		expect(result[0]).toHaveProperty("_error", "invalid JSON");
+		expect(result[0]!).toHaveProperty("_raw", "not-json");
+		expect(result[0]!).toHaveProperty("_error", "invalid JSON");
 	});
 
 	test("空配列なら空配列を返す", () => {
@@ -86,8 +88,8 @@ describe("parseEvents", () => {
 		];
 		const result = parseEvents(rows);
 		expect(result).toHaveLength(2);
-		expect(result[0].content).toBe("ok");
-		expect(result[1]).toHaveProperty("_error", "invalid JSON");
+		expect(result[0]!.content).toBe("ok");
+		expect(result[1]!).toHaveProperty("_error", "invalid JSON");
 	});
 });
 
@@ -242,10 +244,10 @@ describe("formatEventMetadata", () => {
 		// JSON 形式で channelId, messageId, guildId を含む
 		const jsonMatch = result.match(/<event-metadata>\n?([\s\S]*?)\n?<\/event-metadata>/);
 		expect(jsonMatch).not.toBeNull();
-		const parsed = JSON.parse(jsonMatch![1]);
-		expect(parsed[0].channelId).toBe("ch1");
-		expect(parsed[0].messageId).toBe("msg1");
-		expect(parsed[0].guildId).toBe("g1");
+		const parsed = JSON.parse(jsonMatch![1]!) as { channelId: string; messageId: string; guildId: string }[];
+		expect(parsed[0]!.channelId).toBe("ch1");
+		expect(parsed[0]!.messageId).toBe("msg1");
+		expect(parsed[0]!.guildId).toBe("g1");
 	});
 
 	test("イベントがない場合は空文字列を返す", () => {
@@ -424,8 +426,8 @@ describe("pollEvents", () => {
 
 		expect(result).not.toBeNull();
 		expect(result).toHaveLength(2);
-		expect(result![0].content).toBe("test");
-		expect(result![1].content).toBe("next");
+		expect(result![0]!.content).toBe("test");
+		expect(result![1]!.content).toBe("next");
 	});
 
 	test("タイムアウト時は null を返す", async () => {
@@ -453,6 +455,6 @@ describe("pollEvents", () => {
 		const result = await pollEvents(db, "guild-1", deadline, 30);
 
 		expect(result).not.toBeNull();
-		expect(result![0].content).toBe("delayed");
+		expect(result![0]!.content).toBe("delayed");
 	});
 });
