@@ -199,12 +199,6 @@ export interface ContextBuilderPort {
 	build(guildId?: string): Promise<string>;
 }
 
-// ─── Minecraft Status Provider ───────────────────────────────────
-
-export interface McStatusProvider {
-	getStatusSummary(): Promise<string | null>;
-}
-
 // ─── Memory Fact Reader ──────────────────────────────────────────
 
 export interface MemoryFactReader {

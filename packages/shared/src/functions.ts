@@ -53,7 +53,7 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 			{
 				id: "mc-check",
 				description:
-					"マイクラの様子を確認する。<minecraft-status> を見て、話したいことがあればホームチャンネルで話す",
+					"マイクラの様子を確認する。minecraft_status ツールで確認し、話したいことがあればホームチャンネルで話す",
 				schedule: { type: "interval", minutes: 15 },
 				lastExecutedAt: null,
 				enabled: false,

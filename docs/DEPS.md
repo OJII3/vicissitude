@@ -149,7 +149,7 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: .bun, bun:sqlite, fs, path
-- ファイル数: 13
+- ファイル数: 11
 
 ### tts
 
