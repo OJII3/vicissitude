@@ -254,7 +254,9 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				sendTypingForEvents(events);
 				const text = formatEvents(events);
 				const metadataText = formatEventMetadata(events);
-				const content: TextContent[] = [{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") }];
+				const content: TextContent[] = [
+					{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
+				];
 				if (memory) {
 					const ctx = await fetchMemoryContext(events, memory);
 					if (ctx) content.push(ctx);
@@ -270,7 +272,9 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			sendTypingForEvents(result);
 			const text = formatEvents(result);
 			const metadataText = formatEventMetadata(result);
-			const content: TextContent[] = [{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") }];
+			const content: TextContent[] = [
+				{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
+			];
 			if (memory) {
 				const ctx = await fetchMemoryContext(result, memory);
 				if (ctx) content.push(ctx);

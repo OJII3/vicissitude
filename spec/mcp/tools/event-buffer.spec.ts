@@ -83,7 +83,15 @@ describe("parseEvents", () => {
 
 	test("有効と不正が混在する場合、両方を順序通り返す", () => {
 		const rows = [
-			{ payload: JSON.stringify({ ts: "t1", content: "ok", authorId: "u1", authorName: "A", messageId: "m1" }) },
+			{
+				payload: JSON.stringify({
+					ts: "t1",
+					content: "ok",
+					authorId: "u1",
+					authorName: "A",
+					messageId: "m1",
+				}),
+			},
 			{ payload: "broken" },
 		];
 		const result = parseEvents(rows);
@@ -141,10 +149,7 @@ describe("formatEvents", () => {
 				authorId: "user1",
 				authorName: "テスト",
 				messageId: "msg3",
-				attachments: [
-					{ url: "https://example.com/a.png" },
-					{ url: "https://example.com/b.png" },
-				],
+				attachments: [{ url: "https://example.com/a.png" }, { url: "https://example.com/b.png" }],
 			},
 		];
 		const result = formatEvents(events);
@@ -157,9 +162,7 @@ describe("formatEvents", () => {
 	});
 
 	test("不正JSONだったイベントは ERROR 形式で出力する", () => {
-		const events = [
-			{ _raw: "broken-data", _error: "invalid JSON" } as never,
-		];
+		const events = [{ _raw: "broken-data", _error: "invalid JSON" } as never];
 		const result = formatEvents(events);
 		expect(result).toContain("[ERROR]");
 		expect(result).toContain("invalid JSON");
@@ -244,7 +247,11 @@ describe("formatEventMetadata", () => {
 		// JSON 形式で channelId, messageId, guildId を含む
 		const jsonMatch = result.match(/<event-metadata>\n?([\s\S]*?)\n?<\/event-metadata>/);
 		expect(jsonMatch).not.toBeNull();
-		const parsed = JSON.parse(jsonMatch![1]!) as { channelId: string; messageId: string; guildId: string }[];
+		const parsed = JSON.parse(jsonMatch![1]!) as {
+			channelId: string;
+			messageId: string;
+			guildId: string;
+		}[];
 		expect(parsed[0]!.channelId).toBe("ch1");
 		expect(parsed[0]!.messageId).toBe("msg1");
 		expect(parsed[0]!.guildId).toBe("g1");
@@ -266,7 +273,14 @@ describe("buildMemoryQuery", () => {
 
 	test("bot イベントは含める", () => {
 		const events = [
-			{ ts: "", content: "bot発言", authorId: "bot1", authorName: "", messageId: "", metadata: { isBot: true } },
+			{
+				ts: "",
+				content: "bot発言",
+				authorId: "bot1",
+				authorName: "",
+				messageId: "",
+				metadata: { isBot: true },
+			},
 			{ ts: "", content: "人間の発言", authorId: "user1", authorName: "", messageId: "" },
 		];
 		const query = buildMemoryQuery(events);
@@ -284,7 +298,9 @@ describe("buildMemoryQuery", () => {
 
 	test("1000文字を超える場合は切り詰める", () => {
 		const longContent = "あ".repeat(1200);
-		const events = [{ ts: "", content: longContent, authorId: "user1", authorName: "", messageId: "" }];
+		const events = [
+			{ ts: "", content: longContent, authorId: "user1", authorName: "", messageId: "" },
+		];
 		expect(buildMemoryQuery(events).length).toBe(1000);
 	});
 
@@ -293,7 +309,9 @@ describe("buildMemoryQuery", () => {
 	});
 
 	test("全てが system イベントなら空文字を返す", () => {
-		const events = [{ ts: "", content: "event", authorId: "system", authorName: "", messageId: "" }];
+		const events = [
+			{ ts: "", content: "event", authorId: "system", authorName: "", messageId: "" },
+		];
 		expect(buildMemoryQuery(events)).toBe("");
 	});
 });
@@ -365,40 +383,94 @@ describe("formatMemoryContext", () => {
 describe("extractTypingChannels", () => {
 	test("人間のイベントから channelId を抽出する", () => {
 		const events = [
-			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "", metadata: { channelId: "ch1", isBot: false } },
-			{ ts: "", content: "", authorId: "user2", authorName: "", messageId: "", metadata: { channelId: "ch2", isBot: false } },
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1", isBot: false },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user2",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2", isBot: false },
+			},
 		];
 		expect(extractTypingChannels(events)).toEqual(["ch1", "ch2"]);
 	});
 
 	test("system イベントは除外する", () => {
 		const events = [
-			{ ts: "", content: "", authorId: "system", authorName: "", messageId: "", metadata: { channelId: "ch1" } },
-			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "", metadata: { channelId: "ch2" } },
+			{
+				ts: "",
+				content: "",
+				authorId: "system",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2" },
+			},
 		];
 		expect(extractTypingChannels(events)).toEqual(["ch2"]);
 	});
 
 	test("bot イベントは除外する", () => {
 		const events = [
-			{ ts: "", content: "", authorId: "bot1", authorName: "", messageId: "", metadata: { channelId: "ch1", isBot: true } },
-			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "", metadata: { channelId: "ch2", isBot: false } },
+			{
+				ts: "",
+				content: "",
+				authorId: "bot1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1", isBot: true },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2", isBot: false },
+			},
 		];
 		expect(extractTypingChannels(events)).toEqual(["ch2"]);
 	});
 
 	test("同一チャンネルの重複は除去する", () => {
 		const events = [
-			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "", metadata: { channelId: "ch1" } },
-			{ ts: "", content: "", authorId: "user2", authorName: "", messageId: "", metadata: { channelId: "ch1" } },
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user2",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
 		];
 		expect(extractTypingChannels(events)).toEqual(["ch1"]);
 	});
 
 	test("metadata がないイベントはスキップする", () => {
-		const events = [
-			{ ts: "", content: "hello", authorId: "user1", authorName: "", messageId: "" },
-		];
+		const events = [{ ts: "", content: "hello", authorId: "user1", authorName: "", messageId: "" }];
 		expect(extractTypingChannels(events)).toEqual([]);
 	});
 
@@ -413,12 +485,24 @@ describe("pollEvents", () => {
 		appendEvent(
 			db,
 			"guild-1",
-			JSON.stringify({ ts: "2026-03-27T00:00:00.000Z", content: "test", authorId: "u1", authorName: "A", messageId: "m1" }),
+			JSON.stringify({
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "test",
+				authorId: "u1",
+				authorName: "A",
+				messageId: "m1",
+			}),
 		);
 		appendEvent(
 			db,
 			"guild-1",
-			JSON.stringify({ ts: "2026-03-27T00:01:00.000Z", content: "next", authorId: "u2", authorName: "B", messageId: "m2" }),
+			JSON.stringify({
+				ts: "2026-03-27T00:01:00.000Z",
+				content: "next",
+				authorId: "u2",
+				authorName: "B",
+				messageId: "m2",
+			}),
 		);
 
 		const deadline = Date.now() + 5000;
@@ -447,7 +531,13 @@ describe("pollEvents", () => {
 			appendEvent(
 				db,
 				"guild-1",
-				JSON.stringify({ ts: "2026-03-27T00:00:00.000Z", content: "delayed", authorId: "u1", authorName: "A", messageId: "m1" }),
+				JSON.stringify({
+					ts: "2026-03-27T00:00:00.000Z",
+					content: "delayed",
+					authorId: "u1",
+					authorName: "A",
+					messageId: "m1",
+				}),
 			);
 		}, 50);
 
