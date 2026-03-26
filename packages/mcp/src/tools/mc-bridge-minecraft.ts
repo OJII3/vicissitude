@@ -5,7 +5,7 @@ import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
-import { MAX_BATCH_SIZE, formatEvents } from "./event-buffer.ts";
+import { MAX_BATCH_SIZE, formatEvents, parseEvents } from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 
@@ -67,7 +67,7 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 		},
 		() => {
 			const rows = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
-			const text = rows.length > 0 ? formatEvents(rows) : "[]";
+			const text = rows.length > 0 ? formatEvents(parseEvents(rows)) : "[]";
 			return { content: [{ type: "text" as const, text }] };
 		},
 	);
