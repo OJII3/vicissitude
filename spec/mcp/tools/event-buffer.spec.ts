@@ -1,4 +1,5 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
+/* oxlint-disable max-lines -- spec file covering all event-buffer public APIs */
 import { describe, expect, test } from "bun:test";
 
 import {

@@ -30,6 +30,10 @@ jobs:
       - name: Lint
         run: bun run lint
 
+      - name: Generate route tree
+        run: bunx @tanstack/router-cli generate
+        working-directory: apps/web
+
       - name: Type check
         run: bun run check
 
