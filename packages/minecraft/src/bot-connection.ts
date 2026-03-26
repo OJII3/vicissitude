@@ -92,16 +92,24 @@ function handleHealthChange(b: mineflayer.Bot, ctx: BotContext, tracking: Tracki
 	}
 }
 
-function registerCoreEvents(
-	b: mineflayer.Bot,
-	ctx: BotContext,
-	tracking: TrackingState,
-	viewerPort: number,
-	logger: Logger,
-	onSpawnReady: () => void,
-	onDisconnect: () => void,
-	onAuthFailure: () => void,
-): void {
+interface CoreEventHandlers {
+	onSpawnReady: () => void;
+	onDisconnect: () => void;
+	onAuthFailure: () => void;
+}
+
+interface CoreEventParams {
+	b: mineflayer.Bot;
+	ctx: BotContext;
+	tracking: TrackingState;
+	viewerPort: number;
+	logger: Logger;
+	handlers: CoreEventHandlers;
+}
+
+function registerCoreEvents(params: CoreEventParams): void {
+	const { b, ctx, tracking, viewerPort, logger, handlers } = params;
+	const { onSpawnReady, onDisconnect, onAuthFailure } = handlers;
 	b.once("spawn", () => {
 		logger.info(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
 		ctx.pushEvent("spawn", `Spawned at ${b.entity.position}`, "high");
@@ -197,22 +205,24 @@ function initBot(
 	}
 	const b = mineflayer.createBot(botOptions);
 	b.loadPlugin(pathfinder.pathfinder);
-	registerCoreEvents(
+	registerCoreEvents({
 		b,
 		ctx,
 		tracking,
-		config.viewerPort,
+		viewerPort: config.viewerPort,
 		logger,
-		() => {
-			reconnect.delay = 1000;
+		handlers: {
+			onSpawnReady: () => {
+				reconnect.delay = 1000;
+			},
+			onDisconnect: () => {
+				if (!reconnect.shuttingDown) scheduleReconnect(reconnect, ctx, logger, botFactory);
+			},
+			onAuthFailure: () => {
+				reconnect.shuttingDown = true;
+			},
 		},
-		() => {
-			if (!reconnect.shuttingDown) scheduleReconnect(reconnect, ctx, logger, botFactory);
-		},
-		() => {
-			reconnect.shuttingDown = true;
-		},
-	);
+	});
 	registerWorldEvents(b, ctx, tracking);
 	return b;
 }

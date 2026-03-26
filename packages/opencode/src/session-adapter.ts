@@ -176,9 +176,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				mcp: this.config.mcpServers,
 				tools: this.config.builtinTools,
 				agent:
-					this.config.temperature != null
-						? { build: { temperature: this.config.temperature } }
-						: undefined,
+					this.config.temperature === null || this.config.temperature === undefined
+						? undefined
+						: { build: { temperature: this.config.temperature } },
 			},
 		});
 		this.client = result.client;

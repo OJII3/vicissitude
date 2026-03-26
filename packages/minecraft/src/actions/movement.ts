@@ -42,14 +42,17 @@ async function digOneBlock(
 	return true;
 }
 
-async function executeCollectBlock(
-	bot: mineflayer.Bot,
-	blockId: number,
-	count: number,
-	maxDistance: number,
-	signal: AbortSignal,
-	updateProgress: (progress: string) => void,
-): Promise<void> {
+interface CollectBlockParams {
+	bot: mineflayer.Bot;
+	blockId: number;
+	count: number;
+	maxDistance: number;
+	signal: AbortSignal;
+	updateProgress: (progress: string) => void;
+}
+
+async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
+	const { bot, blockId, count, maxDistance, signal, updateProgress } = params;
 	ensureMovements(bot);
 	registerAbortHandler(bot, signal);
 	let collected = 0;
@@ -198,7 +201,14 @@ export function registerCollectBlock(
 			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
 			const started = tryStartJob(jobManager, "collecting", blockName, (signal, updateProgress) =>
-				executeCollectBlock(bot, blockType.id, count, maxDistance, signal, updateProgress),
+				executeCollectBlock({
+					bot,
+					blockId: blockType.id,
+					count,
+					maxDistance,
+					signal,
+					updateProgress,
+				}),
 			);
 			if (!started.ok) return started.result;
 

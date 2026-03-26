@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines-per-function -- spec file with setup helpers and comprehensive test suite */
 import { describe, expect, it } from "bun:test";
 
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";

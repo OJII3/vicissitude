@@ -41,7 +41,7 @@ async function saveConfig(config: HeartbeatConfig): Promise<void> {
 	await Bun.write(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export function registerScheduleTools(server: McpServer, boundGuildId?: string): void {
+function registerReadTools(server: McpServer, boundGuildId?: string): void {
 	server.registerTool(
 		"get_heartbeat_config",
 		{ description: "現在の heartbeat 設定を表示する" },
@@ -78,6 +78,29 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 		},
 	);
 
+	server.registerTool(
+		"set_base_interval",
+		{
+			description: "ベースチェック間隔を変更する（分）",
+			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
+		},
+		async ({ minutes }) => {
+			const config = loadConfig();
+			config.baseIntervalMinutes = minutes;
+			await saveConfig(config);
+			return {
+				content: [
+					{
+						type: "text",
+						text: `ベース間隔を ${String(minutes)} 分に変更しました`,
+					},
+				],
+			};
+		},
+	);
+}
+
+function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 	server.registerTool(
 		"add_reminder",
 		{
@@ -168,7 +191,9 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 			};
 		},
 	);
+}
 
+function registerModifyReminders(server: McpServer, boundGuildId?: string): void {
 	server.registerTool(
 		"update_reminder",
 		{
@@ -291,25 +316,10 @@ export function registerScheduleTools(server: McpServer, boundGuildId?: string):
 			};
 		},
 	);
+}
 
-	server.registerTool(
-		"set_base_interval",
-		{
-			description: "ベースチェック間隔を変更する（分）",
-			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
-		},
-		async ({ minutes }) => {
-			const config = loadConfig();
-			config.baseIntervalMinutes = minutes;
-			await saveConfig(config);
-			return {
-				content: [
-					{
-						type: "text",
-						text: `ベース間隔を ${String(minutes)} 分に変更しました`,
-					},
-				],
-			};
-		},
-	);
+export function registerScheduleTools(server: McpServer, boundGuildId?: string): void {
+	registerReadTools(server, boundGuildId);
+	registerAddReminder(server, boundGuildId);
+	registerModifyReminders(server, boundGuildId);
 }

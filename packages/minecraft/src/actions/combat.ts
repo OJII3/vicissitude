@@ -92,16 +92,19 @@ async function approachTarget(
 	}
 }
 
+interface AttackContext {
+	bot: mineflayer.Bot;
+	target: Entity;
+	maxHits: number;
+	signal: AbortSignal;
+	watcher: { isDead: () => boolean };
+	weapon: string;
+	updateProgress: (progress: string) => void;
+}
+
 /** 攻撃ループ本体 */
-async function attackLoop(
-	bot: mineflayer.Bot,
-	target: Entity,
-	maxHits: number,
-	signal: AbortSignal,
-	watcher: { isDead: () => boolean },
-	weapon: string,
-	updateProgress: (progress: string) => void,
-): Promise<void> {
+async function attackLoop(ctx: AttackContext): Promise<void> {
+	const { bot, target, maxHits, signal, watcher, weapon, updateProgress } = ctx;
 	const shouldStop = () => watcher.isDead() || signal.aborted;
 	let hits = 0;
 
@@ -147,7 +150,7 @@ async function executeAttack(
 
 	const watcher = watchEntityGone(bot, target, signal);
 	try {
-		await attackLoop(bot, target, maxHits, signal, watcher, weapon, updateProgress);
+		await attackLoop({ bot, target, maxHits, signal, watcher, weapon, updateProgress });
 	} finally {
 		watcher.cleanup();
 	}

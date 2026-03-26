@@ -55,6 +55,7 @@ export class ContextBuilder implements ContextBuilderPort {
 
 		for (let i = 0; i < CONTEXT_FILES.length; i++) {
 			const entry = CONTEXT_FILES[i];
+			if (!entry) continue;
 			const content = fileContents[i];
 
 			if (content) {
