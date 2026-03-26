@@ -41,16 +41,16 @@ Minecraft ワールドに接続中のボットを操作する。
 - `stop` - 現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する
 - `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
   - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
-  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
+  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` / `attack_entity` / `eat_food` / `flee_from_entity` / `find_shelter` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
 - `get_viewer_url` - Minecraft ビューアーの URL を返す
   - prismarine-viewer ベースの Web ビューアー（ブラウザで 3D ワールドをリアルタイム表示）
   - ボット未接続時はエラーメッセージを返す
   - デフォルトポート: 3007（`MC_VIEWER_PORT` 環境変数で変更可能）
 
-### 非同期ジョブについて
+### 戦闘・サバイバル
 
-- `attack_entity(entityName, count?)` - 指定エンティティを攻撃する（非同期ジョブ）
-- `eat_food(emergency?)` - 食料を食べる（非同期ジョブ）
+- `attack_entity(entityName, count?)` - 指定エンティティを攻撃する（非同期ジョブ: 即座に jobId を返す）
+- `eat_food(emergency?)` - 食料を食べる（非同期ジョブ: 即座に jobId を返す）
   - emergency: true の場合 golden_apple も使用する
-- `flee_from_entity(entityName, distance?)` - 指定エンティティから逃走する（非同期ジョブ）
-- `find_shelter` - 近くの安全な場所を探す（非同期ジョブ）
+- `flee_from_entity(entityName, distance?)` - 指定エンティティから逃走する（非同期ジョブ: 即座に jobId を返す）
+- `find_shelter` - 近くの安全な場所を探す（非同期ジョブ: 即座に jobId を返す）

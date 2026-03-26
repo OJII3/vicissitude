@@ -130,13 +130,11 @@ describe("ContextBuilder", () => {
 		});
 	});
 
-	describe("TOTAL_MAX による切り詰め", () => {
-		it("TOTAL_MAX を超えるとそれ以降のセクションが省略される", async () => {
+	describe("ファイルサイズ制限", () => {
+		it("PER_FILE_MAX を超えるファイルが切り詰められる", async () => {
 			const { contextDir, guildDataDir } = createTmpDirs();
-			// TOTAL_MAX は 150_000。SHARED_FILES 3個 + GUILD_FILES 1個 = 4ファイル
-			// PER_FILE_MAX は 20_000 なので、各ファイルに 40_000 文字書く → PER_FILE_MAX で切り詰めて 20_000 × 4 = 80_000
-			// 80_000 < 150_000 なので、PER_FILE_MAX を活用してテスト
-			// 代わりに 50_000 文字 × 4 で TOTAL_MAX を超過させる
+			// PER_FILE_MAX は 20_000。各ファイルに 50_000 文字書く → PER_FILE_MAX で切り詰め発動
+			// 切り詰め後は約 20,030 文字/セクション × 4 = 80,120 < TOTAL_MAX (150,000) なので全ファイル収まる
 			const largeContent = "x".repeat(50_000);
 			writeFile(contextDir, "IDENTITY.md", largeContent);
 			writeFile(contextDir, "SOUL.md", largeContent);
@@ -148,12 +146,9 @@ describe("ContextBuilder", () => {
 
 			expect(result).toContain("<IDENTITY.md>");
 			const sectionCount = (result.match(/<\/(IDENTITY|SOUL|DISCORD|SERVER)\.md>/g) || []).length;
-			// PER_FILE_MAX (20,000) + タグ = 約 20,030 文字/セクション
-			// 150,000 / 20,030 ≈ 7.5 → 全4ファイルは入るはず。ただし、PER_FILE_MAX で切り詰めた後の
-			// セクションサイズは約20,030。4 × 20,030 = 80,120 < 150,000 なので全部入る
-			// テストの意図: 十分大きなコンテンツで切り詰めが発動すること
+			// 全4ファイルが PER_FILE_MAX で切り詰められつつも全て収まる
 			expect(result).toContain("[...truncated]");
-			expect(sectionCount).toBeLessThanOrEqual(4);
+			expect(sectionCount).toBe(4);
 		});
 	});
 
