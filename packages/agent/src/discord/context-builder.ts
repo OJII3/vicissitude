@@ -18,7 +18,7 @@ const SHARED_FILES = [
 	"TOOLS-MINECRAFT.md",
 ] as const;
 
-const GUILD_FILES = ["SERVER.md"] as const;
+const GUILD_FILES = ["SERVER.md", "MEMORY.md", "LESSONS.md"] as const;
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
