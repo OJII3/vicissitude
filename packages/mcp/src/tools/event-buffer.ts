@@ -267,7 +267,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const deadline = Date.now() + timeout_seconds * 1000;
 			const result = await pollEvents(db, agentId, deadline);
 			if (result === null) {
-				return { content: [{ type: "text" as const, text: "[]" }] };
+				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
 			}
 			sendTypingForEvents(result);
 			const text = formatEvents(result);
