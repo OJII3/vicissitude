@@ -9,6 +9,7 @@ import type {
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SendOptions,
+	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "./profile.ts";
@@ -30,6 +31,8 @@ export interface RunnerDeps {
 	metrics?: MetricsCollector;
 	/** ContextBuilder に渡す guildId（Discord エージェント用）。省略時は undefined */
 	contextGuildId?: string;
+	/** セッション要約の書き出しポート。省略時は要約生成をスキップ */
+	summaryWriter?: SessionSummaryWriter;
 }
 
 export class AgentRunner implements AiAgent {
@@ -51,6 +54,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
 	private readonly contextGuildId?: string;
+	private readonly summaryWriter?: SessionSummaryWriter;
 
 	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
@@ -63,6 +67,7 @@ export class AgentRunner implements AiAgent {
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 		this.metrics = deps.metrics;
 		this.contextGuildId = deps.contextGuildId;
+		this.summaryWriter = deps.summaryWriter;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -158,6 +163,9 @@ export class AgentRunner implements AiAgent {
 		const sessionKey = `__polling__:${this.agentId}`;
 		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
 		if (!sessionId) return;
+
+		await this.generateSessionSummary(sessionId);
+
 		try {
 			await this.sessionPort.deleteSession(sessionId);
 		} catch (err) {
@@ -277,6 +285,8 @@ export class AgentRunner implements AiAgent {
 		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
 		if (!sessionId) return;
 
+		await this.generateSessionSummary(sessionId);
+
 		try {
 			await this.sessionPort.deleteSession(sessionId);
 		} catch (err) {
@@ -291,6 +301,26 @@ export class AgentRunner implements AiAgent {
 
 		const hours = Math.round(age / 3_600_000);
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);
+	}
+
+	private async generateSessionSummary(sessionId: string): Promise<void> {
+		if (!this.contextGuildId || !this.summaryWriter) return;
+		try {
+			const summary = await this.sessionPort.summarizeSession(
+				sessionId,
+				this.profile.model.providerId,
+				this.profile.model.modelId,
+			);
+			await this.summaryWriter.write(this.contextGuildId, summary);
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] session summary saved for guild ${this.contextGuildId}`,
+			);
+		} catch (err) {
+			this.logger.error(
+				`[${this.profile.name}:${this.agentId}] failed to generate session summary`,
+				err,
+			);
+		}
 	}
 
 	protected sleep(ms: number): Promise<void> {

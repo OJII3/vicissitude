@@ -24,6 +24,18 @@ import {
 	sumTokens,
 } from "./stream-helpers.ts";
 
+const SESSION_SUMMARY_PROMPT = `あなたはセッション要約アシスタントです。
+この会話セッションの内容を、次のセッションに引き継ぐための要約を日本語で作成してください。
+
+以下の情報を含めてください:
+- 主要な話題・やりとりの流れ
+- ユーザーの感情状態・トーンの傾向
+- 未解決の話題や継続中の文脈
+- 重要な約束や決定事項
+
+簡潔かつ情報密度の高い要約にしてください（500文字以内）。
+ツールは使用しないでください。`;
+
 export interface OpencodeSessionAdapterConfig {
 	port: number;
 	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
@@ -156,6 +168,20 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 		return { type: "idle" };
 	}
+	async summarizeSession(sessionId: string, providerId: string, modelId: string): Promise<string> {
+		const oc = await this.getClient();
+		const result = await oc.session.prompt({
+			sessionID: sessionId,
+			parts: [{ type: "text", text: SESSION_SUMMARY_PROMPT }],
+			model: { providerID: providerId, modelID: modelId },
+			tools: {},
+		});
+		if (result.error || !result.data) {
+			throw new Error(`Session summarization failed: ${JSON.stringify(result.error)}`);
+		}
+		return extractText(result.data.parts);
+	}
+
 	async deleteSession(sessionId: string): Promise<void> {
 		const oc = await this.getClient();
 		await oc.session.delete({ sessionID: sessionId });
