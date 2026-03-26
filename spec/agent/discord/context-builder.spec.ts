@@ -133,8 +133,8 @@ describe("ContextBuilder", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			// TOTAL_MAX は 150_000。各 SHARED_FILE にラージコンテンツを書いて総量を超過させる
 			// SHARED_FILES: IDENTITY, SOUL, DISCORD, HEARTBEAT, TOOLS-CORE, TOOLS-CODE, TOOLS-MINECRAFT (7 files)
-			// GUILD_FILES: SERVER (1 file)
-			// PER_FILE_MAX は 20_000 なので、各ファイルに 20_000 文字書く → 8 files × 20_000 = 160_000 > 150_000
+			// GUILD_FILES: SERVER, MEMORY, LESSONS (3 files)
+			// PER_FILE_MAX は 20_000 なので、各ファイルに 20_000 文字書く → 10 files × 20_000 = 200_000 > 150_000
 			const largeContent = "x".repeat(20_000);
 			writeFile(baseDir, "IDENTITY.md", largeContent);
 			writeFile(baseDir, "SOUL.md", largeContent);
@@ -144,6 +144,8 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "TOOLS-CODE.md", largeContent);
 			writeFile(baseDir, "TOOLS-MINECRAFT.md", largeContent);
 			writeFile(overlayDir, "guilds/999/SERVER.md", largeContent);
+			writeFile(overlayDir, "guilds/999/MEMORY.md", largeContent);
+			writeFile(overlayDir, "guilds/999/LESSONS.md", largeContent);
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build("999");
@@ -152,10 +154,10 @@ describe("ContextBuilder", () => {
 			expect(result).toContain("<IDENTITY.md>");
 			const sectionCount = (
 				result.match(
-					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER)\.md>/g,
+					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER|MEMORY|LESSONS)\.md>/g,
 				) || []
 			).length;
-			expect(sectionCount).toBeLessThan(8);
+			expect(sectionCount).toBeLessThan(10);
 		});
 	});
 
