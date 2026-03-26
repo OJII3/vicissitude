@@ -73,8 +73,8 @@ export function createContextLayer(
 			)
 		: undefined;
 	const contextBuilder = new ContextBuilder(
+		resolve(root, "data/context"),
 		resolve(root, "context"),
-		resolve(root, "data/context/guilds"),
 		memoryFactReader,
 		mcStatusProvider,
 	);

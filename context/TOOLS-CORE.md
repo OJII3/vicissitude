@@ -1,8 +1,3 @@
----
-name: discord-tools
-description: Discord コアツールとメモリツールの使い方ガイド
----
-
 ## MCP ツール一覧（コア）
 
 ### discord サーバー

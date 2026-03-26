@@ -8,7 +8,15 @@ import type {
 
 const GUILD_ID_REGEX = /^\d+$/;
 
-const SHARED_FILES = ["IDENTITY.md", "SOUL.md", "DISCORD.md"] as const;
+const SHARED_FILES = [
+	"IDENTITY.md",
+	"SOUL.md",
+	"DISCORD.md",
+	"HEARTBEAT.md",
+	"TOOLS-CORE.md",
+	"TOOLS-CODE.md",
+	"TOOLS-MINECRAFT.md",
+] as const;
 
 const GUILD_FILES = ["SERVER.md"] as const;
 
@@ -17,8 +25,8 @@ const TOTAL_MAX = 150_000;
 
 export class ContextBuilder implements ContextBuilderPort {
 	constructor(
-		private readonly contextDir: string,
-		private readonly guildDataDir: string,
+		private readonly overlayDir: string,
+		private readonly baseDir: string,
 		private readonly memoryFactReader?: MemoryFactReader,
 		private readonly mcStatusProvider?: McStatusProvider,
 	) {}
@@ -44,13 +52,11 @@ export class ContextBuilder implements ContextBuilderPort {
 		sections: string[],
 		totalLength: number,
 	): Promise<number> {
-		const sharedContents = await Promise.all(
-			SHARED_FILES.map((f) => this.readContextFile(resolve(this.contextDir, f))),
-		);
+		const sharedContents = await Promise.all(SHARED_FILES.map((f) => this.readOverlaid(f)));
 		const guildContents = await Promise.all(
 			GUILD_FILES.map((f) => {
 				if (guildId) {
-					return this.readContextFile(resolve(this.guildDataDir, guildId, f));
+					return this.readOverlaid(`guilds/${guildId}/${f}`);
 				}
 				return Promise.resolve(null);
 			}),
@@ -116,6 +122,15 @@ export class ContextBuilder implements ContextBuilderPort {
 		if (guildId) {
 			sections.push(`<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`);
 		}
+	}
+
+	private async readOverlaid(relativePath: string): Promise<string | null> {
+		const overlayPath = resolve(this.overlayDir, relativePath);
+		const content = await this.readContextFile(overlayPath);
+		if (content) return content;
+
+		const basePath = resolve(this.baseDir, relativePath);
+		return this.readContextFile(basePath);
 	}
 
 	private async readContextFile(filepath: string): Promise<string | null> {
