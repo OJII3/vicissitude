@@ -1,79 +1,318 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
 import {
 	buildMemoryQuery,
 	extractTypingChannels,
+	formatEventMetadata,
 	formatEvents,
 	formatMemoryContext,
+	parseEvents,
 	pollEvents,
 } from "@vicissitude/mcp/tools/event-buffer";
 import type { RetrievalResult } from "@vicissitude/memory/retrieval";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
-describe("formatEvents", () => {
-	test("有効な JSON ペイロードをパースして整形する", () => {
-		const rows = [{ payload: '{"channelId":"ch1","content":"hello"}' }];
-		const result = formatEvents(rows);
-		const parsed = JSON.parse(result);
-		expect(parsed).toHaveLength(1);
-		expect(parsed[0].channelId).toBe("ch1");
+describe("parseEvents", () => {
+	test("有効な JSON ペイロードをパースして ParsedEvent 配列を返す", () => {
+		const rows = [
+			{
+				payload: JSON.stringify({
+					ts: "2026-03-27T01:30:00.000Z",
+					content: "hello",
+					authorId: "user1",
+					authorName: "おかず",
+					messageId: "msg1",
+					metadata: {
+						channelId: "ch1",
+						channelName: "general",
+						guildId: "g1",
+						isBot: false,
+						isMentioned: true,
+						isThread: false,
+					},
+				}),
+			},
+		];
+		const result = parseEvents(rows);
+		expect(result).toHaveLength(1);
+		const event = result[0]!;
+		expect(event.ts).toBe("2026-03-27T01:30:00.000Z");
+		expect(event.content).toBe("hello");
+		expect(event.authorId).toBe("user1");
+		expect(event.authorName).toBe("おかず");
+		expect(event.messageId).toBe("msg1");
+		expect(event.metadata?.channelId).toBe("ch1");
+		expect(event.metadata?.channelName).toBe("general");
+		expect(event.metadata?.isMentioned).toBe(true);
+	});
+
+	test("添付ファイルを含むペイロードをパースする", () => {
+		const rows = [
+			{
+				payload: JSON.stringify({
+					ts: "2026-03-27T01:30:00.000Z",
+					content: "画像です",
+					authorId: "user1",
+					authorName: "テスト",
+					messageId: "msg1",
+					attachments: [
+						{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+					],
+				}),
+			},
+		];
+		const result = parseEvents(rows);
+		expect(result[0]!.attachments).toHaveLength(1);
+		expect(result[0]!.attachments?.[0]?.url).toBe("https://example.com/img.png");
 	});
 
 	test("不正な JSON ペイロードにはエラー情報を付与する", () => {
 		const rows = [{ payload: "not-json" }];
-		const result = formatEvents(rows);
-		const parsed = JSON.parse(result);
-		expect(parsed[0]._raw).toBe("not-json");
-		expect(parsed[0]._error).toBe("invalid JSON");
+		const result = parseEvents(rows);
+		expect(result).toHaveLength(1);
+		expect(result[0]!).toHaveProperty("_raw", "not-json");
+		expect(result[0]!).toHaveProperty("_error", "invalid JSON");
 	});
 
-	test("空配列なら空の JSON 配列を返す", () => {
+	test("空配列なら空配列を返す", () => {
+		const result = parseEvents([]);
+		expect(result).toEqual([]);
+	});
+
+	test("有効と不正が混在する場合、両方を順序通り返す", () => {
+		const rows = [
+			{
+				payload: JSON.stringify({
+					ts: "t1",
+					content: "ok",
+					authorId: "u1",
+					authorName: "A",
+					messageId: "m1",
+				}),
+			},
+			{ payload: "broken" },
+		];
+		const result = parseEvents(rows);
+		expect(result).toHaveLength(2);
+		expect(result[0]!.content).toBe("ok");
+		expect(result[1]!).toHaveProperty("_error", "invalid JSON");
+	});
+});
+
+describe("formatEvents", () => {
+	test("ParsedEvent を人間可読形式にフォーマットする", () => {
+		const events = [
+			{
+				ts: "2026-03-27T01:30:00.000Z",
+				content: "マイクラどう？",
+				authorId: "user1",
+				authorName: "おかず",
+				messageId: "msg1",
+				metadata: {
+					channelId: "ch1",
+					channelName: "general",
+					isMentioned: true,
+				},
+			},
+		];
+		const result = formatEvents(events);
+		// JST = UTC+9 なので 01:30 UTC → 10:30 JST
+		expect(result).toContain("10:30");
+		expect(result).toContain("#general");
+		expect(result).toContain("おかず");
+		expect(result).toContain("マイクラどう？");
+		expect(result).toContain("(mentioned)");
+	});
+
+	test("bot フラグを表示する", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "自動応答",
+				authorId: "bot1",
+				authorName: "BotA",
+				messageId: "msg2",
+				metadata: { isBot: true, channelName: "general" },
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("(bot)");
+	});
+
+	test("添付ファイルがあれば件数を表示する", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "画像送るよ",
+				authorId: "user1",
+				authorName: "テスト",
+				messageId: "msg3",
+				attachments: [{ url: "https://example.com/a.png" }, { url: "https://example.com/b.png" }],
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("[添付: 2件]");
+	});
+
+	test("空配列なら空文字列を返す", () => {
 		const result = formatEvents([]);
-		expect(JSON.parse(result)).toEqual([]);
+		expect(result).toBe("");
+	});
+
+	test("不正JSONだったイベントは ERROR 形式で出力する", () => {
+		const events = [{ _raw: "broken-data", _error: "invalid JSON" } as never];
+		const result = formatEvents(events);
+		expect(result).toContain("[ERROR]");
+		expect(result).toContain("invalid JSON");
+		expect(result).toContain("broken-data");
+	});
+
+	test("タイムゾーンは JST (UTC+9) で表示する", () => {
+		// 2026-03-27T15:00:00.000Z (UTC) → 2026-03-28 00:00 (JST)
+		const events = [
+			{
+				ts: "2026-03-27T15:00:00.000Z",
+				content: "深夜",
+				authorId: "user1",
+				authorName: "夜型",
+				messageId: "msg4",
+				metadata: { channelName: "general" },
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("2026-03-28");
+		expect(result).toContain("00:00");
+	});
+
+	test("channelName がない場合でもエラーにならない", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "テスト",
+				authorId: "user1",
+				authorName: "名前",
+				messageId: "msg5",
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("名前");
+		expect(result).toContain("テスト");
+	});
+
+	test("複数イベントを改行区切りで出力する", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "1つ目",
+				authorId: "u1",
+				authorName: "A",
+				messageId: "m1",
+			},
+			{
+				ts: "2026-03-27T00:01:00.000Z",
+				content: "2つ目",
+				authorId: "u2",
+				authorName: "B",
+				messageId: "m2",
+			},
+		];
+		const result = formatEvents(events);
+		const lines = result.split("\n").filter((l) => l.trim());
+		expect(lines.length).toBeGreaterThanOrEqual(2);
+		expect(result).toContain("1つ目");
+		expect(result).toContain("2つ目");
+	});
+});
+
+describe("formatEventMetadata", () => {
+	test("技術的メタデータを event-metadata ブロックとして返す", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "hello",
+				authorId: "user1",
+				authorName: "テスト",
+				messageId: "msg1",
+				metadata: {
+					channelId: "ch1",
+					guildId: "g1",
+				},
+			},
+		];
+		const result = formatEventMetadata(events);
+		expect(result).toContain("<event-metadata>");
+		expect(result).toContain("</event-metadata>");
+		// JSON 形式で channelId, messageId, guildId を含む
+		const jsonMatch = result.match(/<event-metadata>\n?([\s\S]*?)\n?<\/event-metadata>/);
+		expect(jsonMatch).not.toBeNull();
+		const parsed = JSON.parse(jsonMatch![1]!) as {
+			channelId: string;
+			messageId: string;
+			guildId: string;
+		}[];
+		expect(parsed[0]!.channelId).toBe("ch1");
+		expect(parsed[0]!.messageId).toBe("msg1");
+		expect(parsed[0]!.guildId).toBe("g1");
+	});
+
+	test("イベントがない場合は空文字列を返す", () => {
+		expect(formatEventMetadata([])).toBe("");
 	});
 });
 
 describe("buildMemoryQuery", () => {
 	test("system イベントを除外してクエリを構築する", () => {
-		const json = JSON.stringify([
-			{ authorId: "system", content: "internal event" },
-			{ authorId: "user1", content: "こんにちは" },
-		]);
-		expect(buildMemoryQuery(json)).toBe("こんにちは");
+		const events = [
+			{ ts: "", content: "internal event", authorId: "system", authorName: "", messageId: "" },
+			{ ts: "", content: "こんにちは", authorId: "user1", authorName: "", messageId: "" },
+		];
+		expect(buildMemoryQuery(events)).toBe("こんにちは");
 	});
 
 	test("bot イベントは含める", () => {
-		const json = JSON.stringify([
-			{ authorId: "bot1", content: "bot発言", isBot: true },
-			{ authorId: "user1", content: "人間の発言" },
-		]);
-		const query = buildMemoryQuery(json);
+		const events = [
+			{
+				ts: "",
+				content: "bot発言",
+				authorId: "bot1",
+				authorName: "",
+				messageId: "",
+				metadata: { isBot: true },
+			},
+			{ ts: "", content: "人間の発言", authorId: "user1", authorName: "", messageId: "" },
+		];
+		const query = buildMemoryQuery(events);
 		expect(query).toContain("bot発言");
 		expect(query).toContain("人間の発言");
 	});
 
 	test("content が空のイベントはスキップする", () => {
-		const json = JSON.stringify([
-			{ authorId: "user1", content: "" },
-			{ authorId: "user2", content: "有効" },
-		]);
-		expect(buildMemoryQuery(json)).toBe("有効");
+		const events = [
+			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "" },
+			{ ts: "", content: "有効", authorId: "user2", authorName: "", messageId: "" },
+		];
+		expect(buildMemoryQuery(events)).toBe("有効");
 	});
 
 	test("1000文字を超える場合は切り詰める", () => {
 		const longContent = "あ".repeat(1200);
-		const json = JSON.stringify([{ authorId: "user1", content: longContent }]);
-		expect(buildMemoryQuery(json).length).toBe(1000);
+		const events = [
+			{ ts: "", content: longContent, authorId: "user1", authorName: "", messageId: "" },
+		];
+		expect(buildMemoryQuery(events).length).toBe(1000);
 	});
 
-	test("不正な JSON なら空文字を返す", () => {
-		expect(buildMemoryQuery("not json")).toBe("");
+	test("空配列なら空文字を返す", () => {
+		expect(buildMemoryQuery([])).toBe("");
 	});
 
 	test("全てが system イベントなら空文字を返す", () => {
-		const json = JSON.stringify([{ authorId: "system", content: "event" }]);
-		expect(buildMemoryQuery(json)).toBe("");
+		const events = [
+			{ ts: "", content: "event", authorId: "system", authorName: "", messageId: "" },
+		];
+		expect(buildMemoryQuery(events)).toBe("");
 	});
 });
 
@@ -143,61 +382,136 @@ describe("formatMemoryContext", () => {
 
 describe("extractTypingChannels", () => {
 	test("人間のイベントから channelId を抽出する", () => {
-		const json = JSON.stringify([
-			{ authorId: "user1", metadata: { channelId: "ch1", isBot: false } },
-			{ authorId: "user2", metadata: { channelId: "ch2", isBot: false } },
-		]);
-		expect(extractTypingChannels(json)).toEqual(["ch1", "ch2"]);
+		const events = [
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1", isBot: false },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user2",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2", isBot: false },
+			},
+		];
+		expect(extractTypingChannels(events)).toEqual(["ch1", "ch2"]);
 	});
 
 	test("system イベントは除外する", () => {
-		const json = JSON.stringify([
-			{ authorId: "system", metadata: { channelId: "ch1" } },
-			{ authorId: "user1", metadata: { channelId: "ch2" } },
-		]);
-		expect(extractTypingChannels(json)).toEqual(["ch2"]);
+		const events = [
+			{
+				ts: "",
+				content: "",
+				authorId: "system",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2" },
+			},
+		];
+		expect(extractTypingChannels(events)).toEqual(["ch2"]);
 	});
 
 	test("bot イベントは除外する", () => {
-		const json = JSON.stringify([
-			{ authorId: "bot1", metadata: { channelId: "ch1", isBot: true } },
-			{ authorId: "user1", metadata: { channelId: "ch2", isBot: false } },
-		]);
-		expect(extractTypingChannels(json)).toEqual(["ch2"]);
+		const events = [
+			{
+				ts: "",
+				content: "",
+				authorId: "bot1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1", isBot: true },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch2", isBot: false },
+			},
+		];
+		expect(extractTypingChannels(events)).toEqual(["ch2"]);
 	});
 
 	test("同一チャンネルの重複は除去する", () => {
-		const json = JSON.stringify([
-			{ authorId: "user1", metadata: { channelId: "ch1" } },
-			{ authorId: "user2", metadata: { channelId: "ch1" } },
-		]);
-		expect(extractTypingChannels(json)).toEqual(["ch1"]);
+		const events = [
+			{
+				ts: "",
+				content: "",
+				authorId: "user1",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
+			{
+				ts: "",
+				content: "",
+				authorId: "user2",
+				authorName: "",
+				messageId: "",
+				metadata: { channelId: "ch1" },
+			},
+		];
+		expect(extractTypingChannels(events)).toEqual(["ch1"]);
 	});
 
 	test("metadata がないイベントはスキップする", () => {
-		const json = JSON.stringify([{ authorId: "user1", content: "hello" }]);
-		expect(extractTypingChannels(json)).toEqual([]);
+		const events = [{ ts: "", content: "hello", authorId: "user1", authorName: "", messageId: "" }];
+		expect(extractTypingChannels(events)).toEqual([]);
 	});
 
-	test("不正な JSON は空配列を返す", () => {
-		expect(extractTypingChannels("invalid")).toEqual([]);
+	test("空配列なら空配列を返す", () => {
+		expect(extractTypingChannels([])).toEqual([]);
 	});
 });
 
 describe("pollEvents", () => {
-	test("イベントが既にあれば即座にまとめて返す", async () => {
+	test("イベントが既にあれば即座に ParsedEvent 配列を返す", async () => {
 		const db = createTestDb();
-		appendEvent(db, "guild-1", '{"content":"test"}');
-		appendEvent(db, "guild-1", '{"content":"next"}');
+		appendEvent(
+			db,
+			"guild-1",
+			JSON.stringify({
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "test",
+				authorId: "u1",
+				authorName: "A",
+				messageId: "m1",
+			}),
+		);
+		appendEvent(
+			db,
+			"guild-1",
+			JSON.stringify({
+				ts: "2026-03-27T00:01:00.000Z",
+				content: "next",
+				authorId: "u2",
+				authorName: "B",
+				messageId: "m2",
+			}),
+		);
 
 		const deadline = Date.now() + 5000;
 		const result = await pollEvents(db, "guild-1", deadline);
 
 		expect(result).not.toBeNull();
-		const parsed = JSON.parse(result ?? "[]");
-		expect(parsed).toHaveLength(2);
-		expect(parsed[0].content).toBe("test");
-		expect(parsed[1].content).toBe("next");
+		expect(result).toHaveLength(2);
+		expect(result![0]!.content).toBe("test");
+		expect(result![1]!.content).toBe("next");
 	});
 
 	test("タイムアウト時は null を返す", async () => {
@@ -214,14 +528,23 @@ describe("pollEvents", () => {
 
 		// 50ms 後にイベントを挿入
 		setTimeout(() => {
-			appendEvent(db, "guild-1", '{"content":"delayed"}');
+			appendEvent(
+				db,
+				"guild-1",
+				JSON.stringify({
+					ts: "2026-03-27T00:00:00.000Z",
+					content: "delayed",
+					authorId: "u1",
+					authorName: "A",
+					messageId: "m1",
+				}),
+			);
 		}, 50);
 
 		const deadline = Date.now() + 500;
 		const result = await pollEvents(db, "guild-1", deadline, 30);
 
 		expect(result).not.toBeNull();
-		const parsed = JSON.parse(result ?? "[]");
-		expect(parsed[0].content).toBe("delayed");
+		expect(result![0]!.content).toBe("delayed");
 	});
 });
