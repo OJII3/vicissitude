@@ -499,6 +499,70 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 	});
 
+	describe("空文字列の要約はスキップ", () => {
+		test("summarizeSession が空文字列を返した場合は summaryWriter.write は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort();
+			sessionPort.summarizeSession = mock(() => Promise.resolve(""));
+
+			const summaryWriter = createSummaryWriter();
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "123456789",
+				summaryWriter,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+			await runner.requestSessionRotation();
+
+			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+			// ローテーション自体は行われる
+			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
+		});
+
+		test("summarizeSession が空白のみを返した場合も summaryWriter.write は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort();
+			sessionPort.summarizeSession = mock(() => Promise.resolve("   \n  "));
+
+			const summaryWriter = createSummaryWriter();
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "123456789",
+				summaryWriter,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+			await runner.requestSessionRotation();
+
+			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+	});
+
 	describe("requestSessionRotation での要約生成", () => {
 		test("requestSessionRotation 時も contextGuildId があれば summarizeSession → write が呼ばれる", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());

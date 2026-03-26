@@ -311,6 +311,7 @@ export class AgentRunner implements AiAgent {
 				this.profile.model.providerId,
 				this.profile.model.modelId,
 			);
+			if (!summary.trim()) return;
 			await this.summaryWriter.write(this.contextGuildId, summary);
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] session summary saved for guild ${this.contextGuildId}`,
