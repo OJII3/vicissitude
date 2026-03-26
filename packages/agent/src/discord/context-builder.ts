@@ -10,7 +10,7 @@ type FileEntry = { name: string; scope: "shared" | "guild" };
 // 冒頭: キャラクター定義・教訓・記憶（重要度高）
 // 中間: 行動規範・サーバー情報
 // 末尾: ツール説明（ツール呼び出し時にスキーマが渡されるため参照頻度が低い）
-const CONTEXT_FILES: readonly FileEntry[] = [
+const CONTEXT_FILES = [
 	// Phase 1: Identity & Memory
 	{ name: "IDENTITY.md", scope: "shared" },
 	{ name: "SOUL.md", scope: "shared" },
@@ -26,10 +26,11 @@ const CONTEXT_FILES: readonly FileEntry[] = [
 	{ name: "TOOLS-CORE.md", scope: "shared" },
 	{ name: "TOOLS-CODE.md", scope: "shared" },
 	{ name: "TOOLS-MINECRAFT.md", scope: "shared" },
-] as const;
+] as const satisfies readonly FileEntry[];
 
-const MEMORY_FACTS_AFTER = "MEMORY.md";
-const GUILD_CONTEXT_AFTER = "HEARTBEAT.md";
+type ContextFileName = (typeof CONTEXT_FILES)[number]["name"];
+const MEMORY_FACTS_AFTER: ContextFileName = "MEMORY.md";
+const GUILD_CONTEXT_AFTER: ContextFileName = "HEARTBEAT.md";
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
@@ -74,8 +75,10 @@ export class ContextBuilder implements ContextBuilderPort {
 
 			if (entry.name === GUILD_CONTEXT_AFTER && guildId) {
 				const guildContext = `<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`;
-				sections.push(guildContext);
-				totalLength += guildContext.length;
+				if (totalLength + guildContext.length <= TOTAL_MAX) {
+					sections.push(guildContext);
+					totalLength += guildContext.length;
+				}
 			}
 		}
 
