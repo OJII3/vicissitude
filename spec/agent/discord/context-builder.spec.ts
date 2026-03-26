@@ -128,12 +128,54 @@ describe("ContextBuilder", () => {
 		});
 	});
 
+	describe("セクションの並び順", () => {
+		it("primacy-recency effect を考慮した正しい順序で並ぶ", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "SOUL.md", "soul");
+			writeFile(baseDir, "DISCORD.md", "discord");
+			writeFile(baseDir, "HEARTBEAT.md", "heartbeat");
+			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
+			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
+			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
+			writeFile(overlayDir, "guilds/111/SERVER.md", "server");
+			writeFile(overlayDir, "guilds/111/MEMORY.md", "memory");
+			writeFile(overlayDir, "guilds/111/LESSONS.md", "lessons");
+
+			const facts: MemoryFact[] = [{ content: "fact1", category: "cat", createdAt: "2026-01-01" }];
+			const reader = createMockMemoryReader(facts);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, reader);
+			const result = await builder.build("111");
+
+			const expectedOrder = [
+				"<IDENTITY.md>",
+				"<SOUL.md>",
+				"<LESSONS.md>",
+				"<MEMORY.md>",
+				"<memory-facts>",
+				"<DISCORD.md>",
+				"<HEARTBEAT.md>",
+				"<guild-context>",
+				"<SERVER.md>",
+				"<TOOLS-CORE.md>",
+				"<TOOLS-CODE.md>",
+				"<TOOLS-MINECRAFT.md>",
+			];
+
+			let lastIndex = -1;
+			for (const tag of expectedOrder) {
+				const idx = result.indexOf(tag);
+				expect(idx).toBeGreaterThan(lastIndex);
+				lastIndex = idx;
+			}
+		});
+	});
+
 	describe("TOTAL_MAX による切り詰め", () => {
 		it("TOTAL_MAX を超えるとそれ以降のセクションが省略される", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
-			// TOTAL_MAX は 150_000。各 SHARED_FILE にラージコンテンツを書いて総量を超過させる
-			// SHARED_FILES: IDENTITY, SOUL, DISCORD, HEARTBEAT, TOOLS-CORE, TOOLS-CODE, TOOLS-MINECRAFT (7 files)
-			// GUILD_FILES: SERVER, MEMORY, LESSONS (3 files)
+			// TOTAL_MAX は 150_000。各ファイルにラージコンテンツを書いて総量を超過させる
 			// PER_FILE_MAX は 20_000 なので、各ファイルに 20_000 文字書く → 10 files × 20_000 = 200_000 > 150_000
 			const largeContent = "x".repeat(20_000);
 			writeFile(baseDir, "IDENTITY.md", largeContent);

@@ -4,17 +4,33 @@ import type { ContextBuilderPort, MemoryFactReader } from "@vicissitude/shared/t
 
 const GUILD_ID_REGEX = /^\d+$/;
 
-const SHARED_FILES = [
-	"IDENTITY.md",
-	"SOUL.md",
-	"DISCORD.md",
-	"HEARTBEAT.md",
-	"TOOLS-CORE.md",
-	"TOOLS-CODE.md",
-	"TOOLS-MINECRAFT.md",
-] as const;
+type FileEntry = { name: string; scope: "shared" | "guild" };
 
-const GUILD_FILES = ["SERVER.md", "MEMORY.md", "LESSONS.md"] as const;
+// Primacy-recency effect を考慮した並び順:
+// 冒頭: キャラクター定義・教訓・記憶（重要度高）
+// 中間: 行動規範・サーバー情報
+// 末尾: ツール説明（ツール呼び出し時にスキーマが渡されるため参照頻度が低い）
+const CONTEXT_FILES = [
+	// Phase 1: Identity & Memory
+	{ name: "IDENTITY.md", scope: "shared" },
+	{ name: "SOUL.md", scope: "shared" },
+	{ name: "LESSONS.md", scope: "guild" },
+	{ name: "MEMORY.md", scope: "guild" },
+	// → memory-facts inserted after this phase
+	// Phase 2: Behavior
+	{ name: "DISCORD.md", scope: "shared" },
+	{ name: "HEARTBEAT.md", scope: "shared" },
+	// → guild-context inserted after this phase
+	// Phase 3: Reference
+	{ name: "SERVER.md", scope: "guild" },
+	{ name: "TOOLS-CORE.md", scope: "shared" },
+	{ name: "TOOLS-CODE.md", scope: "shared" },
+	{ name: "TOOLS-MINECRAFT.md", scope: "shared" },
+] as const satisfies readonly FileEntry[];
+
+type ContextFileName = (typeof CONTEXT_FILES)[number]["name"];
+const MEMORY_FACTS_AFTER: ContextFileName = "MEMORY.md";
+const GUILD_CONTEXT_AFTER: ContextFileName = "HEARTBEAT.md";
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
@@ -31,74 +47,68 @@ export class ContextBuilder implements ContextBuilderPort {
 			throw new Error(`Invalid guildId: ${guildId}`);
 		}
 
+		const fileContents = await this.readAllFiles(guildId);
+		const memoryFactsSection = await this.buildMemoryFactsSection(guildId);
+
 		const sections: string[] = [];
 		let totalLength = 0;
 
-		totalLength = await this.loadFileSections(guildId, sections, totalLength);
-		totalLength = await this.loadMemoryFacts(guildId, sections, totalLength);
-		this.appendGuildContext(guildId, sections);
+		for (let i = 0; i < CONTEXT_FILES.length; i++) {
+			const entry = CONTEXT_FILES[i];
+			const content = fileContents[i];
+
+			if (content) {
+				const section = `<${entry.name}>\n${content}\n</${entry.name}>`;
+				if (totalLength + section.length > TOTAL_MAX) break;
+				sections.push(section);
+				totalLength += section.length;
+			}
+
+			if (
+				entry.name === MEMORY_FACTS_AFTER &&
+				memoryFactsSection &&
+				totalLength + memoryFactsSection.length <= TOTAL_MAX
+			) {
+				sections.push(memoryFactsSection);
+				totalLength += memoryFactsSection.length;
+			}
+
+			if (entry.name === GUILD_CONTEXT_AFTER && guildId) {
+				const guildContext = `<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`;
+				if (totalLength + guildContext.length <= TOTAL_MAX) {
+					sections.push(guildContext);
+					totalLength += guildContext.length;
+				}
+			}
+		}
 
 		return sections.join("\n\n");
 	}
 
-	private async loadFileSections(
-		guildId: string | undefined,
-		sections: string[],
-		totalLength: number,
-	): Promise<number> {
-		const sharedContents = await Promise.all(SHARED_FILES.map((f) => this.readOverlaid(f)));
-		const guildContents = await Promise.all(
-			GUILD_FILES.map((f) => {
-				if (guildId) {
-					return this.readOverlaid(`guilds/${guildId}/${f}`);
+	private readAllFiles(guildId: string | undefined): Promise<(string | null)[]> {
+		return Promise.all(
+			CONTEXT_FILES.map((entry) => {
+				if (entry.scope === "guild") {
+					if (!guildId) return Promise.resolve(null);
+					return this.readOverlaid(`guilds/${guildId}/${entry.name}`);
 				}
-				return Promise.resolve(null);
+				return this.readOverlaid(entry.name);
 			}),
 		);
-
-		const allFiles = [...SHARED_FILES, ...GUILD_FILES];
-		const allContents = [...sharedContents, ...guildContents];
-		let len = totalLength;
-
-		for (let i = 0; i < allFiles.length; i++) {
-			const content = allContents[i];
-			if (!content) continue;
-			const filename = allFiles[i];
-			const section = `<${filename}>\n${content}\n</${filename}>`;
-			if (len + section.length > TOTAL_MAX) break;
-			sections.push(section);
-			len += section.length;
-		}
-
-		return len;
 	}
 
-	private async loadMemoryFacts(
-		guildId: string | undefined,
-		sections: string[],
-		totalLength: number,
-	): Promise<number> {
-		if (!guildId || !this.memoryFactReader) return totalLength;
+	private async buildMemoryFactsSection(guildId: string | undefined): Promise<string | null> {
+		if (!guildId || !this.memoryFactReader) return null;
 		try {
 			const facts = await this.memoryFactReader.getFacts(guildId);
 			if (facts.length > 0) {
 				const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
-				const section = `<memory-facts>\n${lines.join("\n")}\n</memory-facts>`;
-				if (totalLength + section.length <= TOTAL_MAX) {
-					sections.push(section);
-					return totalLength + section.length;
-				}
+				return `<memory-facts>\n${lines.join("\n")}\n</memory-facts>`;
 			}
 		} catch {
 			// Memory ファクト取得失敗時はスキップして続行
 		}
-		return totalLength;
-	}
-
-	private appendGuildContext(guildId: string | undefined, sections: string[]): void {
-		if (guildId) {
-			sections.push(`<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`);
-		}
+		return null;
 	}
 
 	private async readOverlaid(relativePath: string): Promise<string | null> {
