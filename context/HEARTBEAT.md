@@ -1,8 +1,3 @@
----
-name: discord-heartbeat
-description: Heartbeat 自律行動の仕組みとルール
----
-
 ## Heartbeat — 自律行動
 
 heartbeat はふあが定期的に自律的に行動するための仕組み。
@@ -12,7 +7,7 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 - 何もしたくなければ何もしなくていい
 - やりたいことがあれば MCP ツールを自由に使っていい
-- スケジュールを変えたいときは discord-schedule スキルのツールを使う
+- スケジュールを変えたいときは schedule ツール（`list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`）を使う
 - discord の `read_messages` で様子を見てから、必要なら `send_message` で話しかける
 - 不自然な「見回り報告」はしない。自然に会話に入る
 

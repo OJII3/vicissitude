@@ -1,9 +1,6 @@
----
-name: mc-tools
-description: Minecraft エージェントが直接使用するツール群
----
+## MCP ツール一覧（Minecraft）
 
-## mc-memory（Minecraft 記憶管理）
+### mc-memory（Minecraft 記憶管理）
 
 - `mc_read_goals` - 現在の Minecraft 目標を読む
 - `mc_update_goals(content)` - 目標ファイルを上書き更新する（バックアップ自動作成）
@@ -12,7 +9,7 @@ description: Minecraft エージェントが直接使用するツール群
 - `mc_read_skills` - スキルライブラリを読む
 - `mc_record_skill(name, description, preconditions?, failure_patterns?)` - スキルを追記する
 
-## minecraft サーバー（MC_HOST 設定時のみ有効）
+### minecraft サーバー（MC_HOST 設定時のみ有効）
 
 Minecraft ワールドに接続中のボットを操作する。
 
@@ -54,3 +51,30 @@ Minecraft ワールドに接続中のボットを操作する。
   - emergency: true の場合 golden_apple も使用する
 - `flee_from_entity(entityName, distance?)` - 指定エンティティから逃走する（非同期ジョブ: 即座に jobId を返す）
 - `find_shelter` - 近くの安全な場所を探す（非同期ジョブ: 即座に jobId を返す）
+
+### マイクラ操作ツール（マイクラ接続中に機能）
+
+自分の Minecraft での行動を管理するツール。
+
+- `minecraft_delegate(command)` - マイクラの自分に指示を出す（次のポーリングで反映される）
+  - **使いどき**: ユーザーから「ダイヤ探して」「拠点を作って」など Minecraft 内での作業指示があったとき
+  - command: 自然言語での指示内容（最大 10,000 文字）
+  - **依頼の出し方**: 曖昧な丸投げは避け、目的と成功条件を明確にする。例:「ダイヤ5個集めて」「拠点の周りを整地して」
+- `minecraft_status` - マイクラの最新状況を構造化して確認する（消費しない）
+  - **使いどき**: Minecraft の現在の状況を確認したいとき（`<minecraft-status>` セクションの情報が古い場合）
+  - 出力: 危険/緊急 → 行き詰まり → 直近の出来事の順で表示
+- `minecraft_read_reports` - マイクラでの出来事を確認済みにして読む
+  - **使いどき**: 確認済みとしてクリアしたいとき
+- `minecraft_start_session` - マイクラのセッションを開始する
+  - **使いどき**: マイクラが停止中で、再開したいとき
+- `minecraft_stop_session` - マイクラのセッションを停止する
+  - **使いどき**: マイクラでの活動を一時中断したいとき
+
+#### 使い方ガイドライン
+
+1. ユーザーが Minecraft の状況を聞いたら → まず `<minecraft-status>` セクションを確認し、必要なら `minecraft_status` で最新情報を取得
+2. ユーザーが Minecraft 内での作業を依頼したら → `minecraft_delegate` で自分のマイクラ側に指示を出す
+3. 面白いこと・やばいことがあったら → Discord で自然に共有
+4. セッション管理は通常不要（自動起動済み）。ユーザーから明示的に要求された場合のみ使用
+5. 行き詰まり (stuck) レポートを見たら → 代替案を指示するか、ユーザーに判断を仰ぐ
+6. danger レポートを見たら → ユーザーに状況を伝える（自動通知と重複しないよう確認）
