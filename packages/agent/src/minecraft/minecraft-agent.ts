@@ -1,7 +1,7 @@
 import { resolve } from "path";
 
+import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
 import type { EventBuffer, Logger } from "@vicissitude/shared/types";
 
 import { mcpMinecraftConfigs } from "../mcp-config.ts";

@@ -6,6 +6,7 @@
 
 ```mermaid
 graph LR
+  agent --> minecraft
   agent --> observability
   agent --> opencode
   agent --> shared
@@ -33,6 +34,7 @@ graph LR
   infrastructure --> store
   mcp --> infrastructure
   mcp --> memory
+  mcp --> minecraft
   mcp --> observability
   mcp --> ollama
   mcp --> shared
@@ -58,7 +60,7 @@ graph LR
 
 ### agent
 
-- 内部依存: observability, opencode, shared, store
+- 内部依存: minecraft, observability, opencode, shared, store
 - 外部依存: .bun, path
 - ファイル数: 17
 
@@ -100,7 +102,7 @@ graph LR
 
 ### mcp
 
-- 内部依存: infrastructure, memory, observability, ollama, shared, store
+- 内部依存: infrastructure, memory, minecraft, observability, ollama, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
 
@@ -114,7 +116,7 @@ graph LR
 
 - 内部依存: mcp, observability, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
-- ファイル数: 24
+- ファイル数: 26
 
 ### observability
 

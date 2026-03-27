@@ -43,6 +43,7 @@ graph LR
   bot_connection["bot-connection"] --> helpers
   bot_context["bot-context"] --> helpers
   bot_queries["bot-queries"] --> helpers
+  constants
   helpers
   http_server["http-server"]
   job_manager["job-manager"] --> helpers
@@ -145,6 +146,10 @@ graph LR
 
 - モジュール内依存: helpers
 - 外部依存: .bun
+
+### constants.ts
+
+- 依存なし
 
 ### helpers.ts
 

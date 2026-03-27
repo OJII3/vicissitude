@@ -58,7 +58,7 @@ graph LR
 ### minecraft/brain-manager.ts
 
 - モジュール内依存: minecraft/minecraft-agent, session-store
-- 他モジュール依存: shared, store
+- 他モジュール依存: minecraft, shared, store
 
 ### minecraft/context-builder.ts
 
@@ -68,7 +68,7 @@ graph LR
 ### minecraft/minecraft-agent.ts
 
 - モジュール内依存: mcp-config, minecraft/context-builder, minecraft/profile, runner, session-store
-- 他モジュール依存: opencode, shared
+- 他モジュール依存: minecraft, opencode, shared
 - 外部依存: path
 
 ### minecraft/profile.ts

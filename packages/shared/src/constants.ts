@@ -1,6 +1,3 @@
-/** Minecraft エージェントの agentId */
-export const MINECRAFT_AGENT_ID = "minecraft:brain";
-
 /** OpenCode の全ビルトインツールを無効化する設定 */
 export const OPENCODE_ALL_TOOLS_DISABLED: Record<string, boolean> = {
 	question: false,

@@ -59,6 +59,7 @@
     "packages/agent": {
       "name": "@vicissitude/agent",
       "dependencies": {
+        "@vicissitude/minecraft": "workspace:*",
         "@vicissitude/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
@@ -92,6 +93,7 @@
       "name": "@vicissitude/mcp",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@vicissitude/minecraft": "workspace:*",
         "@vicissitude/observability": "workspace:*",
         "@vicissitude/shared": "workspace:*",
         "discord.js": "^14.25.1",

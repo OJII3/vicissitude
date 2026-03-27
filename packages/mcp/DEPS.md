@@ -64,13 +64,13 @@ graph LR
 
 ### tools/mc-bridge-discord.ts
 
-- 他モジュール依存: shared, store
+- 他モジュール依存: minecraft, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-minecraft.ts
 
 - モジュール内依存: tools/event-buffer
-- 他モジュール依存: shared, store
+- 他モジュール依存: minecraft, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts

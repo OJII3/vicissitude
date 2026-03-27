@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { MAX_BATCH_SIZE } from "@vicissitude/mcp/tools/event-buffer";
-import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import {
 	getSessionLockGuildId,
 	releaseSessionLock,
