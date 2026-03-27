@@ -1,13 +1,13 @@
 /* oxlint-disable max-dependencies -- server entry requires auto-notifier + bridge DB dependencies */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
-import { parseMcAuthMode } from "@vicissitude/shared/config";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { hasSessionLock } from "@vicissitude/store/mc-bridge";
 
 import { createAutoNotifier } from "./auto-notifier.ts";
 import { createBotConnection } from "./bot-connection.ts";
 import { createBotContext } from "./bot-context.ts";
+import { parseMcAuthMode } from "./constants.ts";
 import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
 import { createMcMetrics } from "./mc-metrics.ts";

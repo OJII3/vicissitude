@@ -6,8 +6,10 @@
 
 ```mermaid
 graph LR
+  bootstrap --> config
   bootstrap --> gateway_channel_config_loader["gateway/channel-config-loader"]
   bootstrap --> gateway_discord["gateway/discord"]
+  config
   gateway_channel_config_loader["gateway/channel-config-loader"]
   gateway_discord["gateway/discord"]
   index --> bootstrap
@@ -17,9 +19,13 @@ graph LR
 
 ### bootstrap.ts
 
-- モジュール内依存: gateway/channel-config-loader, gateway/discord
+- モジュール内依存: config, gateway/channel-config-loader, gateway/discord
 - 他モジュール依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
+
+### config.ts
+
+- 外部依存: .bun, path
 
 ### gateway/channel-config-loader.ts
 

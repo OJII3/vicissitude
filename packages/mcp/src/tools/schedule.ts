@@ -1,9 +1,13 @@
+/* oxlint-disable max-lines -- schedule tools register 5 MCP tools in one module */
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createDefaultHeartbeatConfig } from "@vicissitude/scheduling/heartbeat-helpers";
-import { APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/shared/config";
+import {
+	HEARTBEAT_CONFIG_RELATIVE_PATH,
+	createDefaultHeartbeatConfig,
+} from "@vicissitude/scheduling/heartbeat-helpers";
+import { APP_ROOT } from "@vicissitude/shared/config";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 

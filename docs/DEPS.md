@@ -75,7 +75,7 @@ graph LR
 
 - 内部依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
-- ファイル数: 4
+- ファイル数: 5
 
 ### apps/web
 

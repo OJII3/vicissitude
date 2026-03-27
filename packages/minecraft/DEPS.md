@@ -40,6 +40,7 @@ graph LR
   auto_notifier["auto-notifier"] --> helpers
   bot_connection["bot-connection"] --> bot_context["bot-context"]
   bot_connection["bot-connection"] --> bot_queries["bot-queries"]
+  bot_connection["bot-connection"] --> constants
   bot_connection["bot-connection"] --> helpers
   bot_context["bot-context"] --> helpers
   bot_queries["bot-queries"] --> helpers
@@ -58,6 +59,7 @@ graph LR
   server --> auto_notifier["auto-notifier"]
   server --> bot_connection["bot-connection"]
   server --> bot_context["bot-context"]
+  server --> constants
   server --> http_server["http-server"]
   server --> job_manager["job-manager"]
   server --> mc_metrics["mc-metrics"]
@@ -132,7 +134,7 @@ graph LR
 
 ### bot-connection.ts
 
-- モジュール内依存: bot-context, bot-queries, helpers
+- モジュール内依存: bot-context, bot-queries, constants, helpers
 - 他モジュール依存: shared
 - 外部依存: .bun
 
@@ -149,7 +151,7 @@ graph LR
 
 ### constants.ts
 
-- 依存なし
+- 外部依存: .bun
 
 ### helpers.ts
 
@@ -181,8 +183,8 @@ graph LR
 
 ### server.ts
 
-- モジュール内依存: auto-notifier, bot-connection, bot-context, http-server, job-manager, mc-metrics, mcp-tools
-- 他モジュール依存: observability, shared, store
+- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools
+- 他モジュール依存: observability, store
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### state-summary.ts

@@ -2,7 +2,11 @@
 	"name": "@vicissitude/discord",
 	"private": true,
 	"module": "src/index.ts",
+	"exports": {
+		"./config": "./src/config.ts"
+	},
 	"dependencies": {
-		"discord.js": "^14.25.1"
+		"discord.js": "^14.25.1",
+		"zod": "^4.3.6"
 	}
 }

@@ -1,5 +1,8 @@
 import type { DueReminder, HeartbeatConfig } from "@vicissitude/shared/types";
 
+/** Heartbeat config JSON の相対パス（プロジェクトルート起点） */
+export const HEARTBEAT_CONFIG_RELATIVE_PATH = "data/heartbeat-config.json";
+
 // ─── createDefaultHeartbeatConfig ────────────────────────────────
 
 export function createDefaultHeartbeatConfig(): HeartbeatConfig {

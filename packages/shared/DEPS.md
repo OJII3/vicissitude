@@ -21,7 +21,7 @@ graph LR
 
 ### config.ts
 
-- 外部依存: .bun, path
+- 外部依存: path
 
 ### emotion.ts
 
