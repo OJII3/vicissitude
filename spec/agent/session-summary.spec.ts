@@ -41,6 +41,8 @@ function deferred<T>() {
 	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
 }
 
+const TEST_SUMMARY_PROMPT = "テスト用要約プロンプト";
+
 function createProfile(): AgentProfile {
 	return {
 		name: "conversation",
@@ -49,6 +51,7 @@ function createProfile(): AgentProfile {
 		pollingPrompt: "loop forever",
 		restartPolicy: "immediate",
 		model: { providerId: "test-provider", modelId: "test-model" },
+		summaryPrompt: TEST_SUMMARY_PROMPT,
 	};
 }
 
@@ -455,6 +458,53 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			secondSessionDone.resolve({ type: "cancelled" });
 		});
 
+		test("summaryPrompt が未設定の場合は summarizeSession は呼ばれない", async () => {
+			const firstEvent = deferred<void>();
+			const firstSessionDone = deferred<OpencodeSessionEvent>();
+			const secondSessionDone = deferred<OpencodeSessionEvent>();
+			const eventBuffer = createEventBuffer(() => firstEvent.promise);
+			const sessionPort = createSessionPortWithTwoSessions(
+				firstSessionDone.promise,
+				secondSessionDone.promise,
+			);
+			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
+
+			const summaryWriter = createSummaryWriter();
+			const sessionStore = createSessionStore("existing-session-id");
+
+			const profileWithoutSummaryPrompt = { ...createProfile(), summaryPrompt: undefined };
+			const runner = new TestAgent({
+				profile: profileWithoutSummaryPrompt,
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 0,
+				contextGuildId: "123456789",
+				summaryWriter,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.ensurePolling();
+			firstEvent.resolve();
+			await Bun.sleep(0);
+			firstSessionDone.resolve({ type: "idle" });
+			await Bun.sleep(0);
+			await Bun.sleep(0);
+			await Bun.sleep(0);
+			await Bun.sleep(0);
+
+			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
+
+			runner.stop();
+			secondSessionDone.resolve({ type: "cancelled" });
+		});
+
 		test("summaryWriter が未設定の場合は summarizeSession は呼ばれない", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
@@ -687,6 +737,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				"session-xyz",
 				"test-provider",
 				"test-model",
+				TEST_SUMMARY_PROMPT,
 			);
 		});
 	});

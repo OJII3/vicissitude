@@ -304,12 +304,13 @@ export class AgentRunner implements AiAgent {
 	}
 
 	private async generateSessionSummary(sessionId: string): Promise<void> {
-		if (!this.contextGuildId || !this.summaryWriter) return;
+		if (!this.contextGuildId || !this.summaryWriter || !this.profile.summaryPrompt) return;
 		try {
 			const summary = await this.sessionPort.summarizeSession(
 				sessionId,
 				this.profile.model.providerId,
 				this.profile.model.modelId,
+				this.profile.summaryPrompt,
 			);
 			if (!summary.trim()) return;
 			await this.summaryWriter.write(this.contextGuildId, summary);

@@ -11,6 +11,8 @@ export interface AgentProfile {
 	restartPolicy: "immediate" | "wait_for_events";
 	/** モデル設定 */
 	model: { providerId: string; modelId: string };
+	/** セッション要約プロンプト。未設定の場合は要約生成をスキップ */
+	summaryPrompt?: string;
 }
 
 export type McpServerConfig =

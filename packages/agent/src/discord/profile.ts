@@ -40,5 +40,16 @@ export function createConversationProfile(options: {
 		pollingPrompt: POLLING_PROMPT,
 		restartPolicy: "wait_for_events",
 		model: { providerId: options.providerId, modelId: options.modelId },
+		summaryPrompt: `あなたはセッション要約アシスタントです。
+この会話セッションの内容を、次のセッションに引き継ぐための要約を日本語で作成してください。
+
+以下の情報を含めてください:
+- 主要な話題・やりとりの流れ
+- ユーザーの感情状態・トーンの傾向
+- 未解決の話題や継続中の文脈
+- 重要な約束や決定事項
+
+簡潔かつ情報密度の高い要約にしてください（500文字以内）。
+ツールは使用しないでください。`,
 	};
 }
