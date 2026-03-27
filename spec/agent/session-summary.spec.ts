@@ -91,22 +91,21 @@ function createSessionStore(existingSessionId?: string) {
 function createSessionPortWithTwoSessions(
 	firstDone: Promise<OpencodeSessionEvent>,
 	secondDone: Promise<OpencodeSessionEvent>,
-): OpencodeSessionPort & { summarizeSession: ReturnType<typeof mock> } {
+): OpencodeSessionPort & { prompt: ReturnType<typeof mock> } {
 	let callCount = 0;
 	return {
 		createSession: mock(() => Promise.resolve("session-1")),
 		sessionExists: mock(() => Promise.resolve(false)),
-		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
+		prompt: mock(() => Promise.resolve({ text: "これは会話の要約です。", tokens: undefined })),
 		promptAsync: mock(() => Promise.resolve()),
 		promptAsyncAndWatchSession: mock(() => {
 			callCount += 1;
 			return callCount === 1 ? firstDone : secondDone;
 		}),
 		waitForSessionIdle: mock(() => (callCount === 1 ? firstDone : secondDone)),
-		summarizeSession: mock(() => Promise.resolve("これは会話の要約です。")),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
-	} as unknown as OpencodeSessionPort & { summarizeSession: ReturnType<typeof mock> };
+	} as unknown as OpencodeSessionPort & { prompt: ReturnType<typeof mock> };
 }
 
 function createEventBuffer(waitImpl: (signal: AbortSignal) => Promise<void>): EventBuffer {
@@ -124,19 +123,18 @@ function createSummaryWriter(): SessionSummaryWriter & { write: ReturnType<typeo
 
 /** requestSessionRotation テスト用: ポーリングループを使わず直接テストできるシンプルな sessionPort */
 function createSimpleSessionPort(): OpencodeSessionPort & {
-	summarizeSession: ReturnType<typeof mock>;
+	prompt: ReturnType<typeof mock>;
 } {
 	return {
 		createSession: mock(() => Promise.resolve("session-1")),
 		sessionExists: mock(() => Promise.resolve(false)),
-		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
+		prompt: mock(() => Promise.resolve({ text: "要約テキスト", tokens: undefined })),
 		promptAsync: mock(() => Promise.resolve()),
 		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
 		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
-		summarizeSession: mock(() => Promise.resolve("要約テキスト")),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
-	} as unknown as OpencodeSessionPort & { summarizeSession: ReturnType<typeof mock> };
+	} as unknown as OpencodeSessionPort & { prompt: ReturnType<typeof mock> };
 }
 
 const activeRunners = new Set<AgentRunner>();
@@ -152,7 +150,7 @@ afterEach(() => {
 
 describe("AgentRunner セッション要約引き継ぎ", () => {
 	describe("rotateSessionIfExpired での要約生成", () => {
-		test("セッションローテーション時に summarizeSession → summaryWriter.write の順で呼ばれる", async () => {
+		test("セッションローテーション時に prompt → summaryWriter.write の順で呼ばれる", async () => {
 			const callOrder: string[] = [];
 
 			const firstEvent = deferred<void>();
@@ -163,9 +161,9 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => {
-				callOrder.push("summarizeSession");
-				return Promise.resolve("要約テキスト");
+			sessionPort.prompt = mock(() => {
+				callOrder.push("prompt");
+				return Promise.resolve({ text: "要約テキスト", tokens: undefined });
 			});
 
 			const summaryWriter = createSummaryWriter();
@@ -200,9 +198,9 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(1);
-			expect(callOrder).toEqual(["summarizeSession", "write"]);
+			expect(callOrder).toEqual(["prompt", "write"]);
 			expect(summaryWriter.write).toHaveBeenCalledWith("123456789", "要約テキスト");
 
 			runner.stop();
@@ -220,9 +218,9 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => {
-				callOrder.push("summarizeSession");
-				return Promise.resolve("要約");
+			sessionPort.prompt = mock(() => {
+				callOrder.push("prompt");
+				return Promise.resolve({ text: "要約", tokens: undefined });
 			});
 			sessionPort.deleteSession = mock(() => {
 				callOrder.push("deleteSession");
@@ -260,17 +258,17 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			const summarizeIdx = callOrder.indexOf("summarizeSession");
+			const promptIdx = callOrder.indexOf("prompt");
 			const writeIdx = callOrder.indexOf("write");
 			const deleteIdx = callOrder.indexOf("deleteSession");
-			expect(summarizeIdx).toBeLessThan(writeIdx);
+			expect(promptIdx).toBeLessThan(writeIdx);
 			expect(writeIdx).toBeLessThan(deleteIdx);
 
 			runner.stop();
 			secondSessionDone.resolve({ type: "cancelled" });
 		});
 
-		test("セッション期限未到達時はローテーションせず summarizeSession も呼ばれない", async () => {
+		test("セッション期限未到達時はローテーションせず prompt(要約) も呼ばれない", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -279,7 +277,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const summaryWriter = createSummaryWriter();
 
@@ -307,7 +304,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 
 			runner.stop();
@@ -316,7 +313,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 	});
 
 	describe("要約生成失敗時のフォールバック", () => {
-		test("summarizeSession がエラーをスローしても sessionStore.delete は呼ばれる", async () => {
+		test("prompt(要約) がエラーをスローしても sessionStore.delete は呼ばれる", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -325,7 +322,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.reject(new Error("AI error")));
+			sessionPort.prompt = mock(() => Promise.reject(new Error("AI error")));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore("existing-session-id");
@@ -372,7 +369,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const summaryWriter = createSummaryWriter();
 			summaryWriter.write = mock(() => Promise.reject(new Error("write error")));
@@ -413,7 +409,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 	});
 
 	describe("contextGuildId 未設定時のスキップ", () => {
-		test("contextGuildId が未設定の場合は summarizeSession / summaryWriter.write は呼ばれない", async () => {
+		test("contextGuildId が未設定の場合は prompt(要約) / summaryWriter.write は呼ばれない", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -422,7 +418,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore("existing-session-id");
@@ -450,7 +445,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 
@@ -458,7 +453,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			secondSessionDone.resolve({ type: "cancelled" });
 		});
 
-		test("summaryPrompt が未設定の場合は summarizeSession は呼ばれない", async () => {
+		test("summaryPrompt が未設定の場合は prompt(要約) は呼ばれない", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -467,7 +462,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore("existing-session-id");
@@ -497,7 +491,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 
@@ -505,7 +499,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			secondSessionDone.resolve({ type: "cancelled" });
 		});
 
-		test("summaryWriter が未設定の場合は summarizeSession は呼ばれない", async () => {
+		test("summaryWriter が未設定の場合は prompt(要約) は呼ばれない", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -514,7 +508,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const sessionStore = createSessionStore("existing-session-id");
 
@@ -541,7 +534,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			await Bun.sleep(0);
 			await Bun.sleep(0);
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 
 			runner.stop();
@@ -550,10 +543,10 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 	});
 
 	describe("空文字列の要約はスキップ", () => {
-		test("summarizeSession が空文字列を返した場合は summaryWriter.write は呼ばれない", async () => {
+		test("prompt が空文字列を返した場合は summaryWriter.write は呼ばれない", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
-			sessionPort.summarizeSession = mock(() => Promise.resolve(""));
+			sessionPort.prompt = mock(() => Promise.resolve({ text: "", tokens: undefined }));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
@@ -576,16 +569,16 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 			// ローテーション自体は行われる
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 		});
 
-		test("summarizeSession が空白のみを返した場合も summaryWriter.write は呼ばれない", async () => {
+		test("prompt が空白のみを返した場合も summaryWriter.write は呼ばれない", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
-			sessionPort.summarizeSession = mock(() => Promise.resolve("   \n  "));
+			sessionPort.prompt = mock(() => Promise.resolve({ text: "   \n  ", tokens: undefined }));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
@@ -608,16 +601,18 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 		});
 	});
 
 	describe("requestSessionRotation での要約生成", () => {
-		test("requestSessionRotation 時も contextGuildId があれば summarizeSession → write が呼ばれる", async () => {
+		test("requestSessionRotation 時も contextGuildId があれば prompt → write が呼ばれる", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
-			sessionPort.summarizeSession = mock(() => Promise.resolve("強制ローテーション時の要約"));
+			sessionPort.prompt = mock(() =>
+				Promise.resolve({ text: "強制ローテーション時の要約", tokens: undefined }),
+			);
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
@@ -640,12 +635,12 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledWith("987654321", "強制ローテーション時の要約");
 		});
 
-		test("requestSessionRotation で contextGuildId が未設定の場合は summarizeSession は呼ばれない", async () => {
+		test("requestSessionRotation で contextGuildId が未設定の場合は prompt(要約) は呼ばれない", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 
@@ -669,15 +664,15 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(0);
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 		});
 
-		test("requestSessionRotation で summarizeSession がエラーをスローしてもローテーションは完了する", async () => {
+		test("requestSessionRotation で prompt(要約) がエラーをスローしてもローテーションは完了する", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
-			sessionPort.summarizeSession = mock(() => Promise.reject(new Error("summarize failed")));
+			sessionPort.prompt = mock(() => Promise.reject(new Error("summarize failed")));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
@@ -706,11 +701,10 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 	});
 
-	describe("summarizeSession の呼び出しパラメータ", () => {
-		test("summarizeSession は sessionId と profile の providerId・modelId で呼ばれる", async () => {
+	describe("prompt(要約) の呼び出しパラメータ", () => {
+		test("prompt は sessionId・summaryPrompt・model で呼ばれる", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
-			sessionPort.summarizeSession = mock(() => Promise.resolve("要約"));
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
@@ -733,12 +727,12 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.summarizeSession).toHaveBeenCalledWith(
-				"session-xyz",
-				"test-provider",
-				"test-model",
-				TEST_SUMMARY_PROMPT,
-			);
+			expect(sessionPort.prompt).toHaveBeenCalledWith({
+				sessionId: "session-xyz",
+				text: TEST_SUMMARY_PROMPT,
+				model: { providerId: "test-provider", modelId: "test-model" },
+				tools: {},
+			});
 		});
 	});
 });
