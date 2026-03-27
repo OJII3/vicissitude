@@ -304,6 +304,7 @@ export class AgentRunner implements AiAgent {
 	}
 
 	private async generateSessionSummary(sessionId: string): Promise<void> {
+		if (this.abortController?.signal.aborted) return;
 		if (!this.contextGuildId || !this.summaryWriter || !this.profile.summaryPrompt) return;
 		try {
 			const summary = await this.sessionPort.summarizeSession(
