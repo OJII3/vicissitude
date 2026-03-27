@@ -15,6 +15,7 @@
 		"./minecraft/context-builder": "./src/minecraft/context-builder.ts"
 	},
 	"dependencies": {
+		"@vicissitude/observability": "workspace:*",
 		"drizzle-orm": "^0.45.1"
 	}
 }

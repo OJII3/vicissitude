@@ -9,7 +9,6 @@ graph LR
   config
   constants
   emotion
-  functions --> constants
   functions --> types
   ports --> emotion
   ports --> tts
@@ -35,7 +34,7 @@ graph LR
 
 ### functions.ts
 
-- モジュール内依存: constants, types
+- モジュール内依存: types
 
 ### ports.ts
 

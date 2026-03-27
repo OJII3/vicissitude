@@ -127,7 +127,7 @@ graph LR
 ### auto-notifier.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared, store
+- 他モジュール依存: observability, shared, store
 
 ### bot-connection.ts
 
@@ -138,7 +138,7 @@ graph LR
 ### bot-context.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 - 外部依存: .bun
 
 ### bot-queries.ts
@@ -157,7 +157,7 @@ graph LR
 ### job-manager.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 
 ### mc-bridge-server.ts
 
@@ -166,12 +166,12 @@ graph LR
 
 ### mc-metrics.ts
 
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 
 ### mcp-tools.ts
 
 - モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary, stuck-recovery
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### server.ts

@@ -83,7 +83,7 @@ graph LR
 ### runner.ts
 
 - モジュール内依存: profile, session-store
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 
 ### session-store.ts
 

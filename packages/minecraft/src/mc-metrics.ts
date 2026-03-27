@@ -1,5 +1,4 @@
-import { METRIC } from "@vicissitude/shared/constants";
-import { labelsToKey } from "@vicissitude/shared/functions";
+import { METRIC, labelsToKey } from "@vicissitude/observability/metrics";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 // ─── Lightweight Prometheus Collector for MC MCP process ────────

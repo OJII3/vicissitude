@@ -1,4 +1,4 @@
-import { METRIC } from "@vicissitude/shared/constants";
+import { METRIC } from "@vicissitude/observability/metrics";
 import type { MetricsCollector } from "@vicissitude/shared/types";
 
 import { classifyFailure, totalTravelDistance } from "./helpers.ts";

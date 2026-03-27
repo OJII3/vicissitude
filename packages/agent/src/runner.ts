@@ -1,4 +1,4 @@
-import { recordTokenMetrics } from "@vicissitude/shared/functions";
+import { recordTokenMetrics } from "@vicissitude/observability/metrics";
 import type {
 	AgentResponse,
 	AiAgent,

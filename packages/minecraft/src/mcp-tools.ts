@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { METRIC } from "@vicissitude/shared/constants";
+import { METRIC } from "@vicissitude/observability/metrics";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { z } from "zod";
 

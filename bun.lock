@@ -59,6 +59,7 @@
     "packages/agent": {
       "name": "@vicissitude/agent",
       "dependencies": {
+        "@vicissitude/observability": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
     },

@@ -6,6 +6,7 @@
 
 ```mermaid
 graph LR
+  agent --> observability
   agent --> opencode
   agent --> shared
   agent --> store
@@ -57,7 +58,7 @@ graph LR
 
 ### agent
 
-- 内部依存: opencode, shared, store
+- 内部依存: observability, opencode, shared, store
 - 外部依存: .bun, path
 - ファイル数: 17
 
