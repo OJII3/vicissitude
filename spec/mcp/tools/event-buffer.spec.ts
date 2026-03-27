@@ -434,7 +434,7 @@ describe("formatMemoryContext", () => {
 		expect(text).toContain("お菓子の話");
 		expect(text).toContain("チョコが好きだと判明");
 		expect(text).toContain("[preference] チョコレートが好き");
-		expect(text).toContain("不正確な可能性");
+		expect(text).toContain("以下はこの会話に関連しそうな過去の記憶:");
 	});
 
 	test("エピソードのみの場合は意味記憶セクションを含まない", () => {
