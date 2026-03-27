@@ -93,7 +93,12 @@ export function formatEvents(events: ParsedEvent[]): string {
 			}
 			const flagStr = flags.length > 0 ? ` ${flags.join(" ")}` : "";
 
-			return `[${dateStr}${channel}] ${e.authorName}: ${e.content}${flagStr}`;
+			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
+		const content = isUserMessage
+			? `<user_message>${e.content}</user_message>`
+			: e.content;
+
+		return `[${dateStr}${channel}] ${e.authorName}: ${content}${flagStr}`;
 		})
 		.join("\n");
 }
