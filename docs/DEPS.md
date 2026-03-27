@@ -69,7 +69,7 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: なし
-- ファイル数: 4
+- ファイル数: 5
 
 ### apps/discord
 

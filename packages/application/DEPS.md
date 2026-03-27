@@ -8,6 +8,7 @@
 graph LR
   heartbeat_service["heartbeat-service"]
   message_ingestion_service["message-ingestion-service"]
+  split_message["split-message"]
 ```
 
 ## ファイル別依存一覧
@@ -19,3 +20,7 @@ graph LR
 ### message-ingestion-service.ts
 
 - 他モジュール依存: shared
+
+### split-message.ts
+
+- 依存なし
