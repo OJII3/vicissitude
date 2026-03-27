@@ -307,14 +307,14 @@ export class AgentRunner implements AiAgent {
 		if (this.abortController?.signal.aborted) return;
 		if (!this.contextGuildId || !this.summaryWriter || !this.profile.summaryPrompt) return;
 		try {
-			const summary = await this.sessionPort.summarizeSession(
+			const { text } = await this.sessionPort.prompt({
 				sessionId,
-				this.profile.model.providerId,
-				this.profile.model.modelId,
-				this.profile.summaryPrompt,
-			);
-			if (!summary.trim()) return;
-			await this.summaryWriter.write(this.contextGuildId, summary);
+				text: this.profile.summaryPrompt,
+				model: this.profile.model,
+				tools: {},
+			});
+			if (!text.trim()) return;
+			await this.summaryWriter.write(this.contextGuildId, text);
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] session summary saved for guild ${this.contextGuildId}`,
 			);

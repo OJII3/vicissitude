@@ -156,25 +156,6 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 		return { type: "idle" };
 	}
-	async summarizeSession(
-		sessionId: string,
-		providerId: string,
-		modelId: string,
-		prompt: string,
-	): Promise<string> {
-		const oc = await this.getClient();
-		const result = await oc.session.prompt({
-			sessionID: sessionId,
-			parts: [{ type: "text", text: prompt }],
-			model: { providerID: providerId, modelID: modelId },
-			tools: {},
-		});
-		if (result.error || !result.data) {
-			throw new Error(`Session summarization failed: ${JSON.stringify(result.error)}`);
-		}
-		return extractText(result.data.parts);
-	}
-
 	async deleteSession(sessionId: string): Promise<void> {
 		const oc = await this.getClient();
 		await oc.session.delete({ sessionID: sessionId });
