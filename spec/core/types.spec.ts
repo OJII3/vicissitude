@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
+import { createDefaultHeartbeatConfig } from "@vicissitude/scheduling/heartbeat-helpers";
 
 describe("createDefaultHeartbeatConfig", () => {
 	it("has expected default values", () => {

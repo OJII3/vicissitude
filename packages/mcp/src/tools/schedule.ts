@@ -2,8 +2,8 @@ import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createDefaultHeartbeatConfig } from "@vicissitude/scheduling/heartbeat-helpers";
 import { APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/shared/config";
-import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 

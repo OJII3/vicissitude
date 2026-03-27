@@ -85,5 +85,5 @@ graph LR
 
 ### tools/schedule.ts
 
-- 他モジュール依存: shared
+- 他モジュール依存: scheduling, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path

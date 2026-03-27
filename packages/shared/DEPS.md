@@ -8,7 +8,7 @@
 graph LR
   config
   emotion
-  functions --> types
+  functions
   ports --> emotion
   ports --> tts
   ports --> ws_protocol["ws-protocol"]
@@ -29,7 +29,7 @@ graph LR
 
 ### functions.ts
 
-- モジュール内依存: types
+- 依存なし
 
 ### ports.ts
 

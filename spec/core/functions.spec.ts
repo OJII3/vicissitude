@@ -1,7 +1,7 @@
 import { describe, expect, it, test } from "bun:test";
 
+import { evaluateDueReminders } from "@vicissitude/scheduling/heartbeat-helpers";
 import {
-	evaluateDueReminders,
 	formatTime,
 	formatTimestamp,
 	splitMessage,

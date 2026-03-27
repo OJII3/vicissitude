@@ -7,8 +7,10 @@
 ```mermaid
 graph LR
   consolidation_scheduler["consolidation-scheduler"]
-  heartbeat_config["heartbeat-config"]
+  heartbeat_config["heartbeat-config"] --> heartbeat_helpers["heartbeat-helpers"]
+  heartbeat_helpers["heartbeat-helpers"]
   heartbeat_scheduler["heartbeat-scheduler"] --> heartbeat_config["heartbeat-config"]
+  heartbeat_scheduler["heartbeat-scheduler"] --> heartbeat_helpers["heartbeat-helpers"]
 ```
 
 ## ファイル別依存一覧
@@ -19,11 +21,16 @@ graph LR
 
 ### heartbeat-config.ts
 
+- モジュール内依存: heartbeat-helpers
 - 他モジュール依存: shared
 - 外部依存: .bun, fs, path
 
+### heartbeat-helpers.ts
+
+- 他モジュール依存: shared
+
 ### heartbeat-scheduler.ts
 
-- モジュール内依存: heartbeat-config
+- モジュール内依存: heartbeat-config, heartbeat-helpers
 - 他モジュール依存: application, observability, shared
 - 外部依存: path
