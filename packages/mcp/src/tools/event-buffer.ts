@@ -159,7 +159,7 @@ export function formatMemoryContext(result: RetrievalResult): string {
 
 	return [
 		"<memory-context>",
-		"※ 過去の記憶から自動検索された参考情報です。不正確な可能性があるため、鵜呑みにせず会話の文脈で判断してください。",
+		"以下はこの会話に関連しそうな過去の記憶:",
 		"",
 		...parts,
 		"</memory-context>",
@@ -262,7 +262,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				];
 				if (memory) {
 					const ctx = await fetchMemoryContext(events, memory);
-					if (ctx) content.push(ctx);
+					if (ctx) content.unshift(ctx);
 				}
 				return { content };
 			}
@@ -280,7 +280,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			];
 			if (memory) {
 				const ctx = await fetchMemoryContext(result, memory);
-				if (ctx) content.push(ctx);
+				if (ctx) content.unshift(ctx);
 			}
 			return { content };
 		},
