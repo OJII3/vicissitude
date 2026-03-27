@@ -17,6 +17,7 @@
 	"dependencies": {
 		"@vicissitude/minecraft": "workspace:*",
 		"@vicissitude/observability": "workspace:*",
+		"@vicissitude/opencode": "workspace:*",
 		"drizzle-orm": "^0.45.1"
 	}
 }

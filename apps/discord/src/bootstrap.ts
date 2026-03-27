@@ -23,6 +23,7 @@ import {
 	InstrumentedAiAgent,
 } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
@@ -31,7 +32,6 @@ import {
 	HEARTBEAT_CONFIG_RELATIVE_PATH,
 	loadConfig,
 } from "@vicissitude/shared/config";
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
 import type {
 	AiAgent,
 	ContextBuilderPort,

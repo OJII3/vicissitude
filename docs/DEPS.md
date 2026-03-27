@@ -134,7 +134,7 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: @opencode-ai/sdk/v2
-- ファイル数: 4
+- ファイル数: 6
 
 ### scheduling
 
@@ -146,7 +146,7 @@ graph LR
 
 - 内部依存: なし
 - 外部依存: .bun, path
-- ファイル数: 16
+- ファイル数: 14
 
 ### store
 

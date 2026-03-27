@@ -4,7 +4,6 @@
 	"exports": {
 		"./types": "./src/types.ts",
 		"./config": "./src/config.ts",
-		"./constants": "./src/constants.ts",
 		"./functions": "./src/functions.ts",
 		"./emotion": "./src/emotion.ts",
 		"./ws-protocol": "./src/ws-protocol.ts",

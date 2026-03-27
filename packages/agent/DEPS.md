@@ -44,7 +44,7 @@ graph LR
 ### discord/profile.ts
 
 - モジュール内依存: profile
-- 他モジュール依存: shared
+- 他モジュール依存: opencode
 
 ### discord/router.ts
 
@@ -74,7 +74,7 @@ graph LR
 ### minecraft/profile.ts
 
 - モジュール内依存: profile
-- 他モジュール依存: shared
+- 他モジュール依存: opencode
 
 ### profile.ts
 

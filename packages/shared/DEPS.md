@@ -7,7 +7,6 @@
 ```mermaid
 graph LR
   config
-  constants
   emotion
   functions --> types
   ports --> emotion
@@ -23,10 +22,6 @@ graph LR
 ### config.ts
 
 - 外部依存: .bun, path
-
-### constants.ts
-
-- 依存なし
 
 ### emotion.ts
 

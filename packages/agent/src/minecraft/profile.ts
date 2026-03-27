@@ -1,4 +1,4 @@
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/shared/constants";
+import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 
 import type { AgentProfile, McpServerConfig } from "../profile.ts";
 
