@@ -123,7 +123,8 @@ describe("formatEvents", () => {
 		expect(result).toContain("10:30");
 		expect(result).toContain("#general");
 		expect(result).toContain("おかず");
-		expect(result).toContain("マイクラどう？");
+		// ユーザー発言は <user_message> タグで囲まれる
+		expect(result).toContain("<user_message>マイクラどう？</user_message>");
 		expect(result).toContain("(mentioned)");
 	});
 
@@ -140,6 +141,9 @@ describe("formatEvents", () => {
 		];
 		const result = formatEvents(events);
 		expect(result).toContain("(bot)");
+		// bot 発言には <user_message> タグが付かない
+		expect(result).not.toContain("<user_message>");
+		expect(result).not.toContain("</user_message>");
 	});
 
 	test("添付ファイルがあれば件数を表示する", () => {
@@ -155,6 +159,8 @@ describe("formatEvents", () => {
 		];
 		const result = formatEvents(events);
 		expect(result).toContain("[添付: 2件]");
+		// 添付ファイル付きのユーザー発言もタグで囲まれる
+		expect(result).toContain("<user_message>画像送るよ</user_message>");
 	});
 
 	test("空配列なら空文字列を返す", () => {
@@ -185,6 +191,8 @@ describe("formatEvents", () => {
 		const result = formatEvents(events);
 		expect(result).toContain("2026-03-28");
 		expect(result).toContain("00:00");
+		// ユーザー発言なのでタグで囲まれる
+		expect(result).toContain("<user_message>深夜</user_message>");
 	});
 
 	test("channelName がない場合でもエラーにならない", () => {
@@ -199,7 +207,8 @@ describe("formatEvents", () => {
 		];
 		const result = formatEvents(events);
 		expect(result).toContain("名前");
-		expect(result).toContain("テスト");
+		// channelName がなくてもユーザー発言にはタグが付く
+		expect(result).toContain("<user_message>テスト</user_message>");
 	});
 
 	test("複数イベントを改行区切りで出力する", () => {
@@ -222,8 +231,93 @@ describe("formatEvents", () => {
 		const result = formatEvents(events);
 		const lines = result.split("\n").filter((l) => l.trim());
 		expect(lines.length).toBeGreaterThanOrEqual(2);
-		expect(result).toContain("1つ目");
-		expect(result).toContain("2つ目");
+		// ユーザー発言はタグで囲まれる
+		expect(result).toContain("<user_message>1つ目</user_message>");
+		expect(result).toContain("<user_message>2つ目</user_message>");
+	});
+
+	test("system イベントには <user_message> タグが付かない", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "セッション開始",
+				authorId: "system",
+				authorName: "system",
+				messageId: "sys1",
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("セッション開始");
+		expect(result).not.toContain("<user_message>");
+		expect(result).not.toContain("</user_message>");
+	});
+
+	test("ユーザー発言とbot発言が混在する場合、ユーザー発言のみタグ付きである", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "こんにちは",
+				authorId: "user1",
+				authorName: "おかず",
+				messageId: "m1",
+				metadata: { channelName: "general", isBot: false },
+			},
+			{
+				ts: "2026-03-27T00:01:00.000Z",
+				content: "自動応答です",
+				authorId: "bot1",
+				authorName: "BotA",
+				messageId: "m2",
+				metadata: { channelName: "general", isBot: true },
+			},
+			{
+				ts: "2026-03-27T00:02:00.000Z",
+				content: "システム通知",
+				authorId: "system",
+				authorName: "system",
+				messageId: "m3",
+				metadata: { channelName: "general" },
+			},
+			{
+				ts: "2026-03-27T00:03:00.000Z",
+				content: "もう一つ",
+				authorId: "user2",
+				authorName: "たろう",
+				messageId: "m4",
+				metadata: { channelName: "general", isBot: false },
+			},
+		];
+		const result = formatEvents(events);
+		const lines = result.split("\n");
+
+		// ユーザー発言はタグで囲まれる
+		expect(result).toContain("<user_message>こんにちは</user_message>");
+		expect(result).toContain("<user_message>もう一つ</user_message>");
+
+		// bot 発言はタグなし
+		const botLine = lines.find((l) => l.includes("BotA"));
+		expect(botLine).toBeDefined();
+		expect(botLine).not.toContain("<user_message>");
+
+		// system 発言はタグなし
+		const systemLine = lines.find((l) => l.includes("システム通知"));
+		expect(systemLine).toBeDefined();
+		expect(systemLine).not.toContain("<user_message>");
+	});
+
+	test("isBot が未定義のユーザー発言にもタグが付く", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "metadata に isBot がない",
+				authorId: "user1",
+				authorName: "テスト",
+				messageId: "m1",
+				metadata: { channelName: "general" },
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("<user_message>metadata に isBot がない</user_message>");
 	});
 });
 
