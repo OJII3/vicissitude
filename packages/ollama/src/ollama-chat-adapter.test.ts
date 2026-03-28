@@ -1,5 +1,22 @@
 import { afterEach, describe, expect, it } from "bun:test";
+
 import { OllamaChatAdapter } from "./ollama-chat-adapter";
+
+function captureFetch() {
+	let capturedUrl: URL | string = "";
+	let capturedInit: RequestInit | undefined;
+	globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
+		capturedUrl = input as URL | string;
+		capturedInit = init;
+		return Promise.resolve({
+			ok: true,
+			status: 200,
+			statusText: "OK",
+			json: () => Promise.resolve({ response: "ok" }),
+		} as Response);
+	}) as typeof fetch;
+	return { url: () => capturedUrl, init: () => capturedInit };
+}
 
 describe("OllamaChatAdapter internals", () => {
 	const originalFetch = globalThis.fetch;
@@ -7,22 +24,6 @@ describe("OllamaChatAdapter internals", () => {
 	afterEach(() => {
 		globalThis.fetch = originalFetch;
 	});
-
-	function captureFetch() {
-		let capturedUrl: URL | string = "";
-		let capturedInit: RequestInit | undefined;
-		globalThis.fetch = ((input: string | URL | Request, init?: RequestInit) => {
-			capturedUrl = input as URL | string;
-			capturedInit = init;
-			return Promise.resolve({
-				ok: true,
-				status: 200,
-				statusText: "OK",
-				json: () => Promise.resolve({ response: "ok" }),
-			} as Response);
-		}) as typeof fetch;
-		return { url: () => capturedUrl, init: () => capturedInit };
-	}
 
 	it("AbortSignal.timeout(30_000) をリクエストに設定する", async () => {
 		const captured = captureFetch();
