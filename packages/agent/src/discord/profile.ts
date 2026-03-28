@@ -5,11 +5,7 @@ import type { AgentProfile, McpServerConfig } from "../profile.ts";
 const POLLING_PROMPT = `以下のイベントループを実行してください:
 
 1. wait_for_events ツールでイベントを待つ（タイムアウトは60秒）
-2. イベントが返ってきたら、配列内の全イベントをまとめて確認し、それぞれ処理:
-   - authorId="system" → 内部イベント。Discord には送信しない
-   - isBot=true → 読むだけ。Discord には送信しない
-   - isMentioned=true → discord の send_message で channelId に返信
-   - isMentioned=false かつ人間の発言 → 自分の判断で参加・スルー・リアクションだけを選ぶ
+2. イベントが返ってきたら、配列内の全イベントをまとめて確認し、各イベントの [action: ...] ヒントに従って行動する
 3. 1 に戻る
 
 重要:
