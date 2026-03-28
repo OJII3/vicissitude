@@ -45,6 +45,7 @@ async function digOneBlock(
 interface CollectBlockParams {
 	bot: mineflayer.Bot;
 	blockId: number;
+	blockName: string;
 	count: number;
 	maxDistance: number;
 	signal: AbortSignal;
@@ -52,7 +53,7 @@ interface CollectBlockParams {
 }
 
 async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
-	const { bot, blockId, count, maxDistance, signal, updateProgress } = params;
+	const { bot, blockId, blockName, count, maxDistance, signal, updateProgress } = params;
 	ensureMovements(bot);
 	registerAbortHandler(bot, signal);
 	let collected = 0;
@@ -66,7 +67,7 @@ async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
 	}
 	if (collected < count && !signal.aborted) {
 		throw new Error(
-			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に追加の対象ブロックが見つかりません`,
+			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に ${blockName} が見つかりません`,
 		);
 	}
 }
@@ -204,6 +205,7 @@ export function registerCollectBlock(
 				executeCollectBlock({
 					bot,
 					blockId: blockType.id,
+					blockName,
 					count,
 					maxDistance,
 					signal,
