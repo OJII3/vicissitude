@@ -55,6 +55,14 @@ CREATE TABLE IF NOT EXISTS event_buffer (
 
 CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id);
 
+CREATE TABLE IF NOT EXISTS mood_state (
+	agent_id TEXT PRIMARY KEY,
+	valence REAL NOT NULL,
+	arousal REAL NOT NULL,
+	dominance REAL NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS mc_session_lock (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	guild_id TEXT NOT NULL,

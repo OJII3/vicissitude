@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Retrieval, RetrievalResult } from "@vicissitude/memory/retrieval";
+import { NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
+import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
@@ -17,6 +19,7 @@ export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
 	memory?: MemoryRetriever;
+	moodReader?: MoodReader;
 	typingSender?: TypingSender;
 }
 
@@ -242,8 +245,24 @@ async function fetchMemoryContext(
 
 // ─── registerEventBufferTools ────────────────────────────────────
 
+function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): TextContent | null {
+	if (!moodReader) return null;
+	const mood = moodReader.getMood(agentId);
+	if (
+		mood.valence === NEUTRAL_EMOTION.valence &&
+		mood.arousal === NEUTRAL_EMOTION.arousal &&
+		mood.dominance === NEUTRAL_EMOTION.dominance
+	) {
+		return null;
+	}
+	return {
+		type: "text",
+		text: `<current-mood>\nvalence: ${mood.valence}, arousal: ${mood.arousal}, dominance: ${mood.dominance}\nこれは直近の会話から推定されたあなたの現在の気分です。応答のトーンの参考にしてください。\n</current-mood>`,
+	};
+}
+
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, memory, typingSender } = deps;
+	const { db, agentId, memory, moodReader, typingSender } = deps;
 
 	/** ParsedEvent 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
 	function sendTypingForEvents(events: ParsedEvent[]): void {
@@ -277,6 +296,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 					const ctx = await fetchMemoryContext(events, memory);
 					if (ctx) content.unshift(ctx);
 				}
+				const moodContent = buildMoodContent(moodReader, agentId);
+				if (moodContent) content.unshift(moodContent);
 				return { content };
 			}
 
@@ -295,6 +316,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				const ctx = await fetchMemoryContext(result, memory);
 				if (ctx) content.unshift(ctx);
 			}
+			const moodContent = buildMoodContent(moodReader, agentId);
+			if (moodContent) content.unshift(moodContent);
 			return { content };
 		},
 	);

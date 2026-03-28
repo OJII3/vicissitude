@@ -1,4 +1,4 @@
-import { integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** セッション管理テーブル */
 export const sessions = sqliteTable("sessions", {
@@ -24,6 +24,15 @@ export const eventBuffer = sqliteTable("event_buffer", {
 	agentId: text("agent_id").notNull(),
 	payload: text("payload").notNull(),
 	createdAt: integer("created_at").notNull(),
+});
+
+/** 感情状態テーブル */
+export const moodState = sqliteTable("mood_state", {
+	agentId: text("agent_id").primaryKey(),
+	valence: real("valence").notNull(),
+	arousal: real("arousal").notNull(),
+	dominance: real("dominance").notNull(),
+	updatedAt: integer("updated_at").notNull(),
 });
 
 /** MC セッション排他ロックテーブル（最大1行） */
