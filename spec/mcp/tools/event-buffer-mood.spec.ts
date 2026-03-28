@@ -88,7 +88,7 @@ describe("wait_for_events への mood 注入", () => {
 		expect(allText).not.toContain("<current-mood>");
 	});
 
-	test("<current-mood> セクションは memory-context より前（content 配列の先頭）に配置される", async () => {
+	test("<current-mood> セクションは recent-messages より前（content 配列の先頭）に配置される", async () => {
 		const db = createTestDb();
 		const agentId = "agent-1";
 		insertTestEvent(db, agentId);
@@ -98,30 +98,24 @@ describe("wait_for_events への mood 注入", () => {
 			db,
 			agentId,
 			moodReader: createStubMoodReader(activeMood),
-			memory: {
-				retrieval: {
-					retrieve: () => ({
-						episodes: [
-							{
-								episode: { title: "テスト", summary: "要約" } as never,
-								score: 0.9,
-								retrievability: 0.8,
-							},
-						],
-						facts: [],
-					}),
-				} as never,
-				guildId: "g1",
-			},
+			recentMessagesFetcher: () =>
+				Promise.resolve([
+					{
+						authorName: "テストユーザー",
+						content: "テストメッセージ",
+						timestamp: new Date("2026-03-28T00:00:00.000Z"),
+						reactions: [],
+					},
+				]),
 		});
 
 		// content 配列内で <current-mood> を含む要素のインデックスが
-		// <memory-context> を含む要素より前にあること
+		// <recent-messages> を含む要素より前にあること
 		const moodIndex = result.content.findIndex((c) => c.text.includes("<current-mood>"));
-		const memoryIndex = result.content.findIndex((c) => c.text.includes("<memory-context>"));
+		const recentIndex = result.content.findIndex((c) => c.text.includes("<recent-messages>"));
 
 		expect(moodIndex).toBeGreaterThanOrEqual(0);
-		expect(memoryIndex).toBeGreaterThanOrEqual(0);
-		expect(moodIndex).toBeLessThan(memoryIndex);
+		expect(recentIndex).toBeGreaterThanOrEqual(0);
+		expect(moodIndex).toBeLessThan(recentIndex);
 	});
 });

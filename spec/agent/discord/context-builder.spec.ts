@@ -1,10 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
-import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 
@@ -19,14 +18,6 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	const parentDir = fullPath.slice(0, fullPath.lastIndexOf("/"));
 	mkdirSync(parentDir, { recursive: true });
 	writeFileSync(fullPath, content);
-}
-
-function createMockMemoryReader(facts: MemoryFact[]): MemoryFactReader {
-	return {
-		getFacts: mock(() => Promise.resolve(facts)),
-		getRelevantFacts: mock(() => Promise.resolve(facts)),
-		close: mock(() => Promise.resolve()),
-	};
 }
 
 // ─── ContextBuilder ──────────────────────────────────────────────
@@ -77,57 +68,6 @@ describe("ContextBuilder", () => {
 		});
 	});
 
-	describe("Memory ファクト注入", () => {
-		it("guildId ありの場合に Memory ファクトが注入される", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			const facts: MemoryFact[] = [
-				{ content: "ユーザーAは猫が好き", category: "preference", createdAt: "2026-01-01" },
-				{ content: "サーバー名はテスト鯖", category: "fact", createdAt: "2026-01-02" },
-			];
-			const reader = createMockMemoryReader(facts);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			const result = await builder.build("123456789");
-
-			expect(result).toContain("<memory-facts>");
-			expect(result).toContain("[preference] ユーザーAは猫が好き");
-			expect(result).toContain("[fact] サーバー名はテスト鯖");
-			expect(reader.getFacts).toHaveBeenCalledWith("123456789");
-		});
-
-		it("guildId なしの場合は Memory ファクトが注入されない", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			const reader = createMockMemoryReader([
-				{ content: "test", category: "cat", createdAt: "2026-01-01" },
-			]);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
-			const result = await builder.build();
-
-			expect(result).not.toContain("<memory-facts>");
-			expect(reader.getFacts).not.toHaveBeenCalled();
-		});
-	});
-
-	describe("Memory ファクト取得の graceful degradation", () => {
-		it("Memory ファクト取得で例外発生時はスキップして続行する", async () => {
-			const { baseDir, overlayDir } = createTmpDirs();
-			writeFile(baseDir, "IDENTITY.md", "identity content");
-
-			const failingReader: MemoryFactReader = {
-				getFacts: mock(() => Promise.reject(new Error("Memory connection failed"))),
-				getRelevantFacts: mock(() => Promise.reject(new Error("Memory connection failed"))),
-				close: mock(() => Promise.resolve()),
-			};
-
-			const builder = new ContextBuilder(overlayDir, baseDir, failingReader);
-			const result = await builder.build("123456789");
-
-			expect(result).toContain("identity content");
-			expect(result).not.toContain("<memory-facts>");
-		});
-	});
-
 	describe("セクションの並び順", () => {
 		it("primacy-recency effect を考慮した正しい順序で並ぶ", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
@@ -142,10 +82,7 @@ describe("ContextBuilder", () => {
 			writeFile(overlayDir, "guilds/111/MEMORY.md", "memory");
 			writeFile(overlayDir, "guilds/111/LESSONS.md", "lessons");
 
-			const facts: MemoryFact[] = [{ content: "fact1", category: "cat", createdAt: "2026-01-01" }];
-			const reader = createMockMemoryReader(facts);
-
-			const builder = new ContextBuilder(overlayDir, baseDir, reader);
+			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build("111");
 
 			const expectedOrder = [
@@ -153,7 +90,6 @@ describe("ContextBuilder", () => {
 				"<SOUL.md>",
 				"<LESSONS.md>",
 				"<MEMORY.md>",
-				"<memory-facts>",
 				"<DISCORD.md>",
 				"<HEARTBEAT.md>",
 				"<guild-context>",

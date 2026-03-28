@@ -3,16 +3,15 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-	buildMemoryQuery,
 	classifyActionHint,
 	extractTypingChannels,
 	formatEventMetadata,
 	formatEvents,
-	formatMemoryContext,
+	formatRecentMessages,
 	parseEvents,
 	pollEvents,
 } from "@vicissitude/mcp/tools/event-buffer";
-import type { RetrievalResult } from "@vicissitude/memory/retrieval";
+import type { RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -472,121 +471,118 @@ describe("formatEventMetadata", () => {
 	});
 });
 
-describe("buildMemoryQuery", () => {
-	test("system イベントを除外してクエリを構築する", () => {
-		const events = [
-			{ ts: "", content: "internal event", authorId: "system", authorName: "", messageId: "" },
-			{ ts: "", content: "こんにちは", authorId: "user1", authorName: "", messageId: "" },
-		];
-		expect(buildMemoryQuery(events)).toBe("こんにちは");
-	});
-
-	test("bot イベントは含める", () => {
-		const events = [
+describe("formatRecentMessages", () => {
+	test("単一チャンネルの複数メッセージをフォーマットする", () => {
+		const messages: RecentMessage[] = [
 			{
-				ts: "",
-				content: "bot発言",
-				authorId: "bot1",
-				authorName: "",
-				messageId: "",
-				metadata: { isBot: true },
+				authorName: "おかず",
+				content: "こんにちは",
+				timestamp: new Date("2026-03-29T10:00:00+09:00"),
+				reactions: [],
 			},
-			{ ts: "", content: "人間の発言", authorId: "user1", authorName: "", messageId: "" },
+			{
+				authorName: "たろう",
+				content: "やあ",
+				timestamp: new Date("2026-03-29T10:01:00+09:00"),
+				reactions: [],
+			},
 		];
-		const query = buildMemoryQuery(events);
-		expect(query).toContain("bot発言");
-		expect(query).toContain("人間の発言");
+		const channelMessages = new Map([["general", messages]]);
+		const result = formatRecentMessages(channelMessages);
+
+		expect(result).toContain("<recent-messages>");
+		expect(result).toContain("</recent-messages>");
+		expect(result).toContain("## #general");
+		expect(result).toContain("おかず");
+		expect(result).toContain("こんにちは");
+		expect(result).toContain("たろう");
+		expect(result).toContain("やあ");
 	});
 
-	test("content が空のイベントはスキップする", () => {
-		const events = [
-			{ ts: "", content: "", authorId: "user1", authorName: "", messageId: "" },
-			{ ts: "", content: "有効", authorId: "user2", authorName: "", messageId: "" },
+	test("リアクション付きメッセージをフォーマットする", () => {
+		const messages: RecentMessage[] = [
+			{
+				authorName: "おかず",
+				content: "面白いね",
+				timestamp: new Date("2026-03-29T10:00:00+09:00"),
+				reactions: [
+					{ emoji: "👍", count: 3 },
+					{ emoji: "😂", count: 1 },
+				],
+			},
 		];
-		expect(buildMemoryQuery(events)).toBe("有効");
+		const channelMessages = new Map([["general", messages]]);
+		const result = formatRecentMessages(channelMessages);
+
+		expect(result).toContain("[👍×3 😂×1]");
 	});
 
-	test("1000文字を超える場合は切り詰める", () => {
-		const longContent = "あ".repeat(1200);
-		const events = [
-			{ ts: "", content: longContent, authorId: "user1", authorName: "", messageId: "" },
+	test("リアクションなしメッセージはリアクション部分が省略される", () => {
+		const messages: RecentMessage[] = [
+			{
+				authorName: "おかず",
+				content: "テスト",
+				timestamp: new Date("2026-03-29T10:00:00+09:00"),
+				reactions: [],
+			},
 		];
-		expect(buildMemoryQuery(events).length).toBe(1000);
+		const channelMessages = new Map([["general", messages]]);
+		const result = formatRecentMessages(channelMessages);
+
+		expect(result).not.toContain("[×");
+		expect(result).not.toContain("[]");
 	});
 
-	test("空配列なら空文字を返す", () => {
-		expect(buildMemoryQuery([])).toBe("");
+	test("空の Map なら空文字列を返す", () => {
+		const result = formatRecentMessages(new Map());
+		expect(result).toBe("");
 	});
 
-	test("全てが system イベントなら空文字を返す", () => {
-		const events = [
-			{ ts: "", content: "event", authorId: "system", authorName: "", messageId: "" },
+	test("複数チャンネルのメッセージをチャンネルごとにグループ化する", () => {
+		const generalMessages: RecentMessage[] = [
+			{
+				authorName: "おかず",
+				content: "general の発言",
+				timestamp: new Date("2026-03-29T10:00:00+09:00"),
+				reactions: [],
+			},
 		];
-		expect(buildMemoryQuery(events)).toBe("");
-	});
-});
+		const randomMessages: RecentMessage[] = [
+			{
+				authorName: "たろう",
+				content: "random の発言",
+				timestamp: new Date("2026-03-29T10:05:00+09:00"),
+				reactions: [],
+			},
+		];
+		const channelMessages = new Map([
+			["general", generalMessages],
+			["random", randomMessages],
+		]);
+		const result = formatRecentMessages(channelMessages);
 
-describe("formatMemoryContext", () => {
-	test("エピソードと意味記憶を含む結果をフォーマットする", () => {
-		const result: RetrievalResult = {
-			episodes: [
-				{
-					episode: { title: "お菓子の話", summary: "チョコが好きだと判明" } as never,
-					score: 0.9,
-					retrievability: 0.8,
-				},
-			],
-			facts: [
-				{
-					fact: { category: "preference", fact: "チョコレートが好き" } as never,
-					score: 0.85,
-				},
-			],
-		};
-		const text = formatMemoryContext(result);
-		expect(text).toContain("<memory-context>");
-		expect(text).toContain("</memory-context>");
-		expect(text).toContain("お菓子の話");
-		expect(text).toContain("チョコが好きだと判明");
-		expect(text).toContain("[preference] チョコレートが好き");
-		expect(text).toContain("以下はこの会話に関連しそうな過去の記憶:");
+		expect(result).toContain("## #general");
+		expect(result).toContain("## #random");
+		expect(result).toContain("general の発言");
+		expect(result).toContain("random の発言");
 	});
 
-	test("エピソードのみの場合は意味記憶セクションを含まない", () => {
-		const result: RetrievalResult = {
-			episodes: [
-				{
-					episode: { title: "テスト", summary: "要約" } as never,
-					score: 0.5,
-					retrievability: 0.5,
-				},
-			],
-			facts: [],
-		};
-		const text = formatMemoryContext(result);
-		expect(text).toContain("## エピソード記憶");
-		expect(text).not.toContain("## 意味記憶");
-	});
+	test("タイムスタンプは JST (UTC+9) で表示する", () => {
+		const messages: RecentMessage[] = [
+			{
+				authorName: "夜型",
+				content: "深夜の発言",
+				// UTC 15:00 = JST 2026-03-28 00:00
+				timestamp: new Date("2026-03-27T15:00:00.000Z"),
+				reactions: [],
+			},
+		];
+		const channelMessages = new Map([["general", messages]]);
+		const result = formatRecentMessages(channelMessages);
 
-	test("空の結果なら空文字を返す", () => {
-		const result: RetrievalResult = { episodes: [], facts: [] };
-		expect(formatMemoryContext(result)).toBe("");
-	});
-
-	test("件数上限を超えた場合は切り詰められる", () => {
-		const episodes = Array.from({ length: 10 }, (_, i) => ({
-			episode: { title: `ep${i}`, summary: `summary${i}` } as never,
-			score: 1 - i * 0.1,
-			retrievability: 0.5,
-		}));
-		const facts = Array.from({ length: 10 }, (_, i) => ({
-			fact: { category: "interest" as const, fact: `fact${i}` } as never,
-			score: 1 - i * 0.1,
-		}));
-		const text = formatMemoryContext({ episodes, facts });
-		// エピソード3件、ファクト5件まで
-		expect(text.match(/^- ep\d/gm)?.length).toBe(3);
-		expect(text.match(/\[interest\]/g)?.length).toBe(5);
+		expect(result).toContain("2026-03-28");
+		expect(result).toContain("00:00");
+		expect(result).toContain("JST");
 	});
 });
 

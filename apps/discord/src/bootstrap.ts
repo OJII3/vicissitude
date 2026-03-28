@@ -14,7 +14,6 @@ import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqli
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
-import { type EmbeddingPort, MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -56,19 +55,12 @@ export function createStoreLayer(config: AppConfig) {
 
 // ─── Context Layer ──────────────────────────────────────────────
 
-export function createContextLayer(
-	config: AppConfig,
-	root: string,
-	db: StoreDb,
-	embedding?: EmbeddingPort,
-) {
-	const memoryFactReader = new MemoryFactReaderImpl(resolve(config.dataDir, "memory"), embedding);
+export function createContextLayer(config: AppConfig, root: string) {
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
-		memoryFactReader,
 	);
-	return { memoryFactReader, contextBuilder };
+	return { contextBuilder };
 }
 
 // ─── Guild Agents ───────────────────────────────────────────────
@@ -417,19 +409,14 @@ export async function bootstrap(): Promise<void> {
 	// Store
 	const { db, sessionStore } = createStoreLayer(config);
 
-	// Embedding adapter (shared between context layer and memory recording)
+	// Embedding adapter (for memory recording)
 	const ollamaEmbedding = new OllamaEmbeddingAdapter(
 		config.memory.ollamaBaseUrl,
 		config.memory.embeddingModel,
 	);
 
 	// Context
-	const { memoryFactReader, contextBuilder } = createContextLayer(
-		config,
-		root,
-		db,
-		ollamaEmbedding,
-	);
+	const { contextBuilder } = createContextLayer(config, root);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -556,7 +543,6 @@ export async function bootstrap(): Promise<void> {
 			metrics.server.stop();
 			await memoryResources?.chatAdapter.close();
 			await memoryResources?.recorder.close();
-			await memoryFactReader.close();
 			coreProcess.kill();
 			mcProcess?.kill();
 			closeDb(db);

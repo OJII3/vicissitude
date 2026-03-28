@@ -1,5 +1,4 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Retrieval, RetrievalResult } from "@vicissitude/memory/retrieval";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment } from "@vicissitude/shared/types";
@@ -7,10 +6,15 @@ import type { StoreDb } from "@vicissitude/store/db";
 import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
-export interface MemoryRetriever {
-	retrieval: Retrieval;
-	guildId: string;
+export interface RecentMessage {
+	authorName: string;
+	content: string;
+	timestamp: Date;
+	reactions: { emoji: string; count: number }[];
 }
+
+/** チャンネルIDを受け取り直近メッセージ一覧を返すポート */
+export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage[]>;
 
 /** イベント返却時に対象チャンネルへ typing インジケーターを自動送信するためのポート */
 export type TypingSender = (channelId: string) => Promise<void>;
@@ -18,7 +22,7 @@ export type TypingSender = (channelId: string) => Promise<void>;
 export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
-	memory?: MemoryRetriever;
+	recentMessagesFetcher?: RecentMessagesFetcher;
 	moodReader?: MoodReader;
 	typingSender?: TypingSender;
 }
@@ -75,8 +79,8 @@ export function classifyActionHint(event: ParsedEvent): ActionHint {
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function toJstString(isoTs: string): string {
-	const utc = new Date(isoTs).getTime();
+function toJstString(ts: string | Date): string {
+	const utc = ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
 	const jst = new Date(utc + JST_OFFSET_MS);
 	const y = jst.getUTCFullYear();
 	const mo = String(jst.getUTCMonth() + 1).padStart(2, "0");
@@ -133,53 +137,34 @@ export function formatEventMetadata(events: ParsedEvent[]): string {
 	return `<event-metadata>\n${JSON.stringify(metadata)}\n</event-metadata>`;
 }
 
-// ─── buildMemoryQuery ────────────────────────────────────────────
+// ─── formatRecentMessages ────────────────────────────────────────
 
 /**
- * ParsedEvent 配列からメモリ検索クエリを構築する。system イベントは除外、bot は含める。
- * bot を含める理由: 他のエージェント bot との会話コンテキストを記憶検索でヒットさせるため。
+ * チャンネル名 → メッセージ一覧の Map を受け取り、<recent-messages> ブロックとしてフォーマットする。
+ * 空 Map の場合は空文字列を返す。
  */
-export function buildMemoryQuery(events: ParsedEvent[]): string {
-	return events
-		.filter((e) => e.authorId !== "system" && e.content)
-		.map((e) => e.content)
-		.join("\n")
-		.slice(0, 1000);
-}
+export function formatRecentMessages(channelMessages: Map<string, RecentMessage[]>): string {
+	if (channelMessages.size === 0) return "";
 
-// ─── formatMemoryContext ─────────────────────────────────────────
-
-const MEMORY_EPISODE_LIMIT = 3;
-const MEMORY_FACT_LIMIT = 5;
-
-export function formatMemoryContext(result: RetrievalResult): string {
-	const parts: string[] = [];
-
-	const episodes = result.episodes.slice(0, MEMORY_EPISODE_LIMIT);
-	if (episodes.length > 0) {
-		parts.push("## エピソード記憶");
-		for (const ep of episodes) {
-			parts.push(`- ${ep.episode.title}: ${ep.episode.summary}`);
+	const sections: string[] = [];
+	for (const [channelName, messages] of channelMessages) {
+		if (messages.length === 0) continue;
+		const lines: string[] = [`## #${channelName}`];
+		for (const msg of messages) {
+			const dateStr = toJstString(msg.timestamp);
+			let line = `[${dateStr} JST] ${msg.authorName}: ${msg.content}`;
+			if (msg.reactions.length > 0) {
+				const reactionStr = msg.reactions.map((r) => `${r.emoji}×${r.count}`).join(" ");
+				line += ` [${reactionStr}]`;
+			}
+			lines.push(line);
 		}
+		sections.push(lines.join("\n"));
 	}
 
-	const facts = result.facts.slice(0, MEMORY_FACT_LIMIT);
-	if (facts.length > 0) {
-		parts.push("## 意味記憶");
-		for (const f of facts) {
-			parts.push(`- [${f.fact.category}] ${f.fact.fact}`);
-		}
-	}
+	if (sections.length === 0) return "";
 
-	if (parts.length === 0) return "";
-
-	return [
-		"<memory-context>",
-		"以下はこの会話に関連しそうな過去の記憶:",
-		"",
-		...parts,
-		"</memory-context>",
-	].join("\n");
+	return ["<recent-messages>", ...sections, "</recent-messages>"].join("\n\n");
 }
 
 // ─── extractTypingChannels ───────────────────────────────────────
@@ -220,27 +205,47 @@ export async function pollEvents(
 	return null;
 }
 
-// ─── fetchMemoryContext ──────────────────────────────────────────
+// ─── fetchRecentMessagesContext ──────────────────────────────────
 
 type TextContent = { type: "text"; text: string };
 
-async function fetchMemoryContext(
-	events: ParsedEvent[],
-	memory: MemoryRetriever,
-): Promise<TextContent | null> {
-	const query = buildMemoryQuery(events);
-	if (!query) return null;
-
-	try {
-		const result = await memory.retrieval.retrieve(memory.guildId, query, {
-			limit: MEMORY_FACT_LIMIT,
-		});
-		const context = formatMemoryContext(result);
-		if (!context) return null;
-		return { type: "text", text: context };
-	} catch {
-		return null;
+/** ParsedEvent 配列からユニークな channelId + channelName ペアを抽出する（全イベント対象） */
+function extractAllChannels(events: ParsedEvent[]): { channelId: string; channelName: string }[] {
+	const seen = new Map<string, string>();
+	for (const e of events) {
+		const { channelId, channelName } = e.metadata ?? {};
+		if (channelId && channelName && !seen.has(channelId)) {
+			seen.set(channelId, channelName);
+		}
 	}
+	return [...seen.entries()].map(([channelId, channelName]) => ({ channelId, channelName }));
+}
+
+async function fetchRecentMessagesContext(
+	events: ParsedEvent[],
+	recentMessagesFetcher: RecentMessagesFetcher,
+): Promise<TextContent | null> {
+	const channels = extractAllChannels(events);
+	if (channels.length === 0) return null;
+
+	const results = await Promise.allSettled(
+		channels.map(async ({ channelId, channelName }) => {
+			const messages = await recentMessagesFetcher(channelId);
+			return { channelName, messages };
+		}),
+	);
+	const channelMessages = new Map(
+		results
+			.filter(
+				(r): r is PromiseFulfilledResult<{ channelName: string; messages: RecentMessage[] }> =>
+					r.status === "fulfilled",
+			)
+			.filter((r) => r.value.messages.length > 0)
+			.map((r) => [r.value.channelName, r.value.messages] as const),
+	);
+	const context = formatRecentMessages(channelMessages);
+	if (!context) return null;
+	return { type: "text", text: context };
 }
 
 // ─── registerEventBufferTools ────────────────────────────────────
@@ -256,7 +261,7 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, memory, moodReader, typingSender } = deps;
+	const { db, agentId, recentMessagesFetcher, moodReader, typingSender } = deps;
 
 	/** ParsedEvent 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
 	function sendTypingForEvents(events: ParsedEvent[]): void {
@@ -271,7 +276,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		"wait_for_events",
 		{
 			description:
-				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。関連する長期記憶があれば別ブロックで付与する。対象チャンネルにはタイピングインジケーターを自動送信する。タイムアウト時は空配列を返す。",
+				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。直近のチャンネルメッセージがあれば別ブロックで付与する。対象チャンネルにはタイピングインジケーターを自動送信する。タイムアウト時は空配列を返す。",
 			inputSchema: {
 				timeout_seconds: z.number().min(1).max(172800).default(60),
 			},
@@ -286,8 +291,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				const content: TextContent[] = [
 					{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
 				];
-				if (memory) {
-					const ctx = await fetchMemoryContext(events, memory);
+				if (recentMessagesFetcher) {
+					const ctx = await fetchRecentMessagesContext(events, recentMessagesFetcher);
 					if (ctx) content.unshift(ctx);
 				}
 				const moodContent = buildMoodContent(moodReader, agentId);
@@ -306,8 +311,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const content: TextContent[] = [
 				{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
 			];
-			if (memory) {
-				const ctx = await fetchMemoryContext(result, memory);
+			if (recentMessagesFetcher) {
+				const ctx = await fetchRecentMessagesContext(result, recentMessagesFetcher);
 				if (ctx) content.unshift(ctx);
 			}
 			const moodContent = buildMoodContent(moodReader, agentId);
