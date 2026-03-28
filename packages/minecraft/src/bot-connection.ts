@@ -1,4 +1,3 @@
-import type { McAuthMode } from "@vicissitude/shared/config";
 import type { Logger } from "@vicissitude/shared/types";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
@@ -7,6 +6,7 @@ import { mineflayer as prismarineViewer } from "prismarine-viewer";
 
 import type { BotContext } from "./bot-context.ts";
 import { getTimePeriod, getWeather } from "./bot-queries.ts";
+import type { McAuthMode } from "./constants.ts";
 import type { Importance } from "./helpers.ts";
 
 export interface BotConfig {

@@ -2,6 +2,7 @@
 	"name": "@vicissitude/scheduling",
 	"private": true,
 	"exports": {
+		"./heartbeat-helpers": "./src/heartbeat-helpers.ts",
 		"./heartbeat-scheduler": "./src/heartbeat-scheduler.ts",
 		"./heartbeat-config": "./src/heartbeat-config.ts",
 		"./consolidation-scheduler": "./src/consolidation-scheduler.ts"

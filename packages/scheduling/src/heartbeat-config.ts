@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync } from "fs";
 import { dirname, resolve } from "path";
 
-import { createDefaultHeartbeatConfig } from "@vicissitude/shared/functions";
 import type { HeartbeatConfig } from "@vicissitude/shared/types";
 import { z } from "zod";
+
+import { createDefaultHeartbeatConfig } from "./heartbeat-helpers.ts";
 
 const heartbeatConfigSchema = z.object({
 	baseIntervalMinutes: z.number(),

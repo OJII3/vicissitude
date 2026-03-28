@@ -6,12 +6,17 @@
 
 ```mermaid
 graph LR
+  constants
   session_adapter["session-adapter"] --> stream_helpers["stream-helpers"]
   session_port["session-port"]
   stream_helpers["stream-helpers"]
 ```
 
 ## ファイル別依存一覧
+
+### constants.ts
+
+- 依存なし
 
 ### session-adapter.ts
 

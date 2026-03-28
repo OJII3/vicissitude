@@ -6,6 +6,8 @@
 
 ```mermaid
 graph LR
+  agent --> minecraft
+  agent --> observability
   agent --> opencode
   agent --> shared
   agent --> store
@@ -32,8 +34,10 @@ graph LR
   infrastructure --> store
   mcp --> infrastructure
   mcp --> memory
+  mcp --> minecraft
   mcp --> observability
   mcp --> ollama
+  mcp --> scheduling
   mcp --> shared
   mcp --> store
   memory --> ollama
@@ -57,7 +61,7 @@ graph LR
 
 ### agent
 
-- 内部依存: opencode, shared, store
+- 内部依存: minecraft, observability, opencode, shared, store
 - 外部依存: .bun, path
 - ファイル数: 17
 
@@ -65,13 +69,13 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: なし
-- ファイル数: 4
+- ファイル数: 5
 
 ### apps/discord
 
 - 内部依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
-- ファイル数: 4
+- ファイル数: 5
 
 ### apps/web
 
@@ -99,7 +103,7 @@ graph LR
 
 ### mcp
 
-- 内部依存: infrastructure, memory, observability, ollama, shared, store
+- 内部依存: infrastructure, memory, minecraft, observability, ollama, scheduling, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
 
@@ -113,7 +117,7 @@ graph LR
 
 - 内部依存: mcp, observability, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
-- ファイル数: 24
+- ファイル数: 26
 
 ### observability
 
@@ -131,19 +135,19 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: @opencode-ai/sdk/v2
-- ファイル数: 4
+- ファイル数: 6
 
 ### scheduling
 
 - 内部依存: application, observability, shared
 - 外部依存: .bun, fs, path
-- ファイル数: 5
+- ファイル数: 7
 
 ### shared
 
 - 内部依存: なし
 - 外部依存: .bun, path
-- ファイル数: 16
+- ファイル数: 14
 
 ### store
 

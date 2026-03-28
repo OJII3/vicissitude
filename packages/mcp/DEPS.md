@@ -35,7 +35,7 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/mc-bridge-discord, tools/memory, tools/schedule
-- 他モジュール依存: memory, observability, ollama, shared, store
+- 他モジュール依存: memory, observability, ollama, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### http-server.ts
@@ -64,13 +64,13 @@ graph LR
 
 ### tools/mc-bridge-discord.ts
 
-- 他モジュール依存: shared, store
+- 他モジュール依存: minecraft, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-minecraft.ts
 
 - モジュール内依存: tools/event-buffer
-- 他モジュール依存: shared, store
+- 他モジュール依存: minecraft, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts
@@ -85,5 +85,5 @@ graph LR
 
 ### tools/schedule.ts
 
-- 他モジュール依存: shared
+- 他モジュール依存: scheduling, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path

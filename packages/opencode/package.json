@@ -2,6 +2,7 @@
 	"name": "@vicissitude/opencode",
 	"private": true,
 	"exports": {
+		"./constants": "./src/constants.ts",
 		"./session-adapter": "./src/session-adapter.ts",
 		"./session-port": "./src/session-port.ts",
 		"./stream-helpers": "./src/stream-helpers.ts"

@@ -1,12 +1,8 @@
 import { describe, expect, it, test } from "bun:test";
 
-import {
-	evaluateDueReminders,
-	formatTime,
-	formatTimestamp,
-	splitMessage,
-	withTimeout,
-} from "@vicissitude/shared/functions";
+import { splitMessage } from "@vicissitude/application/split-message";
+import { evaluateDueReminders } from "@vicissitude/scheduling/heartbeat-helpers";
+import { formatTime, formatTimestamp, withTimeout } from "@vicissitude/shared/functions";
 import type { HeartbeatConfig } from "@vicissitude/shared/types";
 
 // ─── splitMessage ────────────────────────────────────────────────

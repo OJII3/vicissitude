@@ -17,7 +17,9 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
+		"@vicissitude/minecraft": "workspace:*",
 		"@vicissitude/observability": "workspace:*",
+		"@vicissitude/scheduling": "workspace:*",
 		"@vicissitude/shared": "workspace:*",
 		"discord.js": "^14.25.1",
 		"zod": "^4.3.6"

@@ -7,10 +7,8 @@
 ```mermaid
 graph LR
   config
-  constants
   emotion
-  functions --> constants
-  functions --> types
+  functions
   ports --> emotion
   ports --> tts
   ports --> ws_protocol["ws-protocol"]
@@ -23,11 +21,7 @@ graph LR
 
 ### config.ts
 
-- 外部依存: .bun, path
-
-### constants.ts
-
-- 依存なし
+- 外部依存: path
 
 ### emotion.ts
 
@@ -35,7 +29,7 @@ graph LR
 
 ### functions.ts
 
-- モジュール内依存: constants, types
+- 依存なし
 
 ### ports.ts
 

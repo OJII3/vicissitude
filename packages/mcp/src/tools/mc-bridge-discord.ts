@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import type { StoreDb } from "@vicissitude/store/db";
 import {
 	getMcConnectionStatus,

@@ -8,8 +8,8 @@ import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
+import { METRIC } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
-import { METRIC } from "@vicissitude/shared/constants";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { Client, GatewayIntentBits } from "discord.js";
 

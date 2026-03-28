@@ -40,9 +40,11 @@ graph LR
   auto_notifier["auto-notifier"] --> helpers
   bot_connection["bot-connection"] --> bot_context["bot-context"]
   bot_connection["bot-connection"] --> bot_queries["bot-queries"]
+  bot_connection["bot-connection"] --> constants
   bot_connection["bot-connection"] --> helpers
   bot_context["bot-context"] --> helpers
   bot_queries["bot-queries"] --> helpers
+  constants
   helpers
   http_server["http-server"]
   job_manager["job-manager"] --> helpers
@@ -57,6 +59,7 @@ graph LR
   server --> auto_notifier["auto-notifier"]
   server --> bot_connection["bot-connection"]
   server --> bot_context["bot-context"]
+  server --> constants
   server --> http_server["http-server"]
   server --> job_manager["job-manager"]
   server --> mc_metrics["mc-metrics"]
@@ -127,23 +130,27 @@ graph LR
 ### auto-notifier.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared, store
+- 他モジュール依存: observability, shared, store
 
 ### bot-connection.ts
 
-- モジュール内依存: bot-context, bot-queries, helpers
+- モジュール内依存: bot-context, bot-queries, constants, helpers
 - 他モジュール依存: shared
 - 外部依存: .bun
 
 ### bot-context.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 - 外部依存: .bun
 
 ### bot-queries.ts
 
 - モジュール内依存: helpers
+- 外部依存: .bun
+
+### constants.ts
+
 - 外部依存: .bun
 
 ### helpers.ts
@@ -157,7 +164,7 @@ graph LR
 ### job-manager.ts
 
 - モジュール内依存: helpers
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 
 ### mc-bridge-server.ts
 
@@ -166,18 +173,18 @@ graph LR
 
 ### mc-metrics.ts
 
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 
 ### mcp-tools.ts
 
 - モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary, stuck-recovery
-- 他モジュール依存: shared
+- 他モジュール依存: observability, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### server.ts
 
-- モジュール内依存: auto-notifier, bot-connection, bot-context, http-server, job-manager, mc-metrics, mcp-tools
-- 他モジュール依存: observability, shared, store
+- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools
+- 他モジュール依存: observability, store
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### state-summary.ts

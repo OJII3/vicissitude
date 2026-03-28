@@ -2,6 +2,7 @@
 	"name": "@vicissitude/minecraft",
 	"private": true,
 	"exports": {
+		"./constants": "./src/constants.ts",
 		"./server": "./src/server.ts",
 		"./mc-bridge-server": "./src/mc-bridge-server.ts",
 		"./mcp-tools": "./src/mcp-tools.ts",

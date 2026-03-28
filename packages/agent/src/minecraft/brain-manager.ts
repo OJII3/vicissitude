@@ -1,4 +1,4 @@
-import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/constants";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import type { Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
