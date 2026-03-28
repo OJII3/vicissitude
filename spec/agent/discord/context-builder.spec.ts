@@ -4,6 +4,7 @@ import os from "os";
 import { join } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 
@@ -18,6 +19,14 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	const parentDir = fullPath.slice(0, fullPath.lastIndexOf("/"));
 	mkdirSync(parentDir, { recursive: true });
 	writeFileSync(fullPath, content);
+}
+
+function createMockFactReader(facts: MemoryFact[]): MemoryFactReader {
+	return {
+		getFacts: () => Promise.resolve(facts),
+		getRelevantFacts: () => Promise.resolve(facts),
+		close: () => Promise.resolve(),
+	};
 }
 
 // ─── ContextBuilder ──────────────────────────────────────────────
@@ -178,6 +187,135 @@ describe("ContextBuilder", () => {
 			const result = await builder.build();
 
 			expect(result).not.toContain("<guild-context>");
+		});
+	});
+
+	describe("MemoryFactReader 連携", () => {
+		it("factReader が渡された場合に MEMORY-FACTS セクションが含まれる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const factReader = createMockFactReader([
+				{
+					content: "コーヒーが好き",
+					category: "preference",
+					createdAt: "2026-01-01T00:00:00.000Z",
+				},
+				{
+					content: "TypeScript が得意",
+					category: "interest",
+					createdAt: "2026-01-02T00:00:00.000Z",
+				},
+			]);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+			const result = await builder.build("111");
+
+			expect(result).toContain("<MEMORY-FACTS>");
+			expect(result).toContain("コーヒーが好き");
+			expect(result).toContain("TypeScript が得意");
+			expect(result).toContain("</MEMORY-FACTS>");
+		});
+
+		it("factReader が渡されない場合は MEMORY-FACTS セクションが含まれない", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build("111");
+
+			expect(result).not.toContain("<MEMORY-FACTS>");
+			expect(result).not.toContain("</MEMORY-FACTS>");
+		});
+
+		it("guideline カテゴリのファクトが「行動ガイドライン」セクションとして先頭にグルーピングされる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const factReader = createMockFactReader([
+				{ content: "丁寧語を使う", category: "guideline", createdAt: "2026-01-01T00:00:00.000Z" },
+				{ content: "挨拶は元気よく", category: "guideline", createdAt: "2026-01-02T00:00:00.000Z" },
+				{
+					content: "コーヒーが好き",
+					category: "preference",
+					createdAt: "2026-01-03T00:00:00.000Z",
+				},
+				{ content: "ゲームが趣味", category: "interest", createdAt: "2026-01-04T00:00:00.000Z" },
+			]);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+			const result = await builder.build("111");
+
+			expect(result).toContain("行動ガイドライン");
+
+			// guideline セクションが他のファクトより前に配置される
+			const guidelineIdx = result.indexOf("行動ガイドライン");
+			const preferenceIdx = result.indexOf("コーヒーが好き");
+			const interestIdx = result.indexOf("ゲームが趣味");
+			expect(guidelineIdx).toBeGreaterThan(-1);
+			expect(guidelineIdx).toBeLessThan(preferenceIdx);
+			expect(guidelineIdx).toBeLessThan(interestIdx);
+		});
+
+		it("MEMORY-FACTS は SESSION-SUMMARY.md の後、DISCORD.md の前に配置される", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "SOUL.md", "soul");
+			writeFile(baseDir, "DISCORD.md", "discord");
+			writeFile(overlayDir, "guilds/111/SESSION-SUMMARY.md", "session summary");
+
+			const factReader = createMockFactReader([
+				{
+					content: "テストファクト",
+					category: "preference",
+					createdAt: "2026-01-01T00:00:00.000Z",
+				},
+			]);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+			const result = await builder.build("111");
+
+			const sessionSummaryEnd = result.indexOf("</SESSION-SUMMARY.md>");
+			const memoryFactsStart = result.indexOf("<MEMORY-FACTS>");
+			const discordStart = result.indexOf("<DISCORD.md>");
+
+			expect(sessionSummaryEnd).toBeGreaterThan(-1);
+			expect(memoryFactsStart).toBeGreaterThan(-1);
+			expect(discordStart).toBeGreaterThan(-1);
+
+			expect(memoryFactsStart).toBeGreaterThan(sessionSummaryEnd);
+			expect(memoryFactsStart).toBeLessThan(discordStart);
+		});
+
+		it("ファクトが空の場合は MEMORY-FACTS セクションが含まれない", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const factReader = createMockFactReader([]);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+			const result = await builder.build("111");
+
+			expect(result).not.toContain("<MEMORY-FACTS>");
+		});
+
+		it("guildId なしの場合は factReader があっても MEMORY-FACTS が含まれない", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const factReader = createMockFactReader([
+				{
+					content: "テストファクト",
+					category: "preference",
+					createdAt: "2026-01-01T00:00:00.000Z",
+				},
+			]);
+
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+			const result = await builder.build();
+
+			// guildId がないため getFacts は空を返す想定
+			expect(result).not.toContain("<MEMORY-FACTS>");
 		});
 	});
 });

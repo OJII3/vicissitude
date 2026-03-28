@@ -112,7 +112,7 @@ graph LR
 
 - 内部依存: ollama, shared
 - 外部依存: bun:sqlite, fs, path
-- ファイル数: 30
+- ファイル数: 31
 
 ### minecraft
 

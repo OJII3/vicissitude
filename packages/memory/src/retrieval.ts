@@ -18,6 +18,8 @@ export interface RetrievalOptions {
 	fsrsWeight?: number;
 	/** Current time — injectable for testing (default new Date()) */
 	now?: Date;
+	/** When true, all guideline facts for the user are guaranteed in results (default false) */
+	guaranteeGuidelines?: boolean;
 }
 
 /** An episode with its retrieval score and retrievability */
@@ -129,6 +131,7 @@ interface ResolvedOptions {
 	vectorWeight: number;
 	fsrsWeight: number;
 	now: Date;
+	guaranteeGuidelines: boolean;
 }
 
 function resolveOptions(options: RetrievalOptions): ResolvedOptions {
@@ -138,6 +141,7 @@ function resolveOptions(options: RetrievalOptions): ResolvedOptions {
 		vectorWeight = 1.0,
 		fsrsWeight = 0.5,
 		now = new Date(),
+		guaranteeGuidelines = false,
 	} = options;
 	return {
 		limit: Math.max(1, Math.min(Math.floor(rawLimit), 1000)),
@@ -145,6 +149,7 @@ function resolveOptions(options: RetrievalOptions): ResolvedOptions {
 		vectorWeight,
 		fsrsWeight,
 		now,
+		guaranteeGuidelines,
 	};
 }
 
@@ -232,7 +237,19 @@ export class Retrieval {
 			query,
 			queryEmbedding,
 		);
-		const result = rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+		let result = rankResults({ textEpisodes, vectorEpisodes, textFacts, vectorFacts, opts });
+
+		if (opts.guaranteeGuidelines) {
+			const allGuidelines = await this.storage.getFactsByCategory(userId, "guideline");
+			const existingIds = new Set(result.facts.map((f) => f.fact.id));
+			const missing = allGuidelines.filter((g) => !existingIds.has(g.id));
+			if (missing.length > 0) {
+				result = {
+					...result,
+					facts: [...result.facts, ...missing.map((fact) => ({ fact, score: 0 }))],
+				};
+			}
+		}
 
 		// FSRS learning loop: fire-and-forget auto-review so returned scores
 		// reflect the pre-review state and remain consistent with this response.

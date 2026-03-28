@@ -324,3 +324,204 @@ describe("Retrieval — custom weight options", () => {
 		expect(withFsrs.episodes[0]!.score).toBeGreaterThan(withoutFsrs.episodes[0]!.score);
 	});
 });
+
+describe("Retrieval — guideline guarantee", () => {
+	let storage: MemoryStorage;
+
+	beforeEach(() => {
+		storage = new MemoryStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("guideline facts are included in results even when not matched by RRF", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		// guideline fact with embedding orthogonal to query and unrelated text
+		const guideline = makeFact({
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact(userId, guideline);
+
+		// preference fact that matches the query well
+		const pref = makeFact({
+			fact: "Likes dark mode",
+			category: "preference",
+			keywords: ["dark", "mode"],
+			embedding: [1, 0, 0],
+		});
+		await storage.saveFact(userId, pref);
+
+		const result = await retrieval.retrieve(userId, "dark mode", {
+			guaranteeGuidelines: true,
+		});
+
+		const factIds = result.facts.map((f) => f.fact.id);
+		expect(factIds).toContain(guideline.id);
+	});
+
+	test("multiple guideline facts are all guaranteed", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		const g1 = makeFact({
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		const g2 = makeFact({
+			category: "guideline",
+			fact: "Use formal tone",
+			keywords: ["tone"],
+			embedding: [0, 0, 1],
+		});
+		await storage.saveFact(userId, g1);
+		await storage.saveFact(userId, g2);
+
+		const result = await retrieval.retrieve(userId, "xyz", {
+			guaranteeGuidelines: true,
+		});
+
+		const factIds = result.facts.map((f) => f.fact.id);
+		expect(factIds).toContain(g1.id);
+		expect(factIds).toContain(g2.id);
+	});
+
+	test("guaranteeGuidelines defaults to false — guidelines not injected", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		// guideline with no text/vector match to query
+		const guideline = makeFact({
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact(userId, guideline);
+
+		// preference that matches query well — ensures limit=1 picks preference over guideline
+		const pref = makeFact({
+			fact: "Likes dark mode",
+			category: "preference",
+			keywords: ["dark", "mode"],
+			embedding: [1, 0, 0],
+		});
+		await storage.saveFact(userId, pref);
+
+		const result = await retrieval.retrieve(userId, "dark mode", { limit: 1 });
+
+		const factIds = result.facts.map((f) => f.fact.id);
+		expect(factIds).not.toContain(guideline.id);
+	});
+
+	test("guaranteeGuidelines=false does not inject guidelines", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		const guideline = makeFact({
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact(userId, guideline);
+
+		// preference that matches query well
+		const pref = makeFact({
+			fact: "Likes dark mode",
+			category: "preference",
+			keywords: ["dark", "mode"],
+			embedding: [1, 0, 0],
+		});
+		await storage.saveFact(userId, pref);
+
+		const result = await retrieval.retrieve(userId, "dark mode", {
+			limit: 1,
+			guaranteeGuidelines: false,
+		});
+
+		const factIds = result.facts.map((f) => f.fact.id);
+		expect(factIds).not.toContain(guideline.id);
+	});
+
+	test("guideline already ranked by RRF is not duplicated", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		// guideline that matches query both by text and vector
+		const guideline = makeFact({
+			category: "guideline",
+			fact: "dark mode is required",
+			keywords: ["dark", "mode"],
+			embedding: [1, 0, 0],
+		});
+		await storage.saveFact(userId, guideline);
+
+		const result = await retrieval.retrieve(userId, "dark mode", {
+			guaranteeGuidelines: true,
+		});
+
+		const guidelineEntries = result.facts.filter((f) => f.fact.id === guideline.id);
+		expect(guidelineEntries).toHaveLength(1);
+	});
+
+	test("guaranteed guidelines do not count against limit for other facts", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		// Create a guideline that won't match by RRF
+		const guideline = makeFact({
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact(userId, guideline);
+
+		// Create 2 preference facts that match well
+		for (let i = 0; i < 2; i++) {
+			await storage.saveFact(
+				userId,
+				makeFact({
+					fact: `Dark mode preference ${i}`,
+					category: "preference",
+					keywords: ["dark", "mode"],
+					embedding: [1, 0, 0],
+				}),
+			);
+		}
+
+		const result = await retrieval.retrieve(userId, "dark mode", {
+			limit: 2,
+			guaranteeGuidelines: true,
+		});
+
+		// Should have 2 RRF-ranked facts + 1 guaranteed guideline = 3
+		const guidelineCount = result.facts.filter((f) => f.fact.category === "guideline").length;
+		const otherCount = result.facts.filter((f) => f.fact.category !== "guideline").length;
+		expect(guidelineCount).toBe(1);
+		expect(otherCount).toBe(2);
+	});
+
+	test("guaranteed guidelines from other users are not included", async () => {
+		const retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+
+		const guideline = makeFact({
+			userId: "user-other",
+			category: "guideline",
+			fact: "Always reply in Japanese",
+			keywords: ["language"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact("user-other", guideline);
+
+		const result = await retrieval.retrieve(userId, "anything", {
+			guaranteeGuidelines: true,
+		});
+
+		const factIds = result.facts.map((f) => f.fact.id);
+		expect(factIds).not.toContain(guideline.id);
+	});
+});
