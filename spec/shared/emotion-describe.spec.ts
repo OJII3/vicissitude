@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { createEmotion } from "@vicissitude/shared/emotion";
-import { describeEmotion } from "@vicissitude/shared/emotion";
+import { createEmotion, describeEmotion } from "@vicissitude/shared/emotion";
 
 // ─── describeEmotion ────────────────────────────────────────────
 //
