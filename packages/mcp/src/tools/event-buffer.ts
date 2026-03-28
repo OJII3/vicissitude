@@ -23,6 +23,10 @@ export interface EventBufferDeps {
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
 export const MAX_BATCH_SIZE = 10;
 
+// ─── ActionHint ──────────────────────────────────────────────────
+
+export type ActionHint = "respond" | "optional" | "read_only" | "internal";
+
 // ─── ParsedEvent ─────────────────────────────────────────────────
 
 export interface ParsedEvent {
@@ -39,6 +43,7 @@ export interface ParsedEvent {
 		isBot?: boolean;
 		isMentioned?: boolean;
 		isThread?: boolean;
+		actionHint?: ActionHint;
 	};
 }
 
@@ -53,6 +58,15 @@ export function parseEvents(rows: { payload: string }[]): ParsedEvent[] {
 			return { _raw: r.payload, _error: "invalid JSON" } as never;
 		}
 	});
+}
+
+// ─── classifyActionHint ──────────────────────────────────────────
+
+export function classifyActionHint(event: ParsedEvent): ActionHint {
+	if (event.authorId === "system") return "internal";
+	if (event.metadata?.isBot) return "read_only";
+	if (event.metadata?.isMentioned) return "respond";
+	return "optional";
 }
 
 // ─── formatEvents ────────────────────────────────────────────────
@@ -85,18 +99,18 @@ export function formatEvents(events: ParsedEvent[]): string {
 
 			const dateStr = toJstString(e.ts);
 			const channel = e.metadata?.channelName ? ` #${e.metadata.channelName}` : "";
-			const flags: string[] = [];
-			if (e.metadata?.isMentioned) flags.push("(mentioned)");
-			if (e.metadata?.isBot) flags.push("(bot)");
+			const hint = classifyActionHint(e);
+			const extras: string[] = [];
 			if (e.attachments && e.attachments.length > 0) {
-				flags.push(`[添付: ${e.attachments.length}件]`);
+				extras.push(`[添付: ${e.attachments.length}件]`);
 			}
-			const flagStr = flags.length > 0 ? ` ${flags.join(" ")}` : "";
+			extras.push(`[action: ${hint}]`);
+			const extraStr = ` ${extras.join(" ")}`;
 
 			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
 			const content = isUserMessage ? `<user_message>${e.content}</user_message>` : e.content;
 
-			return `[${dateStr}${channel}] ${e.authorName}: ${content}${flagStr}`;
+			return `[${dateStr}${channel}] ${e.authorName}: ${content}${extraStr}`;
 		})
 		.join("\n");
 }
@@ -254,6 +268,9 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
+				for (const event of events) {
+					event.metadata = { ...event.metadata, actionHint: classifyActionHint(event) };
+				}
 				sendTypingForEvents(events);
 				const text = formatEvents(events);
 				const metadataText = formatEventMetadata(events);
@@ -271,6 +288,9 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const result = await pollEvents(db, agentId, deadline);
 			if (result === null) {
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
+			}
+			for (const event of result) {
+				event.metadata = { ...event.metadata, actionHint: classifyActionHint(event) };
 			}
 			sendTypingForEvents(result);
 			const text = formatEvents(result);
