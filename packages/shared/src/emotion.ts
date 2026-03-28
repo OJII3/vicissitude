@@ -78,3 +78,12 @@ export function createEmotion(valence: number, arousal: number, dominance: numbe
 
 /** 原点 (neutral) の Emotion */
 export const NEUTRAL_EMOTION: Emotion = Object.freeze({ valence: 0, arousal: 0, dominance: 0 });
+
+/** Emotion が NEUTRAL_EMOTION と同値かどうか判定する */
+export function isNeutralEmotion(emotion: Emotion): boolean {
+	return (
+		emotion.valence === NEUTRAL_EMOTION.valence &&
+		emotion.arousal === NEUTRAL_EMOTION.arousal &&
+		emotion.dominance === NEUTRAL_EMOTION.dominance
+	);
+}

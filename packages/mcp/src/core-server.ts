@@ -162,7 +162,14 @@ function createServer(agentId: string | null): McpServer {
 				await ch.sendTyping();
 			}
 		};
-		registerEventBufferTools(server, { db, agentId, memory, moodReader: moodStore, moodWriter: moodStore, typingSender });
+		registerEventBufferTools(server, {
+			db,
+			agentId,
+			memory,
+			moodReader: moodStore,
+			moodWriter: moodStore,
+			typingSender,
+		});
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}

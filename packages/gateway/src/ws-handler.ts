@@ -106,8 +106,8 @@ export class WsConnectionManager implements GatewayPort {
 				this.send(connectionId, chatResponse);
 
 				const emotion = this.moodReader
-				? this.moodReader.getMood("discord:default")
-				: createEmotion(randomVad(), randomVad(), randomVad());
+					? this.moodReader.getMood("discord:default")
+					: createEmotion(randomVad(), randomVad(), randomVad());
 				const expressionWeight = emotionMapper.mapToExpression(emotion);
 				const emotionUpdate: EmotionUpdateMessage = {
 					type: "emotion_update",
