@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	buildMemoryQuery,
+	classifyActionHint,
 	extractTypingChannels,
 	formatEventMetadata,
 	formatEvents,
@@ -102,6 +103,102 @@ describe("parseEvents", () => {
 	});
 });
 
+describe("classifyActionHint", () => {
+	test("authorId が 'system' なら 'internal' を返す", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "セッション開始",
+			authorId: "system",
+			authorName: "system",
+			messageId: "sys1",
+		};
+		expect(classifyActionHint(event)).toBe("internal");
+	});
+
+	test("metadata.isBot === true なら 'read_only' を返す", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "自動応答",
+			authorId: "bot1",
+			authorName: "BotA",
+			messageId: "msg1",
+			metadata: { isBot: true },
+		};
+		expect(classifyActionHint(event)).toBe("read_only");
+	});
+
+	test("metadata.isMentioned === true なら 'respond' を返す", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "マイクラどう？",
+			authorId: "user1",
+			authorName: "おかず",
+			messageId: "msg1",
+			metadata: { isMentioned: true },
+		};
+		expect(classifyActionHint(event)).toBe("respond");
+	});
+
+	test("それ以外は 'optional' を返す", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "雑談",
+			authorId: "user1",
+			authorName: "おかず",
+			messageId: "msg1",
+			metadata: { channelName: "general" },
+		};
+		expect(classifyActionHint(event)).toBe("optional");
+	});
+
+	test("metadata がない場合は 'optional' を返す", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "テスト",
+			authorId: "user1",
+			authorName: "テスト",
+			messageId: "msg1",
+		};
+		expect(classifyActionHint(event)).toBe("optional");
+	});
+
+	test("system は isBot よりも優先される", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "内部イベント",
+			authorId: "system",
+			authorName: "system",
+			messageId: "sys1",
+			metadata: { isBot: true },
+		};
+		expect(classifyActionHint(event)).toBe("internal");
+	});
+
+	test("isBot は isMentioned よりも優先される", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "bot からのメンション",
+			authorId: "bot1",
+			authorName: "BotA",
+			messageId: "msg1",
+			metadata: { isBot: true, isMentioned: true },
+		};
+		expect(classifyActionHint(event)).toBe("read_only");
+	});
+
+	test("system は isMentioned よりも優先される", () => {
+		const event = {
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "system メンション",
+			authorId: "system",
+			authorName: "system",
+			messageId: "sys1",
+			metadata: { isMentioned: true },
+		};
+		expect(classifyActionHint(event)).toBe("internal");
+	});
+});
+
 describe("formatEvents", () => {
 	test("ParsedEvent を人間可読形式にフォーマットする", () => {
 		const events = [
@@ -125,10 +222,10 @@ describe("formatEvents", () => {
 		expect(result).toContain("おかず");
 		// ユーザー発言は <user_message> タグで囲まれる
 		expect(result).toContain("<user_message>マイクラどう？</user_message>");
-		expect(result).toContain("(mentioned)");
+		expect(result).toContain("[action: respond]");
 	});
 
-	test("bot フラグを表示する", () => {
+	test("bot イベントに [action: read_only] を表示する", () => {
 		const events = [
 			{
 				ts: "2026-03-27T00:00:00.000Z",
@@ -140,7 +237,7 @@ describe("formatEvents", () => {
 			},
 		];
 		const result = formatEvents(events);
-		expect(result).toContain("(bot)");
+		expect(result).toContain("[action: read_only]");
 		// bot 発言には <user_message> タグが付かない
 		expect(result).not.toContain("<user_message>");
 		expect(result).not.toContain("</user_message>");
@@ -161,6 +258,7 @@ describe("formatEvents", () => {
 		expect(result).toContain("[添付: 2件]");
 		// 添付ファイル付きのユーザー発言もタグで囲まれる
 		expect(result).toContain("<user_message>画像送るよ</user_message>");
+		expect(result).toContain("[action: optional]");
 	});
 
 	test("空配列なら空文字列を返す", () => {
@@ -193,6 +291,7 @@ describe("formatEvents", () => {
 		expect(result).toContain("00:00");
 		// ユーザー発言なのでタグで囲まれる
 		expect(result).toContain("<user_message>深夜</user_message>");
+		expect(result).toContain("[action: optional]");
 	});
 
 	test("channelName がない場合でもエラーにならない", () => {
@@ -209,6 +308,7 @@ describe("formatEvents", () => {
 		expect(result).toContain("名前");
 		// channelName がなくてもユーザー発言にはタグが付く
 		expect(result).toContain("<user_message>テスト</user_message>");
+		expect(result).toContain("[action: optional]");
 	});
 
 	test("複数イベントを改行区切りで出力する", () => {
@@ -234,6 +334,10 @@ describe("formatEvents", () => {
 		// ユーザー発言はタグで囲まれる
 		expect(result).toContain("<user_message>1つ目</user_message>");
 		expect(result).toContain("<user_message>2つ目</user_message>");
+		// 各行に action hint が付く
+		for (const line of lines) {
+			expect(line).toContain("[action: optional]");
+		}
 	});
 
 	test("system イベントには <user_message> タグが付かない", () => {
@@ -250,6 +354,7 @@ describe("formatEvents", () => {
 		expect(result).toContain("セッション開始");
 		expect(result).not.toContain("<user_message>");
 		expect(result).not.toContain("</user_message>");
+		expect(result).toContain("[action: internal]");
 	});
 
 	test("ユーザー発言とbot発言が混在する場合、ユーザー発言のみタグ付きである", () => {
@@ -303,6 +408,15 @@ describe("formatEvents", () => {
 		const systemLine = lines.find((l) => l.includes("システム通知"));
 		expect(systemLine).toBeDefined();
 		expect(systemLine).not.toContain("<user_message>");
+
+		// 各行に適切な action hint が付く
+		const userLine = lines.find((l) => l.includes("おかず"));
+		expect(userLine).toContain("[action: optional]");
+		expect(botLine).toContain("[action: read_only]");
+		expect(systemLine).toContain("[action: internal]");
+
+		const user2Line = lines.find((l) => l.includes("たろう"));
+		expect(user2Line).toContain("[action: optional]");
 	});
 
 	test("isBot が未定義のユーザー発言にもタグが付く", () => {
@@ -318,6 +432,7 @@ describe("formatEvents", () => {
 		];
 		const result = formatEvents(events);
 		expect(result).toContain("<user_message>metadata に isBot がない</user_message>");
+		expect(result).toContain("[action: optional]");
 	});
 });
 
