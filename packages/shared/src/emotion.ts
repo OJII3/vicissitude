@@ -112,6 +112,14 @@ export function describeEmotion(emotion: Emotion): string {
 		label = "怖がっている";
 	} else if (v < 0 && a < 0) {
 		label = "悲しい";
+	} else if (a > 0 && d > 0) {
+		label = "怒っている";
+	} else if (a > 0 && d < 0) {
+		label = "怖がっている";
+	} else if (a > 0) {
+		label = "嬉しい";
+	} else if (a < 0) {
+		label = "悲しい";
 	} else {
 		label = "穏やかな";
 	}
