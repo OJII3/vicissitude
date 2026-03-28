@@ -278,7 +278,14 @@ function buildExtractionRules(): string {
   - Persistence: Will this still be true in 6 months?
   - Specificity: Does it contain concrete, searchable information?
   - Utility: Can this help predict future needs or behavior?
-- Do NOT extract: temporary emotions, single-conversation reactions, vague statements, or context-dependent information
+  - Independence: Can this be understood without the conversation context?
+- Do NOT extract LOW-VALUE knowledge. Examples:
+  - Temporary emotions or moods: "User was happy today", "User felt tired"
+  - Single-conversation reactions: "User laughed at the joke", "User said 'interesting'"
+  - Vague or generic statements: "User likes good food", "User thinks technology is useful"
+  - Context-dependent references: "User agreed with that idea", "User wants to do it tomorrow"
+  - Trivial greetings or small talk: "User said hello", "User asked how are you"
+  - Transient states: "User is currently eating lunch", "User is at work right now"
 - Do not speculate or infer beyond what the conversation supports
 - Each fact MUST include an explicit subject (who or what the fact is about). Write facts as complete sentences with a clear subject, e.g. "Alice prefers dark mode", "Tokyo is hot in summer", "The user enjoys hiking"
 - When speaker names are available (shown as role(name)), use those names as subjects. Otherwise use "The user" or "The assistant"
