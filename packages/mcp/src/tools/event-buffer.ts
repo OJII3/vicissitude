@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Retrieval, RetrievalResult } from "@vicissitude/memory/retrieval";
+import { isNeutralEmotion } from "@vicissitude/shared/emotion";
+import type { EmotionAnalyzer, MoodReader, MoodWriter } from "@vicissitude/shared/ports";
 import type { Attachment } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
@@ -17,6 +19,9 @@ export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
 	memory?: MemoryRetriever;
+	moodReader?: MoodReader;
+	moodWriter?: MoodWriter;
+	emotionAnalyzer?: EmotionAnalyzer;
 	typingSender?: TypingSender;
 }
 
@@ -242,8 +247,18 @@ async function fetchMemoryContext(
 
 // ─── registerEventBufferTools ────────────────────────────────────
 
+function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): TextContent | null {
+	if (!moodReader) return null;
+	const mood = moodReader.getMood(agentId);
+	if (isNeutralEmotion(mood)) return null;
+	return {
+		type: "text",
+		text: `<current-mood>\nvalence: ${mood.valence}, arousal: ${mood.arousal}, dominance: ${mood.dominance}\nこれは直近の会話から推定されたあなたの現在の気分です。応答のトーンの参考にしてください。\n</current-mood>`,
+	};
+}
+
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, memory, typingSender } = deps;
+	const { db, agentId, memory, moodReader, moodWriter, emotionAnalyzer, typingSender } = deps;
 
 	/** ParsedEvent 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
 	function sendTypingForEvents(events: ParsedEvent[]): void {
@@ -252,6 +267,19 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		for (const channelId of channels) {
 			typingSender(channelId).catch(() => {});
 		}
+	}
+
+	/** イベントテキストから感情推定 → MoodStore 書き込み（fire-and-forget） */
+	function triggerEmotionEstimation(events: ParsedEvent[]): void {
+		if (!emotionAnalyzer || !moodWriter) return;
+		const text = buildMemoryQuery(events);
+		if (!text) return;
+		void (async () => {
+			const result = await emotionAnalyzer.analyze({ text });
+			if (result.confidence > 0) {
+				moodWriter.setMood(agentId, result.emotion);
+			}
+		})().catch(() => {});
 	}
 
 	server.registerTool(
@@ -268,6 +296,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
 				sendTypingForEvents(events);
+				triggerEmotionEstimation(events);
 				const text = formatEvents(events);
 				const metadataText = formatEventMetadata(events);
 				const content: TextContent[] = [
@@ -277,6 +306,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 					const ctx = await fetchMemoryContext(events, memory);
 					if (ctx) content.unshift(ctx);
 				}
+				const moodContent = buildMoodContent(moodReader, agentId);
+				if (moodContent) content.unshift(moodContent);
 				return { content };
 			}
 
@@ -286,6 +317,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
 			}
 			sendTypingForEvents(result);
+			triggerEmotionEstimation(result);
 			const text = formatEvents(result);
 			const metadataText = formatEventMetadata(result);
 			const content: TextContent[] = [
@@ -295,6 +327,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				const ctx = await fetchMemoryContext(result, memory);
 				if (ctx) content.unshift(ctx);
 			}
+			const moodContent = buildMoodContent(moodReader, agentId);
+			if (moodContent) content.unshift(moodContent);
 			return { content };
 		},
 	);

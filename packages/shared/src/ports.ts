@@ -36,6 +36,23 @@ export interface EmotionAnalyzer {
 	analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult>;
 }
 
+// ─── MoodStore ─────────────────────────────────────────────────
+//
+// 感情状態（VAD）の永続化ポート。
+// agentId ごとに最新の感情値を保持し、有効期限切れなら NEUTRAL_EMOTION を返す。
+
+/** 感情状態の読み取りポート */
+export interface MoodReader {
+	/** agentId の最新 mood を取得。有効期限切れまたは未設定なら NEUTRAL_EMOTION を返す */
+	getMood(agentId: string): Emotion;
+}
+
+/** 感情状態の書き込みポート */
+export interface MoodWriter {
+	/** agentId の mood を更新する */
+	setMood(agentId: string, emotion: Emotion): void;
+}
+
 // ─── AvatarController ───────────────────────────────────────────
 //
 // Avatar パッケージが表情・アニメーション制御を受け付けるポート。

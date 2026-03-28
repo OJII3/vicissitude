@@ -63,7 +63,7 @@ graph LR
 
 - 内部依存: minecraft, observability, opencode, shared, store
 - 外部依存: .bun, path
-- ファイル数: 17
+- ファイル数: 18
 
 ### application
 
@@ -153,7 +153,7 @@ graph LR
 
 - 内部依存: shared
 - 外部依存: .bun, bun:sqlite, fs, path
-- ファイル数: 11
+- ファイル数: 13
 
 ### tts
 

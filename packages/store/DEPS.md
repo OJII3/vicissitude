@@ -11,6 +11,8 @@ graph LR
   event_buffer["event-buffer"] --> queries
   mc_bridge["mc-bridge"] --> db
   mc_bridge["mc-bridge"] --> schema
+  mood_store["mood-store"] --> db
+  mood_store["mood-store"] --> schema
   queries --> db
   queries --> schema
   schema
@@ -31,6 +33,12 @@ graph LR
 ### mc-bridge.ts
 
 - モジュール内依存: db, schema
+- 外部依存: .bun
+
+### mood-store.ts
+
+- モジュール内依存: db, schema
+- 他モジュール依存: shared
 - 外部依存: .bun
 
 ### queries.ts
