@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# Ollama サーバーをバックグラウンドで起動
-ollama serve &
+# Ollama サーバーをバックグラウンドで起動（GIN リクエストログを除外）
+ollama serve 2>&1 | grep -v '^\[GIN\]' &
 SERVE_PID=$!
 
 # サーバー起動をポーリングで待機（最大 60 秒）
