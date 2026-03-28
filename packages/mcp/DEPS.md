@@ -54,7 +54,7 @@ graph LR
 
 ### tools/discord.ts
 
-- 他モジュール依存: infrastructure
+- 他モジュール依存: infrastructure, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/event-buffer.ts

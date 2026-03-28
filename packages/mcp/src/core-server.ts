@@ -155,7 +155,16 @@ function createServer(agentId: string | null): McpServer {
 	const guildMatch = agentId?.match(/^discord:(\d+)$/);
 	const boundGuildId = guildMatch?.[1];
 
-	registerDiscordTools(server, { discordClient }, boundGuildId);
+	registerDiscordTools(
+		server,
+		{
+			discordClient,
+			emotionAnalyzer: emotionEstimator,
+			moodWriter: moodStore,
+			agentId: agentId ?? undefined,
+		},
+		boundGuildId,
+	);
 	registerScheduleTools(server, boundGuildId);
 	if (agentId) {
 		const memory = boundGuildId
@@ -172,8 +181,6 @@ function createServer(agentId: string | null): McpServer {
 			agentId,
 			memory,
 			moodReader: moodStore,
-			moodWriter: moodStore,
-			emotionAnalyzer: emotionEstimator,
 			typingSender,
 		});
 	} else {
