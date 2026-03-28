@@ -95,8 +95,10 @@
       "name": "@vicissitude/mcp",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@vicissitude/agent": "workspace:*",
         "@vicissitude/minecraft": "workspace:*",
         "@vicissitude/observability": "workspace:*",
+        "@vicissitude/ollama": "workspace:*",
         "@vicissitude/scheduling": "workspace:*",
         "@vicissitude/shared": "workspace:*",
         "discord.js": "^14.25.1",
@@ -127,6 +129,9 @@
     },
     "packages/ollama": {
       "name": "@vicissitude/ollama",
+      "dependencies": {
+        "@vicissitude/shared": "workspace:*",
+      },
     },
     "packages/opencode": {
       "name": "@vicissitude/opencode",

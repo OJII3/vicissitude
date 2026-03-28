@@ -12,7 +12,8 @@
 		"./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
 		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
 		"./discord/profile": "./src/discord/profile.ts",
-		"./minecraft/context-builder": "./src/minecraft/context-builder.ts"
+		"./minecraft/context-builder": "./src/minecraft/context-builder.ts",
+		"./emotion/estimator": "./src/emotion/estimator.ts"
 	},
 	"dependencies": {
 		"@vicissitude/minecraft": "workspace:*",

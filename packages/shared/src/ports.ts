@@ -2,6 +2,16 @@ import type { Emotion, VrmExpressionWeight } from "./emotion";
 import type { TtsResult, TtsStyleParams } from "./tts";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
+// ─── LlmPromptPort ──────────────────────────────────────────────
+//
+// 軽量 LLM 呼び出しポート。テキストを送り、応答テキストを受け取る。
+// EmotionEstimator などの内部コンポーネントが利用する。
+
+/** 軽量 LLM 呼び出しポート。テキストを送り、応答テキストを受け取る */
+export interface LlmPromptPort {
+	prompt(text: string): Promise<string>;
+}
+
 // ─── EmotionToExpressionMapper ─────────────────────────────────
 //
 // VAD → VRM Expression マッピングのポート。

@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { registerEventBufferTools } from "@vicissitude/mcp/tools/event-buffer";
 import { createEmotion, NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
 import type { Emotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
-import { registerEventBufferTools } from "@vicissitude/mcp/tools/event-buffer";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 function createStubMoodReader(mood: Emotion): MoodReader {
 	return {
