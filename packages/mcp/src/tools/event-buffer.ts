@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Retrieval, RetrievalResult } from "@vicissitude/memory/retrieval";
-import { isNeutralEmotion } from "@vicissitude/shared/emotion";
+import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
@@ -251,7 +251,7 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 	if (isNeutralEmotion(mood)) return null;
 	return {
 		type: "text",
-		text: `<current-mood>\nvalence: ${mood.valence}, arousal: ${mood.arousal}, dominance: ${mood.dominance}\nこれは直近の会話から推定されたあなたの現在の気分です。応答のトーンの参考にしてください。\n</current-mood>`,
+		text: `<current-mood>\n${describeEmotion(mood)}\nこれは直近の会話から推定されたあなたの現在の気分です。応答のトーンの参考にしてください。\n</current-mood>`,
 	};
 }
 
