@@ -43,7 +43,6 @@ export interface ParsedEvent {
 		isBot?: boolean;
 		isMentioned?: boolean;
 		isThread?: boolean;
-		actionHint?: ActionHint;
 	};
 }
 
@@ -268,9 +267,6 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
-				for (const event of events) {
-					event.metadata = { ...event.metadata, actionHint: classifyActionHint(event) };
-				}
 				sendTypingForEvents(events);
 				const text = formatEvents(events);
 				const metadataText = formatEventMetadata(events);
@@ -288,9 +284,6 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const result = await pollEvents(db, agentId, deadline);
 			if (result === null) {
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
-			}
-			for (const event of result) {
-				event.metadata = { ...event.metadata, actionHint: classifyActionHint(event) };
 			}
 			sendTypingForEvents(result);
 			const text = formatEvents(result);
