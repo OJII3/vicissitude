@@ -126,6 +126,6 @@ description: "Use when writing or updating specifications and spec tests (*.spec
 
 ## 情報境界（再掲）
 
-| 渡されるもの | 渡されないもの |
-|---|---|
+| 渡されるもの                            | 渡されないもの          |
+| --------------------------------------- | ----------------------- |
 | タスク説明・既存 `*.spec.ts`・plan 出力 | 実装コード・`*.test.ts` |
