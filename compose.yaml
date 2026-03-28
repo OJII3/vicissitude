@@ -102,7 +102,6 @@ services:
     entrypoint: ["/entrypoint.sh"]
     environment:
       MEMORY_EMBEDDING_MODEL: ${MEMORY_EMBEDDING_MODEL:-embeddinggemma}
-      GIN_MODE: release
     volumes:
       - ollama-data:/root/.ollama
       - ./containers/ollama/entrypoint.sh:/entrypoint.sh:ro
