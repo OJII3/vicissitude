@@ -351,3 +351,64 @@ describe("ConsolidationPipeline PCL", () => {
 		});
 	});
 });
+
+describe("ConsolidationPipeline dedup", () => {
+	test("dedup fires: identical embedding on action 'new' reinforces existing fact instead", async () => {
+		const storage = new MemoryStorage();
+		// embed returns same vector as the existing fact -> cosine similarity = 1.0
+		const llm = createSpyLLM({
+			structuredResponse: validOutput([
+				{ action: "new", category: "preference", fact: "Likes TypeScript", keywords: ["ts"] },
+			]),
+		});
+		const pipeline = new ConsolidationPipeline(llm, storage);
+
+		const existingFact = makeFact(storage);
+		const episode = makeEpisode(storage);
+
+		const result = await pipeline.consolidate(userId);
+
+		// dedup should have triggered: reinforce instead of new
+		expect(result.reinforced).toBe(1);
+		expect(result.newFacts).toBe(0);
+
+		// Existing fact's sourceEpisodicIds should include the new episode's id
+		const facts = await storage.getFacts(userId);
+		const updated = facts.find((f) => f.id === existingFact.id);
+		expect(updated).toBeDefined();
+		expect(updated!.sourceEpisodicIds).toContain(episode.id);
+
+		// No new fact should have been created
+		expect(facts.filter((f) => f.invalidAt === null)).toHaveLength(1);
+		storage.close();
+	});
+
+	test("dedup does not fire: different embedding on action 'new' creates new fact", async () => {
+		const storage = new MemoryStorage();
+		// embed returns a very different vector -> low cosine similarity
+		const llm: SpyLLM = {
+			...createSpyLLM({
+				structuredResponse: validOutput([
+					{ action: "new", category: "interest", fact: "Enjoys cooking", keywords: ["cooking"] },
+				]),
+			}),
+			embed: async () => [0.9, -0.1, 0.0],
+		};
+		const pipeline = new ConsolidationPipeline(llm, storage);
+
+		// existing fact with embedding [0.1, 0.2, 0.3]
+		makeFact(storage);
+		makeEpisode(storage);
+
+		const result = await pipeline.consolidate(userId);
+
+		// No dedup: should be a new fact
+		expect(result.newFacts).toBe(1);
+		expect(result.reinforced).toBe(0);
+
+		// Two facts total
+		const facts = await storage.getFacts(userId);
+		expect(facts.filter((f) => f.invalidAt === null)).toHaveLength(2);
+		storage.close();
+	});
+});
