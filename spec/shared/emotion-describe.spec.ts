@@ -100,4 +100,33 @@ describe("describeEmotion", () => {
 			expect(typeof result).toBe("string");
 		});
 	});
+
+	// ─── fallback（主要ルール非該当の境界ケース） ────────────────
+
+	describe("fallback（主要ルール非該当の境界ケース）", () => {
+		it("a > 0, d > 0 → 怒り系の記述を返す (angry fallback)", () => {
+			const result = describeEmotion(createEmotion(0, 0.5, 0.5));
+			expect(result).toContain("怒");
+		});
+
+		it("a > 0, d < 0 → 恐怖系の記述を返す (fear fallback)", () => {
+			const result = describeEmotion(createEmotion(0, 0.5, -0.5));
+			expect(result).toContain("怖");
+		});
+
+		it("a > 0, d = 0 → 嬉しい系の記述を返す (happy fallback)", () => {
+			const result = describeEmotion(createEmotion(0, 0.5, 0));
+			expect(result).toContain("嬉しい");
+		});
+
+		it("a < 0, d = 0 → 悲しい系の記述を返す (sad fallback)", () => {
+			const result = describeEmotion(createEmotion(0, -0.5, 0));
+			expect(result).toContain("悲しい");
+		});
+
+		it("a = 0, d > 0 → 穏やか系の記述を返す (neutral fallback)", () => {
+			const result = describeEmotion(createEmotion(0, 0, 0.5));
+			expect(result).toContain("穏やか");
+		});
+	});
 });
