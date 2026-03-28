@@ -6,10 +6,15 @@
 
 ```mermaid
 graph LR
+  ollama_chat_adapter["ollama-chat-adapter"]
   ollama_embedding_adapter["ollama-embedding-adapter"]
 ```
 
 ## ファイル別依存一覧
+
+### ollama-chat-adapter.ts
+
+- 依存なし
 
 ### ollama-embedding-adapter.ts
 

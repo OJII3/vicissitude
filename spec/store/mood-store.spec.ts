@@ -7,7 +7,9 @@ import { createTestDb } from "@vicissitude/store/test-helpers";
 // SqliteMoodStore は MoodReader & MoodWriter を実装する想定。
 // テストでは実装クラスをインポートして検証する。
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-type SqliteMoodStoreModule = { SqliteMoodStore: new (...args: unknown[]) => MoodReader & MoodWriter };
+type SqliteMoodStoreModule = {
+	SqliteMoodStore: new (...args: unknown[]) => MoodReader & MoodWriter;
+};
 
 async function importMoodStore(): Promise<SqliteMoodStoreModule> {
 	return (await import("@vicissitude/store/mood-store")) as SqliteMoodStoreModule;

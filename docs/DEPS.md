@@ -32,6 +32,7 @@ graph LR
   infrastructure --> application
   infrastructure --> shared
   infrastructure --> store
+  mcp --> agent
   mcp --> infrastructure
   mcp --> memory
   mcp --> minecraft
@@ -63,7 +64,7 @@ graph LR
 
 - 内部依存: minecraft, observability, opencode, shared, store
 - 外部依存: .bun, path
-- ファイル数: 18
+- ファイル数: 19
 
 ### application
 
@@ -103,7 +104,7 @@ graph LR
 
 ### mcp
 
-- 内部依存: infrastructure, memory, minecraft, observability, ollama, scheduling, shared, store
+- 内部依存: agent, infrastructure, memory, minecraft, observability, ollama, scheduling, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
 
@@ -129,7 +130,7 @@ graph LR
 
 - 内部依存: なし
 - 外部依存: なし
-- ファイル数: 2
+- ファイル数: 4
 
 ### opencode
 

@@ -319,6 +319,7 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
 		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
+		EMOTION_CHAT_MODEL: process.env.EMOTION_CHAT_MODEL ?? "gemma3",
 	};
 
 	const coreProcess = spawn({

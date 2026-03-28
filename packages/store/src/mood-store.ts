@@ -13,11 +13,7 @@ export class SqliteMoodStore implements MoodReader, MoodWriter {
 	constructor(private readonly db: StoreDb) {}
 
 	getMood(agentId: string): Emotion {
-		const row = this.db
-			.select()
-			.from(moodState)
-			.where(eq(moodState.agentId, agentId))
-			.get();
+		const row = this.db.select().from(moodState).where(eq(moodState.agentId, agentId)).get();
 
 		if (!row) return NEUTRAL_EMOTION;
 		if (Date.now() - row.updatedAt >= MOOD_TTL_MS) return NEUTRAL_EMOTION;

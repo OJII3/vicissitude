@@ -1,11 +1,11 @@
 import { EmotionSchema, NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
-import type { EmotionAnalysisInput, EmotionAnalysisResult, EmotionAnalyzer } from "@vicissitude/shared/ports";
+import type {
+	EmotionAnalysisInput,
+	EmotionAnalysisResult,
+	EmotionAnalyzer,
+	LlmPromptPort,
+} from "@vicissitude/shared/ports";
 import { z } from "zod";
-
-/** 軽量 LLM 呼び出しポート。テキストを送り、応答テキストを受け取る */
-export interface LlmPromptPort {
-	prompt(text: string): Promise<string>;
-}
 
 const ANALYSIS_PROMPT = `Analyze the emotional tone of the following text and return a JSON object with these fields:
 - valence: pleasure (+1) to displeasure (-1)

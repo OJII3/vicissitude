@@ -2,6 +2,7 @@ import { mkdirSync } from "fs";
 import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import { Retrieval } from "@vicissitude/memory/retrieval";
@@ -10,6 +11,7 @@ import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { METRIC } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
+import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
@@ -32,6 +34,7 @@ const CORE_MCP_PORT = Number(process.env.CORE_MCP_PORT ?? "4095");
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 const MEMORY_EMBEDDING_MODEL = process.env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma";
 const MEMORY_DATA_DIR = process.env.MEMORY_DATA_DIR ?? "data/memory";
+const EMOTION_CHAT_MODEL = process.env.EMOTION_CHAT_MODEL ?? "gemma3";
 const DATA_DIR = process.env.DATA_DIR ?? "data";
 
 if (!process.env.DISCORD_TOKEN) {
@@ -64,6 +67,8 @@ const moodStore = new SqliteMoodStore(db);
 // --- Memory (embed-only — consolidation runs in the main process) ---
 
 const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, MEMORY_EMBEDDING_MODEL);
+const ollamaChat = new OllamaChatAdapter(OLLAMA_BASE_URL, EMOTION_CHAT_MODEL);
+const emotionEstimator = new EmotionEstimator(ollamaChat);
 
 /** MemoryLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
 const embedOnlyLlm: MemoryLlmPort = {
@@ -168,6 +173,7 @@ function createServer(agentId: string | null): McpServer {
 			memory,
 			moodReader: moodStore,
 			moodWriter: moodStore,
+			emotionAnalyzer: emotionEstimator,
 			typingSender,
 		});
 	} else {
