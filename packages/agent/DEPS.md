@@ -13,6 +13,7 @@ graph LR
   discord_discord_agent["discord/discord-agent"] --> session_store["session-store"]
   discord_profile["discord/profile"] --> profile
   discord_router["discord/router"]
+  emotion_estimator["emotion/estimator"]
   mcp_config["mcp-config"] --> profile
   minecraft_brain_manager["minecraft/brain-manager"] --> minecraft_minecraft_agent["minecraft/minecraft-agent"]
   minecraft_brain_manager["minecraft/brain-manager"] --> session_store["session-store"]
@@ -49,6 +50,11 @@ graph LR
 ### discord/router.ts
 
 - 他モジュール依存: shared
+
+### emotion/estimator.ts
+
+- 他モジュール依存: shared
+- 外部依存: .bun
 
 ### mcp-config.ts
 

@@ -6,6 +6,7 @@ import type {
 	ConnectionId,
 	EmotionToTtsStyleMapper,
 	GatewayPort,
+	MoodReader,
 	TtsSynthesizer,
 } from "@vicissitude/shared/ports";
 import type { TtsStyleParams } from "@vicissitude/shared/tts";
@@ -32,6 +33,7 @@ function randomVad(): number {
 export interface WsConnectionManagerDeps {
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
+	moodReader?: MoodReader;
 	logger?: Logger;
 }
 
@@ -40,11 +42,13 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
+	private readonly moodReader: MoodReader | undefined;
 	private readonly logger: Logger;
 
 	constructor(deps?: WsConnectionManagerDeps) {
 		this.ttsSynthesizer = deps?.ttsSynthesizer;
 		this.ttsStyleMapper = deps?.ttsStyleMapper;
+		this.moodReader = deps?.moodReader;
 		this.logger = deps?.logger ?? new ConsoleLogger();
 	}
 
@@ -101,7 +105,9 @@ export class WsConnectionManager implements GatewayPort {
 				};
 				this.send(connectionId, chatResponse);
 
-				const emotion = createEmotion(randomVad(), randomVad(), randomVad());
+				const emotion = this.moodReader
+				? this.moodReader.getMood("discord:default")
+				: createEmotion(randomVad(), randomVad(), randomVad());
 				const expressionWeight = emotionMapper.mapToExpression(emotion);
 				const emotionUpdate: EmotionUpdateMessage = {
 					type: "emotion_update",

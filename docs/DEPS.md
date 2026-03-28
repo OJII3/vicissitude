@@ -63,7 +63,7 @@ graph LR
 
 - 内部依存: minecraft, observability, opencode, shared, store
 - 外部依存: .bun, path
-- ファイル数: 17
+- ファイル数: 18
 
 ### application
 
