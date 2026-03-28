@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "bun:test";
+
 import { OllamaChatAdapter } from "./ollama-chat-adapter";
 
 describe("OllamaChatAdapter internals", () => {
