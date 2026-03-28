@@ -1,3 +1,4 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -29,14 +30,15 @@ function captureTools(deps: DiscordDeps): Map<string, ToolHandler> {
 }
 
 function createDiscordClientStub(): DiscordDeps["discordClient"] {
-	const sentMessage = { id: "sent-msg-1", reply: async () => ({ id: "reply-msg-1" }) };
+	const sentMessage = { id: "sent-msg-1", reply: () => Promise.resolve({ id: "reply-msg-1" }) };
 	return {
 		channels: {
-			fetch: async () => ({
-				isTextBased: () => true,
-				send: async () => sentMessage,
-				messages: { fetch: async () => sentMessage },
-			}),
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					send: () => Promise.resolve(sentMessage),
+					messages: { fetch: () => Promise.resolve(sentMessage) },
+				}),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
@@ -52,9 +54,9 @@ function createSpyEmotionAnalyzer(result?: EmotionAnalysisResult): {
 	};
 	return {
 		analyzer: {
-			async analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult> {
+			analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult> {
 				calls.push(input);
-				return defaultResult;
+				return Promise.resolve(defaultResult);
 			},
 		},
 		calls,
@@ -77,15 +79,18 @@ function createSpyMoodWriter(): {
 }
 
 /** fire-and-forget の非同期処理が完了するまで待つ */
-const tick = () => new Promise((r) => setTimeout(r, 50));
+const tick = () =>
+	new Promise<void>((resolve) => {
+		setTimeout(resolve, 50);
+	});
 
 // ─── triggerEmotionEstimation 内部ロジック ───────────────────────
 
 describe("triggerEmotionEstimation のエラーハンドリング", () => {
 	test("emotionAnalyzer.analyze() がエラーを投げてもハンドラは正常に完了する", async () => {
 		const failingAnalyzer: EmotionAnalyzer = {
-			async analyze(): Promise<EmotionAnalysisResult> {
-				throw new Error("LLM connection failed");
+			analyze(): Promise<EmotionAnalysisResult> {
+				return Promise.reject(new Error("LLM connection failed"));
 			},
 		};
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
@@ -138,8 +143,8 @@ describe("triggerEmotionEstimation のエラーハンドリング", () => {
 
 	test("reply ハンドラでも analyze() エラーが握り潰される", async () => {
 		const failingAnalyzer: EmotionAnalyzer = {
-			async analyze(): Promise<EmotionAnalysisResult> {
-				throw new Error("LLM timeout");
+			analyze(): Promise<EmotionAnalysisResult> {
+				return Promise.reject(new Error("LLM timeout"));
 			},
 		};
 		const { writer, calls: writerCalls } = createSpyMoodWriter();

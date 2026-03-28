@@ -1,6 +1,7 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDiscordTools } from "@vicissitude/mcp/tools/discord";
 import type { DiscordDeps } from "@vicissitude/mcp/tools/discord";
 import { createEmotion } from "@vicissitude/shared/emotion";
@@ -33,17 +34,18 @@ function captureTools(deps: DiscordDeps): Map<string, ToolHandler> {
 
 /** send / reply が成功する最小限の Discord Client スタブ */
 function createDiscordClientStub(): DiscordDeps["discordClient"] {
-	const sentMessage = { id: "sent-msg-1", reply: async () => ({ id: "reply-msg-1" }) };
+	const sentMessage = { id: "sent-msg-1", reply: () => Promise.resolve({ id: "reply-msg-1" }) };
 
 	return {
 		channels: {
-			fetch: async () => ({
-				isTextBased: () => true,
-				send: async () => sentMessage,
-				messages: {
-					fetch: async () => sentMessage,
-				},
-			}),
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					send: () => Promise.resolve(sentMessage),
+					messages: {
+						fetch: () => Promise.resolve(sentMessage),
+					},
+				}),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
@@ -59,9 +61,9 @@ function createSpyEmotionAnalyzer(result?: EmotionAnalysisResult): {
 	};
 	return {
 		analyzer: {
-			async analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult> {
+			analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult> {
 				calls.push(input);
-				return defaultResult;
+				return Promise.resolve(defaultResult);
 			},
 		},
 		calls,
@@ -147,7 +149,9 @@ describe("send_message / reply での感情推定トリガー", () => {
 		await sendMessage!({ channel_id: "ch-1", content: "嬉しい！" });
 
 		// fire-and-forget なので少し待つ
-		await new Promise((r) => setTimeout(r, 50));
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 50);
+		});
 
 		expect(writerCalls).toHaveLength(1);
 		expect(writerCalls[0]!.agentId).toBe("agent-1");
@@ -171,7 +175,9 @@ describe("send_message / reply での感情推定トリガー", () => {
 		const sendMessage = tools.get("send_message");
 		await sendMessage!({ channel_id: "ch-1", content: "..." });
 
-		await new Promise((r) => setTimeout(r, 50));
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 50);
+		});
 
 		expect(writerCalls).toHaveLength(0);
 	});

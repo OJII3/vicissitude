@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerEventBufferTools } from "@vicissitude/mcp/tools/event-buffer";
 import { createEmotion, NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
 import type { Emotion } from "@vicissitude/shared/emotion";
@@ -100,7 +100,7 @@ describe("wait_for_events への mood 注入", () => {
 			moodReader: createStubMoodReader(activeMood),
 			memory: {
 				retrieval: {
-					retrieve: async () => ({
+					retrieve: () => ({
 						episodes: [
 							{
 								episode: { title: "テスト", summary: "要約" } as never,
