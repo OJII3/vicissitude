@@ -8,6 +8,7 @@ import type { MemoryStorage } from "./storage.ts";
 import type { ConsolidationAction, FactCategory } from "./types.ts";
 import { CONSOLIDATION_ACTIONS, FACT_CATEGORIES } from "./types.ts";
 import { escapeXmlContent, validateUserId } from "./utils.ts";
+import { cosineSimilarity } from "./vector-math.ts";
 
 /** Result of a consolidation run */
 export interface ConsolidationResult {
@@ -36,6 +37,9 @@ interface ActionContext {
 	existingFacts: SemanticFact[];
 	now: Date;
 }
+const DEDUPE_THRESHOLD = 0.95;
+const DUPLICATE_CANDIDATE_LIMIT = 5;
+
 /** Consolidation pipeline — converts episodes into semantic facts */
 export class ConsolidationPipeline {
 	constructor(
@@ -139,35 +143,47 @@ export class ConsolidationPipeline {
 	): Promise<void> {
 		for (const extracted of facts) {
 			// eslint-disable-next-line no-await-in-loop -- sequential writes required
-			const applied = await this.dispatchAction(ctx, extracted);
-			if (applied) {
-				incrementResult(result, extracted.action);
+			const actualAction = await this.dispatchAction(ctx, extracted);
+			if (actualAction) {
+				incrementResult(result, actualAction);
 			}
 		}
 	}
 
 	/** Dispatch a single extracted fact action to the appropriate handler */
-	private async dispatchAction(ctx: ActionContext, extracted: ExtractedFact): Promise<boolean> {
+	private async dispatchAction(
+		ctx: ActionContext,
+		extracted: ExtractedFact,
+	): Promise<ConsolidationAction | null> {
 		switch (extracted.action) {
 			case "new": {
-				await this.applyNew(ctx, extracted);
-				return true;
+				return this.applyNew(ctx, extracted);
 			}
 			case "reinforce": {
-				return this.applyReinforce(ctx, extracted);
+				return (await this.applyReinforce(ctx, extracted)) ? "reinforce" : null;
 			}
 			case "update": {
-				return this.applyUpdate(ctx, extracted);
+				return (await this.applyUpdate(ctx, extracted)) ? "update" : null;
 			}
 			case "invalidate": {
-				return this.applyInvalidate(ctx, extracted);
+				return (await this.applyInvalidate(ctx, extracted)) ? "invalidate" : null;
 			}
 		}
 	}
 
-	/** Create a new fact with embedding */
-	private async applyNew(ctx: ActionContext, extracted: ExtractedFact): Promise<void> {
+	/** Create a new fact with embedding, or dedup if a near-duplicate exists */
+	private async applyNew(
+		ctx: ActionContext,
+		extracted: ExtractedFact,
+	): Promise<ConsolidationAction> {
 		const embedding = await this.llm.embed(extracted.fact);
+		const duplicate = await this.findDuplicate(ctx.userId, embedding);
+		if (duplicate) {
+			await this.storage.updateFact(ctx.userId, duplicate.id, {
+				sourceEpisodicIds: [...duplicate.sourceEpisodicIds, ctx.episodeId],
+			});
+			return "reinforce";
+		}
 		const fact = createFact({
 			userId: ctx.userId,
 			category: extracted.category,
@@ -177,6 +193,22 @@ export class ConsolidationPipeline {
 			embedding,
 		});
 		await this.storage.saveFact(ctx.userId, fact);
+		return "new";
+	}
+
+	/** Find an existing fact whose embedding is near-duplicate of the given one */
+	private async findDuplicate(userId: string, embedding: number[]): Promise<SemanticFact | null> {
+		const candidates = await this.storage.searchFactsByEmbedding(
+			userId,
+			embedding,
+			DUPLICATE_CANDIDATE_LIMIT,
+		);
+		for (const candidate of candidates) {
+			if (cosineSimilarity(embedding, candidate.embedding) >= DEDUPE_THRESHOLD) {
+				return candidate;
+			}
+		}
+		return null;
 	}
 
 	/** Reinforce an existing fact by adding sourceEpisodicId */

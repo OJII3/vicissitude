@@ -17,6 +17,7 @@ graph LR
   consolidation --> storage
   consolidation --> types
   consolidation --> utils
+  consolidation --> vector_math["vector-math"]
   conversation_recorder["conversation-recorder"] --> consolidation
   conversation_recorder["conversation-recorder"] --> episode
   conversation_recorder["conversation-recorder"] --> episodic
@@ -94,7 +95,7 @@ graph LR
 
 ### consolidation.ts
 
-- モジュール内依存: episode, episodic, llm-port, semantic-fact, storage, types, utils
+- モジュール内依存: episode, episodic, llm-port, semantic-fact, storage, types, utils, vector-math
 
 ### conversation-recorder.ts
 

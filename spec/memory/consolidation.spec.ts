@@ -130,7 +130,16 @@ describe("ConsolidationPipeline — new facts", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		// Each embed call returns an orthogonal vector to avoid embedding dedup between facts
+		const distinctEmbeddings = [
+			[1, 0, 0],
+			[0, 1, 0],
+			[0, 0, 1],
+		];
+		let embedCount = 0;
+		const llm = createMockLLM({ structuredResponse: llmResponse });
+		llm.embed = async (_text: string) => distinctEmbeddings[embedCount++] ?? [0, 0, 1];
+		const pipeline = new ConsolidationPipeline(llm, storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.newFacts).toBe(2);
@@ -351,7 +360,16 @@ describe("ConsolidationPipeline — multiple episodes", () => {
 			],
 		};
 
-		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		// Each embed call returns an orthogonal vector to avoid embedding dedup between episodes
+		const distinctEmbeddings = [
+			[1, 0, 0],
+			[0, 1, 0],
+			[0, 0, 1],
+		];
+		let embedCount = 0;
+		const llm = createMockLLM({ structuredResponse: llmResponse });
+		llm.embed = async (_text: string) => distinctEmbeddings[embedCount++] ?? [0, 0, 1];
+		const pipeline = new ConsolidationPipeline(llm, storage);
 		const result = await pipeline.consolidate(userId);
 
 		expect(result.processedEpisodes).toBe(2);
@@ -861,7 +879,8 @@ function createPCLMockLLM(opts: {
 			return schema.parse(calibrateResponse);
 		},
 		async embed(_text: string): Promise<number[]> {
-			return [0.1, 0.2, 0.3];
+			// Use a vector far from typical existing-fact embeddings to avoid embedding dedup
+			return [0.9, -0.1, 0.0];
 		},
 	};
 
@@ -1036,5 +1055,136 @@ describe("ConsolidationPipeline — Predict-Calibrate Learning", () => {
 		expect(result.reinforced).toBe(1);
 		expect(result.updated).toBe(0);
 		expect(result.invalidated).toBe(0);
+	});
+});
+
+describe("ConsolidationPipeline — embedding dedup", () => {
+	let storage: MemoryStorage;
+
+	beforeEach(() => {
+		storage = new MemoryStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("dedup triggers when new fact embedding matches existing fact (cosine >= 0.95)", async () => {
+		// Pre-existing fact with embedding [0.1, 0.2, 0.3]
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		// LLM returns action: "new", but embed returns [0.1, 0.2, 0.3] (identical to existing)
+		// → cosine similarity = 1.0 → dedup should trigger
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "new",
+					category: "preference",
+					fact: "User enjoys TypeScript",
+					keywords: ["typescript"],
+				},
+			],
+		};
+
+		const llm = createMockLLM({
+			structuredResponse: llmResponse,
+			embedding: [0.1, 0.2, 0.3],
+		});
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		// Should count as reinforced, not new
+		expect(result.reinforced).toBe(1);
+		expect(result.newFacts).toBe(0);
+
+		// No new fact created; existing fact's sourceEpisodicIds updated
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.id).toBe(existingFact.id);
+		expect(facts[0]!.sourceEpisodicIds).toContain("ep-old");
+		expect(facts[0]!.sourceEpisodicIds).toContain(episode.id);
+	});
+
+	test("dedup does not trigger when embeddings are sufficiently different", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "new",
+					category: "interest",
+					fact: "User is interested in cooking",
+					keywords: ["cooking"],
+				},
+			],
+		};
+
+		// embed returns a very different vector → low cosine similarity → no dedup
+		const llm = createMockLLM({
+			structuredResponse: llmResponse,
+			embedding: [0.9, -0.1, 0.0],
+		});
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		// Normal new fact creation
+		expect(result.newFacts).toBe(1);
+		expect(result.reinforced).toBe(0);
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(2);
+	});
+
+	test("no dedup when no existing facts exist", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "new",
+					category: "preference",
+					fact: "User likes TypeScript",
+					keywords: ["typescript"],
+				},
+			],
+		};
+
+		const llm = createMockLLM({
+			structuredResponse: llmResponse,
+			embedding: [0.1, 0.2, 0.3],
+		});
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		// Normal new fact creation — nothing to dedup against
+		expect(result.newFacts).toBe(1);
+		expect(result.reinforced).toBe(0);
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.sourceEpisodicIds).toEqual([episode.id]);
 	});
 });
