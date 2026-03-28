@@ -11,6 +11,7 @@ import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { METRIC } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { closeDb, createDb } from "@vicissitude/store/db";
+import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
@@ -58,6 +59,7 @@ try {
 // --- Drizzle DB ---
 
 const db = createDb(DATA_DIR);
+const moodStore = new SqliteMoodStore(db);
 
 // --- Memory (embed-only — consolidation runs in the main process) ---
 
@@ -160,7 +162,7 @@ function createServer(agentId: string | null): McpServer {
 				await ch.sendTyping();
 			}
 		};
-		registerEventBufferTools(server, { db, agentId, memory, typingSender });
+		registerEventBufferTools(server, { db, agentId, memory, moodReader: moodStore, moodWriter: moodStore, typingSender });
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}

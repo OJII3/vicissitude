@@ -37,6 +37,7 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
+import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { createAivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
@@ -448,9 +449,11 @@ export async function bootstrap(): Promise<void> {
 			})
 		: undefined;
 	const ttsStyleMapper = config.tts ? createEmotionToTtsStyleMapper() : undefined;
+	const moodStore = new SqliteMoodStore(db);
 	const wsManager = new WsConnectionManager({
 		ttsSynthesizer,
 		ttsStyleMapper,
+		moodReader: moodStore,
 	});
 	const gatewayServer = createGatewayServer(config.gatewayPort, wsManager);
 	logger.info(
