@@ -49,6 +49,7 @@ const discordClient = new Client({
 		GatewayIntentBits.Guilds,
 		GatewayIntentBits.GuildMessages,
 		GatewayIntentBits.MessageContent,
+		GatewayIntentBits.GuildMessageReactions,
 	],
 });
 
@@ -167,9 +168,20 @@ function createServer(agentId: string | null): McpServer {
 	);
 	registerScheduleTools(server, boundGuildId);
 	if (agentId) {
-		const memory = boundGuildId
-			? { retrieval: getOrCreateMemory(boundGuildId).retrieval, guildId: boundGuildId }
-			: undefined;
+		const recentMessagesFetcher = async (channelId: string) => {
+			const ch = await discordClient.channels.fetch(channelId);
+			if (!ch?.isTextBased() || !("messages" in ch)) return [];
+			const msgs = await ch.messages.fetch({ limit: 5 });
+			return [...msgs.values()].map((m) => ({
+				authorName: m.member?.displayName ?? m.author.displayName,
+				content: m.content,
+				timestamp: m.createdAt,
+				reactions: [...m.reactions.cache.values()].map((r) => ({
+					emoji: r.emoji.name ?? r.emoji.toString(),
+					count: r.count,
+				})),
+			}));
+		};
 		const typingSender = async (channelId: string) => {
 			const ch = await discordClient.channels.fetch(channelId);
 			if (ch?.isTextBased() && "sendTyping" in ch) {
@@ -179,7 +191,7 @@ function createServer(agentId: string | null): McpServer {
 		registerEventBufferTools(server, {
 			db,
 			agentId,
-			memory,
+			recentMessagesFetcher,
 			moodReader: moodStore,
 			typingSender,
 		});

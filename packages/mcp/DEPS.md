@@ -59,7 +59,7 @@ graph LR
 
 ### tools/event-buffer.ts
 
-- 他モジュール依存: memory, shared, store
+- 他モジュール依存: shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-discord.ts

@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { ContextBuilderPort, MemoryFactReader } from "@vicissitude/shared/types";
+import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -17,7 +17,6 @@ const CONTEXT_FILES = [
 	{ name: "LESSONS.md", scope: "guild" },
 	{ name: "MEMORY.md", scope: "guild" },
 	{ name: "SESSION-SUMMARY.md", scope: "guild" },
-	// → memory-facts inserted after this phase
 	// Phase 2: Behavior
 	{ name: "DISCORD.md", scope: "shared" },
 	{ name: "HEARTBEAT.md", scope: "shared" },
@@ -30,7 +29,6 @@ const CONTEXT_FILES = [
 ] as const satisfies readonly FileEntry[];
 
 type ContextFileName = (typeof CONTEXT_FILES)[number]["name"];
-const MEMORY_FACTS_AFTER: ContextFileName = "SESSION-SUMMARY.md";
 const GUILD_CONTEXT_AFTER: ContextFileName = "HEARTBEAT.md";
 
 const PER_FILE_MAX = 20_000;
@@ -40,7 +38,6 @@ export class ContextBuilder implements ContextBuilderPort {
 	constructor(
 		private readonly overlayDir: string,
 		private readonly baseDir: string,
-		private readonly memoryFactReader?: MemoryFactReader,
 	) {}
 
 	async build(guildId?: string): Promise<string> {
@@ -49,7 +46,6 @@ export class ContextBuilder implements ContextBuilderPort {
 		}
 
 		const fileContents = await this.readAllFiles(guildId);
-		const memoryFactsSection = await this.buildMemoryFactsSection(guildId);
 
 		const sections: string[] = [];
 		let totalLength = 0;
@@ -64,15 +60,6 @@ export class ContextBuilder implements ContextBuilderPort {
 				if (totalLength + section.length > TOTAL_MAX) break;
 				sections.push(section);
 				totalLength += section.length;
-			}
-
-			if (
-				entry.name === MEMORY_FACTS_AFTER &&
-				memoryFactsSection &&
-				totalLength + memoryFactsSection.length <= TOTAL_MAX
-			) {
-				sections.push(memoryFactsSection);
-				totalLength += memoryFactsSection.length;
 			}
 
 			if (entry.name === GUILD_CONTEXT_AFTER && guildId) {
@@ -97,20 +84,6 @@ export class ContextBuilder implements ContextBuilderPort {
 				return this.readOverlaid(entry.name);
 			}),
 		);
-	}
-
-	private async buildMemoryFactsSection(guildId: string | undefined): Promise<string | null> {
-		if (!guildId || !this.memoryFactReader) return null;
-		try {
-			const facts = await this.memoryFactReader.getFacts(guildId);
-			if (facts.length > 0) {
-				const lines = facts.map((f) => `- [${f.category}] ${f.content}`);
-				return `<memory-facts>\n${lines.join("\n")}\n</memory-facts>`;
-			}
-		} catch {
-			// Memory ファクト取得失敗時はスキップして続行
-		}
-		return null;
 	}
 
 	private async readOverlaid(relativePath: string): Promise<string | null> {
