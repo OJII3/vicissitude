@@ -212,7 +212,15 @@ For each fact, decide the appropriate action:
 
 Each fact must have:
 - action: One of "new", "reinforce", "update", "invalidate"
-- category: One of "identity", "preference", "interest", "personality", "relationship", "experience", "goal", "guideline"
+- category: One of the following 8 categories:
+  - "identity": Name, location, occupation, age, demographic facts
+  - "preference": Likes, dislikes, favorites, rankings
+  - "interest": Topics, hobbies, domains the person engages with
+  - "personality": Communication style, emotional tendencies, traits
+  - "relationship": Dynamics between participants, shared references, routines
+  - "experience": Skills, past events, professional background
+  - "goal": Desires, plans, aspirations
+  - "guideline": How the assistant should behave — rules, tone preferences, conditional instructions given by the user. NOT general advice or knowledge shared in conversation.
 - fact: A concise statement of the fact
 - keywords: 1-5 relevant keywords
 - existingFactId: Required for "reinforce", "update", "invalidate" actions
@@ -223,7 +231,11 @@ ${formatExistingFacts(existingFacts)}
 </existing_facts>
 
 Rules:
-- Only extract facts that are clearly stated or strongly implied
+- Only extract facts that are persistent and high-value. Apply these tests:
+  - Persistence: Will this still be true in 6 months?
+  - Specificity: Does it contain concrete, searchable information?
+  - Utility: Can this help predict future needs or behavior?
+- Do NOT extract: temporary emotions, single-conversation reactions, vague statements, or context-dependent information
 - Do not speculate or infer beyond what the conversation supports
 - Each fact MUST include an explicit subject (who or what the fact is about). Write facts as complete sentences with a clear subject, e.g. "Alice prefers dark mode", "Tokyo is hot in summer", "The user enjoys hiking"
 - When speaker names are available (shown as role(name)), use those names as subjects. Otherwise use "The user" or "The assistant"
