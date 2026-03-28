@@ -228,22 +228,24 @@ async function fetchRecentMessagesContext(
 	const channels = extractAllChannels(events);
 	if (channels.length === 0) return null;
 
-	try {
-		const channelMessages = new Map<string, RecentMessage[]>();
-		await Promise.all(
-			channels.map(async ({ channelId, channelName }) => {
-				const messages = await recentMessagesFetcher(channelId);
-				if (messages.length > 0) {
-					channelMessages.set(channelName, messages);
-				}
-			}),
-		);
-		const context = formatRecentMessages(channelMessages);
-		if (!context) return null;
-		return { type: "text", text: context };
-	} catch {
-		return null;
-	}
+	const results = await Promise.allSettled(
+		channels.map(async ({ channelId, channelName }) => {
+			const messages = await recentMessagesFetcher(channelId);
+			return { channelName, messages };
+		}),
+	);
+	const channelMessages = new Map(
+		results
+			.filter(
+				(r): r is PromiseFulfilledResult<{ channelName: string; messages: RecentMessage[] }> =>
+					r.status === "fulfilled",
+			)
+			.filter((r) => r.value.messages.length > 0)
+			.map((r) => [r.value.channelName, r.value.messages] as const),
+	);
+	const context = formatRecentMessages(channelMessages);
+	if (!context) return null;
+	return { type: "text", text: context };
 }
 
 // ─── registerEventBufferTools ────────────────────────────────────
