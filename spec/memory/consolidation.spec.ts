@@ -784,3 +784,212 @@ describe("ConsolidationPipeline — FSRS learning loop", () => {
 		expect(after!.lastReviewedAt).toBeNull();
 	});
 });
+
+// --- Predict-Calibrate Learning (PCL) ---
+
+/**
+ * Create a mock LLM that tracks both chat() and chatStructured() calls
+ * for verifying PCL call sequence.
+ */
+function createPCLMockLLM(opts: {
+	predictResponse?: string;
+	predictError?: Error;
+	calibrateResponse?: ConsolidationOutput;
+}) {
+	const calls: { method: "chat" | "chatStructured"; messages: ChatMessage[] }[] = [];
+	const {
+		predictResponse = "Prediction: user likely discussed TypeScript preferences",
+		predictError,
+		calibrateResponse = { facts: [] },
+	} = opts;
+
+	const llm: MemoryLlmPort = {
+		async chat(messages: ChatMessage[]): Promise<string> {
+			calls.push({ method: "chat", messages });
+			if (predictError) {
+				throw predictError;
+			}
+			return predictResponse;
+		},
+		async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
+			calls.push({ method: "chatStructured", messages });
+			return schema.parse(calibrateResponse);
+		},
+		async embed(_text: string): Promise<number[]> {
+			return [0.1, 0.2, 0.3];
+		},
+	};
+
+	return { llm, calls };
+}
+
+describe("ConsolidationPipeline — Predict-Calibrate Learning", () => {
+	let storage: MemoryStorage;
+
+	beforeEach(() => {
+		storage = new MemoryStorage(":memory:");
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
+	test("calls chat() then chatStructured() when existing facts exist", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const { llm, calls } = createPCLMockLLM({});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		expect(calls).toHaveLength(2);
+		expect(calls[0]!.method).toBe("chat");
+		expect(calls[1]!.method).toBe("chatStructured");
+	});
+
+	test("chat() input contains existing facts and episode title", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode({ title: "Discussing Bun runtime" });
+		await storage.saveEpisode(userId, episode);
+
+		const { llm, calls } = createPCLMockLLM({});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		const predictCall = calls.find((c) => c.method === "chat")!;
+		const allContent = predictCall.messages.map((m) => m.content).join("\n");
+		expect(allContent).toContain("User likes TypeScript");
+		expect(allContent).toContain("Discussing Bun runtime");
+	});
+
+	test("chatStructured system prompt contains prediction text", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "interest",
+			fact: "User is interested in Rust",
+			keywords: ["rust"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const predictionText = "I predict the user discussed Rust compilation times";
+		const { llm, calls } = createPCLMockLLM({ predictResponse: predictionText });
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		const calibrateCall = calls.find((c) => c.method === "chatStructured")!;
+		const systemMsg = calibrateCall.messages.find((m) => m.role === "system");
+		expect(systemMsg).toBeDefined();
+		expect(systemMsg!.content).toContain(predictionText);
+	});
+
+	test("falls back to direct extraction when chat() throws", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const calibrateResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "new",
+					category: "interest",
+					fact: "User is exploring Deno",
+					keywords: ["deno"],
+				},
+			],
+		};
+		const { llm, calls } = createPCLMockLLM({
+			predictError: new Error("LLM predict failed"),
+			calibrateResponse,
+		});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		// chat() was attempted, then chatStructured() ran as fallback
+		expect(calls.some((c) => c.method === "chat")).toBe(true);
+		expect(calls.some((c) => c.method === "chatStructured")).toBe(true);
+
+		// Result is valid despite predict failure
+		expect(result.processedEpisodes).toBe(1);
+		expect(result.newFacts).toBe(1);
+	});
+
+	test("PCL mode produces correct ConsolidationResult counts", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const calibrateResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "new",
+					category: "interest",
+					fact: "User is learning Rust",
+					keywords: ["rust"],
+				},
+				{
+					action: "reinforce",
+					category: "preference",
+					fact: "User likes JavaScript",
+					keywords: ["javascript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+		const { llm } = createPCLMockLLM({ calibrateResponse });
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		expect(result.processedEpisodes).toBe(1);
+		expect(result.newFacts).toBe(1);
+		expect(result.reinforced).toBe(1);
+		expect(result.updated).toBe(0);
+		expect(result.invalidated).toBe(0);
+	});
+});
