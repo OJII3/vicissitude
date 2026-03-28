@@ -87,3 +87,45 @@ export function isNeutralEmotion(emotion: Emotion): boolean {
 		emotion.dominance === NEUTRAL_EMOTION.dominance
 	);
 }
+
+// ─── describeEmotion ───────────────────────────────────────────
+//
+// VAD 感情値を日本語の自然言語記述に変換する純粋関数。
+
+/** VAD 感情値を日本語の自然言語記述に変換する */
+export function describeEmotion(emotion: Emotion): string {
+	const { valence: v, arousal: a, dominance: d } = emotion;
+
+	// 感情カテゴリ判定（emotion-to-expression-mapper と同じ優先順位）
+	let label: string;
+	if (a >= 0.7 && d < 0) {
+		label = "驚いている";
+	} else if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) {
+		label = "穏やかな";
+	} else if (v > 0 && a > 0) {
+		label = "嬉しい";
+	} else if (v > 0 && a < 0) {
+		label = "リラックスした";
+	} else if (v < 0 && a > 0 && d > 0) {
+		label = "怒っている";
+	} else if (v < 0 && a > 0 && d < 0) {
+		label = "怖がっている";
+	} else if (v < 0 && a < 0) {
+		label = "悲しい";
+	} else {
+		label = "穏やかな";
+	}
+
+	// 強度修飾語（VADベクトルのユークリッド距離）
+	const magnitude = Math.sqrt(v * v + a * a + d * d);
+	let modifier: string;
+	if (magnitude < 0.4) {
+		modifier = "少し";
+	} else if (magnitude > 0.7) {
+		modifier = "とても";
+	} else {
+		modifier = "";
+	}
+
+	return `${modifier}${label}気分`;
+}

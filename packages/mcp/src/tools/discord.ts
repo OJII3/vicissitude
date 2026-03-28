@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
+import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Client } from "discord.js";
 import { z } from "zod";
 
@@ -22,6 +23,9 @@ function validateFilePath(filePath: string): void {
 
 export interface DiscordDeps {
 	discordClient: Client;
+	emotionAnalyzer?: EmotionAnalyzer;
+	moodWriter?: MoodWriter;
+	agentId?: string;
 }
 
 const TYPING_INTERVAL_MS = 8_000;
@@ -40,6 +44,18 @@ export function registerDiscordTools(
 ): () => void {
 	const { discordClient } = deps;
 	const typingStates = new Map<string, TypingState>();
+
+	/** エージェント応答テキストから感情推定 → MoodStore 書き込み（fire-and-forget） */
+	function triggerEmotionEstimation(text: string): void {
+		const { emotionAnalyzer, moodWriter, agentId } = deps;
+		if (!emotionAnalyzer || !moodWriter || !agentId) return;
+		void (async () => {
+			const result = await emotionAnalyzer.analyze({ text });
+			if (result.confidence > 0) {
+				moodWriter.setMood(agentId, result.emotion);
+			}
+		})().catch(() => {});
+	}
 
 	function clearTyping(channelId: string) {
 		const state = typingStates.get(channelId);
@@ -108,6 +124,7 @@ export function registerDiscordTools(
 				options.files = [{ attachment: file_path }];
 			}
 			const msg = await channel.send(options);
+			triggerEmotionEstimation(content);
 			return { content: [{ type: "text", text: `Sent message ${msg.id}` }] };
 		},
 	);
@@ -134,6 +151,7 @@ export function registerDiscordTools(
 				options.files = [{ attachment: file_path }];
 			}
 			const msg = await target.reply(options);
+			triggerEmotionEstimation(content);
 			return { content: [{ type: "text", text: `Replied with message ${msg.id}` }] };
 		},
 	);
