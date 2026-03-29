@@ -6,24 +6,17 @@ import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
 import type { ParsedEvent } from "./event-buffer.ts";
-import { MAX_BATCH_SIZE, escapeUserMessageTag, parseEvents } from "./event-buffer.ts";
+import {
+	MAX_BATCH_SIZE,
+	escapeUserMessageTag,
+	isErrorEvent,
+	parseEvents,
+	toJstString,
+} from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 
 // ─── formatCommands ──────────────────────────────────────────────
-
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-function toJstString(ts: string | Date): string {
-	const utc = ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
-	const jst = new Date(utc + JST_OFFSET_MS);
-	const y = jst.getUTCFullYear();
-	const mo = String(jst.getUTCMonth() + 1).padStart(2, "0");
-	const d = String(jst.getUTCDate()).padStart(2, "0");
-	const h = String(jst.getUTCHours()).padStart(2, "0");
-	const mi = String(jst.getUTCMinutes()).padStart(2, "0");
-	return `${y}-${mo}-${d} ${h}:${mi}`;
-}
 
 /** ParsedEvent 配列を Minecraft エージェント向けにフォーマットする。action ヒント・チャンネル名は含めない。 */
 export function formatCommands(events: ParsedEvent[]): string {
@@ -32,10 +25,8 @@ export function formatCommands(events: ParsedEvent[]): string {
 	return events
 		.map((e) => {
 			// エラーイベント
-			if ("_error" in e && "_raw" in e) {
-				const raw = (e as unknown as { _raw: string })._raw;
-				const err = (e as unknown as { _error: string })._error;
-				return `[ERROR] ${err}: ${raw}`;
+			if (isErrorEvent(e)) {
+				return `[ERROR] ${e._error}: ${e._raw}`;
 			}
 
 			const dateStr = toJstString(e.ts);
