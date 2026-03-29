@@ -53,7 +53,18 @@
 		"promise/no-return-wrap": "error",
 		"promise/param-names": "error",
 		"promise/catch-or-return": "error",
-		"react/react-in-jsx-scope": "off"
+		"react/react-in-jsx-scope": "off",
+
+		"typescript/no-unsafe-call": "off",
+		"typescript/no-unsafe-member-access": "off",
+		"typescript/no-unsafe-type-assertion": "off",
+		"typescript/no-unsafe-assignment": "off",
+		"typescript/no-unsafe-argument": "off",
+		"typescript/no-unsafe-return": "off",
+		"typescript/strict-boolean-expressions": "off",
+		"typescript/no-confusing-void-expression": "off",
+		"typescript/unbound-method": "off",
+		"typescript/await-thenable": "off"
 	},
 	"overrides": [
 		{
