@@ -947,6 +947,33 @@ describe("ConsolidationPipeline — Predict-Calibrate Learning", () => {
 		expect(allContent).toContain("Discussing Bun runtime");
 	});
 
+	test("chat() input contains episode summary", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode({
+			title: "Discussing Bun runtime",
+			summary: "A detailed discussion about the Bun JavaScript runtime",
+		});
+		await storage.saveEpisode(userId, episode);
+
+		const { llm, calls } = createPCLMockLLM({});
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		await pipeline.consolidate(userId);
+
+		const predictCall = calls.find((c) => c.method === "chat")!;
+		const allContent = predictCall.messages.map((m) => m.content).join("\n");
+		expect(allContent).toContain("A detailed discussion about the Bun JavaScript runtime");
+	});
+
 	test("chatStructured system prompt contains prediction text", async () => {
 		const existingFact = createFact({
 			userId,
