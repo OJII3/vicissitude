@@ -619,7 +619,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 		await storage.saveEpisode(userId, episode);
 
 		const pipeline = new ConsolidationPipeline(createInvalidLLM("not an object"), storage);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("Expected object");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("Expected object");
 	});
 
 	test("rejects response without facts array", async () => {
@@ -627,7 +627,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 		await storage.saveEpisode(userId, episode);
 
 		const pipeline = new ConsolidationPipeline(createInvalidLLM({}), storage);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("Expected facts array");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("Expected facts array");
 	});
 
 	test("rejects fact with invalid action", async () => {
@@ -647,7 +647,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("action");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("action");
 	});
 
 	test("rejects fact with invalid category", async () => {
@@ -667,7 +667,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("category");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("category");
 	});
 
 	test("rejects fact with empty fact string", async () => {
@@ -687,7 +687,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("fact");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("fact");
 	});
 
 	test("rejects reinforce action without existingFactId", async () => {
@@ -707,7 +707,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
 	});
 
 	test("rejects fact with non-array keywords", async () => {
@@ -727,7 +727,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("keywords");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("keywords");
 	});
 
 	test("rejects update action without existingFactId", async () => {
@@ -747,7 +747,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
 	});
 
 	test("rejects invalidate action without existingFactId", async () => {
@@ -767,7 +767,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
 	});
 
 	test("rejects null element in facts array", async () => {
@@ -780,7 +780,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("expected object");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("expected object");
 	});
 
 	test("rejects non-string keyword element", async () => {
@@ -800,7 +800,7 @@ describe("ConsolidationPipeline — schema validation", () => {
 			}),
 			storage,
 		);
-		await expect(pipeline.consolidate(userId)).rejects.toThrow("keywords[0]: expected string");
+		expect(pipeline.consolidate(userId)).rejects.toThrow("keywords[0]: expected string");
 	});
 });
 

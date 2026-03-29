@@ -239,7 +239,7 @@ describe("Retrieval — edge cases", () => {
 	});
 
 	test("throws on empty userId", async () => {
-		await expect(retrieval.retrieve("", "query")).rejects.toThrow("userId must not be empty");
+		expect(retrieval.retrieve("", "query")).rejects.toThrow("userId must not be empty");
 	});
 
 	test("empty query returns empty results without calling embed", async () => {

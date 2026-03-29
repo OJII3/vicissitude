@@ -279,15 +279,15 @@ describe("withTimeout", () => {
 		expect(result).toBe("ok");
 	});
 
-	test("rejects with timeout error when promise takes too long", async () => {
+	test("rejects with timeout error when promise takes too long", () => {
 		const slow = new Promise<string>((resolve) => {
 			setTimeout(() => resolve("late"), 500);
 		});
-		await expect(withTimeout(slow, 10, "timed out")).rejects.toThrow("timed out");
+		expect(withTimeout(slow, 10, "timed out")).rejects.toThrow("timed out");
 	});
 
-	test("propagates original error when promise rejects before timeout", async () => {
+	test("propagates original error when promise rejects before timeout", () => {
 		const failing = Promise.reject(new Error("original"));
-		await expect(withTimeout(failing, 1000, "timed out")).rejects.toThrow("original");
+		expect(withTimeout(failing, 1000, "timed out")).rejects.toThrow("original");
 	});
 });

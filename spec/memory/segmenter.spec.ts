@@ -369,9 +369,7 @@ describe("Segmenter — schema validation", () => {
 		});
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
-			"Expected object",
-		);
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("Expected object");
 	});
 
 	test("rejects response without segments array", async () => {
@@ -382,7 +380,7 @@ describe("Segmenter — schema validation", () => {
 		});
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
 			"Expected segments array",
 		);
 	});
@@ -397,7 +395,7 @@ describe("Segmenter — schema validation", () => {
 		);
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("title");
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("title");
 	});
 
 	test.each([
@@ -449,9 +447,7 @@ describe("Segmenter — schema validation", () => {
 		);
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow(
-			"startIndex",
-		);
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("startIndex");
 	});
 });
 
@@ -478,7 +474,7 @@ describe("Segmenter — maxQueueSize", () => {
 		await segmenter.addMessage(userId, makeMessage("msg 2"));
 		await segmenter.addMessage(userId, makeMessage("msg 3"));
 
-		await expect(segmenter.addMessage(userId, makeMessage("msg 4"))).rejects.toThrow(
+		expect(segmenter.addMessage(userId, makeMessage("msg 4"))).rejects.toThrow(
 			"exceeds maximum size",
 		);
 	});
@@ -515,6 +511,6 @@ describe("Segmenter — edge cases", () => {
 		});
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		await expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("endIndex");
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("endIndex");
 	});
 });

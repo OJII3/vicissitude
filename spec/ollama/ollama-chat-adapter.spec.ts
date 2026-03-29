@@ -65,19 +65,19 @@ describe("OllamaChatAdapter", () => {
 		});
 	});
 
-	it("HTTP エラー時にエラーをスローする", async () => {
+	it("HTTP エラー時にエラーをスローする", () => {
 		mockFetch({ ok: false, status: 503, statusText: "Service Unavailable", body: {} });
 
 		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3");
 
-		await expect(adapter.prompt("hello")).rejects.toThrow(/503/);
+		expect(adapter.prompt("hello")).rejects.toThrow(/503/);
 	});
 
-	it("レスポンスに response フィールドがない場合にエラーをスローする", async () => {
+	it("レスポンスに response フィールドがない場合にエラーをスローする", () => {
 		mockFetch({ ok: true, body: {} });
 
 		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3");
 
-		await expect(adapter.prompt("hello")).rejects.toThrow();
+		expect(adapter.prompt("hello")).rejects.toThrow();
 	});
 });

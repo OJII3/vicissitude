@@ -38,11 +38,11 @@ describe("GuildRouter", () => {
 		expect(agentB.send).not.toHaveBeenCalled();
 	});
 
-	it("guildId 未指定 + defaultAgent なしの場合にエラーがスローされる", async () => {
+	it("guildId 未指定 + defaultAgent なしの場合にエラーがスローされる", () => {
 		const router = new GuildRouter(new Map());
 
 		const opts: SendOptions = { sessionKey: "key", message: "hello" };
-		await expect(router.send(opts)).rejects.toThrow("GuildRouter requires guildId");
+		expect(router.send(opts)).rejects.toThrow("GuildRouter requires guildId");
 	});
 
 	it("guildId 未指定 + defaultAgent ありの場合に defaultAgent に委譲される", async () => {
@@ -56,15 +56,13 @@ describe("GuildRouter", () => {
 		expect(defaultAgent.send).toHaveBeenCalledTimes(1);
 	});
 
-	it("未登録の guildId の場合にエラーがスローされる", async () => {
+	it("未登録の guildId の場合にエラーがスローされる", () => {
 		const agentA = createMockAgent("a");
 		const agents = new Map<string, AiAgent>([["guild-a", agentA]]);
 		const router = new GuildRouter(agents);
 
 		const opts: SendOptions = { sessionKey: "key", message: "hello", guildId: "guild-unknown" };
-		await expect(router.send(opts)).rejects.toThrow(
-			"No agent registered for guildId: guild-unknown",
-		);
+		expect(router.send(opts)).rejects.toThrow("No agent registered for guildId: guild-unknown");
 	});
 
 	it("stop() が全エージェントに伝播される", () => {
