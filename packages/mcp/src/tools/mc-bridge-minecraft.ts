@@ -5,7 +5,7 @@ import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
-import type { ParsedEvent } from "./event-buffer.ts";
+import type { EventOrError } from "./event-buffer.ts";
 import {
 	MAX_BATCH_SIZE,
 	escapeUserMessageTag,
@@ -18,8 +18,8 @@ const MAX_REPORT_CHARS = 10_000;
 
 // ─── formatCommands ──────────────────────────────────────────────
 
-/** ParsedEvent 配列を Minecraft エージェント向けにフォーマットする。action ヒント・チャンネル名は含めない。 */
-export function formatCommands(events: ParsedEvent[]): string {
+/** EventOrError 配列を Minecraft エージェント向けにフォーマットする。action ヒント・チャンネル名は含めない。 */
+export function formatCommands(events: EventOrError[]): string {
 	if (events.length === 0) return "";
 
 	return events

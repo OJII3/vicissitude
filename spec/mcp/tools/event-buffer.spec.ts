@@ -8,10 +8,11 @@ import {
 	formatEventMetadata,
 	formatEvents,
 	formatRecentMessages,
+	isErrorEvent,
 	parseEvents,
 	pollEvents,
 } from "@vicissitude/mcp/tools/event-buffer";
-import type { RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
+import type { ErrorEvent, ParsedEvent, RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -39,14 +40,16 @@ describe("parseEvents", () => {
 		const result = parseEvents(rows);
 		expect(result).toHaveLength(1);
 		const event = result[0]!;
-		expect(event.ts).toBe("2026-03-27T01:30:00.000Z");
-		expect(event.content).toBe("hello");
-		expect(event.authorId).toBe("user1");
-		expect(event.authorName).toBe("おかず");
-		expect(event.messageId).toBe("msg1");
-		expect(event.metadata?.channelId).toBe("ch1");
-		expect(event.metadata?.channelName).toBe("general");
-		expect(event.metadata?.isMentioned).toBe(true);
+		expect(isErrorEvent(event)).toBe(false);
+		const parsed = event as ParsedEvent;
+		expect(parsed.ts).toBe("2026-03-27T01:30:00.000Z");
+		expect(parsed.content).toBe("hello");
+		expect(parsed.authorId).toBe("user1");
+		expect(parsed.authorName).toBe("おかず");
+		expect(parsed.messageId).toBe("msg1");
+		expect(parsed.metadata?.channelId).toBe("ch1");
+		expect(parsed.metadata?.channelName).toBe("general");
+		expect(parsed.metadata?.isMentioned).toBe(true);
 	});
 
 	test("添付ファイルを含むペイロードをパースする", () => {
@@ -65,8 +68,9 @@ describe("parseEvents", () => {
 			},
 		];
 		const result = parseEvents(rows);
-		expect(result[0]!.attachments).toHaveLength(1);
-		expect(result[0]!.attachments?.[0]?.url).toBe("https://example.com/img.png");
+		const parsed = result[0]! as ParsedEvent;
+		expect(parsed.attachments).toHaveLength(1);
+		expect(parsed.attachments?.[0]?.url).toBe("https://example.com/img.png");
 	});
 
 	test("不正な JSON ペイロードにはエラー情報を付与する", () => {
@@ -97,7 +101,7 @@ describe("parseEvents", () => {
 		];
 		const result = parseEvents(rows);
 		expect(result).toHaveLength(2);
-		expect(result[0]!.content).toBe("ok");
+		expect((result[0]! as ParsedEvent).content).toBe("ok");
 		expect(result[1]!).toHaveProperty("_error", "invalid JSON");
 	});
 });
@@ -266,7 +270,7 @@ describe("formatEvents", () => {
 	});
 
 	test("不正JSONだったイベントは ERROR 形式で出力する", () => {
-		const events = [{ _raw: "broken-data", _error: "invalid JSON" } as never];
+		const events: ErrorEvent[] = [{ _raw: "broken-data", _error: "invalid JSON" }];
 		const result = formatEvents(events);
 		expect(result).toContain("[ERROR]");
 		expect(result).toContain("invalid JSON");
@@ -760,8 +764,8 @@ describe("pollEvents", () => {
 
 		expect(result).not.toBeNull();
 		expect(result).toHaveLength(2);
-		expect(result![0]!.content).toBe("test");
-		expect(result![1]!.content).toBe("next");
+		expect((result![0]! as ParsedEvent).content).toBe("test");
+		expect((result![1]! as ParsedEvent).content).toBe("next");
 	});
 
 	test("タイムアウト時は null を返す", async () => {
@@ -795,6 +799,6 @@ describe("pollEvents", () => {
 		const result = await pollEvents(db, "guild-1", deadline, 30);
 
 		expect(result).not.toBeNull();
-		expect(result![0]!.content).toBe("delayed");
+		expect((result![0]! as ParsedEvent).content).toBe("delayed");
 	});
 });
