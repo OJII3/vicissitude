@@ -6,7 +6,7 @@ import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
 import type { ParsedEvent } from "./event-buffer.ts";
-import { MAX_BATCH_SIZE, parseEvents } from "./event-buffer.ts";
+import { MAX_BATCH_SIZE, escapeUserMessageTag, parseEvents } from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 
@@ -40,7 +40,9 @@ export function formatCommands(events: ParsedEvent[]): string {
 
 			const dateStr = toJstString(e.ts);
 			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
-			const content = isUserMessage ? `<user_message>${e.content}</user_message>` : e.content;
+			const content = isUserMessage
+				? `<user_message>${escapeUserMessageTag(e.content)}</user_message>`
+				: e.content;
 
 			let line = `[${dateStr}] ${e.authorName}: ${content}`;
 			if (e.attachments && e.attachments.length > 0) {

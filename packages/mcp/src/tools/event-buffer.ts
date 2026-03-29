@@ -75,6 +75,15 @@ export function classifyActionHint(event: ParsedEvent): ActionHint {
 	return "optional";
 }
 
+// ─── escapeUserMessageTag ────────────────────────────────────────
+
+/** ユーザーメッセージ内の <user_message> / </user_message> タグをエスケープし、タグインジェクションを防ぐ */
+export function escapeUserMessageTag(content: string): string {
+	return content
+		.replaceAll("</user_message>", "&lt;/user_message&gt;")
+		.replaceAll("<user_message>", "&lt;user_message&gt;");
+}
+
 // ─── formatEvents ────────────────────────────────────────────────
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -114,7 +123,9 @@ export function formatEvents(events: ParsedEvent[]): string {
 			const extraStr = ` ${extras.join(" ")}`;
 
 			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
-			const content = isUserMessage ? `<user_message>${e.content}</user_message>` : e.content;
+			const content = isUserMessage
+				? `<user_message>${escapeUserMessageTag(e.content)}</user_message>`
+				: e.content;
 
 			return `[${dateStr}${channel}] ${e.authorName}: ${content}${extraStr}`;
 		})
