@@ -9,12 +9,19 @@ model: sonnet
 
 ## プロジェクト構成の前提知識
 
-- **マルチエージェント構成**: Discord エージェント（ギルド毎）+ Minecraft エージェント（1つ）
-- **コンテキスト層化**: `context/` (git管理) + `data/context/` (オーバーレイ) → `ContextBuilder` で Phase 1/2/3 に分けて注入
-- **ペルソナ定義**: `IDENTITY.md` (基本), `SOUL.md` (詳細な癖・口調・会話ルール), `DISCORD.md` (不文律)
-- **ツール**: OpenCode SDK + MCP サーバー群（core/code-exec/minecraft）
-- **メモリ**: 3層構造（EventBuffer短期 / Session中期 / SemanticMemory長期）
-- **感情推定**: `EmotionEstimator` が VAD 空間でユーザーの感情を推定し `<current-mood>` として注入
+- **マルチエージェント構成**: Discord エージェント（ギルド毎に `ContextBuilder`）+ Minecraft エージェント（1つ、`MinecraftContextBuilder` で独自構成）
+- **コンテキスト層化**:
+  - Discord: `context/` (git管理) + `data/context/` (オーバーレイ) → `ContextBuilder` で Phase 1(Identity/Memory) / Phase 2(Behavior) / Phase 3(Reference) に分けて注入
+  - Minecraft: `context/minecraft/` 配下の専用ファイル群（`MINECRAFT-IDENTITY.md`, `MINECRAFT-KNOWLEDGE.md`, `MINECRAFT-GOALS.md`, `MINECRAFT-PROGRESS.md` 等）を `MinecraftContextBuilder` で注入（Phase 分けなし）
+- **ペルソナ定義**: `IDENTITY.md` (基本), `SOUL.md` (詳細な癖・口調・会話ルール), `DISCORD.md` (不文律), `HEARTBEAT.md` (スケジューリング)
+- **ツール**: OpenCode SDK + MCP サーバー群
+  - Discord エージェント: `core`（HTTP リモート）+ `code-exec`（ローカルプロセス）
+  - Minecraft エージェント: `mc-bridge`（ローカルプロセス）+ `minecraft`（条件付きリモート、`MC_HOST` 環境変数がある場合のみ）
+- **メモリ**: 3層構造
+  - 短期: `SqliteEventBuffer`（イベントバッファ）+ `SqliteMoodStore`（ムード状態）
+  - 中期: OpenCode セッションのコンテキストウィンドウ + `SESSION-SUMMARY.md`（セッション要約ファイル）
+  - 長期: `SemanticMemory`（ファクト DB）+ episodic memory（エピソード記憶 DB）
+- **感情推定**: `EmotionEstimator` が VAD 空間で推定 → `SqliteMoodStore` に保存 → `event-buffer.ts` の `buildMoodContent()` が `<current-mood>` として MCP ツール返却時に注入
 
 ## 検出する問題
 

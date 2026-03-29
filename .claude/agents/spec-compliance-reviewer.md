@@ -1,7 +1,7 @@
 ---
 name: spec-compliance-reviewer
 description: コード変更が README.md の仕様や *.spec.ts の契約と整合しているかをレビューする。
-tools: Glob, Grep, Read, Bash(git diff:*), Bash(bun test:*)
+tools: Glob, Grep, Read, Bash(git diff:*), Bash(nr test:*)
 model: sonnet
 ---
 
@@ -34,7 +34,7 @@ model: sonnet
 
 ### 4. spec テスト実行（該当ファイルのみ）
 
-変更に関連する `*.spec.ts` があれば `bun test <ファイルパス>` で実行し、結果を報告に含める。
+変更に関連する `*.spec.ts` があれば `nr test <ファイルパス>` で実行し、結果を報告に含める。
 
 ## 報告ルール
 

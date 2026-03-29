@@ -1,5 +1,5 @@
 ---
-description: "Review changed code, fix trivial issues directly, and create GitHub Issues for larger concerns."
+description: "Use when reviewing changed code — fix trivial issues directly and create GitHub Issues for larger concerns."
 user_invokable: true
 ---
 
@@ -12,46 +12,28 @@ user_invokable: true
 1. `git diff main...HEAD --name-only` で変更ファイル一覧を取得
 2. `git diff main...HEAD` で差分内容を取得
 
-差分がない場合（main ブランチ上）は `git diff HEAD~1` にフォールバックする。
-
 ### 引数指定
 
 ユーザーがファイルパスやディレクトリを指定した場合は、そのスコープをレビュー対象とする。
 
 ## Phase 2: サブエージェント並列起動
 
-以下の 4 エージェントを **Agent ツールで並列に** 起動する。各エージェントには Phase 1 で取得した diff 内容と変更ファイル一覧を渡す。
+以下の 4 エージェントを **Agent ツール（general-purpose）で並列に** 起動する。各エージェントには Phase 1 で取得した diff 内容と変更ファイル一覧を渡す。
 
-| エージェント | 観点 |
-|---|---|
-| `correctness-reviewer` | バグ、型安全性、ロジックエラー、エッジケース |
-| `spec-compliance-reviewer` | README.md / `*.spec.ts` との仕様整合性 |
-| `design-reviewer` | YAGNI/KISS/DRY、既存パターンとの一致 |
-| `agent-architecture-reviewer` | AIキャラクターとしてのエージェント設計品質 |
+| エージェント                  | 観点                                         |
+| ----------------------------- | -------------------------------------------- |
+| `correctness-reviewer`        | バグ、型安全性、ロジックエラー、エッジケース |
+| `spec-compliance-reviewer`    | README.md / `*.spec.ts` との仕様整合性       |
+| `design-reviewer`             | YAGNI/KISS/DRY、既存パターンとの一致         |
+| `agent-architecture-reviewer` | AIキャラクターとしてのエージェント設計品質   |
 
 各エージェントはリードオンリー（コード変更しない）。問題の検出と報告のみ行う。
 
 ### 起動方法
 
-```
-Agent ツールで以下のように 4 つ並列に呼び出す:
-
-- name: "correctness-reviewer"
-  subagent_type: "correctness-reviewer"  ← .claude/agents/ のエージェント名
-  prompt: "以下の diff をレビューしてください:\n\n<diff>\n{diff内容}\n</diff>\n\n変更ファイル: {ファイル一覧}"
-
-- name: "spec-compliance-reviewer"
-  subagent_type: "spec-compliance-reviewer"
-  prompt: 同上
-
-- name: "design-reviewer"
-  subagent_type: "design-reviewer"
-  prompt: 同上
-
-- name: "agent-architecture-reviewer"
-  subagent_type: "agent-architecture-reviewer"
-  prompt: 同上
-```
+- Agent ツールの `name` に各エージェント名を設定し、4つ並列で呼び出す
+- `prompt` に `.claude/agents/{name}.md` の内容全文と diff 内容を含める
+- `model: sonnet` を指定する
 
 ## Phase 3: 結果統合と振り分け
 
@@ -60,6 +42,7 @@ Agent ツールで以下のように 4 つ並列に呼び出す:
 ### A. 即修正（その場で直す）
 
 以下の条件を **すべて** 満たすもの:
+
 - 修正の意図が明確で、判断に迷いがない
 - 変更が局所的（影響範囲が修正箇所のみ）
 - 仕様変更・設計変更を伴わない
@@ -69,6 +52,7 @@ Agent ツールで以下のように 4 つ並列に呼び出す:
 ### B. Issue 起票（GitHub Issue を作成する）
 
 以下のいずれかに該当するもの:
+
 - 要件変更や大きな仕様変更を伴う
 - 修正のスコープが今の作業と大きく異なる
 - 複数のアプローチがあり、判断が必要
@@ -96,6 +80,9 @@ Issue は `gh issue create` で作成する。1 Issue = 1 トピック。
 - [ファイル:行] 内容（修正済み）
 - ...
 
+### 検証結果
+nr validate の出力を貼る
+
 ### Issue 起票した項目
 - #<number>: タイトル — 理由
 - ...
@@ -104,9 +91,11 @@ Issue は `gh issue create` で作成する。1 Issue = 1 トピック。
 （全エージェントが問題なしと報告した場合）
 ```
 
+即修正しなかった指摘のうち、Issue にも起票しなかったものがあってはならない。`/review` で発見した問題は、即修正するか Issue に残すかのいずれかに必ず振り分ける。
+
 ## 制約
 
 - Phase 2 → 3 → 4 → 5 の順で進める。フェーズを飛ばさない。
 - サブエージェントの指摘を鵜呑みにしない。統合時に妥当性を判断し、false positive は除外する。
-- 即修正したら必ず `nr validate` で検証する。
+- 即修正したら必ず `nr validate` で検証し、Phase 5 報告に出力を含める。
 - 問題がなければ「問題なし」と簡潔に報告する。過剰に褒めない。

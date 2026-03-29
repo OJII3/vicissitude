@@ -14,6 +14,7 @@ model: sonnet
 ## 検出する問題
 
 ### 重大（必ず報告）
+
 - ロジックのバグ（off-by-one、条件の反転、短絡評価の誤り）
 - null/undefined の未処理（Optional chaining の欠落、non-null assertion の誤用）
 - 型安全性の問題（`any` の使用、不正な型アサーション `as`、型の不整合）
@@ -22,6 +23,7 @@ model: sonnet
 - エラーハンドリングの欠落（catch なしの Promise、try-catch の不足）
 
 ### 軽微（余裕があれば報告）
+
 - 冗長な条件分岐（簡略化可能）
 - 不要な型アサーション
 - パフォーマンス上の明らかな問題（N+1、不要な再計算）
