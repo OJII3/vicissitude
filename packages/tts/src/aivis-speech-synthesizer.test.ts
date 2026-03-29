@@ -217,9 +217,7 @@ describe("computeWavDuration — edge cases", () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
-		mockFetch.mockResolvedValueOnce(
-			new Response(noDataChunk.buffer, { status: 200 }),
-		);
+		mockFetch.mockResolvedValueOnce(new Response(noDataChunk.buffer, { status: 200 }));
 
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);

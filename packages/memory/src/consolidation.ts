@@ -405,10 +405,8 @@ function validateFactFields(obj: Record<string, unknown>, i: number): void {
 	if (typeof obj["fact"] !== "string" || obj["fact"] === "") {
 		throw new TypeError(`facts[${i}].fact: expected non-empty string`);
 	}
-	if ((obj["fact"]).length > MAX_FACT_LENGTH) {
-		throw new RangeError(
-			`facts[${i}].fact: too long (${(obj["fact"]).length} > ${MAX_FACT_LENGTH})`,
-		);
+	if (obj["fact"].length > MAX_FACT_LENGTH) {
+		throw new RangeError(`facts[${i}].fact: too long (${obj["fact"].length} > ${MAX_FACT_LENGTH})`);
 	}
 }
 

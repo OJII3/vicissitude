@@ -1,9 +1,4 @@
-import type {
-	Event,
-	EventMessageUpdated,
-	OpencodeClient,
-	Part,
-} from "@opencode-ai/sdk/v2";
+import type { Event, EventMessageUpdated, OpencodeClient, Part } from "@opencode-ai/sdk/v2";
 import { withTimeout } from "@vicissitude/shared/functions";
 import type { OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
 

@@ -242,7 +242,7 @@ export class JobManager {
 			case "cancelled":
 				return `ジョブキャンセル: ${info.type} → ${info.target}`;
 			case "running":
-				return `ジョブ実行中: ${info.type} → ${info.target}`;
+				throw new Error(`finishJob called with status "running": ${info.type} → ${info.target}`);
 		}
 	}
 
