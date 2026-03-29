@@ -175,6 +175,22 @@ describe("ConsolidationPipeline PCL", () => {
 	});
 
 	describe("predict input validation", () => {
+		test("user message contains episode summary", async () => {
+			const storage = new MemoryStorage();
+			const llm = createSpyLLM({ structuredResponse: validOutput() });
+			const pipeline = new ConsolidationPipeline(llm, storage);
+
+			makeFact(storage);
+			makeEpisode(storage); // default summary is "A summary"
+
+			await pipeline.consolidate(userId);
+
+			const predictMessages = llm.chatCalls[0]!;
+			const userMsg = predictMessages.find((m) => m.role === "user");
+			expect(userMsg?.content).toContain("A summary");
+			storage.close();
+		});
+
 		test("system message contains 'memory prediction agent'", async () => {
 			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });

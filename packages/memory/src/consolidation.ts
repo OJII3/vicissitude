@@ -109,13 +109,13 @@ export class ConsolidationPipeline {
 		return this.calibrate(episode, prediction, existingFacts);
 	}
 
-	/** PREDICT phase: generate prediction text from existing facts + episode title */
+	/** PREDICT phase: generate prediction text from existing facts + episode title + summary */
 	private async predict(episode: Episode, existingFacts: SemanticFact[]): Promise<string> {
 		return this.llm.chat([
 			{ role: "system", content: buildPredictionPrompt() },
 			{
 				role: "user",
-				content: `Episode Title: ${escapeXmlContent(episode.title)}\n\nExisting Knowledge:\n${formatExistingFacts(existingFacts)}`,
+				content: `Episode Title: ${escapeXmlContent(episode.title)}\nEpisode Summary: ${escapeXmlContent(episode.summary)}\n\nExisting Knowledge:\n${formatExistingFacts(existingFacts)}`,
 			},
 		]);
 	}
@@ -340,7 +340,7 @@ ${buildExtractionRules()}`;
 }
 
 function buildPredictionPrompt(): string {
-	return `You are a memory prediction agent. Given a user's existing knowledge facts and an episode title, predict what the episode likely contains. Write a concise prediction of the key topics and facts that might appear in the conversation.`;
+	return `You are a memory prediction agent. Given a user's existing knowledge facts and an episode title and summary, predict what the episode likely contains. Write a concise prediction of the key topics and facts that might appear in the conversation.`;
 }
 
 function buildCalibrationPrompt(
