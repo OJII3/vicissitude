@@ -34,7 +34,7 @@ export const MAX_BATCH_SIZE = 10;
 
 export type ActionHint = "respond" | "optional" | "read_only" | "internal";
 
-// ─── ParsedEvent ─────────────────────────────────────────────────
+// ─── ParsedEvent / ErrorEvent ────────────────────────────────────
 
 export interface ParsedEvent {
 	ts: string;
@@ -53,15 +53,22 @@ export interface ParsedEvent {
 	};
 }
 
+export interface ErrorEvent {
+	_raw: string;
+	_error: string;
+}
+
+export type EventOrError = ParsedEvent | ErrorEvent;
+
 // ─── parseEvents ─────────────────────────────────────────────────
 
-/** payload 文字列の配列をパースして ParsedEvent 配列を返す。不正 JSON は _raw/_error 付きで返す */
-export function parseEvents(rows: { payload: string }[]): ParsedEvent[] {
+/** payload 文字列の配列をパースして EventOrError 配列を返す。不正 JSON は ErrorEvent として返す */
+export function parseEvents(rows: { payload: string }[]): EventOrError[] {
 	return rows.map((r) => {
 		try {
 			return JSON.parse(r.payload) as ParsedEvent;
 		} catch {
-			return { _raw: r.payload, _error: "invalid JSON" } as never;
+			return { _raw: r.payload, _error: "invalid JSON" };
 		}
 	});
 }
@@ -100,12 +107,12 @@ export function toJstString(ts: string | Date): string {
 }
 
 /** parseEvents がパースに失敗したエラーイベントかどうかを判定する type guard */
-export function isErrorEvent(e: ParsedEvent): e is ParsedEvent & { _raw: string; _error: string } {
+export function isErrorEvent(e: EventOrError): e is ErrorEvent {
 	return "_error" in e && "_raw" in e;
 }
 
-/** ParsedEvent 配列を人間可読形式にフォーマットする */
-export function formatEvents(events: ParsedEvent[]): string {
+/** EventOrError 配列を人間可読形式にフォーマットする */
+export function formatEvents(events: EventOrError[]): string {
 	if (events.length === 0) return "";
 
 	return events
@@ -138,10 +145,13 @@ export function formatEvents(events: ParsedEvent[]): string {
 // ─── formatEventMetadata ─────────────────────────────────────────
 
 /** 技術的メタデータを <event-metadata> ブロックとして返す */
-export function formatEventMetadata(events: ParsedEvent[]): string {
+export function formatEventMetadata(events: EventOrError[]): string {
 	if (events.length === 0) return "";
 
-	const metadata = events.map((e) => ({
+	const parsed = events.filter((e): e is ParsedEvent => !isErrorEvent(e));
+	if (parsed.length === 0) return "";
+
+	const metadata = parsed.map((e) => ({
 		channelId: e.metadata?.channelId,
 		messageId: e.messageId,
 		guildId: e.metadata?.guildId,
@@ -183,10 +193,11 @@ export function formatRecentMessages(channelMessages: Map<string, RecentMessage[
 
 // ─── extractTypingChannels ───────────────────────────────────────
 
-/** ParsedEvent 配列から返信対象（system/bot 以外）のユニークな channelId を抽出する */
-export function extractTypingChannels(events: ParsedEvent[]): string[] {
+/** EventOrError 配列から返信対象（system/bot 以外）のユニークな channelId を抽出する */
+export function extractTypingChannels(events: EventOrError[]): string[] {
 	const channels = new Set<string>();
 	for (const e of events) {
+		if (isErrorEvent(e)) continue;
 		if (e.authorId === "system") continue;
 		if (e.metadata?.isBot) continue;
 		if (e.metadata?.channelId) channels.add(e.metadata.channelId);
@@ -207,7 +218,7 @@ export async function pollEvents(
 	agentId: string,
 	deadlineMs: number,
 	pollIntervalMs = 1000,
-): Promise<ParsedEvent[] | null> {
+): Promise<EventOrError[] | null> {
 	while (Date.now() < deadlineMs) {
 		if (hasEvents(db, agentId)) {
 			const rows = consumeEvents(db, agentId, MAX_BATCH_SIZE);
@@ -223,10 +234,11 @@ export async function pollEvents(
 
 type TextContent = { type: "text"; text: string };
 
-/** ParsedEvent 配列からユニークな channelId + channelName ペアを抽出する（全イベント対象） */
-function extractAllChannels(events: ParsedEvent[]): { channelId: string; channelName: string }[] {
+/** EventOrError 配列からユニークな channelId + channelName ペアを抽出する（全イベント対象） */
+function extractAllChannels(events: EventOrError[]): { channelId: string; channelName: string }[] {
 	const seen = new Map<string, string>();
 	for (const e of events) {
+		if (isErrorEvent(e)) continue;
 		const { channelId, channelName } = e.metadata ?? {};
 		if (channelId && channelName && !seen.has(channelId)) {
 			seen.set(channelId, channelName);
@@ -236,7 +248,7 @@ function extractAllChannels(events: ParsedEvent[]): { channelId: string; channel
 }
 
 async function fetchRecentMessagesContext(
-	events: ParsedEvent[],
+	events: EventOrError[],
 	recentMessagesFetcher: RecentMessagesFetcher,
 ): Promise<TextContent | null> {
 	const channels = extractAllChannels(events);
@@ -277,8 +289,8 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
 	const { db, agentId, recentMessagesFetcher, moodReader, typingSender } = deps;
 
-	/** ParsedEvent 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
-	function sendTypingForEvents(events: ParsedEvent[]): void {
+	/** EventOrError 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
+	function sendTypingForEvents(events: EventOrError[]): void {
 		if (!typingSender) return;
 		const channels = extractTypingChannels(events);
 		for (const channelId of channels) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ParsedEvent } from "./event-buffer.ts";
+import type { ErrorEvent, ParsedEvent } from "./event-buffer.ts";
 import { formatCommands } from "./mc-bridge-minecraft.ts";
 
 // ─── Test Helpers ────────────────────────────────────────────────
@@ -216,13 +216,13 @@ describe("formatCommands", () => {
 
 	describe("エラーイベント", () => {
 		test("_error と _raw を持つオブジェクトは [ERROR] err: raw 形式で出力する", () => {
-			const errorEvent = { _error: "invalid JSON", _raw: "{broken" } as never;
+			const errorEvent: ErrorEvent = { _error: "invalid JSON", _raw: "{broken" };
 			const result = formatCommands([errorEvent]);
 			expect(result).toBe("[ERROR] invalid JSON: {broken");
 		});
 
 		test("エラーイベントと通常イベントが混在する場合", () => {
-			const errorEvent = { _error: "parse error", _raw: "bad data" } as never;
+			const errorEvent: ErrorEvent = { _error: "parse error", _raw: "bad data" };
 			const normalEvent = makeEvent({
 				ts: "2024-01-01T00:00:00.000Z",
 				authorId: "system",

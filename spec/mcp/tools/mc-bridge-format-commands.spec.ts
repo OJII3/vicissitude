@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ParsedEvent } from "@vicissitude/mcp/tools/event-buffer";
+import type { ErrorEvent, ParsedEvent } from "@vicissitude/mcp/tools/event-buffer";
 /**
  * formatCommands はまだ実装されていない。
  * このテストは仕様を先に定義し、実装が仕様に適合することを検証する。
@@ -176,7 +176,7 @@ describe("formatCommands", () => {
 	});
 
 	test("エラーイベントは [ERROR] 形式で出力する", () => {
-		const events = [{ _raw: "broken-data", _error: "invalid JSON" } as never];
+		const events: ErrorEvent[] = [{ _raw: "broken-data", _error: "invalid JSON" }];
 		const result = formatCommands(events);
 		expect(result).toContain("[ERROR]");
 		expect(result).toContain("invalid JSON");
