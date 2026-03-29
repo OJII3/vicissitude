@@ -85,10 +85,13 @@ export class ContextBuilder implements ContextBuilderPort {
 		return sections.join("\n\n");
 	}
 
+	/** Maximum facts to inject into system prompt */
+	private static readonly FACTS_LIMIT = 20;
+
 	private async buildFactsSection(guildId?: string): Promise<string | null> {
 		if (!this.factReader || !guildId) return null;
 
-		const facts = await this.factReader.getFacts(guildId);
+		const facts = await this.factReader.getRelevantFacts(guildId, "", ContextBuilder.FACTS_LIMIT);
 		if (facts.length === 0) return null;
 
 		const guidelines: MemoryFact[] = [];

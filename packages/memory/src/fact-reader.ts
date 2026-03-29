@@ -41,8 +41,11 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 		}
 
 		// Separate guideline facts and reserve slots for them
-		const guidelines = allFacts.filter((f) => f.category === "guideline");
-		const nonGuidelines = allFacts.filter((f) => f.category !== "guideline");
+		const guidelines: SemanticFact[] = [];
+		const nonGuidelines: SemanticFact[] = [];
+		for (const f of allFacts) {
+			(f.category === "guideline" ? guidelines : nonGuidelines).push(f);
+		}
 		const reservedCount = Math.min(MAX_GUIDELINES, guidelines.length, limit);
 		const reservedGuidelines = guidelines.slice(0, reservedCount);
 		const remainingLimit = limit - reservedCount;
