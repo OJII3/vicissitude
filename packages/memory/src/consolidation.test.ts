@@ -411,8 +411,9 @@ describe("ConsolidationPipeline dedup", () => {
 
 		const result = await pipeline.consolidate(userId);
 
-		// update counted (old fact invalidated + applyNew called)
+		// update counted (applyUpdate returns "update", applyNew's result is not surfaced)
 		expect(result.updated).toBe(1);
+		expect(result.newFacts).toBe(0);
 
 		// getFacts returns only valid (non-invalidated) facts
 		const validFacts = await storage.getFacts(userId);
