@@ -1,5 +1,5 @@
 /* oxlint-disable require-await, no-non-null-assertion -- mock implementations */
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import type { ConsolidationOutput } from "./consolidation.ts";
 import { ConsolidationPipeline } from "./consolidation.ts";
@@ -95,9 +95,18 @@ function createSpyLLM(
 // --- Tests ---
 
 describe("ConsolidationPipeline PCL", () => {
+	let storage: MemoryStorage;
+
+	beforeEach(() => {
+		storage = new MemoryStorage();
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
 	describe("processEpisode branching", () => {
 		test("no existing facts -> extractFacts (chatStructured only, no chat)", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -108,11 +117,9 @@ describe("ConsolidationPipeline PCL", () => {
 			// extractFacts calls chatStructured, NOT chat (predict)
 			expect(llm.chatCalls).toHaveLength(0);
 			expect(llm.chatStructuredCalls).toHaveLength(1);
-			storage.close();
 		});
 
 		test("existing facts -> predictCalibrate (chat + chatStructured)", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -124,13 +131,11 @@ describe("ConsolidationPipeline PCL", () => {
 			// predictCalibrate: chat (predict) then chatStructured (calibrate)
 			expect(llm.chatCalls).toHaveLength(1);
 			expect(llm.chatStructuredCalls).toHaveLength(1);
-			storage.close();
 		});
 	});
 
 	describe("predictCalibrate fallback", () => {
 		test("predict failure -> falls back to extractFacts", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ chatThrows: true, structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -146,11 +151,9 @@ describe("ConsolidationPipeline PCL", () => {
 			// extractFacts fallback
 			expect(llm.chatStructuredCalls).toHaveLength(1);
 			expect(result.processedEpisodes).toBe(1);
-			storage.close();
 		});
 
 		test("predict success -> calibrate is called", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({
 				chatResponse: "I predict the user likes TypeScript",
 				structuredResponse: validOutput(),
@@ -170,29 +173,26 @@ describe("ConsolidationPipeline PCL", () => {
 			const calibrateMessages = llm.chatStructuredCalls[0]!;
 			const systemMsg = calibrateMessages.find((m) => m.role === "system");
 			expect(systemMsg?.content).toContain("I predict the user likes TypeScript");
-			storage.close();
 		});
 	});
 
 	describe("predict input validation", () => {
 		test("user message contains episode summary", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
 			makeFact(storage);
-			makeEpisode(storage); // default summary is "A summary"
+			// default summary is "A summary"
+			makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
 			const predictMessages = llm.chatCalls[0]!;
 			const userMsg = predictMessages.find((m) => m.role === "user");
 			expect(userMsg?.content).toContain("A summary");
-			storage.close();
 		});
 
 		test("system message contains 'memory prediction agent'", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -204,11 +204,9 @@ describe("ConsolidationPipeline PCL", () => {
 			const predictMessages = llm.chatCalls[0]!;
 			const systemMsg = predictMessages.find((m) => m.role === "system");
 			expect(systemMsg?.content).toContain("memory prediction agent");
-			storage.close();
 		});
 
 		test("user message contains episode title", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -220,11 +218,9 @@ describe("ConsolidationPipeline PCL", () => {
 			const predictMessages = llm.chatCalls[0]!;
 			const userMsg = predictMessages.find((m) => m.role === "user");
 			expect(userMsg?.content).toContain("My Custom Title");
-			storage.close();
 		});
 
 		test("user message contains existing fact text", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -236,11 +232,9 @@ describe("ConsolidationPipeline PCL", () => {
 			const predictMessages = llm.chatCalls[0]!;
 			const userMsg = predictMessages.find((m) => m.role === "user");
 			expect(userMsg?.content).toContain("Prefers dark mode");
-			storage.close();
 		});
 
 		test("XML escape is applied to episode title with special characters", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -253,13 +247,11 @@ describe("ConsolidationPipeline PCL", () => {
 			const userMsg = predictMessages.find((m) => m.role === "user");
 			expect(userMsg?.content).toContain("Test &lt;script&gt; &amp; more");
 			expect(userMsg?.content).not.toContain("<script>");
-			storage.close();
 		});
 	});
 
 	describe("calibrate input validation", () => {
 		test("system message contains prediction text", async () => {
-			const storage = new MemoryStorage();
 			const prediction = "The user will discuss TypeScript preferences";
 			const llm = createSpyLLM({
 				chatResponse: prediction,
@@ -275,11 +267,9 @@ describe("ConsolidationPipeline PCL", () => {
 			const calibrateMessages = llm.chatStructuredCalls[0]!;
 			const systemMsg = calibrateMessages.find((m) => m.role === "system");
 			expect(systemMsg?.content).toContain(prediction);
-			storage.close();
 		});
 
 		test("system message contains existing facts in <existing_facts> tag", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -293,11 +283,9 @@ describe("ConsolidationPipeline PCL", () => {
 			expect(systemMsg?.content).toContain("<existing_facts>");
 			expect(systemMsg?.content).toContain("Enjoys hiking");
 			expect(systemMsg?.content).toContain(fact.id);
-			storage.close();
 		});
 
 		test("user message contains episode content in <episode> tag", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -310,13 +298,11 @@ describe("ConsolidationPipeline PCL", () => {
 			const userMsg = calibrateMessages.find((m) => m.role === "user");
 			expect(userMsg?.content).toContain("<episode>");
 			expect(userMsg?.content).toContain("Hiking Chat");
-			storage.close();
 		});
 	});
 
 	describe("buildCalibrationPrompt structure", () => {
 		test("includes gap types (NOT predicted, CONTRADICT, CONFIRM)", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -329,11 +315,9 @@ describe("ConsolidationPipeline PCL", () => {
 			expect(systemMsg?.content).toContain("NOT predicted");
 			expect(systemMsg?.content).toContain("CONTRADICT");
 			expect(systemMsg?.content).toContain("CONFIRM");
-			storage.close();
 		});
 
 		test("includes category definitions", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -348,11 +332,9 @@ describe("ConsolidationPipeline PCL", () => {
 			expect(systemMsg?.content).toContain("interest");
 			expect(systemMsg?.content).toContain("personality");
 			expect(systemMsg?.content).toContain("guideline");
-			storage.close();
 		});
 
 		test("includes Predict-Calibrate Learning description", async () => {
-			const storage = new MemoryStorage();
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
@@ -363,14 +345,22 @@ describe("ConsolidationPipeline PCL", () => {
 
 			const systemMsg = llm.chatStructuredCalls[0]!.find((m) => m.role === "system");
 			expect(systemMsg?.content).toContain("Predict-Calibrate Learning");
-			storage.close();
 		});
 	});
 });
 
 describe("ConsolidationPipeline dedup", () => {
+	let storage: MemoryStorage;
+
+	beforeEach(() => {
+		storage = new MemoryStorage();
+	});
+
+	afterEach(() => {
+		storage.close();
+	});
+
 	test("dedup fires: identical embedding on action 'new' reinforces existing fact instead", async () => {
-		const storage = new MemoryStorage();
 		// embed returns same vector as the existing fact -> cosine similarity = 1.0
 		const llm = createSpyLLM({
 			structuredResponse: validOutput([
@@ -396,11 +386,9 @@ describe("ConsolidationPipeline dedup", () => {
 
 		// No new fact should have been created
 		expect(facts.filter((f) => f.invalidAt === null)).toHaveLength(1);
-		storage.close();
 	});
 
 	test("dedup does not fire: different embedding on action 'new' creates new fact", async () => {
-		const storage = new MemoryStorage();
 		// embed returns a very different vector -> low cosine similarity
 		const llm: SpyLLM = {
 			...createSpyLLM({
@@ -425,6 +413,5 @@ describe("ConsolidationPipeline dedup", () => {
 		// Two facts total
 		const facts = await storage.getFacts(userId);
 		expect(facts.filter((f) => f.invalidAt === null)).toHaveLength(2);
-		storage.close();
 	});
 });
