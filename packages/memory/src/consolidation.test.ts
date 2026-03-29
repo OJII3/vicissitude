@@ -388,6 +388,48 @@ describe("ConsolidationPipeline dedup", () => {
 		expect(facts.filter((f) => f.invalidAt === null)).toHaveLength(1);
 	});
 
+	test("dedup fires: action 'update' invalidates old fact and reinforces duplicate instead of creating new", async () => {
+		// Fact A = update target, Fact B = dedup match
+		const factA = makeFact(storage, { fact: "Likes JavaScript" });
+		const factB = makeFact(storage, { fact: "Likes TypeScript" });
+
+		const llm = createSpyLLM({
+			structuredResponse: validOutput([
+				{
+					action: "update",
+					category: "preference",
+					fact: "Likes TypeScript a lot",
+					keywords: ["ts"],
+					existingFactId: factA.id,
+				},
+			]),
+		});
+		// embed returns same vector as existing facts -> cosine similarity = 1.0 -> dedup fires on factB
+		const pipeline = new ConsolidationPipeline(llm, storage);
+
+		const episode = makeEpisode(storage);
+
+		const result = await pipeline.consolidate(userId);
+
+		// update counted (applyUpdate returns "update", applyNew's result is not surfaced)
+		expect(result.updated).toBe(1);
+		expect(result.newFacts).toBe(0);
+
+		// getFacts returns only valid (non-invalidated) facts
+		const validFacts = await storage.getFacts(userId);
+
+		// Fact A should be invalidated -> not in valid facts
+		expect(validFacts.find((f) => f.id === factA.id)).toBeUndefined();
+
+		// Fact B should have the episode added to sourceEpisodicIds (reinforced via dedup)
+		const updatedB = validFacts.find((f) => f.id === factB.id);
+		expect(updatedB).toBeDefined();
+		expect(updatedB!.sourceEpisodicIds).toContain(episode.id);
+
+		// No new fact was created — only fact B remains valid
+		expect(validFacts).toHaveLength(1);
+	});
+
 	test("dedup does not fire: different embedding on action 'new' creates new fact", async () => {
 		// embed returns a very different vector -> low cosine similarity
 		const llm: SpyLLM = {

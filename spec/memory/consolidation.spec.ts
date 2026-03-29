@@ -1184,6 +1184,71 @@ describe("ConsolidationPipeline — embedding dedup", () => {
 		expect(facts).toHaveLength(2);
 	});
 
+	test("dedup triggers on update: new fact from update matches another existing fact", async () => {
+		// Fact A: will be invalidated by the update action
+		const factA = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old-a"],
+			embedding: [1, 0, 0],
+		});
+		// Fact B: has embedding that will match the new fact's embedding → dedup target
+		const factB = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old-b"],
+			embedding: [0, 1, 0],
+		});
+		await storage.saveFact(userId, factA);
+		await storage.saveFact(userId, factB);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		// LLM returns update action targeting factA
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "update",
+					category: "preference",
+					fact: "User now prefers TypeScript",
+					keywords: ["typescript"],
+					existingFactId: factA.id,
+				},
+			],
+		};
+
+		// embed returns factB's exact vector → cosine = 1.0 → dedup triggers
+		const llm = createMockLLM({
+			structuredResponse: llmResponse,
+			embedding: [0, 1, 0],
+		});
+		const pipeline = new ConsolidationPipeline(llm, storage);
+		const result = await pipeline.consolidate(userId);
+
+		// update count should be 1 (factA was invalidated + new fact attempted)
+		expect(result.updated).toBe(1);
+
+		// Fact A should be invalidated (not returned by getFacts)
+		const facts = await storage.getFacts(userId);
+		const factIds = facts.map((f) => f.id);
+		expect(factIds).not.toContain(factA.id);
+
+		// Fact B should have been reinforced via dedup (episode added to sourceEpisodicIds)
+		const reinforcedB = facts.find((f) => f.id === factB.id);
+		expect(reinforcedB).toBeDefined();
+		expect(reinforcedB!.sourceEpisodicIds).toContain(episode.id);
+		expect(reinforcedB!.sourceEpisodicIds).toContain("ep-old-b");
+
+		// No new fact was created — only factB remains as the sole valid fact
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.id).toBe(factB.id);
+	});
+
 	test("no dedup when no existing facts exist", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
