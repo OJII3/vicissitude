@@ -14,6 +14,7 @@ import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqli
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
+import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -31,6 +32,7 @@ import type {
 	AiAgent,
 	ContextBuilderPort,
 	Logger,
+	MemoryFactReader,
 	MetricsCollector,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
@@ -55,10 +57,11 @@ export function createStoreLayer(config: AppConfig) {
 
 // ─── Context Layer ──────────────────────────────────────────────
 
-export function createContextLayer(config: AppConfig, root: string) {
+export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
+		factReader,
 	);
 	return { contextBuilder };
 }
@@ -415,8 +418,12 @@ export async function bootstrap(): Promise<void> {
 		config.memory.embeddingModel,
 	);
 
+	// Fact reader (for context injection)
+	const memoryDataDir = resolve(config.dataDir, "memory");
+	const factReader = new MemoryFactReaderImpl(memoryDataDir, ollamaEmbedding);
+
 	// Context
-	const { contextBuilder } = createContextLayer(config, root);
+	const { contextBuilder } = createContextLayer(config, root, factReader);
 
 	// Metrics
 	const metrics = createMetrics(logger);
@@ -541,6 +548,7 @@ export async function bootstrap(): Promise<void> {
 			mcBrainManager?.stop();
 			routingAgent.stop();
 			metrics.server.stop();
+			await factReader.close();
 			await memoryResources?.chatAdapter.close();
 			await memoryResources?.recorder.close();
 			coreProcess.kill();

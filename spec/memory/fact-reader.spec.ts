@@ -215,3 +215,89 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 		await reader.close();
 	});
 });
+
+describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
+	it("guideline カテゴリのファクトが他カテゴリより優先的に結果に含まれる", async () => {
+		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
+		const db = new Database(dbPath);
+		// guideline 以外を多数挿入
+		for (let i = 0; i < 10; i++) {
+			insertFact(db, GUILD_ID, "preference", `好みファクト${i}`);
+		}
+		// guideline を 3 件挿入
+		insertFact(db, GUILD_ID, "guideline", "丁寧語で話す");
+		insertFact(db, GUILD_ID, "guideline", "政治的話題を避ける");
+		insertFact(db, GUILD_ID, "guideline", "絵文字を使わない");
+		db.close();
+
+		const embedding = createMockEmbedding();
+		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
+		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+
+		const guidelineFacts = facts.filter((f) => f.category === "guideline");
+		// guideline 3 件すべてが結果に含まれること
+		expect(guidelineFacts).toHaveLength(3);
+		expect(facts.length).toBeLessThanOrEqual(5);
+		await reader.close();
+	});
+
+	it("guideline が存在しない場合でも既存動作が壊れない", async () => {
+		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
+		const db = new Database(dbPath);
+		for (let i = 0; i < 10; i++) {
+			insertFact(db, GUILD_ID, "preference", `好みファクト${i}`);
+		}
+		db.close();
+
+		const embedding = createMockEmbedding();
+		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
+		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+
+		expect(facts).toHaveLength(5);
+		expect(facts.every((f) => f.category === "preference")).toBe(true);
+		await reader.close();
+	});
+
+	it("limit が guideline 件数以下の場合は guideline で埋まる", async () => {
+		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
+		const db = new Database(dbPath);
+		for (let i = 0; i < 5; i++) {
+			insertFact(db, GUILD_ID, "preference", `好みファクト${i}`);
+		}
+		insertFact(db, GUILD_ID, "guideline", "丁寧語で話す");
+		insertFact(db, GUILD_ID, "guideline", "政治的話題を避ける");
+		insertFact(db, GUILD_ID, "guideline", "絵文字を使わない");
+		db.close();
+
+		const embedding = createMockEmbedding();
+		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
+		// limit=2 で guideline が 3 件ある場合、limit 件に収まる
+		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 2);
+
+		expect(facts).toHaveLength(2);
+		// limit 以内なので全部 guideline になる
+		expect(facts.every((f) => f.category === "guideline")).toBe(true);
+		await reader.close();
+	});
+
+	it("guideline が limit 未満の場合は残りスロットに他カテゴリが入る", async () => {
+		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
+		const db = new Database(dbPath);
+		for (let i = 0; i < 10; i++) {
+			insertFact(db, GUILD_ID, "interest", `興味ファクト${i}`);
+		}
+		insertFact(db, GUILD_ID, "guideline", "丁寧語で話す");
+		db.close();
+
+		const embedding = createMockEmbedding();
+		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
+		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+
+		// guideline 1 件は必ず含まれる
+		const guidelineFacts = facts.filter((f) => f.category === "guideline");
+		expect(guidelineFacts).toHaveLength(1);
+		// 残りスロットには他カテゴリが入る
+		expect(facts).toHaveLength(5);
+		await reader.close();
+	});
+});

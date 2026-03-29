@@ -12,6 +12,9 @@ const GUILD_ID_RE = /^\d+$/;
 /** Candidate limit for text/vector search before RRF ranking */
 const CANDIDATE_LIMIT = 50;
 
+/** Maximum number of guideline facts to reserve in results */
+const MAX_GUIDELINES = 3;
+
 /** Embedding-only port — subset of MemoryLlmPort needed for fact relevance filtering */
 export interface EmbeddingPort {
 	embed(text: string): Promise<number[]>;
@@ -36,11 +39,35 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 		if (allFacts.length <= limit) {
 			return allFacts.map((f) => toFact(f));
 		}
-		if (!context.trim() || !this.embedding) {
-			return allFacts.slice(0, limit).map((f) => toFact(f));
+
+		// Separate guideline facts and reserve slots for them
+		const guidelines: SemanticFact[] = [];
+		const nonGuidelines: SemanticFact[] = [];
+		for (const f of allFacts) {
+			(f.category === "guideline" ? guidelines : nonGuidelines).push(f);
 		}
+		const reservedCount = Math.min(MAX_GUIDELINES, guidelines.length, limit);
+		const reservedGuidelines = guidelines.slice(0, reservedCount);
+		const remainingLimit = limit - reservedCount;
+
+		if (!context.trim() || !this.embedding) {
+			return [...reservedGuidelines, ...nonGuidelines.slice(0, remainingLimit)].map((f) =>
+				toFact(f),
+			);
+		}
+
 		const scored = await this.hybridSearchFacts(guildId, context);
-		return ensureCategoryDiversity(scored, allFacts, limit).map((f) => toFact(f));
+		// Exclude guideline facts from diversity selection (they are already reserved)
+		const reservedIds = new Set(reservedGuidelines.map((f) => f.id));
+		const scoredNonGuideline = scored.filter((s) => !reservedIds.has(s.fact.id));
+		const nonGuidelineFacts = allFacts.filter((f) => !reservedIds.has(f.id));
+		const remaining = ensureCategoryDiversity(
+			scoredNonGuideline,
+			nonGuidelineFacts,
+			remainingLimit,
+		);
+
+		return [...reservedGuidelines, ...remaining].map((f) => toFact(f));
 	}
 
 	close(): Promise<void> {

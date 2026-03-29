@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { ContextBuilderPort } from "@vicissitude/shared/types";
+import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 const GUILD_ID_REGEX = /^\d+$/;
 
@@ -38,6 +38,7 @@ export class ContextBuilder implements ContextBuilderPort {
 	constructor(
 		private readonly overlayDir: string,
 		private readonly baseDir: string,
+		private readonly factReader?: MemoryFactReader,
 	) {}
 
 	async build(guildId?: string): Promise<string> {
@@ -46,6 +47,7 @@ export class ContextBuilder implements ContextBuilderPort {
 		}
 
 		const fileContents = await this.readAllFiles(guildId);
+		const factsSection = await this.buildFactsSection(guildId);
 
 		const sections: string[] = [];
 		let totalLength = 0;
@@ -62,6 +64,15 @@ export class ContextBuilder implements ContextBuilderPort {
 				totalLength += section.length;
 			}
 
+			if (
+				entry.name === "SESSION-SUMMARY.md" &&
+				factsSection &&
+				totalLength + factsSection.length <= TOTAL_MAX
+			) {
+				sections.push(factsSection);
+				totalLength += factsSection.length;
+			}
+
 			if (entry.name === GUILD_CONTEXT_AFTER && guildId) {
 				const guildContext = `<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`;
 				if (totalLength + guildContext.length <= TOTAL_MAX) {
@@ -72,6 +83,40 @@ export class ContextBuilder implements ContextBuilderPort {
 		}
 
 		return sections.join("\n\n");
+	}
+
+	/** Maximum facts to inject into system prompt */
+	private static readonly FACTS_LIMIT = 20;
+
+	private async buildFactsSection(guildId?: string): Promise<string | null> {
+		if (!this.factReader || !guildId) return null;
+
+		const facts = await this.factReader.getRelevantFacts(guildId, "", ContextBuilder.FACTS_LIMIT);
+		if (facts.length === 0) return null;
+
+		const guidelines: MemoryFact[] = [];
+		const others: MemoryFact[] = [];
+		for (const fact of facts) {
+			if (fact.category === "guideline") {
+				guidelines.push(fact);
+			} else {
+				others.push(fact);
+			}
+		}
+
+		const lines: string[] = [];
+		if (guidelines.length > 0) {
+			lines.push("## 行動ガイドライン");
+			for (const g of guidelines) {
+				lines.push(`- ${g.content}`);
+			}
+			lines.push("");
+		}
+		for (const f of others) {
+			lines.push(`- ${f.content}`);
+		}
+
+		return `<MEMORY-FACTS>\n${lines.join("\n").trim()}\n</MEMORY-FACTS>`;
 	}
 
 	private readAllFiles(guildId: string | undefined): Promise<(string | null)[]> {
