@@ -88,7 +88,7 @@ export function escapeUserMessageTag(content: string): string {
 
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
-function toJstString(ts: string | Date): string {
+export function toJstString(ts: string | Date): string {
 	const utc = ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
 	const jst = new Date(utc + JST_OFFSET_MS);
 	const y = jst.getUTCFullYear();
@@ -99,6 +99,11 @@ function toJstString(ts: string | Date): string {
 	return `${y}-${mo}-${d} ${h}:${mi}`;
 }
 
+/** parseEvents がパースに失敗したエラーイベントかどうかを判定する type guard */
+export function isErrorEvent(e: ParsedEvent): e is ParsedEvent & { _raw: string; _error: string } {
+	return "_error" in e && "_raw" in e;
+}
+
 /** ParsedEvent 配列を人間可読形式にフォーマットする */
 export function formatEvents(events: ParsedEvent[]): string {
 	if (events.length === 0) return "";
@@ -106,10 +111,8 @@ export function formatEvents(events: ParsedEvent[]): string {
 	return events
 		.map((e) => {
 			// エラーイベント
-			if ("_error" in e && "_raw" in e) {
-				const raw = (e as unknown as { _raw: string })._raw;
-				const err = (e as unknown as { _error: string })._error;
-				return `[ERROR] ${err}: ${raw}`;
+			if (isErrorEvent(e)) {
+				return `[ERROR] ${e._error}: ${e._raw}`;
 			}
 
 			const dateStr = toJstString(e.ts);
