@@ -96,5 +96,6 @@ export function hasSessionLock(db: StoreDb): boolean {
 /** セッションロックの guildId を取得する */
 export function getSessionLockGuildId(db: StoreDb): string | null {
 	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
+	// oxlint-disable-next-line typescript/prefer-nullish-coalescing -- 空文字列も null として扱う意図
 	return row?.guildId || null;
 }

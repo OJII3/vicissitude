@@ -79,7 +79,7 @@ function validateMessage(m: unknown, i: number): ChatMessage {
 	const name = validateName(obj["name"], i);
 	return {
 		role: validateRole(obj["role"]),
-		content: obj["content"] as string,
+		content: obj["content"],
 		...(name === undefined ? {} : { name }),
 		...validateTimestampAsObject(obj["timestamp"], i),
 	};

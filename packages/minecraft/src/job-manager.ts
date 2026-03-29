@@ -241,8 +241,8 @@ export class JobManager {
 				return `ジョブ失敗: ${info.type} → ${info.target} (${info.error ?? "不明なエラー"})`;
 			case "cancelled":
 				return `ジョブキャンセル: ${info.type} → ${info.target}`;
-			default:
-				return `ジョブ終了: ${info.type} → ${info.target}`;
+			case "running":
+				throw new Error(`finishJob called with status "running": ${info.type} → ${info.target}`);
 		}
 	}
 

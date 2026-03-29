@@ -220,7 +220,7 @@ function shutdown() {
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();
-	discordClient.destroy();
+	void discordClient.destroy();
 	for (const storage of memoryStorages.values()) {
 		storage.close();
 	}
@@ -230,5 +230,5 @@ function shutdown() {
 	process.exit(0);
 }
 
-process.on("SIGINT", () => void shutdown());
-process.on("SIGTERM", () => void shutdown());
+process.on("SIGINT", () => shutdown());
+process.on("SIGTERM", () => shutdown());

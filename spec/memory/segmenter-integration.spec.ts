@@ -164,7 +164,7 @@ describe("Integration: Segmenter + MemoryStorage + EpisodicMemory", () => {
 		const episodes = await episodic.getEpisodes(userId);
 		expect(episodes).toHaveLength(2);
 
-		const surprises = episodes.map((e) => e.surprise).toSorted();
+		const surprises = episodes.map((e) => e.surprise).toSorted((a, b) => a - b);
 		expect(surprises).toContain(SURPRISE_VALUES.low);
 		expect(surprises).toContain(SURPRISE_VALUES.extremely_high);
 	});

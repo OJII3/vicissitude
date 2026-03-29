@@ -243,6 +243,7 @@ export class PrometheusCollector implements MetricsCollector {
 const DEFAULT_METRICS_PORT = 9091;
 
 export class PrometheusServer {
+	// oxlint-disable-next-line typescript/no-redundant-type-constituents -- Bun.serve の戻り値型が any を含むため
 	private server: ReturnType<typeof Bun.serve> | null = null;
 	private readonly port: number;
 

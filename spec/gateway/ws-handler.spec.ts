@@ -283,10 +283,7 @@ describe("WsConnectionManager", () => {
 
 			const errorMessages = conn.sent
 				.map((s) => JSON.parse(s) as ServerMessage)
-				.filter(
-					(m): m is ErrorMessage =>
-						m.type === "error" && (m as ErrorMessage).code === "INVALID_MESSAGE",
-				);
+				.filter((m): m is ErrorMessage => m.type === "error" && m.code === "INVALID_MESSAGE");
 			expect(errorMessages).toHaveLength(0);
 		});
 

@@ -286,7 +286,7 @@ async function waitForMcpReady(
 	port: string,
 ): Promise<"ready" | "died" | "timeout"> {
 	const processDied = Symbol("died");
-	const exitPromise = proc.exited.then(() => processDied as typeof processDied);
+	const exitPromise = proc.exited.then(() => processDied);
 	const maxRetries = 30;
 	/* oxlint-disable no-await-in-loop -- intentional sequential polling */
 	for (let i = 0; i < maxRetries; i++) {
