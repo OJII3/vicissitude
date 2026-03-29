@@ -92,7 +92,7 @@ export async function attemptStuckRecovery(options: StuckRecoveryOptions): Promi
 		// 段階2: ランダム移動
 		const before = { x: bot.entity.position.x, z: bot.entity.position.z };
 		const randomYaw = Math.random() * Math.PI * 2 - Math.PI;
-		bot.look(randomYaw, 0);
+		void bot.look(randomYaw, 0);
 		bot.setControlState("forward", true);
 		await new Promise<void>((resolve) => {
 			setTimeout(resolve, walkDurationMs);

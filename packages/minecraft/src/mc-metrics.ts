@@ -69,6 +69,7 @@ export function createMcMetrics(logger: Logger): {
 		"Minecraft auto Discord notifications total",
 	);
 
+	// oxlint-disable-next-line typescript/no-redundant-type-constituents -- Bun.serve の戻り値型が any を含むため
 	let bunServer: ReturnType<typeof Bun.serve> | null = null;
 
 	const server: McMetricsServer = {

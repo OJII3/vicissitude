@@ -111,8 +111,8 @@ function registerCoreEvents(params: CoreEventParams): void {
 	const { b, ctx, tracking, viewerPort, logger, handlers } = params;
 	const { onSpawnReady, onDisconnect, onAuthFailure } = handlers;
 	b.once("spawn", () => {
-		logger.info(`[minecraft] Bot spawned as ${b.username} at ${b.entity.position}`);
-		ctx.pushEvent("spawn", `Spawned at ${b.entity.position}`, "high");
+		logger.info(`[minecraft] Bot spawned as ${b.username} at ${String(b.entity.position)}`);
+		ctx.pushEvent("spawn", `Spawned at ${String(b.entity.position)}`, "high");
 		onSpawnReady();
 		startViewer(b, viewerPort, logger);
 	});

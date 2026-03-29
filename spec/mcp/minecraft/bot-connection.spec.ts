@@ -43,19 +43,19 @@ function createFakeBot() {
 	return bot;
 }
 
-mock.module("mineflayer", () => ({
+void mock.module("mineflayer", () => ({
 	default: {
 		createBot: () => fakeBot,
 	},
 }));
 
 // pathfinder プラグイン — loadPlugin で渡されるだけなのでスタブ
-mock.module("mineflayer-pathfinder", () => ({
+void mock.module("mineflayer-pathfinder", () => ({
 	default: { pathfinder: {} },
 }));
 
 // prismarine-viewer — startViewer 内で呼ばれるのでスタブ
-mock.module("prismarine-viewer", () => ({
+void mock.module("prismarine-viewer", () => ({
 	mineflayer: () => {},
 }));
 

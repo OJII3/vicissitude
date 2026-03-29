@@ -68,7 +68,7 @@ function handleVrmLoad(
 		ctx.onErrorRef.current("VRM データが見つかりません");
 		return;
 	}
-	VRMUtils.removeUnnecessaryJoints(gltf.scene);
+	VRMUtils.combineSkeletons(gltf.scene);
 	VRMUtils.removeUnnecessaryVertices(gltf.scene);
 	VRMUtils.rotateVRM0(loadedVrm);
 	ctx.scene.add(loadedVrm.scene);
@@ -141,13 +141,14 @@ interface VrmSceneProps {
 function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
 	const vrm = useVrmLoader(url, onError, onLoaded);
 	const blinkingRef = useAutoBlink(vrm);
-	const clockRef = useRef(new THREE.Clock());
+	const timerRef = useRef(new THREE.Timer());
 
 	useExpressionSync(vrm, expressionWeight);
 
 	useFrame(() => {
 		if (!vrm) return;
-		const delta = clockRef.current.getDelta();
+		timerRef.current.update();
+		const delta = timerRef.current.getDelta();
 		vrm.update(delta);
 		if (vrm.expressionManager) {
 			vrm.expressionManager.setValue("blink", blinkingRef.current ? 1 : 0);

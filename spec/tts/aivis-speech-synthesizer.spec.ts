@@ -125,7 +125,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		);
 		// synthesis
 		mockFetch.mockResolvedValueOnce(
-			new Response(VALID_WAV.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -145,7 +145,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(VALID_WAV.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -162,7 +162,7 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(VALID_WAV.buffer as ArrayBuffer, {
+			new Response(VALID_WAV.buffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),
@@ -213,7 +213,7 @@ describe("AivisSpeechSynthesizer — synthesize errors", () => {
 			}),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(ZERO_LENGTH_WAV.buffer as ArrayBuffer, {
+			new Response(ZERO_LENGTH_WAV.buffer, {
 				status: 200,
 				headers: { "Content-Type": "audio/wav" },
 			}),

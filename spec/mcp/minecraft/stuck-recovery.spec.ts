@@ -70,15 +70,15 @@ function createFakeBot(overrides?: { health?: number }) {
 // モジュールモック
 // ---------------------------------------------------------------------------
 
-mock.module("mineflayer", () => ({
+void mock.module("mineflayer", () => ({
 	default: { createBot: () => createFakeBot() },
 }));
 
-mock.module("mineflayer-pathfinder", () => ({
+void mock.module("mineflayer-pathfinder", () => ({
 	default: { pathfinder: {} },
 }));
 
-mock.module("prismarine-viewer", () => ({
+void mock.module("prismarine-viewer", () => ({
 	mineflayer: () => {},
 }));
 

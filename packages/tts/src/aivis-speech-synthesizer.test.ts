@@ -218,7 +218,7 @@ describe("computeWavDuration — edge cases", () => {
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(
-			new Response(noDataChunk.buffer as ArrayBuffer, { status: 200 }),
+			new Response(noDataChunk.buffer, { status: 200 }),
 		);
 
 		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
@@ -308,7 +308,7 @@ function buildWav(byteRate: number, dataSize: number): ArrayBuffer {
 	wav.set([0x64, 0x61, 0x74, 0x61], 36);
 	writeUint32LE(wav, 40, dataSize);
 
-	return wav.buffer as ArrayBuffer;
+	return wav.buffer;
 }
 
 function writeUint32LE(buf: Uint8Array, offset: number, value: number): void {

@@ -142,7 +142,7 @@ describe("ContextBuilder", () => {
 			const sectionCount = (
 				result.match(
 					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER|MEMORY|LESSONS)\.md>/g,
-				) || []
+				) ?? []
 			).length;
 			expect(sectionCount).toBeLessThan(10);
 		});

@@ -328,13 +328,16 @@ describe("AgentRunner", () => {
 	test("error 後のバックオフは既存の指数バックオフ動作を維持する", async () => {
 		const firstEvent = deferred<void>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
-		const errors: Error[] = [new Error("session error 1"), new Error("session error 2")];
+		const errors = [new Error("session error 1"), new Error("session error 2")] as const;
 		let sessionWatchCount = 0;
 		const thirdSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPort(() => {
 			sessionWatchCount += 1;
-			if (sessionWatchCount <= 2) {
-				return Promise.reject(errors[sessionWatchCount - 1]);
+			if (sessionWatchCount === 1) {
+				return Promise.reject(errors[0]);
+			}
+			if (sessionWatchCount === 2) {
+				return Promise.reject(errors[1]);
 			}
 			return thirdSessionDone.promise;
 		});

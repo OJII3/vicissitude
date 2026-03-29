@@ -1,9 +1,6 @@
 import type {
 	Event,
 	EventMessageUpdated,
-	EventSessionCompacted,
-	EventSessionError,
-	EventSessionIdle,
 	OpencodeClient,
 	Part,
 } from "@opencode-ai/sdk/v2";
@@ -71,7 +68,7 @@ function waitForNextStreamEvent(
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
 			} catch (error) {
-				finish(() => reject(error));
+				finish(() => reject(error instanceof Error ? error : new Error(String(error))));
 			}
 		})();
 	});
@@ -100,21 +97,21 @@ export function classifyEvent(
 	tokensByMessage: Map<string, TokenUsage>,
 ): OpencodeSessionEvent | null {
 	if (typed.type === "message.updated") {
-		accumulateTokens(typed as EventMessageUpdated, sessionId, tokensByMessage);
+		accumulateTokens(typed, sessionId, tokensByMessage);
 		return null;
 	}
 	if (typed.type === "session.idle") {
-		const idle = typed as EventSessionIdle;
+		const idle = typed;
 		if (idle.properties.sessionID === sessionId) {
 			return { type: "idle", tokens: sumTokens(tokensByMessage) };
 		}
 	}
 	if (typed.type === "session.compacted") {
-		const compacted = typed as EventSessionCompacted;
+		const compacted = typed;
 		if (compacted.properties.sessionID === sessionId) return { type: "compacted" };
 	}
 	if (typed.type === "session.error") {
-		const err = typed as EventSessionError;
+		const err = typed;
 		if (err.properties.sessionID === sessionId) {
 			return { type: "error", message: JSON.stringify(err.properties) };
 		}

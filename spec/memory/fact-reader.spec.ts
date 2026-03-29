@@ -11,7 +11,7 @@ const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";
 
 function insertFact(db: Database, userId: string, category: FactCategory, fact: string): void {
-	db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
+	db.run(`CREATE TABLE IF NOT EXISTS semantic_facts (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
 		keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
 		valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL)`);

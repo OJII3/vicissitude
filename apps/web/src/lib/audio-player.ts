@@ -30,7 +30,7 @@ export class AudioPlayer {
 			return;
 		}
 
-		this.playItem({ messageId, audioBase64 });
+		void this.playItem({ messageId, audioBase64 });
 	}
 
 	get playingMessageId(): string | null {
@@ -56,7 +56,7 @@ export class AudioPlayer {
 
 		this.currentMessageId = null;
 		this.isPlaying = false;
-		this.ctx.close();
+		void this.ctx.close();
 	}
 
 	private async playItem(item: QueueItem): Promise<void> {
@@ -75,7 +75,7 @@ export class AudioPlayer {
 
 		let audioBuffer: AudioBuffer;
 		try {
-			audioBuffer = await this.ctx.decodeAudioData(bytes.buffer as ArrayBuffer);
+			audioBuffer = await this.ctx.decodeAudioData(bytes.buffer);
 		} catch (error) {
 			console.warn("[audio] decodeAudioData failed", error);
 			this.advanceQueue();
@@ -87,7 +87,7 @@ export class AudioPlayer {
 		source.buffer = audioBuffer;
 		source.connect(this.ctx.destination);
 
-		this.currentSource = source as AudioBufferSourceNode;
+		this.currentSource = source;
 
 		this.callbacks.onPlayStart?.(item.messageId);
 

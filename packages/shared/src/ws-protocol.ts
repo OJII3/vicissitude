@@ -102,7 +102,7 @@ export type WsMessageType = WsMessage["type"];
 
 // ─── Zod Schemas ────────────────────────────────────────────────
 
-const isoTimestamp = z.string().datetime();
+const isoTimestamp = z.iso.datetime();
 
 export const EmotionUpdateMessageSchema = z
 	.object({
@@ -187,7 +187,7 @@ function safeJsonParse(raw: string): unknown {
 	} catch {
 		throw new z.ZodError([
 			{
-				code: z.ZodIssueCode.custom,
+				code: "custom",
 				path: [],
 				message: "Invalid JSON",
 			},

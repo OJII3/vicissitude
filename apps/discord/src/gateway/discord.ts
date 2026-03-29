@@ -76,7 +76,7 @@ export class DiscordGateway {
 	}
 
 	stop(): void {
-		this.client?.destroy();
+		void this.client?.destroy();
 		this.client = null;
 	}
 
@@ -90,6 +90,7 @@ export class DiscordGateway {
 	}
 
 	private registerMessageHandler(client: Client): void {
+		// oxlint-disable-next-line typescript/no-misused-promises -- discord.js は void コールバックを期待するが、内部で try-catch 済み
 		client.on(Events.MessageCreate, async (message) => {
 			try {
 				if (!client.user) {

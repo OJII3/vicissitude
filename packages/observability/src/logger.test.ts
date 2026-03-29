@@ -9,7 +9,7 @@ function captureWrite(stream: "stdout" | "stderr") {
 	process[stream].write = mock((...args: unknown[]) => {
 		calls.push(args[0] as string);
 		return true;
-	}) as typeof original;
+	});
 	return {
 		calls,
 		restore() {

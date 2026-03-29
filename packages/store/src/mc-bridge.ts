@@ -96,5 +96,5 @@ export function hasSessionLock(db: StoreDb): boolean {
 /** セッションロックの guildId を取得する */
 export function getSessionLockGuildId(db: StoreDb): string | null {
 	const row = db.select().from(mcSessionLock).where(eq(mcSessionLock.id, 1)).get();
-	return row?.guildId || null;
+	return row?.guildId ?? null;
 }

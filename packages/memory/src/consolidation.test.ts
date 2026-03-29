@@ -12,7 +12,7 @@ import type { ChatMessage } from "./types.ts";
 
 const userId = "user-1";
 
-function makeEpisode(
+async function makeEpisode(
 	storage: MemoryStorage,
 	overrides: { title?: string; consolidated?: boolean } = {},
 ) {
@@ -34,11 +34,11 @@ function makeEpisode(
 		consolidatedAt: overrides.consolidated ? new Date() : null,
 	};
 	// Save directly via storage
-	storage.saveEpisode(userId, episode);
+	await storage.saveEpisode(userId, episode);
 	return episode;
 }
 
-function makeFact(storage: MemoryStorage, overrides: { id?: string; fact?: string } = {}) {
+async function makeFact(storage: MemoryStorage, overrides: { id?: string; fact?: string } = {}) {
 	const fact: SemanticFact = {
 		id: overrides.id ?? crypto.randomUUID(),
 		userId,
@@ -51,7 +51,7 @@ function makeFact(storage: MemoryStorage, overrides: { id?: string; fact?: strin
 		invalidAt: null,
 		createdAt: new Date(),
 	};
-	storage.saveFact(userId, fact);
+	await storage.saveFact(userId, fact);
 	return fact;
 }
 
@@ -110,7 +110,7 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeEpisode(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -123,8 +123,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -139,8 +139,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ chatThrows: true, structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			// Should not throw
 			const result = await pipeline.consolidate(userId);
@@ -160,8 +160,8 @@ describe("ConsolidationPipeline PCL", () => {
 			});
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -181,9 +181,9 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
+			await makeFact(storage);
 			// default summary is "A summary"
-			makeEpisode(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -196,8 +196,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -210,8 +210,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage, { title: "My Custom Title" });
+			await makeFact(storage);
+			await makeEpisode(storage, { title: "My Custom Title" });
 
 			await pipeline.consolidate(userId);
 
@@ -224,8 +224,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage, { fact: "Prefers dark mode" });
-			makeEpisode(storage);
+			await makeFact(storage, { fact: "Prefers dark mode" });
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -238,8 +238,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage, { title: "Test <script> & more" });
+			await makeFact(storage);
+			await makeEpisode(storage, { title: "Test <script> & more" });
 
 			await pipeline.consolidate(userId);
 
@@ -259,8 +259,8 @@ describe("ConsolidationPipeline PCL", () => {
 			});
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -273,8 +273,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			const fact = makeFact(storage, { fact: "Enjoys hiking" });
-			makeEpisode(storage);
+			const fact = await makeFact(storage, { fact: "Enjoys hiking" });
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -289,8 +289,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage, { title: "Hiking Chat" });
+			await makeFact(storage);
+			await makeEpisode(storage, { title: "Hiking Chat" });
 
 			await pipeline.consolidate(userId);
 
@@ -306,8 +306,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -321,8 +321,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -338,8 +338,8 @@ describe("ConsolidationPipeline PCL", () => {
 			const llm = createSpyLLM({ structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
-			makeFact(storage);
-			makeEpisode(storage);
+			await makeFact(storage);
+			await makeEpisode(storage);
 
 			await pipeline.consolidate(userId);
 
@@ -369,8 +369,8 @@ describe("ConsolidationPipeline dedup", () => {
 		});
 		const pipeline = new ConsolidationPipeline(llm, storage);
 
-		const existingFact = makeFact(storage);
-		const episode = makeEpisode(storage);
+		const existingFact = await makeFact(storage);
+		const episode = await makeEpisode(storage);
 
 		const result = await pipeline.consolidate(userId);
 
@@ -390,8 +390,8 @@ describe("ConsolidationPipeline dedup", () => {
 
 	test("dedup fires: action 'update' invalidates old fact and reinforces duplicate instead of creating new", async () => {
 		// Fact A = update target, Fact B = dedup match
-		const factA = makeFact(storage, { fact: "Likes JavaScript" });
-		const factB = makeFact(storage, { fact: "Likes TypeScript" });
+		const factA = await makeFact(storage, { fact: "Likes JavaScript" });
+		const factB = await makeFact(storage, { fact: "Likes TypeScript" });
 
 		const llm = createSpyLLM({
 			structuredResponse: validOutput([
@@ -407,7 +407,7 @@ describe("ConsolidationPipeline dedup", () => {
 		// embed returns same vector as existing facts -> cosine similarity = 1.0 -> dedup fires on factB
 		const pipeline = new ConsolidationPipeline(llm, storage);
 
-		const episode = makeEpisode(storage);
+		const episode = await makeEpisode(storage);
 
 		const result = await pipeline.consolidate(userId);
 
@@ -443,8 +443,8 @@ describe("ConsolidationPipeline dedup", () => {
 		const pipeline = new ConsolidationPipeline(llm, storage);
 
 		// existing fact with embedding [0.1, 0.2, 0.3]
-		makeFact(storage);
-		makeEpisode(storage);
+		await makeFact(storage);
+		await makeEpisode(storage);
 
 		const result = await pipeline.consolidate(userId);
 
