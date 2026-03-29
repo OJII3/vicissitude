@@ -59,13 +59,11 @@ describe("chatStructured", () => {
 		expect(port.createSession).toHaveBeenCalledTimes(2);
 	});
 
-	it("should throw a clear error when retry limit is exceeded with empty responses", async () => {
+	it("should throw a clear error when retry limit is exceeded with empty responses", () => {
 		const port = createMockSessionPort([{ text: "" }, { text: "" }, { text: "" }]);
 		const adapter = new MemoryChatAdapter(port, "provider", "model", noopLogger);
 
-		await expect(adapter.chatStructured(messages, validSchema)).rejects.toThrow(
-			/empty.*response|retry/i,
-		);
+		expect(adapter.chatStructured(messages, validSchema)).rejects.toThrow(/empty.*response|retry/i);
 	});
 });
 

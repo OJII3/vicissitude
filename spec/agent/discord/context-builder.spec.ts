@@ -149,16 +149,16 @@ describe("ContextBuilder", () => {
 	});
 
 	describe("guildId バリデーション", () => {
-		it("不正な guildId（パストラバーサル）でエラーをスローする", async () => {
+		it("不正な guildId（パストラバーサル）でエラーをスローする", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			await expect(builder.build("../../../etc")).rejects.toThrow("Invalid guildId");
+			expect(builder.build("../../../etc")).rejects.toThrow("Invalid guildId");
 		});
 
-		it("不正な guildId（英字）でエラーをスローする", async () => {
+		it("不正な guildId（英字）でエラーをスローする", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			await expect(builder.build("abc")).rejects.toThrow("Invalid guildId");
+			expect(builder.build("abc")).rejects.toThrow("Invalid guildId");
 		});
 
 		it("正しい guildId（数字のみ）は通る", async () => {

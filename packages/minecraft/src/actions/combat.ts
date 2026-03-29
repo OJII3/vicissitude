@@ -119,8 +119,7 @@ async function attackLoop(ctx: AttackContext): Promise<void> {
 		if (bot.entity.position.distanceTo(target.position) > ATTACK_RANGE) continue;
 
 		try {
-			// oxlint-disable-next-line no-await-in-loop -- 攻撃は順次実行が必須
-			await bot.attack(target);
+			bot.attack(target);
 			hits++;
 			updateProgress(`${String(hits)}/${String(maxHits)} 攻撃 (武器: ${weapon})`);
 		} catch {

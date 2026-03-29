@@ -50,7 +50,7 @@ describe("InstrumentedAiAgent", () => {
 		);
 	});
 
-	it("エラー時に counter が outcome=error でインクリメントされる", async () => {
+	it("エラー時に counter が outcome=error でインクリメントされる", () => {
 		const collector = createSetup();
 		const inner = {
 			send: mock((): Promise<AgentResponse> => Promise.reject(new Error("fail"))),
@@ -58,7 +58,7 @@ describe("InstrumentedAiAgent", () => {
 		};
 		const agent = new InstrumentedAiAgent(inner, collector, "polling");
 
-		await expect(agent.send({ sessionKey: "system:heartbeat:g1", message: "hi" })).rejects.toThrow(
+		expect(agent.send({ sessionKey: "system:heartbeat:g1", message: "hi" })).rejects.toThrow(
 			"fail",
 		);
 

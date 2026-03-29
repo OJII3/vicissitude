@@ -48,9 +48,9 @@ const sampleMessage = {
 };
 
 describe("MemoryConversationRecorder", () => {
-	test("record() で guildId が非数字 → Error throw", async () => {
+	test("record() で guildId が非数字 → Error throw", () => {
 		const recorder = createRecorder();
-		await expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");
+		expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");
 	});
 
 	test("record() で segmenter.addMessage 呼び出し確認", async () => {

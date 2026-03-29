@@ -549,7 +549,7 @@ export async function bootstrap(): Promise<void> {
 			routingAgent.stop();
 			metrics.server.stop();
 			await factReader.close();
-			await memoryResources?.chatAdapter.close();
+			memoryResources?.chatAdapter.close();
 			await memoryResources?.recorder.close();
 			coreProcess.kill();
 			mcProcess?.kill();

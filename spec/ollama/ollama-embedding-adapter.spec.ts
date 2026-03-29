@@ -56,21 +56,19 @@ describe("OllamaEmbeddingAdapter", () => {
 		});
 	});
 
-	it("should throw on HTTP error", async () => {
+	it("should throw on HTTP error", () => {
 		mockFetch({ ok: false, status: 503, statusText: "Service Unavailable", body: {} });
 
 		const adapter = new OllamaEmbeddingAdapter("http://localhost:11434", "nomic-embed-text");
 
-		await expect(adapter.embed("hello")).rejects.toThrow(
-			"Ollama embed failed: 503 Service Unavailable",
-		);
+		expect(adapter.embed("hello")).rejects.toThrow("Ollama embed failed: 503 Service Unavailable");
 	});
 
-	it("should throw when embeddings array is empty", async () => {
+	it("should throw when embeddings array is empty", () => {
 		mockFetch({ ok: true, body: { embeddings: [] } });
 
 		const adapter = new OllamaEmbeddingAdapter("http://localhost:11434", "nomic-embed-text");
 
-		await expect(adapter.embed("hello")).rejects.toThrow("Ollama embed returned no embeddings");
+		expect(adapter.embed("hello")).rejects.toThrow("Ollama embed returned no embeddings");
 	});
 });

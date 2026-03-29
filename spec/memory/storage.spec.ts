@@ -116,7 +116,7 @@ describe("MemoryStorage — episodic memory", () => {
 
 	test("saveEpisode throws on userId mismatch", async () => {
 		const ep = makeEpisode({ userId: "user-1" });
-		await expect(storage.saveEpisode("user-2", ep)).rejects.toThrow("does not match");
+		expect(storage.saveEpisode("user-2", ep)).rejects.toThrow("does not match");
 	});
 });
 
@@ -222,7 +222,7 @@ describe("MemoryStorage — semantic memory", () => {
 
 	test("saveFact throws on userId mismatch", async () => {
 		const fact = makeFact({ userId: "user-1" });
-		await expect(storage.saveFact("user-2", fact)).rejects.toThrow("does not match");
+		expect(storage.saveFact("user-2", fact)).rejects.toThrow("does not match");
 	});
 });
 
@@ -393,7 +393,7 @@ describe("MemoryStorage — updateFact edge cases", () => {
 	});
 
 	test("updateFact on nonexistent fact does not throw", async () => {
-		await expect(
+		expect(
 			storage.updateFact(userId, "nonexistent-id", { fact: "Updated fact" }),
 		).resolves.toBeUndefined();
 	});
@@ -799,7 +799,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		const ep1 = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
 		const ep2 = makeEpisode({ embedding: [0.4, 0.5, 0.6] });
 		await storage.saveEpisode(userId, ep1);
-		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
+		expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
 	});
 
 	test("throws on episode dimension mismatch", async () => {
@@ -807,7 +807,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		await storage.saveEpisode(userId, ep1);
 
 		const ep2 = makeEpisode({ embedding: [0.1, 0.2] });
-		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
+		expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
 			"Embedding dimension mismatch: expected 3, got 2",
 		);
 	});
@@ -817,7 +817,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		await storage.saveEpisode(userId, ep);
 
 		const fact = makeFact({ embedding: [0.1, 0.2, 0.3, 0.4, 0.5] });
-		await expect(storage.saveFact(userId, fact)).rejects.toThrow(
+		expect(storage.saveFact(userId, fact)).rejects.toThrow(
 			"Embedding dimension mismatch: expected 3, got 5",
 		);
 	});
@@ -827,7 +827,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		await storage.saveFact(userId, fact);
 
 		const ep = makeEpisode({ embedding: [0.1, 0.2, 0.3] });
-		await expect(storage.saveEpisode(userId, ep)).rejects.toThrow("Embedding dimension mismatch");
+		expect(storage.saveEpisode(userId, ep)).rejects.toThrow("Embedding dimension mismatch");
 	});
 
 	test("resetEmbeddingMeta backfills from existing data", async () => {
@@ -840,7 +840,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		expect(storage.getEmbeddingDimension()).toBe(3);
 
 		const ep2 = makeEpisode({ embedding: [0.1, 0.2] });
-		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow("Embedding dimension mismatch");
+		expect(storage.saveEpisode(userId, ep2)).rejects.toThrow("Embedding dimension mismatch");
 	});
 
 	test("getEmbeddingDimension returns null when no data stored", () => {
@@ -852,14 +852,14 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		await storage.saveEpisode(userId, ep1);
 
 		const ep2 = makeEpisode({ embedding: [] });
-		await expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
+		expect(storage.saveEpisode(userId, ep2)).resolves.toBeUndefined();
 	});
 
 	test("updateFact throws on embedding dimension mismatch", async () => {
 		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveFact(userId, fact);
 
-		await expect(storage.updateFact(userId, fact.id, { embedding: [0.1, 0.2] })).rejects.toThrow(
+		expect(storage.updateFact(userId, fact.id, { embedding: [0.1, 0.2] })).rejects.toThrow(
 			"Embedding dimension mismatch: expected 3, got 2",
 		);
 	});
@@ -868,7 +868,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveFact(userId, fact);
 
-		await expect(
+		expect(
 			storage.updateFact(userId, fact.id, { embedding: [0.4, 0.5, 0.6] }),
 		).resolves.toBeUndefined();
 	});
@@ -877,9 +877,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		const fact = makeFact({ embedding: [0.1, 0.2, 0.3] });
 		await storage.saveFact(userId, fact);
 
-		await expect(
-			storage.updateFact(userId, fact.id, { fact: "Updated text" }),
-		).resolves.toBeUndefined();
+		expect(storage.updateFact(userId, fact.id, { fact: "Updated text" })).resolves.toBeUndefined();
 	});
 
 	test("search does not create embedding_meta on empty DB", async () => {
@@ -894,7 +892,7 @@ describe("MemoryStorage — embedding dimension validation", () => {
 		await storage.saveEpisode(userId, ep);
 
 		// Search with dim=2 should throw
-		await expect(storage.searchEpisodesByEmbedding(userId, [0.1, 0.2], 10)).rejects.toThrow(
+		expect(storage.searchEpisodesByEmbedding(userId, [0.1, 0.2], 10)).rejects.toThrow(
 			"Embedding dimension mismatch",
 		);
 	});
@@ -925,7 +923,7 @@ describe("MemoryStorage — legacy DB upgrade (backfill from existing data)", ()
 		storage.resetEmbeddingMeta();
 
 		const ep2 = makeEpisode({ embedding: [0.1, 0.2, 0.3, 0.4, 0.5] });
-		await expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
+		expect(storage.saveEpisode(userId, ep2)).rejects.toThrow(
 			"Embedding dimension mismatch: expected 3, got 5",
 		);
 	});
