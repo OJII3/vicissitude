@@ -517,6 +517,14 @@ describe("formatEventMetadata", () => {
 	test("イベントがない場合は空文字列を返す", () => {
 		expect(formatEventMetadata([])).toBe("");
 	});
+
+	test("全要素がエラーイベントの場合は空文字列を返す", () => {
+		const events: ErrorEvent[] = [
+			{ _raw: "broken1", _error: "invalid JSON" },
+			{ _raw: "broken2", _error: "invalid JSON" },
+		];
+		expect(formatEventMetadata(events)).toBe("");
+	});
 });
 
 describe("formatRecentMessages", () => {
