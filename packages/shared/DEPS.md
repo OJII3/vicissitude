@@ -25,7 +25,7 @@ graph LR
 
 ### emotion.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun
 
 ### functions.ts
 
@@ -37,7 +37,7 @@ graph LR
 
 ### tts.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun
 
 ### types.ts
 
@@ -46,4 +46,4 @@ graph LR
 ### ws-protocol.ts
 
 - モジュール内依存: emotion
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun

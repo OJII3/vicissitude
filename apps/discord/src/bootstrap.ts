@@ -89,9 +89,14 @@ export function createGuildAgents(
 		logger: Logger;
 		metrics?: MetricsCollector;
 		summaryWriter?: SessionSummaryWriter;
+		/** agentId プレフィックス（デフォルト: "discord"） */
+		agentIdPrefix?: string;
+		/** ポート番号のオフセット（デフォルト: 0）。basePort + portOffset + index でポートを決定 */
+		portOffset?: number;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
+	const portOffset = deps.portOffset ?? 0;
 
 	for (const [index, guildId] of guildIds.entries()) {
 		const agent = new DiscordAgent({
@@ -100,11 +105,12 @@ export function createGuildAgents(
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
-			opencodePort: config.opencode.basePort + index,
+			opencodePort: config.opencode.basePort + portOffset + index,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
 			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
 			summaryWriter: deps.summaryWriter,
+			agentIdPrefix: deps.agentIdPrefix,
 		});
 		agents.set(guildId, agent);
 	}
@@ -492,7 +498,7 @@ export async function bootstrap(): Promise<void> {
 	// Emoji tracking
 	gateway.onEmojiUsed((guildId, emojiName) => incrementEmoji(db, guildId, emojiName));
 
-	// Routing agent
+	// Routing agent (ユーザーメッセージ用)
 	const firstAgent = agents.values().next().value as AiAgent | undefined;
 	if (!firstAgent) {
 		throw new Error("No guild agents available; cannot create defaultAgent for GuildRouter");
@@ -503,11 +509,40 @@ export async function bootstrap(): Promise<void> {
 		"polling",
 	);
 
+	// Heartbeat 専用エージェント（ユーザーメッセージとセッションを分離し、遅延を防ぐ）
+	// ポート割り当て: guild[0..N-1], minecraft[N], heartbeat[N+1..2N]
+	const heartbeatPortOffset = guildIds.length + 1;
+	const heartbeatAgents = createGuildAgents(config, guildIds, {
+		db,
+		sessionStore,
+		contextBuilder,
+		logger,
+		metrics: metrics.collector,
+		agentIdPrefix: "discord:heartbeat",
+		portOffset: heartbeatPortOffset,
+	});
+	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
+	if (!firstHeartbeatAgent) {
+		throw new Error(
+			"No heartbeat agents available; cannot create defaultAgent for heartbeat GuildRouter",
+		);
+	}
+	const heartbeatRouter = new InstrumentedAiAgent(
+		new GuildRouter(heartbeatAgents, firstHeartbeatAgent),
+		metrics.collector,
+		"heartbeat",
+	);
+
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
 	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
 	removeLegacyConsolidateReminder(heartbeatConfigPath, logger);
-	const heartbeatScheduler = new HeartbeatScheduler(routingAgent, logger, metrics.collector, root);
+	const heartbeatScheduler = new HeartbeatScheduler(
+		heartbeatRouter,
+		logger,
+		metrics.collector,
+		root,
+	);
 
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
@@ -524,7 +559,8 @@ export async function bootstrap(): Promise<void> {
 			sessionStore,
 			logger,
 			root,
-			// ギルドエージェントが basePort + 0..N-1 を使うため、Minecraft エージェントは basePort + N を使用
+			// ポート割り当て: guild[0..N-1], minecraft[N], heartbeat[N+1..2N]
+			// Minecraft は従来通り basePort + N を使用
 			opencodePort: config.opencode.basePort + guildIds.length,
 			providerId: config.mcBrain.providerId,
 			modelId: config.mcBrain.modelId,
@@ -547,6 +583,7 @@ export async function bootstrap(): Promise<void> {
 			gateway.stop();
 			await gatewayServer.stop();
 			mcBrainManager?.stop();
+			heartbeatRouter.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await factReader.close();

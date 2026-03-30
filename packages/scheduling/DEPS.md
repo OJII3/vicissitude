@@ -23,7 +23,7 @@ graph LR
 
 - モジュール内依存: heartbeat-helpers
 - 他モジュール依存: shared
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, fs, path
+- 外部依存: .bun, fs, path
 
 ### heartbeat-helpers.ts
 
