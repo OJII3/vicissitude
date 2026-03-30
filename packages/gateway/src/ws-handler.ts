@@ -39,6 +39,7 @@ export interface WsConnectionManagerDeps {
 
 export class WsConnectionManager implements GatewayPort {
 	private readonly connections = new Map<ConnectionId, WebSocketConnection>();
+	private readonly abortControllers = new Map<ConnectionId, AbortController>();
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
@@ -54,9 +55,12 @@ export class WsConnectionManager implements GatewayPort {
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
 		this.connections.set(connectionId, connection);
+		this.abortControllers.set(connectionId, new AbortController());
 	}
 
 	handleClose(connectionId: string): void {
+		this.abortControllers.get(connectionId)?.abort();
+		this.abortControllers.delete(connectionId);
 		this.connections.delete(connectionId);
 	}
 
@@ -120,12 +124,14 @@ export class WsConnectionManager implements GatewayPort {
 				// TTS 合成（非同期・fire-and-forget）
 				if (this.ttsSynthesizer && this.ttsStyleMapper) {
 					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
+					const signal = this.abortControllers.get(connectionId)?.signal;
 					void this.synthesizeAndSend({
 						connectionId,
 						messageId: chatResponse.messageId,
 						text: message.text,
 						style: ttsStyle,
 						synthesizer: this.ttsSynthesizer,
+						signal,
 					});
 				}
 			} catch (error) {
@@ -164,9 +170,12 @@ export class WsConnectionManager implements GatewayPort {
 		text: string;
 		style: TtsStyleParams;
 		synthesizer: TtsSynthesizer;
+		signal?: AbortSignal;
 	}): Promise<void> {
 		try {
-			const result = await params.synthesizer.synthesize(params.text, params.style);
+			const result = await params.synthesizer.synthesize(params.text, params.style, {
+				signal: params.signal,
+			});
 			if (!result) return;
 
 			const audioDataMessage: AudioDataMessage = {

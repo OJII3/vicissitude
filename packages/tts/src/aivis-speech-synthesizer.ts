@@ -41,10 +41,11 @@ export function createAivisSpeechSynthesizer(config: {
 		logger: config.logger,
 	};
 
-	return {
-		synthesize: (text, style) => synthesize(synthConfig, text, style),
+	const result: TtsSynthesizer = {
+		synthesize: (text, style, options) => synthesize(synthConfig, text, style, options),
 		isAvailable: () => isAvailable(baseUrl),
 	};
+	return result;
 }
 
 function resolveSpeakerId(
@@ -59,10 +60,16 @@ async function synthesize(
 	config: SynthesizeConfig,
 	text: string,
 	style: TtsStyleParams,
+	options?: { signal?: AbortSignal },
 ): Promise<TtsResult | null> {
 	try {
 		const { baseUrl, timeout, defaultSpeakerId, styleSpeakerMap } = config;
 		const speaker = resolveSpeakerId(defaultSpeakerId, styleSpeakerMap, style.style);
+
+		const timeoutSignal = AbortSignal.timeout(timeout);
+		const signal = options?.signal
+			? AbortSignal.any([options.signal, timeoutSignal])
+			: timeoutSignal;
 
 		// Step 1: audio_query
 		const queryUrl = new URL("/audio_query", baseUrl);
@@ -71,7 +78,7 @@ async function synthesize(
 
 		const queryResponse = await fetch(queryUrl, {
 			method: "POST",
-			signal: AbortSignal.timeout(timeout),
+			signal,
 		});
 
 		if (!queryResponse.ok) return null;
@@ -88,7 +95,7 @@ async function synthesize(
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(audioQuery),
-			signal: AbortSignal.timeout(timeout),
+			signal,
 		});
 
 		if (!synthResponse.ok) return null;
