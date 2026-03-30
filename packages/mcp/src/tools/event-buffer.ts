@@ -43,6 +43,7 @@ export function createSkipTracker(): SkipTracker {
 export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
+	moodKey?: string;
 	recentMessagesFetcher?: RecentMessagesFetcher;
 	moodReader?: MoodReader;
 	typingSender?: TypingSender;
@@ -312,6 +313,7 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
 	const { db, agentId, recentMessagesFetcher, moodReader, typingSender, logger, skipTracker } =
 		deps;
+	const moodKey = deps.moodKey ?? agentId;
 
 	/** EventOrError 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
 	function sendTypingForEvents(events: EventOrError[]): void {
@@ -350,7 +352,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 					const ctx = await fetchRecentMessagesContext(events, recentMessagesFetcher);
 					if (ctx) content.unshift(ctx);
 				}
-				const moodContent = buildMoodContent(moodReader, agentId);
+				const moodContent = buildMoodContent(moodReader, moodKey);
 				if (moodContent) content.unshift(moodContent);
 				skipTracker?.markPending();
 				return { content };
@@ -371,7 +373,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				const ctx = await fetchRecentMessagesContext(result, recentMessagesFetcher);
 				if (ctx) content.unshift(ctx);
 			}
-			const moodContent = buildMoodContent(moodReader, agentId);
+			const moodContent = buildMoodContent(moodReader, moodKey);
 			if (moodContent) content.unshift(moodContent);
 			skipTracker?.markPending();
 			return { content };

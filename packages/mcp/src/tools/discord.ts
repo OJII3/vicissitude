@@ -28,6 +28,7 @@ export interface DiscordDeps {
 	emotionAnalyzer?: EmotionAnalyzer;
 	moodWriter?: MoodWriter;
 	agentId?: string;
+	moodKey?: string;
 	skipTracker?: SkipTracker;
 }
 
@@ -52,10 +53,11 @@ export function registerDiscordTools(
 	function triggerEmotionEstimation(text: string): void {
 		const { emotionAnalyzer, moodWriter, agentId } = deps;
 		if (!emotionAnalyzer || !moodWriter || !agentId) return;
+		const moodKey = deps.moodKey ?? agentId;
 		void (async () => {
 			const result = await emotionAnalyzer.analyze({ text });
 			if (result.confidence > 0) {
-				moodWriter.setMood(agentId, result.emotion);
+				moodWriter.setMood(moodKey, result.emotion);
 			}
 		})().catch(() => {});
 	}

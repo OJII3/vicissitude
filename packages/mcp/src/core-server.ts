@@ -155,6 +155,7 @@ function createServer(agentId: string | null): McpServer {
 
 	const guildMatch = agentId?.match(/^discord:(?:heartbeat:)?(\d+)$/);
 	const boundGuildId = guildMatch?.[1];
+	const moodKey = boundGuildId ? `discord:${boundGuildId}` : (agentId ?? undefined);
 	const skipTracker = agentId ? createSkipTracker() : undefined;
 
 	registerDiscordTools(
@@ -164,6 +165,7 @@ function createServer(agentId: string | null): McpServer {
 			emotionAnalyzer: emotionEstimator,
 			moodWriter: moodStore,
 			agentId: agentId ?? undefined,
+			moodKey,
 			skipTracker,
 		},
 		boundGuildId,
@@ -193,6 +195,7 @@ function createServer(agentId: string | null): McpServer {
 		registerEventBufferTools(server, {
 			db,
 			agentId,
+			moodKey,
 			recentMessagesFetcher,
 			moodReader: moodStore,
 			typingSender,
