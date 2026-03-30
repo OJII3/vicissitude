@@ -1,6 +1,17 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
-import { escapeUserMessageTag } from "./event-buffer.ts";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
+import { appendEvent } from "@vicissitude/store/queries";
+import { createTestDb } from "@vicissitude/store/test-helpers";
+
+import {
+	createSkipTracker,
+	escapeUserMessageTag,
+	registerEventBufferTools,
+} from "./event-buffer.ts";
+import type { EventBufferDeps } from "./event-buffer.ts";
 
 describe("escapeUserMessageTag", () => {
 	test("閉じタグ </user_message> をエスケープする", () => {
@@ -45,5 +56,79 @@ describe("escapeUserMessageTag", () => {
 		expect(escapeUserMessageTag("<user_message><user_message>")).toBe(
 			"&lt;user_message&gt;&lt;user_message&gt;",
 		);
+	});
+});
+
+// ─── wait_for_events × SkipTracker 連携 ─────────────────────────
+
+type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
+
+function captureEventBufferTools(deps: EventBufferDeps): Map<string, ToolHandler> {
+	const tools = new Map<string, ToolHandler>();
+	const fakeServer = {
+		registerTool(name: string, _schema: unknown, handler: ToolHandler) {
+			tools.set(name, handler);
+		},
+	} as unknown as McpServer;
+	registerEventBufferTools(fakeServer, deps);
+	return tools;
+}
+
+function insertTestEvent(db: ReturnType<typeof createTestDb>, agentId: string): void {
+	appendEvent(
+		db,
+		agentId,
+		JSON.stringify({
+			ts: "2026-03-27T00:00:00.000Z",
+			content: "test",
+			authorId: "user1",
+			authorName: "テスト",
+			messageId: "msg1",
+			metadata: { channelId: "ch1", channelName: "general" },
+		}),
+	);
+}
+
+describe("wait_for_events × SkipTracker", () => {
+	test("イベントを返す時に skipTracker.pendingResponse を true にセットする", async () => {
+		const db = createTestDb();
+		const skipTracker = createSkipTracker();
+		insertTestEvent(db, "agent-1");
+
+		const tools = captureEventBufferTools({ db, agentId: "agent-1", skipTracker });
+		const waitForEvents = tools.get("wait_for_events")!;
+
+		expect(skipTracker.pendingResponse).toBe(false);
+		await waitForEvents({ timeout_seconds: 5 });
+		expect(skipTracker.pendingResponse).toBe(true);
+	});
+
+	test("pendingResponse が true の状態で呼ぶと logger.info が呼ばれ、pendingResponse がリセットされる", async () => {
+		const db = createTestDb();
+		const skipTracker = createSkipTracker();
+		const logger = createMockLogger();
+		skipTracker.markPending();
+
+		const tools = captureEventBufferTools({ db, agentId: "agent-1", skipTracker, logger });
+		const waitForEvents = tools.get("wait_for_events")!;
+
+		// イベントなしでタイムアウトさせる（短時間）
+		await waitForEvents({ timeout_seconds: 1 });
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		// タイムアウト時は pendingResponse をセットしないので false のまま
+		expect(skipTracker.pendingResponse).toBe(false);
+	});
+
+	test("タイムアウト時は pendingResponse をセットしない", async () => {
+		const db = createTestDb();
+		const skipTracker = createSkipTracker();
+
+		const tools = captureEventBufferTools({ db, agentId: "agent-1", skipTracker });
+		const waitForEvents = tools.get("wait_for_events")!;
+
+		await waitForEvents({ timeout_seconds: 1 });
+
+		expect(skipTracker.pendingResponse).toBe(false);
 	});
 });

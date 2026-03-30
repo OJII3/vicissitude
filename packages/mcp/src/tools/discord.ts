@@ -7,6 +7,8 @@ import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Client } from "discord.js";
 import { z } from "zod";
 
+import type { SkipTracker } from "./event-buffer.ts";
+
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 
 function validateFilePath(filePath: string): void {
@@ -26,6 +28,7 @@ export interface DiscordDeps {
 	emotionAnalyzer?: EmotionAnalyzer;
 	moodWriter?: MoodWriter;
 	agentId?: string;
+	skipTracker?: SkipTracker;
 }
 
 const TYPING_INTERVAL_MS = 8_000;
@@ -117,6 +120,7 @@ export function registerDiscordTools(
 		},
 		async ({ channel_id, content, file_path }) => {
 			clearTyping(channel_id);
+			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			const options: { content: string; files?: { attachment: string }[] } = { content };
 			if (file_path) {
@@ -143,6 +147,7 @@ export function registerDiscordTools(
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
 			clearTyping(channel_id);
+			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			const options: { content: string; files?: { attachment: string }[] } = { content };
@@ -163,6 +168,7 @@ export function registerDiscordTools(
 			inputSchema: { channel_id: z.string(), message_id: z.string(), emoji: z.string() },
 		},
 		async ({ channel_id, message_id, emoji }) => {
+			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			await target.react(emoji);

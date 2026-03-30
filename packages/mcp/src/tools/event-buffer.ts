@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
-import type { Attachment } from "@vicissitude/shared/types";
+import type { Attachment, Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
@@ -19,12 +19,35 @@ export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage
 /** イベント返却時に対象チャンネルへ typing インジケーターを自動送信するためのポート */
 export type TypingSender = (channelId: string) => Promise<void>;
 
+export interface SkipTracker {
+	readonly pendingResponse: boolean;
+	markPending(): void;
+	markResponded(): void;
+}
+
+export function createSkipTracker(): SkipTracker {
+	const state = { pending: false };
+	return {
+		get pendingResponse() {
+			return state.pending;
+		},
+		markPending() {
+			state.pending = true;
+		},
+		markResponded() {
+			state.pending = false;
+		},
+	};
+}
+
 export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
 	recentMessagesFetcher?: RecentMessagesFetcher;
 	moodReader?: MoodReader;
 	typingSender?: TypingSender;
+	logger?: Logger;
+	skipTracker?: SkipTracker;
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
@@ -287,7 +310,8 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, recentMessagesFetcher, moodReader, typingSender } = deps;
+	const { db, agentId, recentMessagesFetcher, moodReader, typingSender, logger, skipTracker } =
+		deps;
 
 	/** EventOrError 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
 	function sendTypingForEvents(events: EventOrError[]): void {
@@ -308,6 +332,11 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			},
 		},
 		async ({ timeout_seconds }) => {
+			if (skipTracker?.pendingResponse) {
+				logger?.info("[event-buffer] 前回のイベントに対する応答がスキップされました");
+				skipTracker.markResponded();
+			}
+
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
@@ -323,6 +352,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				}
 				const moodContent = buildMoodContent(moodReader, agentId);
 				if (moodContent) content.unshift(moodContent);
+				skipTracker?.markPending();
 				return { content };
 			}
 
@@ -343,6 +373,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			}
 			const moodContent = buildMoodContent(moodReader, agentId);
 			if (moodContent) content.unshift(moodContent);
+			skipTracker?.markPending();
 			return { content };
 		},
 	);

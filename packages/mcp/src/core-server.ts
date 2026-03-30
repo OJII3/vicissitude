@@ -19,7 +19,7 @@ import { Client, GatewayIntentBits } from "discord.js";
 import { startHttpServer } from "./http-server.ts";
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
-import { registerEventBufferTools } from "./tools/event-buffer.ts";
+import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -155,6 +155,7 @@ function createServer(agentId: string | null): McpServer {
 
 	const guildMatch = agentId?.match(/^discord:(\d+)$/);
 	const boundGuildId = guildMatch?.[1];
+	const skipTracker = agentId ? createSkipTracker() : undefined;
 
 	registerDiscordTools(
 		server,
@@ -163,6 +164,7 @@ function createServer(agentId: string | null): McpServer {
 			emotionAnalyzer: emotionEstimator,
 			moodWriter: moodStore,
 			agentId: agentId ?? undefined,
+			skipTracker,
 		},
 		boundGuildId,
 	);
@@ -194,6 +196,8 @@ function createServer(agentId: string | null): McpServer {
 			recentMessagesFetcher,
 			moodReader: moodStore,
 			typingSender,
+			logger,
+			skipTracker,
 		});
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");

@@ -13,6 +13,7 @@ import type {
 
 import { registerDiscordTools } from "./discord.ts";
 import type { DiscordDeps } from "./discord.ts";
+import { createSkipTracker } from "./event-buffer.ts";
 
 // ─── Test Helpers ────────────────────────────────────────────────
 
@@ -259,5 +260,41 @@ describe("triggerEmotionEstimation の分岐ロジック", () => {
 		expect(writerCalls).toHaveLength(1);
 		expect(writerCalls[0]!.agentId).toBe("agent-1");
 		expect(writerCalls[0]!.emotion).toEqual(emotion);
+	});
+});
+
+// ─── SkipTracker 連携 ────────────────────────────────────────────
+
+describe("SkipTracker 連携", () => {
+	test("send_message が skipTracker.markResponded() を呼び pendingResponse を false にする", async () => {
+		const skipTracker = createSkipTracker();
+		skipTracker.markPending();
+
+		const tools = captureTools({
+			discordClient: createDiscordClientStub(),
+			skipTracker,
+		});
+
+		await tools.get("send_message")!({ channel_id: "ch-1", content: "テスト" });
+
+		expect(skipTracker.pendingResponse).toBe(false);
+	});
+
+	test("reply が skipTracker.markResponded() を呼び pendingResponse を false にする", async () => {
+		const skipTracker = createSkipTracker();
+		skipTracker.markPending();
+
+		const tools = captureTools({
+			discordClient: createDiscordClientStub(),
+			skipTracker,
+		});
+
+		await tools.get("reply")!({
+			channel_id: "ch-1",
+			message_id: "msg-1",
+			content: "返信テスト",
+		});
+
+		expect(skipTracker.pendingResponse).toBe(false);
 	});
 });

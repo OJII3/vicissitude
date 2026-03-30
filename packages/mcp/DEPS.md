@@ -17,7 +17,7 @@ graph LR
   http_server["http-server"]
   memory_helpers["memory-helpers"]
   tool_metrics["tool-metrics"]
-  tools_discord["tools/discord"]
+  tools_discord["tools/discord"] --> tools_event_buffer["tools/event-buffer"]
   tools_event_buffer["tools/event-buffer"]
   tools_mc_bridge_discord["tools/mc-bridge-discord"]
   tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_event_buffer["tools/event-buffer"]
@@ -54,6 +54,7 @@ graph LR
 
 ### tools/discord.ts
 
+- モジュール内依存: tools/event-buffer
 - 他モジュール依存: infrastructure, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
