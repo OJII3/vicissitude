@@ -521,8 +521,17 @@ export async function bootstrap(): Promise<void> {
 		agentIdPrefix: "discord:heartbeat",
 		portOffset: heartbeatPortOffset,
 	});
-	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent;
-	const heartbeatRouter = new GuildRouter(heartbeatAgents, firstHeartbeatAgent);
+	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
+	if (!firstHeartbeatAgent) {
+		throw new Error(
+			"No heartbeat agents available; cannot create defaultAgent for heartbeat GuildRouter",
+		);
+	}
+	const heartbeatRouter = new InstrumentedAiAgent(
+		new GuildRouter(heartbeatAgents, firstHeartbeatAgent),
+		metrics.collector,
+		"heartbeat",
+	);
 
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
