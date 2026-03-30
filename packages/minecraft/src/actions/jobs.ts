@@ -60,13 +60,16 @@ function waitForWakeOrAbort(
 	});
 }
 
-async function executeCraft(
-	bot: mineflayer.Bot,
-	itemId: number,
-	itemName: string,
-	count: number,
-	signal: AbortSignal,
-): Promise<void> {
+interface ExecuteCraftParams {
+	bot: mineflayer.Bot;
+	itemId: number;
+	itemName: string;
+	count: number;
+	signal: AbortSignal;
+}
+
+async function executeCraft(params: ExecuteCraftParams): Promise<void> {
+	const { bot, itemId, itemName, count, signal } = params;
 	const result = findRecipe(bot, itemId);
 	if (!result) throw new Error(`${itemName} のレシピが見つからないか、材料が足りません`);
 
@@ -90,13 +93,16 @@ async function executeCraft(
 	await bot.craft(result.recipe, count, table);
 }
 
-async function executeSleep(
-	bot: mineflayer.Bot,
-	bedIds: number[],
-	maxDistance: number,
-	signal: AbortSignal,
-	logger: Logger,
-): Promise<void> {
+interface ExecuteSleepParams {
+	bot: mineflayer.Bot;
+	bedIds: number[];
+	maxDistance: number;
+	signal: AbortSignal;
+	logger: Logger;
+}
+
+async function executeSleep(params: ExecuteSleepParams): Promise<void> {
+	const { bot, bedIds, maxDistance, signal, logger } = params;
 	const bedBlock = bot.findBlock({ matching: bedIds, maxDistance });
 	if (!bedBlock) throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません`);
 
@@ -141,7 +147,7 @@ export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager:
 			const started = tryStartJob(jobManager, "crafting", itemName, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
-				await executeCraft(bot, itemType.id, itemName, count, signal);
+				await executeCraft({ bot, itemId: itemType.id, itemName, count, signal });
 			});
 			if (!started.ok) return started.result;
 
@@ -181,7 +187,7 @@ export function registerSleepInBed(
 			const started = tryStartJob(jobManager, "sleeping", "ベッド", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
-				await executeSleep(bot, bedIds, maxDistance, signal, logger);
+				await executeSleep({ bot, bedIds, maxDistance, signal, logger });
 			});
 			if (!started.ok) return started.result;
 

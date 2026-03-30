@@ -72,14 +72,17 @@ async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
 	}
 }
 
+interface ExecuteFollowParams {
+	bot: mineflayer.Bot;
+	entity: Entity;
+	username: string;
+	range: number;
+	signal: AbortSignal;
+}
+
 /** 追従ジョブの executor: プレイヤーが離脱するか abort されるまで追従し続ける */
-function executeFollow(
-	bot: mineflayer.Bot,
-	entity: Entity,
-	username: string,
-	range: number,
-	signal: AbortSignal,
-): Promise<void> {
+function executeFollow(params: ExecuteFollowParams): Promise<void> {
+	const { bot, entity, username, range, signal } = params;
 	ensureMovements(bot);
 	bot.pathfinder.setGoal(new goals.GoalFollow(entity, range), true);
 
@@ -131,7 +134,7 @@ export function registerFollowPlayer(
 			}
 
 			const started = tryStartJob(jobManager, "following", username, (signal) =>
-				executeFollow(bot, entity, username, range, signal),
+				executeFollow({ bot, entity, username, range, signal }),
 			);
 			if (!started.ok) return started.result;
 

@@ -184,15 +184,17 @@ function registerWorldEvents(b: mineflayer.Bot, ctx: BotContext, tracking: Track
 	});
 }
 
-// oxlint-disable-next-line max-params -- internal wiring function, params are all distinct concerns
-function initBot(
-	config: BotConfig,
-	ctx: BotContext,
-	tracking: TrackingState,
-	reconnect: ReconnectState,
-	logger: Logger,
-	botFactory: () => mineflayer.Bot,
-): mineflayer.Bot {
+interface InitBotParams {
+	config: BotConfig;
+	ctx: BotContext;
+	tracking: TrackingState;
+	reconnect: ReconnectState;
+	logger: Logger;
+	botFactory: () => mineflayer.Bot;
+}
+
+function initBot(params: InitBotParams): mineflayer.Bot {
+	const { config, ctx, tracking, reconnect, logger, botFactory } = params;
 	const botOptions: Parameters<typeof mineflayer.createBot>[0] = {
 		host: config.host,
 		port: config.port,
@@ -258,7 +260,7 @@ export function createBotConnection(
 		lastWeather: "",
 	};
 	const botFactory = (): mineflayer.Bot =>
-		initBot(config, ctx, tracking, reconnect, logger, botFactory);
+		initBot({ config, ctx, tracking, reconnect, logger, botFactory });
 
 	return {
 		start() {

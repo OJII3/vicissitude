@@ -95,15 +95,21 @@ const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState, mcCollector
 
 function createServer(): McpServer {
 	const server = new McpServer({ name: "minecraft", version: "0.1.0" });
-	registerMinecraftTools(server, ctx, jobManager, MC_VIEWER_PORT, {
-		metrics: mcCollector,
-		logger,
-		stuckRecovery: {
-			reconnect: () => connection.triggerReconnect(),
-			onRecoverySuccess: () => {
-				jobManager.resetStuckNotification();
+	registerMinecraftTools({
+		server,
+		ctx,
+		jobManager,
+		viewerPort: MC_VIEWER_PORT,
+		options: {
+			metrics: mcCollector,
+			logger,
+			stuckRecovery: {
+				reconnect: () => connection.triggerReconnect(),
+				onRecoverySuccess: () => {
+					jobManager.resetStuckNotification();
+				},
+				cooldownMs: 300_000,
 			},
-			cooldownMs: 300_000,
 		},
 	});
 	return server;

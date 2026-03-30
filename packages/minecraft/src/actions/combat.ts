@@ -133,14 +133,17 @@ async function attackLoop(ctx: AttackContext): Promise<void> {
 	}
 }
 
+interface ExecuteAttackParams {
+	bot: mineflayer.Bot;
+	target: Entity;
+	maxHits: number;
+	signal: AbortSignal;
+	updateProgress: (progress: string) => void;
+}
+
 /** 攻撃ジョブの executor: 接近 → 攻撃を繰り返す */
-async function executeAttack(
-	bot: mineflayer.Bot,
-	target: Entity,
-	maxHits: number,
-	signal: AbortSignal,
-	updateProgress: (progress: string) => void,
-): Promise<void> {
+async function executeAttack(params: ExecuteAttackParams): Promise<void> {
+	const { bot, target, maxHits, signal, updateProgress } = params;
 	ensureMovements(bot);
 	registerAbortHandler(bot, signal);
 
@@ -190,7 +193,7 @@ export function registerAttackEntity(
 			}
 
 			const started = tryStartJob(jobManager, "attacking", entityName, (signal, updateProgress) =>
-				executeAttack(bot, target, maxHits, signal, updateProgress),
+				executeAttack({ bot, target, maxHits, signal, updateProgress }),
 			);
 			if (!started.ok) return started.result;
 
