@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
 
 import { createAivisSpeechSynthesizer } from "./aivis-speech-synthesizer";
@@ -278,6 +279,33 @@ describe("isAvailable — fetch call", () => {
 		const result = await synth.isAvailable();
 
 		expect(result).toBe(false);
+	});
+});
+
+// ─── synthesize: logger DI ───────────────────────────────────────
+
+describe("synthesize — logger DI", () => {
+	it("logger を渡した場合、エラー時にその logger.warn が呼ばれる", async () => {
+		const logger = createMockLogger();
+		const fetchError = new Error("network failure");
+		mockFetch.mockRejectedValueOnce(fetchError);
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL, logger });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).toBeNull();
+		expect(logger.warn).toHaveBeenCalledTimes(1);
+		expect(logger.warn).toHaveBeenCalledWith("[tts] AivisSpeech synthesis failed", fetchError);
+	});
+
+	it("logger 未指定時はサイレント（例外をスローしない）", async () => {
+		const fetchError = new Error("network failure");
+		mockFetch.mockRejectedValueOnce(fetchError);
+
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
+
+		expect(result).toBeNull();
 	});
 });
 

@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 import type { TtsSynthesizer } from "@vicissitude/shared/ports";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 import { createAivisSpeechSynthesizer } from "@vicissitude/tts";
 
 // ─── テスト対象のファクトリ ─────────────────────────────────────
@@ -16,11 +18,13 @@ function synthesizer(config?: {
 	baseUrl?: string;
 	speakerId?: number;
 	timeout?: number;
+	logger?: Logger;
 }): TtsSynthesizer {
 	return createAivisSpeechSynthesizer({
 		baseUrl: config?.baseUrl ?? BASE_URL,
 		speakerId: config?.speakerId,
 		timeout: config?.timeout,
+		logger: config?.logger,
 	});
 }
 
@@ -218,6 +222,27 @@ describe("AivisSpeechSynthesizer — synthesize errors", () => {
 				headers: { "Content-Type": "audio/wav" },
 			}),
 		);
+
+		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
+
+		expect(result).toBeNull();
+	});
+});
+
+// ─── synthesize: logger DI ──────────────────────────────────────
+
+describe("AivisSpeechSynthesizer — logger DI", () => {
+	it("エラー発生時にカスタム logger.warn が呼ばれる", async () => {
+		const logger = createMockLogger();
+		mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+		await synthesizer({ logger }).synthesize("こんにちは", DEFAULT_STYLE);
+
+		expect(logger.warn).toHaveBeenCalled();
+	});
+
+	it("logger 未指定でもエラー時に例外をスローしない", async () => {
+		mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
 
 		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
 

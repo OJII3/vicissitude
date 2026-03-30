@@ -441,6 +441,7 @@ export async function bootstrap(): Promise<void> {
 		? createAivisSpeechSynthesizer({
 				baseUrl: config.tts.baseUrl,
 				speakerId: config.tts.speakerId,
+				logger,
 			})
 		: undefined;
 	const ttsStyleMapper = config.tts ? createEmotionToTtsStyleMapper() : undefined;
