@@ -28,6 +28,7 @@ export interface DiscordDeps {
 	emotionAnalyzer?: EmotionAnalyzer;
 	moodWriter?: MoodWriter;
 	agentId?: string;
+	moodKey?: string;
 	skipTracker?: SkipTracker;
 }
 
@@ -55,7 +56,7 @@ export function registerDiscordTools(
 		void (async () => {
 			const result = await emotionAnalyzer.analyze({ text });
 			if (result.confidence > 0) {
-				moodWriter.setMood(agentId, result.emotion);
+				moodWriter.setMood(deps.moodKey ?? agentId, result.emotion);
 			}
 		})().catch(() => {});
 	}

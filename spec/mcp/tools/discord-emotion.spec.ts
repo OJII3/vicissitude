@@ -219,4 +219,30 @@ describe("send_message / reply での感情推定トリガー", () => {
 
 		expect(result.content).toBeDefined();
 	});
+
+	test("moodKey が指定されている場合、setMood() は agentId ではなく moodKey をキーとして呼ばれる", async () => {
+		const emotion = createEmotion(0.7, 0.3, 0.1);
+		const { analyzer } = createSpyEmotionAnalyzer({ emotion, confidence: 0.9 });
+		const { writer, calls: writerCalls } = createSpyMoodWriter();
+
+		const tools = captureTools({
+			discordClient: createDiscordClientStub(),
+			emotionAnalyzer: analyzer,
+			moodWriter: writer,
+			agentId: "discord:heartbeat:12345",
+			moodKey: "discord:12345",
+		});
+
+		const sendMessage = tools.get("send_message");
+		await sendMessage!({ channel_id: "ch-1", content: "テスト" });
+
+		// fire-and-forget なので少し待つ
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 50);
+		});
+
+		expect(writerCalls).toHaveLength(1);
+		// moodKey が使われ、agentId ではないことを検証
+		expect(writerCalls[0]!.agentId).toBe("discord:12345");
+	});
 });

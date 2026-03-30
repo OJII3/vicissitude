@@ -16,6 +16,22 @@ function createStubMoodReader(mood: Emotion): MoodReader {
 	};
 }
 
+function createSpyMoodReader(mood: Emotion): {
+	reader: MoodReader;
+	calls: string[];
+} {
+	const calls: string[] = [];
+	return {
+		reader: {
+			getMood(agentId: string): Emotion {
+				calls.push(agentId);
+				return mood;
+			},
+		},
+		calls,
+	};
+}
+
 /** registerEventBufferTools で登録された wait_for_events を直接呼び出すヘルパー */
 async function callWaitForEvents(
 	deps: Parameters<typeof registerEventBufferTools>[1],
@@ -117,5 +133,25 @@ describe("wait_for_events への mood 注入", () => {
 		expect(moodIndex).toBeGreaterThanOrEqual(0);
 		expect(recentIndex).toBeGreaterThanOrEqual(0);
 		expect(moodIndex).toBeLessThan(recentIndex);
+	});
+
+	test("moodKey が指定されている場合、getMood() は agentId ではなく moodKey をキーとして呼ばれる", async () => {
+		const db = createTestDb();
+		const agentId = "discord:heartbeat:12345";
+		insertTestEvent(db, agentId);
+
+		const activeMood = createEmotion(0.8, 0.5, 0.3);
+		const { reader, calls: readerCalls } = createSpyMoodReader(activeMood);
+
+		await callWaitForEvents({
+			db,
+			agentId,
+			moodReader: reader,
+			moodKey: "discord:12345",
+		});
+
+		// getMood が moodKey で呼ばれ、agentId ではないことを検証
+		expect(readerCalls).toHaveLength(1);
+		expect(readerCalls[0]).toBe("discord:12345");
 	});
 });
