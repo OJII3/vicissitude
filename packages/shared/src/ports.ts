@@ -101,7 +101,7 @@ export interface EmotionToTtsStyleMapper {
 
 /** TTS 音声合成ポート */
 export interface TtsSynthesizer {
-	synthesize(text: string, style: TtsStyleParams): Promise<TtsResult | null>;
+	synthesize(text: string, style: TtsStyleParams, signal?: AbortSignal): Promise<TtsResult | null>;
 	isAvailable(): Promise<boolean>;
 }
 
