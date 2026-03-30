@@ -26,12 +26,12 @@
         let
           claude-loop = pkgs.writeShellScriptBin "claude-loop" ''
             set -euo pipefail
-            REPO_DIR="$(cd "$(dirname "$0")/../.."; pwd)"
-            cd "${toString ./.}"
+            REPO_DIR="$(${pkgs.git}/bin/git rev-parse --show-toplevel)"
+            cd "$REPO_DIR"
 
             SESSION_NAME="vicissitude-claude"
             INTERVAL="''${1:-2h}"
-            PROMPT_FILE=".claude/prompts/cron.md"
+            PROMPT_FILE="$REPO_DIR/.claude/prompts/cron.md"
 
             if ! command -v claude &>/dev/null; then
               echo "Error: claude command not found" >&2
@@ -48,7 +48,7 @@
               exit 0
             fi
 
-            tmux new-session -d -s "$SESSION_NAME" "while true; do echo \"[$(date)] Starting claude task...\"; claude -p \"\$(cat $PROMPT_FILE)\" --permission-mode auto --max-budget-usd 10; echo \"[$(date)] Done. Sleeping $INTERVAL...\"; sleep $INTERVAL; done"
+            tmux new-session -d -s "$SESSION_NAME" "cd $REPO_DIR && while true; do echo \"[\$(date)] Starting claude task...\"; claude -p \"\$(cat $PROMPT_FILE)\" --permission-mode auto --max-budget-usd 10; echo \"[\$(date)] Done. Sleeping $INTERVAL...\"; sleep $INTERVAL; done"
             echo "Started tmux session '$SESSION_NAME' (interval: $INTERVAL)"
             echo "  Attach:  tmux attach -t $SESSION_NAME"
             echo "  Stop:    tmux kill-session -t $SESSION_NAME"
