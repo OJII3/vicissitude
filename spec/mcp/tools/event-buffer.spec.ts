@@ -4,6 +4,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	classifyActionHint,
+	createSkipTracker,
 	extractTypingChannels,
 	formatEventMetadata,
 	formatEvents,
@@ -738,6 +739,36 @@ describe("extractTypingChannels", () => {
 
 	test("空配列なら空配列を返す", () => {
 		expect(extractTypingChannels([])).toEqual([]);
+	});
+});
+
+describe("createSkipTracker", () => {
+	test("初期状態は pendingResponse === false", () => {
+		const tracker = createSkipTracker();
+		expect(tracker.pendingResponse).toBe(false);
+	});
+
+	test("pendingResponse を true にした後、markResponded() で false に戻る", () => {
+		const tracker = createSkipTracker();
+		tracker.pendingResponse = true;
+		expect(tracker.pendingResponse).toBe(true);
+
+		tracker.markResponded();
+		expect(tracker.pendingResponse).toBe(false);
+	});
+
+	test("markResponded() を連続で呼んでも pendingResponse は false のまま", () => {
+		const tracker = createSkipTracker();
+		tracker.pendingResponse = true;
+		tracker.markResponded();
+		tracker.markResponded();
+		expect(tracker.pendingResponse).toBe(false);
+	});
+
+	test("pendingResponse が false の状態で markResponded() を呼んでもエラーにならない", () => {
+		const tracker = createSkipTracker();
+		expect(() => tracker.markResponded()).not.toThrow();
+		expect(tracker.pendingResponse).toBe(false);
 	});
 });
 
