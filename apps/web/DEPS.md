@@ -13,6 +13,9 @@ graph LR
   lib_audio_player["lib/audio-player"]
   lib_ws_client["lib/ws-client"]
   main.tsx --> index.css
+  main.tsx --> routeTree.gen
+  routeTree.gen --> routes___root.tsx["routes/__root.tsx"]
+  routeTree.gen --> routes_index.tsx["routes/index.tsx"]
   routes___root.tsx["routes/__root.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"]
@@ -24,13 +27,13 @@ graph LR
 ### components/avatar/VrmViewer.tsx.ts
 
 - 他モジュール依存: shared
-- 外部依存: ../../../node_modules/.bun/three@0.183.2/node_modules/three/build/three.cjs, @pixiv/three-vrm, @react-three/drei, @react-three/fiber, react, three/addons/loaders/GLTFLoader.js
+- 外部依存: .bun, three/addons/loaders/GLTFLoader.js
 
 ### components/chat/ChatPanel.tsx.ts
 
 - モジュール内依存: lib/audio-player, lib/ws-client
 - 他モジュール依存: shared
-- 外部依存: react
+- 外部依存: .bun
 
 ### index.css.ts
 
@@ -46,19 +49,23 @@ graph LR
 
 ### main.tsx.ts
 
-- モジュール内依存: index.css
-- 外部依存: ./routeTree.gen, @tanstack/react-router, react, react-dom/client
+- モジュール内依存: index.css, routeTree.gen
+- 外部依存: .bun
+
+### routeTree.gen.ts
+
+- モジュール内依存: routes/\_\_root.tsx, routes/index.tsx
 
 ### routes/\_\_root.tsx.ts
 
-- 外部依存: @tanstack/react-router
+- 外部依存: .bun
 
 ### routes/index.tsx.ts
 
 - モジュール内依存: components/avatar/VrmViewer.tsx, components/chat/ChatPanel.tsx
 - 他モジュール依存: shared
-- 外部依存: @tanstack/react-router, react
+- 外部依存: .bun
 
 ### vite-env.d.ts
 
-- 外部依存: vite/client
+- 外部依存: .bun
