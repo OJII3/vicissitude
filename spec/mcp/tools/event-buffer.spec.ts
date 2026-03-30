@@ -748,9 +748,9 @@ describe("createSkipTracker", () => {
 		expect(tracker.pendingResponse).toBe(false);
 	});
 
-	test("pendingResponse を true にした後、markResponded() で false に戻る", () => {
+	test("markPending() で true にした後、markResponded() で false に戻る", () => {
 		const tracker = createSkipTracker();
-		tracker.pendingResponse = true;
+		tracker.markPending();
 		expect(tracker.pendingResponse).toBe(true);
 
 		tracker.markResponded();
@@ -759,7 +759,7 @@ describe("createSkipTracker", () => {
 
 	test("markResponded() を連続で呼んでも pendingResponse は false のまま", () => {
 		const tracker = createSkipTracker();
-		tracker.pendingResponse = true;
+		tracker.markPending();
 		tracker.markResponded();
 		tracker.markResponded();
 		expect(tracker.pendingResponse).toBe(false);

@@ -107,7 +107,7 @@ describe("wait_for_events × SkipTracker", () => {
 		const db = createTestDb();
 		const skipTracker = createSkipTracker();
 		const logger = createMockLogger();
-		skipTracker.pendingResponse = true;
+		skipTracker.markPending();
 
 		const tools = captureEventBufferTools({ db, agentId: "agent-1", skipTracker, logger });
 		const waitForEvents = tools.get("wait_for_events")!;

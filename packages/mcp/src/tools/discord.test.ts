@@ -268,7 +268,7 @@ describe("triggerEmotionEstimation の分岐ロジック", () => {
 describe("SkipTracker 連携", () => {
 	test("send_message が skipTracker.markResponded() を呼び pendingResponse を false にする", async () => {
 		const skipTracker = createSkipTracker();
-		skipTracker.pendingResponse = true;
+		skipTracker.markPending();
 
 		const tools = captureTools({
 			discordClient: createDiscordClientStub(),
@@ -282,7 +282,7 @@ describe("SkipTracker 連携", () => {
 
 	test("reply が skipTracker.markResponded() を呼び pendingResponse を false にする", async () => {
 		const skipTracker = createSkipTracker();
-		skipTracker.pendingResponse = true;
+		skipTracker.markPending();
 
 		const tools = captureTools({
 			discordClient: createDiscordClientStub(),

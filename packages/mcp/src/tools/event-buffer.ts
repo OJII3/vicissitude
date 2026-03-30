@@ -20,15 +20,22 @@ export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage
 export type TypingSender = (channelId: string) => Promise<void>;
 
 export interface SkipTracker {
-	pendingResponse: boolean;
+	readonly pendingResponse: boolean;
+	markPending(): void;
 	markResponded(): void;
 }
 
 export function createSkipTracker(): SkipTracker {
+	const state = { pending: false };
 	return {
-		pendingResponse: false,
+		get pendingResponse() {
+			return state.pending;
+		},
+		markPending() {
+			state.pending = true;
+		},
 		markResponded() {
-			this.pendingResponse = false;
+			state.pending = false;
 		},
 	};
 }
@@ -327,7 +334,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		async ({ timeout_seconds }) => {
 			if (skipTracker?.pendingResponse) {
 				logger?.info("[event-buffer] 前回のイベントに対する応答がスキップされました");
-				skipTracker.pendingResponse = false;
+				skipTracker.markResponded();
 			}
 
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
@@ -345,7 +352,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				}
 				const moodContent = buildMoodContent(moodReader, agentId);
 				if (moodContent) content.unshift(moodContent);
-				if (skipTracker) skipTracker.pendingResponse = true;
+				skipTracker?.markPending();
 				return { content };
 			}
 
@@ -366,7 +373,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			}
 			const moodContent = buildMoodContent(moodReader, agentId);
 			if (moodContent) content.unshift(moodContent);
-			if (skipTracker) skipTracker.pendingResponse = true;
+			skipTracker?.markPending();
 			return { content };
 		},
 	);

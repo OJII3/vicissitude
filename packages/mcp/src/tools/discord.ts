@@ -168,6 +168,7 @@ export function registerDiscordTools(
 			inputSchema: { channel_id: z.string(), message_id: z.string(), emoji: z.string() },
 		},
 		async ({ channel_id, message_id, emoji }) => {
+			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			await target.react(emoji);
