@@ -173,9 +173,11 @@ export class WsConnectionManager implements GatewayPort {
 		signal?: AbortSignal;
 	}): Promise<void> {
 		try {
-			const result = await params.synthesizer.synthesize(params.text, params.style, {
-				signal: params.signal,
-			});
+			const result = await params.synthesizer.synthesize(
+				params.text,
+				params.style,
+				params.signal,
+			);
 			if (!result) return;
 
 			const audioDataMessage: AudioDataMessage = {

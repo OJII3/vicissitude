@@ -41,11 +41,10 @@ export function createAivisSpeechSynthesizer(config: {
 		logger: config.logger,
 	};
 
-	const result: TtsSynthesizer = {
-		synthesize: (text, style, options) => synthesize(synthConfig, text, style, options),
+	return {
+		synthesize: (text, style, signal) => synthesize(synthConfig, text, style, signal),
 		isAvailable: () => isAvailable(baseUrl),
 	};
-	return result;
 }
 
 function resolveSpeakerId(
@@ -60,15 +59,15 @@ async function synthesize(
 	config: SynthesizeConfig,
 	text: string,
 	style: TtsStyleParams,
-	options?: { signal?: AbortSignal },
+	callerSignal?: AbortSignal,
 ): Promise<TtsResult | null> {
 	try {
 		const { baseUrl, timeout, defaultSpeakerId, styleSpeakerMap } = config;
 		const speaker = resolveSpeakerId(defaultSpeakerId, styleSpeakerMap, style.style);
 
 		const timeoutSignal = AbortSignal.timeout(timeout);
-		const signal = options?.signal
-			? AbortSignal.any([options.signal, timeoutSignal])
+		const signal = callerSignal
+			? AbortSignal.any([callerSignal, timeoutSignal])
 			: timeoutSignal;
 
 		// Step 1: audio_query
