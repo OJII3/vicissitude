@@ -1,5 +1,6 @@
 import type { TtsSynthesizer } from "@vicissitude/shared/ports";
 import type { TtsResult, TtsStyleParams } from "@vicissitude/shared/tts";
+import type { Logger } from "@vicissitude/shared/types";
 
 const DEFAULT_TIMEOUT = 30_000;
 const HEALTH_CHECK_TIMEOUT = 5_000;
@@ -12,6 +13,7 @@ interface SynthesizeConfig {
 	timeout: number;
 	defaultSpeakerId: number;
 	styleSpeakerMap: StyleSpeakerMap;
+	logger: Logger;
 }
 
 /** AivisSpeech Engine の AudioQuery レスポンスの最小型 */
@@ -27,14 +29,22 @@ export function createAivisSpeechSynthesizer(config: {
 	/** style ごとの speaker ID マッピング（未設定の style はデフォルト speaker を使用） */
 	styleSpeakerMap?: StyleSpeakerMap;
 	timeout?: number;
+	logger?: Logger;
 }): TtsSynthesizer {
-	const { baseUrl, speakerId = 0, styleSpeakerMap = {}, timeout = DEFAULT_TIMEOUT } = config;
+	const {
+		baseUrl,
+		speakerId = 0,
+		styleSpeakerMap = {},
+		timeout = DEFAULT_TIMEOUT,
+		logger = console,
+	} = config;
 
 	const synthConfig: SynthesizeConfig = {
 		baseUrl,
 		timeout,
 		defaultSpeakerId: speakerId,
 		styleSpeakerMap,
+		logger,
 	};
 
 	return {
@@ -96,7 +106,7 @@ async function synthesize(
 
 		return { audio, format: "wav", durationSec };
 	} catch (error) {
-		console.warn("[tts] AivisSpeech synthesis failed", error);
+		config.logger.warn("[tts] AivisSpeech synthesis failed", error);
 		return null;
 	}
 }
