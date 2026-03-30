@@ -98,11 +98,11 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 		"check_commands",
 		{
 			description:
-				"Discord 側からの指示を確認する。指示があれば消費して返し、なければ空配列を返す。ブロッキングしない。",
+				"Discord 側からの指示を確認する。指示があれば消費して返し、なければ「新しい指示はありません」を返す。ブロッキングしない。",
 		},
 		() => {
 			const rows = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
-			const text = rows.length > 0 ? formatCommands(parseEvents(rows)) : "[]";
+			const text = rows.length > 0 ? formatCommands(parseEvents(rows)) : "新しい指示はありません";
 			return { content: [{ type: "text" as const, text }] };
 		},
 	);
