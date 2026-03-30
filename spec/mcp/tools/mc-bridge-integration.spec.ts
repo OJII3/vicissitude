@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MAX_BATCH_SIZE } from "@vicissitude/mcp/tools/event-buffer";
+import { registerMinecraftBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-minecraft";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import {
 	getSessionLockGuildId,
@@ -152,5 +154,29 @@ describe("check_commands データアクセス層テスト", () => {
 		// 2回目の消費では空配列が返る
 		const secondBatch = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
 		expect(secondBatch).toEqual([]);
+	});
+});
+
+describe("check_commands ツール結合テスト", () => {
+	test("イベントがない場合、返却テキストが「新しい指示はありません」である", () => {
+		const db = createTestDb();
+
+		// registerMinecraftBridgeTools が登録するハンドラをキャプチャする
+		type ToolHandler = () => { content: { type: string; text: string }[] };
+		const handlers = new Map<string, ToolHandler>();
+		const mockServer = {
+			registerTool: (name: string, _schema: unknown, handler: ToolHandler) => {
+				handlers.set(name, handler);
+			},
+		} as unknown as McpServer;
+
+		registerMinecraftBridgeTools(mockServer, { db });
+
+		const checkCommands = handlers.get("check_commands");
+		if (!checkCommands) throw new Error("check_commands handler not found");
+
+		const result = checkCommands();
+		expect(result.content).toHaveLength(1);
+		expect(result.content[0]?.text).toBe("新しい指示はありません");
 	});
 });
