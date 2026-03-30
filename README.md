@@ -50,12 +50,13 @@ MCP サーバー経由で各種操作を提供する。
 
 | カテゴリ     | MCP サーバー | 主要ツール                                                                                            |
 | ------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
-| チャット     | discord      | send_message, reply, add_reaction, read_messages                                                      |
+| チャット     | core         | send_message, reply, add_reaction, read_messages, list_channels, send_typing                          |
+| イベント     | core         | wait_for_events                                                                                       |
 | コード実行   | code-exec    | execute_code                                                                                          |
-| スケジュール | schedule     | list_reminders, add_reminder                                                                          |
-| 記憶（短期） | memory       | read_memory, update_memory, read_soul                                                                 |
-| 記憶（長期） | memory       | memory_retrieve, memory_get_facts                                                                     |
-| ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block                                                    |
+| スケジュール | core         | list_reminders, add_reminder, update_reminder, remove_reminder                                        |
+| 記憶         | core         | memory_retrieve, memory_get_facts                                                                     |
+| ゲーム委譲   | core         | minecraft_delegate, minecraft_status, minecraft_start_session, minecraft_stop_session                 |
+| ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block, attack_entity, craft_item 等                      |
 | ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
 | ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
 
