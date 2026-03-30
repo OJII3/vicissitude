@@ -66,9 +66,7 @@ async function synthesize(
 		const speaker = resolveSpeakerId(defaultSpeakerId, styleSpeakerMap, style.style);
 
 		const timeoutSignal = AbortSignal.timeout(timeout);
-		const signal = callerSignal
-			? AbortSignal.any([callerSignal, timeoutSignal])
-			: timeoutSignal;
+		const signal = callerSignal ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
 
 		// Step 1: audio_query
 		const queryUrl = new URL("/audio_query", baseUrl);
