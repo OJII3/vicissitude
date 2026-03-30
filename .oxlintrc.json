@@ -289,7 +289,6 @@
 		{
 			"files": ["packages/minecraft/src/**/*.ts"],
 			"rules": {
-				"eslint/max-params": ["warn", { "max": 5 }],
 				"eslint/no-restricted-imports": [
 					"error",
 					{

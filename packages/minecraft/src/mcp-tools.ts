@@ -195,13 +195,16 @@ interface MinecraftToolsOptions {
 	};
 }
 
-export function registerMinecraftTools(
-	server: McpServer,
-	ctx: BotContext,
-	jobManager: JobManager,
-	viewerPort: number,
-	options: MinecraftToolsOptions,
-): void {
+interface RegisterMinecraftToolsParams {
+	server: McpServer;
+	ctx: BotContext;
+	jobManager: JobManager;
+	viewerPort: number;
+	options: MinecraftToolsOptions;
+}
+
+export function registerMinecraftTools(params: RegisterMinecraftToolsParams): void {
+	const { server, ctx, jobManager, viewerPort, options } = params;
 	const s = options.metrics ? wrapServerWithMetrics(server, options.metrics) : server;
 	registerObserveStateTool(s, ctx, jobManager, options.stuckRecovery);
 	registerRecentEventsTool(s, ctx);
