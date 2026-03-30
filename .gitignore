@@ -1,5 +1,6 @@
 /.claude/*.local.*
 /.claude/worktree
+/.claude/worktrees/
 /.claude/agent-memory
 /.claude/IDEA.md
 /.claude/scheduled_tasks.lock
