@@ -48,7 +48,7 @@
               exit 0
             fi
 
-            tmux new-session -d -s "$SESSION_NAME" "cd $REPO_DIR && while true; do echo \"[\$(date)] Starting claude task...\"; claude -p \"\$(cat $PROMPT_FILE)\" --permission-mode auto --max-budget-usd 10; echo \"[\$(date)] Done. Sleeping $INTERVAL...\"; sleep $INTERVAL; done"
+            tmux new-session -d -s "$SESSION_NAME" \; set-option -t "$SESSION_NAME" remain-on-exit on \; send-keys "cd $REPO_DIR && while true; do echo \"[\$(date)] Starting claude task...\"; claude -p \"\$(cat $PROMPT_FILE)\" --permission-mode auto --max-budget-usd 10 || true; echo \"[\$(date)] Done. Sleeping $INTERVAL...\"; sleep $INTERVAL; done" Enter
             echo "Started tmux session '$SESSION_NAME' (interval: $INTERVAL)"
             echo "  Attach:  tmux attach -t $SESSION_NAME"
             echo "  Stop:    tmux kill-session -t $SESSION_NAME"
