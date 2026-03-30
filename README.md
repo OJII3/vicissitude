@@ -48,15 +48,16 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 MCP サーバー経由で各種操作を提供する。
 
-| カテゴリ     | MCP サーバー | 主要ツール                                                |
-| ------------ | ------------ | --------------------------------------------------------- |
-| チャット     | discord      | send_message, reply, add_reaction, read_messages          |
-| コード実行   | code-exec    | execute_code                                              |
-| スケジュール | schedule     | list_reminders, add_reminder                              |
-| 記憶（短期） | memory       | read_memory, update_memory, read_soul                     |
-| 記憶（長期） | memory       | memory_retrieve, memory_get_facts                         |
-| ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block        |
-| ゲーム通信   | mc-bridge    | mc_report, mc_read_goals, mc_update_goals, check_commands |
+| カテゴリ     | MCP サーバー | 主要ツール                                                                                            |
+| ------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
+| チャット     | discord      | send_message, reply, add_reaction, read_messages                                                      |
+| コード実行   | code-exec    | execute_code                                                                                          |
+| スケジュール | schedule     | list_reminders, add_reminder                                                                          |
+| 記憶（短期） | memory       | read_memory, update_memory, read_soul                                                                 |
+| 記憶（長期） | memory       | memory_retrieve, memory_get_facts                                                                     |
+| ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block                                                    |
+| ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
+| ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
 
 OpenCode SDK 組み込み: `webfetch`, `websearch`
 
