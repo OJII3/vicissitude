@@ -21,11 +21,11 @@ graph LR
 
 - モジュール内依存: config, gateway/channel-config-loader, gateway/discord
 - 他モジュール依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
-- 外部依存: .bun, fs, path
+- 外部依存: ../../../node_modules/.bun/@types+bun@1.3.9/node_modules/@types/bun/index.d.ts, fs, path
 
 ### config.ts
 
-- 外部依存: .bun, path
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, path
 
 ### gateway/channel-config-loader.ts
 
@@ -34,7 +34,7 @@ graph LR
 ### gateway/discord.ts
 
 - 他モジュール依存: infrastructure, shared
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js
 
 ### index.ts
 
