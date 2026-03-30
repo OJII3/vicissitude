@@ -13,7 +13,7 @@ interface SynthesizeConfig {
 	timeout: number;
 	defaultSpeakerId: number;
 	styleSpeakerMap: StyleSpeakerMap;
-	logger: Logger;
+	logger?: Logger;
 }
 
 /** AivisSpeech Engine の AudioQuery レスポンスの最小型 */
@@ -31,20 +31,14 @@ export function createAivisSpeechSynthesizer(config: {
 	timeout?: number;
 	logger?: Logger;
 }): TtsSynthesizer {
-	const {
-		baseUrl,
-		speakerId = 0,
-		styleSpeakerMap = {},
-		timeout = DEFAULT_TIMEOUT,
-		logger = console,
-	} = config;
+	const { baseUrl, speakerId = 0, styleSpeakerMap = {}, timeout = DEFAULT_TIMEOUT } = config;
 
 	const synthConfig: SynthesizeConfig = {
 		baseUrl,
 		timeout,
 		defaultSpeakerId: speakerId,
 		styleSpeakerMap,
-		logger,
+		logger: config.logger,
 	};
 
 	return {
@@ -106,7 +100,7 @@ async function synthesize(
 
 		return { audio, format: "wav", durationSec };
 	} catch (error) {
-		config.logger.warn("[tts] AivisSpeech synthesis failed", error);
+		config.logger?.warn("[tts] AivisSpeech synthesis failed", error);
 		return null;
 	}
 }

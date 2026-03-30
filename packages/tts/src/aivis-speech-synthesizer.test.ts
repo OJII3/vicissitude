@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
@@ -298,38 +298,14 @@ describe("synthesize — logger DI", () => {
 		expect(logger.warn).toHaveBeenCalledWith("[tts] AivisSpeech synthesis failed", fetchError);
 	});
 
-	it("logger 未指定時、console.warn がフォールバックとして呼ばれる", async () => {
-		const consoleWarnSpy = spyOn(console, "warn").mockImplementation(() => {});
+	it("logger 未指定時はサイレント（例外をスローしない）", async () => {
 		const fetchError = new Error("network failure");
 		mockFetch.mockRejectedValueOnce(fetchError);
 
-		try {
-			const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
-			const result = await synth.synthesize("test", DEFAULT_STYLE);
+		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
-			expect(result).toBeNull();
-			expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
-			expect(consoleWarnSpy).toHaveBeenCalledWith("[tts] AivisSpeech synthesis failed", fetchError);
-		} finally {
-			consoleWarnSpy.mockRestore();
-		}
-	});
-
-	it("logger にエラーメッセージとエラーオブジェクトが渡される", async () => {
-		const logger = createMockLogger();
-		const fetchError = new TypeError("Failed to fetch");
-		mockFetch.mockRejectedValueOnce(fetchError);
-
-		const synth = createAivisSpeechSynthesizer({ baseUrl: BASE_URL, logger });
-		await synth.synthesize("test", DEFAULT_STYLE);
-
-		const [message, error] = (logger.warn as ReturnType<typeof mock>).mock.calls[0] as [
-			string,
-			unknown,
-		];
-		expect(message).toBe("[tts] AivisSpeech synthesis failed");
-		expect(error).toBeInstanceOf(TypeError);
-		expect((error as TypeError).message).toBe("Failed to fetch");
+		expect(result).toBeNull();
 	});
 });
 
