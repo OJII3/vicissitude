@@ -57,6 +57,10 @@ export class AgentRunner implements AiAgent {
 	private readonly contextGuildId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
 
+	private get sessionKey(): string {
+		return `__polling__:${this.agentId}`;
+	}
+
 	protected constructor(deps: RunnerDeps) {
 		this.profile = deps.profile;
 		this.agentId = deps.agentId;
@@ -171,8 +175,7 @@ export class AgentRunner implements AiAgent {
 			return;
 		}
 		this.lastRotationRequestAt = now;
-		const sessionKey = `__polling__:${this.agentId}`;
-		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 
 		await this.generateSessionSummary(sessionId);
@@ -182,7 +185,7 @@ export class AgentRunner implements AiAgent {
 		} catch (err) {
 			this.logger.error(`[${this.profile.name}:${this.agentId}] forced rotation failed`, err);
 		}
-		this.sessionStore.delete(this.profile.name, sessionKey);
+		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
 		this.logger.info(
 			`[${this.profile.name}:${this.agentId}] session force-rotated (stuck recovery)`,
@@ -199,7 +202,7 @@ export class AgentRunner implements AiAgent {
 
 	/** compacted 後にイベントストリームだけ再購読する（セッションは生存中） */
 	private rewatchSession(signal: AbortSignal): void {
-		const sessionId = this.sessionStore.get(this.profile.name, `__polling__:${this.agentId}`);
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) {
 			this.logger.warn(`[${this.profile.name}:${this.agentId}] rewatch skipped: no session`);
 			return;
@@ -274,8 +277,7 @@ export class AgentRunner implements AiAgent {
 	}
 
 	private async resolveSessionId(): Promise<string> {
-		const sessionKey = `__polling__:${this.agentId}`;
-		let realId = this.sessionStore.get(this.profile.name, sessionKey);
+		let realId = this.sessionStore.get(this.profile.name, this.sessionKey);
 
 		if (realId) {
 			const exists = await this.sessionPort.sessionExists(realId);
@@ -285,12 +287,12 @@ export class AgentRunner implements AiAgent {
 		}
 
 		if (realId) {
-			const row = this.sessionStore.getRow(this.profile.name, sessionKey);
+			const row = this.sessionStore.getRow(this.profile.name, this.sessionKey);
 			this.sessionCreatedAt = row?.createdAt ?? Date.now();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] reusing existing session ${realId}`);
 		} else {
 			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.agentId}`);
-			this.sessionStore.save(this.profile.name, sessionKey, realId);
+			this.sessionStore.save(this.profile.name, this.sessionKey, realId);
 			this.sessionCreatedAt = Date.now();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] created new session ${realId}`);
 		}
@@ -303,8 +305,7 @@ export class AgentRunner implements AiAgent {
 		const age = Date.now() - this.sessionCreatedAt;
 		if (age < this.sessionMaxAgeMs) return;
 
-		const sessionKey = `__polling__:${this.agentId}`;
-		const sessionId = this.sessionStore.get(this.profile.name, sessionKey);
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 
 		await this.generateSessionSummary(sessionId);
@@ -318,7 +319,7 @@ export class AgentRunner implements AiAgent {
 			);
 		}
 
-		this.sessionStore.delete(this.profile.name, sessionKey);
+		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
 
 		const hours = Math.round(age / 3_600_000);
