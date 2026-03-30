@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
 import { recordTokenMetrics } from "@vicissitude/observability/metrics";
 import type {
 	AgentResponse,
@@ -123,9 +124,19 @@ export class AgentRunner implements AiAgent {
 				this.sessionWatch = null;
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
+				if (event.type === "cancelled") return;
+
+				// compacted: セッションはまだ生きており LLM がポーリングを続けているため、
+				// waitForEvents を挟まず即座にセッション監視を再開する。
+				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
+				if (event.type === "compacted") {
+					this.rewatchSession(signal);
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					continue;
+				}
+
 				// eslint-disable-next-line no-await-in-loop -- rotation only happens after session end
 				await this.rotateSessionIfExpired();
-				if (event.type === "cancelled") return;
 
 				if (event.type !== "error") {
 					delay = INITIAL_RECONNECT_DELAY_MS;
@@ -184,6 +195,17 @@ export class AgentRunner implements AiAgent {
 		this.abortController = null;
 		this.sessionWatch = null;
 		this.sessionPort.close();
+	}
+
+	/** compacted 後にイベントストリームだけ再購読する（セッションは生存中） */
+	private rewatchSession(signal: AbortSignal): void {
+		const sessionId = this.sessionStore.get(this.profile.name, `__polling__:${this.agentId}`);
+		if (!sessionId) {
+			this.logger.warn(`[${this.profile.name}:${this.agentId}] rewatch skipped: no session`);
+			return;
+		}
+		this.logger.info(`[${this.profile.name}:${this.agentId}] re-watching after compaction`);
+		this.sessionWatch = this.sessionPort.waitForSessionIdle(sessionId, signal);
 	}
 
 	private async startLongLivedSession(signal: AbortSignal): Promise<void> {
