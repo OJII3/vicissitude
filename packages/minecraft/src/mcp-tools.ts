@@ -195,7 +195,7 @@ interface MinecraftToolsOptions {
 	};
 }
 
-export interface RegisterMinecraftToolsParams {
+interface RegisterMinecraftToolsParams {
 	server: McpServer;
 	ctx: BotContext;
 	jobManager: JobManager;
