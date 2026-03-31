@@ -324,6 +324,24 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		}
 	}
 
+	/** イベント配列から応答コンテンツを組み立てる共通処理 */
+	async function buildResponseContent(events: EventOrError[]): Promise<{ content: TextContent[] }> {
+		sendTypingForEvents(events);
+		const text = formatEvents(events);
+		const metadataText = formatEventMetadata(events);
+		const content: TextContent[] = [
+			{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
+		];
+		if (recentMessagesFetcher) {
+			const ctx = await fetchRecentMessagesContext(events, recentMessagesFetcher);
+			if (ctx) content.unshift(ctx);
+		}
+		const moodContent = buildMoodContent(moodReader, moodKey);
+		if (moodContent) content.unshift(moodContent);
+		skipTracker?.markPending();
+		return { content };
+	}
+
 	server.registerTool(
 		"wait_for_events",
 		{
@@ -342,20 +360,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
-				sendTypingForEvents(events);
-				const text = formatEvents(events);
-				const metadataText = formatEventMetadata(events);
-				const content: TextContent[] = [
-					{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
-				];
-				if (recentMessagesFetcher) {
-					const ctx = await fetchRecentMessagesContext(events, recentMessagesFetcher);
-					if (ctx) content.unshift(ctx);
-				}
-				const moodContent = buildMoodContent(moodReader, moodKey);
-				if (moodContent) content.unshift(moodContent);
-				skipTracker?.markPending();
-				return { content };
+				return buildResponseContent(events);
 			}
 
 			const deadline = Date.now() + timeout_seconds * 1000;
@@ -363,20 +368,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			if (result === null) {
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
 			}
-			sendTypingForEvents(result);
-			const text = formatEvents(result);
-			const metadataText = formatEventMetadata(result);
-			const content: TextContent[] = [
-				{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
-			];
-			if (recentMessagesFetcher) {
-				const ctx = await fetchRecentMessagesContext(result, recentMessagesFetcher);
-				if (ctx) content.unshift(ctx);
-			}
-			const moodContent = buildMoodContent(moodReader, moodKey);
-			if (moodContent) content.unshift(moodContent);
-			skipTracker?.markPending();
-			return { content };
+			return buildResponseContent(result);
 		},
 	);
 }
