@@ -54,7 +54,6 @@ function createDiscordClientStub(): DiscordDeps["discordClient"] {
 										attachments: createFakeAttachments([]),
 									},
 								];
-								fakeCollection.map = Array.prototype.map.bind(fakeCollection);
 								return Promise.resolve(fakeCollection);
 							}
 							// messages.fetch(messageId) は単一メッセージを返す
@@ -123,7 +122,6 @@ function createClientStubWithImageAttachments(): DiscordDeps["discordClient"] {
 									]),
 								},
 							];
-							msgs.map = Array.prototype.map.bind(msgs);
 							return Promise.resolve(msgs);
 						},
 					},
