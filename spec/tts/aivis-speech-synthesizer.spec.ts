@@ -236,7 +236,7 @@ describe("AivisSpeechSynthesizer — synthesize abort", () => {
 		const ac = new AbortController();
 		ac.abort();
 
-		// abort 済み signal を fetch に渡すと AbortError が発生するのでモック不要
+		// abort 済み signal で fetch を呼ぶと AbortError になるのでモックで再現
 		mockFetch.mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"));
 
 		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE, ac.signal);

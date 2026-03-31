@@ -493,7 +493,7 @@ describe("WsConnectionManager", () => {
 			});
 
 			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
-			const audioMessages = messages.filter((m): m is AudioDataMessage => m.type === "audio_data");
+			const audioMessages = messages.filter((m) => m.type === "audio_data");
 
 			expect(audioMessages).toHaveLength(0);
 		});
