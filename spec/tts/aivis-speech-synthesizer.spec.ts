@@ -229,6 +229,43 @@ describe("AivisSpeechSynthesizer — synthesize errors", () => {
 	});
 });
 
+// ─── synthesize: AbortSignal ─────────────────────────────────────
+
+describe("AivisSpeechSynthesizer — synthesize abort", () => {
+	it("abort 済み signal を渡した場合に null を返す", async () => {
+		const ac = new AbortController();
+		ac.abort();
+
+		// abort 済み signal で fetch を呼ぶと AbortError になるのでモックで再現
+		mockFetch.mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"));
+
+		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE, ac.signal);
+
+		expect(result).toBeNull();
+	});
+
+	it("fetch 中に signal が abort された場合に null を返す", async () => {
+		const ac = new AbortController();
+
+		// audio_query は成功
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		// synthesis で abort エラーを発生させる
+		mockFetch.mockImplementationOnce(() => {
+			ac.abort();
+			return Promise.reject(new DOMException("The operation was aborted.", "AbortError"));
+		});
+
+		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE, ac.signal);
+
+		expect(result).toBeNull();
+	});
+});
+
 // ─── synthesize: logger DI ──────────────────────────────────────
 
 describe("AivisSpeechSynthesizer — logger DI", () => {
