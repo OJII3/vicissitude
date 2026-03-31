@@ -29,7 +29,7 @@
             REPO_DIR="$1"
             INTERVAL="$2"
             PROMPT_FILE="$REPO_DIR/.claude/prompts/cron.md"
-            cd "$REPO_DIR"
+            cd "$REPO_DIR" || exit 1
             while true; do
               echo "[$(date)] Starting claude task..."
               claude -p "$(cat "$PROMPT_FILE")" --permission-mode auto --max-budget-usd 10 || true
@@ -61,7 +61,7 @@
               exit 0
             fi
 
-            tmux new-session -d -s "$SESSION_NAME" "${claude-loop-worker} '$REPO_DIR' '$INTERVAL'"
+            tmux new-session -d -s "$SESSION_NAME" "${claude-loop-worker} \"$REPO_DIR\" \"$INTERVAL\""
             echo "Started tmux session '$SESSION_NAME' (interval: $INTERVAL)"
             echo "  Attach:  tmux attach -t $SESSION_NAME"
             echo "  Stop:    tmux kill-session -t $SESSION_NAME"
