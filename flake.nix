@@ -32,7 +32,7 @@
             cd "$REPO_DIR" || exit 1
             while true; do
               echo "[$(date)] Starting claude task..."
-              claude -p "$(cat "$PROMPT_FILE")" --permission-mode auto --max-budget-usd 10 || true
+              claude -p "$(cat "$PROMPT_FILE")" --permission-mode auto --max-budget-usd 3 || true
               echo "[$(date)] Done. Sleeping $INTERVAL..."
               sleep "$INTERVAL"
             done
