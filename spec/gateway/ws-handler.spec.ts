@@ -459,6 +459,45 @@ describe("WsConnectionManager", () => {
 			expect(audioMessages).toHaveLength(0);
 		});
 
+		it("handleClose 後に TTS 合成が完了しても AudioDataMessage は送信されない", async () => {
+			// signal を尊重する synthesizer: abort されたら null を返す
+			const signalAwareSynthesizer: TtsSynthesizer = {
+				synthesize: (_text, _style, signal) =>
+					new Promise((resolve) => {
+						// 合成に少し時間がかかるシミュレーション
+						setTimeout(() => {
+							if (signal?.aborted) {
+								resolve(null);
+								return;
+							}
+							resolve({ audio: dummyWavAudio, format: "wav" as const, durationSec: 1.5 });
+						}, 30);
+					}),
+				isAvailable: () => Promise.resolve(true),
+			};
+
+			const manager = new WsConnectionManager({
+				ttsSynthesizer: signalAwareSynthesizer,
+				ttsStyleMapper: mockStyleMapper,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			// chat_input を送信 → 即座に接続を閉じる
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			manager.handleClose("conn-1");
+
+			// TTS 合成が完了する時間を待つ
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 100);
+			});
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const audioMessages = messages.filter((m): m is AudioDataMessage => m.type === "audio_data");
+
+			expect(audioMessages).toHaveLength(0);
+		});
+
 		it("TTS 合成エラー時もテキスト応答は正常に返る", async () => {
 			const failingSynthesizer: TtsSynthesizer = {
 				synthesize: () => Promise.reject(new Error("TTS engine unavailable")),
