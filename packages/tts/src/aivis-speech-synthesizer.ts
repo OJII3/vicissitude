@@ -104,6 +104,9 @@ async function synthesize(
 
 		return { audio, format: "wav", durationSec };
 	} catch (error) {
+		if (error instanceof DOMException && error.name === "AbortError") {
+			return null;
+		}
 		config.logger?.warn("[tts] AivisSpeech synthesis failed", error);
 		return null;
 	}
