@@ -278,6 +278,15 @@ describe("AivisSpeechSynthesizer — logger DI", () => {
 		expect(logger.warn).toHaveBeenCalled();
 	});
 
+	it("AbortError 発生時に logger.warn が呼ばれない", async () => {
+		const logger = createMockLogger();
+		mockFetch.mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"));
+
+		await synthesizer({ logger }).synthesize("こんにちは", DEFAULT_STYLE);
+
+		expect(logger.warn).not.toHaveBeenCalled();
+	});
+
 	it("logger 未指定でもエラー時に例外をスローしない", async () => {
 		mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
 
