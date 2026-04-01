@@ -9,7 +9,7 @@ import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
  * 2. neutral:   |V| < 0.2 && |A| < 0.2 && |D| < 0.2
  * 3. happy:     V > 0, A > 0
  * 4. relaxed:   V > 0, A < 0
- * 5. angry:     V < 0, A > 0, D > 0
+ * 5. angry:     V < 0, A > 0, D >= 0
  * 6. fear:      V < 0, A > 0, D < 0
  * 7. sad:       V < 0, A < 0
  * fallback:     neutral
@@ -53,7 +53,7 @@ function mapPrimaryExpression(v: number, a: number, d: number): VrmExpressionWei
 	if (v > 0 && a < 0) {
 		return { expression: "relaxed", weight: computeWeight(v, Math.abs(a), Math.abs(d)) };
 	}
-	if (v < 0 && a > 0 && d > 0) {
+	if (v < 0 && a > 0 && d >= 0) {
 		return { expression: "angry", weight: computeWeight(Math.abs(v), a, d) };
 	}
 	if (v < 0 && a > 0 && d < 0) {

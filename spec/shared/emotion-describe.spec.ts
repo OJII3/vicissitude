@@ -29,6 +29,11 @@ describe("describeEmotion", () => {
 			const result = describeEmotion(createEmotion(-0.5, 0.5, 0.5));
 			expect(result).toContain("怒");
 		});
+
+		it("V < 0, A > 0, D = 0 でも怒り系の記述を返す", () => {
+			const result = describeEmotion(createEmotion(-0.3, 0.5, 0));
+			expect(result).toContain("怒");
+		});
 	});
 
 	describe("sad (V < 0, A < 0)", () => {
