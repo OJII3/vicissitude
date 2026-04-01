@@ -4,6 +4,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	captureTools,
 	createClientStubWithImageAttachments,
+	createClientStubWithMultipleImageAttachments,
+	createClientStubWithReactError,
 	createClientStubWithoutSendTyping,
 	createDiscordClientStub,
 	type ToolResult,
@@ -135,6 +137,15 @@ describe("add_reaction", () => {
 
 		expect(result.content[0]!.text).toBe("Reacted with 👍");
 	});
+
+	test("react() が失敗した場合は例外がそのまま throw される", () => {
+		const { tools } = captureTools({ discordClient: createClientStubWithReactError() });
+		const addReaction = tools.get("add_reaction")!;
+
+		expect(
+			addReaction({ channel_id: "ch-1", message_id: "msg-1", emoji: "invalid" }),
+		).rejects.toThrow("Unknown Emoji");
+	});
 });
 
 describe("read_messages", () => {
@@ -163,6 +174,23 @@ describe("read_messages", () => {
 
 		expect(result.content[0]!.text).toContain("[user#5678] 写真だよ");
 		expect(result.content[0]!.text).toContain("[画像: https://cdn.example.com/img.png]");
+	});
+
+	test("複数画像添付がある場合はカンマ区切りでまとめて表示する", async () => {
+		const { tools } = captureTools({
+			discordClient: createClientStubWithMultipleImageAttachments(),
+		});
+		const readMessages = tools.get("read_messages")!;
+
+		const result = (await readMessages({
+			channel_id: "ch-1",
+			limit: 10,
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toContain("[user#9999] 複数画像だよ");
+		expect(result.content[0]!.text).toContain(
+			"[画像: https://cdn.example.com/img1.png, https://cdn.example.com/img2.jpg]",
+		);
 	});
 });
 

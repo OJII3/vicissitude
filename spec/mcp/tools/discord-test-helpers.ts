@@ -117,7 +117,33 @@ export function createClientStubWithoutSendTyping(): DiscordDeps["discordClient"
 	} as unknown as DiscordDeps["discordClient"];
 }
 
-/** 画像添付ありのメッセージを返すスタブ */
+/** react() が reject するスタブ（無効な絵文字等） */
+export function createClientStubWithReactError(): DiscordDeps["discordClient"] {
+	const error = new Error("Unknown Emoji");
+	return {
+		channels: {
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					send: () => Promise.resolve({ id: "msg-1" }),
+					messages: {
+						fetch: (idOrOptions: unknown) => {
+							if (typeof idOrOptions === "object" && idOrOptions !== null) {
+								return Promise.resolve([]);
+							}
+							return Promise.resolve({
+								id: "msg-1",
+								reply: () => Promise.resolve({ id: "reply-msg-1" }),
+								react: () => Promise.reject(error),
+							});
+						},
+					},
+				}),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
+/** 画像添付ありのメッセージを返すスタブ（1枚） */
 export function createClientStubWithImageAttachments(): DiscordDeps["discordClient"] {
 	return {
 		channels: {
@@ -133,6 +159,34 @@ export function createClientStubWithImageAttachments(): DiscordDeps["discordClie
 									content: "写真だよ",
 									attachments: createFakeAttachments([
 										{ url: "https://cdn.example.com/img.png", contentType: "image/png" },
+									]),
+								},
+							];
+							return Promise.resolve(msgs);
+						},
+					},
+				}),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
+/** 複数画像添付ありのメッセージを返すスタブ */
+export function createClientStubWithMultipleImageAttachments(): DiscordDeps["discordClient"] {
+	return {
+		channels: {
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					send: () => Promise.resolve({ id: "msg-1" }),
+					messages: {
+						fetch: (_opts: unknown) => {
+							const msgs = [
+								{
+									author: { tag: "user#9999" },
+									content: "複数画像だよ",
+									attachments: createFakeAttachments([
+										{ url: "https://cdn.example.com/img1.png", contentType: "image/png" },
+										{ url: "https://cdn.example.com/img2.jpg", contentType: "image/jpeg" },
 									]),
 								},
 							];
