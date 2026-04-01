@@ -725,9 +725,9 @@ describe("AgentRunner", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AgentRunner ハング検知タイマー（内部ロジック）", () => {
-	test("タイマー間隔: hangTimeoutMs / 10 の間隔で setInterval が呼ばれる", async () => {
+	test("タイマー間隔: hangTimeoutMs / 10 の間隔で setInterval が呼ばれる", () => {
 		const hangTimeoutMs = 100;
-		const expectedInterval = hangTimeoutMs / 10; // 10ms
+		const expectedInterval = hangTimeoutMs / 10;
 		const setIntervalCalls: number[] = [];
 
 		const origSetInterval = globalThis.setInterval;
@@ -892,7 +892,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 		waitDeferred.resolve();
 	});
 
-	test("タイマー重複防止: ensurePolling を二重呼び出しても setInterval は1回しか呼ばれない", async () => {
+	test("タイマー重複防止: ensurePolling を二重呼び出しても setInterval は1回しか呼ばれない", () => {
 		const setIntervalCalls: number[] = [];
 		const origSetInterval = globalThis.setInterval;
 		// @ts-expect-error -- setInterval をモックして呼び出し回数を記録する
