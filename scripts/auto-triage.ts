@@ -4,8 +4,8 @@ import { resolve } from "node:path";
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
 const LOG_DIR = resolve(PROJECT_DIR, "logs/auto-triage");
 const MAX_BUDGET_USD = 10;
-/** 2 hours */
-const INTERVAL_SEC = 2 * 60 * 60;
+/** 1 hour */
+const INTERVAL_SEC = 1 * 60 * 60;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
