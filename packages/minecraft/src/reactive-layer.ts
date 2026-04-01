@@ -187,7 +187,7 @@ export class ReactiveLayer {
 			if (item === undefined) continue;
 
 			this.cancelJobIfNeeded();
-			this.ctx.setActionState({ type: "idle", target: food.name });
+			this.ctx.setActionState({ type: "eating", target: food.name });
 
 			try {
 				// oxlint-disable-next-line no-await-in-loop -- 最初にマッチした食料を1つ食べて即 return する
