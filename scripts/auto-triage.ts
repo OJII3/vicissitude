@@ -49,10 +49,12 @@ async function runOnce(): Promise<number> {
 		stdout: "pipe",
 		stderr: "pipe",
 	});
-	const fetchOutput =
-		(await new Response(fetchProc.stdout).text()) + (await new Response(fetchProc.stderr).text());
+	const [stdout, stderr] = await Promise.all([
+		new Response(fetchProc.stdout).text(),
+		new Response(fetchProc.stderr).text(),
+	]);
 	await fetchProc.exited;
-	tee(fetchOutput.trimEnd(), logFile);
+	tee((stdout + stderr).trimEnd(), logFile);
 
 	// --worktree で独立したワーキングツリーで作業（main を汚さない）
 	const proc = Bun.spawn(
@@ -101,6 +103,14 @@ async function runOnce(): Promise<number> {
 			for (const text of extractAssistantText(line)) {
 				tee(text, logFile);
 			}
+		}
+	}
+	// TextDecoder の内部バッファをフラッシュし、残余データを処理
+	buffer += decoder.decode();
+	if (buffer) {
+		appendFileSync(jsonLog, `${buffer}\n`);
+		for (const text of extractAssistantText(buffer)) {
+			tee(text, logFile);
 		}
 	}
 
