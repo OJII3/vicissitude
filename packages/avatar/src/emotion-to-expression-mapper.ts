@@ -54,7 +54,7 @@ function mapPrimaryExpression(v: number, a: number, d: number): VrmExpressionWei
 		return { expression: "relaxed", weight: computeWeight(v, Math.abs(a), Math.abs(d)) };
 	}
 	if (v < 0 && a > 0 && d >= 0) {
-		return { expression: "angry", weight: computeWeight(Math.abs(v), a, d) };
+		return { expression: "angry", weight: computeWeight(Math.abs(v), a, Math.abs(d)) };
 	}
 	if (v < 0 && a > 0 && d < 0) {
 		return { expression: "fear", weight: computeWeight(Math.abs(v), a, Math.abs(d)) };

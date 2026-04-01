@@ -40,6 +40,11 @@ describe("EmotionToExpressionMapper — expression selection", () => {
 		expect(result.expression).toBe("fear");
 	});
 
+	it("angry: V < 0, A > 0, D = 0 のとき angry を返す", () => {
+		const result = mapper().mapToExpression(createEmotion(-0.5, 0.4, 0));
+		expect(result.expression).toBe("angry");
+	});
+
 	it("sad: V < 0, A < 0 のとき sad を返す", () => {
 		const result = mapper().mapToExpression(createEmotion(-0.6, -0.5, 0.1));
 		expect(result.expression).toBe("sad");
