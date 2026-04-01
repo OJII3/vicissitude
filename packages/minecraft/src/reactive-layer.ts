@@ -33,6 +33,7 @@ export class ReactiveLayer {
 	private lastNoFoodEventTime = 0;
 	private respawning = false;
 	private spawnListener: (() => void) | null = null;
+	private spawnListenerBot: mineflayer.Bot | null = null;
 
 	constructor(ctx: BotContext, options?: ReactiveLayerOptions) {
 		this.ctx = ctx;
@@ -107,6 +108,7 @@ export class ReactiveLayer {
 
 	private registerSpawnListener(bot: mineflayer.Bot): void {
 		this.removeSpawnListener();
+		this.spawnListenerBot = bot;
 		this.spawnListener = () => {
 			this.respawning = false;
 		};
@@ -115,11 +117,9 @@ export class ReactiveLayer {
 
 	private removeSpawnListener(): void {
 		if (this.spawnListener !== null) {
-			const bot = this.ctx.getBot();
-			if (bot !== null) {
-				bot.removeListener("spawn", this.spawnListener);
-			}
+			this.spawnListenerBot?.removeListener("spawn", this.spawnListener);
 			this.spawnListener = null;
+			this.spawnListenerBot = null;
 		}
 	}
 
