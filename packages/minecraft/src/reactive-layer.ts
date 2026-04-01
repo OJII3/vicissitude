@@ -1,9 +1,10 @@
 import type mineflayer from "mineflayer";
 import pathfinderModule from "mineflayer-pathfinder";
+import type { Entity } from "prismarine-entity";
 
+import { listEdibleFoods } from "./actions/survival/food.ts";
 import type { BotContext } from "./bot-context.ts";
 import { isHostileMob } from "./helpers.ts";
-import { listEdibleFoods } from "./actions/survival/food.ts";
 
 const { goals } = pathfinderModule;
 const { GoalInvert, GoalFollow } = goals;
@@ -60,11 +61,11 @@ export class ReactiveLayer {
 	/** 1回の反射チェックを実行する（テスト用に公開） */
 	async tick(): Promise<void> {
 		const bot = this.ctx.getBot();
-		if (bot == null) return;
+		if (bot === null || bot === undefined) return;
 
 		// 優先度1: リスポーン（ActionState に関係なく常に実行）
 		if (bot.health <= 0) {
-			await this.handleRespawn(bot);
+			this.handleRespawn(bot);
 			return;
 		}
 
@@ -73,7 +74,7 @@ export class ReactiveLayer {
 		if (now - this.lastScanTime >= this.scanIntervalMs) {
 			this.lastScanTime = now;
 			const nearestHostile = this.findNearestHostile(bot);
-			if (nearestHostile != null) {
+			if (nearestHostile !== null) {
 				await this.handleFlee(bot, nearestHostile);
 				return;
 			}
@@ -85,7 +86,7 @@ export class ReactiveLayer {
 		}
 	}
 
-	private async handleRespawn(bot: mineflayer.Bot): Promise<void> {
+	private handleRespawn(bot: mineflayer.Bot): void {
 		try {
 			bot.respawn();
 			if (bot.health > 0) {
@@ -98,9 +99,10 @@ export class ReactiveLayer {
 		}
 	}
 
-	private findNearestHostile(
-		bot: mineflayer.Bot,
-	): { entity: { position: { distanceTo: (pos: unknown) => number }; name?: string }; distance: number } | null {
+	private findNearestHostile(bot: mineflayer.Bot): {
+		entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
+		distance: number;
+	} | null {
 		const botPos = bot.entity.position;
 		let nearest: {
 			entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
@@ -113,17 +115,25 @@ export class ReactiveLayer {
 				type?: string;
 				position?: { distanceTo: (pos: unknown) => number };
 			};
-			if (e.name == null || !isHostileMob(e.name) || e.position == null) continue;
+			if (
+				e.name === undefined ||
+				e.name === null ||
+				!isHostileMob(e.name) ||
+				e.position === undefined ||
+				e.position === null
+			)
+				continue;
 
 			const distance = e.position.distanceTo(botPos);
 			const threshold = EXTENDED_DISTANCE_MOBS.has(e.name.toLowerCase())
 				? EXTENDED_FLEE_DISTANCE
 				: DEFAULT_FLEE_DISTANCE;
 
-			if (distance <= threshold) {
-				if (nearest == null || distance < nearest.distance) {
-					nearest = { entity: e as { position: { distanceTo: (pos: unknown) => number }; name?: string }, distance };
-				}
+			if (distance <= threshold && (nearest === null || distance < nearest.distance)) {
+				nearest = {
+					entity: e as { position: { distanceTo: (pos: unknown) => number }; name?: string },
+					distance,
+				};
 			}
 		}
 
@@ -139,13 +149,16 @@ export class ReactiveLayer {
 
 	private async handleFlee(
 		bot: mineflayer.Bot,
-		hostile: { entity: { position: { distanceTo: (pos: unknown) => number }; name?: string }; distance: number },
+		hostile: {
+			entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
+			distance: number;
+		},
 	): Promise<void> {
 		this.cancelJobIfNeeded();
 		this.ctx.setActionState({ type: "fleeing", target: hostile.entity.name });
 
 		try {
-			const goal = new GoalInvert(new GoalFollow(hostile.entity as unknown as import("prismarine-entity").Entity, 1));
+			const goal = new GoalInvert(new GoalFollow(hostile.entity as unknown as Entity, 1));
 			await bot.pathfinder.goto(goal);
 			this.ctx.pushEvent(
 				"reactive_flee",
@@ -170,17 +183,23 @@ export class ReactiveLayer {
 
 		for (const food of edibleFoods) {
 			const item = inventory.find((i) => i.name === food.name);
-			if (item == null) continue;
+			if (item === undefined) continue;
 
 			this.cancelJobIfNeeded();
 			this.ctx.setActionState({ type: "idle", target: food.name });
 
 			try {
+				// oxlint-disable-next-line no-await-in-loop -- 最初にマッチした食料を1つ食べて即 return する
 				await bot.equip(item, "hand");
+				// oxlint-disable-next-line no-await-in-loop -- 同上
 				await bot.consume();
 				this.ctx.pushEvent("reactive_eat", `${food.name} を自動で食べました`, "high");
 			} catch {
-				this.ctx.pushEvent("reactive_eat", `${food.name} を食べようとしましたが中断されました`, "high");
+				this.ctx.pushEvent(
+					"reactive_eat",
+					`${food.name} を食べようとしましたが中断されました`,
+					"high",
+				);
 			} finally {
 				this.ctx.setActionState({ type: "idle" });
 			}

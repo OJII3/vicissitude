@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+/* oxlint-disable max-classes-per-file -- モック内の小クラス定義 */
+import { describe, expect, mock, test } from "bun:test";
 import { EventEmitter } from "events";
 
 import type { BotContext, BotEvent } from "@vicissitude/minecraft/bot-context";
@@ -85,7 +86,7 @@ function createFakeBot(overrides?: {
 	bot.time = { timeOfDay: 0 };
 	bot.entities = overrides?.entities ?? {};
 	bot.inventory = {
-		items: () => inventoryItems.map((i) => ({ ...i })),
+		items: () => inventoryItems.map((i) => Object.assign({}, i)),
 		slots: [],
 	};
 	bot.registry = { foodsByName };
@@ -104,10 +105,12 @@ function createFakeBot(overrides?: {
 // hostile mob エンティティのヘルパー
 // ---------------------------------------------------------------------------
 
+const DEFAULT_BOT_POSITION = { x: 0, y: 64, z: 0 };
+
 function createHostileEntity(
 	name: string,
 	distance: number,
-	botPosition: { x: number; y: number; z: number } = { x: 0, y: 64, z: 0 },
+	botPosition: { x: number; y: number; z: number } = DEFAULT_BOT_POSITION,
 ) {
 	return {
 		name,
@@ -201,7 +204,8 @@ describe("ReactiveLayer", () => {
 
 			const layer = new ReactiveLayer(ctx);
 			layer.attach();
-			layer.attach(); // 二重呼び出し
+			// 二重呼び出し
+			layer.attach();
 
 			expect(layer.isAttached()).toBe(true);
 		});
@@ -317,7 +321,7 @@ describe("ReactiveLayer", () => {
 
 			const failEvents = ctx.events.filter((e) => e.kind === "reactive_flee_failed");
 			expect(failEvents.length).toBeGreaterThanOrEqual(1);
-			expect(failEvents[0].importance).toBe("high");
+			expect(failEvents.at(0)?.importance).toBe("high");
 		});
 	});
 
@@ -409,7 +413,8 @@ describe("ReactiveLayer", () => {
 			const bot = createFakeBot({
 				health: 4,
 				food: 3,
-				inventoryItems: [], // 食料なし
+				// 食料なし
+				inventoryItems: [],
 				foodsByName: {},
 			});
 			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
@@ -421,7 +426,7 @@ describe("ReactiveLayer", () => {
 
 			const noFoodEvents = ctx.events.filter((e) => e.kind === "reactive_no_food");
 			expect(noFoodEvents.length).toBeGreaterThanOrEqual(1);
-			expect(noFoodEvents[0].importance).toBe("high");
+			expect(noFoodEvents.at(0)?.importance).toBe("high");
 		});
 	});
 
@@ -474,7 +479,7 @@ describe("ReactiveLayer", () => {
 
 			const failEvents = ctx.events.filter((e) => e.kind === "reactive_respawn_failed");
 			expect(failEvents.length).toBeGreaterThanOrEqual(1);
-			expect(failEvents[0].importance).toBe("critical");
+			expect(failEvents.at(0)?.importance).toBe("critical");
 		});
 	});
 
@@ -669,7 +674,7 @@ describe("ReactiveLayer", () => {
 			layer.detach();
 
 			expect(actionStateDuringFlee).not.toBeNull();
-			expect(actionStateDuringFlee!.type).toBe("fleeing");
+			expect((actionStateDuringFlee as unknown as ActionState).type).toBe("fleeing");
 		});
 
 		test("reactive アクション完了後に ActionState が idle に戻る", async () => {
