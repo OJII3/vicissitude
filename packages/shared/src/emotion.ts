@@ -18,19 +18,26 @@ export interface Emotion {
 	readonly dominance: number;
 }
 
+// ─── Emotion Category ───────────────────────────────────────────
+//
+// VAD 空間から分類される離散的な感情カテゴリ。
+// VRM Expression・TTS Style など複数のマッパーで共通利用する。
+
+export type EmotionCategory =
+	| "surprised"
+	| "neutral"
+	| "happy"
+	| "relaxed"
+	| "angry"
+	| "fear"
+	| "sad";
+
 // ─── VRM Expression ─────────────────────────────────────────────
 //
 // VRM 1.0 標準プリセット + カスタム fear。
 // VAD 空間から離散的な表情ラベルへのマッピングに使用する。
 
-export type VrmExpression =
-	| "happy"
-	| "relaxed"
-	| "angry"
-	| "sad"
-	| "surprised"
-	| "neutral"
-	| "fear";
+export type VrmExpression = EmotionCategory;
 
 /** VRM Expression と適用強度のペア */
 export interface VrmExpressionWeight {
@@ -52,15 +59,17 @@ export const EmotionSchema = z
 	})
 	.readonly();
 
-export const VrmExpressionSchema = z.enum([
+export const EmotionCategorySchema = z.enum([
+	"surprised",
+	"neutral",
 	"happy",
 	"relaxed",
 	"angry",
-	"sad",
-	"surprised",
-	"neutral",
 	"fear",
+	"sad",
 ]);
+
+export const VrmExpressionSchema = EmotionCategorySchema;
 
 export const VrmExpressionWeightSchema = z
 	.object({
@@ -88,41 +97,55 @@ export function isNeutralEmotion(emotion: Emotion): boolean {
 	);
 }
 
+// ─── classifyEmotion ──────────────────────────────────────────
+//
+// VAD 感情値から離散的な感情カテゴリへ分類する純粋関数。
+// 優先順位: surprised → neutral → happy → relaxed → angry → fear → sad → fallback
+
+/** VAD 感情値を離散的な感情カテゴリに分類する */
+export function classifyEmotion(emotion: Emotion): EmotionCategory {
+	const { valence: v, arousal: a, dominance: d } = emotion;
+
+	// 1. surprised (highest priority)
+	if (a >= 0.7 && d < 0) return "surprised";
+
+	// 2. neutral
+	if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) return "neutral";
+
+	// 3-7: primary rules
+	if (v > 0 && a > 0) return "happy";
+	if (v > 0 && a < 0) return "relaxed";
+	if (v < 0 && a > 0 && d >= 0) return "angry";
+	if (v < 0 && a > 0 && d < 0) return "fear";
+	if (v < 0 && a < 0) return "sad";
+
+	// fallback for boundary cases (v=0 etc.)
+	if (a > 0 && d > 0) return "angry";
+	if (a > 0 && d < 0) return "fear";
+	if (a > 0) return "happy";
+	if (a < 0) return "sad";
+	return "neutral";
+}
+
 // ─── describeEmotion ───────────────────────────────────────────
 //
 // VAD 感情値を日本語の自然言語記述に変換する純粋関数。
+
+const categoryLabels: Record<EmotionCategory, string> = {
+	surprised: "驚いている",
+	neutral: "穏やかな",
+	happy: "嬉しい",
+	relaxed: "リラックスした",
+	angry: "怒っている",
+	fear: "怖がっている",
+	sad: "悲しい",
+};
 
 /** VAD 感情値を日本語の自然言語記述に変換する */
 export function describeEmotion(emotion: Emotion): string {
 	const { valence: v, arousal: a, dominance: d } = emotion;
 
-	// 感情カテゴリ判定（emotion-to-expression-mapper と同じ優先順位）
-	let label: string;
-	if (a >= 0.7 && d < 0) {
-		label = "驚いている";
-	} else if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) {
-		label = "穏やかな";
-	} else if (v > 0 && a > 0) {
-		label = "嬉しい";
-	} else if (v > 0 && a < 0) {
-		label = "リラックスした";
-	} else if (v < 0 && a > 0 && d >= 0) {
-		label = "怒っている";
-	} else if (v < 0 && a > 0 && d < 0) {
-		label = "怖がっている";
-	} else if (v < 0 && a < 0) {
-		label = "悲しい";
-	} else if (a > 0 && d > 0) {
-		label = "怒っている";
-	} else if (a > 0 && d < 0) {
-		label = "怖がっている";
-	} else if (a > 0) {
-		label = "嬉しい";
-	} else if (a < 0) {
-		label = "悲しい";
-	} else {
-		label = "穏やかな";
-	}
+	const label = categoryLabels[classifyEmotion(emotion)];
 
 	// 強度修飾語（VADベクトルのユークリッド距離）
 	const magnitude = Math.sqrt(v * v + a * a + d * d);

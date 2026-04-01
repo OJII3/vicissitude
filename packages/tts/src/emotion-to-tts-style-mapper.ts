@@ -1,19 +1,11 @@
-import type { Emotion } from "@vicissitude/shared/emotion";
+import { type Emotion, classifyEmotion } from "@vicissitude/shared/emotion";
 import type { EmotionToTtsStyleMapper } from "@vicissitude/shared/ports";
-import { type TtsStyle, type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
+import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
 
 /**
  * VAD 感情値から TTS スタイルパラメータへのマッピングを行う実装を生成する。
  *
- * マッピングルール（優先順位順）:
- * 1. surprised: A >= 0.7 && D < 0
- * 2. neutral:   |V| < 0.2 && |A| < 0.2 && |D| < 0.2
- * 3. happy:     V > 0, A > 0
- * 4. relaxed:   V > 0, A < 0
- * 5. angry:     V < 0, A > 0, D >= 0
- * 6. fear:      V < 0, A > 0, D < 0
- * 7. sad:       V < 0, A < 0
- * fallback:     neutral
+ * カテゴリ分類は classifyEmotion に委譲し、weight・speed 計算のみ行う。
  */
 export function createEmotionToTtsStyleMapper(): EmotionToTtsStyleMapper {
 	return { mapToStyle };
@@ -22,36 +14,14 @@ export function createEmotionToTtsStyleMapper(): EmotionToTtsStyleMapper {
 function mapToStyle(emotion: Emotion): TtsStyleParams {
 	const { valence: v, arousal: a, dominance: d } = emotion;
 
-	const style = determineStyle(v, a, d);
+	const style = classifyEmotion(emotion);
 	const styleWeight = computeStyleWeight(style, v, a, d);
 	const speed = computeSpeed(a);
 
 	return createTtsStyleParams(style, styleWeight, speed);
 }
 
-function determineStyle(v: number, a: number, d: number): TtsStyle {
-	// 1. surprised (highest priority)
-	if (a >= 0.7 && d < 0) return "surprised";
-
-	// 2. neutral
-	if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) return "neutral";
-
-	// 3-7: primary rules
-	if (v > 0 && a > 0) return "happy";
-	if (v > 0 && a < 0) return "relaxed";
-	if (v < 0 && a > 0 && d >= 0) return "angry";
-	if (v < 0 && a > 0 && d < 0) return "fear";
-	if (v < 0 && a < 0) return "sad";
-
-	// fallback for boundary cases (v=0 etc.)
-	if (a > 0 && d > 0) return "angry";
-	if (a > 0 && d < 0) return "fear";
-	if (a > 0) return "happy";
-	if (a < 0) return "sad";
-	return "neutral";
-}
-
-function computeStyleWeight(style: TtsStyle, v: number, a: number, d: number): number {
+function computeStyleWeight(style: string, v: number, a: number, d: number): number {
 	if (style === "neutral") {
 		const distance = Math.sqrt(v * v + a * a + d * d);
 		const maxDistance = Math.sqrt(0.2 * 0.2 * 3);
