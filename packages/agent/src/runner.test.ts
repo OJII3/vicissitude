@@ -727,7 +727,6 @@ describe("AgentRunner", () => {
 describe("AgentRunner ハング検知タイマー（内部ロジック）", () => {
 	test("タイマー間隔: hangTimeoutMs / 10 の間隔で setInterval が呼ばれる", () => {
 		const hangTimeoutMs = 100;
-		// 10ms
 		const expectedInterval = hangTimeoutMs / 10;
 		const setIntervalCalls: number[] = [];
 
