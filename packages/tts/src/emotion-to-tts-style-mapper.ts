@@ -10,7 +10,7 @@ import { type TtsStyle, type TtsStyleParams, createTtsStyleParams } from "@vicis
  * 2. neutral:   |V| < 0.2 && |A| < 0.2 && |D| < 0.2
  * 3. happy:     V > 0, A > 0
  * 4. relaxed:   V > 0, A < 0
- * 5. angry:     V < 0, A > 0, D > 0
+ * 5. angry:     V < 0, A > 0, D >= 0
  * 6. fear:      V < 0, A > 0, D < 0
  * 7. sad:       V < 0, A < 0
  * fallback:     neutral
@@ -39,7 +39,7 @@ function determineStyle(v: number, a: number, d: number): TtsStyle {
 	// 3-7: primary rules
 	if (v > 0 && a > 0) return "happy";
 	if (v > 0 && a < 0) return "relaxed";
-	if (v < 0 && a > 0 && d > 0) return "angry";
+	if (v < 0 && a > 0 && d >= 0) return "angry";
 	if (v < 0 && a > 0 && d < 0) return "fear";
 	if (v < 0 && a < 0) return "sad";
 
