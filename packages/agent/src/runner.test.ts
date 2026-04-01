@@ -84,7 +84,10 @@ function createEventBuffer(waitImpl: (signal: AbortSignal) => Promise<void>): Ev
 	};
 }
 
-function createSessionPort(waitImpl: () => Promise<OpencodeSessionEvent>): OpencodeSessionPort & {
+function createSessionPort(
+	promptAsyncAndWatchSessionImpl: () => Promise<OpencodeSessionEvent>,
+	waitForSessionIdleImpl?: () => Promise<OpencodeSessionEvent>,
+): OpencodeSessionPort & {
 	promptAsync: ReturnType<typeof mock>;
 	promptAsyncAndWatchSession: ReturnType<typeof mock>;
 	waitForSessionIdle: ReturnType<typeof mock>;
@@ -94,8 +97,8 @@ function createSessionPort(waitImpl: () => Promise<OpencodeSessionEvent>): Openc
 		sessionExists: mock(() => Promise.resolve(false)),
 		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
 		promptAsync: mock(() => Promise.resolve()),
-		promptAsyncAndWatchSession: mock((_params, _signal) => waitImpl()),
-		waitForSessionIdle: mock(waitImpl),
+		promptAsyncAndWatchSession: mock((_params, _signal) => promptAsyncAndWatchSessionImpl()),
+		waitForSessionIdle: mock(waitForSessionIdleImpl ?? promptAsyncAndWatchSessionImpl),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	};
@@ -148,20 +151,11 @@ describe("AgentRunner", () => {
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		let sessionWatchCount = 0;
-		const waitForSessionIdle = mock(() => {
+		const watchImpl = () => {
 			sessionWatchCount += 1;
 			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
-		});
-		const sessionPort = {
-			createSession: mock(() => Promise.resolve("session-1")),
-			sessionExists: mock(() => Promise.resolve(false)),
-			prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-			promptAsync: mock(() => Promise.resolve()),
-			promptAsyncAndWatchSession: mock((_params, _signal) => waitForSessionIdle()),
-			waitForSessionIdle,
-			deleteSession: mock(() => Promise.resolve()),
-			close: mock(() => {}),
-		} satisfies OpencodeSessionPort;
+		};
+		const sessionPort = createSessionPort(watchImpl);
 
 		const runner = new TestAgent({
 			profile: createProfile(),
@@ -506,22 +500,15 @@ describe("AgentRunner", () => {
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		let sessionWatchCount = 0;
-		const waitForSessionIdle = mock(() => {
-			sessionWatchCount += 1;
-			return sessionWatchCount === 1
-				? secondSessionDone.promise
-				: deferred<OpencodeSessionEvent>().promise;
-		});
-		const sessionPort = {
-			createSession: mock(() => Promise.resolve("session-1")),
-			sessionExists: mock(() => Promise.resolve(false)),
-			prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-			promptAsync: mock(() => Promise.resolve()),
-			promptAsyncAndWatchSession: mock((_params, _signal) => firstSessionDone.promise),
-			waitForSessionIdle,
-			deleteSession: mock(() => Promise.resolve()),
-			close: mock(() => {}),
-		} satisfies OpencodeSessionPort;
+		const sessionPort = createSessionPort(
+			() => firstSessionDone.promise,
+			() => {
+				sessionWatchCount += 1;
+				return sessionWatchCount === 1
+					? secondSessionDone.promise
+					: deferred<OpencodeSessionEvent>().promise;
+			},
+		);
 
 		const runner = new TestAgent({
 			profile: createProfile(),
@@ -564,20 +551,13 @@ describe("AgentRunner", () => {
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const thirdSessionDone = deferred<OpencodeSessionEvent>();
 		let sessionWatchCount = 0;
-		const waitForSessionIdle = mock(() => {
-			sessionWatchCount += 1;
-			return sessionWatchCount === 1 ? secondSessionDone.promise : thirdSessionDone.promise;
-		});
-		const sessionPort = {
-			createSession: mock(() => Promise.resolve("session-1")),
-			sessionExists: mock(() => Promise.resolve(false)),
-			prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-			promptAsync: mock(() => Promise.resolve()),
-			promptAsyncAndWatchSession: mock((_params, _signal) => firstSessionDone.promise),
-			waitForSessionIdle,
-			deleteSession: mock(() => Promise.resolve()),
-			close: mock(() => {}),
-		} satisfies OpencodeSessionPort;
+		const sessionPort = createSessionPort(
+			() => firstSessionDone.promise,
+			() => {
+				sessionWatchCount += 1;
+				return sessionWatchCount === 1 ? secondSessionDone.promise : thirdSessionDone.promise;
+			},
+		);
 
 		const sleepCalls: number[] = [];
 		const runner = new TestAgent({
@@ -623,17 +603,10 @@ describe("AgentRunner", () => {
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
-		const waitForSessionIdle = mock(() => secondSessionDone.promise);
-		const sessionPort = {
-			createSession: mock(() => Promise.resolve("session-1")),
-			sessionExists: mock(() => Promise.resolve(false)),
-			prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-			promptAsync: mock(() => Promise.resolve()),
-			promptAsyncAndWatchSession: mock((_params, _signal) => firstSessionDone.promise),
-			waitForSessionIdle,
-			deleteSession: mock(() => Promise.resolve()),
-			close: mock(() => {}),
-		} satisfies OpencodeSessionPort;
+		const sessionPort = createSessionPort(
+			() => firstSessionDone.promise,
+			() => secondSessionDone.promise,
+		);
 
 		const runner = new TestAgent({
 			profile: createProfile(),
@@ -674,19 +647,13 @@ describe("AgentRunner", () => {
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		let promptAsyncCount = 0;
-		const sessionPort = {
-			createSession: mock(() => Promise.resolve("session-1")),
-			sessionExists: mock(() => Promise.resolve(false)),
-			prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-			promptAsync: mock(() => Promise.resolve()),
-			promptAsyncAndWatchSession: mock((_params, _signal) => {
+		const sessionPort = createSessionPort(
+			() => {
 				promptAsyncCount += 1;
 				return promptAsyncCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
-			}),
-			waitForSessionIdle: mock(() => deferred<OpencodeSessionEvent>().promise),
-			deleteSession: mock(() => Promise.resolve()),
-			close: mock(() => {}),
-		} satisfies OpencodeSessionPort;
+			},
+			() => deferred<OpencodeSessionEvent>().promise,
+		);
 
 		const sessionStore = createSessionStore();
 		const logger = createLogger();
