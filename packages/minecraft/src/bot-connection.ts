@@ -116,22 +116,8 @@ function registerCoreEvents(params: CoreEventParams): void {
 		onSpawnReady();
 		startViewer(b, viewerPort, logger);
 	});
-	let lastRespawnTime = 0;
-	const RESPAWN_COOLDOWN_MS = 1000;
 	b.on("death", () => {
 		ctx.pushEvent("death", "Bot died", "high");
-		const now = Date.now();
-		if (now - lastRespawnTime >= RESPAWN_COOLDOWN_MS) {
-			try {
-				b.respawn();
-				lastRespawnTime = now;
-				logger.info("[minecraft] Auto-respawned after death");
-			} catch (err) {
-				logger.error("[minecraft] respawn() failed:", err);
-			}
-		} else {
-			logger.warn("[minecraft] Respawn skipped (cooldown)");
-		}
 	});
 	b.on("health", () => handleHealthChange(b, ctx, tracking));
 	b.on("chat", (username: string, message: string) => {

@@ -67,6 +67,7 @@ graph LR
   server --> job_manager["job-manager"]
   server --> mc_metrics["mc-metrics"]
   server --> mcp_tools["mcp-tools"]
+  server --> reactive_layer["reactive-layer"]
   state_summary["state-summary"] --> helpers
   stuck_recovery["stuck-recovery"] --> bot_context["bot-context"]
 ```
@@ -191,7 +192,7 @@ graph LR
 
 ### server.ts
 
-- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools
+- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools, reactive-layer
 - 他モジュール依存: observability, store
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
