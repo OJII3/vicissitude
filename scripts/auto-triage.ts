@@ -53,8 +53,14 @@ async function runOnce(): Promise<number> {
 		new Response(fetchProc.stdout).text(),
 		new Response(fetchProc.stderr).text(),
 	]);
-	await fetchProc.exited;
+	const fetchExitCode = await fetchProc.exited;
 	tee((stdout + stderr).trimEnd(), logFile);
+	if (fetchExitCode !== 0) {
+		tee(
+			`[WARN] git fetch origin main failed (exit: ${String(fetchExitCode)}); continuing with local state`,
+			logFile,
+		);
+	}
 
 	// --worktree で独立したワーキングツリーで作業（main を汚さない）
 	const proc = Bun.spawn(
