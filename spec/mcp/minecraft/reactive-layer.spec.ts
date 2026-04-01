@@ -324,6 +324,78 @@ describe("ReactiveLayer", () => {
 			expect(failEvents.length).toBeGreaterThanOrEqual(1);
 			expect(failEvents.at(0)?.importance).toBe("high");
 		});
+
+		test("creeper が 16 ブロック以内にいる場合は逃走がトリガーされる", async () => {
+			const creeper = createHostileEntity("creeper", 15);
+			const ctx = createStubContext();
+			const bot = createFakeBot({
+				health: 20,
+				entities: { "entity-1": creeper },
+			});
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+			await layer.tick();
+			layer.detach();
+
+			const fleeEvents = ctx.events.filter((e) => e.kind === "reactive_flee");
+			expect(fleeEvents.length).toBeGreaterThanOrEqual(1);
+		});
+
+		test("creeper が 16 ブロックより遠くにいる場合は逃走しない", async () => {
+			const creeper = createHostileEntity("creeper", 17);
+			const ctx = createStubContext();
+			const bot = createFakeBot({
+				health: 20,
+				entities: { "entity-1": creeper },
+			});
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+			await layer.tick();
+			layer.detach();
+
+			const fleeEvents = ctx.events.filter((e) => e.kind === "reactive_flee");
+			expect(fleeEvents).toHaveLength(0);
+		});
+
+		test("warden が 16 ブロック以内にいる場合は逃走がトリガーされる", async () => {
+			const warden = createHostileEntity("warden", 15);
+			const ctx = createStubContext();
+			const bot = createFakeBot({
+				health: 20,
+				entities: { "entity-1": warden },
+			});
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+			await layer.tick();
+			layer.detach();
+
+			const fleeEvents = ctx.events.filter((e) => e.kind === "reactive_flee");
+			expect(fleeEvents.length).toBeGreaterThanOrEqual(1);
+		});
+
+		test("zombie が 8 ブロックより遠く 16 ブロック以内にいる場合は逃走しない（8 ブロック閾値の確認）", async () => {
+			const zombie = createHostileEntity("zombie", 12);
+			const ctx = createStubContext();
+			const bot = createFakeBot({
+				health: 20,
+				entities: { "entity-1": zombie },
+			});
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+			await layer.tick();
+			layer.detach();
+
+			const fleeEvents = ctx.events.filter((e) => e.kind === "reactive_flee");
+			expect(fleeEvents).toHaveLength(0);
+		});
 	});
 
 	// =======================================================================
