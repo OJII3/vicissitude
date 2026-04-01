@@ -134,4 +134,12 @@ describe("formatActionState", () => {
 		expect(formatActionState({ type: "smelting", target: "raw_iron", progress: "精錬中..." })).toBe(
 			"raw_iron を精錬中 (精錬中...)",
 		));
+	test("eating", () =>
+		expect(formatActionState({ type: "eating", target: "cooked_beef" })).toBe(
+			"cooked_beef を食事中",
+		));
+	test("eating with progress", () =>
+		expect(
+			formatActionState({ type: "eating", target: "cooked_beef", progress: "消費中..." }),
+		).toBe("cooked_beef を食事中 (消費中...)"));
 });

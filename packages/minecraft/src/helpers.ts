@@ -3,6 +3,7 @@ export type Importance = "low" | "medium" | "high" | "critical";
 export interface ActionState {
 	type:
 		| "idle"
+		| "eating"
 		| "following"
 		| "moving"
 		| "collecting"
@@ -133,6 +134,9 @@ export function formatActionState(action: ActionState): string {
 	switch (action.type) {
 		case "idle":
 			return "待機中";
+		case "eating":
+			base = `${action.target ?? "?"} を食事中`;
+			break;
 		case "following":
 			base = `${action.target ?? "?"} を追従中`;
 			break;
