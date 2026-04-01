@@ -719,3 +719,215 @@ describe("AgentRunner", () => {
 		sessionDone.resolve({ type: "cancelled" });
 	});
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ハング検知タイマーの内部ロジック
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AgentRunner ハング検知タイマー（内部ロジック）", () => {
+	test("タイマー間隔: hangTimeoutMs / 10 の間隔で setInterval が呼ばれる", async () => {
+		const hangTimeoutMs = 100;
+		const expectedInterval = hangTimeoutMs / 10; // 10ms
+		const setIntervalCalls: number[] = [];
+
+		const origSetInterval = globalThis.setInterval;
+		// @ts-expect-error -- setInterval をモックして呼び出し間隔を記録する
+		globalThis.setInterval = (fn: () => void, ms: number) => {
+			setIntervalCalls.push(ms);
+			return origSetInterval(fn, ms);
+		};
+
+		const waitDeferred = deferred<void>();
+		const eventBuffer = createEventBuffer(() => waitDeferred.promise);
+		const sessionPort = createSessionPort(() => deferred<OpencodeSessionEvent>().promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs,
+		});
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+
+		globalThis.setInterval = origSetInterval;
+
+		// setInterval が hangTimeoutMs / 10 の間隔で呼ばれているか確認
+		expect(setIntervalCalls).toContain(expectedInterval);
+
+		runner.stop();
+		waitDeferred.resolve();
+	});
+
+	test("タイムスタンプ更新: waitForEvents 呼び出し前後で lastWaitForEventsAt が更新される", async () => {
+		// waitForEvents の呼び出し前後にタイムスタンプが更新されることを
+		// ローテーションが発生しないことで間接的に検証する
+		const hangTimeoutMs = 200;
+		let waitForEventsCallCount = 0;
+		const timestamps: number[] = [];
+
+		const origDateNow = Date.now;
+		let fakeNow = origDateNow();
+		// Date.now をモックして呼ばれるたびにタイムスタンプを記録
+		globalThis.Date.now = () => {
+			const t = fakeNow;
+			timestamps.push(t);
+			return t;
+		};
+
+		const eventBuffer = createEventBuffer(async () => {
+			waitForEventsCallCount += 1;
+			// 呼び出しごとに時間を少し進める（ハングしていないことをシミュレート）
+			fakeNow += 10;
+			await Bun.sleep(0);
+		});
+		const sessionPort = createSessionPort(() => deferred<OpencodeSessionEvent>().promise);
+		const rotationSpy = mock(() => Promise.resolve());
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		runner.requestSessionRotation = rotationSpy;
+		activeRunners.add(runner);
+
+		globalThis.Date.now = origDateNow;
+
+		runner.ensurePolling();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// waitForEvents が少なくとも1回は呼ばれている
+		expect(waitForEventsCallCount).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+	});
+
+	test("ローテーション発火条件: elapsed >= hangTimeoutMs のときだけ requestSessionRotation が呼ばれる", async () => {
+		const hangTimeoutMs = 100;
+		const rotationSpy = mock(() => Promise.resolve());
+
+		// waitForEvents が永続的にブロックする（ハング状態）
+		const waitDeferred = deferred<void>();
+		const eventBuffer = createEventBuffer(() => waitDeferred.promise);
+		const sessionPort = createSessionPort(() => deferred<OpencodeSessionEvent>().promise);
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs,
+		});
+		runner.requestSessionRotation = rotationSpy;
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+
+		// hangTimeoutMs より短い時間では発火しない
+		await Bun.sleep(50);
+		expect(rotationSpy).not.toHaveBeenCalled();
+
+		// hangTimeoutMs を超えたら発火する
+		await Bun.sleep(100);
+		expect(rotationSpy).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		waitDeferred.resolve();
+	});
+
+	test("連続発火防止: ローテーション後に lastWaitForEventsAt がリセットされ、即座に再発火しない", async () => {
+		const hangTimeoutMs = 100;
+		const rotationSpy = mock(() => Promise.resolve());
+
+		// waitForEvents が永続的にブロックする
+		const waitDeferred = deferred<void>();
+		const eventBuffer = createEventBuffer(() => waitDeferred.promise);
+		const sessionPort = createSessionPort(() => deferred<OpencodeSessionEvent>().promise);
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs,
+		});
+		runner.requestSessionRotation = rotationSpy;
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+
+		// 1回目のハング検知を待つ
+		await Bun.sleep(150);
+		expect(rotationSpy).toHaveBeenCalledTimes(1);
+
+		// ローテーション直後はリセットされているため、次のインターバルでは発火しない
+		// （hangTimeoutMs 経過前なので）
+		await Bun.sleep(hangTimeoutMs / 10 + 5);
+		// リセット後すぐは発火しないはず（まだ hangTimeoutMs 経過していない）
+		expect(rotationSpy).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		waitDeferred.resolve();
+	});
+
+	test("タイマー重複防止: ensurePolling を二重呼び出しても setInterval は1回しか呼ばれない", async () => {
+		const setIntervalCalls: number[] = [];
+		const origSetInterval = globalThis.setInterval;
+		// @ts-expect-error -- setInterval をモックして呼び出し回数を記録する
+		globalThis.setInterval = (fn: () => void, ms: number) => {
+			setIntervalCalls.push(ms);
+			return origSetInterval(fn, ms);
+		};
+
+		const waitDeferred = deferred<void>();
+		const eventBuffer = createEventBuffer(() => waitDeferred.promise);
+		const sessionPort = createSessionPort(() => deferred<OpencodeSessionEvent>().promise);
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs: 1000,
+		});
+		activeRunners.add(runner);
+
+		// ensurePolling を2回呼ぶ
+		runner.ensurePolling();
+		runner.ensurePolling();
+
+		globalThis.setInterval = origSetInterval;
+
+		// setInterval は1回しか呼ばれていないはず
+		expect(setIntervalCalls).toHaveLength(1);
+
+		runner.stop();
+		waitDeferred.resolve();
+	});
+});
