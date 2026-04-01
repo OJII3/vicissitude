@@ -56,6 +56,9 @@ graph LR
   mcp_tools["mcp-tools"] --> job_manager["job-manager"]
   mcp_tools["mcp-tools"] --> state_summary["state-summary"]
   mcp_tools["mcp-tools"] --> stuck_recovery["stuck-recovery"]
+  reactive_layer["reactive-layer"] --> actions_survival_food["actions/survival/food"]
+  reactive_layer["reactive-layer"] --> bot_context["bot-context"]
+  reactive_layer["reactive-layer"] --> helpers
   server --> auto_notifier["auto-notifier"]
   server --> bot_connection["bot-connection"]
   server --> bot_context["bot-context"]
@@ -180,6 +183,11 @@ graph LR
 - モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary, stuck-recovery
 - 他モジュール依存: observability, shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+
+### reactive-layer.ts
+
+- モジュール内依存: actions/survival/food, bot-context, helpers
+- 外部依存: .bun
 
 ### server.ts
 
