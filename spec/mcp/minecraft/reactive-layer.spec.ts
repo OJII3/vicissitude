@@ -168,6 +168,7 @@ const { ReactiveLayer } = await import("@vicissitude/minecraft/reactive-layer");
 // ReactiveLayer インターフェース
 // ---------------------------------------------------------------------------
 
+// oxlint-disable-next-line max-lines-per-function -- テストスイート全体を1つの describe にまとめる設計
 describe("ReactiveLayer", () => {
 	// =======================================================================
 	// ライフサイクル: attach / detach
@@ -448,12 +449,10 @@ describe("ReactiveLayer", () => {
 			expect(bot.respawn).toHaveBeenCalled();
 		});
 
-		test("リスポーン後に reactive_respawn イベントが発行される", async () => {
+		test("respawn() が例外を投げなければ reactive_respawn イベントが発行される", async () => {
 			const ctx = createStubContext();
+			// respawn() はパケット送信のみ — health は同期更新されない
 			const bot = createFakeBot({ health: 0 });
-			bot.respawn.mockImplementation(() => {
-				bot.health = 20;
-			});
 			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
 
 			const layer = new ReactiveLayer(ctx);
@@ -461,15 +460,17 @@ describe("ReactiveLayer", () => {
 			await layer.tick();
 			layer.detach();
 
+			// health が 0 のままでも、例外なく respawn() が完了すれば成功
 			const respawnEvents = ctx.events.filter((e) => e.kind === "reactive_respawn");
 			expect(respawnEvents.length).toBeGreaterThanOrEqual(1);
 		});
 
-		test("リスポーン失敗時は Brain に通知イベントが発行される", async () => {
+		test("respawn() が例外をスローした場合は失敗イベントが発行される", async () => {
 			const ctx = createStubContext();
 			const bot = createFakeBot({ health: 0 });
-			// respawn を呼んでも health が回復しない
-			bot.respawn.mockImplementation(() => {});
+			bot.respawn.mockImplementation(() => {
+				throw new Error("respawn failed");
+			});
 			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
 
 			const layer = new ReactiveLayer(ctx);
@@ -480,6 +481,51 @@ describe("ReactiveLayer", () => {
 			const failEvents = ctx.events.filter((e) => e.kind === "reactive_respawn_failed");
 			expect(failEvents.length).toBeGreaterThanOrEqual(1);
 			expect(failEvents.at(0)?.importance).toBe("critical");
+		});
+
+		test("リスポーン要求中は重複呼び出しされない", async () => {
+			const ctx = createStubContext();
+			const bot = createFakeBot({ health: 0 });
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+
+			// 1回目の tick — respawn が呼ばれる
+			await layer.tick();
+			expect(bot.respawn).toHaveBeenCalledTimes(1);
+
+			// 2回目の tick — まだ spawn イベントが来ていないので重複呼び出しされない
+			await layer.tick();
+			expect(bot.respawn).toHaveBeenCalledTimes(1);
+
+			layer.detach();
+		});
+
+		test("spawn イベント後にリスポーンフラグがリセットされる", async () => {
+			const ctx = createStubContext();
+			const bot = createFakeBot({ health: 0 });
+			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
+
+			const layer = new ReactiveLayer(ctx);
+			layer.attach();
+
+			// 1回目の tick — respawn 呼び出し
+			await layer.tick();
+			expect(bot.respawn).toHaveBeenCalledTimes(1);
+
+			// spawn イベント発火 → フラグリセット
+			bot.health = 20;
+			bot.emit("spawn");
+
+			// 再度死亡
+			bot.health = 0;
+
+			// 3回目の tick — フラグがリセットされたので再度 respawn が呼ばれる
+			await layer.tick();
+			expect(bot.respawn).toHaveBeenCalledTimes(2);
+
+			layer.detach();
 		});
 	});
 
@@ -538,9 +584,7 @@ describe("ReactiveLayer", () => {
 					},
 				},
 			});
-			bot.respawn.mockImplementation(() => {
-				bot.health = 20;
-			});
+			// respawn() はパケット送信のみ — health は同期更新されない
 			ctx.setBot(bot as unknown as ReturnType<BotContext["getBot"]>);
 
 			const layer = new ReactiveLayer(ctx);
@@ -640,9 +684,7 @@ describe("ReactiveLayer", () => {
 			// Brain がジョブ実行中でも
 			ctx.setActionState({ type: "collecting", target: "diamond_ore" });
 
-			bot.respawn.mockImplementation(() => {
-				bot.health = 20;
-			});
+			// respawn() はパケット送信のみ — health は同期更新されない
 
 			const layer = new ReactiveLayer(ctx);
 			layer.attach();
