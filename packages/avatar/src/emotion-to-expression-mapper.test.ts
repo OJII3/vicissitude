@@ -6,67 +6,68 @@ import { createEmotionToExpressionMapper } from "./emotion-to-expression-mapper"
 
 const mapper = createEmotionToExpressionMapper();
 
-// ─── mapFallback — fallback 分岐の expression と weight ──────────
+// ─── classifyEmotion fallback — V=0 境界ケースの expression と weight ─
 //
-// V=0 のとき mapPrimaryExpression は null を返し、mapFallback に到達する。
-// 各分岐で expression と weight の具体値を検証する。
+// V=0 のとき classifyEmotion の fallback 分岐に入る。
+// 新実装では computeWeightForCategory で 3 引数の computeWeight(|V|, |A|, |D|) に統一。
 
-describe("mapFallback — fallback 分岐の expression と weight", () => {
-	it("V=0, A>0, D>0 → angry, weight = (|A|+|D|)/2", () => {
+describe("classifyEmotion fallback — V=0 境界ケースの expression と weight", () => {
+	it("V=0, A>0, D>0 → angry, weight = (|V|+|A|+|D|)/3", () => {
 		const result = mapper.mapToExpression(createEmotion(0, 0.5, 0.4));
 		expect(result.expression).toBe("angry");
-		// computeWeight(0.5, 0.4) = (0.5 + 0.4) / 2 = 0.45
-		expect(result.weight).toBeCloseTo(0.45, 5);
+		// computeWeight(|V|=0, |A|=0.5, |D|=0.4) = 0.9/3 = 0.3
+		expect(result.weight).toBeCloseTo(0.9 / 3, 5);
 	});
 
-	it("V=0, A>0, D<0 → fear, weight = (|A|+|D|)/2", () => {
+	it("V=0, A>0, D<0 → fear, weight = (|V|+|A|+|D|)/3", () => {
 		const result = mapper.mapToExpression(createEmotion(0, 0.6, -0.8));
 		expect(result.expression).toBe("fear");
-		// computeWeight(0.6, 0.8) = (0.6 + 0.8) / 2 = 0.7
-		expect(result.weight).toBeCloseTo(0.7, 5);
+		// computeWeight(|V|=0, |A|=0.6, |D|=0.8) = 1.4/3
+		expect(result.weight).toBeCloseTo(1.4 / 3, 5);
 	});
 
-	it("V=0, A>0, D=0 → happy, weight = |A| (computeWeight 引数1つ)", () => {
+	it("V=0, A>0, D=0 → happy, weight = (V+A+|D|)/3", () => {
 		const result = mapper.mapToExpression(createEmotion(0, 0.5, 0));
 		expect(result.expression).toBe("happy");
-		// computeWeight(0.5) = 0.5 / 1 = 0.5
-		expect(result.weight).toBeCloseTo(0.5, 5);
+		// computeWeight(V=0, A=0.5, |D|=0) = 0.5/3
+		expect(result.weight).toBeCloseTo(0.5 / 3, 5);
 	});
 
-	it("V=0, A<0, D=0 → sad, weight = (|A|+|D|)/2", () => {
+	it("V=0, A<0, D=0 → sad, weight = (|V|+|A|+|D|)/3", () => {
 		const result = mapper.mapToExpression(createEmotion(0, -0.6, 0));
 		expect(result.expression).toBe("sad");
-		// computeWeight(0.6, 0) = (0.6 + 0) / 2 = 0.3
-		expect(result.weight).toBeCloseTo(0.3, 5);
+		// computeWeight(|V|=0, |A|=0.6, |D|=0) = 0.6/3 = 0.2
+		expect(result.weight).toBeCloseTo(0.6 / 3, 5);
 	});
 
-	it("V=0, A<0, D=0.4 → sad, weight = (|A|+|D|)/2", () => {
+	it("V=0, A<0, D=0.4 → sad, weight = (|V|+|A|+|D|)/3", () => {
 		const result = mapper.mapToExpression(createEmotion(0, -0.4, 0.4));
 		expect(result.expression).toBe("sad");
-		// computeWeight(0.4, 0.4) = (0.4 + 0.4) / 2 = 0.4
-		expect(result.weight).toBeCloseTo(0.4, 5);
+		// computeWeight(|V|=0, |A|=0.4, |D|=0.4) = 0.8/3
+		expect(result.weight).toBeCloseTo(0.8 / 3, 5);
 	});
 
-	it("V=0, A=0, D=0.5 → neutral (最終 fallback), weight = (|A|+|D|)/2", () => {
+	it("V=0, A=0, D=0.5 → neutral (最終 fallback), mapNeutral で weight 計算", () => {
 		const result = mapper.mapToExpression(createEmotion(0, 0, 0.5));
 		expect(result.expression).toBe("neutral");
-		// computeWeight(0, 0.5) = (0 + 0.5) / 2 = 0.25
-		expect(result.weight).toBeCloseTo(0.25, 5);
+		// mapNeutral: distance=0.5, maxDistance=sqrt(0.12)≈0.3464
+		// weight = clamp(1 - 0.5/0.3464) = clamp(negative) = 0
+		expect(result.weight).toBeCloseTo(0, 5);
 	});
 
-	it("V=0, A=0, D=-0.8 → neutral (最終 fallback), weight = (|A|+|D|)/2", () => {
+	it("V=0, A=0, D=-0.8 → neutral (最終 fallback), mapNeutral で weight 計算", () => {
 		const result = mapper.mapToExpression(createEmotion(0, 0, -0.8));
 		expect(result.expression).toBe("neutral");
-		// computeWeight(0, 0.8) = (0 + 0.8) / 2 = 0.4
-		expect(result.weight).toBeCloseTo(0.4, 5);
+		// mapNeutral: distance=0.8, maxDistance=sqrt(0.12)≈0.3464
+		// weight = clamp(1 - 0.8/0.3464) = clamp(negative) = 0
+		expect(result.weight).toBeCloseTo(0, 5);
 	});
 
-	it("surprised 条件 (A>=0.7, D<0) は mapToExpression 冒頭で捕捉され fallback に到達しない", () => {
+	it("surprised 条件 (A>=0.7, D<0) は classifyEmotion で最優先捕捉される", () => {
 		// V=0, A=0.8, D=-0.5 → surprised ルール（最優先）で処理される
-		// fallback の angry/fear 分岐には到達しない
 		const result = mapper.mapToExpression(createEmotion(0, 0.8, -0.5));
 		expect(result.expression).toBe("surprised");
-		// computeWeight(0.8, 0.5) = 1.3/2 = 0.65
+		// computeWeight(A=0.8, |D|=0.5) = 1.3/2 = 0.65
 		expect(result.weight).toBeCloseTo(0.65, 5);
 	});
 });
@@ -208,14 +209,15 @@ describe("clampWeight — 境界", () => {
 		expect(result.weight).toBeCloseTo(0.42 / 3, 5);
 	});
 
-	it("fallback の最終分岐で A=0, D=0 → weight=0 (clamp 下限)", () => {
-		// V=0, A=0, D=0 は neutral 条件 (|V|<0.2 && |A|<0.2 && |D|<0.2) を満たすため
-		// mapNeutral に行く。fallback には到達しない。
-		// V=0.3 にすると neutral 条件を外れ、V>0 && A=0 で mapPrimary は null。
-		// fallback: a=0 → 最終分岐 neutral, computeWeight(0, 0) = 0
+	it("classifyEmotion fallback で neutral → mapNeutral の距離計算", () => {
+		// V=0.3, A=0, D=0 → classifyEmotion: neutral 条件外 (|V|>=0.2)、
+		// 全 primary/fallback ルール不適合 → "neutral" → mapNeutral
+		// distance=0.3, maxDistance=sqrt(0.12)≈0.3464
+		// weight = 1 - 0.3/0.3464 ≈ 0.134
+		const maxDistance = Math.sqrt(0.2 * 0.2 * 3);
 		const result = mapper.mapToExpression(createEmotion(0.3, 0, 0));
 		expect(result.expression).toBe("neutral");
-		expect(result.weight).toBeCloseTo(0, 5);
+		expect(result.weight).toBeCloseTo(1 - 0.3 / maxDistance, 5);
 	});
 
 	it("surprised で A=1, D=-1 → weight=1.0", () => {

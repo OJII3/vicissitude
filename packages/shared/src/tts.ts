@@ -1,22 +1,16 @@
 import { z } from "zod";
 
+import { type EmotionCategory, EmotionCategorySchema } from "./emotion";
+
 // ─── TTS Style ──────────────────────────────────────────────────
 //
 // TTS 音声合成のスタイルラベル。VAD 感情値からマッピングされる。
 // TTS エンジン非依存の抽象ラベルとして定義し、
 // アダプター層で各エンジン固有のパラメータに変換する。
 
-export type TtsStyle = "neutral" | "happy" | "sad" | "angry" | "fear" | "surprised" | "relaxed";
+export type TtsStyle = EmotionCategory;
 
-export const TtsStyleSchema = z.enum([
-	"neutral",
-	"happy",
-	"sad",
-	"angry",
-	"fear",
-	"surprised",
-	"relaxed",
-]);
+export const TtsStyleSchema = EmotionCategorySchema;
 
 // ─── TTS Style Params ───────────────────────────────────────────
 //
