@@ -30,6 +30,7 @@ export class ReactiveLayer {
 	private attached = false;
 	private intervalId: ReturnType<typeof setInterval> | null = null;
 	private lastScanTime = 0;
+	private lastNoFoodEventTime = 0;
 
 	constructor(ctx: BotContext, options?: ReactiveLayerOptions) {
 		this.ctx = ctx;
@@ -206,7 +207,11 @@ export class ReactiveLayer {
 			return;
 		}
 
-		// 食料がない
-		this.ctx.pushEvent("reactive_no_food", "食料がインベントリにありません", "high");
+		// 食料がない（スロットリング: scanIntervalMs 以内に重複発火しない）
+		const now = Date.now();
+		if (now - this.lastNoFoodEventTime >= this.scanIntervalMs) {
+			this.lastNoFoodEventTime = now;
+			this.ctx.pushEvent("reactive_no_food", "食料がインベントリにありません", "high");
+		}
 	}
 }
