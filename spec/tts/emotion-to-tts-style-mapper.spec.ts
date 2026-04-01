@@ -32,6 +32,11 @@ describe("EmotionToTtsStyleMapper — style selection", () => {
 		expect(result.style).toBe("angry");
 	});
 
+	it("angry: V < 0, A > 0, D = 0 のとき angry を返す", () => {
+		const result = mapper().mapToStyle(createEmotion(-0.3, 0.5, 0));
+		expect(result.style).toBe("angry");
+	});
+
 	it("fear: V < 0, A > 0, D < 0 のとき fear を返す", () => {
 		const result = mapper().mapToStyle(createEmotion(-0.5, 0.4, -0.3));
 		expect(result.style).toBe("fear");
