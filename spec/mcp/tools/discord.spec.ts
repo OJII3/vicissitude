@@ -7,7 +7,7 @@ import {
 	createClientStubWithoutSendTyping,
 	createDiscordClientStub,
 	type ToolResult,
-} from "./_discord-helpers";
+} from "./discord-test-helpers";
 
 // ─── Tests ───────────────────────────────────────────────────────
 

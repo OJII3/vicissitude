@@ -10,7 +10,7 @@ import type {
 	MoodWriter,
 } from "@vicissitude/shared/ports";
 
-import { captureTools, createDiscordClientStub } from "./_discord-helpers";
+import { captureTools, createDiscordClientStub } from "./discord-test-helpers";
 
 function createSpyEmotionAnalyzer(result?: EmotionAnalysisResult): {
 	analyzer: EmotionAnalyzer;
