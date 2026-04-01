@@ -12,6 +12,7 @@ import { startHttpServer } from "./http-server.ts";
 import { JobManager } from "./job-manager.ts";
 import { createMcMetrics } from "./mc-metrics.ts";
 import { registerMinecraftTools } from "./mcp-tools.ts";
+import { ReactiveLayer } from "./reactive-layer.ts";
 
 // ── Logger ───────────────────────────────────────────────────────────────────
 const logger = new ConsoleLogger();
@@ -93,6 +94,10 @@ const connection = createBotConnection(
 
 const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState, mcCollector);
 
+const reactiveLayer = new ReactiveLayer(ctx, {
+	onCancelJob: () => jobManager.cancelCurrentJob(),
+});
+
 function createServer(): McpServer {
 	const server = new McpServer({ name: "minecraft", version: "0.1.0" });
 	registerMinecraftTools({
@@ -135,9 +140,11 @@ if (bridgeDb) {
 			if (locked && !botConnected) {
 				logger.info("[minecraft] Session lock detected — starting bot connection");
 				connection.start();
+				reactiveLayer.attach();
 				botConnected = true;
 			} else if (!locked && botConnected) {
 				logger.info("[minecraft] Session lock released — shutting down bot connection");
+				reactiveLayer.detach();
 				connection.shutdown();
 				botConnected = false;
 			}
@@ -148,6 +155,7 @@ if (bridgeDb) {
 } else {
 	// bridgeDb なし（開発環境）: 従来通り即座に接続
 	connection.start();
+	reactiveLayer.attach();
 }
 
 // ── Shutdown ─────────────────────────────────────────────────────────────────
@@ -157,6 +165,7 @@ const shutdown = (): void => {
 	closeAllSessions();
 	stopServer();
 	mcMetricsServer.stop();
+	reactiveLayer.detach();
 	connection.shutdown();
 	if (bridgeDb) closeDb(bridgeDb);
 	process.exit(0);

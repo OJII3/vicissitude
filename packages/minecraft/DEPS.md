@@ -56,6 +56,9 @@ graph LR
   mcp_tools["mcp-tools"] --> job_manager["job-manager"]
   mcp_tools["mcp-tools"] --> state_summary["state-summary"]
   mcp_tools["mcp-tools"] --> stuck_recovery["stuck-recovery"]
+  reactive_layer["reactive-layer"] --> actions_survival_food["actions/survival/food"]
+  reactive_layer["reactive-layer"] --> bot_context["bot-context"]
+  reactive_layer["reactive-layer"] --> helpers
   server --> auto_notifier["auto-notifier"]
   server --> bot_connection["bot-connection"]
   server --> bot_context["bot-context"]
@@ -64,6 +67,7 @@ graph LR
   server --> job_manager["job-manager"]
   server --> mc_metrics["mc-metrics"]
   server --> mcp_tools["mcp-tools"]
+  server --> reactive_layer["reactive-layer"]
   state_summary["state-summary"] --> helpers
   stuck_recovery["stuck-recovery"] --> bot_context["bot-context"]
 ```
@@ -73,7 +77,7 @@ graph LR
 ### actions/combat.ts
 
 - モジュール内依存: actions/shared, bot-queries, job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, prismarine-entity
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/index.ts
 
@@ -84,38 +88,38 @@ graph LR
 ### actions/interaction.ts
 
 - モジュール内依存: actions/shared
-- 外部依存: ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, vec3
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/jobs.ts
 
 - モジュール内依存: actions/shared, job-manager
 - 他モジュール依存: shared
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, prismarine-recipe
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/movement.ts
 
 - モジュール内依存: actions/shared, bot-queries, job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, prismarine-entity
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/shared.ts
 
 - モジュール内依存: job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js
+- 外部依存: .bun
 
 ### actions/smelting.ts
 
 - モジュール内依存: actions/shared, job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/survival/escape.ts
 
 - モジュール内依存: actions/shared, bot-queries, job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/survival/food.ts
 
 - モジュール内依存: actions/shared
-- 外部依存: ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/survival/index.ts
 
@@ -125,7 +129,7 @@ graph LR
 ### actions/survival/shelter.ts
 
 - モジュール内依存: actions/shared, job-manager
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, vec3
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### auto-notifier.ts
 
@@ -136,22 +140,22 @@ graph LR
 
 - モジュール内依存: bot-context, bot-queries, constants, helpers
 - 他モジュール依存: shared
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/prismarine-viewer@1.33.0/node_modules/prismarine-viewer/index.js, prismarine-entity
+- 外部依存: .bun
 
 ### bot-context.ts
 
 - モジュール内依存: helpers
 - 他モジュール依存: observability, shared
-- 外部依存: ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js
+- 外部依存: .bun
 
 ### bot-queries.ts
 
 - モジュール内依存: helpers
-- 外部依存: ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, prismarine-entity, vec3
+- 外部依存: .bun
 
 ### constants.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun
 
 ### helpers.ts
 
@@ -179,11 +183,16 @@ graph LR
 
 - モジュール内依存: actions/index, bot-context, bot-queries, job-manager, state-summary, stuck-recovery
 - 他モジュール依存: observability, shared
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+
+### reactive-layer.ts
+
+- モジュール内依存: actions/survival/food, bot-context, helpers
+- 外部依存: .bun
 
 ### server.ts
 
-- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools
+- モジュール内依存: auto-notifier, bot-connection, bot-context, constants, http-server, job-manager, mc-metrics, mcp-tools, reactive-layer
 - 他モジュール依存: observability, store
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 

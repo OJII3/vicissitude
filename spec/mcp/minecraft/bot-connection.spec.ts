@@ -138,39 +138,7 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(deathEvents[0]?.importance).toBe("high");
 	});
 
-	test("death イベント発火時に bot.respawn() が呼ばれる", () => {
-		setup();
-		fakeBot.emit("death");
-
-		expect(fakeBot.respawn).toHaveBeenCalledTimes(1);
-	});
-
-	test("death イベントが複数回発火した場合、クールダウンにより連続 respawn がスキップされる", () => {
-		setup();
-		// 同期的に3回 death を発火 → クールダウン(1秒)により respawn は1回目のみ
-		fakeBot.emit("death");
-		fakeBot.emit("death");
-		fakeBot.emit("death");
-
-		expect(fakeBot.respawn).toHaveBeenCalledTimes(1);
-		// pushEvent("death", ...) はクールダウンに関係なく毎回呼ばれる
-		const deathEvents = ctx.events.filter((e) => e.kind === "death");
-		expect(deathEvents).toHaveLength(3);
-	});
-
-	test("respawn() が例外を投げてもクラッシュしない", () => {
-		setup();
-		fakeBot.respawn.mockImplementation(() => {
-			throw new Error("respawn failed");
-		});
-
-		// death イベント発火時に例外がスローされず、ハンドラ全体がクラッシュしない
-		expect(() => fakeBot.emit("death")).not.toThrow();
-
-		// pushEvent は呼ばれている（イベント記録は正常に行われた）
-		const deathEvents = ctx.events.filter((e) => e.kind === "death");
-		expect(deathEvents).toHaveLength(1);
-	});
+	// respawn は ReactiveLayer の tick インターバルで処理 (reactive-layer.spec.ts)
 
 	test("shutdown 後に start を呼ぶと再接続できる", () => {
 		fakeBot = createFakeBot();
@@ -210,28 +178,5 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(deathEvents.length).toBeGreaterThanOrEqual(1);
 	});
 
-	test("死亡ループ防止: クールダウン(1秒)経過後は再び respawn() が呼ばれる", async () => {
-		setup();
-
-		// 1回目の death → respawn() が呼ばれる
-		fakeBot.emit("death");
-		expect(fakeBot.respawn).toHaveBeenCalledTimes(1);
-
-		// 直後（1秒未満）に2回目の death → respawn() はスキップされる
-		fakeBot.emit("death");
-		expect(fakeBot.respawn).toHaveBeenCalledTimes(1);
-
-		// 1秒待ってクールダウンを超える
-		await new Promise<void>((resolve) => {
-			setTimeout(resolve, 1100);
-		});
-
-		// 3回目の death → respawn() が再び呼ばれる
-		fakeBot.emit("death");
-		expect(fakeBot.respawn).toHaveBeenCalledTimes(2);
-
-		// pushEvent("death", ...) は全3回とも呼ばれている
-		const deathEvents = ctx.events.filter((e) => e.kind === "death");
-		expect(deathEvents).toHaveLength(3);
-	});
+	// 死亡ループ防止は ReactiveLayer の tick インターバルで代替 (reactive-layer.spec.ts)
 });
