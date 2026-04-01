@@ -1,9 +1,6 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { registerDiscordTools } from "@vicissitude/mcp/tools/discord";
-import type { DiscordDeps } from "@vicissitude/mcp/tools/discord";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type { Emotion } from "@vicissitude/shared/emotion";
 import type {
@@ -13,42 +10,7 @@ import type {
 	MoodWriter,
 } from "@vicissitude/shared/ports";
 
-// ─── Test Helpers ────────────────────────────────────────────────
-
-type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-
-/** registerDiscordTools で登録されたツールを name → handler のマップとして取得する */
-function captureTools(deps: DiscordDeps): Map<string, ToolHandler> {
-	const tools = new Map<string, ToolHandler>();
-
-	const fakeServer = {
-		registerTool(name: string, _schema: unknown, handler: ToolHandler) {
-			tools.set(name, handler);
-		},
-	} as unknown as McpServer;
-
-	registerDiscordTools(fakeServer, deps);
-
-	return tools;
-}
-
-/** send / reply が成功する最小限の Discord Client スタブ */
-function createDiscordClientStub(): DiscordDeps["discordClient"] {
-	const sentMessage = { id: "sent-msg-1", reply: () => Promise.resolve({ id: "reply-msg-1" }) };
-
-	return {
-		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve(sentMessage),
-					messages: {
-						fetch: () => Promise.resolve(sentMessage),
-					},
-				}),
-		},
-	} as unknown as DiscordDeps["discordClient"];
-}
+import { captureTools, createDiscordClientStub } from "./discord-test-helpers";
 
 function createSpyEmotionAnalyzer(result?: EmotionAnalysisResult): {
 	analyzer: EmotionAnalyzer;
@@ -92,7 +54,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 		const { analyzer, calls: analyzerCalls } = createSpyEmotionAnalyzer();
 		const { writer } = createSpyMoodWriter();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: writer,
@@ -113,7 +75,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 		const { analyzer, calls: analyzerCalls } = createSpyEmotionAnalyzer();
 		const { writer } = createSpyMoodWriter();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: writer,
@@ -138,7 +100,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 		const { analyzer } = createSpyEmotionAnalyzer({ emotion, confidence: 0.85 });
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: writer,
@@ -165,7 +127,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 		});
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: writer,
@@ -183,7 +145,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 	});
 
 	test("emotionAnalyzer が未設定の場合はエラーなく動作する", async () => {
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			// emotionAnalyzer, moodWriter, agentId を渡さない
 		});
@@ -203,7 +165,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 	test("moodWriter が未設定の場合はエラーなく動作する（emotionAnalyzer のみ設定）", async () => {
 		const { analyzer } = createSpyEmotionAnalyzer();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			agentId: "agent-1",
@@ -225,7 +187,7 @@ describe("send_message / reply での感情推定トリガー", () => {
 		const { analyzer } = createSpyEmotionAnalyzer({ emotion, confidence: 0.9 });
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
 
-		const tools = captureTools({
+		const { tools } = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: writer,
