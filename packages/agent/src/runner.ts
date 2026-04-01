@@ -19,6 +19,7 @@ import type { SessionStore } from "./session-store.ts";
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
+const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 
 export interface RunnerDeps {
 	profile: AgentProfile;
@@ -34,6 +35,8 @@ export interface RunnerDeps {
 	contextGuildId?: string;
 	/** セッション要約の書き出しポート。省略時は要約生成をスキップ */
 	summaryWriter?: SessionSummaryWriter;
+	/** waitForEvents が呼ばれない状態が続いた場合にセッションローテーションを行うまでの時間（ms）。デフォルト: 600_000 (10分) */
+	hangTimeoutMs?: number;
 }
 
 export class AgentRunner implements AiAgent {
@@ -44,6 +47,8 @@ export class AgentRunner implements AiAgent {
 	private hasStartedSession = false;
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
+	private lastWaitForEventsAt: number = Date.now();
+	private hangTimer: ReturnType<typeof setInterval> | null = null;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -56,6 +61,7 @@ export class AgentRunner implements AiAgent {
 	private readonly metrics?: MetricsCollector;
 	private readonly contextGuildId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
+	private readonly hangTimeoutMs: number;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -73,6 +79,7 @@ export class AgentRunner implements AiAgent {
 		this.metrics = deps.metrics;
 		this.contextGuildId = deps.contextGuildId;
 		this.summaryWriter = deps.summaryWriter;
+		this.hangTimeoutMs = deps.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -97,12 +104,35 @@ export class AgentRunner implements AiAgent {
 	ensurePolling(): void {
 		if (this.running) return;
 		this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: starting polling loop`);
+		this.lastWaitForEventsAt = Date.now();
+		this.startHangDetectionTimer();
 		this.startPollingLoop().catch((err) => {
 			this.logger.error(
 				`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
 				err,
 			);
 		});
+	}
+
+	private startHangDetectionTimer(): void {
+		if (this.hangTimer !== null) return;
+		const intervalMs = Math.max(1, Math.floor(this.hangTimeoutMs / 10));
+		this.hangTimer = setInterval(() => {
+			const elapsed = Date.now() - this.lastWaitForEventsAt;
+			if (elapsed >= this.hangTimeoutMs) {
+				this.logger.warn(
+					`[${this.profile.name}:${this.agentId}] hang detected (${elapsed}ms since last waitForEvents), requesting session rotation`,
+				);
+				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
+				this.lastWaitForEventsAt = Date.now();
+				this.requestSessionRotation().catch((err) => {
+					this.logger.error(
+						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
+						err,
+					);
+				});
+			}
+		}, intervalMs);
 	}
 
 	protected async startPollingLoop(): Promise<void> {
@@ -197,6 +227,10 @@ export class AgentRunner implements AiAgent {
 		this.abortController?.abort();
 		this.abortController = null;
 		this.sessionWatch = null;
+		if (this.hangTimer !== null) {
+			clearInterval(this.hangTimer);
+			this.hangTimer = null;
+		}
 		this.sessionPort.close();
 	}
 
@@ -245,7 +279,9 @@ export class AgentRunner implements AiAgent {
 		}
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] waiting for events...`);
+		this.lastWaitForEventsAt = Date.now();
 		await this.eventBuffer.waitForEvents(signal);
+		this.lastWaitForEventsAt = Date.now();
 		if (signal.aborted) return;
 		this.logger.info(`[${this.profile.name}:${this.agentId}] events detected, starting session`);
 		await this.startLongLivedSession(signal);
