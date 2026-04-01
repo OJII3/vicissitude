@@ -24,7 +24,7 @@
 		"deps:graph": "depcruise packages/*/src apps/*/src --config .dependency-cruiser.mjs --output-type json | bun scripts/generate-deps-md.ts && oxfmt docs/DEPS.md 'packages/*/DEPS.md' 'apps/*/DEPS.md'",
 		"validate": "bun run fmt:check && bun run lint && bun run check",
 		"deploy": "podman-compose rm -f -s installer builder bot 2>/dev/null; podman-compose up -d && echo 'Deployed: podman-compose logs -f to follow logs'",
-		"auto-triage": "bash scripts/auto-triage.sh",
+		"auto-triage": "bun scripts/auto-triage.ts",
 		"auto-triage:once": "claude -p /auto-triage --dangerously-skip-permissions --max-budget-usd 10 --no-session-persistence --worktree"
 	},
 	"dependencies": {
