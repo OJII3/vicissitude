@@ -16,3 +16,4 @@ data/
 dist/
 routeTree.gen.ts
 *.vrm
+logs/
