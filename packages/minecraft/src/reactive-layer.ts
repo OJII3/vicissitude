@@ -31,6 +31,8 @@ export class ReactiveLayer {
 	private intervalId: ReturnType<typeof setInterval> | null = null;
 	private lastScanTime = 0;
 	private lastNoFoodEventTime = 0;
+	private respawning = false;
+	private spawnListener: (() => void) | null = null;
 
 	constructor(ctx: BotContext, options?: ReactiveLayerOptions) {
 		this.ctx = ctx;
@@ -53,6 +55,8 @@ export class ReactiveLayer {
 			clearInterval(this.intervalId);
 			this.intervalId = null;
 		}
+		this.removeSpawnListener();
+		this.respawning = false;
 	}
 
 	isAttached(): boolean {
@@ -88,15 +92,34 @@ export class ReactiveLayer {
 	}
 
 	private handleRespawn(bot: mineflayer.Bot): void {
+		if (this.respawning) return;
+		this.respawning = true;
+
 		try {
 			bot.respawn();
-			if (bot.health > 0) {
-				this.ctx.pushEvent("reactive_respawn", "死亡後にリスポーンしました", "critical");
-			} else {
-				this.ctx.pushEvent("reactive_respawn_failed", "リスポーンに失敗しました", "critical");
-			}
+			this.registerSpawnListener(bot);
+			this.ctx.pushEvent("reactive_respawn", "死亡後にリスポーンをリクエストしました", "critical");
 		} catch {
+			this.respawning = false;
 			this.ctx.pushEvent("reactive_respawn_failed", "リスポーンに失敗しました", "critical");
+		}
+	}
+
+	private registerSpawnListener(bot: mineflayer.Bot): void {
+		this.removeSpawnListener();
+		this.spawnListener = () => {
+			this.respawning = false;
+		};
+		bot.once("spawn", this.spawnListener);
+	}
+
+	private removeSpawnListener(): void {
+		if (this.spawnListener !== null) {
+			const bot = this.ctx.getBot();
+			if (bot !== null) {
+				bot.removeListener("spawn", this.spawnListener);
+			}
+			this.spawnListener = null;
 		}
 	}
 
