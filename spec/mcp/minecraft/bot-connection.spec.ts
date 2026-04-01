@@ -138,7 +138,7 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(deathEvents[0]?.importance).toBe("high");
 	});
 
-	// respawn 関連テストは ReactiveLayer に移動済み (reactive-layer.spec.ts)
+	// respawn は ReactiveLayer の tick インターバルで処理 (reactive-layer.spec.ts)
 
 	test("shutdown 後に start を呼ぶと再接続できる", () => {
 		fakeBot = createFakeBot();
@@ -178,5 +178,5 @@ describe("bot-connection — death イベントハンドラ", () => {
 		expect(deathEvents.length).toBeGreaterThanOrEqual(1);
 	});
 
-	// 死亡ループ防止テストは ReactiveLayer に移動済み (reactive-layer.spec.ts)
+	// 死亡ループ防止は ReactiveLayer の tick インターバルで代替 (reactive-layer.spec.ts)
 });

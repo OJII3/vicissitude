@@ -11,6 +11,7 @@ const POLLING_PROMPT = `あなたは Minecraft エージェントです。以下
 
 ただし、以下のイベントが check_commands 経由で通知された場合は **戦略的に対応** してください:
 - **reactive_no_food**: 食料がなく自動回復できなかった → 食料確保を最優先目標にする
+- **reactive_eat_failed**: 食事が中断された → 安全を確認してから再度食事を試みる
 - **reactive_flee_failed**: 逃走に失敗した → 状況を判断し、反撃・シェルター構築・別方向への退避など対処する
 - **reactive_respawn_failed**: リスポーンに失敗した → 状況を報告し、対処を試みる
 

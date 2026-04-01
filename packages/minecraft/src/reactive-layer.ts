@@ -62,7 +62,7 @@ export class ReactiveLayer {
 	/** 1回の反射チェックを実行する（テスト用に公開） */
 	async tick(): Promise<void> {
 		const bot = this.ctx.getBot();
-		if (bot === null || bot === undefined) return;
+		if (bot === null) return;
 
 		// 優先度1: リスポーン（ActionState に関係なく常に実行）
 		if (bot.health <= 0) {
@@ -197,7 +197,7 @@ export class ReactiveLayer {
 				this.ctx.pushEvent("reactive_eat", `${food.name} を自動で食べました`, "high");
 			} catch {
 				this.ctx.pushEvent(
-					"reactive_eat",
+					"reactive_eat_failed",
 					`${food.name} を食べようとしましたが中断されました`,
 					"high",
 				);
