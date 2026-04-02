@@ -5,6 +5,18 @@ user_invokable: true
 
 GitHub Issue の自動トリアージ・実装・マージを一連で行うスキル。
 
+## Phase 0: CI 失敗チェック
+
+Issue 選定の前に、main ブランチの CI が失敗していないか確認する。
+
+1. `gh run list --branch main --limit 5 --json status,conclusion,name,headSha,url` で最新の CI 実行結果を取得
+2. `conclusion` が `failure` のランがある場合:
+   - `gh run view <run-id> --log-failed` で失敗ログを確認
+   - 作業ブランチ `auto/fix-ci-<short-description>` を作成
+   - 失敗の原因を分析・修正し、PR を作成・マージする（Phase 3〜4 と同じ手順）
+   - 修正完了後、Phase 1 に進む
+3. CI が全て成功している場合はそのまま Phase 1 に進む
+
 ## Phase 1: Issue 選定
 
 1. `gh issue list --state open --limit 20 --json number,title,labels,createdAt` で Issue 一覧を取得
