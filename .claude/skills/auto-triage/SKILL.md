@@ -44,11 +44,27 @@ CLAUDE.md のワークフローに従って実装する。
 
 1. `--worktree` モードで起動されている場合、worktree のブランチをそのまま使う。手動実行の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
 2. Plan サブエージェントでタスク分解・スコープ特定
-3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、適切なパターンで agent team を運用:
+3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、適切なパターンで実装:
    - 新機能: spec → verify → impl → test → verify
    - バグ修正: spec → impl → verify
    - リファクタ: verify → impl → verify
 4. こまめにコミット
+
+### 重要: Agent Teams ではなく Agent サブエージェントを使う
+
+このスキルは非対話モード（`-p` フラグ）で実行されるため、**Agent Teams（`TeamCreate` + チームメイト）は使用禁止**。チームメイトは非同期で動作するため、Team Lead が `end_turn` した後にチームメイトの出力が stdout に流れず、watchdog にタイムアウトで kill される。
+
+代わりに **Agent ツールのサブエージェント（`subagent_type: "general-purpose"`、`team_name` なし）** を使うこと。サブエージェントはブロッキング呼び出しなので、結果が tool result として返り、stdout 出力が途切れない。
+
+```
+# NG: チームメイト（非同期、出力が途切れる）
+TeamCreate → Agent(team_name: "xxx", ...)  → end_turn → watchdog kill
+
+# OK: サブエージェント（ブロッキング、結果が返る）
+Agent(subagent_type: "general-purpose", prompt: "...")  → tool result で結果を受け取る
+```
+
+CLAUDE.md の「Team Lead はチームメイト専用スキルを自分で直接使用してはならない」ルールは、このスキルでは適用外とする。各スキル（`spec`, `impl`, `test`, `verify`）のプロンプトをサブエージェントに渡して実行すること。
 
 ## Phase 4: レビューとマージ
 
