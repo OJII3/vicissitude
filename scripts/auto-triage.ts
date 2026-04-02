@@ -97,6 +97,17 @@ async function runOnce(): Promise<number> {
 				logFile,
 			);
 			proc.kill("SIGTERM");
+			// SIGTERM が無視された場合に備え、10 秒後に SIGKILL で強制終了
+			setTimeout(() => {
+				try {
+					// プロセス生存チェック（signal 0 は kill せず存在確認のみ）
+					process.kill(proc.pid, 0);
+					tee(`[${formatTimestamp()}] watchdog: SIGTERM ignored, sending SIGKILL`, logFile);
+					proc.kill("SIGKILL");
+				} catch {
+					// already dead
+				}
+			}, 10_000);
 			clearInterval(watchdog);
 		}
 	}, 60_000);
