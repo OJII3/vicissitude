@@ -3,7 +3,9 @@
 	"private": true,
 	"module": "src/index.ts",
 	"exports": {
-		"./config": "./src/config.ts"
+		"./config": "./src/config.ts",
+		"./gateway/discord": "./src/gateway/discord.ts",
+		"./gateway/channel-config-loader": "./src/gateway/channel-config-loader.ts"
 	},
 	"dependencies": {
 		"discord.js": "^14.25.1",

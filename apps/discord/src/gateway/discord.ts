@@ -67,12 +67,15 @@ export class DiscordGateway {
 
 		this.registerMessageHandler(client);
 		this.registerReactionHandler(client);
+		this.registerThreadUpdateHandler(client);
 
 		this.logger.info(
 			`[discord] connecting... (homeChannels=${this.homeChannelIds.size}, handler=${!!this.handler}, homeHandler=${!!this.homeChannelHandler})`,
 		);
 		await client.login(this.token);
 		this.client = client;
+
+		this.joinHomeThreads(client);
 	}
 
 	stop(): void {
@@ -140,6 +143,38 @@ export class DiscordGateway {
 		for (const match of message.content.matchAll(CUSTOM_EMOJI_RE)) {
 			const name = match[1];
 			if (name) this.emojiUsedHandler(message.guildId, name);
+		}
+	}
+
+	private registerThreadUpdateHandler(client: Client): void {
+		client.on(Events.ThreadUpdate, (_oldThread, newThread) => {
+			if (!this.homeChannelIds.has(newThread.id)) return;
+			if (!newThread.archived) return;
+			newThread.setArchived(false).catch((err) => {
+				this.logger.warn("[discord] failed to unarchive home thread:", err);
+			});
+		});
+	}
+
+	private joinHomeThreads(client: Client): void {
+		for (const id of this.homeChannelIds) {
+			void this.joinIfThread(client, id);
+		}
+	}
+
+	private async joinIfThread(client: Client, id: string): Promise<void> {
+		try {
+			const channel = await client.channels.fetch(id);
+			if (
+				channel &&
+				"isThread" in channel &&
+				typeof channel.isThread === "function" &&
+				channel.isThread()
+			) {
+				await (channel as { join: () => Promise<unknown> }).join();
+			}
+		} catch (err) {
+			this.logger.warn(`[discord] failed to join home thread ${id}:`, err);
 		}
 	}
 
