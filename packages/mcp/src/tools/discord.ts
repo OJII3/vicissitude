@@ -14,12 +14,12 @@ const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 function validateFilePath(filePath: string): void {
 	const absolute = path.resolve(filePath);
 	if (!existsSync(absolute)) {
-		throw new Error(`ファイルが見つかりません: ${filePath}`);
+		throw new Error(`File not found: ${filePath}`);
 	}
 	const resolved = realpathSync(absolute);
 	const allowed = ALLOWED_FILE_DIRS.some((dir) => resolved.startsWith(dir + "/"));
 	if (!allowed) {
-		throw new Error(`許可されていないファイルパスです: ${filePath}`);
+		throw new Error(`File path not allowed: ${filePath}`);
 	}
 }
 
@@ -113,11 +113,12 @@ export function registerDiscordTools(
 	server.registerTool(
 		"send_message",
 		{
-			description: "Send a message to a Discord channel (optionally with a file attachment)",
+			description:
+				"Send a message to a Discord channel (optionally with a file attachment). Also clears any active typing indicator.",
 			inputSchema: {
 				channel_id: z.string(),
 				content: z.string(),
-				file_path: z.string().optional().describe("添付するファイルのパス"),
+				file_path: z.string().optional().describe("Path to a file to attach"),
 			},
 		},
 		async ({ channel_id, content, file_path }) => {
@@ -139,12 +140,12 @@ export function registerDiscordTools(
 		"reply",
 		{
 			description:
-				"Reply to a specific message in a Discord channel (optionally with a file attachment)",
+				"Reply to a specific message in a Discord channel (optionally with a file attachment). Also clears any active typing indicator.",
 			inputSchema: {
 				channel_id: z.string(),
 				message_id: z.string(),
 				content: z.string(),
-				file_path: z.string().optional().describe("添付するファイルのパス"),
+				file_path: z.string().optional().describe("Path to a file to attach"),
 			},
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
@@ -189,7 +190,7 @@ export function registerDiscordTools(
 			const messages = await channel.messages.fetch({ limit });
 			const formatted = messages.map((m) => {
 				const imageUrls = filterImageUrls(m.attachments);
-				const imageText = imageUrls.length > 0 ? ` [画像: ${imageUrls.join(", ")}]` : "";
+				const imageText = imageUrls.length > 0 ? ` [images: ${imageUrls.join(", ")}]` : "";
 				return `[${m.author.tag}] ${m.content}${imageText}`;
 			});
 			return { content: [{ type: "text", text: formatted.join("\n") }] };
@@ -205,7 +206,7 @@ export function registerDiscordTools(
 		async ({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const guild = await discordClient.guilds.fetch(gid);
 			const channels = await guild.channels.fetch();
