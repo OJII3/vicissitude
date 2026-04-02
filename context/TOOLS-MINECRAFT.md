@@ -38,11 +38,28 @@ Minecraft ワールドに接続中のボットを操作する。
 - `stop` - 現在のジョブ（移動・追従・採集・クラフト・就寝）を停止する
 - `get_job_status(limit?)` - 現在のジョブ状態と直近のジョブ履歴を取得する
   - limit: 取得するジョブ履歴数（デフォルト: 5、最大: 20）
-  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` / `attack_entity` / `eat_food` / `flee_from_entity` / `find_shelter` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
+  - **ジョブシステム**: `follow_player` / `go_to` / `collect_block` / `craft_item` / `sleep_in_bed` / `attack_entity` / `eat_food` / `flee_from_entity` / `find_shelter` / `search_for_block` / `explore_direction` は非同期ジョブとして実行され、即座に jobId を返す。ジョブは1つのみ同時実行可能で、新ジョブ開始時に既存ジョブは自動キャンセルされる。`observe_state` の行動欄や `get_job_status` でジョブの進捗を確認できる。
 - `get_viewer_url` - Minecraft ビューアーの URL を返す
   - prismarine-viewer ベースの Web ビューアー（ブラウザで 3D ワールドをリアルタイム表示）
   - ボット未接続時はエラーメッセージを返す
   - デフォルトポート: 3007（`MC_VIEWER_PORT` 環境変数で変更可能）
+
+### 探索・環境クエリ
+
+- `search_for_block(blockName, maxRadius?)` - 指定ブロックを段階的に探索範囲を広げて検索する（非同期ジョブ: 即座に jobId を返す、採集はしない）
+  - maxRadius: 最大探索半径（デフォルト: 128、最大: 256）
+  - 探索順: 16 → 32 → 64 → 128 → maxRadius の順に段階的に拡大
+  - `collect_block` で見つからなかった場合の次の手段として使う
+- `explore_direction(direction?, distance?)` - 指定方向に移動して新しいエリアを開拓する（非同期ジョブ: 即座に jobId を返す）
+  - direction: "north" | "south" | "east" | "west"（省略時: ランダム）
+  - distance: 移動距離（デフォルト: 100、最大: 256）
+- `nearby_blocks(maxDistance?)` - 周辺ブロックの種類と数を返す
+  - maxDistance: 探索範囲（デフォルト: 16、最大: 32）
+  - 空気ブロックは除外される
+  - 出力: ブロック名とサンプリング数（多い順）
+- `craftable_items` - 現在のインベントリでクラフト可能なアイテム一覧を返す
+  - 作業台が必要なアイテムには「(要作業台)」が付く
+- `get_biome` - 現在のバイオーム名を返す
 
 ### 戦闘・サバイバル
 
