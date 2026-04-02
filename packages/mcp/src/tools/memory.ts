@@ -38,7 +38,7 @@ export function registerMemoryTools(
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return {
-					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
+					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
 					isError: true,
 				};
 			}
@@ -76,7 +76,7 @@ export function registerMemoryTools(
 					content: [
 						{
 							type: "text",
-							text: `memory_retrieve エラー: ${error instanceof Error ? error.message : String(error)}`,
+							text: `memory_retrieve error: ${error instanceof Error ? error.message : String(error)}`,
 						},
 					],
 					isError: true,
@@ -124,7 +124,7 @@ export function registerMemoryTools(
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return {
-					content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }],
+					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
 					isError: true,
 				};
 			}
@@ -156,7 +156,7 @@ export function registerMemoryTools(
 					content: [
 						{
 							type: "text",
-							text: `memory_get_facts エラー: ${error instanceof Error ? error.message : String(error)}`,
+							text: `memory_get_facts error: ${error instanceof Error ? error.message : String(error)}`,
 						},
 					],
 					isError: true,

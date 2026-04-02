@@ -64,7 +64,7 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 		({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const config = loadConfig();
 			const visible = filterRemindersByGuild(config.reminders, gid);
@@ -146,13 +146,13 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 		}) => {
 			const resolvedGuildId = boundGuildId ?? guild_id;
 			if (!resolvedGuildId) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const config = loadConfig();
 
 			if (config.reminders.some((r) => r.id === id)) {
 				return {
-					content: [{ type: "text" as const, text: `エラー: ID "${id}" は既に存在します` }],
+					content: [{ type: "text" as const, text: `Error: ID "${id}" already exists` }],
 				};
 			}
 
@@ -162,7 +162,7 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 			if (schedule_type === "interval") {
 				if (interval_minutes === undefined) {
 					return {
-						content: [{ type: "text" as const, text: "エラー: interval_minutes が必要です" }],
+						content: [{ type: "text" as const, text: "Error: interval_minutes is required" }],
 					};
 				}
 				reminder = {
@@ -237,14 +237,14 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 		}) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `Error: ID "${id}" not found` }],
 				};
 			}
 
@@ -253,7 +253,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 					content: [
 						{
 							type: "text" as const,
-							text: `エラー: リマインダー "${id}" は他のギルドに属しているため更新できません`,
+							text: `Error: reminder "${id}" belongs to another guild and cannot be updated`,
 						},
 					],
 				};
@@ -291,14 +291,14 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const config = loadConfig();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
 				return {
-					content: [{ type: "text" as const, text: `エラー: ID "${id}" が見つかりません` }],
+					content: [{ type: "text" as const, text: `Error: ID "${id}" not found` }],
 				};
 			}
 
@@ -307,7 +307,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 					content: [
 						{
 							type: "text" as const,
-							text: `エラー: リマインダー "${id}" は他のギルドに属しているため削除できません`,
+							text: `Error: reminder "${id}" belongs to another guild and cannot be removed`,
 						},
 					],
 				};
