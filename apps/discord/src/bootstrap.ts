@@ -46,6 +46,7 @@ import { spawn, type Subprocess } from "bun";
 import { type AppConfig, loadConfig } from "./config.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
+import { createPortLayout } from "./port-allocator.ts";
 
 // ─── Store Layer ────────────────────────────────────────────────
 
@@ -208,10 +209,10 @@ interface MemoryResources {
 export function setupMemoryRecording(
 	config: AppConfig,
 	logger: Logger,
+	memoryPort: number,
 	metricsCollector?: PrometheusCollector,
 	embeddingAdapter?: OllamaEmbeddingAdapter,
 ): MemoryResources | undefined {
-	const memoryPort = config.opencode.basePort - 2;
 	const dataDir = resolve(config.dataDir, "memory");
 
 	try {
@@ -466,8 +467,11 @@ export async function bootstrap(): Promise<void> {
 	const coreReady = startCoreMcp(config, root, logger);
 	const mcReady = startMinecraftMcp(config, root, logger);
 
-	// Guild agents
+	// Port layout
 	const guildIds = channelConfig.getGuildIds();
+	const ports = createPortLayout(config.opencode.basePort, guildIds.length);
+
+	// Guild agents
 	const summaryWriter = createFileSessionSummaryWriter(resolve(root, "data/context"));
 	const agents = createGuildAgents(config, guildIds, {
 		db,
@@ -479,7 +483,13 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Memory recording
-	const memoryResources = setupMemoryRecording(config, logger, metrics.collector, ollamaEmbedding);
+	const memoryResources = setupMemoryRecording(
+		config,
+		logger,
+		ports.memory(),
+		metrics.collector,
+		ollamaEmbedding,
+	);
 	const ingestionService = new MessageIngestionService({
 		eventStore: new SqliteBufferedEventStore(db),
 		logger,
@@ -510,8 +520,6 @@ export async function bootstrap(): Promise<void> {
 	);
 
 	// Heartbeat 専用エージェント（ユーザーメッセージとセッションを分離し、遅延を防ぐ）
-	// ポート割り当て: guild[0..N-1], minecraft[N], heartbeat[N+1..2N]
-	const heartbeatPortOffset = guildIds.length + 1;
 	const heartbeatAgents = createGuildAgents(config, guildIds, {
 		db,
 		sessionStore,
@@ -519,7 +527,7 @@ export async function bootstrap(): Promise<void> {
 		logger,
 		metrics: metrics.collector,
 		agentIdPrefix: "discord:heartbeat",
-		portOffset: heartbeatPortOffset,
+		portOffset: ports.heartbeatOffset,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {
@@ -559,9 +567,7 @@ export async function bootstrap(): Promise<void> {
 			sessionStore,
 			logger,
 			root,
-			// ポート割り当て: guild[0..N-1], minecraft[N], heartbeat[N+1..2N]
-			// Minecraft は従来通り basePort + N を使用
-			opencodePort: config.opencode.basePort + guildIds.length,
+			opencodePort: ports.minecraft(),
 			providerId: config.mcBrain.providerId,
 			modelId: config.mcBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
