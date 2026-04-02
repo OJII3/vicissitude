@@ -154,7 +154,64 @@ async function runOnce(): Promise<number> {
 	const exitCode = await proc.exited;
 	const suffix = stalled ? " (killed by watchdog)" : "";
 	tee(`[${formatTimestamp()}] auto-triage finished (exit: ${String(exitCode)})${suffix}`, logFile);
+
+	await cleanupWorktrees(logFile);
+
 	return exitCode;
+}
+
+/** マージ済み or 不要な worktree を削除する */
+async function cleanupWorktrees(logFile: string): Promise<void> {
+	const listProc = Bun.spawn(["git", "worktree", "list", "--porcelain"], {
+		cwd: PROJECT_DIR,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const listOut = await new Response(listProc.stdout).text();
+	await listProc.exited;
+
+	// porcelain 形式: "worktree <path>\nHEAD <sha>\nbranch <ref>\n\n" のブロック
+	const worktrees: { path: string; branch: string }[] = [];
+	for (const block of listOut.split("\n\n")) {
+		const pathMatch = block.match(/^worktree (.+)$/m);
+		const branchMatch = block.match(/^branch (.+)$/m);
+		if (pathMatch?.[1] && branchMatch?.[1]) {
+			worktrees.push({ path: pathMatch[1], branch: branchMatch[1] });
+		}
+	}
+
+	// メインリポジトリは除外、.claude/worktrees/ 配下のみ対象
+	const worktreeDir = resolve(PROJECT_DIR, ".claude/worktrees");
+	const targets = worktrees.filter((w) => w.path.startsWith(worktreeDir));
+
+	let cleaned = 0;
+	for (const wt of targets) {
+		const removeProc = Bun.spawn(["git", "worktree", "remove", "--force", wt.path], {
+			cwd: PROJECT_DIR,
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		// eslint-disable-next-line no-await-in-loop -- worktree 削除は順次実行が安全
+		const removeErr = await new Response(removeProc.stderr).text();
+		// eslint-disable-next-line no-await-in-loop -- 同上
+		const removeExit = await removeProc.exited;
+		if (removeExit === 0) {
+			cleaned++;
+			// worktree 用に作られたローカルブランチも削除
+			const shortBranch = wt.branch.replace("refs/heads/", "");
+			Bun.spawn(["git", "branch", "-D", shortBranch], {
+				cwd: PROJECT_DIR,
+				stdout: "ignore",
+				stderr: "ignore",
+			});
+		} else if (removeErr.includes("dirty")) {
+			tee(`[cleanup] skipped (dirty): ${wt.path}`, logFile);
+		}
+	}
+
+	if (cleaned > 0) {
+		tee(`[cleanup] removed ${String(cleaned)} worktree(s)`, logFile);
+	}
 }
 
 async function main(): Promise<void> {
