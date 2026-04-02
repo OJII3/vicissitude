@@ -65,6 +65,7 @@ function makeBot(options?: {
 // ---------------------------------------------------------------------------
 
 type GetBot = () => ReturnType<typeof makeBot> | null;
+const nullBot: GetBot = () => null;
 
 type RegisterNearbyBlocks = (server: McpServer, getBot: GetBot) => void;
 type RegisterCraftableItems = (server: McpServer, getBot: GetBot) => void;
@@ -74,8 +75,6 @@ function textOf(result: unknown): string {
 	const r = result as { content: { text: string }[] };
 	return r.content[0]?.text ?? "";
 }
-
-const nullBot: GetBot = () => null;
 
 // ---------------------------------------------------------------------------
 // nearby_blocks 仕様テスト
@@ -101,7 +100,6 @@ describe("nearby_blocks", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerNearbyBlocks = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-
 		registerNearbyBlocks(server, nullBot as never);
 
 		const tool = getTool("nearby_blocks");
@@ -169,7 +167,6 @@ describe("craftable_items", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerCraftableItems = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-
 		registerCraftableItems(server, nullBot as never);
 
 		const tool = getTool("craftable_items");
@@ -239,7 +236,6 @@ describe("get_biome", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerGetBiome = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-
 		registerGetBiome(server, nullBot as never);
 
 		const tool = getTool("get_biome");

@@ -9,12 +9,17 @@ graph LR
   actions_combat["actions/combat"] --> actions_shared["actions/shared"]
   actions_combat["actions/combat"] --> bot_queries["bot-queries"]
   actions_combat["actions/combat"] --> job_manager["job-manager"]
-  actions_index["actions/index"] --> actions_combat["actions/combat"]
+  actions_exploration["actions/exploration"] --> actions_shared["actions/shared"]
+  actions_exploration["actions/exploration"] --> job_manager["job-manager"]
+  actions_explore_tools["actions/explore-tools"] --> actions_combat["actions/combat"]
+  actions_explore_tools["actions/explore-tools"] --> actions_exploration["actions/exploration"]
+  actions_explore_tools["actions/explore-tools"] --> actions_queries["actions/queries"]
+  actions_explore_tools["actions/explore-tools"] --> actions_smelting["actions/smelting"]
+  actions_index["actions/index"] --> actions_explore_tools["actions/explore-tools"]
   actions_index["actions/index"] --> actions_interaction["actions/interaction"]
   actions_index["actions/index"] --> actions_jobs["actions/jobs"]
   actions_index["actions/index"] --> actions_movement["actions/movement"]
   actions_index["actions/index"] --> actions_shared["actions/shared"]
-  actions_index["actions/index"] --> actions_smelting["actions/smelting"]
   actions_index["actions/index"] --> actions_survival_index["actions/survival/index"]
   actions_index["actions/index"] --> job_manager["job-manager"]
   actions_interaction["actions/interaction"] --> actions_shared["actions/shared"]
@@ -23,6 +28,7 @@ graph LR
   actions_movement["actions/movement"] --> actions_shared["actions/shared"]
   actions_movement["actions/movement"] --> bot_queries["bot-queries"]
   actions_movement["actions/movement"] --> job_manager["job-manager"]
+  actions_queries["actions/queries"] --> actions_shared["actions/shared"]
   actions_shared["actions/shared"] --> job_manager["job-manager"]
   actions_smelting["actions/smelting"] --> actions_shared["actions/shared"]
   actions_smelting["actions/smelting"] --> job_manager["job-manager"]
@@ -79,9 +85,18 @@ graph LR
 - モジュール内依存: actions/shared, bot-queries, job-manager
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
+### actions/exploration.ts
+
+- モジュール内依存: actions/shared, job-manager
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+
+### actions/explore-tools.ts
+
+- モジュール内依存: actions/combat, actions/exploration, actions/queries, actions/smelting
+
 ### actions/index.ts
 
-- モジュール内依存: actions/combat, actions/interaction, actions/jobs, actions/movement, actions/shared, actions/smelting, actions/survival/index, job-manager
+- モジュール内依存: actions/explore-tools, actions/interaction, actions/jobs, actions/movement, actions/shared, actions/survival/index, job-manager
 - 他モジュール依存: shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
@@ -99,6 +114,11 @@ graph LR
 ### actions/movement.ts
 
 - モジュール内依存: actions/shared, bot-queries, job-manager
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+
+### actions/queries.ts
+
+- モジュール内依存: actions/shared
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### actions/shared.ts
