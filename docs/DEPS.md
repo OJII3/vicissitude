@@ -81,8 +81,8 @@ graph LR
 ### apps/web
 
 - 内部依存: shared
-- 外部依存: .bun, three/addons/loaders/GLTFLoader.js
-- ファイル数: 10
+- 外部依存: ./routeTree.gen, .bun, three/addons/loaders/GLTFLoader.js
+- ファイル数: 9
 
 ### avatar
 
@@ -118,7 +118,7 @@ graph LR
 
 - 内部依存: mcp, observability, shared, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
-- ファイル数: 27
+- ファイル数: 30
 
 ### observability
 

@@ -91,13 +91,12 @@ function makeBot(options?: { blocksByName?: Record<string, { id: number }> }) {
 // 仕様テスト: MCP ツール登録関数を直接テストする
 // GetBot 型: () => mineflayer.Bot | null
 type GetBot = () => ReturnType<typeof makeBot> | null;
+const nullBot: GetBot = () => null;
 
 // 登録関数の型定義（実装前の仕様）
 type RegisterSearchForBlock = (server: McpServer, getBot: GetBot, jobManager: JobManager) => void;
 
 type RegisterExploreDirection = (server: McpServer, getBot: GetBot, jobManager: JobManager) => void;
-
-const nullBot: GetBot = () => null;
 
 // ---------------------------------------------------------------------------
 // search_for_block 仕様テスト
@@ -128,7 +127,6 @@ describe("search_for_block", () => {
 		const registerSearchForBlock = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
 		const { jobManager } = makeMockJobManager();
-
 		registerSearchForBlock(server, nullBot as never, jobManager);
 
 		const tool = getTool("search_for_block");
@@ -214,7 +212,6 @@ describe("explore_direction", () => {
 		const registerExploreDirection = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
 		const { jobManager } = makeMockJobManager();
-
 		registerExploreDirection(server, nullBot as never, jobManager);
 
 		const tool = getTool("explore_direction");
