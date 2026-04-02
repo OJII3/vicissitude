@@ -44,11 +44,38 @@ CLAUDE.md のワークフローに従って実装する。
 
 1. `--worktree` モードで起動されている場合、worktree のブランチをそのまま使う。手動実行の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
 2. Plan サブエージェントでタスク分解・スコープ特定
-3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、適切なパターンで agent team を運用:
+3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、適切なパターンで実装:
    - 新機能: spec → verify → impl → test → verify
    - バグ修正: spec → impl → verify
    - リファクタ: verify → impl → verify
 4. こまめにコミット
+
+### 重要: Agent Teams ではなく Agent サブエージェントを使う
+
+このスキルは非対話モード（`-p` フラグ）で実行される。CLAUDE.md の委譲ルールの非対話モード例外に基づき、**Agent Teams（`TeamCreate` + チームメイト）ではなく Agent サブエージェント（ブロッキング呼び出し）** を使用する。
+
+```
+# NG: チームメイト（非同期、stdout が途切れて watchdog kill される）
+TeamCreate → Agent(team_name: "xxx", ...)  → end_turn → watchdog kill
+
+# OK: サブエージェント（ブロッキング、結果が tool result で返る）
+Agent(subagent_type: "general-purpose", prompt: "...")  → tool result で結果を受け取る
+```
+
+### サブエージェント呼び出し時の情報境界
+
+CLAUDE.md の「Agent Team におけるチームメイトの情報境界」と同じルールを、サブエージェントのプロンプト構成に適用する。
+
+| サブエージェント役割 | プロンプトに含めるもの                 | プロンプトに含めないもの        |
+| -------------------- | -------------------------------------- | ------------------------------- |
+| spec 役              | タスク説明・既存 `*.spec.ts`・plan出力 | 実装コード・`*.test.ts`         |
+| impl 役              | `*.spec.ts`・型定義・スコープ          | `*.test.ts`・他モジュールの実装 |
+| test 役              | 実装コード・`*.spec.ts`                | 他モジュール                    |
+| verify 役            | `*.spec.ts` のパス・実行結果・plan出力 | 実装の中身                      |
+
+### コミット責務
+
+サブエージェントはコミットしない。コミットは auto-triage エージェント自身が行う。各サブエージェントの作業完了後にまとめてコミットすること。
 
 ## Phase 4: レビューとマージ
 
