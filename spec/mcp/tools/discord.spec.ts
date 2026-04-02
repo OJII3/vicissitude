@@ -161,7 +161,7 @@ describe("read_messages", () => {
 		expect(result.content[0]!.text).toContain("[user#1234] hello world");
 	});
 
-	test("画像添付がある場合は [画像: url] を表示する", async () => {
+	test("画像添付がある場合は [images: url] を表示する", async () => {
 		const { tools } = captureTools({
 			discordClient: createClientStubWithImageAttachments(),
 		});
@@ -173,7 +173,7 @@ describe("read_messages", () => {
 		})) as ToolResult;
 
 		expect(result.content[0]!.text).toContain("[user#5678] 写真だよ");
-		expect(result.content[0]!.text).toContain("[画像: https://cdn.example.com/img.png]");
+		expect(result.content[0]!.text).toContain("[images: https://cdn.example.com/img.png]");
 	});
 
 	test("複数画像添付がある場合はカンマ区切りでまとめて表示する", async () => {
@@ -189,7 +189,7 @@ describe("read_messages", () => {
 
 		expect(result.content[0]!.text).toContain("[user#9999] 複数画像だよ");
 		expect(result.content[0]!.text).toContain(
-			"[画像: https://cdn.example.com/img1.png, https://cdn.example.com/img2.jpg]",
+			"[images: https://cdn.example.com/img1.png, https://cdn.example.com/img2.jpg]",
 		);
 	});
 });
