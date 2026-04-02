@@ -80,7 +80,7 @@ mock.module("discord.js", () => {
 		Client: class MockedClient {
 			constructor() {
 				const { mockClient } = currentMockClient;
-				return mockClient as unknown;
+				return mockClient as unknown as MockedClient;
 			}
 		},
 	};
