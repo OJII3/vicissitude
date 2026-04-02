@@ -16,6 +16,11 @@ const DEFAULT_FLEE_DISTANCE = 8;
 /** 拡張距離が適用される mob */
 const EXTENDED_DISTANCE_MOBS = new Set(["creeper", "warden"]);
 
+type HostileTarget = {
+	entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
+	distance: number;
+};
+
 export interface ReactiveLayerOptions {
 	/** hostile mob スキャンの最小間隔（ms）。デフォルト: 1000 */
 	scanIntervalMs?: number;
@@ -123,15 +128,9 @@ export class ReactiveLayer {
 		}
 	}
 
-	private findNearestHostile(bot: mineflayer.Bot): {
-		entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
-		distance: number;
-	} | null {
+	private findNearestHostile(bot: mineflayer.Bot): HostileTarget | null {
 		const botPos = bot.entity.position;
-		let nearest: {
-			entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
-			distance: number;
-		} | null = null;
+		let nearest: HostileTarget | null = null;
 
 		for (const entity of Object.values(bot.entities)) {
 			const e = entity as {
@@ -171,13 +170,7 @@ export class ReactiveLayer {
 		}
 	}
 
-	private async handleFlee(
-		bot: mineflayer.Bot,
-		hostile: {
-			entity: { position: { distanceTo: (pos: unknown) => number }; name?: string };
-			distance: number;
-		},
-	): Promise<void> {
+	private async handleFlee(bot: mineflayer.Bot, hostile: HostileTarget): Promise<void> {
 		this.cancelJobIfNeeded();
 		this.ctx.setActionState({ type: "fleeing", target: hostile.entity.name });
 
