@@ -6,6 +6,8 @@ const LOG_DIR = resolve(PROJECT_DIR, "logs/auto-triage");
 const MAX_BUDGET_USD = 10;
 /** 1 hour */
 const INTERVAL_SEC = 1 * 60 * 60;
+/** 30 minutes — kill claude if no stdout output for this duration */
+const STALL_TIMEOUT_MS = 30 * 60 * 1000;
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
@@ -84,6 +86,21 @@ async function runOnce(): Promise<number> {
 		},
 	);
 
+	// Watchdog: stdout が一定時間途絶えたらプロセスを強制終了
+	let lastOutputAt = Date.now();
+	let stalled = false;
+	const watchdog = setInterval(() => {
+		if (Date.now() - lastOutputAt > STALL_TIMEOUT_MS) {
+			stalled = true;
+			tee(
+				`[${formatTimestamp()}] watchdog: no output for ${String(STALL_TIMEOUT_MS / 60000)}min, killing claude (pid: ${String(proc.pid)})`,
+				logFile,
+			);
+			proc.kill("SIGTERM");
+			clearInterval(watchdog);
+		}
+	}, 60_000);
+
 	// stderr → logFile に追記（バックグラウンド）
 	const stderrDone = (async () => {
 		for await (const chunk of proc.stderr as AsyncIterable<Uint8Array>) {
@@ -95,6 +112,7 @@ async function runOnce(): Promise<number> {
 	const decoder = new TextDecoder();
 	let buffer = "";
 	for await (const chunk of proc.stdout as AsyncIterable<Uint8Array>) {
+		lastOutputAt = Date.now();
 		buffer += decoder.decode(chunk, { stream: true });
 		let newlineIdx: number;
 		while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
@@ -120,9 +138,11 @@ async function runOnce(): Promise<number> {
 		}
 	}
 
+	clearInterval(watchdog);
 	await stderrDone;
 	const exitCode = await proc.exited;
-	tee(`[${formatTimestamp()}] auto-triage finished (exit: ${String(exitCode)})`, logFile);
+	const suffix = stalled ? " (killed by watchdog)" : "";
+	tee(`[${formatTimestamp()}] auto-triage finished (exit: ${String(exitCode)})${suffix}`, logFile);
 	return exitCode;
 }
 
