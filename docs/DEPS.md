@@ -63,7 +63,7 @@ graph LR
 ### agent
 
 - 内部依存: minecraft, observability, opencode, shared, store
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, path
+- 外部依存: .bun, path
 - ファイル数: 19
 
 ### application
@@ -75,14 +75,14 @@ graph LR
 ### apps/discord
 
 - 内部依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
-- 外部依存: ../../../node_modules/.bun/@types+bun@1.3.9/node_modules/@types/bun/index.d.ts, ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, fs, path
+- 外部依存: .bun, fs, path
 - ファイル数: 6
 
 ### apps/web
 
 - 内部依存: shared
-- 外部依存: ../../../node_modules/.bun/three@0.183.2/node_modules/three/build/three.cjs, ./routeTree.gen, @pixiv/three-vrm, @react-three/drei, @react-three/fiber, @tanstack/react-router, react, react-dom/client, three/addons/loaders/GLTFLoader.js, vite/client
-- ファイル数: 9
+- 外部依存: .bun, three/addons/loaders/GLTFLoader.js
+- ファイル数: 10
 
 ### avatar
 
@@ -93,19 +93,19 @@ graph LR
 ### gateway
 
 - 内部依存: avatar, observability, shared
-- 外部依存: ../../../node_modules/.bun/elysia@1.4.28/node_modules/elysia/dist/index.js
+- 外部依存: .bun
 - ファイル数: 4
 
 ### infrastructure
 
 - 内部依存: application, shared, store
-- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js
+- 外部依存: .bun
 - ファイル数: 6
 
 ### mcp
 
 - 内部依存: agent, infrastructure, memory, minecraft, observability, ollama, scheduling, shared, store
-- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, @modelcontextprotocol/sdk/server/webStandardStreamableHttp.js, fs, path
 - ファイル数: 15
 
 ### memory
@@ -117,7 +117,7 @@ graph LR
 ### minecraft
 
 - 内部依存: mcp, observability, shared, store
-- 外部依存: ../../../node_modules/.bun/mineflayer-pathfinder@2.4.5/node_modules/mineflayer-pathfinder/index.js, ../../../node_modules/.bun/mineflayer@4.35.0/node_modules/mineflayer/index.js, ../../../node_modules/.bun/prismarine-viewer@1.33.0/node_modules/prismarine-viewer/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path, prismarine-entity, prismarine-recipe, vec3
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js, path
 - ファイル数: 27
 
 ### observability
@@ -141,19 +141,19 @@ graph LR
 ### scheduling
 
 - 内部依存: application, observability, shared
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, fs, path
+- 外部依存: .bun, fs, path
 - ファイル数: 7
 
 ### shared
 
 - 内部依存: なし
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, path
+- 外部依存: .bun, path
 - ファイル数: 14
 
 ### store
 
 - 内部依存: shared
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/bun-sqlite/index.js, ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs, ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/sqlite-core/index.js, bun:sqlite, fs, path
+- 外部依存: .bun, bun:sqlite, fs, path
 - ファイル数: 13
 
 ### tts
