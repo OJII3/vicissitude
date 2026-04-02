@@ -23,6 +23,10 @@ describe("createPortLayout", () => {
 		expect(ports.heartbeat(2)).toBe(4102);
 	});
 
+	test("heartbeatOffset returns guildCount + 1", () => {
+		expect(ports.heartbeatOffset).toBe(4);
+	});
+
 	test("memory() returns basePort - 2", () => {
 		expect(ports.memory()).toBe(4094);
 	});

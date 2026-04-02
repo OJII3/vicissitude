@@ -527,7 +527,7 @@ export async function bootstrap(): Promise<void> {
 		logger,
 		metrics: metrics.collector,
 		agentIdPrefix: "discord:heartbeat",
-		portOffset: ports.heartbeat(0) - config.opencode.basePort,
+		portOffset: ports.heartbeatOffset,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {
