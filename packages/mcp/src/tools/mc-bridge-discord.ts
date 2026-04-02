@@ -68,7 +68,7 @@ export function registerDiscordBridgeTools(
 		({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const lock = tryAcquireSessionLock(db, gid);
 			if (!lock.ok) {
@@ -103,7 +103,7 @@ export function registerDiscordBridgeTools(
 		({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
-				return { content: [{ type: "text" as const, text: "エラー: guild_id が必要です" }] };
+				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
 			const released = releaseSessionLock(db, gid);
 			if (!released) {
