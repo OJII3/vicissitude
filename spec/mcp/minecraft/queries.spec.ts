@@ -75,6 +75,8 @@ function textOf(result: unknown): string {
 	return r.content[0]?.text ?? "";
 }
 
+const nullBot: GetBot = () => null;
+
 // ---------------------------------------------------------------------------
 // nearby_blocks 仕様テスト
 // ---------------------------------------------------------------------------
@@ -99,9 +101,8 @@ describe("nearby_blocks", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerNearbyBlocks = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-		const getBot: GetBot = () => null;
 
-		registerNearbyBlocks(server, getBot as never);
+		registerNearbyBlocks(server, nullBot as never);
 
 		const tool = getTool("nearby_blocks");
 		expect(tool).toBeDefined();
@@ -168,9 +169,8 @@ describe("craftable_items", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerCraftableItems = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-		const getBot: GetBot = () => null;
 
-		registerCraftableItems(server, getBot as never);
+		registerCraftableItems(server, nullBot as never);
 
 		const tool = getTool("craftable_items");
 		expect(tool).toBeDefined();
@@ -239,9 +239,8 @@ describe("get_biome", () => {
 	test("ボット未接続時にエラーメッセージを返すこと", async () => {
 		const registerGetBiome = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
-		const getBot: GetBot = () => null;
 
-		registerGetBiome(server, getBot as never);
+		registerGetBiome(server, nullBot as never);
 
 		const tool = getTool("get_biome");
 		expect(tool).toBeDefined();

@@ -97,6 +97,8 @@ type RegisterSearchForBlock = (server: McpServer, getBot: GetBot, jobManager: Jo
 
 type RegisterExploreDirection = (server: McpServer, getBot: GetBot, jobManager: JobManager) => void;
 
+const nullBot: GetBot = () => null;
+
 // ---------------------------------------------------------------------------
 // search_for_block 仕様テスト
 // ---------------------------------------------------------------------------
@@ -126,9 +128,8 @@ describe("search_for_block", () => {
 		const registerSearchForBlock = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
 		const { jobManager } = makeMockJobManager();
-		const getBot: GetBot = () => null;
 
-		registerSearchForBlock(server, getBot as never, jobManager);
+		registerSearchForBlock(server, nullBot as never, jobManager);
 
 		const tool = getTool("search_for_block");
 		expect(tool).toBeDefined();
@@ -213,9 +214,8 @@ describe("explore_direction", () => {
 		const registerExploreDirection = await getRegisterFn();
 		const { server, getTool } = makeMockServer();
 		const { jobManager } = makeMockJobManager();
-		const getBot: GetBot = () => null;
 
-		registerExploreDirection(server, getBot as never, jobManager);
+		registerExploreDirection(server, nullBot as never, jobManager);
 
 		const tool = getTool("explore_direction");
 		expect(tool).toBeDefined();
