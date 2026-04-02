@@ -2,7 +2,15 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "@vicissitude/shared/types";
 
 import type { JobManager } from "../job-manager.ts";
-import { registerAttackEntity } from "./combat.ts";
+import {
+	registerAttackEntity,
+	registerSmeltItem,
+	registerSearchForBlock,
+	registerExploreDirection,
+	registerNearbyBlocks,
+	registerCraftableItems,
+	registerGetBiome,
+} from "./explore-tools.ts";
 import { registerSendChat, registerEquipItem, registerPlaceBlock } from "./interaction.ts";
 import { registerCraftItem, registerSleepInBed } from "./jobs.ts";
 import {
@@ -12,7 +20,6 @@ import {
 	registerStop,
 } from "./movement.ts";
 import type { GetBot } from "./shared.ts";
-import { registerSmeltItem } from "./smelting.ts";
 import { registerSurvivalTools } from "./survival/index.ts";
 
 export function registerActionTools(
@@ -33,4 +40,9 @@ export function registerActionTools(
 	registerSleepInBed(server, getBot, jobManager, logger);
 	registerSurvivalTools(server, getBot, jobManager);
 	registerAttackEntity(server, getBot, jobManager);
+	registerSearchForBlock(server, getBot, jobManager);
+	registerExploreDirection(server, getBot, jobManager);
+	registerNearbyBlocks(server, getBot);
+	registerCraftableItems(server, getBot);
+	registerGetBiome(server, getBot);
 }

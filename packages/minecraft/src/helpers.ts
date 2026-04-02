@@ -12,7 +12,9 @@ export interface ActionState {
 		| "sleeping"
 		| "fleeing"
 		| "sheltering"
-		| "attacking";
+		| "attacking"
+		| "searching"
+		| "exploring";
 	target?: string;
 	jobId?: string;
 	progress?: string;
@@ -163,6 +165,12 @@ export function formatActionState(action: ActionState): string {
 			break;
 		case "attacking":
 			base = `${action.target ?? "?"} を攻撃中`;
+			break;
+		case "searching":
+			base = `${action.target ?? "?"} を探索中`;
+			break;
+		case "exploring":
+			base = `${action.target ?? "?"} 方面を探検中`;
 			break;
 	}
 	if (action.progress) base += ` (${action.progress})`;

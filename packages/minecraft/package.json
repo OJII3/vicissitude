@@ -19,6 +19,8 @@
 		"./actions/jobs": "./src/actions/jobs.ts",
 		"./actions/smelting": "./src/actions/smelting.ts",
 		"./actions/survival": "./src/actions/survival/index.ts",
+		"./actions/exploration": "./src/actions/exploration.ts",
+		"./actions/queries": "./src/actions/queries.ts",
 		"./reactive-layer": "./src/reactive-layer.ts"
 	},
 	"dependencies": {
