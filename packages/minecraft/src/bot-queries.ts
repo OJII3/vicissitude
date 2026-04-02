@@ -152,3 +152,30 @@ export function getEquipment(b: mineflayer.Bot): Record<string, string> {
 	if (hand) result.hand = hand.displayName ?? hand.name;
 	return result;
 }
+
+const AIR_BLOCKS = new Set(["air", "cave_air", "void_air"]);
+
+export function getNearbyBlockCounts(
+	bot: mineflayer.Bot,
+	maxDistance: number,
+): Map<string, number> {
+	const pos = bot.entity.position;
+	const cx = Math.floor(pos.x);
+	const cy = Math.floor(pos.y);
+	const cz = Math.floor(pos.z);
+	const counts = new Map<string, number>();
+	const yRange = Math.min(maxDistance, 8);
+
+	for (let dx = -maxDistance; dx <= maxDistance; dx += 2) {
+		for (let dz = -maxDistance; dz <= maxDistance; dz += 2) {
+			for (let dy = -yRange; dy <= yRange; dy += 2) {
+				const block = bot.blockAt({ x: cx + dx, y: cy + dy, z: cz + dz } as Vec3);
+				if (!block || AIR_BLOCKS.has(block.name)) continue;
+				counts.set(block.name, (counts.get(block.name) ?? 0) + 1);
+			}
+		}
+	}
+
+	// カウント降順ソート
+	return new Map([...counts.entries()].toSorted((a, b) => b[1] - a[1]));
+}

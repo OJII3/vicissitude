@@ -5,6 +5,7 @@ import type { Entity } from "prismarine-entity";
 import { z } from "zod";
 
 import { canPerceiveEntity, findPerceivedBlock } from "../bot-queries.ts";
+import { buildCollectBlockContext, buildGoToContext } from "../error-context.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -66,8 +67,9 @@ async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
 		updateProgress(`${String(collected)}/${String(count)} 採集済み`);
 	}
 	if (collected < count && !signal.aborted) {
+		const context = await buildCollectBlockContext(bot, blockName);
 		throw new Error(
-			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に ${blockName} が見つかりません`,
+			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に ${blockName} が見つかりません\n${context}`,
 		);
 	}
 }
@@ -166,7 +168,13 @@ export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobM
 			const started = tryStartJob(jobManager, "moving", coord, async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
-				await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
+				try {
+					await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
+				} catch (err) {
+					const context = await buildGoToContext(bot, { x, y, z: zCoord });
+					const msg = err instanceof Error ? err.message : String(err);
+					throw new Error(`${msg}\n${context}`, { cause: err });
+				}
 			});
 			if (!started.ok) return started.result;
 

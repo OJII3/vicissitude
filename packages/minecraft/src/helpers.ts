@@ -221,6 +221,25 @@ export function classifyFailure(error?: string): string {
 	return "survival failure";
 }
 
+// 主要鉱石の Y 座標分布テーブル
+export const ORE_Y_DISTRIBUTION: Record<string, { minY: number; maxY: number }> = {
+	diamond_ore: { minY: -64, maxY: 16 },
+	iron_ore: { minY: -64, maxY: 72 },
+	gold_ore: { minY: -64, maxY: 32 },
+	coal_ore: { minY: 0, maxY: 320 },
+	lapis_ore: { minY: -64, maxY: 64 },
+	redstone_ore: { minY: -64, maxY: 16 },
+	emerald_ore: { minY: -16, maxY: 320 },
+	copper_ore: { minY: -16, maxY: 112 },
+};
+
+// 鉱石名からY座標ヒント文字列を返す。鉱石でなければ null
+export function getOreHint(blockName: string): string | null {
+	const entry = ORE_Y_DISTRIBUTION[blockName];
+	if (!entry) return null;
+	return `${blockName} は Y=${String(entry.minY)}〜${String(entry.maxY)} に分布`;
+}
+
 export function totalTravelDistance(snapshots: { x: number; y: number; z: number }[]): number {
 	let total = 0;
 	for (let i = 1; i < snapshots.length; i++) {
