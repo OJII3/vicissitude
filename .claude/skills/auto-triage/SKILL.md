@@ -52,19 +52,30 @@ CLAUDE.md のワークフローに従って実装する。
 
 ### 重要: Agent Teams ではなく Agent サブエージェントを使う
 
-このスキルは非対話モード（`-p` フラグ）で実行されるため、**Agent Teams（`TeamCreate` + チームメイト）は使用禁止**。チームメイトは非同期で動作するため、Team Lead が `end_turn` した後にチームメイトの出力が stdout に流れず、watchdog にタイムアウトで kill される。
-
-代わりに **Agent ツールのサブエージェント（`subagent_type: "general-purpose"`、`team_name` なし）** を使うこと。サブエージェントはブロッキング呼び出しなので、結果が tool result として返り、stdout 出力が途切れない。
+このスキルは非対話モード（`-p` フラグ）で実行される。CLAUDE.md の委譲ルールの非対話モード例外に基づき、**Agent Teams（`TeamCreate` + チームメイト）ではなく Agent サブエージェント（ブロッキング呼び出し）** を使用する。
 
 ```
-# NG: チームメイト（非同期、出力が途切れる）
+# NG: チームメイト（非同期、stdout が途切れて watchdog kill される）
 TeamCreate → Agent(team_name: "xxx", ...)  → end_turn → watchdog kill
 
-# OK: サブエージェント（ブロッキング、結果が返る）
+# OK: サブエージェント（ブロッキング、結果が tool result で返る）
 Agent(subagent_type: "general-purpose", prompt: "...")  → tool result で結果を受け取る
 ```
 
-CLAUDE.md の「Team Lead はチームメイト専用スキルを自分で直接使用してはならない」ルールは、このスキルでは適用外とする。各スキル（`spec`, `impl`, `test`, `verify`）のプロンプトをサブエージェントに渡して実行すること。
+### サブエージェント呼び出し時の情報境界
+
+CLAUDE.md の「Agent Team におけるチームメイトの情報境界」と同じルールを、サブエージェントのプロンプト構成に適用する。
+
+| サブエージェント役割 | プロンプトに含めるもの                 | プロンプトに含めないもの        |
+| -------------------- | -------------------------------------- | ------------------------------- |
+| spec 役              | タスク説明・既存 `*.spec.ts`・plan出力 | 実装コード・`*.test.ts`         |
+| impl 役              | `*.spec.ts`・型定義・スコープ          | `*.test.ts`・他モジュールの実装 |
+| test 役              | 実装コード・`*.spec.ts`                | 他モジュール                    |
+| verify 役            | `*.spec.ts` のパス・実行結果・plan出力 | 実装の中身                      |
+
+### コミット責務
+
+サブエージェントはコミットしない。コミットは auto-triage エージェント自身が行う。各サブエージェントの作業完了後にまとめてコミットすること。
 
 ## Phase 4: レビューとマージ
 
