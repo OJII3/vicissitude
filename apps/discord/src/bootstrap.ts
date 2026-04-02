@@ -209,15 +209,17 @@ interface MemoryResources {
 export function setupMemoryRecording(
 	config: AppConfig,
 	logger: Logger,
-	memoryPort: number,
-	metricsCollector?: PrometheusCollector,
-	embeddingAdapter?: OllamaEmbeddingAdapter,
+	opts: {
+		memoryPort: number;
+		metricsCollector?: PrometheusCollector;
+		embeddingAdapter?: OllamaEmbeddingAdapter;
+	},
 ): MemoryResources | undefined {
 	const dataDir = resolve(config.dataDir, "memory");
 
 	try {
 		const memorySessionPort = new OpencodeSessionAdapter({
-			port: memoryPort,
+			port: opts.memoryPort,
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		});
@@ -229,13 +231,17 @@ export function setupMemoryRecording(
 		);
 
 		const ollama =
-			embeddingAdapter ??
+			opts.embeddingAdapter ??
 			new OllamaEmbeddingAdapter(config.memory.ollamaBaseUrl, config.memory.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 		const recorder = new MemoryConversationRecorder(llm, dataDir);
-		const consolidationScheduler = new ConsolidationScheduler(recorder, logger, metricsCollector);
+		const consolidationScheduler = new ConsolidationScheduler(
+			recorder,
+			logger,
+			opts.metricsCollector,
+		);
 
-		logger.info(`[bootstrap] Memory auto-recording enabled (port=${memoryPort})`);
+		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
 		return { chatAdapter, recorder, consolidationScheduler };
 	} catch (err) {
 		logger.error("[bootstrap] Memory auto-recording init failed, continuing without memory", err);
@@ -483,13 +489,11 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Memory recording
-	const memoryResources = setupMemoryRecording(
-		config,
-		logger,
-		ports.memory(),
-		metrics.collector,
-		ollamaEmbedding,
-	);
+	const memoryResources = setupMemoryRecording(config, logger, {
+		memoryPort: ports.memory(),
+		metricsCollector: metrics.collector,
+		embeddingAdapter: ollamaEmbedding,
+	});
 	const ingestionService = new MessageIngestionService({
 		eventStore: new SqliteBufferedEventStore(db),
 		logger,

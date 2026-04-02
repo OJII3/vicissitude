@@ -9,17 +9,19 @@ graph LR
   bootstrap --> config
   bootstrap --> gateway_channel_config_loader["gateway/channel-config-loader"]
   bootstrap --> gateway_discord["gateway/discord"]
+  bootstrap --> port_allocator["port-allocator"]
   config
   gateway_channel_config_loader["gateway/channel-config-loader"]
   gateway_discord["gateway/discord"]
   index --> bootstrap
+  port_allocator["port-allocator"]
 ```
 
 ## ファイル別依存一覧
 
 ### bootstrap.ts
 
-- モジュール内依存: config, gateway/channel-config-loader, gateway/discord
+- モジュール内依存: config, gateway/channel-config-loader, gateway/discord, port-allocator
 - 他モジュール依存: agent, application, gateway, infrastructure, memory, observability, ollama, opencode, scheduling, shared, store, tts
 - 外部依存: .bun, fs, path
 
@@ -40,3 +42,7 @@ graph LR
 
 - モジュール内依存: bootstrap
 - 他モジュール依存: observability
+
+### port-allocator.ts
+
+- 依存なし
