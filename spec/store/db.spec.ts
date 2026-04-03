@@ -203,7 +203,7 @@ describe("store", () => {
 			const first = getHeartbeat(db, "agent-1");
 			touchHeartbeat(db, "agent-1");
 			const second = getHeartbeat(db, "agent-1");
-			expect(second).toBeGreaterThanOrEqual(first!);
+			expect(second).toBeGreaterThanOrEqual(first ?? 0);
 		});
 	});
 });
