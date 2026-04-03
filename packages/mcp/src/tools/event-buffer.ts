@@ -3,7 +3,7 @@ import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment, Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { consumeEvents, hasEvents } from "@vicissitude/store/queries";
+import { consumeEvents, hasEvents, touchHeartbeat } from "@vicissitude/store/queries";
 import { z } from "zod";
 
 export interface RecentMessage {
@@ -352,6 +352,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			},
 		},
 		async ({ timeout_seconds }) => {
+			touchHeartbeat(db, agentId);
+
 			if (skipTracker?.pendingResponse) {
 				logger?.info("[event-buffer] 前回のイベントに対する応答がスキップされました");
 				skipTracker.markResponded();

@@ -35,6 +35,12 @@ export const moodState = sqliteTable("mood_state", {
 	updatedAt: integer("updated_at").notNull(),
 });
 
+/** エージェントハートビートテーブル（MCP wait_for_events の生存シグナル） */
+export const agentHeartbeat = sqliteTable("agent_heartbeat", {
+	agentId: text("agent_id").primaryKey(),
+	lastSeenAt: integer("last_seen_at").notNull(),
+});
+
 /** MC セッション排他ロックテーブル（最大1行） */
 export const mcSessionLock = sqliteTable("mc_session_lock", {
 	id: integer("id").primaryKey(),

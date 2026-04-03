@@ -63,6 +63,11 @@ CREATE TABLE IF NOT EXISTS mood_state (
 	updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS agent_heartbeat (
+	agent_id TEXT PRIMARY KEY,
+	last_seen_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS mc_session_lock (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	guild_id TEXT NOT NULL,

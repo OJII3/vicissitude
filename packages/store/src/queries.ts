@@ -1,7 +1,7 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
-import { emojiUsage, eventBuffer, sessions } from "./schema.ts";
+import { agentHeartbeat, emojiUsage, eventBuffer, sessions } from "./schema.ts";
 
 /** event_buffer から該当エージェントのイベントを取得して削除する（トランザクションでアトミック） */
 export function consumeEvents(
@@ -95,6 +95,27 @@ export function hasEvents(db: StoreDb, agentId: string): boolean {
 		.limit(1)
 		.get();
 	return row !== undefined;
+}
+
+/** エージェントハートビートを更新する（UPSERT） */
+export function touchHeartbeat(db: StoreDb, agentId: string): void {
+	db.insert(agentHeartbeat)
+		.values({ agentId, lastSeenAt: Date.now() })
+		.onConflictDoUpdate({
+			target: agentHeartbeat.agentId,
+			set: { lastSeenAt: Date.now() },
+		})
+		.run();
+}
+
+/** エージェントハートビートを取得する */
+export function getHeartbeat(db: StoreDb, agentId: string): number | undefined {
+	const row = db
+		.select({ lastSeenAt: agentHeartbeat.lastSeenAt })
+		.from(agentHeartbeat)
+		.where(eq(agentHeartbeat.agentId, agentId))
+		.get();
+	return row?.lastSeenAt;
 }
 
 /** 使用頻度トップ N の絵文字を返す */
