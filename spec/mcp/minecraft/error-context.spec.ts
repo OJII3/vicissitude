@@ -218,6 +218,37 @@ describe("buildSleepContext", () => {
 		expect(result).toMatch(/wool|羊毛|bed|ベッド/i);
 	});
 
+	test("周辺ブロックが red_bed のみの場合、ベッド素材ありと誤判定されないこと", async () => {
+		const fn = await getFn();
+		// blockAt が red_bed を返すモック（ベッドブロック自体は素材ではない）
+		const bot = {
+			entity: { position: { x: 0, y: 64, z: 0 } },
+			registry: { biomes: { 1: { name: "plains" } } },
+			world: { getBiome: mock(() => 1) },
+			inventory: { items: mock(() => []) },
+			blockAt: mock(() => ({ name: "red_bed" })),
+		} as never;
+		const result = fn(bot);
+		// 「素材」+「あり」の組み合わせが含まれないこと（「ベッド素材なし」が含まれること）
+		expect(result).toMatch(/素材.*なし/);
+		expect(result).not.toMatch(/素材.*あり/);
+	});
+
+	test("周辺ブロックに oak_planks がある場合、ベッド素材ありの情報が含まれること", async () => {
+		const fn = await getFn();
+		// blockAt が oak_planks を返すモック（ベッド素材として有効）
+		const bot = {
+			entity: { position: { x: 0, y: 64, z: 0 } },
+			registry: { biomes: { 1: { name: "plains" } } },
+			world: { getBiome: mock(() => 1) },
+			inventory: { items: mock(() => []) },
+			blockAt: mock(() => ({ name: "oak_planks" })),
+		} as never;
+		const result = fn(bot);
+		// ベッド素材（planks）の情報が含まれること
+		expect(result).toMatch(/素材.*あり|planks/i);
+	});
+
 	test("戻り値が3行以内であること", async () => {
 		const fn = await getFn();
 		const bot = makeBot();

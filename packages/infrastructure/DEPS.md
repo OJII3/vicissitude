@@ -16,7 +16,7 @@ graph LR
 ### discord/attachment-mapper.ts
 
 - 他モジュール依存: shared
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js
 
 ### discord/url-rewriter.ts
 
