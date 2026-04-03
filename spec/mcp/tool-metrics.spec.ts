@@ -1,8 +1,8 @@
-import { describe, expect, it, mock } from "bun:test";
+import { type mock, describe, expect, it } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapServerWithMetrics } from "@vicissitude/mcp/tool-metrics";
-import type { Logger } from "@vicissitude/shared/types";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,20 +36,6 @@ function callAsync(
 	...args: unknown[]
 ): Promise<unknown> {
 	return call(handlers, name, ...args) as Promise<unknown>;
-}
-
-function createMockLogger(): Logger & {
-	errorCalls: unknown[][];
-} {
-	const errorCalls: unknown[][] = [];
-	return {
-		info: mock(() => {}),
-		warn: mock(() => {}),
-		error: mock((...args: unknown[]) => {
-			errorCalls.push(args);
-		}),
-		errorCalls,
-	};
 }
 
 /** async ハンドラのスタブ: Promise.reject を返す（require-await 回避） */
@@ -134,8 +120,9 @@ describe("wrapServerWithMetrics", () => {
 
 			expect(() => call(handlers, "fail_tool", {})).toThrow();
 
-			expect(logger.errorCalls.length).toBeGreaterThanOrEqual(1);
-			const logMessage = String(logger.errorCalls[0]);
+			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+			const logMessage = String(errorCalls[0]);
 			expect(logMessage).toContain("fail_tool");
 			expect(logMessage).toContain("sync boom");
 		});
@@ -191,8 +178,9 @@ describe("wrapServerWithMetrics", () => {
 			// oxlint-disable-next-line await-thenable -- Bun の expect().rejects.toThrow() は実行時 Promise
 			await expect(callAsync(handlers, "async_fail", {})).rejects.toThrow();
 
-			expect(logger.errorCalls.length).toBeGreaterThanOrEqual(1);
-			const logMessage = String(logger.errorCalls[0]);
+			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+			const logMessage = String(errorCalls[0]);
 			expect(logMessage).toContain("async_fail");
 			expect(logMessage).toContain("async kaboom");
 		});
