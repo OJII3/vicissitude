@@ -525,7 +525,7 @@
 			},
 			"targets": [
 				{
-					"expr": "increase(heartbeat_ticks_total[1h])",
+					"expr": "sum by (outcome) (increase(heartbeat_ticks_total[1h]))",
 					"legendFormat": "{{outcome}}"
 				}
 			],
@@ -1141,7 +1141,7 @@
 			},
 			"gridPos": {
 				"h": 8,
-				"w": 12,
+				"w": 8,
 				"x": 0,
 				"y": 63
 			},
@@ -1162,6 +1162,110 @@
 				}
 			],
 			"title": "Core MCP Tool Calls (log-based)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 63
+			},
+			"id": 26,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "sum(increase(mc_stuck_total[1h]))",
+					"legendFormat": "stuck"
+				},
+				{
+					"expr": "sum(increase(mc_failure_streaks_total[1h]))",
+					"legendFormat": "failure streaks"
+				}
+			],
+			"title": "MC Stuck & Failure Streaks (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 63
+			},
+			"id": 27,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "sum(increase(mc_cooldowns_total[1h]))",
+					"legendFormat": "cooldowns"
+				},
+				{
+					"expr": "sum(increase(mc_auto_notifications_total[1h]))",
+					"legendFormat": "auto notifications"
+				}
+			],
+			"title": "MC Cooldowns & Notifications (1h)",
 			"type": "timeseries"
 		},
 		{
