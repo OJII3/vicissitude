@@ -154,6 +154,35 @@ describe("getOreHint", () => {
 		expect(getOreHint("dirt")).toBeNull();
 	});
 
+	test("deepslate_diamond_ore でヒント文字列が返ること", () => {
+		const hint = getOreHint("deepslate_diamond_ore");
+		expect(hint).not.toBeNull();
+		expect(typeof hint).toBe("string");
+	});
+
+	test("deepslate_iron_ore でヒント文字列が返ること", () => {
+		const hint = getOreHint("deepslate_iron_ore");
+		expect(hint).not.toBeNull();
+		expect(typeof hint).toBe("string");
+	});
+
+	test("deepslate バリアントで返されるヒントに Y 座標範囲が含まれること", () => {
+		const deepslateOres = [
+			"deepslate_diamond_ore",
+			"deepslate_iron_ore",
+			"deepslate_gold_ore",
+			"deepslate_lapis_ore",
+			"deepslate_redstone_ore",
+			"deepslate_emerald_ore",
+			"deepslate_copper_ore",
+		];
+		for (const ore of deepslateOres) {
+			const hint = getOreHint(ore);
+			expect(hint).not.toBeNull();
+			expect(hint).toMatch(/Y/i);
+		}
+	});
+
 	test("すべての主要鉱石でヒントが返ること", () => {
 		const ores = [
 			"diamond_ore",

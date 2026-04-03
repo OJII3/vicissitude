@@ -235,7 +235,10 @@ export const ORE_Y_DISTRIBUTION: Record<string, { minY: number; maxY: number }> 
 
 // 鉱石名からY座標ヒント文字列を返す。鉱石でなければ null
 export function getOreHint(blockName: string): string | null {
-	const entry = ORE_Y_DISTRIBUTION[blockName];
+	const normalized = blockName.startsWith("deepslate_")
+		? blockName.slice("deepslate_".length)
+		: blockName;
+	const entry = ORE_Y_DISTRIBUTION[normalized];
 	if (!entry) return null;
 	return `${blockName} は Y=${String(entry.minY)}〜${String(entry.maxY)} に分布`;
 }
