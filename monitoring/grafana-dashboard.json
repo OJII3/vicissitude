@@ -1114,8 +1114,8 @@
 		},
 		{
 			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
+				"type": "loki",
+				"uid": "${DS_LOKI}"
 			},
 			"fieldConfig": {
 				"defaults": {
@@ -1124,12 +1124,16 @@
 					},
 					"custom": {
 						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
+						"drawStyle": "bars",
+						"fillOpacity": 30,
+						"lineWidth": 1,
 						"pointSize": 5,
 						"showPoints": "never",
-						"spanNulls": false
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
 					},
 					"unit": "short"
 				},
@@ -1153,11 +1157,11 @@
 			},
 			"targets": [
 				{
-					"expr": "topk(10, sum by (tool) (increase(mcp_tool_calls_total[1h])))",
-					"legendFormat": "{{tool}}"
+					"expr": "{job=\"vicissitude\"} |= `mcp_tool_calls_total` | regexp `mcp_tool_calls_total: (?P<json>.+)$` | json tools=\"json\" | unpack",
+					"legendFormat": "core MCP tool calls"
 				}
 			],
-			"title": "Core MCP Tool Calls (1h)",
+			"title": "Core MCP Tool Calls (log-based)",
 			"type": "timeseries"
 		},
 		{
