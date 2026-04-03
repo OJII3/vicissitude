@@ -96,21 +96,21 @@ describe("buildCollectBlockContext", () => {
 	test("バイオーム名を含む文字列を返すこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot({ biomeId: 1, biomes: { 1: { name: "plains" } } });
-		const result = await fn(bot, "oak_log");
+		const result = fn(bot, "oak_log");
 		expect(result).toContain("plains");
 	});
 
 	test("Y座標を含む文字列を返すこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 10, y: 64, z: -20 } });
-		const result = await fn(bot, "oak_log");
+		const result = fn(bot, "oak_log");
 		expect(result).toContain("64");
 	});
 
 	test("周辺ブロック情報を含む文字列を返すこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot();
-		const result = await fn(bot, "oak_log");
+		const result = fn(bot, "oak_log");
 		// 付近のブロック情報が含まれる（ブロックがなければ「なし」などの代替テキスト可）
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(0);
@@ -119,7 +119,7 @@ describe("buildCollectBlockContext", () => {
 	test("鉱石の場合は Y 座標ヒントを含むこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 0, y: -50, z: 0 } });
-		const result = await fn(bot, "diamond_ore");
+		const result = fn(bot, "diamond_ore");
 		// 鉱石ヒントに "Y" が含まれること
 		expect(result).toMatch(/Y/i);
 	});
@@ -128,14 +128,14 @@ describe("buildCollectBlockContext", () => {
 		const fn = await getFn();
 		const bot = makeBot();
 		// oak_log は鉱石でないため、ヒントなしでも正常に返ること
-		const result = await fn(bot, "oak_log");
+		const result = fn(bot, "oak_log");
 		expect(typeof result).toBe("string");
 	});
 
 	test("戻り値が3行以内であること", async () => {
 		const fn = await getFn();
 		const bot = makeBot();
-		const result = await fn(bot, "diamond_ore");
+		const result = fn(bot, "diamond_ore");
 		expect(lineCount(result)).toBeLessThanOrEqual(3);
 	});
 });
@@ -158,7 +158,7 @@ describe("buildCraftItemContext", () => {
 				{ name: "stick", displayName: "Stick", count: 10 },
 			],
 		});
-		const result = await fn(bot, "crafting_table");
+		const result = fn(bot, "crafting_table");
 		// インベントリアイテム名が含まれること
 		expect(result).toMatch(/oak_log|Oak Log|stick|Stick/i);
 	});
@@ -166,7 +166,7 @@ describe("buildCraftItemContext", () => {
 	test("インベントリが空の場合も文字列を返すこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot({ inventoryItems: [] });
-		const result = await fn(bot, "stone_pickaxe");
+		const result = fn(bot, "stone_pickaxe");
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(0);
 	});
@@ -180,7 +180,7 @@ describe("buildCraftItemContext", () => {
 				{ name: "cobblestone", displayName: "Cobblestone", count: 32 },
 			],
 		});
-		const result = await fn(bot, "stone_pickaxe");
+		const result = fn(bot, "stone_pickaxe");
 		expect(lineCount(result)).toBeLessThanOrEqual(3);
 	});
 });
@@ -198,7 +198,7 @@ describe("buildSleepContext", () => {
 	test("周辺ブロック情報を含む文字列を返すこと", async () => {
 		const fn = await getFn();
 		const bot = makeBot();
-		const result = await fn(bot);
+		const result = fn(bot);
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(0);
 	});
@@ -213,7 +213,7 @@ describe("buildSleepContext", () => {
 			inventory: { items: mock(() => []) },
 			blockAt: mock(() => ({ name: "white_wool" })),
 		} as never;
-		const result = await fn(bot);
+		const result = fn(bot);
 		// ベッド素材（wool）の情報が含まれること
 		expect(result).toMatch(/wool|羊毛|bed|ベッド/i);
 	});
@@ -221,7 +221,7 @@ describe("buildSleepContext", () => {
 	test("戻り値が3行以内であること", async () => {
 		const fn = await getFn();
 		const bot = makeBot();
-		const result = await fn(bot);
+		const result = fn(bot);
 		expect(lineCount(result)).toBeLessThanOrEqual(3);
 	});
 });
@@ -240,7 +240,7 @@ describe("buildGoToContext", () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 10, y: 64, z: -20 } });
 		const targetPos = { x: 50, y: 64, z: 30 };
-		const result = await fn(bot, targetPos);
+		const result = fn(bot, targetPos);
 		// 現在位置の座標が含まれること
 		expect(result).toMatch(/10|64|-20/);
 	});
@@ -249,7 +249,7 @@ describe("buildGoToContext", () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 0, y: 64, z: 0 } });
 		const targetPos = { x: 100, y: 64, z: 0 };
-		const result = await fn(bot, targetPos);
+		const result = fn(bot, targetPos);
 		// 距離情報が含まれること（100 か "100m" など）
 		expect(result).toMatch(/\d+/);
 	});
@@ -258,7 +258,7 @@ describe("buildGoToContext", () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 0, y: 64, z: 0 } });
 		const targetPos = { x: 42, y: 70, z: -15 };
-		const result = await fn(bot, targetPos);
+		const result = fn(bot, targetPos);
 		// 目標座標の数値が含まれること
 		expect(result).toMatch(/42|70|-15/);
 	});
@@ -267,7 +267,7 @@ describe("buildGoToContext", () => {
 		const fn = await getFn();
 		const bot = makeBot({ position: { x: 0, y: 64, z: 0 } });
 		const targetPos = { x: 100, y: 70, z: 200 };
-		const result = await fn(bot, targetPos);
+		const result = fn(bot, targetPos);
 		expect(lineCount(result)).toBeLessThanOrEqual(3);
 	});
 });
