@@ -7,7 +7,7 @@ import { getOreHint } from "./helpers.ts";
 const BED_MATERIAL_PATTERN = /wool|bed/i;
 
 /** 採集失敗時のコンテキスト文字列を生成する（3行以内） */
-export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string): Promise<string> {
+export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string): string {
 	const pos = bot.entity.position;
 	const y = Math.floor(pos.y);
 	const biomeId = bot.world.getBiome(pos);
@@ -27,21 +27,21 @@ export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string)
 	];
 	if (oreHint) lines.push(oreHint);
 
-	return Promise.resolve(lines.join("\n"));
+	return lines.join("\n");
 }
 
 /** クラフト失敗時のコンテキスト文字列を生成する（3行以内） */
-export function buildCraftItemContext(bot: mineflayer.Bot, _itemName: string): Promise<string> {
+export function buildCraftItemContext(bot: mineflayer.Bot, _itemName: string): string {
 	const rawItems = bot.inventory.items();
 	const itemText =
 		rawItems.length > 0
 			? rawItems.map((item) => `${item.name}x${String(item.count)}`).join(", ")
 			: "なし";
-	return Promise.resolve(`インベントリ: ${itemText}`);
+	return `インベントリ: ${itemText}`;
 }
 
 /** 就寝失敗時のコンテキスト文字列を生成する（3行以内） */
-export function buildSleepContext(bot: mineflayer.Bot): Promise<string> {
+export function buildSleepContext(bot: mineflayer.Bot): string {
 	const counts = getNearbyBlockCounts(bot, 16);
 	const top5 = [...counts.entries()].slice(0, 5);
 	const nearbyText =
@@ -50,14 +50,14 @@ export function buildSleepContext(bot: mineflayer.Bot): Promise<string> {
 	const hasBedMaterial = [...counts.keys()].some((name) => BED_MATERIAL_PATTERN.test(name));
 	const bedInfo = hasBedMaterial ? "ベッド素材（wool）あり" : "ベッド素材なし";
 
-	return Promise.resolve([`周辺ブロック: ${nearbyText}`, bedInfo].join("\n"));
+	return [`周辺ブロック: ${nearbyText}`, bedInfo].join("\n");
 }
 
 /** 移動失敗時のコンテキスト文字列を生成する（3行以内） */
 export function buildGoToContext(
 	bot: mineflayer.Bot,
 	targetPos: { x: number; y: number; z: number },
-): Promise<string> {
+): string {
 	const pos = bot.entity.position;
 	const cx = Math.floor(pos.x);
 	const cy = Math.floor(pos.y);
@@ -68,10 +68,8 @@ export function buildGoToContext(
 	const dz = targetPos.z - pos.z;
 	const distance = Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz));
 
-	return Promise.resolve(
-		[
-			`現在位置: (${String(cx)}, ${String(cy)}, ${String(cz)})`,
-			`目標: (${String(targetPos.x)}, ${String(targetPos.y)}, ${String(targetPos.z)}) / 距離: ${String(distance)}m`,
-		].join("\n"),
-	);
+	return [
+		`現在位置: (${String(cx)}, ${String(cy)}, ${String(cz)})`,
+		`目標: (${String(targetPos.x)}, ${String(targetPos.y)}, ${String(targetPos.z)}) / 距離: ${String(distance)}m`,
+	].join("\n");
 }

@@ -73,7 +73,7 @@ async function executeCraft(params: ExecuteCraftParams): Promise<void> {
 	const { bot, itemId, itemName, count, signal } = params;
 	const result = findRecipe(bot, itemId);
 	if (!result) {
-		const context = await buildCraftItemContext(bot, itemName);
+		const context = buildCraftItemContext(bot, itemName);
 		throw new Error(`${itemName} のレシピが見つからないか、材料が足りません\n${context}`);
 	}
 
@@ -89,7 +89,7 @@ async function executeCraft(params: ExecuteCraftParams): Promise<void> {
 		maxDistance: 32,
 	});
 	if (!table) {
-		const context = await buildCraftItemContext(bot, itemName);
+		const context = buildCraftItemContext(bot, itemName);
 		throw new Error(`近くに作業台が見つかりません（32 ブロック以内）\n${context}`);
 	}
 
@@ -112,7 +112,7 @@ async function executeSleep(params: ExecuteSleepParams): Promise<void> {
 	const { bot, bedIds, maxDistance, signal, logger } = params;
 	const bedBlock = bot.findBlock({ matching: bedIds, maxDistance });
 	if (!bedBlock) {
-		const context = await buildSleepContext(bot);
+		const context = buildSleepContext(bot);
 		throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません\n${context}`);
 	}
 

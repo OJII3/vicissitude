@@ -67,7 +67,7 @@ async function executeCollectBlock(params: CollectBlockParams): Promise<void> {
 		updateProgress(`${String(collected)}/${String(count)} 採集済み`);
 	}
 	if (collected < count && !signal.aborted) {
-		const context = await buildCollectBlockContext(bot, blockName);
+		const context = buildCollectBlockContext(bot, blockName);
 		throw new Error(
 			`${String(collected)}/${String(count)} 個採集 — ${String(maxDistance)} ブロック以内に ${blockName} が見つかりません\n${context}`,
 		);
@@ -171,7 +171,7 @@ export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobM
 				try {
 					await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
 				} catch (err) {
-					const context = await buildGoToContext(bot, { x, y, z: zCoord });
+					const context = buildGoToContext(bot, { x, y, z: zCoord });
 					const msg = err instanceof Error ? err.message : String(err);
 					throw new Error(`${msg}\n${context}`, { cause: err });
 				}
