@@ -50,6 +50,7 @@ graph LR
 
 ### tool-metrics.ts
 
+- 他モジュール依存: shared
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/discord.ts
