@@ -5,6 +5,7 @@ import pathfinderPkg from "mineflayer-pathfinder";
 import type { Recipe } from "prismarine-recipe";
 import { z } from "zod";
 
+import { buildCraftItemContext, buildSleepContext } from "../error-context.ts";
 import type { JobManager } from "../job-manager.ts";
 import {
 	type GetBot,
@@ -71,7 +72,10 @@ interface ExecuteCraftParams {
 async function executeCraft(params: ExecuteCraftParams): Promise<void> {
 	const { bot, itemId, itemName, count, signal } = params;
 	const result = findRecipe(bot, itemId);
-	if (!result) throw new Error(`${itemName} のレシピが見つからないか、材料が足りません`);
+	if (!result) {
+		const context = buildCraftItemContext(bot, itemName);
+		throw new Error(`${itemName} のレシピが見つからないか、材料が足りません\n${context}`);
+	}
 
 	if (!result.needTable) {
 		await bot.craft(result.recipe, count);
@@ -84,7 +88,10 @@ async function executeCraft(params: ExecuteCraftParams): Promise<void> {
 		matching: bot.registry.blocksByName["crafting_table"]?.id ?? -1,
 		maxDistance: 32,
 	});
-	if (!table) throw new Error("近くに作業台が見つかりません（32 ブロック以内）");
+	if (!table) {
+		const context = buildCraftItemContext(bot, itemName);
+		throw new Error(`近くに作業台が見つかりません（32 ブロック以内）\n${context}`);
+	}
 
 	const { x, y, z: cz } = table.position;
 	await bot.pathfinder.goto(new goals.GoalGetToBlock(x, y, cz));
@@ -104,7 +111,10 @@ interface ExecuteSleepParams {
 async function executeSleep(params: ExecuteSleepParams): Promise<void> {
 	const { bot, bedIds, maxDistance, signal, logger } = params;
 	const bedBlock = bot.findBlock({ matching: bedIds, maxDistance });
-	if (!bedBlock) throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません`);
+	if (!bedBlock) {
+		const context = buildSleepContext(bot);
+		throw new Error(`${String(maxDistance)} ブロック以内にベッドが見つかりません\n${context}`);
+	}
 
 	const { x, y, z: bz } = bedBlock.position;
 	await bot.pathfinder.goto(new goals.GoalGetToBlock(x, y, bz));

@@ -21,7 +21,8 @@
 		"./actions/survival": "./src/actions/survival/index.ts",
 		"./actions/exploration": "./src/actions/exploration.ts",
 		"./actions/queries": "./src/actions/queries.ts",
-		"./reactive-layer": "./src/reactive-layer.ts"
+		"./reactive-layer": "./src/reactive-layer.ts",
+		"./error-context": "./src/error-context.ts"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",

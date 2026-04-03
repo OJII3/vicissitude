@@ -1,6 +1,6 @@
 import type mineflayer from "mineflayer";
 import type { Entity } from "prismarine-entity";
-import type { Vec3 } from "vec3";
+import { Vec3 } from "vec3";
 
 const DIRECT_AWARENESS_DISTANCE = 4;
 const DEFAULT_BLOCK_CANDIDATE_COUNT = 24;
@@ -151,4 +151,31 @@ export function getEquipment(b: mineflayer.Bot): Record<string, string> {
 	const hand = b.heldItem;
 	if (hand) result.hand = hand.displayName ?? hand.name;
 	return result;
+}
+
+const AIR_BLOCKS = new Set(["air", "cave_air", "void_air"]);
+
+export function getNearbyBlockCounts(
+	bot: mineflayer.Bot,
+	maxDistance: number,
+): Map<string, number> {
+	const pos = bot.entity.position;
+	const cx = Math.floor(pos.x);
+	const cy = Math.floor(pos.y);
+	const cz = Math.floor(pos.z);
+	const counts = new Map<string, number>();
+	const yRange = Math.min(maxDistance, 8);
+
+	for (let dx = -maxDistance; dx <= maxDistance; dx += 2) {
+		for (let dz = -maxDistance; dz <= maxDistance; dz += 2) {
+			for (let dy = -yRange; dy <= yRange; dy += 2) {
+				const block = bot.blockAt(new Vec3(cx + dx, cy + dy, cz + dz));
+				if (!block || AIR_BLOCKS.has(block.name)) continue;
+				counts.set(block.name, (counts.get(block.name) ?? 0) + 1);
+			}
+		}
+	}
+
+	// カウント降順ソート
+	return new Map([...counts.entries()].toSorted((a, b) => b[1] - a[1]));
 }

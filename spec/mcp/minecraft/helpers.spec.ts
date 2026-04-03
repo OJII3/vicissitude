@@ -6,8 +6,10 @@ import {
 	formatEquipmentText,
 	formatHealthBar,
 	formatInventoryText,
+	getOreHint,
 	getTimePeriod,
 	isHostileMob,
+	ORE_Y_DISTRIBUTION,
 } from "@vicissitude/minecraft/helpers";
 
 describe("getTimePeriod", () => {
@@ -71,6 +73,101 @@ describe("formatEntityEntry", () => {
 	});
 	test("passive mob に ⚠ は付かない", () => {
 		expect(formatEntityEntry({ name: "cow", distance: 8, type: "mob" })).toBe("- cow (mob, 8m)");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// ORE_Y_DISTRIBUTION テーブル仕様テスト
+// ---------------------------------------------------------------------------
+
+describe("ORE_Y_DISTRIBUTION", () => {
+	const MAJOR_ORES = [
+		"diamond_ore",
+		"iron_ore",
+		"gold_ore",
+		"coal_ore",
+		"lapis_ore",
+		"redstone_ore",
+		"emerald_ore",
+		"copper_ore",
+	] as const;
+
+	test("主要鉱石8種がテーブルに存在すること", () => {
+		for (const ore of MAJOR_ORES) {
+			expect(ORE_Y_DISTRIBUTION).toHaveProperty(ore);
+		}
+	});
+
+	test("各エントリが minY と maxY を持つこと", () => {
+		for (const ore of MAJOR_ORES) {
+			const entry = ORE_Y_DISTRIBUTION[ore];
+			expect(entry).toBeDefined();
+			expect(entry).toHaveProperty("minY");
+			expect(entry).toHaveProperty("maxY");
+			expect(typeof entry?.minY).toBe("number");
+			expect(typeof entry?.maxY).toBe("number");
+		}
+	});
+
+	test("minY は maxY より小さいこと", () => {
+		for (const ore of MAJOR_ORES) {
+			const entry = ORE_Y_DISTRIBUTION[ore];
+			expect(entry).toBeDefined();
+			expect(entry?.minY).toBeLessThan(entry?.maxY ?? Infinity);
+		}
+	});
+
+	test("diamond_ore は Y=-64 〜 Y=16 付近に存在すること", () => {
+		const entry = ORE_Y_DISTRIBUTION["diamond_ore"];
+		expect(entry).toBeDefined();
+		expect(entry?.minY).toBeLessThanOrEqual(-50);
+		expect(entry?.maxY).toBeLessThanOrEqual(20);
+	});
+
+	test("coal_ore は地表付近（Y=0以上）に存在すること", () => {
+		const entry = ORE_Y_DISTRIBUTION["coal_ore"];
+		expect(entry).toBeDefined();
+		expect(entry?.maxY).toBeGreaterThan(0);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// getOreHint 仕様テスト
+// ---------------------------------------------------------------------------
+
+describe("getOreHint", () => {
+	test("diamond_ore はヒント文字列を返すこと", () => {
+		const hint = getOreHint("diamond_ore");
+		expect(hint).not.toBeNull();
+		expect(typeof hint).toBe("string");
+	});
+
+	test("返されるヒントに Y 座標範囲が含まれること", () => {
+		const hint = getOreHint("iron_ore");
+		expect(hint).not.toBeNull();
+		expect(hint).toMatch(/Y/i);
+	});
+
+	test("鉱石でないブロック名は null を返すこと", () => {
+		expect(getOreHint("oak_log")).toBeNull();
+		expect(getOreHint("stone")).toBeNull();
+		expect(getOreHint("dirt")).toBeNull();
+	});
+
+	test("すべての主要鉱石でヒントが返ること", () => {
+		const ores = [
+			"diamond_ore",
+			"iron_ore",
+			"gold_ore",
+			"coal_ore",
+			"lapis_ore",
+			"redstone_ore",
+			"emerald_ore",
+			"copper_ore",
+		];
+		for (const ore of ores) {
+			expect(getOreHint(ore)).not.toBeNull();
+		}
 	});
 });
 
