@@ -6,6 +6,14 @@ import { getOreHint } from "./helpers.ts";
 /** ベッド素材となりうるブロック名のパターン（wool, planks） */
 const BED_MATERIAL_PATTERN = /wool|planks/i;
 
+/** ブロックカウント Map の上位5件を「name x count, ...」形式にフォーマットする */
+function formatNearbyBlocks(counts: Map<string, number>): string {
+	const top5 = [...counts.entries()].slice(0, 5);
+	return top5.length > 0
+		? top5.map(([name, count]) => `${name}x${String(count)}`).join(", ")
+		: "なし";
+}
+
 /** 採集失敗時のコンテキスト文字列を生成する（3行以内） */
 export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string): string {
 	const pos = bot.entity.position;
@@ -15,9 +23,7 @@ export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string)
 	const biomeName = biome?.name ?? `biome:${String(biomeId)}`;
 
 	const counts = getNearbyBlockCounts(bot, 16);
-	const top5 = [...counts.entries()].slice(0, 5);
-	const nearbyText =
-		top5.length > 0 ? top5.map(([name, count]) => `${name}x${String(count)}`).join(", ") : "なし";
+	const nearbyText = formatNearbyBlocks(counts);
 
 	const oreHint = getOreHint(blockName);
 
@@ -43,9 +49,7 @@ export function buildCraftItemContext(bot: mineflayer.Bot, _itemName: string): s
 /** 就寝失敗時のコンテキスト文字列を生成する（3行以内） */
 export function buildSleepContext(bot: mineflayer.Bot): string {
 	const counts = getNearbyBlockCounts(bot, 16);
-	const top5 = [...counts.entries()].slice(0, 5);
-	const nearbyText =
-		top5.length > 0 ? top5.map(([name, count]) => `${name}x${String(count)}`).join(", ") : "なし";
+	const nearbyText = formatNearbyBlocks(counts);
 
 	const hasBedMaterial = [...counts.keys()].some((name) => BED_MATERIAL_PATTERN.test(name));
 	const bedInfo = hasBedMaterial ? "ベッド素材（wool/planks）あり" : "ベッド素材なし";
