@@ -5,10 +5,12 @@ import {
 	consumeNextEvent,
 	consumeEvents,
 	deleteSession,
+	getHeartbeat,
 	getSession,
 	getTopEmojis,
 	incrementEmoji,
 	saveSession,
+	touchHeartbeat,
 } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -24,6 +26,8 @@ describe("store", () => {
 			expect(tableNames).toContain("emoji_usage");
 			expect(tableNames).toContain("event_buffer");
 			expect(tableNames).toContain("mc_session_lock");
+			expect(tableNames).toContain("mood_state");
+			expect(tableNames).toContain("agent_heartbeat");
 		});
 	});
 
@@ -177,6 +181,30 @@ describe("store", () => {
 			const g2 = getTopEmojis(db, "guild-2", 10);
 			expect(g1[0]?.count).toBe(1);
 			expect(g2[0]?.count).toBe(2);
+		});
+	});
+
+	describe("agent_heartbeat", () => {
+		test("getHeartbeat returns undefined for unknown agentId", () => {
+			const db = createTestDb();
+			const result = getHeartbeat(db, "unknown-agent");
+			expect(result).toBeUndefined();
+		});
+
+		test("touchHeartbeat registers and getHeartbeat returns lastSeenAt", () => {
+			const db = createTestDb();
+			touchHeartbeat(db, "agent-1");
+			const lastSeenAt = getHeartbeat(db, "agent-1");
+			expect(lastSeenAt).toBeTypeOf("number");
+		});
+
+		test("touchHeartbeat upserts (updates lastSeenAt on second call)", () => {
+			const db = createTestDb();
+			touchHeartbeat(db, "agent-1");
+			const first = getHeartbeat(db, "agent-1");
+			touchHeartbeat(db, "agent-1");
+			const second = getHeartbeat(db, "agent-1");
+			expect(second).toBeGreaterThanOrEqual(first ?? 0);
 		});
 	});
 });
