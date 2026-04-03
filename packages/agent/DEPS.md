@@ -54,7 +54,7 @@ graph LR
 ### emotion/estimator.ts
 
 - 他モジュール依存: shared
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
 
 ### mcp-config.ts
 
@@ -94,4 +94,4 @@ graph LR
 ### session-store.ts
 
 - 他モジュール依存: store
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs
