@@ -89,7 +89,7 @@ describe("getNearbyBlockCounts", () => {
 		const entries = [...result.entries()];
 		// カウント降順であること
 		for (let i = 0; i < entries.length - 1; i++) {
-			expect(entries[i]![1]).toBeGreaterThanOrEqual(entries[i + 1]![1]);
+			expect(entries[i]?.[1]).toBeGreaterThanOrEqual(entries[i + 1]?.[1] ?? 0);
 		}
 	});
 
