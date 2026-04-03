@@ -21,6 +21,11 @@ const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 
+/** MCP プロセスが書き込むハートビートを読み取るポート */
+export interface HeartbeatReader {
+	getLastSeenAt(agentId: string): number | undefined;
+}
+
 export interface RunnerDeps {
 	profile: AgentProfile;
 	agentId: string;
@@ -37,6 +42,8 @@ export interface RunnerDeps {
 	summaryWriter?: SessionSummaryWriter;
 	/** waitForEvents が呼ばれない状態が続いた場合にセッションローテーションを行うまでの時間（ms）。デフォルト: 600_000 (10分) */
 	hangTimeoutMs?: number;
+	/** MCP wait_for_events のハートビートリーダー。設定時は SQLite のハートビートも考慮してハング判定する */
+	heartbeatReader?: HeartbeatReader;
 }
 
 export class AgentRunner implements AiAgent {
@@ -62,6 +69,7 @@ export class AgentRunner implements AiAgent {
 	private readonly contextGuildId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
 	private readonly hangTimeoutMs: number;
+	private readonly heartbeatReader?: HeartbeatReader;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -80,6 +88,7 @@ export class AgentRunner implements AiAgent {
 		this.contextGuildId = deps.contextGuildId;
 		this.summaryWriter = deps.summaryWriter;
 		this.hangTimeoutMs = deps.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS;
+		this.heartbeatReader = deps.heartbeatReader;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -118,7 +127,9 @@ export class AgentRunner implements AiAgent {
 		if (this.hangTimer !== null) return;
 		const intervalMs = Math.max(1, Math.floor(this.hangTimeoutMs / 10));
 		this.hangTimer = setInterval(() => {
-			const elapsed = Date.now() - this.lastWaitForEventsAt;
+			const mcpHeartbeat = this.heartbeatReader?.getLastSeenAt(this.agentId) ?? 0;
+			const lastAlive = Math.max(this.lastWaitForEventsAt, mcpHeartbeat);
+			const elapsed = Date.now() - lastAlive;
 			if (elapsed >= this.hangTimeoutMs) {
 				this.logger.warn(
 					`[${this.profile.name}:${this.agentId}] hang detected (${elapsed}ms since last waitForEvents), requesting session rotation`,

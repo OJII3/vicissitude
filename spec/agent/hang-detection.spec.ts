@@ -312,6 +312,82 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 		});
 	});
 
+	describe("heartbeatReader によるハング検知抑制", () => {
+		test("heartbeatReader が新しいタイムスタンプを返す場合、ローテーションは発生しない", async () => {
+			const rotationSpy = mock(() => Promise.resolve());
+			const sessionStore = createSessionStore("existing-session-id");
+
+			// waitForEvents が永遠に待機（セッション中の状態をシミュレート）
+			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+			const sessionPort = createSimpleSessionPort();
+
+			// heartbeatReader が常に現在時刻を返す（MCP wait_for_events が呼ばれている状態）
+			const heartbeatReader = { getLastSeenAt: mock(() => Date.now()) };
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "agent-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				hangTimeoutMs: 100,
+				heartbeatReader,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.requestSessionRotation = rotationSpy;
+			runner.ensurePolling();
+
+			// hangTimeoutMs を超えて待機しても、heartbeatReader が alive なのでローテーションされない
+			await Bun.sleep(250);
+
+			expect(rotationSpy).not.toHaveBeenCalled();
+			expect(heartbeatReader.getLastSeenAt).toHaveBeenCalled();
+
+			runner.stop();
+		});
+
+		test("heartbeatReader が古いタイムスタンプを返す場合、ローテーションが発生する", async () => {
+			const rotationSpy = mock(() => Promise.resolve());
+			const sessionStore = createSessionStore("existing-session-id");
+
+			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+			const sessionPort = createSimpleSessionPort();
+
+			// heartbeatReader が古い値を返す（MCP が止まっている状態）
+			const staleTime = Date.now() - 10_000;
+			const heartbeatReader = { getLastSeenAt: mock(() => staleTime) };
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "agent-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				hangTimeoutMs: 100,
+				heartbeatReader,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.requestSessionRotation = rotationSpy;
+			runner.ensurePolling();
+
+			await Bun.sleep(200);
+
+			expect(rotationSpy).toHaveBeenCalled();
+
+			runner.stop();
+		});
+	});
+
 	describe("RunnerDeps の hangTimeoutMs 設定", () => {
 		test("hangTimeoutMs を明示的に設定できる", () => {
 			const sessionStore = createSessionStore();
