@@ -151,7 +151,7 @@ metricsLogTimer.unref();
 
 function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
-	const server = wrapServerWithMetrics(rawServer, toolCallCounts);
+	const server = wrapServerWithMetrics(rawServer, { counts: toolCallCounts, logger });
 
 	const guildMatch = agentId?.match(/^discord:(?:heartbeat:)?(\d+)$/);
 	const boundGuildId = guildMatch?.[1];
