@@ -7,6 +7,7 @@
 		"./http-server": "./src/http-server.ts",
 		"./memory-helpers": "./src/memory-helpers.ts",
 		"./test-helpers": "./src/test-helpers.ts",
+		"./tool-metrics": "./src/tool-metrics.ts",
 		"./tools/discord": "./src/tools/discord.ts",
 		"./tools/event-buffer": "./src/tools/event-buffer.ts",
 		"./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",

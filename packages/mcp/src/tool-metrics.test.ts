@@ -29,7 +29,7 @@ describe("wrapServerWithMetrics", () => {
 	test("ハンドラ呼び出しでカウンタがインクリメントされる", () => {
 		const counts = new Map<string, number>();
 		const { server, handlers } = createFakeServer();
-		const wrapped = wrapServerWithMetrics(server, counts);
+		const wrapped = wrapServerWithMetrics(server, { counts });
 
 		const calls: string[] = [];
 		wrapped.registerTool("my_tool", { description: "x" }, () => {
@@ -37,13 +37,13 @@ describe("wrapServerWithMetrics", () => {
 			return { content: [{ type: "text" as const, text: "ok" }] };
 		});
 
-		expect(counts.get("my_tool")).toBeUndefined();
+		expect(counts.get("my_tool:success")).toBeUndefined();
 
 		call(handlers, "my_tool", {});
 		call(handlers, "my_tool", {});
 		call(handlers, "my_tool", {});
 
-		expect(counts.get("my_tool")).toBe(3);
+		expect(counts.get("my_tool:success")).toBe(3);
 		expect(calls).toHaveLength(3);
 	});
 
@@ -51,7 +51,7 @@ describe("wrapServerWithMetrics", () => {
 		const counts = new Map<string, number>();
 		const { server } = createFakeServer();
 		Object.defineProperty(server, "name", { value: "test-name", configurable: true });
-		const wrapped = wrapServerWithMetrics(server, counts);
+		const wrapped = wrapServerWithMetrics(server, { counts });
 
 		expect((wrapped as unknown as { name: string }).name).toBe("test-name");
 	});
@@ -59,7 +59,7 @@ describe("wrapServerWithMetrics", () => {
 	test("異なるツール名は独立してカウントされる", () => {
 		const counts = new Map<string, number>();
 		const { server, handlers } = createFakeServer();
-		const wrapped = wrapServerWithMetrics(server, counts);
+		const wrapped = wrapServerWithMetrics(server, { counts });
 
 		wrapped.registerTool("tool_a", { description: "a" }, () => ({
 			content: [{ type: "text" as const, text: "" }],
@@ -72,7 +72,7 @@ describe("wrapServerWithMetrics", () => {
 		call(handlers, "tool_a", {});
 		call(handlers, "tool_b", {});
 
-		expect(counts.get("tool_a")).toBe(2);
-		expect(counts.get("tool_b")).toBe(1);
+		expect(counts.get("tool_a:success")).toBe(2);
+		expect(counts.get("tool_b:success")).toBe(1);
 	});
 });
