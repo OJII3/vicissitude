@@ -208,7 +208,7 @@ function createServer(agentId: string | null): McpServer {
 	registerMemoryTools(server, { getOrCreateMemory }, boundGuildId);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
-	return rawServer;
+	return server;
 }
 
 // --- Start HTTP Server ---
