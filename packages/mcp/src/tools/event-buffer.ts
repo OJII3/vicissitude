@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- event-buffer tools + polling + formatting helpers are tightly coupled */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
@@ -237,13 +238,20 @@ function sleep(ms: number): Promise<void> {
 	});
 }
 
+export interface PollOptions {
+	pollIntervalMs?: number;
+	onPoll?: () => void;
+}
+
 export async function pollEvents(
 	db: StoreDb,
 	agentId: string,
 	deadlineMs: number,
-	pollIntervalMs = 1000,
+	options?: PollOptions,
 ): Promise<EventOrError[] | null> {
+	const { pollIntervalMs = 1000, onPoll } = options ?? {};
 	while (Date.now() < deadlineMs) {
+		onPoll?.();
 		if (hasEvents(db, agentId)) {
 			const rows = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (rows.length > 0) return parseEvents(rows);
@@ -365,8 +373,18 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 				return buildResponseContent(events);
 			}
 
+			const HEARTBEAT_INTERVAL_MS = 30_000;
+			let lastHeartbeatAt = Date.now();
+			const onPoll = () => {
+				const now = Date.now();
+				if (now - lastHeartbeatAt >= HEARTBEAT_INTERVAL_MS) {
+					touchHeartbeat(db, agentId);
+					lastHeartbeatAt = now;
+				}
+			};
+
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, agentId, deadline);
+			const result = await pollEvents(db, agentId, deadline, { onPoll });
 			if (result === null) {
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
 			}

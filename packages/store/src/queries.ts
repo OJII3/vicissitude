@@ -99,11 +99,12 @@ export function hasEvents(db: StoreDb, agentId: string): boolean {
 
 /** エージェントハートビートを更新する（UPSERT） */
 export function touchHeartbeat(db: StoreDb, agentId: string): void {
+	const now = Date.now();
 	db.insert(agentHeartbeat)
-		.values({ agentId, lastSeenAt: Date.now() })
+		.values({ agentId, lastSeenAt: now })
 		.onConflictDoUpdate({
 			target: agentHeartbeat.agentId,
-			set: { lastSeenAt: Date.now() },
+			set: { lastSeenAt: now },
 		})
 		.run();
 }

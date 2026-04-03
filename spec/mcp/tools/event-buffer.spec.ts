@@ -811,7 +811,7 @@ describe("pollEvents", () => {
 		const db = createTestDb();
 
 		const deadline = Date.now() + 300;
-		const result = await pollEvents(db, "guild-1", deadline, 50);
+		const result = await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 50 });
 
 		expect(result).toBeNull();
 	});
@@ -835,7 +835,7 @@ describe("pollEvents", () => {
 		}, 50);
 
 		const deadline = Date.now() + 500;
-		const result = await pollEvents(db, "guild-1", deadline, 30);
+		const result = await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 30 });
 
 		expect(result).not.toBeNull();
 		expect((result![0]! as ParsedEvent).content).toBe("delayed");
