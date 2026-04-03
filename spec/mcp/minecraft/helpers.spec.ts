@@ -101,29 +101,33 @@ describe("ORE_Y_DISTRIBUTION", () => {
 	test("各エントリが minY と maxY を持つこと", () => {
 		for (const ore of MAJOR_ORES) {
 			const entry = ORE_Y_DISTRIBUTION[ore];
+			expect(entry).toBeDefined();
 			expect(entry).toHaveProperty("minY");
 			expect(entry).toHaveProperty("maxY");
-			expect(typeof entry.minY).toBe("number");
-			expect(typeof entry.maxY).toBe("number");
+			expect(typeof entry?.minY).toBe("number");
+			expect(typeof entry?.maxY).toBe("number");
 		}
 	});
 
 	test("minY は maxY より小さいこと", () => {
 		for (const ore of MAJOR_ORES) {
 			const entry = ORE_Y_DISTRIBUTION[ore];
-			expect(entry.minY).toBeLessThan(entry.maxY);
+			expect(entry).toBeDefined();
+			expect(entry?.minY).toBeLessThan(entry?.maxY ?? Infinity);
 		}
 	});
 
 	test("diamond_ore は Y=-64 〜 Y=16 付近に存在すること", () => {
-		const entry = ORE_Y_DISTRIBUTION.diamond_ore;
-		expect(entry.minY).toBeLessThanOrEqual(-50);
-		expect(entry.maxY).toBeLessThanOrEqual(20);
+		const entry = ORE_Y_DISTRIBUTION["diamond_ore"];
+		expect(entry).toBeDefined();
+		expect(entry?.minY).toBeLessThanOrEqual(-50);
+		expect(entry?.maxY).toBeLessThanOrEqual(20);
 	});
 
 	test("coal_ore は地表付近（Y=0以上）に存在すること", () => {
-		const entry = ORE_Y_DISTRIBUTION.coal_ore;
-		expect(entry.maxY).toBeGreaterThan(0);
+		const entry = ORE_Y_DISTRIBUTION["coal_ore"];
+		expect(entry).toBeDefined();
+		expect(entry?.maxY).toBeGreaterThan(0);
 	});
 });
 
