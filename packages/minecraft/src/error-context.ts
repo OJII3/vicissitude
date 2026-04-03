@@ -3,8 +3,8 @@ import type mineflayer from "mineflayer";
 import { getNearbyBlockCounts } from "./bot-queries.ts";
 import { getOreHint } from "./helpers.ts";
 
-/** ベッド素材となりうるブロック名のパターン */
-const BED_MATERIAL_PATTERN = /wool|bed/i;
+/** ベッド素材となりうるブロック名のパターン（wool, planks） */
+const BED_MATERIAL_PATTERN = /wool|planks/i;
 
 /** 採集失敗時のコンテキスト文字列を生成する（3行以内） */
 export function buildCollectBlockContext(bot: mineflayer.Bot, blockName: string): string {
@@ -48,7 +48,7 @@ export function buildSleepContext(bot: mineflayer.Bot): string {
 		top5.length > 0 ? top5.map(([name, count]) => `${name}x${String(count)}`).join(", ") : "なし";
 
 	const hasBedMaterial = [...counts.keys()].some((name) => BED_MATERIAL_PATTERN.test(name));
-	const bedInfo = hasBedMaterial ? "ベッド素材（wool）あり" : "ベッド素材なし";
+	const bedInfo = hasBedMaterial ? "ベッド素材（wool/planks）あり" : "ベッド素材なし";
 
 	return [`周辺ブロック: ${nearbyText}`, bedInfo].join("\n");
 }
