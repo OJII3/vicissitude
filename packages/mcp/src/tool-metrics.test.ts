@@ -1,10 +1,23 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { METRIC } from "@vicissitude/observability/metrics";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 
 type Handler = (...args: unknown[]) => unknown;
+
+function createMockMetrics(): MetricsCollector & { incrementCounter: ReturnType<typeof mock> } {
+	return {
+		incrementCounter: mock(() => {}),
+		addCounter: mock(() => {}),
+		setGauge: mock(() => {}),
+		incrementGauge: mock(() => {}),
+		decrementGauge: mock(() => {}),
+		observeHistogram: mock(() => {}),
+	};
+}
 
 function createFakeServer(): {
 	server: McpServer;
@@ -26,10 +39,10 @@ function call(handlers: Map<string, Handler>, name: string, ...args: unknown[]):
 }
 
 describe("wrapServerWithMetrics", () => {
-	test("ハンドラ呼び出しでカウンタがインクリメントされる", () => {
-		const counts = new Map<string, number>();
+	test("ハンドラ呼び出しで incrementCounter が呼ばれる", () => {
+		const metrics = createMockMetrics();
 		const { server, handlers } = createFakeServer();
-		const wrapped = wrapServerWithMetrics(server, { counts });
+		const wrapped = wrapServerWithMetrics(server, { metrics });
 
 		const calls: string[] = [];
 		wrapped.registerTool("my_tool", { description: "x" }, () => {
@@ -37,29 +50,31 @@ describe("wrapServerWithMetrics", () => {
 			return { content: [{ type: "text" as const, text: "ok" }] };
 		});
 
-		expect(counts.get("my_tool:success")).toBeUndefined();
-
 		call(handlers, "my_tool", {});
 		call(handlers, "my_tool", {});
 		call(handlers, "my_tool", {});
 
-		expect(counts.get("my_tool:success")).toBe(3);
+		expect(metrics.incrementCounter).toHaveBeenCalledTimes(3);
+		expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+			tool: "my_tool",
+			outcome: "success",
+		});
 		expect(calls).toHaveLength(3);
 	});
 
 	test("registerTool 以外のプロパティはそのまま透過する", () => {
-		const counts = new Map<string, number>();
+		const metrics = createMockMetrics();
 		const { server } = createFakeServer();
 		Object.defineProperty(server, "name", { value: "test-name", configurable: true });
-		const wrapped = wrapServerWithMetrics(server, { counts });
+		const wrapped = wrapServerWithMetrics(server, { metrics });
 
 		expect((wrapped as unknown as { name: string }).name).toBe("test-name");
 	});
 
 	test("異なるツール名は独立してカウントされる", () => {
-		const counts = new Map<string, number>();
+		const metrics = createMockMetrics();
 		const { server, handlers } = createFakeServer();
-		const wrapped = wrapServerWithMetrics(server, { counts });
+		const wrapped = wrapServerWithMetrics(server, { metrics });
 
 		wrapped.registerTool("tool_a", { description: "a" }, () => ({
 			content: [{ type: "text" as const, text: "" }],
@@ -72,7 +87,14 @@ describe("wrapServerWithMetrics", () => {
 		call(handlers, "tool_a", {});
 		call(handlers, "tool_b", {});
 
-		expect(counts.get("tool_a:success")).toBe(2);
-		expect(counts.get("tool_b:success")).toBe(1);
+		expect(metrics.incrementCounter).toHaveBeenCalledTimes(3);
+		expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+			tool: "tool_a",
+			outcome: "success",
+		});
+		expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+			tool: "tool_b",
+			outcome: "success",
+		});
 	});
 });
