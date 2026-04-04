@@ -1,23 +1,14 @@
-import { describe, expect, mock, test } from "bun:test";
+import { type mock, describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { METRIC } from "@vicissitude/observability/metrics";
+import { createMockMetrics } from "@vicissitude/shared/test-helpers";
 import type { MetricsCollector } from "@vicissitude/shared/types";
 
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 
 type Handler = (...args: unknown[]) => unknown;
-
-function createMockMetrics(): MetricsCollector & { incrementCounter: ReturnType<typeof mock> } {
-	return {
-		incrementCounter: mock(() => {}),
-		addCounter: mock(() => {}),
-		setGauge: mock(() => {}),
-		incrementGauge: mock(() => {}),
-		decrementGauge: mock(() => {}),
-		observeHistogram: mock(() => {}),
-	};
-}
+type MockMetrics = MetricsCollector & { incrementCounter: ReturnType<typeof mock> };
 
 function createFakeServer(): {
 	server: McpServer;
@@ -40,7 +31,7 @@ function call(handlers: Map<string, Handler>, name: string, ...args: unknown[]):
 
 describe("wrapServerWithMetrics", () => {
 	test("ハンドラ呼び出しで incrementCounter が呼ばれる", () => {
-		const metrics = createMockMetrics();
+		const metrics = createMockMetrics() as MockMetrics;
 		const { server, handlers } = createFakeServer();
 		const wrapped = wrapServerWithMetrics(server, { metrics });
 
@@ -63,7 +54,7 @@ describe("wrapServerWithMetrics", () => {
 	});
 
 	test("registerTool 以外のプロパティはそのまま透過する", () => {
-		const metrics = createMockMetrics();
+		const metrics = createMockMetrics() as MockMetrics;
 		const { server } = createFakeServer();
 		Object.defineProperty(server, "name", { value: "test-name", configurable: true });
 		const wrapped = wrapServerWithMetrics(server, { metrics });
@@ -72,7 +63,7 @@ describe("wrapServerWithMetrics", () => {
 	});
 
 	test("異なるツール名は独立してカウントされる", () => {
-		const metrics = createMockMetrics();
+		const metrics = createMockMetrics() as MockMetrics;
 		const { server, handlers } = createFakeServer();
 		const wrapped = wrapServerWithMetrics(server, { metrics });
 

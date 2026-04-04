@@ -1,9 +1,9 @@
-import { type mock, mock as mockFn, describe, expect, it } from "bun:test";
+import { type mock, describe, expect, it } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapServerWithMetrics } from "@vicissitude/mcp/tool-metrics";
 import { METRIC } from "@vicissitude/observability/metrics";
-import { createMockLogger } from "@vicissitude/shared/test-helpers";
+import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
 import type { MetricsCollector } from "@vicissitude/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -11,17 +11,7 @@ import type { MetricsCollector } from "@vicissitude/shared/types";
 // ---------------------------------------------------------------------------
 
 type Handler = (...args: unknown[]) => unknown;
-
-function createMockMetrics(): MetricsCollector & { incrementCounter: ReturnType<typeof mockFn> } {
-	return {
-		incrementCounter: mockFn(() => {}),
-		addCounter: mockFn(() => {}),
-		setGauge: mockFn(() => {}),
-		incrementGauge: mockFn(() => {}),
-		decrementGauge: mockFn(() => {}),
-		observeHistogram: mockFn(() => {}),
-	};
-}
+type MockMetrics = MetricsCollector & { incrementCounter: ReturnType<typeof mock> };
 
 /** registerTool だけを持つ最小限の McpServer フェイク */
 function createFakeServer(): {
@@ -72,7 +62,7 @@ describe("wrapServerWithMetrics", () => {
 	// -----------------------------------------------------------------------
 	describe("成功時", () => {
 		it("同期ハンドラが成功したら incrementCounter が success ラベルで呼ばれる", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics });
 
@@ -91,7 +81,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("非同期ハンドラが成功したら incrementCounter が success ラベルで呼ばれる", async () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics });
 
@@ -116,7 +106,7 @@ describe("wrapServerWithMetrics", () => {
 	// -----------------------------------------------------------------------
 	describe("同期エラー時", () => {
 		it("incrementCounter が error ラベルで呼ばれる", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -133,7 +123,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("logger.error() がツール名とエラーメッセージを含んで呼ばれる", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -152,7 +142,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("エラーが re-throw される", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -171,7 +161,7 @@ describe("wrapServerWithMetrics", () => {
 	// -----------------------------------------------------------------------
 	describe("非同期エラー時", () => {
 		it("incrementCounter が error ラベルで呼ばれる", async () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -191,7 +181,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("logger.error() がツール名とエラーメッセージを含んで呼ばれる", async () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -213,7 +203,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("エラーが re-throw される (rejection)", async () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
@@ -231,7 +221,7 @@ describe("wrapServerWithMetrics", () => {
 	// -----------------------------------------------------------------------
 	describe("logger 省略時", () => {
 		it("エラー時も incrementCounter が呼ばれる", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics });
 
@@ -247,7 +237,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("エラーが re-throw される", () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics });
 
@@ -260,7 +250,7 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("非同期エラーでも incrementCounter が呼ばれ re-throw される", async () => {
-			const metrics = createMockMetrics();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
 			const wrapped = wrapServerWithMetrics(server, { metrics });
 
