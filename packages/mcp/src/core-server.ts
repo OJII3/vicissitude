@@ -9,7 +9,7 @@ import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
-import { METRIC } from "@vicissitude/observability/metrics";
+import { METRIC, PrometheusCollector, PrometheusServer } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { closeDb, createDb } from "@vicissitude/store/db";
@@ -130,28 +130,21 @@ function getOrCreateMemory(guildId: string): MemoryReadServices {
 	return instance;
 }
 
-// --- MCP Tool Call Metrics ---
+// --- Prometheus Metrics ---
 
-const toolCallCounts = new Map<string, number>();
+const CORE_METRICS_PORT = Number(process.env.CORE_METRICS_PORT) || 9093;
 
-// 5 分ごとにログ出力
-const METRICS_LOG_INTERVAL_MS = 5 * 60 * 1000;
+const metricsCollector = new PrometheusCollector();
+metricsCollector.registerCounter(METRIC.MCP_TOOL_CALLS, "Core MCP tool calls total");
 
-const metricsLogTimer = setInterval(() => {
-	if (toolCallCounts.size === 0) return;
-	const snapshot: Record<string, number> = {};
-	for (const [tool, count] of toolCallCounts) {
-		snapshot[tool] = count;
-	}
-	logger.info(`[core-server] ${METRIC.MCP_TOOL_CALLS}:`, snapshot);
-}, METRICS_LOG_INTERVAL_MS);
-metricsLogTimer.unref();
+const metricsServer = new PrometheusServer(metricsCollector, logger, CORE_METRICS_PORT);
+metricsServer.start();
 
 // --- MCP Server Factory ---
 
 function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
-	const server = wrapServerWithMetrics(rawServer, { counts: toolCallCounts, logger });
+	const server = wrapServerWithMetrics(rawServer, { metrics: metricsCollector, logger });
 
 	const guildMatch = agentId?.match(/^discord:(?:heartbeat:)?(\d+)$/);
 	const boundGuildId = guildMatch?.[1];
@@ -223,7 +216,7 @@ const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
 // --- Graceful Shutdown ---
 
 function shutdown() {
-	clearInterval(metricsLogTimer);
+	metricsServer.stop();
 	clearInterval(cleanupTimer);
 	closeAllSessions();
 	stopServer();

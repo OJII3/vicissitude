@@ -1,8 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Logger } from "@vicissitude/shared/types";
+import { METRIC } from "@vicissitude/observability/metrics";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 export interface MetricsOptions {
-	counts: Map<string, number>;
+	metrics: MetricsCollector;
 	logger?: Logger;
 }
 
@@ -11,14 +12,14 @@ export interface MetricsOptions {
  * Proxy を使って McpServer を薄くラップすることで、個々のツール登録関数を変更せずに全ツールを計測できる。
  */
 export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions): McpServer {
-	const { counts, logger } = options;
+	const { metrics, logger } = options;
 
-	function increment(key: string): void {
-		counts.set(key, (counts.get(key) ?? 0) + 1);
+	function increment(toolName: string, outcome: "success" | "error"): void {
+		metrics.incrementCounter(METRIC.MCP_TOOL_CALLS, { tool: toolName, outcome });
 	}
 
 	function handleError(name: string, err: unknown): never {
-		increment(`${name}:error`);
+		increment(name, "error");
 		if (logger) {
 			const message = err instanceof Error ? err.message : String(err);
 			logger.error(`[tool-metrics] ${name}: ${message}`);
@@ -46,7 +47,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 						return result.then(
 							// oxlint-disable-next-line no-explicit-any -- Promise の resolve 値はツールごとに異なる
 							(value: any) => {
-								increment(`${name}:success`);
+								increment(name, "success");
 								return value;
 							},
 							(err: unknown) => {
@@ -55,7 +56,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 						);
 					}
 
-					increment(`${name}:success`);
+					increment(name, "success");
 					return result;
 				};
 				return target.registerTool(name, config, wrappedCb);

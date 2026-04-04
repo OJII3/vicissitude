@@ -2,13 +2,16 @@ import { type mock, describe, expect, it } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { wrapServerWithMetrics } from "@vicissitude/mcp/tool-metrics";
-import { createMockLogger } from "@vicissitude/shared/test-helpers";
+import { METRIC } from "@vicissitude/observability/metrics";
+import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
+import type { MetricsCollector } from "@vicissitude/shared/types";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 type Handler = (...args: unknown[]) => unknown;
+type MockMetrics = MetricsCollector & { incrementCounter: ReturnType<typeof mock> };
 
 /** registerTool だけを持つ最小限の McpServer フェイク */
 function createFakeServer(): {
@@ -55,13 +58,13 @@ function resolveWith<T>(value: T): () => Promise<T> {
 
 describe("wrapServerWithMetrics", () => {
 	// -----------------------------------------------------------------------
-	// 1. 成功時: "toolName:success" カウンタがインクリメントされる
+	// 1. 成功時: incrementCounter が outcome: "success" で呼ばれる
 	// -----------------------------------------------------------------------
 	describe("成功時", () => {
-		it("同期ハンドラが成功したら toolName:success キーでカウンタがインクリメントされる", () => {
-			const counts = new Map<string, number>();
+		it("同期ハンドラが成功したら incrementCounter が success ラベルで呼ばれる", () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts });
+			const wrapped = wrapServerWithMetrics(server, { metrics });
 
 			wrapped.registerTool("ping", { description: "ping" }, () => ({
 				content: [{ type: "text" as const, text: "pong" }],
@@ -70,13 +73,17 @@ describe("wrapServerWithMetrics", () => {
 			call(handlers, "ping", {});
 			call(handlers, "ping", {});
 
-			expect(counts.get("ping:success")).toBe(2);
+			expect(metrics.incrementCounter).toHaveBeenCalledTimes(2);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "ping",
+				outcome: "success",
+			});
 		});
 
-		it("非同期ハンドラが成功したら toolName:success キーでカウンタがインクリメントされる", async () => {
-			const counts = new Map<string, number>();
+		it("非同期ハンドラが成功したら incrementCounter が success ラベルで呼ばれる", async () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts });
+			const wrapped = wrapServerWithMetrics(server, { metrics });
 
 			wrapped.registerTool(
 				"async_ping",
@@ -86,7 +93,11 @@ describe("wrapServerWithMetrics", () => {
 
 			await callAsync(handlers, "async_ping", {});
 
-			expect(counts.get("async_ping:success")).toBe(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledTimes(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "async_ping",
+				outcome: "success",
+			});
 		});
 	});
 
@@ -94,25 +105,28 @@ describe("wrapServerWithMetrics", () => {
 	// 2. 同期エラー時
 	// -----------------------------------------------------------------------
 	describe("同期エラー時", () => {
-		it("toolName:error キーでカウンタがインクリメントされる", () => {
-			const counts = new Map<string, number>();
+		it("incrementCounter が error ラベルで呼ばれる", () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			wrapped.registerTool("fail_tool", { description: "fail" }, () => {
 				throw new Error("boom");
 			});
 
 			expect(() => call(handlers, "fail_tool", {})).toThrow("boom");
-			expect(counts.get("fail_tool:error")).toBe(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "fail_tool",
+				outcome: "error",
+			});
 		});
 
 		it("logger.error() がツール名とエラーメッセージを含んで呼ばれる", () => {
-			const counts = new Map<string, number>();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			wrapped.registerTool("fail_tool", { description: "fail" }, () => {
 				throw new Error("sync boom");
@@ -128,10 +142,10 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("エラーが re-throw される", () => {
-			const counts = new Map<string, number>();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			const original = new Error("must propagate");
 			wrapped.registerTool("rethrow_tool", { description: "x" }, () => {
@@ -146,11 +160,11 @@ describe("wrapServerWithMetrics", () => {
 	// 3. 非同期エラー時 (Promise.reject)
 	// -----------------------------------------------------------------------
 	describe("非同期エラー時", () => {
-		it("toolName:error キーでカウンタがインクリメントされる", async () => {
-			const counts = new Map<string, number>();
+		it("incrementCounter が error ラベルで呼ばれる", async () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			wrapped.registerTool(
 				"async_fail",
@@ -160,14 +174,17 @@ describe("wrapServerWithMetrics", () => {
 
 			// oxlint-disable-next-line await-thenable -- Bun の expect().rejects.toThrow() は実行時 Promise
 			await expect(callAsync(handlers, "async_fail", {})).rejects.toThrow("async boom");
-			expect(counts.get("async_fail:error")).toBe(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "async_fail",
+				outcome: "error",
+			});
 		});
 
 		it("logger.error() がツール名とエラーメッセージを含んで呼ばれる", async () => {
-			const counts = new Map<string, number>();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			wrapped.registerTool(
 				"async_fail",
@@ -186,10 +203,10 @@ describe("wrapServerWithMetrics", () => {
 		});
 
 		it("エラーが re-throw される (rejection)", async () => {
-			const counts = new Map<string, number>();
+			const metrics = createMockMetrics() as MockMetrics;
 			const logger = createMockLogger();
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts, logger });
+			const wrapped = wrapServerWithMetrics(server, { metrics, logger });
 
 			const original = new Error("must propagate async");
 			wrapped.registerTool("async_rethrow", { description: "x" }, rejectWith(original));
@@ -203,23 +220,26 @@ describe("wrapServerWithMetrics", () => {
 	// 4. logger 省略時
 	// -----------------------------------------------------------------------
 	describe("logger 省略時", () => {
-		it("エラーカウントは記録される", () => {
-			const counts = new Map<string, number>();
+		it("エラー時も incrementCounter が呼ばれる", () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts });
+			const wrapped = wrapServerWithMetrics(server, { metrics });
 
 			wrapped.registerTool("no_logger", { description: "x" }, () => {
 				throw new Error("no logger");
 			});
 
 			expect(() => call(handlers, "no_logger", {})).toThrow("no logger");
-			expect(counts.get("no_logger:error")).toBe(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "no_logger",
+				outcome: "error",
+			});
 		});
 
 		it("エラーが re-throw される", () => {
-			const counts = new Map<string, number>();
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts });
+			const wrapped = wrapServerWithMetrics(server, { metrics });
 
 			const original = new Error("should propagate");
 			wrapped.registerTool("no_logger_rethrow", { description: "x" }, () => {
@@ -229,10 +249,10 @@ describe("wrapServerWithMetrics", () => {
 			expect(() => call(handlers, "no_logger_rethrow", {})).toThrow(original);
 		});
 
-		it("非同期エラーでもカウント記録 + re-throw される", async () => {
-			const counts = new Map<string, number>();
+		it("非同期エラーでも incrementCounter が呼ばれ re-throw される", async () => {
+			const metrics = createMockMetrics() as MockMetrics;
 			const { server, handlers } = createFakeServer();
-			const wrapped = wrapServerWithMetrics(server, { counts });
+			const wrapped = wrapServerWithMetrics(server, { metrics });
 
 			wrapped.registerTool(
 				"no_logger_async",
@@ -242,7 +262,10 @@ describe("wrapServerWithMetrics", () => {
 
 			// oxlint-disable-next-line await-thenable -- Bun の expect().rejects.toThrow() は実行時 Promise
 			await expect(callAsync(handlers, "no_logger_async", {})).rejects.toThrow("async no logger");
-			expect(counts.get("no_logger_async:error")).toBe(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "no_logger_async",
+				outcome: "error",
+			});
 		});
 	});
 });
