@@ -109,7 +109,7 @@ describe("save_listening_fact", () => {
 		expect(result.isError).toBeUndefined();
 		expect(saved).toHaveLength(1);
 		expect(saved[0]?.impression).toBe("歌詞が切なくて好き");
-		expect((saved[0]?.track as { name: string }).name).toBe("夜に駆ける");
+		expect((saved[0]!.track as { name: string }).name).toBe("夜に駆ける");
 	});
 
 	test("saveListening 呼び出し時に listenedAt が Date として付与される", async () => {

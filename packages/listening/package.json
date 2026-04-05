@@ -4,9 +4,6 @@
 	"exports": {
 		"./types": "./src/types.ts",
 		"./genius-client": "./src/genius-client.ts",
-		"./listening-llm-adapter": "./src/listening-llm-adapter.ts",
-		"./listening-service": "./src/listening-service.ts",
-		"./listening-memory": "./src/listening-memory.ts",
-		"./create-listening": "./src/create-listening.ts"
+		"./listening-memory": "./src/listening-memory.ts"
 	}
 }

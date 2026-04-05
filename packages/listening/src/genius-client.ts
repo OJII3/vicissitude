@@ -1,7 +1,3 @@
-import type { SpotifyTrack } from "@vicissitude/spotify/types";
-
-import type { LyricsPort } from "./types.ts";
-
 const GENIUS_API_BASE = "https://api.genius.com";
 
 interface GeniusSearchResponse {
@@ -16,17 +12,17 @@ interface GeniusSearchResponse {
 }
 
 /**
- * Genius API 経由で歌詞を取得する Adapter。
+ * Genius API 経由で歌詞を取得するクライアント。
  *
  * Genius API 本体は曲の URL までしか返さないため、歌詞本文は
  * Web ページ HTML からスクレイピングする必要がある。ここでは
  * シンプルに HTML 取得 → lyrics container タグ抽出で実装する。
  */
-export class GeniusClient implements LyricsPort {
+export class GeniusClient {
 	constructor(private readonly accessToken: string) {}
 
-	async fetchLyrics(track: SpotifyTrack): Promise<string | null> {
-		const query = `${track.name} ${track.artistName}`;
+	async fetchLyrics(title: string, artist: string): Promise<string | null> {
+		const query = `${title} ${artist}`;
 		const url = await this.searchSongUrl(query);
 		if (!url) return null;
 		return this.scrapeLyrics(url);

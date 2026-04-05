@@ -339,6 +339,10 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		}
 	}
 
+	if (config.genius) {
+		coreEnv.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
+	}
+
 	const coreProcess = spawn({
 		cmd: ["bun", "run", resolve(root, "dist/core-server.js")],
 		env: coreEnv,

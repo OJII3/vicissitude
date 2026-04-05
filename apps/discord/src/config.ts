@@ -29,6 +29,10 @@ const spotifySchema = z.object({
 	recommendPlaylistId: z.string().optional(),
 });
 
+const geniusSchema = z.object({
+	accessToken: z.string(),
+});
+
 const ttsSchema = z.object({
 	baseUrl: z.string(),
 	speakerId: safeInt,
@@ -56,6 +60,7 @@ const appConfigSchema = z.object({
 		modelId: z.string(),
 	}),
 	spotify: spotifySchema.optional(),
+	genius: geniusSchema.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	dataDir: z.string(),
@@ -65,6 +70,7 @@ const appConfigSchema = z.object({
 // ─── Types ───────────────────────────────────────────────────────
 
 export type SpotifyConfig = z.infer<typeof spotifySchema>;
+export type GeniusConfig = z.infer<typeof geniusSchema>;
 export type TtsConfig = z.infer<typeof ttsSchema>;
 export type MinecraftConfig = z.infer<typeof minecraftSchema>;
 export type AppConfig = z.infer<typeof appConfigSchema>;
@@ -110,6 +116,7 @@ export function loadConfig(
 					recommendPlaylistId: env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
 				}
 			: undefined,
+		genius: env.GENIUS_ACCESS_TOKEN ? { accessToken: env.GENIUS_ACCESS_TOKEN } : undefined,
 		tts: env.AIVIS_SPEECH_URL
 			? {
 					baseUrl: env.AIVIS_SPEECH_URL,

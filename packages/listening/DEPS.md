@@ -6,43 +6,21 @@
 
 ```mermaid
 graph LR
-  create_listening["create-listening"] --> genius_client["genius-client"]
-  create_listening["create-listening"] --> listening_llm_adapter["listening-llm-adapter"]
-  create_listening["create-listening"] --> listening_memory["listening-memory"]
-  create_listening["create-listening"] --> listening_service["listening-service"]
-  genius_client["genius-client"] --> types
-  listening_llm_adapter["listening-llm-adapter"] --> types
+  genius_client["genius-client"]
   listening_memory["listening-memory"] --> types
-  listening_service["listening-service"] --> types
   types
 ```
 
 ## ファイル別依存一覧
 
-### create-listening.ts
-
-- モジュール内依存: genius-client, listening-llm-adapter, listening-memory, listening-service
-- 他モジュール依存: memory
-
 ### genius-client.ts
 
-- モジュール内依存: types
-- 他モジュール依存: spotify
-
-### listening-llm-adapter.ts
-
-- モジュール内依存: types
-- 他モジュール依存: memory
+- 依存なし
 
 ### listening-memory.ts
 
 - モジュール内依存: types
 - 他モジュール依存: memory, shared
-
-### listening-service.ts
-
-- モジュール内依存: types
-- 他モジュール依存: spotify
 
 ### types.ts
 

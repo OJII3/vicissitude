@@ -2,17 +2,21 @@ import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import type { MemoryStorage } from "@vicissitude/memory/storage";
 import { HUA_SELF_SUBJECT } from "@vicissitude/shared/namespace";
 
-import type { ListeningMemoryPort, ListeningRecord, TrackLlmPort } from "./types.ts";
+import type { ListeningMemoryPort, ListeningRecord } from "./types.ts";
+
+export interface Embedder {
+	embed(text: string): Promise<number[]>;
+}
 
 export class ListeningMemory implements ListeningMemoryPort {
 	constructor(
 		private readonly storage: MemoryStorage,
-		private readonly llm: Pick<TrackLlmPort, "embed">,
+		private readonly embedder: Embedder,
 	) {}
 
 	async saveListening(record: ListeningRecord): Promise<SemanticFact> {
 		const factText = `${record.track.artistName} の『${record.track.name}』を聴いた。${record.impression}`;
-		const embedding = await this.llm.embed(factText);
+		const embedding = await this.embedder.embed(factText);
 		const fact: SemanticFact = {
 			id: crypto.randomUUID(),
 			userId: HUA_SELF_SUBJECT,
