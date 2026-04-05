@@ -5,7 +5,6 @@ import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
-import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	INTERNAL_NAMESPACE,
@@ -22,6 +21,7 @@ import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { METRIC, PrometheusCollector, PrometheusServer } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
+import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
@@ -30,10 +30,10 @@ import { startHttpServer } from "./http-server.ts";
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
+import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
-import { registerListeningTools } from "./tools/listening.ts";
 import { registerSpotifyTools } from "./tools/spotify.ts";
 
 // --- Logger ---

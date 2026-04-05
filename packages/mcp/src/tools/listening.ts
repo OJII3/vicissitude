@@ -26,9 +26,7 @@ export function registerListeningTools(server: McpServer, deps: ListeningToolDep
 				const lyrics = await deps.fetchLyrics(title, artist);
 				if (lyrics === null) {
 					return {
-						content: [
-							{ type: "text", text: `歌詞は見つかりませんでした: ${title} / ${artist}` },
-						],
+						content: [{ type: "text", text: `歌詞は見つかりませんでした: ${title} / ${artist}` }],
 					};
 				}
 				return { content: [{ type: "text", text: lyrics }] };
