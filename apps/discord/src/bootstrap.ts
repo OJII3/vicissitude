@@ -330,6 +330,15 @@ async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Pr
 		EMOTION_CHAT_MODEL: process.env.EMOTION_CHAT_MODEL ?? "gemma3",
 	};
 
+	if (config.spotify) {
+		coreEnv.SPOTIFY_CLIENT_ID = config.spotify.clientId;
+		coreEnv.SPOTIFY_CLIENT_SECRET = config.spotify.clientSecret;
+		coreEnv.SPOTIFY_REFRESH_TOKEN = config.spotify.refreshToken;
+		if (config.spotify.recommendPlaylistId) {
+			coreEnv.SPOTIFY_RECOMMEND_PLAYLIST_ID = config.spotify.recommendPlaylistId;
+		}
+	}
+
 	const coreProcess = spawn({
 		cmd: ["bun", "run", resolve(root, "dist/core-server.js")],
 		env: coreEnv,
