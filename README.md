@@ -60,7 +60,8 @@ MCP サーバー経由で各種操作を提供する。
 | ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
 | ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
 | 選曲         | core         | spotify_pick_track                                                                                    |
-| 聴取理解     | core         | listen_to_track                                                                                       |
+| 歌詞取得     | core         | fetch_lyrics                                                                                          |
+| 聴取記録     | core         | save_listening_fact                                                                                   |
 
 OpenCode SDK 組み込み: `webfetch`, `websearch`
 

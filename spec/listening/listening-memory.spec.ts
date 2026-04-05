@@ -1,7 +1,7 @@
 /* oxlint-disable require-await -- mock implementations */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
-import type { ListeningRecord, TrackLlmPort } from "@vicissitude/listening/types";
+import type { ListeningRecord } from "@vicissitude/listening/types";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { HUA_SELF_SUBJECT } from "@vicissitude/shared/namespace";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
@@ -25,29 +25,17 @@ function makeTrack(overrides: Partial<SpotifyTrack> = {}): SpotifyTrack {
 function makeRecord(overrides: Partial<ListeningRecord> = {}): ListeningRecord {
 	return {
 		track: overrides.track ?? makeTrack(),
-		lyrics: overrides.lyrics ?? "歌詞サンプル",
-		understanding: overrides.understanding ?? {
-			vocalGender: "female",
-			tieIn: null,
-			moodThemes: ["melancholic"],
-			summary: "切ないJ-POP",
-		},
 		impression: overrides.impression ?? "歌詞が切なくて好き",
 		listenedAt: overrides.listenedAt ?? new Date("2026-04-06T12:00:00Z"),
 	};
 }
 
-function createStubLlm(embedding: number[] = [0.1, 0.2, 0.3]): TrackLlmPort {
-	return {
-		inferUnderstanding: async () => ({
-			vocalGender: "unknown",
-			tieIn: null,
-			moodThemes: [],
-			summary: "",
-		}),
-		generateImpression: async () => "",
-		embed: async () => embedding,
-	};
+interface StubEmbedder {
+	embed(text: string): Promise<number[]>;
+}
+
+function createStubEmbedder(embedding: number[] = [0.1, 0.2, 0.3]): StubEmbedder {
+	return { embed: async () => embedding };
 }
 
 describe("ListeningMemory — Memory 保存の契約", () => {
@@ -63,7 +51,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("saveListening で SemanticFact が永続化される", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(makeRecord());
 
@@ -73,7 +61,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("保存される SemanticFact の category は 'experience' である", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(makeRecord());
 
@@ -83,7 +71,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("保存される SemanticFact の userId は HUA_SELF_SUBJECT (internal namespace) である", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(makeRecord());
 
@@ -93,7 +81,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("fact 本文には曲名・アーティスト名・感想が含まれる", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(
 			makeRecord({
@@ -112,7 +100,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("keywords に曲名・アーティスト名が含まれる", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(
 			makeRecord({
@@ -125,9 +113,9 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 		expect(facts[0]?.keywords).toContain("YOASOBI");
 	});
 
-	it("memory_get_facts の仕組みで取得できる（既存 getFacts 互換）", async () => {
+	it("memory_get_facts の仕組みで取得できる（既存 getFactsByCategory 互換）", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(makeRecord({ track: makeTrack({ name: "曲A" }) }));
 		await memory.saveListening(makeRecord({ track: makeTrack({ id: "t-2", name: "曲B" }) }));
@@ -138,7 +126,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("memory_retrieve の仕組み（keyword 検索）で引き出せる", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 
 		await memory.saveListening(
 			makeRecord({ track: makeTrack({ name: "夜に駆ける", artistName: "YOASOBI" }) }),
@@ -148,10 +136,10 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 		expect(results.length).toBeGreaterThan(0);
 	});
 
-	it("LLM.embed が呼ばれ、embedding が SemanticFact に保存される", async () => {
+	it("embedder.embed が呼ばれ、embedding が SemanticFact に保存される", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
 		const customEmbedding = [0.5, 0.4, 0.3];
-		const memory = new ListeningMemory(storage, createStubLlm(customEmbedding));
+		const memory = new ListeningMemory(storage, createStubEmbedder(customEmbedding));
 
 		await memory.saveListening(makeRecord());
 
@@ -161,7 +149,7 @@ describe("ListeningMemory — Memory 保存の契約", () => {
 
 	it("listenedAt が validAt / createdAt に反映される", async () => {
 		const { ListeningMemory } = await import("@vicissitude/listening/listening-memory");
-		const memory = new ListeningMemory(storage, createStubLlm());
+		const memory = new ListeningMemory(storage, createStubEmbedder());
 		const listenedAt = new Date("2026-04-06T12:00:00Z");
 
 		await memory.saveListening(makeRecord({ listenedAt }));
