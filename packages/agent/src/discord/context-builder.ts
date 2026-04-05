@@ -1,9 +1,7 @@
 import { resolve } from "path";
 
-import { discordGuildNamespace } from "@vicissitude/shared/namespace";
+import { discordGuildNamespace, GUILD_ID_RE } from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
-
-const GUILD_ID_REGEX = /^\d+$/;
 
 type FileEntry = { name: string; scope: "shared" | "guild" };
 
@@ -43,7 +41,7 @@ export class ContextBuilder implements ContextBuilderPort {
 	) {}
 
 	async build(guildId?: string): Promise<string> {
-		if (guildId !== undefined && !GUILD_ID_REGEX.test(guildId)) {
+		if (guildId !== undefined && !GUILD_ID_RE.test(guildId)) {
 			throw new Error(`Invalid guildId: ${guildId}`);
 		}
 

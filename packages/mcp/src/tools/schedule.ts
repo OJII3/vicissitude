@@ -8,11 +8,11 @@ import {
 	createDefaultHeartbeatConfig,
 } from "@vicissitude/scheduling/heartbeat-helpers";
 import { APP_ROOT } from "@vicissitude/shared/config";
+import { GUILD_ID_RE } from "@vicissitude/shared/namespace";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
-const GUILD_ID_REGEX = /^\d+$/;
-const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
+const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
 export function filterRemindersByGuild(
 	reminders: HeartbeatReminder[],

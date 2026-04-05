@@ -1,19 +1,23 @@
 import { mkdirSync } from "fs";
-import { resolve } from "path";
 
 import type {
 	ConsolidationResult,
 	ConversationMessage,
 	ConversationRecorder,
 	MemoryConsolidator,
-	MemoryNamespace,
 } from "@vicissitude/shared/types";
 
 import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
 import { EpisodicMemory } from "./episodic.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
-import { defaultSubject, namespaceKey, resolveMemoryDbDir } from "./namespace.ts";
+import {
+	defaultSubject,
+	type MemoryNamespace,
+	namespaceKey,
+	resolveMemoryDbDir,
+	resolveMemoryDbPath,
+} from "./namespace.ts";
 import { Segmenter } from "./segmenter.ts";
 import { MemoryStorage } from "./storage.ts";
 
@@ -109,7 +113,7 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 
 		const dbDir = resolveMemoryDbDir(this.dataDir, namespace);
 		mkdirSync(dbDir, { recursive: true });
-		const inst = this.factory(resolve(dbDir, "memory.db"), this.llm);
+		const inst = this.factory(resolveMemoryDbPath(this.dataDir, namespace), this.llm);
 		this.instances.set(key, { ns: namespace, inst });
 		return inst;
 	}

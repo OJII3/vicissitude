@@ -39,9 +39,8 @@
  *     namespace: MemoryNamespace,
  *   ): string;
  *
- *   // Map キー・ログ用の安定した文字列表現（衝突なし・往復可）
+ *   // Map キー・ログ用の安定した文字列表現（衝突なし）
  *   export function namespaceKey(namespace: MemoryNamespace): string;
- *   export function parseNamespaceKey(key: string): MemoryNamespace | null;
  *
  *   // agent_id → namespace の解決
  *   //   "discord:heartbeat:{guildId}" → discord-guild
@@ -69,7 +68,6 @@ import {
 	resolveMemoryDbPath,
 	resolveMemoryDbDir,
 	namespaceKey,
-	parseNamespaceKey,
 	resolveNamespaceFromAgentId,
 	type MemoryNamespace,
 } from "@vicissitude/memory/namespace";
@@ -120,7 +118,7 @@ describe("resolveMemoryDbPath / resolveMemoryDbDir", () => {
 	});
 });
 
-describe("namespaceKey / parseNamespaceKey", () => {
+describe("namespaceKey", () => {
 	it("discord-guild namespace は 'discord-guild:{guildId}' にシリアライズされる", () => {
 		const ns = discordGuildNamespace("123456789");
 		expect(namespaceKey(ns)).toBe("discord-guild:123456789");
@@ -128,25 +126,6 @@ describe("namespaceKey / parseNamespaceKey", () => {
 
 	it("internal namespace は 'internal' にシリアライズされる", () => {
 		expect(namespaceKey(INTERNAL_NAMESPACE)).toBe("internal");
-	});
-
-	it("discord-guild は往復できる", () => {
-		const ns = discordGuildNamespace("987654321");
-		const parsed = parseNamespaceKey(namespaceKey(ns));
-		expect(parsed).toEqual(ns);
-	});
-
-	it("internal は往復できる", () => {
-		const parsed = parseNamespaceKey(namespaceKey(INTERNAL_NAMESPACE));
-		expect(parsed).toEqual(INTERNAL_NAMESPACE);
-	});
-
-	it("未知の key 形式は null を返す", () => {
-		expect(parseNamespaceKey("unknown")).toBeNull();
-		expect(parseNamespaceKey("discord-guild:")).toBeNull();
-		expect(parseNamespaceKey("discord-guild:abc")).toBeNull();
-		expect(parseNamespaceKey("")).toBeNull();
-		expect(parseNamespaceKey("internal:extra")).toBeNull();
 	});
 
 	it("異なる guildId の discord-guild key は衝突しない", () => {

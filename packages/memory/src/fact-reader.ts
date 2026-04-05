@@ -1,8 +1,13 @@
 import { existsSync } from "fs";
 
-import type { MemoryFact, MemoryFactReader, MemoryNamespace } from "@vicissitude/shared/types";
+import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
-import { defaultSubject, namespaceKey, resolveMemoryDbPath } from "./namespace.ts";
+import {
+	defaultSubject,
+	type MemoryNamespace,
+	namespaceKey,
+	resolveMemoryDbPath,
+} from "./namespace.ts";
 import { reciprocalRankFusion } from "./retrieval.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import { MemoryStorage } from "./storage.ts";
