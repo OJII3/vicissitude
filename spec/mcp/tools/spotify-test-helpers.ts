@@ -1,16 +1,11 @@
 /* oxlint-disable no-non-null-assertion -- test helpers */
-/* oxlint-disable max-classes-per-file -- モック内の小クラス定義 */
-import { mock } from "bun:test";
-
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { registerSpotifyTools } from "@vicissitude/mcp/tools/spotify";
+import type { registerSpotifyTools, SpotifyToolDeps } from "@vicissitude/mcp/tools/spotify";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 
 import type { ToolHandler } from "./discord-test-helpers";
 
 // ─── Mutable stubs ──────────────────────────────────────────────
-// mock.module はファイルトップレベルで1回だけ呼ぶ必要がある。
-// 各テストケースでは stubs オブジェクトのプロパティを差し替えて振る舞いを変える。
 
 export const stubs = {
 	getSavedTracks: (_limit: number, _offset: number): Promise<SpotifyTrack[]> => Promise.resolve([]),
@@ -19,39 +14,6 @@ export const stubs = {
 	getArtist: (_id: string): Promise<{ genres: string[] }> => Promise.resolve({ genres: [] }),
 	select: (_tracks: SpotifyTrack[]): SpotifyTrack | null => null,
 };
-
-void mock.module("@vicissitude/spotify/auth", () => ({
-	SpotifyAuth: class {
-		getAccessToken(): Promise<string> {
-			return Promise.resolve("test-access-token");
-		}
-	},
-}));
-
-void mock.module("@vicissitude/spotify/spotify-client", () => ({
-	SpotifyClient: class {
-		getSavedTracks(limit: number, offset: number) {
-			return stubs.getSavedTracks(limit, offset);
-		}
-		getRecentlyPlayed(limit: number) {
-			return stubs.getRecentlyPlayed(limit);
-		}
-		getPlaylistTracks(id: string) {
-			return stubs.getPlaylistTracks(id);
-		}
-		getArtist(id: string) {
-			return stubs.getArtist(id);
-		}
-	},
-}));
-
-void mock.module("@vicissitude/spotify/selector", () => ({
-	TrackSelector: class {
-		select(tracks: SpotifyTrack[]) {
-			return stubs.select(tracks);
-		}
-	},
-}));
 
 // ─── captureSpotifyTool ─────────────────────────────────────────
 
@@ -65,7 +27,7 @@ const defaultConfig: SpotifyConfig = {
 
 /**
  * registerSpotifyTools で登録されたツールを name → handler のマップとして取得する。
- * mock.module の後にインポートする必要があるため、動的インポートを使用。
+ * DI 経由で stubs を注入するため mock.module は不要。
  */
 export async function captureSpotifyTool(
 	overrides: Partial<SpotifyConfig> = {},
@@ -79,7 +41,15 @@ export async function captureSpotifyTool(
 		},
 	} as unknown as McpServer;
 
-	registerSpotifyTools(fakeServer, { ...defaultConfig, ...overrides });
+	const deps: SpotifyToolDeps = {
+		getSavedTracks: (limit, offset) => stubs.getSavedTracks(limit, offset),
+		getRecentlyPlayed: (limit) => stubs.getRecentlyPlayed(limit),
+		getPlaylistTracks: (id) => stubs.getPlaylistTracks(id),
+		getArtist: (id) => stubs.getArtist(id),
+		select: (tracks) => stubs.select(tracks),
+	};
+
+	registerSpotifyTools(fakeServer, { ...defaultConfig, ...overrides }, deps);
 	return { tools };
 }
 

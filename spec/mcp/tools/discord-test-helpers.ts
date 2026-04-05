@@ -6,7 +6,7 @@ import type { DiscordDeps } from "@vicissitude/mcp/tools/discord";
 // ─── Types ───────────────────────────────────────────────────────
 
 export type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
-export type ToolResult = { content: Array<{ type: string; text: string }> };
+export type ToolResult = { content: Array<{ type: string; text: string }>; isError?: boolean };
 
 // ─── captureTools ────────────────────────────────────────────────
 

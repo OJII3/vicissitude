@@ -4,6 +4,14 @@ import { TrackSelector } from "@vicissitude/spotify/selector";
 import { SpotifyClient } from "@vicissitude/spotify/spotify-client";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 
+export interface SpotifyToolDeps {
+	getSavedTracks(limit: number, offset: number): Promise<SpotifyTrack[]>;
+	getRecentlyPlayed(limit: number): Promise<SpotifyTrack[]>;
+	getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]>;
+	getArtist(artistId: string): Promise<{ genres: string[] }>;
+	select(tracks: SpotifyTrack[]): SpotifyTrack | null;
+}
+
 export function registerSpotifyTools(
 	server: McpServer,
 	config: {
@@ -12,14 +20,26 @@ export function registerSpotifyTools(
 		refreshToken: string;
 		recommendPlaylistId?: string;
 	},
+	deps?: SpotifyToolDeps,
 ): void {
-	const auth = new SpotifyAuth({
-		clientId: config.clientId,
-		clientSecret: config.clientSecret,
-		refreshToken: config.refreshToken,
-	});
-	const client = new SpotifyClient(auth);
-	const selector = new TrackSelector();
+	const d =
+		deps ??
+		(() => {
+			const auth = new SpotifyAuth({
+				clientId: config.clientId,
+				clientSecret: config.clientSecret,
+				refreshToken: config.refreshToken,
+			});
+			const client = new SpotifyClient(auth);
+			const selector = new TrackSelector();
+			return {
+				getSavedTracks: d.getSavedTracks.bind(client),
+				getRecentlyPlayed: d.getRecentlyPlayed.bind(client),
+				getPlaylistTracks: d.getPlaylistTracks.bind(client),
+				getArtist: d.getArtist.bind(client),
+				select: selector.select.bind(selector),
+			};
+		})();
 
 	server.registerTool(
 		"spotify_pick_track",
@@ -31,11 +51,9 @@ export function registerSpotifyTools(
 			const tracks: SpotifyTrack[] = [];
 
 			const results = await Promise.allSettled([
-				client.getSavedTracks(50, 0),
-				client.getRecentlyPlayed(50),
-				...(config.recommendPlaylistId
-					? [client.getPlaylistTracks(config.recommendPlaylistId)]
-					: []),
+				d.getSavedTracks(50, 0),
+				d.getRecentlyPlayed(50),
+				...(config.recommendPlaylistId ? [d.getPlaylistTracks(config.recommendPlaylistId)] : []),
 			]);
 
 			const errors: string[] = [];
@@ -55,7 +73,7 @@ export function registerSpotifyTools(
 				};
 			}
 
-			const picked = selector.select(tracks);
+			const picked = d.select(tracks);
 			if (!picked) {
 				return {
 					content: [{ type: "text", text: "選曲に失敗しました。" }],
@@ -66,7 +84,7 @@ export function registerSpotifyTools(
 			let genres = picked.genres;
 			if (genres.length === 0 && picked.artistId) {
 				try {
-					const artist = await client.getArtist(picked.artistId);
+					const artist = await d.getArtist(picked.artistId);
 					genres = artist.genres;
 				} catch {
 					// genres fetch failure is non-critical
