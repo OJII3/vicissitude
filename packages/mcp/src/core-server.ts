@@ -1,10 +1,16 @@
 import { mkdirSync } from "fs";
-import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
+import {
+	type MemoryNamespace,
+	namespaceKey,
+	resolveMemoryDbDir,
+	resolveMemoryDbPath,
+	resolveNamespaceFromAgentId,
+} from "@vicissitude/memory/namespace";
 import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
@@ -94,18 +100,14 @@ const MAX_MEMORY_INSTANCES = 50;
 const memoryInstances = new Map<string, MemoryReadServices>();
 const memoryStorages = new Map<string, MemoryStorage>();
 
-const GUILD_ID_REGEX = /^\d+$/;
+function getOrCreateMemory(namespace: MemoryNamespace): MemoryReadServices {
+	const key = namespaceKey(namespace);
 
-function getOrCreateMemory(guildId: string): MemoryReadServices {
-	if (!GUILD_ID_REGEX.test(guildId)) {
-		throw new Error(`Invalid guildId: ${guildId}`);
-	}
-
-	const existing = memoryInstances.get(guildId);
+	const existing = memoryInstances.get(key);
 	if (existing) {
 		// LRU: 再挿入して最新アクセスとして記録
-		memoryInstances.delete(guildId);
-		memoryInstances.set(guildId, existing);
+		memoryInstances.delete(key);
+		memoryInstances.set(key, existing);
 		return existing;
 	}
 
@@ -118,16 +120,16 @@ function getOrCreateMemory(guildId: string): MemoryReadServices {
 		memoryStorages.delete(oldestKey);
 	}
 
-	const dbDir = resolve(MEMORY_DATA_DIR, "guilds", guildId);
+	const dbDir = resolveMemoryDbDir(MEMORY_DATA_DIR, namespace);
 	mkdirSync(dbDir, { recursive: true });
-	const storage = new MemoryStorage(resolve(dbDir, "memory.db"));
+	const storage = new MemoryStorage(resolveMemoryDbPath(MEMORY_DATA_DIR, namespace));
 	const episodic = new EpisodicMemory(storage);
 	const instance: MemoryReadServices = {
 		retrieval: new Retrieval(embedOnlyLlm, storage, episodic),
 		semantic: new SemanticMemory(storage),
 	};
-	memoryInstances.set(guildId, instance);
-	memoryStorages.set(guildId, storage);
+	memoryInstances.set(key, instance);
+	memoryStorages.set(key, storage);
 	return instance;
 }
 
@@ -147,8 +149,14 @@ function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
 	const server = wrapServerWithMetrics(rawServer, { metrics: metricsCollector, logger });
 
-	const guildMatch = agentId?.match(/^discord:(?:heartbeat:)?(\d+)$/);
-	const boundGuildId = guildMatch?.[1];
+	const boundNamespace = resolveNamespaceFromAgentId(agentId) ?? undefined;
+	if (agentId && !boundNamespace) {
+		logger.warn(
+			`[core-server] agent_id=${agentId} did not resolve to a known namespace — tools require explicit guild_id`,
+		);
+	}
+	const boundGuildId =
+		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
 	const moodKey = boundGuildId ? `discord:${boundGuildId}` : (agentId ?? undefined);
 	const skipTracker = agentId ? createSkipTracker() : undefined;
 
@@ -199,7 +207,7 @@ function createServer(agentId: string | null): McpServer {
 	} else {
 		logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
 	}
-	registerMemoryTools(server, { getOrCreateMemory }, boundGuildId);
+	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
 	if (

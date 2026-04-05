@@ -5,10 +5,12 @@ import { resolve } from "path";
 
 import type { EmbeddingPort } from "@vicissitude/memory/fact-reader";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
+import { discordGuildNamespace } from "@vicissitude/memory/namespace";
 import type { FactCategory } from "@vicissitude/memory/types";
 
 const TEST_DATA_DIR = resolve(import.meta.dirname, "../../.test-fact-reader");
 const GUILD_ID = "123456789";
+const NAMESPACE = discordGuildNamespace(GUILD_ID);
 
 function insertFact(db: Database, userId: string, category: FactCategory, fact: string): void {
 	db.run(`CREATE TABLE IF NOT EXISTS semantic_facts (
@@ -45,16 +47,17 @@ afterEach(() => {
 	rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 
-describe("MemoryFactReaderImpl", () => {
-	it("指定 guildId のファクトを返す", async () => {
+describe("MemoryFactReaderImpl (namespace API)", () => {
+	it("指定 namespace のファクトを返す", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
 		const db = new Database(dbPath);
+		// discord-guild namespace の subject は guildId（既存互換）
 		insertFact(db, GUILD_ID, "preference", "コーヒーが好き");
 		insertFact(db, GUILD_ID, "interest", "TypeScript が得意");
 		db.close();
 
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		const facts = await reader.getFacts(GUILD_ID);
+		const facts = await reader.getFacts(NAMESPACE);
 
 		expect(facts).toHaveLength(2);
 		expect(facts.some((f) => f.content === "コーヒーが好き" && f.category === "preference")).toBe(
@@ -66,15 +69,15 @@ describe("MemoryFactReaderImpl", () => {
 		await reader.close();
 	});
 
-	it("DB が存在しないギルドでは空配列を返す", async () => {
+	it("DB が存在しない namespace では空配列を返す", async () => {
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		const facts = await reader.getFacts("999999");
+		const facts = await reader.getFacts(discordGuildNamespace("999999"));
 
 		expect(facts).toEqual([]);
 		await reader.close();
 	});
 
-	it("guildId なしでは空配列を返す", async () => {
+	it("namespace なしでは空配列を返す", async () => {
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
 		const facts = await reader.getFacts();
 
@@ -89,24 +92,17 @@ describe("MemoryFactReaderImpl", () => {
 		db.close();
 
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		await reader.getFacts(GUILD_ID);
+		await reader.getFacts(NAMESPACE);
 		await reader.close();
 
 		const reader2 = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		const facts = await reader2.getFacts(GUILD_ID);
+		const facts = await reader2.getFacts(NAMESPACE);
 		expect(facts).toHaveLength(1);
 		await reader2.close();
 	});
-
-	it("不正な guildId で例外をスローする", async () => {
-		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-
-		expect(reader.getFacts("../malicious")).rejects.toThrow("Invalid guildId");
-		await reader.close();
-	});
 });
 
-describe("MemoryFactReaderImpl.getRelevantFacts", () => {
+describe("MemoryFactReaderImpl.getRelevantFacts (namespace API)", () => {
 	it("ファクト数が limit 以下なら全件返す（embedding 呼び出しなし）", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
 		const db = new Database(dbPath);
@@ -116,7 +112,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "何かのコンテキスト", 10);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "何かのコンテキスト", 10);
 
 		expect(facts).toHaveLength(2);
 		expect(embedding.embed).not.toHaveBeenCalled();
@@ -133,7 +129,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テストコンテキスト", 5);
 
 		expect(facts.length).toBeLessThanOrEqual(5);
 		expect(embedding.embed).toHaveBeenCalled();
@@ -150,7 +146,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "", 5);
 
 		expect(facts).toHaveLength(5);
 		expect(embedding.embed).not.toHaveBeenCalled();
@@ -166,24 +162,21 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 		db.close();
 
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "コンテキスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "コンテキスト", 5);
 
 		expect(facts).toHaveLength(5);
 		await reader.close();
 	});
 
-	it("DB が存在しないギルドでは空配列を返す", async () => {
+	it("DB が存在しない namespace では空配列を返す", async () => {
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-		const facts = await reader.getRelevantFacts("999999", "コンテキスト", 10);
+		const facts = await reader.getRelevantFacts(
+			discordGuildNamespace("999999"),
+			"コンテキスト",
+			10,
+		);
 
 		expect(facts).toEqual([]);
-		await reader.close();
-	});
-
-	it("不正な guildId で例外をスローする", async () => {
-		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR);
-
-		expect(reader.getRelevantFacts("../malicious", "ctx", 10)).rejects.toThrow("Invalid guildId");
 		await reader.close();
 	});
 
@@ -209,7 +202,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts", () => {
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
 		// 8 カテゴリ × 2 件 = 16 件、limit = 5
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テスト", 5);
 
 		expect(facts.length).toBeLessThanOrEqual(5);
 		await reader.close();
@@ -220,11 +213,9 @@ describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
 	it("guideline カテゴリのファクトが他カテゴリより優先的に結果に含まれる", async () => {
 		const dbPath = resolve(TEST_DATA_DIR, "guilds", GUILD_ID, "memory.db");
 		const db = new Database(dbPath);
-		// guideline 以外を多数挿入
 		for (let i = 0; i < 10; i++) {
 			insertFact(db, GUILD_ID, "preference", `好みファクト${i}`);
 		}
-		// guideline を 3 件挿入
 		insertFact(db, GUILD_ID, "guideline", "丁寧語で話す");
 		insertFact(db, GUILD_ID, "guideline", "政治的話題を避ける");
 		insertFact(db, GUILD_ID, "guideline", "絵文字を使わない");
@@ -232,7 +223,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テストコンテキスト", 5);
 
 		const guidelineFacts = facts.filter((f) => f.category === "guideline");
 		// guideline 3 件すべてが結果に含まれること
@@ -251,7 +242,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テストコンテキスト", 5);
 
 		expect(facts).toHaveLength(5);
 		expect(facts.every((f) => f.category === "preference")).toBe(true);
@@ -272,7 +263,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
 		// limit=2 で guideline が 3 件ある場合、limit 件に収まる
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 2);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テストコンテキスト", 2);
 
 		expect(facts).toHaveLength(2);
 		// limit 以内なので全部 guideline になる
@@ -291,7 +282,7 @@ describe("MemoryFactReaderImpl.getRelevantFacts guideline 優先", () => {
 
 		const embedding = createMockEmbedding();
 		const reader = new MemoryFactReaderImpl(TEST_DATA_DIR, embedding);
-		const facts = await reader.getRelevantFacts(GUILD_ID, "テストコンテキスト", 5);
+		const facts = await reader.getRelevantFacts(NAMESPACE, "テストコンテキスト", 5);
 
 		// guideline 1 件は必ず含まれる
 		const guidelineFacts = facts.filter((f) => f.category === "guideline");

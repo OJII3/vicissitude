@@ -9,11 +9,13 @@ graph LR
   config
   emotion
   functions
+  namespace
   ports --> emotion
   ports --> tts
   ports --> ws_protocol["ws-protocol"]
   tts --> emotion
   types --> emotion
+  types --> namespace
   ws_protocol["ws-protocol"] --> emotion
 ```
 
@@ -25,11 +27,15 @@ graph LR
 
 ### emotion.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun
 
 ### functions.ts
 
 - 依存なし
+
+### namespace.ts
+
+- 外部依存: path
 
 ### ports.ts
 
@@ -38,13 +44,13 @@ graph LR
 ### tts.ts
 
 - モジュール内依存: emotion
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun
 
 ### types.ts
 
-- モジュール内依存: emotion
+- モジュール内依存: emotion, namespace
 
 ### ws-protocol.ts
 
 - モジュール内依存: emotion
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun

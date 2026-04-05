@@ -8,6 +8,11 @@ import type {
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
 import type { Episode } from "@vicissitude/memory/episode";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
+import {
+	discordGuildNamespace,
+	HUA_SELF_SUBJECT,
+	INTERNAL_NAMESPACE,
+} from "@vicissitude/memory/namespace";
 
 const TEMP_DIR = `/tmp/vicissitude-memory-test-${process.pid}`;
 
@@ -47,18 +52,20 @@ const sampleMessage = {
 	timestamp: new Date(),
 };
 
-describe("MemoryConversationRecorder", () => {
-	test("record() で guildId が非数字 → Error throw", () => {
-		const recorder = createRecorder();
-		expect(recorder.record("abc", sampleMessage)).rejects.toThrow("Invalid guildId: abc");
+describe("MemoryConversationRecorder (namespace API)", () => {
+	test("record() で不正 guildId の namespace 生成 → throw (at factory)", () => {
+		// discord-guild namespace は生成時点で guildId をバリデートする
+		expect(() => discordGuildNamespace("abc")).toThrow(/guildId/i);
 	});
 
-	test("record() で segmenter.addMessage 呼び出し確認", async () => {
+	test("record() で segmenter.addMessage が defaultSubject で呼ばれる（discord-guild）", async () => {
 		mockAddMessage.mockClear();
 		const recorder = createRecorder();
-		await recorder.record("12345", sampleMessage);
+		const ns = discordGuildNamespace("12345");
+		await recorder.record(ns, sampleMessage);
 
 		expect(mockAddMessage).toHaveBeenCalledTimes(1);
+		// discord-guild の defaultSubject は guildId（既存互換）
 		expect(mockAddMessage).toHaveBeenCalledWith("12345", {
 			role: "user",
 			content: "hello",
@@ -67,7 +74,21 @@ describe("MemoryConversationRecorder", () => {
 		});
 	});
 
-	test("同一 guild への record() 2 回 → 直列実行（ロック）", async () => {
+	test("record() で internal namespace → subject は HUA_SELF_SUBJECT", async () => {
+		mockAddMessage.mockClear();
+		const recorder = createRecorder();
+		await recorder.record(INTERNAL_NAMESPACE, sampleMessage);
+
+		expect(mockAddMessage).toHaveBeenCalledTimes(1);
+		expect(mockAddMessage).toHaveBeenCalledWith(HUA_SELF_SUBJECT, {
+			role: "user",
+			content: "hello",
+			name: "alice",
+			timestamp: sampleMessage.timestamp,
+		});
+	});
+
+	test("同一 namespace への record() 2 回 → 直列実行（ロック）", async () => {
 		mockAddMessage.mockClear();
 		const order: number[] = [];
 		let resolveFirst!: () => void;
@@ -88,11 +109,12 @@ describe("MemoryConversationRecorder", () => {
 		});
 
 		const recorder = createRecorder();
-		const p1 = recorder.record("111", sampleMessage);
+		const ns = discordGuildNamespace("111");
+		const p1 = recorder.record(ns, sampleMessage);
 		await new Promise<void>((resolve) => {
 			setTimeout(resolve, 10);
 		});
-		const p2 = recorder.record("111", sampleMessage);
+		const p2 = recorder.record(ns, sampleMessage);
 
 		resolveFirst();
 		await p1;
@@ -101,26 +123,55 @@ describe("MemoryConversationRecorder", () => {
 		expect(order).toEqual([1, 2]);
 	});
 
-	test("getActiveGuildIds() → 初期化済みギルドのみ返す", async () => {
+	test("異なる namespace は独立してロックされる", async () => {
+		// discord-guild:111 と internal は独立したインスタンスを持つ
 		mockAddMessage.mockClear();
 		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		const recorder = createRecorder();
 
-		expect(recorder.getActiveGuildIds()).toEqual([]);
+		await recorder.record(discordGuildNamespace("111"), sampleMessage);
+		await recorder.record(INTERNAL_NAMESPACE, sampleMessage);
 
-		await recorder.record("100", sampleMessage);
-		await recorder.record("200", sampleMessage);
-
-		const ids = recorder.getActiveGuildIds();
-		expect(ids).toContain("100");
-		expect(ids).toContain("200");
-		expect(ids).toHaveLength(2);
+		const namespaces = recorder.getActiveNamespaces();
+		expect(namespaces).toHaveLength(2);
 	});
 
-	test("consolidate() で未初期化 guild → 0 initialized result", async () => {
+	test("getActiveNamespaces() → 初期化済み namespace のみ返す", async () => {
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		const recorder = createRecorder();
 
-		const result = await recorder.consolidate("99999");
+		expect(recorder.getActiveNamespaces()).toEqual([]);
+
+		await recorder.record(discordGuildNamespace("100"), sampleMessage);
+		await recorder.record(discordGuildNamespace("200"), sampleMessage);
+
+		const namespaces = recorder.getActiveNamespaces();
+		expect(namespaces).toHaveLength(2);
+		expect(namespaces.some((ns) => ns.surface === "discord-guild" && ns.guildId === "100")).toBe(
+			true,
+		);
+		expect(namespaces.some((ns) => ns.surface === "discord-guild" && ns.guildId === "200")).toBe(
+			true,
+		);
+	});
+
+	test("getActiveNamespaces() には internal namespace も含まれる", async () => {
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+
+		await recorder.record(INTERNAL_NAMESPACE, sampleMessage);
+
+		const namespaces = recorder.getActiveNamespaces();
+		expect(namespaces).toHaveLength(1);
+		expect(namespaces[0]).toEqual(INTERNAL_NAMESPACE);
+	});
+
+	test("consolidate() で未初期化 namespace → 0 initialized result", async () => {
+		const recorder = createRecorder();
+
+		const result = await recorder.consolidate(discordGuildNamespace("99999"));
 		expect(result).toEqual({
 			processedEpisodes: 0,
 			newFacts: 0,
@@ -130,22 +181,31 @@ describe("MemoryConversationRecorder", () => {
 		});
 	});
 
-	test("consolidate() で guildId が非数字 → Error throw", () => {
+	test("consolidate() で初期化済み namespace → pipeline.consolidate 呼び出し（subject 渡し）", async () => {
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		mockConsolidate.mockClear();
 		const recorder = createRecorder();
-		expect(() => recorder.consolidate("invalid")).toThrow("Invalid guildId: invalid");
+		const ns = discordGuildNamespace("555");
+
+		await recorder.record(ns, sampleMessage);
+
+		const result = await recorder.consolidate(ns);
+		// consolidation は defaultSubject(ns) = "555" で呼ばれる
+		expect(mockConsolidate).toHaveBeenCalledWith("555");
+		expect(result.processedEpisodes).toBe(3);
 	});
 
-	test("consolidate() で初期化済み guild → pipeline.consolidate 呼び出し", async () => {
+	test("consolidate() で internal namespace → HUA_SELF_SUBJECT で呼ばれる", async () => {
 		mockAddMessage.mockClear();
 		mockAddMessage.mockImplementation(() => Promise.resolve([]));
 		mockConsolidate.mockClear();
 		const recorder = createRecorder();
 
-		await recorder.record("555", sampleMessage);
+		await recorder.record(INTERNAL_NAMESPACE, sampleMessage);
+		await recorder.consolidate(INTERNAL_NAMESPACE);
 
-		const result = await recorder.consolidate("555");
-		expect(mockConsolidate).toHaveBeenCalledWith("555");
-		expect(result.processedEpisodes).toBe(3);
+		expect(mockConsolidate).toHaveBeenCalledWith(HUA_SELF_SUBJECT);
 	});
 
 	test("close() → 全ロック完了 + storage.close() 呼び出し", async () => {
@@ -154,10 +214,10 @@ describe("MemoryConversationRecorder", () => {
 		mockStorageClose.mockClear();
 		const recorder = createRecorder();
 
-		await recorder.record("777", sampleMessage);
+		await recorder.record(discordGuildNamespace("777"), sampleMessage);
 		await recorder.close();
 
 		expect(mockStorageClose).toHaveBeenCalled();
-		expect(recorder.getActiveGuildIds()).toEqual([]);
+		expect(recorder.getActiveNamespaces()).toEqual([]);
 	});
 });
