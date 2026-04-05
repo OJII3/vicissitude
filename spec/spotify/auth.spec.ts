@@ -45,8 +45,8 @@ describe("SpotifyAuth", () => {
 		const mockFetch = createMockFetch([tokenResponse()]);
 		globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-		const { createSpotifyAuth } = await import("@vicissitude/spotify/auth");
-		const auth: SpotifyAuth = createSpotifyAuth({
+		const { SpotifyAuth } = await import("@vicissitude/spotify/auth");
+		const auth: SpotifyAuth = new SpotifyAuth({
 			clientId: "test-client-id",
 			clientSecret: "test-client-secret",
 			refreshToken: "test-refresh-token",
@@ -63,8 +63,8 @@ describe("SpotifyAuth", () => {
 		const mockFetch = createMockFetch([tokenResponse(3600)]);
 		globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-		const { createSpotifyAuth } = await import("@vicissitude/spotify/auth");
-		const auth: SpotifyAuth = createSpotifyAuth({
+		const { SpotifyAuth } = await import("@vicissitude/spotify/auth");
+		const auth: SpotifyAuth = new SpotifyAuth({
 			clientId: "test-client-id",
 			clientSecret: "test-client-secret",
 			refreshToken: "test-refresh-token",
@@ -82,8 +82,8 @@ describe("SpotifyAuth", () => {
 		const mockFetch = createMockFetch([tokenResponse(0), tokenResponse(3600)]);
 		globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-		const { createSpotifyAuth } = await import("@vicissitude/spotify/auth");
-		const auth: SpotifyAuth = createSpotifyAuth({
+		const { SpotifyAuth } = await import("@vicissitude/spotify/auth");
+		const auth: SpotifyAuth = new SpotifyAuth({
 			clientId: "test-client-id",
 			clientSecret: "test-client-secret",
 			refreshToken: "test-refresh-token",
@@ -101,8 +101,8 @@ describe("SpotifyAuth", () => {
 		const mockFetch = createMockFetch([{ status: 401, body: { error: "invalid_client" } }]);
 		globalThis.fetch = mockFetch as unknown as typeof fetch;
 
-		const { createSpotifyAuth } = await import("@vicissitude/spotify/auth");
-		const auth: SpotifyAuth = createSpotifyAuth({
+		const { SpotifyAuth } = await import("@vicissitude/spotify/auth");
+		const auth: SpotifyAuth = new SpotifyAuth({
 			clientId: "bad-client-id",
 			clientSecret: "bad-client-secret",
 			refreshToken: "bad-refresh-token",

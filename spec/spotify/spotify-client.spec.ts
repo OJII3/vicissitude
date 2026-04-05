@@ -114,8 +114,8 @@ describe("SpotifyClient", () => {
 		];
 		globalThis.fetch = createMockFetch([savedTracksResponse(tracks)]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		const result = await client.getSavedTracks(2, 0);
 
@@ -128,8 +128,8 @@ describe("SpotifyClient", () => {
 		const tracks = [createFakeSpotifyApiTrack({ id: "recent-1", name: "Recent Song" })];
 		globalThis.fetch = createMockFetch([recentlyPlayedResponse(tracks)]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		const result = await client.getRecentlyPlayed(1);
 
@@ -142,8 +142,8 @@ describe("SpotifyClient", () => {
 		const tracks = [createFakeSpotifyApiTrack({ id: "pl-1", name: "Playlist Song" })];
 		globalThis.fetch = createMockFetch([playlistTracksResponse(tracks)]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		const result = await client.getPlaylistTracks("playlist-abc");
 
@@ -156,8 +156,8 @@ describe("SpotifyClient", () => {
 			artistResponse(["rock", "j-pop"]),
 		]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		const artist = await client.getArtist("artist-1");
 
@@ -183,8 +183,8 @@ describe("SpotifyClient", () => {
 			]),
 		]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		const tracks = await client.getSavedTracks(1, 0);
 		const track = tracks[0] as SpotifyTrack;
@@ -205,8 +205,8 @@ describe("SpotifyClient", () => {
 			{ status: 403, body: { error: { status: 403, message: "Forbidden" } } },
 		]) as unknown as typeof fetch;
 
-		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
-		const client: SpotifyClient = createSpotifyClient(createStubAuth());
+		const { SpotifyClient } = await import("@vicissitude/spotify/spotify-client");
+		const client: SpotifyClient = new SpotifyClient(createStubAuth());
 
 		expect(client.getSavedTracks(10, 0)).rejects.toThrow();
 	});

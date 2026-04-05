@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-import { createSpotifyClient } from "./spotify-client.ts";
+import { SpotifyClient } from "./spotify-client.ts";
 
 // --- helpers ---
 
@@ -54,7 +54,7 @@ describe("normalizeTrack", () => {
 			),
 		) as unknown as typeof fetch;
 
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		const tracks = await client.getSavedTracks(1, 0);
 		const t = tracks[0];
 
@@ -81,7 +81,7 @@ describe("normalizeTrack", () => {
 			),
 		) as unknown as typeof fetch;
 
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		const tracks = await client.getSavedTracks(1, 0);
 
 		expect(tracks[0]?.artistName).toBe("Unknown");
@@ -102,7 +102,7 @@ describe("normalizeTrack", () => {
 			),
 		) as unknown as typeof fetch;
 
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		const tracks = await client.getSavedTracks(1, 0);
 
 		expect(tracks[0]?.albumArtUrl).toBe("");
@@ -135,7 +135,7 @@ describe("API パス構築", () => {
 
 	it("getSavedTracks が /me/tracks?limit=N&offset=M に問い合わせる", async () => {
 		installCaptureFetch({ items: [] });
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		await client.getSavedTracks(20, 5);
 
 		expect(capturedUrls[0]).toBe("https://api.spotify.com/v1/me/tracks?limit=20&offset=5");
@@ -143,7 +143,7 @@ describe("API パス構築", () => {
 
 	it("getRecentlyPlayed が /me/player/recently-played?limit=N に問い合わせる", async () => {
 		installCaptureFetch({ items: [] });
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		await client.getRecentlyPlayed(10);
 
 		expect(capturedUrls[0]).toBe("https://api.spotify.com/v1/me/player/recently-played?limit=10");
@@ -151,7 +151,7 @@ describe("API パス構築", () => {
 
 	it("getPlaylistTracks が /playlists/{id}/tracks に問い合わせる", async () => {
 		installCaptureFetch({ items: [] });
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		await client.getPlaylistTracks("abc123");
 
 		expect(capturedUrls[0]).toBe("https://api.spotify.com/v1/playlists/abc123/tracks");
@@ -159,7 +159,7 @@ describe("API パス構築", () => {
 
 	it("getArtist が /artists/{id} に問い合わせる", async () => {
 		installCaptureFetch({ id: "a1", name: "A", genres: [] });
-		const client = createSpotifyClient(stubAuth());
+		const client = new SpotifyClient(stubAuth());
 		await client.getArtist("a1");
 
 		expect(capturedUrls[0]).toBe("https://api.spotify.com/v1/artists/a1");
@@ -189,7 +189,7 @@ describe("Authorization ヘッダー", () => {
 			);
 		}) as unknown as typeof fetch;
 
-		const client = createSpotifyClient(stubAuth("my-secret-token"));
+		const client = new SpotifyClient(stubAuth("my-secret-token"));
 		await client.getSavedTracks(1, 0);
 
 		const headers = capturedHeaders as Record<string, string>;
@@ -213,7 +213,7 @@ describe("Authorization ヘッダー", () => {
 			);
 		}) as unknown as typeof fetch;
 
-		const client = createSpotifyClient(auth);
+		const client = new SpotifyClient(auth);
 		await client.getSavedTracks(1, 0);
 		await client.getSavedTracks(1, 0);
 

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-import { createSpotifyAuth as createAuth } from "./auth.ts";
+import { SpotifyAuth } from "./auth.ts";
 
 describe("auth – fetchToken internals", () => {
 	let originalFetch: typeof globalThis.fetch;
@@ -39,7 +39,7 @@ describe("auth – fetchToken internals", () => {
 
 	it("正しい URL に POST する", async () => {
 		installMockFetch();
-		const auth = createAuth(config);
+		const auth = new SpotifyAuth(config);
 		await auth.getAccessToken();
 
 		expect(capturedUrl).toBe("https://accounts.spotify.com/api/token");
@@ -48,7 +48,7 @@ describe("auth – fetchToken internals", () => {
 
 	it("Content-Type が application/x-www-form-urlencoded である", async () => {
 		installMockFetch();
-		const auth = createAuth(config);
+		const auth = new SpotifyAuth(config);
 		await auth.getAccessToken();
 
 		const headers = capturedInit?.headers as Record<string, string>;
@@ -57,7 +57,7 @@ describe("auth – fetchToken internals", () => {
 
 	it("credentials が Base64 エンコードされて Authorization ヘッダーに付与される", async () => {
 		installMockFetch();
-		const auth = createAuth(config);
+		const auth = new SpotifyAuth(config);
 		await auth.getAccessToken();
 
 		const expectedCredentials = btoa(`${config.clientId}:${config.clientSecret}`);
@@ -67,7 +67,7 @@ describe("auth – fetchToken internals", () => {
 
 	it("body に grant_type=refresh_token と refresh_token が含まれる", async () => {
 		installMockFetch();
-		const auth = createAuth(config);
+		const auth = new SpotifyAuth(config);
 		await auth.getAccessToken();
 
 		const body = capturedInit?.body as URLSearchParams;
@@ -78,7 +78,7 @@ describe("auth – fetchToken internals", () => {
 
 	it("AbortSignal.timeout(10_000) が設定されている", async () => {
 		installMockFetch();
-		const auth = createAuth(config);
+		const auth = new SpotifyAuth(config);
 		await auth.getAccessToken();
 
 		expect(capturedInit?.signal).toBeDefined();
@@ -119,8 +119,8 @@ describe("auth – キャッシュの有効期限計算", () => {
 		});
 		globalThis.fetch = fn as unknown as typeof fetch;
 
-		const { createSpotifyAuth: createDynAuth } = await import("./auth.ts");
-		const auth = createDynAuth({
+		const { SpotifyAuth: DynAuth } = await import("./auth.ts");
+		const auth = new DynAuth({
 			clientId: "cid",
 			clientSecret: "csec",
 			refreshToken: "rt",
@@ -160,8 +160,8 @@ describe("auth – キャッシュの有効期限計算", () => {
 		});
 		globalThis.fetch = fn as unknown as typeof fetch;
 
-		const { createSpotifyAuth: createDynAuth } = await import("./auth.ts");
-		const auth = createDynAuth({
+		const { SpotifyAuth: DynAuth } = await import("./auth.ts");
+		const auth = new DynAuth({
 			clientId: "cid",
 			clientSecret: "csec",
 			refreshToken: "rt",

@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { createSpotifyAuth } from "@vicissitude/spotify/auth";
-import { createTrackSelector } from "@vicissitude/spotify/selector";
-import { createSpotifyClient } from "@vicissitude/spotify/spotify-client";
+import { SpotifyAuth } from "@vicissitude/spotify/auth";
+import { TrackSelector } from "@vicissitude/spotify/selector";
+import { SpotifyClient } from "@vicissitude/spotify/spotify-client";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 
 export function registerSpotifyTools(
@@ -13,13 +13,13 @@ export function registerSpotifyTools(
 		recommendPlaylistId?: string;
 	},
 ): void {
-	const auth = createSpotifyAuth({
+	const auth = new SpotifyAuth({
 		clientId: config.clientId,
 		clientSecret: config.clientSecret,
 		refreshToken: config.refreshToken,
 	});
-	const client = createSpotifyClient(auth);
-	const selector = createTrackSelector();
+	const client = new SpotifyClient(auth);
+	const selector = new TrackSelector();
 
 	server.registerTool(
 		"spotify_pick_track",
