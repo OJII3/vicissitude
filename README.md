@@ -110,7 +110,25 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 - 感想保存: 聴いた楽曲について LLM が感想を生成し、`SemanticFact`（category = `experience`）として Memory の internal namespace に保存する。曲名・アーティスト名を keywords に含め、既存の `memory_retrieve` / `memory_get_facts` で引き出せる。
 - 保存先 namespace: `INTERNAL_NAMESPACE` + `HUA_SELF_SUBJECT`（ふあ自身の体験として記録、ギルド横断で参照可能）。
 
-### 3.9 エラー応答
+### 3.9 音楽リスニングスケジューラ
+
+- 専用スケジューラ（`ListeningScheduler`）が一定間隔（4 分）で tick し、時間帯別確率に基づき「選曲 → 曲理解 → 感想生成 → プレゼンス更新」のパイプラインを起動する。
+- パイプラインの実体は専用 AiAgent（`listeningRouter`）で、ツール（`spotify_pick_track`, `fetch_lyrics`, `save_listening_fact`）を orchestrate する。セッションキーは `"listening"` で固定。
+- 時間帯別確率（JST、1 tick あたり）:
+
+| 時間帯  | 基準確率 |
+| ------- | -------- |
+| 2-7 時  | 0（聴かない） |
+| 7-9 時  | 低（~0.15） |
+| 9-18 時 | 中（~0.35） |
+| 18-24 時 | 高（~0.60） |
+| 0-2 時  | 中〜高（~0.50） |
+
+- ジッター: 基準確率 ± 0.1 の範囲で毎 tick ゆらぎを加える（2-7 時帯を除く）。同一パターンの反復を避ける。
+- プレゼンス表示: 選曲が成功したら Discord の `ActivityType.Listening` で `<曲名> - <アーティスト名>` を表示する。次の選曲が行われるまでそのまま継続（KISS）。
+- チャット応答・Minecraft タスクと独立に動作する。
+
+### 3.10 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
@@ -127,6 +145,7 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 - `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）
+- `LISTENING_ENABLED`: リスニングスケジューラの有効化フラグ（任意、デフォルト `true`）
 
 ## 6. 受け入れ条件
 
