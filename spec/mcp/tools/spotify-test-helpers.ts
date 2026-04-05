@@ -18,11 +18,11 @@ export const stubs = {
 	select: (_tracks: SpotifyTrack[]): SpotifyTrack | null => null,
 };
 
-mock.module("@vicissitude/spotify/auth", () => ({
+void mock.module("@vicissitude/spotify/auth", () => ({
 	createSpotifyAuth: () => ({ __brand: "auth" }),
 }));
 
-mock.module("@vicissitude/spotify/spotify-client", () => ({
+void mock.module("@vicissitude/spotify/spotify-client", () => ({
 	createSpotifyClient: () => ({
 		getSavedTracks: (limit: number, offset: number) => stubs.getSavedTracks(limit, offset),
 		getRecentlyPlayed: (limit: number) => stubs.getRecentlyPlayed(limit),
@@ -31,7 +31,7 @@ mock.module("@vicissitude/spotify/spotify-client", () => ({
 	}),
 }));
 
-mock.module("@vicissitude/spotify/selector", () => ({
+void mock.module("@vicissitude/spotify/selector", () => ({
 	createTrackSelector: () => ({
 		select: (tracks: SpotifyTrack[]) => stubs.select(tracks),
 	}),
