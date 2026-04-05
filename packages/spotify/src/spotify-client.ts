@@ -1,9 +1,7 @@
 import type { SpotifyAuth } from "./auth.ts";
 import type { SpotifyTrack } from "./types.ts";
 
-export type { SpotifyClient };
-
-interface SpotifyClient {
+export interface SpotifyClient {
 	getSavedTracks(limit: number, offset: number): Promise<SpotifyTrack[]>;
 	getRecentlyPlayed(limit: number): Promise<SpotifyTrack[]>;
 	getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]>;

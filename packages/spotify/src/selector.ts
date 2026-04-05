@@ -1,8 +1,6 @@
 import type { SpotifyTrack } from "./types.ts";
 
-export type { TrackSelector };
-
-interface TrackSelector {
+export interface TrackSelector {
 	select(tracks: SpotifyTrack[]): SpotifyTrack | null;
 }
 
