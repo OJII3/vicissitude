@@ -1,13 +1,16 @@
 import { existsSync } from "fs";
-import { resolve } from "path";
 
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
+import {
+	defaultSubject,
+	type MemoryNamespace,
+	namespaceKey,
+	resolveMemoryDbPath,
+} from "./namespace.ts";
 import { reciprocalRankFusion } from "./retrieval.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import { MemoryStorage } from "./storage.ts";
-
-const GUILD_ID_RE = /^\d+$/;
 
 /** Candidate limit for text/vector search before RRF ranking */
 const CANDIDATE_LIMIT = 50;
@@ -28,14 +31,18 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 		private readonly embedding?: EmbeddingPort,
 	) {}
 
-	async getFacts(guildId?: string): Promise<MemoryFact[]> {
-		if (!guildId) return [];
-		const rawFacts = await this.loadAllFacts(guildId);
+	async getFacts(namespace?: MemoryNamespace): Promise<MemoryFact[]> {
+		if (!namespace) return [];
+		const rawFacts = await this.loadAllFacts(namespace);
 		return rawFacts.map((f) => toFact(f));
 	}
 
-	async getRelevantFacts(guildId: string, context: string, limit: number): Promise<MemoryFact[]> {
-		const allFacts = await this.loadAllFacts(guildId);
+	async getRelevantFacts(
+		namespace: MemoryNamespace,
+		context: string,
+		limit: number,
+	): Promise<MemoryFact[]> {
+		const allFacts = await this.loadAllFacts(namespace);
 		if (allFacts.length <= limit) {
 			return allFacts.map((f) => toFact(f));
 		}
@@ -56,7 +63,7 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 			);
 		}
 
-		const scored = await this.hybridSearchFacts(guildId, context);
+		const scored = await this.hybridSearchFacts(namespace, context);
 		// Exclude guideline facts from diversity selection (they are already reserved)
 		const reservedIds = new Set(reservedGuidelines.map((f) => f.id));
 		const scoredNonGuideline = scored.filter((s) => !reservedIds.has(s.fact.id));
@@ -78,29 +85,27 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 		return Promise.resolve();
 	}
 
-	private loadAllFacts(guildId: string): Promise<SemanticFact[]> {
-		if (!GUILD_ID_RE.test(guildId)) {
-			throw new Error(`Invalid guildId: ${guildId}`);
-		}
-		const dbPath = resolve(this.dataDir, "guilds", guildId, "memory.db");
+	private loadAllFacts(namespace: MemoryNamespace): Promise<SemanticFact[]> {
+		const dbPath = resolveMemoryDbPath(this.dataDir, namespace);
 		if (!existsSync(dbPath)) return Promise.resolve([]);
-		const storage = this.getOrCreate(guildId, dbPath);
-		return storage.getFacts(guildId);
+		const storage = this.getOrCreate(namespace, dbPath);
+		return storage.getFacts(defaultSubject(namespace));
 	}
 
 	private async hybridSearchFacts(
-		guildId: string,
+		namespace: MemoryNamespace,
 		context: string,
 	): Promise<{ fact: SemanticFact; score: number }[]> {
-		const storage = this.instances.get(guildId);
+		const storage = this.instances.get(namespaceKey(namespace));
 		if (!storage || !this.embedding) return [];
 
+		const subject = defaultSubject(namespace);
 		const [textFacts, queryEmbedding] = await Promise.all([
-			storage.searchFacts(guildId, context, CANDIDATE_LIMIT),
+			storage.searchFacts(subject, context, CANDIDATE_LIMIT),
 			this.embedding.embed(context),
 		]);
 		const vectorFacts = await storage.searchFactsByEmbedding(
-			guildId,
+			subject,
 			queryEmbedding,
 			CANDIDATE_LIMIT,
 		);
@@ -121,12 +126,13 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 			.toSorted((a, b) => b.score - a.score);
 	}
 
-	private getOrCreate(guildId: string, dbPath: string): MemoryStorage {
-		const existing = this.instances.get(guildId);
+	private getOrCreate(namespace: MemoryNamespace, dbPath: string): MemoryStorage {
+		const key = namespaceKey(namespace);
+		const existing = this.instances.get(key);
 		if (existing) return existing;
 
 		const storage = new MemoryStorage(dbPath);
-		this.instances.set(guildId, storage);
+		this.instances.set(key, storage);
 		return storage;
 	}
 }

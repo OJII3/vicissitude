@@ -1,8 +1,7 @@
 import { resolve } from "path";
 
+import { discordGuildNamespace, GUILD_ID_RE } from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
-
-const GUILD_ID_REGEX = /^\d+$/;
 
 type FileEntry = { name: string; scope: "shared" | "guild" };
 
@@ -42,7 +41,7 @@ export class ContextBuilder implements ContextBuilderPort {
 	) {}
 
 	async build(guildId?: string): Promise<string> {
-		if (guildId !== undefined && !GUILD_ID_REGEX.test(guildId)) {
+		if (guildId !== undefined && !GUILD_ID_RE.test(guildId)) {
 			throw new Error(`Invalid guildId: ${guildId}`);
 		}
 
@@ -91,7 +90,11 @@ export class ContextBuilder implements ContextBuilderPort {
 	private async buildFactsSection(guildId?: string): Promise<string | null> {
 		if (!this.factReader || !guildId) return null;
 
-		const facts = await this.factReader.getRelevantFacts(guildId, "", ContextBuilder.FACTS_LIMIT);
+		const facts = await this.factReader.getRelevantFacts(
+			discordGuildNamespace(guildId),
+			"",
+			ContextBuilder.FACTS_LIMIT,
+		);
 		if (facts.length === 0) return null;
 
 		const guidelines: MemoryFact[] = [];

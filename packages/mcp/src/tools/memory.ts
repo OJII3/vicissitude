@@ -1,11 +1,16 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import {
+	defaultSubject,
+	discordGuildNamespace,
+	GUILD_ID_RE,
+	type MemoryNamespace,
+} from "@vicissitude/memory/namespace";
 import type { Retrieval } from "@vicissitude/memory/retrieval";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import type { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { z } from "zod";
 
-const GUILD_ID_REGEX = /^\d+$/;
-const guildIdSchema = z.string().regex(GUILD_ID_REGEX).describe("Discord guild ID");
+const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
 export interface MemoryReadServices {
 	retrieval: Retrieval;
@@ -13,15 +18,22 @@ export interface MemoryReadServices {
 }
 
 export interface MemoryDeps {
-	getOrCreateMemory: (guildId: string) => MemoryReadServices;
+	getOrCreateMemory: (namespace: MemoryNamespace) => MemoryReadServices;
 }
 
 export function registerMemoryTools(
 	server: McpServer,
 	deps: MemoryDeps,
-	boundGuildId?: string,
+	boundNamespace?: MemoryNamespace,
 ): void {
 	const { getOrCreateMemory } = deps;
+	const boundGuildId =
+		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
+
+	function resolveNamespace(guildIdInput: string | undefined): MemoryNamespace | null {
+		if (guildIdInput) return discordGuildNamespace(guildIdInput);
+		return boundNamespace ?? null;
+	}
 
 	server.registerTool(
 		"memory_retrieve",
@@ -35,16 +47,17 @@ export function registerMemoryTools(
 			},
 		},
 		async ({ guild_id, query, limit }: { guild_id?: string; query: string; limit?: number }) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return {
-					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
-					isError: true,
-				};
-			}
 			try {
-				const mem = getOrCreateMemory(gid);
-				const result = await mem.retrieval.retrieve(gid, query, {
+				const ns = resolveNamespace(guild_id);
+				if (!ns) {
+					return {
+						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						isError: true,
+					};
+				}
+				const mem = getOrCreateMemory(ns);
+				const subject = defaultSubject(ns);
+				const result = await mem.retrieval.retrieve(subject, query, {
 					limit: limit ?? 10,
 				});
 
@@ -121,18 +134,19 @@ export function registerMemoryTools(
 				| "goal"
 				| "guideline";
 		}) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return {
-					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
-					isError: true,
-				};
-			}
 			try {
-				const mem = getOrCreateMemory(gid);
+				const ns = resolveNamespace(guild_id);
+				if (!ns) {
+					return {
+						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						isError: true,
+					};
+				}
+				const mem = getOrCreateMemory(ns);
+				const subject = defaultSubject(ns);
 				const facts = category
-					? await mem.semantic.getFactsByCategory(gid, category)
-					: await mem.semantic.getFacts(gid);
+					? await mem.semantic.getFactsByCategory(subject, category)
+					: await mem.semantic.getFacts(subject);
 
 				if (facts.length === 0) {
 					return {

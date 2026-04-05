@@ -1,5 +1,4 @@
 import { mkdirSync } from "fs";
-import { resolve } from "path";
 
 import type {
 	ConsolidationResult,
@@ -12,10 +11,15 @@ import { ConsolidationPipeline } from "./consolidation.ts";
 import type { Episode } from "./episode.ts";
 import { EpisodicMemory } from "./episodic.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
+import {
+	defaultSubject,
+	type MemoryNamespace,
+	namespaceKey,
+	resolveMemoryDbDir,
+	resolveMemoryDbPath,
+} from "./namespace.ts";
 import { Segmenter } from "./segmenter.ts";
 import { MemoryStorage } from "./storage.ts";
-
-const GUILD_ID_RE = /^\d+$/;
 
 export interface GuildInstance {
 	segmenter: { addMessage(userId: string, msg: unknown): Promise<Episode[]> };
@@ -34,7 +38,7 @@ const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
 };
 
 export class MemoryConversationRecorder implements ConversationRecorder, MemoryConsolidator {
-	private readonly instances = new Map<string, GuildInstance>();
+	private readonly instances = new Map<string, { ns: MemoryNamespace; inst: GuildInstance }>();
 	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
 	private readonly factory: GuildInstanceFactory;
@@ -47,17 +51,16 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 		this.factory = factory ?? defaultFactory;
 	}
 
-	async record(guildId: string, message: ConversationMessage): Promise<void> {
-		if (!GUILD_ID_RE.test(guildId)) {
-			throw new Error(`Invalid guildId: ${guildId}`);
-		}
+	async record(namespace: MemoryNamespace, message: ConversationMessage): Promise<void> {
+		const key = namespaceKey(namespace);
+		const subject = defaultSubject(namespace);
 
-		// guild ごとに直列化して segmenter のキュー競合を防ぐ
-		const prev = this.locks.get(guildId) ?? Promise.resolve();
+		// namespace ごとに直列化して segmenter のキュー競合を防ぐ
+		const prev = this.locks.get(key) ?? Promise.resolve();
 		const doRecord = async () => {
 			await prev;
-			const { segmenter } = this.getOrCreate(guildId);
-			await segmenter.addMessage(guildId, {
+			const { segmenter } = this.getOrCreate(namespace);
+			await segmenter.addMessage(subject, {
 				role: message.role,
 				content: message.content,
 				name: message.name,
@@ -66,25 +69,22 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 		};
 		const next = doRecord();
 		this.locks.set(
-			guildId,
+			key,
 			next.catch(() => {}),
 		);
 		await next;
 	}
 
-	getActiveGuildIds(): string[] {
-		return [...this.instances.keys()];
+	getActiveNamespaces(): MemoryNamespace[] {
+		return [...this.instances.values()].map((v) => v.ns);
 	}
 
-	consolidate(guildId: string): Promise<ConsolidationResult> {
-		if (!GUILD_ID_RE.test(guildId)) {
-			throw new Error(`Invalid guildId: ${guildId}`);
-		}
-
+	consolidate(namespace: MemoryNamespace): Promise<ConsolidationResult> {
 		// record() のロックとは独立: SQLite WAL モードで読み書き直列化は DB 側が保証するため、
 		// consolidation が record() をブロックする必要はない
-		const instance = this.instances.get(guildId);
-		if (!instance) {
+		const key = namespaceKey(namespace);
+		const entry = this.instances.get(key);
+		if (!entry) {
 			return Promise.resolve({
 				processedEpisodes: 0,
 				newFacts: 0,
@@ -93,27 +93,28 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 				invalidated: 0,
 			});
 		}
-		return instance.consolidation.consolidate(guildId);
+		return entry.inst.consolidation.consolidate(defaultSubject(namespace));
 	}
 
 	async close(): Promise<void> {
 		// 進行中の record() を全て待ってから storage を閉じる
 		await Promise.allSettled(this.locks.values());
-		for (const { storage } of this.instances.values()) {
-			storage.close();
+		for (const { inst } of this.instances.values()) {
+			inst.storage.close();
 		}
 		this.instances.clear();
 		this.locks.clear();
 	}
 
-	private getOrCreate(guildId: string): GuildInstance {
-		const existing = this.instances.get(guildId);
-		if (existing) return existing;
+	private getOrCreate(namespace: MemoryNamespace): GuildInstance {
+		const key = namespaceKey(namespace);
+		const existing = this.instances.get(key);
+		if (existing) return existing.inst;
 
-		const dbDir = resolve(this.dataDir, "guilds", guildId);
+		const dbDir = resolveMemoryDbDir(this.dataDir, namespace);
 		mkdirSync(dbDir, { recursive: true });
-		const instance = this.factory(resolve(dbDir, "memory.db"), this.llm);
-		this.instances.set(guildId, instance);
-		return instance;
+		const inst = this.factory(resolveMemoryDbPath(this.dataDir, namespace), this.llm);
+		this.instances.set(key, { ns: namespace, inst });
+		return inst;
 	}
 }
