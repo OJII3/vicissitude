@@ -14,6 +14,7 @@
 		"./semantic-fact": "./src/semantic-fact.ts",
 		"./llm-port": "./src/llm-port.ts",
 		"./types": "./src/types.ts",
+		"./namespace": "./src/namespace.ts",
 		"./episode": "./src/episode.ts",
 		"./segmenter": "./src/segmenter.ts",
 		"./consolidation": "./src/consolidation.ts",

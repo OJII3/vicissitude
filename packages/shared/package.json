@@ -3,6 +3,7 @@
 	"private": true,
 	"exports": {
 		"./types": "./src/types.ts",
+		"./namespace": "./src/namespace.ts",
 		"./config": "./src/config.ts",
 		"./functions": "./src/functions.ts",
 		"./emotion": "./src/emotion.ts",

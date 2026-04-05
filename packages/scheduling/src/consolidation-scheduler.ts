@@ -1,5 +1,6 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import { namespaceKey } from "@vicissitude/shared/namespace";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
 
 /** 30 minutes */
@@ -87,23 +88,24 @@ export class ConsolidationScheduler {
 
 	/** Inlined ConsolidateMemoryUseCase.execute */
 	private async executeConsolidation(): Promise<void> {
-		const guildIds = this.consolidator.getActiveGuildIds();
-		if (guildIds.length === 0) {
-			this.logger.info("[memory-consolidation] アクティブなギルドなし、スキップ");
+		const namespaces = this.consolidator.getActiveNamespaces();
+		if (namespaces.length === 0) {
+			this.logger.info("[memory-consolidation] アクティブな namespace なし、スキップ");
 			return;
 		}
 
-		for (const guildId of guildIds) {
+		for (const namespace of namespaces) {
+			const key = namespaceKey(namespace);
 			try {
-				/* oxlint-disable-next-line no-await-in-loop -- sequential: avoid DB write contention across guilds */
-				const result = await this.consolidator.consolidate(guildId);
+				/* oxlint-disable-next-line no-await-in-loop -- sequential: avoid DB write contention across namespaces */
+				const result = await this.consolidator.consolidate(namespace);
 				if (result.processedEpisodes > 0) {
 					this.logger.info(
-						`[memory-consolidation] guild=${guildId}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
+						`[memory-consolidation] ns=${key}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
 					);
 				}
 			} catch (err) {
-				this.logger.error(`[memory-consolidation] guild=${guildId} failed:`, err);
+				this.logger.error(`[memory-consolidation] ns=${key} failed:`, err);
 			}
 		}
 	}

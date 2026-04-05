@@ -1,6 +1,9 @@
 // ─── Agent Response ──────────────────────────────────────────────
 
 import type { Emotion } from "./emotion";
+import type { MemoryNamespace } from "./namespace";
+
+export type { MemoryNamespace };
 
 export interface AgentResponse {
 	text: string;
@@ -161,7 +164,7 @@ export interface Logger {
 // ─── Conversation Recorder ───────────────────────────────────────
 
 export interface ConversationRecorder {
-	record(guildId: string, message: ConversationMessage): Promise<void>;
+	record(namespace: MemoryNamespace, message: ConversationMessage): Promise<void>;
 }
 
 // ─── Memory Consolidator ─────────────────────────────────────────
@@ -175,8 +178,8 @@ export interface ConsolidationResult {
 }
 
 export interface MemoryConsolidator {
-	getActiveGuildIds(): string[];
-	consolidate(guildId: string): Promise<ConsolidationResult>;
+	getActiveNamespaces(): MemoryNamespace[];
+	consolidate(namespace: MemoryNamespace): Promise<ConsolidationResult>;
 }
 
 // ─── AI Agent ─────────────────────────────────────────────────────
@@ -202,8 +205,12 @@ export interface ContextBuilderPort {
 // ─── Memory Fact Reader ──────────────────────────────────────────
 
 export interface MemoryFactReader {
-	getFacts(guildId?: string): Promise<MemoryFact[]>;
-	getRelevantFacts(guildId: string, context: string, limit: number): Promise<MemoryFact[]>;
+	getFacts(namespace?: MemoryNamespace): Promise<MemoryFact[]>;
+	getRelevantFacts(
+		namespace: MemoryNamespace,
+		context: string,
+		limit: number,
+	): Promise<MemoryFact[]>;
 	close(): Promise<void>;
 }
 

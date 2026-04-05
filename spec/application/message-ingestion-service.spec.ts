@@ -2,6 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 
 import type { BufferedEventStore } from "@vicissitude/application/message-ingestion-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
+import { discordGuildNamespace } from "@vicissitude/memory/namespace";
 import type {
 	BufferedEvent,
 	ConversationRecorder,
@@ -15,7 +16,7 @@ function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMe
 		platform: "discord",
 		channelId: "ch-1",
 		channelName: "general",
-		guildId: "guild-1",
+		guildId: "1111",
 		authorId: "user-1",
 		authorName: "TestUser",
 		messageId: "msg-1",
@@ -61,7 +62,7 @@ describe("MessageIngestionService", () => {
 		);
 
 		expect(buffered).toHaveLength(1);
-		expect(buffered[0]?.agentId).toBe("discord:guild-1");
+		expect(buffered[0]?.agentId).toBe("discord:1111");
 		expect(buffered[0]?.event.attachments?.[0]?.filename).toBe("image.png");
 		expect(buffered[0]?.event.metadata?.channelName).toBe("general");
 	});
@@ -87,7 +88,7 @@ describe("MessageIngestionService", () => {
 
 		expect(recorder.record).toHaveBeenCalledTimes(1);
 		expect(recorder.record).toHaveBeenCalledWith(
-			"guild-1",
+			discordGuildNamespace("1111"),
 			expect.objectContaining({
 				role: "assistant",
 				content: "ボットの応答 [添付: cap.png]",

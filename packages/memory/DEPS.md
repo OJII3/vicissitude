@@ -22,6 +22,7 @@ graph LR
   conversation_recorder["conversation-recorder"] --> episode
   conversation_recorder["conversation-recorder"] --> episodic
   conversation_recorder["conversation-recorder"] --> llm_port["llm-port"]
+  conversation_recorder["conversation-recorder"] --> namespace
   conversation_recorder["conversation-recorder"] --> segmenter
   conversation_recorder["conversation-recorder"] --> storage
   episode --> types
@@ -30,6 +31,7 @@ graph LR
   episodic --> storage
   episodic --> types
   episodic --> utils
+  fact_reader["fact-reader"] --> namespace
   fact_reader["fact-reader"] --> retrieval
   fact_reader["fact-reader"] --> semantic_fact["semantic-fact"]
   fact_reader["fact-reader"] --> storage
@@ -46,6 +48,7 @@ graph LR
   index --> storage
   index --> types
   llm_port["llm-port"] --> types
+  namespace
   parse_helpers["parse-helpers"] --> types
   retrieval --> episode
   retrieval --> episodic
@@ -99,7 +102,7 @@ graph LR
 
 ### conversation-recorder.ts
 
-- モジュール内依存: consolidation, episode, episodic, llm-port, segmenter, storage
+- モジュール内依存: consolidation, episode, episodic, llm-port, namespace, segmenter, storage
 - 他モジュール依存: shared
 - 外部依存: fs, path
 
@@ -113,9 +116,9 @@ graph LR
 
 ### fact-reader.ts
 
-- モジュール内依存: retrieval, semantic-fact, storage
+- モジュール内依存: namespace, retrieval, semantic-fact, storage
 - 他モジュール依存: shared
-- 外部依存: fs, path
+- 外部依存: fs
 
 ### fsrs.ts
 
@@ -128,6 +131,10 @@ graph LR
 ### llm-port.ts
 
 - モジュール内依存: types
+
+### namespace.ts
+
+- 他モジュール依存: shared
 
 ### parse-helpers.ts
 

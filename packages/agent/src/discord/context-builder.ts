@@ -1,5 +1,6 @@
 import { resolve } from "path";
 
+import { discordGuildNamespace } from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 const GUILD_ID_REGEX = /^\d+$/;
@@ -91,7 +92,11 @@ export class ContextBuilder implements ContextBuilderPort {
 	private async buildFactsSection(guildId?: string): Promise<string | null> {
 		if (!this.factReader || !guildId) return null;
 
-		const facts = await this.factReader.getRelevantFacts(guildId, "", ContextBuilder.FACTS_LIMIT);
+		const facts = await this.factReader.getRelevantFacts(
+			discordGuildNamespace(guildId),
+			"",
+			ContextBuilder.FACTS_LIMIT,
+		);
 		if (facts.length === 0) return null;
 
 		const guidelines: MemoryFact[] = [];

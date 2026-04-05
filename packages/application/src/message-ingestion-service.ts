@@ -1,3 +1,4 @@
+import { discordGuildNamespace } from "@vicissitude/shared/namespace";
 import type {
 	BufferedEvent,
 	ConversationMessage,
@@ -86,8 +87,10 @@ export class MessageIngestionService {
 			timestamp: message.timestamp,
 		};
 
-		this.deps.recorder.record(message.guildId, conversationMessage).catch((err) => {
-			this.deps.logger.error("[message-ingestion] failed to record message", err);
-		});
+		this.deps.recorder
+			.record(discordGuildNamespace(message.guildId), conversationMessage)
+			.catch((err) => {
+				this.deps.logger.error("[message-ingestion] failed to record message", err);
+			});
 	}
 }
