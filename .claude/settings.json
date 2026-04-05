@@ -4,7 +4,7 @@
 		"CLAUDE_CODE_DISABLE_1M_CONTEXT": 1
 	},
 	"permissions": {
-		"allow": ["Bash", "Edit", "Read"]
+		"allow": ["Bash", "Edit", "Read", "Write"]
 	},
 	"teammateMode": "in-process",
 	"hooks": {
