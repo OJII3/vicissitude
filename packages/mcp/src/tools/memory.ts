@@ -47,14 +47,14 @@ export function registerMemoryTools(
 			},
 		},
 		async ({ guild_id, query, limit }: { guild_id?: string; query: string; limit?: number }) => {
-			const ns = resolveNamespace(guild_id);
-			if (!ns) {
-				return {
-					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
-					isError: true,
-				};
-			}
 			try {
+				const ns = resolveNamespace(guild_id);
+				if (!ns) {
+					return {
+						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						isError: true,
+					};
+				}
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
 				const result = await mem.retrieval.retrieve(subject, query, {
@@ -134,14 +134,14 @@ export function registerMemoryTools(
 				| "goal"
 				| "guideline";
 		}) => {
-			const ns = resolveNamespace(guild_id);
-			if (!ns) {
-				return {
-					content: [{ type: "text" as const, text: "Error: guild_id is required" }],
-					isError: true,
-				};
-			}
 			try {
+				const ns = resolveNamespace(guild_id);
+				if (!ns) {
+					return {
+						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						isError: true,
+					};
+				}
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
 				const facts = category
