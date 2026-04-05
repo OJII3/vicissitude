@@ -40,7 +40,7 @@ import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
-import { createAivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
+import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
 import { type AppConfig, loadConfig } from "./config.ts";
@@ -460,7 +460,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Gateway WebSocket server (with optional TTS)
 	const ttsSynthesizer = config.tts
-		? createAivisSpeechSynthesizer({
+		? new AivisSpeechSynthesizer({
 				baseUrl: config.tts.baseUrl,
 				speakerId: config.tts.speakerId,
 				logger,

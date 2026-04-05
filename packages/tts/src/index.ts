@@ -1,2 +1,6 @@
 export { createEmotionToTtsStyleMapper } from "./emotion-to-tts-style-mapper";
-export { createAivisSpeechSynthesizer } from "./aivis-speech-synthesizer";
+export {
+	AivisSpeechSynthesizer,
+	type AivisSpeechSynthesizerConfig,
+	type StyleSpeakerMap,
+} from "./aivis-speech-synthesizer";
