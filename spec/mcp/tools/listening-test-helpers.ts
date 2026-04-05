@@ -37,7 +37,6 @@ export async function captureListeningTools(): Promise<{
 		saveListening: (record) =>
 			listeningStubs.saveListening({
 				...record,
-				track: record.track as SpotifyTrack,
 			}),
 	};
 

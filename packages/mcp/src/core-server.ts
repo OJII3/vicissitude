@@ -21,7 +21,6 @@ import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { METRIC, PrometheusCollector, PrometheusServer } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
-import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
@@ -240,7 +239,7 @@ function createServer(agentId: string | null): McpServer {
 					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
 					saveListening: async (record) => {
 						await listeningMemory.saveListening({
-							track: record.track as unknown as SpotifyTrack,
+							track: record.track,
 							impression: record.impression,
 							listenedAt: record.listenedAt,
 						});
