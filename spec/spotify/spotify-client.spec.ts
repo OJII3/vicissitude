@@ -208,6 +208,6 @@ describe("SpotifyClient", () => {
 		const { createSpotifyClient } = await import("@vicissitude/spotify/spotify-client");
 		const client: SpotifyClient = createSpotifyClient(createStubAuth());
 
-		expect(() => client.getSavedTracks(10, 0)).toThrow();
+		expect(client.getSavedTracks(10, 0)).rejects.toThrow();
 	});
 });

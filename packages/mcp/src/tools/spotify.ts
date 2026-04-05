@@ -25,7 +25,7 @@ export function registerSpotifyTools(
 		"spotify_pick_track",
 		{
 			description:
-				"Spotify のライブラリ（Saved Tracks, Recently Played, おすすめプレイリスト）からランダムに1曲選んで紹介する。人気度で重み付けされた選曲を行う。",
+				"Spotify ライブラリ（Saved Tracks, Recently Played, おすすめプレイリスト）から1曲ランダムに選んで情報を返す。人気度で重み付けされた選曲。",
 		},
 		async () => {
 			const tracks: SpotifyTrack[] = [];
@@ -38,15 +38,20 @@ export function registerSpotifyTools(
 					: []),
 			]);
 
+			const errors: string[] = [];
 			for (const result of results) {
 				if (result.status === "fulfilled") {
 					tracks.push(...result.value);
+				} else {
+					errors.push(String(result.reason));
 				}
 			}
 
 			if (tracks.length === 0) {
+				const detail = errors.length > 0 ? ` (${errors.join("; ")})` : "";
 				return {
-					content: [{ type: "text", text: "楽曲が見つかりませんでした。" }],
+					content: [{ type: "text", text: `楽曲が見つかりませんでした。${detail}` }],
+					isError: true,
 				};
 			}
 
@@ -54,6 +59,7 @@ export function registerSpotifyTools(
 			if (!picked) {
 				return {
 					content: [{ type: "text", text: "選曲に失敗しました。" }],
+					isError: true,
 				};
 			}
 

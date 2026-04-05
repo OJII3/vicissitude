@@ -108,6 +108,6 @@ describe("SpotifyAuth", () => {
 			refreshToken: "bad-refresh-token",
 		});
 
-		expect(() => auth.getAccessToken()).toThrow();
+		expect(auth.getAccessToken()).rejects.toThrow();
 	});
 });
