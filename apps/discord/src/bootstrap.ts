@@ -467,7 +467,7 @@ function setupListeningScheduler(deps: {
 	const router = new InstrumentedAiAgent(
 		new GuildRouter(listeningAgents, first),
 		deps.metrics,
-		"heartbeat",
+		"listening",
 	);
 	const scheduler = new ListeningScheduler({
 		agent: router,

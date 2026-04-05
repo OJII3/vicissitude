@@ -294,7 +294,7 @@ export class PrometheusServer {
 
 // ─── Instrumented AI Agent ──────────────────────────────────────
 
-export type AgentType = "polling" | "heartbeat";
+export type AgentType = "polling" | "heartbeat" | "listening";
 
 export function inferTrigger(sessionKey: string): "heartbeat" | "home" | "mention" {
 	if (sessionKey.startsWith("system:heartbeat:")) return "heartbeat";

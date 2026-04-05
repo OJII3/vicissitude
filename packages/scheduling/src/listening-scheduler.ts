@@ -1,5 +1,5 @@
 import { METRIC } from "@vicissitude/observability/metrics";
-import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import { withTimeout } from "@vicissitude/shared/functions";
 import type { AiAgent, Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 import { shouldStartListening } from "./listening-schedule.ts";
@@ -89,19 +89,9 @@ export class ListeningScheduler {
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.LISTENING_TICK_DURATION, duration);
+			this.executePromise = null;
+			this.running = false;
 		}
-
-		const settled = await Promise.race([
-			execution.then(() => true).catch(() => true),
-			delayResolve(LISTENING_TICK_TIMEOUT_MS, false as const),
-		]);
-		if (!settled) {
-			this.logger.error(
-				"[listening] execution did not settle after force timeout, resetting running flag",
-			);
-		}
-		this.executePromise = null;
-		this.running = false;
 	}
 
 	private async executeTick(): Promise<void> {
