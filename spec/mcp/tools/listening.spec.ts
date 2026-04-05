@@ -123,7 +123,17 @@ describe("save_listening_fact", () => {
 
 		const handler = await getHandler("save_listening_fact");
 		await handler({
-			track: { id: "t-1", name: "曲", artistName: "A" },
+			track: {
+				id: "t-1",
+				name: "曲",
+				artistName: "A",
+				artistId: "a-1",
+				albumName: "Album",
+				genres: ["j-pop"],
+				popularity: 80,
+				releaseDate: "2020-01-01",
+				albumArtUrl: "https://example.com/art.jpg",
+			},
 			impression: "感想",
 		});
 
@@ -163,7 +173,17 @@ describe("save_listening_fact", () => {
 
 		const handler = await getHandler("save_listening_fact");
 		const result = (await handler({
-			track: { id: "t-1", name: "曲", artistName: "A" },
+			track: {
+				id: "t-1",
+				name: "曲",
+				artistName: "A",
+				artistId: "a-1",
+				albumName: "Album",
+				genres: ["j-pop"],
+				popularity: 80,
+				releaseDate: "2020-01-01",
+				albumArtUrl: "https://example.com/art.jpg",
+			},
 			impression: "感想",
 		})) as ToolResult;
 

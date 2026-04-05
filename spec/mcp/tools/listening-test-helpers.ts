@@ -34,10 +34,7 @@ export async function captureListeningTools(): Promise<{
 
 	const deps: ListeningToolDeps = {
 		fetchLyrics: (title, artist) => listeningStubs.fetchLyrics(title, artist),
-		saveListening: (record) =>
-			listeningStubs.saveListening({
-				...record,
-			}),
+		saveListening: (record) => listeningStubs.saveListening(record),
 	};
 
 	registerListeningTools(fakeServer, deps);
