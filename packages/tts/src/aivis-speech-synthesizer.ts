@@ -8,21 +8,13 @@ const HEALTH_CHECK_TIMEOUT = 5_000;
 /** style → speaker ID のマッピング設定 */
 export type StyleSpeakerMap = Partial<Record<TtsStyleParams["style"], number>>;
 
-interface SynthesizeConfig {
-	baseUrl: string;
-	timeout: number;
-	defaultSpeakerId: number;
-	styleSpeakerMap: StyleSpeakerMap;
-	logger?: Logger;
-}
-
 /** AivisSpeech Engine の AudioQuery レスポンスの最小型 */
 interface AudioQuery {
 	speedScale: number;
 	[key: string]: unknown;
 }
 
-export function createAivisSpeechSynthesizer(config: {
+export interface AivisSpeechSynthesizerConfig {
 	baseUrl: string;
 	/** デフォルトの speaker ID */
 	speakerId?: number;
@@ -30,96 +22,91 @@ export function createAivisSpeechSynthesizer(config: {
 	styleSpeakerMap?: StyleSpeakerMap;
 	timeout?: number;
 	logger?: Logger;
-}): TtsSynthesizer {
-	const { baseUrl, speakerId = 0, styleSpeakerMap = {}, timeout = DEFAULT_TIMEOUT } = config;
-
-	const synthConfig: SynthesizeConfig = {
-		baseUrl,
-		timeout,
-		defaultSpeakerId: speakerId,
-		styleSpeakerMap,
-		logger: config.logger,
-	};
-
-	return {
-		synthesize: (text, style, signal) => synthesize(synthConfig, text, style, signal),
-		isAvailable: () => isAvailable(baseUrl),
-	};
 }
 
-function resolveSpeakerId(
-	defaultId: number,
-	styleSpeakerMap: StyleSpeakerMap,
-	style: TtsStyleParams["style"],
-): number {
-	return styleSpeakerMap[style] ?? defaultId;
-}
+export class AivisSpeechSynthesizer implements TtsSynthesizer {
+	private readonly baseUrl: string;
+	private readonly timeout: number;
+	private readonly defaultSpeakerId: number;
+	private readonly styleSpeakerMap: StyleSpeakerMap;
+	private readonly logger?: Logger;
 
-async function synthesize(
-	config: SynthesizeConfig,
-	text: string,
-	style: TtsStyleParams,
-	callerSignal?: AbortSignal,
-): Promise<TtsResult | null> {
-	try {
-		const { baseUrl, timeout, defaultSpeakerId, styleSpeakerMap } = config;
-		const speaker = resolveSpeakerId(defaultSpeakerId, styleSpeakerMap, style.style);
+	constructor(config: AivisSpeechSynthesizerConfig) {
+		this.baseUrl = config.baseUrl;
+		this.timeout = config.timeout ?? DEFAULT_TIMEOUT;
+		this.defaultSpeakerId = config.speakerId ?? 0;
+		this.styleSpeakerMap = config.styleSpeakerMap ?? {};
+		this.logger = config.logger;
+	}
 
-		const timeoutSignal = AbortSignal.timeout(timeout);
-		const signal = callerSignal ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
+	async synthesize(
+		text: string,
+		style: TtsStyleParams,
+		callerSignal?: AbortSignal,
+	): Promise<TtsResult | null> {
+		try {
+			const speaker = this.resolveSpeakerId(style.style);
 
-		// Step 1: audio_query
-		const queryUrl = new URL("/audio_query", baseUrl);
-		queryUrl.searchParams.set("text", text);
-		queryUrl.searchParams.set("speaker", String(speaker));
+			const timeoutSignal = AbortSignal.timeout(this.timeout);
+			const signal = callerSignal ? AbortSignal.any([callerSignal, timeoutSignal]) : timeoutSignal;
 
-		const queryResponse = await fetch(queryUrl, {
-			method: "POST",
-			signal,
-		});
+			// Step 1: audio_query
+			const queryUrl = new URL("/audio_query", this.baseUrl);
+			queryUrl.searchParams.set("text", text);
+			queryUrl.searchParams.set("speaker", String(speaker));
 
-		if (!queryResponse.ok) return null;
+			const queryResponse = await fetch(queryUrl, {
+				method: "POST",
+				signal,
+			});
 
-		const audioQuery = (await queryResponse.json()) as AudioQuery;
+			if (!queryResponse.ok) return null;
 
-		audioQuery.speedScale = style.speed;
+			const audioQuery = (await queryResponse.json()) as AudioQuery;
 
-		// Step 2: synthesis
-		const synthUrl = new URL("/synthesis", baseUrl);
-		synthUrl.searchParams.set("speaker", String(speaker));
+			audioQuery.speedScale = style.speed;
 
-		const synthResponse = await fetch(synthUrl, {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify(audioQuery),
-			signal,
-		});
+			// Step 2: synthesis
+			const synthUrl = new URL("/synthesis", this.baseUrl);
+			synthUrl.searchParams.set("speaker", String(speaker));
 
-		if (!synthResponse.ok) return null;
+			const synthResponse = await fetch(synthUrl, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(audioQuery),
+				signal,
+			});
 
-		const buffer = await synthResponse.arrayBuffer();
-		const audio = new Uint8Array(buffer);
-		const durationSec = computeWavDuration(audio);
-		if (durationSec <= 0) return null;
+			if (!synthResponse.ok) return null;
 
-		return { audio, format: "wav", durationSec };
-	} catch (error) {
-		if (error instanceof DOMException && error.name === "AbortError") {
+			const buffer = await synthResponse.arrayBuffer();
+			const audio = new Uint8Array(buffer);
+			const durationSec = computeWavDuration(audio);
+			if (durationSec <= 0) return null;
+
+			return { audio, format: "wav", durationSec };
+		} catch (error) {
+			if (error instanceof DOMException && error.name === "AbortError") {
+				return null;
+			}
+			this.logger?.warn("[tts] AivisSpeech synthesis failed", error);
 			return null;
 		}
-		config.logger?.warn("[tts] AivisSpeech synthesis failed", error);
-		return null;
 	}
-}
 
-async function isAvailable(baseUrl: string): Promise<boolean> {
-	try {
-		const response = await fetch(baseUrl, {
-			signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT),
-		});
-		return response.ok;
-	} catch {
-		return false;
+	async isAvailable(): Promise<boolean> {
+		try {
+			const response = await fetch(this.baseUrl, {
+				signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT),
+			});
+			return response.ok;
+		} catch {
+			return false;
+		}
+	}
+
+	private resolveSpeakerId(style: TtsStyleParams["style"]): number {
+		return this.styleSpeakerMap[style] ?? this.defaultSpeakerId;
 	}
 }
 

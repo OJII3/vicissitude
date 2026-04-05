@@ -4,11 +4,11 @@ import type { TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
 import type { Logger } from "@vicissitude/shared/types";
-import { createAivisSpeechSynthesizer } from "@vicissitude/tts";
+import { AivisSpeechSynthesizer } from "@vicissitude/tts";
 
-// ─── テスト対象のファクトリ ─────────────────────────────────────
+// ─── テスト対象のクラス ─────────────────────────────────────────
 //
-// packages/tts が公開する AivisSpeech アダプターを生成する関数。
+// packages/tts が公開する AivisSpeech アダプター。
 // ブラックボックステスト: TtsSynthesizer ポートの契約のみ検証する。
 // 外部 HTTP 依存は global.fetch をモックして差し替える。
 
@@ -20,7 +20,7 @@ function synthesizer(config?: {
 	timeout?: number;
 	logger?: Logger;
 }): TtsSynthesizer {
-	return createAivisSpeechSynthesizer({
+	return new AivisSpeechSynthesizer({
 		baseUrl: config?.baseUrl ?? BASE_URL,
 		speakerId: config?.speakerId,
 		timeout: config?.timeout,
