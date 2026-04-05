@@ -11,6 +11,7 @@ graph LR
   core_server["core-server"] --> tool_metrics["tool-metrics"]
   core_server["core-server"] --> tools_discord["tools/discord"]
   core_server["core-server"] --> tools_event_buffer["tools/event-buffer"]
+  core_server["core-server"] --> tools_listening["tools/listening"]
   core_server["core-server"] --> tools_mc_bridge_discord["tools/mc-bridge-discord"]
   core_server["core-server"] --> tools_memory["tools/memory"]
   core_server["core-server"] --> tools_schedule["tools/schedule"]
@@ -20,6 +21,7 @@ graph LR
   tool_metrics["tool-metrics"]
   tools_discord["tools/discord"] --> tools_event_buffer["tools/event-buffer"]
   tools_event_buffer["tools/event-buffer"]
+  tools_listening["tools/listening"]
   tools_mc_bridge_discord["tools/mc-bridge-discord"]
   tools_mc_bridge_minecraft["tools/mc-bridge-minecraft"] --> tools_event_buffer["tools/event-buffer"]
   tools_mc_memory["tools/mc-memory"] --> memory_helpers["memory-helpers"]
@@ -32,13 +34,13 @@ graph LR
 
 ### code-exec-server.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js
 
 ### core-server.ts
 
-- モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/mc-bridge-discord, tools/memory, tools/schedule, tools/spotify
-- 他モジュール依存: agent, memory, observability, ollama, store
-- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, @modelcontextprotocol/sdk/server/mcp.js, fs
+- モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/listening, tools/mc-bridge-discord, tools/memory, tools/schedule, tools/spotify
+- 他モジュール依存: agent, listening, memory, observability, ollama, spotify, store
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs
 
 ### http-server.ts
 
@@ -59,38 +61,42 @@ graph LR
 
 - モジュール内依存: tools/event-buffer
 - 他モジュール依存: infrastructure, shared
-- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/event-buffer.ts
 
 - 他モジュール依存: shared, store
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+
+### tools/listening.ts
+
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-discord.ts
 
 - 他モジュール依存: minecraft, store
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-minecraft.ts
 
 - モジュール内依存: tools/event-buffer
 - 他モジュール依存: minecraft, store
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts
 
 - モジュール内依存: memory-helpers
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/memory.ts
 
 - 他モジュール依存: memory
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/schedule.ts
 
 - 他モジュール依存: scheduling, shared
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/spotify.ts
 

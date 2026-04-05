@@ -15,7 +15,8 @@
 		"./tools/mc-memory": "./src/tools/mc-memory.ts",
 		"./tools/memory": "./src/tools/memory.ts",
 		"./tools/schedule": "./src/tools/schedule.ts",
-		"./tools/spotify": "./src/tools/spotify.ts"
+		"./tools/spotify": "./src/tools/spotify.ts",
+		"./tools/listening": "./src/tools/listening.ts"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",

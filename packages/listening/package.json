@@ -1,0 +1,9 @@
+{
+	"name": "@vicissitude/listening",
+	"private": true,
+	"exports": {
+		"./types": "./src/types.ts",
+		"./genius-client": "./src/genius-client.ts",
+		"./listening-memory": "./src/listening-memory.ts"
+	}
+}

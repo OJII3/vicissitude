@@ -2,9 +2,12 @@ import { mkdirSync } from "fs";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
+import { GeniusClient } from "@vicissitude/listening/genius-client";
+import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
+	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbDir,
@@ -18,6 +21,7 @@ import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { METRIC, PrometheusCollector, PrometheusServer } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
+import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
@@ -26,6 +30,7 @@ import { startHttpServer } from "./http-server.ts";
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
+import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -221,6 +226,28 @@ function createServer(agentId: string | null): McpServer {
 			refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
 			recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
 		});
+
+		if (process.env.GENIUS_ACCESS_TOKEN) {
+			const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
+			// internal namespace の MemoryStorage を確保
+			getOrCreateMemory(INTERNAL_NAMESPACE);
+			const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE));
+			if (internalStorage) {
+				const listeningMemory = new ListeningMemory(internalStorage, {
+					embed: (text) => ollama.embed(text),
+				});
+				registerListeningTools(server, {
+					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
+					saveListening: async (record) => {
+						await listeningMemory.saveListening({
+							track: record.track as unknown as SpotifyTrack,
+							impression: record.impression,
+							listenedAt: record.listenedAt,
+						});
+					},
+				});
+			}
+		}
 	}
 
 	return server;
