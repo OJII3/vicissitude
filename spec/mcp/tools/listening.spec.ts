@@ -1,6 +1,8 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after null checks */
 import { beforeEach, describe, expect, test } from "bun:test";
 
+import type { SpotifyTrack } from "@vicissitude/spotify/types";
+
 import type { ToolHandler, ToolResult } from "./discord-test-helpers";
 import {
 	captureListeningTools,
@@ -81,7 +83,7 @@ describe("fetch_lyrics", () => {
 describe("save_listening_fact", () => {
 	test("正常系: track と impression を渡すと Memory に保存され、成功テキストが返る", async () => {
 		const saved: Array<{
-			track: Record<string, unknown>;
+			track: SpotifyTrack;
 			impression: string;
 			listenedAt: Date;
 		}> = [];
@@ -109,7 +111,7 @@ describe("save_listening_fact", () => {
 		expect(result.isError).toBeUndefined();
 		expect(saved).toHaveLength(1);
 		expect(saved[0]?.impression).toBe("歌詞が切なくて好き");
-		expect((saved[0]!.track as { name: string }).name).toBe("夜に駆ける");
+		expect(saved[0]!.track.name).toBe("夜に駆ける");
 	});
 
 	test("saveListening 呼び出し時に listenedAt が Date として付与される", async () => {
@@ -129,7 +131,7 @@ describe("save_listening_fact", () => {
 	});
 
 	test("track オブジェクトがそのまま下位層 saveListening に渡される", async () => {
-		const saved: Array<{ track: Record<string, unknown> }> = [];
+		const saved: Array<{ track: SpotifyTrack }> = [];
 		listeningStubs.saveListening = (record) => {
 			saved.push({ track: record.track });
 			return Promise.resolve();
