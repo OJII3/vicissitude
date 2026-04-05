@@ -60,6 +60,7 @@ MCP サーバー経由で各種操作を提供する。
 | ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
 | ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
 | 選曲         | core         | spotify_pick_track                                                                                    |
+| 聴取理解     | core         | listen_to_track                                                                                       |
 
 OpenCode SDK 組み込み: `webfetch`, `websearch`
 
@@ -96,7 +97,19 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 | 運用ルール                         | MEMORY.md           | 開発者が設定する行動指示     |
 | 精選教訓（原則）                   | LESSONS.md          | 複数経験から一般化。手動管理 |
 
-### 3.8 エラー応答
+### 3.8 音楽の理解・記憶
+
+- 聴取対象は Spotify 連携で選曲された楽曲（`SpotifyTrack`）。
+- 歌詞取得: Genius API を使用。歌詞が取得できない楽曲もあるため、歌詞 null でも動作する。
+- 楽曲理解: Spotify メタ情報（ジャンル、人気度、リリース日）に加え、LLM が曲名・アーティスト・歌詞から以下を推測する。
+  - ボーカル性別（`male` / `female` / `mixed` / `unknown`）
+  - タイアップ情報（アニメ主題歌等、なければ null）
+  - 曲の雰囲気・テーマ（複数の短いタグ）
+  - 楽曲の短い要約
+- 感想保存: 聴いた楽曲について LLM が感想を生成し、`SemanticFact`（category = `experience`）として Memory の internal namespace に保存する。曲名・アーティスト名を keywords に含め、既存の `memory_retrieve` / `memory_get_facts` で引き出せる。
+- 保存先 namespace: `INTERNAL_NAMESPACE` + `HUA_SELF_SUBJECT`（ふあ自身の体験として記録、ギルド横断で参照可能）。
+
+### 3.9 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
@@ -112,6 +125,7 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 - `OPENCODE_MODEL_ID`: AI モデル ID（デフォルト: `big-pickle`）
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
+- `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）
 
 ## 6. 受け入れ条件
 
