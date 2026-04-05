@@ -22,6 +22,8 @@ export const METRIC = {
 	LLM_BUSY_SESSIONS: "llm_busy_sessions",
 	MEMORY_CONSOLIDATION_TICKS: "memory_consolidation_ticks_total",
 	MEMORY_CONSOLIDATION_TICK_DURATION: "memory_consolidation_tick_duration_seconds",
+	LISTENING_TICKS: "listening_ticks_total",
+	LISTENING_TICK_DURATION: "listening_tick_duration_seconds",
 	// Token metrics
 	LLM_INPUT_TOKENS: "llm_input_tokens_total",
 	LLM_OUTPUT_TOKENS: "llm_output_tokens_total",

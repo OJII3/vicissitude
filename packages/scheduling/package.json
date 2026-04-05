@@ -5,7 +5,9 @@
 		"./heartbeat-helpers": "./src/heartbeat-helpers.ts",
 		"./heartbeat-scheduler": "./src/heartbeat-scheduler.ts",
 		"./heartbeat-config": "./src/heartbeat-config.ts",
-		"./consolidation-scheduler": "./src/consolidation-scheduler.ts"
+		"./consolidation-scheduler": "./src/consolidation-scheduler.ts",
+		"./listening-schedule": "./src/listening-schedule.ts",
+		"./listening-scheduler": "./src/listening-scheduler.ts"
 	},
 	"dependencies": {
 		"zod": "^4.3.6"

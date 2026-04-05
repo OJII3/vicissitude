@@ -32,7 +32,7 @@ function createMockClient() {
 
 let currentMockClient: ReturnType<typeof createMockClient> | null = null;
 
-mock.module("discord.js", () => {
+void mock.module("discord.js", () => {
 	// oxlint-disable-next-line typescript/no-require-imports
 	const actual = require("discord.js");
 	return {
@@ -40,7 +40,7 @@ mock.module("discord.js", () => {
 		// oxlint-disable-next-line no-constructor-return
 		Client: class MockedClient {
 			constructor() {
-				if (!currentMockClient) currentMockClient = createMockClient();
+				currentMockClient ??= createMockClient();
 				return currentMockClient as unknown as MockedClient;
 			}
 		},

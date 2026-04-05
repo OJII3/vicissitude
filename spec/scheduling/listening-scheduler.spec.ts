@@ -84,9 +84,7 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 		});
 		await (scheduler as unknown as TickFn).tick();
 
-		expect(agent.send).toHaveBeenCalledWith(
-			expect.objectContaining({ sessionKey: "listening" }),
-		);
+		expect(agent.send).toHaveBeenCalledWith(expect.objectContaining({ sessionKey: "listening" }));
 	});
 
 	test("agent 応答の NOW_PLAYING 行から presence.setListeningActivity が呼ばれる", async () => {
@@ -159,7 +157,7 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 		});
 
 		// tick は例外を throw しない（graceful 継続）
-		await expect((scheduler as unknown as TickFn).tick()).resolves.toBeUndefined();
+		await (scheduler as unknown as TickFn).tick();
 		expect(logger.error).toHaveBeenCalled();
 	});
 
@@ -214,7 +212,7 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 		scheduler.start();
 		scheduler.start();
-		scheduler.stop();
+		void scheduler.stop();
 
 		// 警告やエラーが出ないこと（info ログ経由で開始は 1 回のみ）
 		expect(logger.error).not.toHaveBeenCalled();

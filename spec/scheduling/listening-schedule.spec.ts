@@ -105,7 +105,8 @@ describe("shouldStartListening (時間帯確率 + jitter)", () => {
 	});
 
 	test("2-7 時帯以外で、random を連続供給すると一定割合で true が返る（大数の法則）", () => {
-		const date = jstDate(20); // 高確率帯
+		// 高確率帯
+		const date = jstDate(20);
 		// 一様乱数を模擬
 		let seed = 1;
 		const pseudoRandom = () => {
