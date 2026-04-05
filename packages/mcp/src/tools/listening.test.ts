@@ -2,6 +2,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import type { z } from "zod";
 
 import { registerListeningTools } from "./listening.ts";
@@ -149,9 +150,21 @@ describe("save_listening_fact — input schema", () => {
 		schema = tools.get("save_listening_fact")!.schema.inputSchema;
 	});
 
-	test("track は record<string, unknown>", () => {
-		expect(schema.track!.safeParse({ a: 1, b: "s" }).success).toBe(true);
-		expect(schema.track!.safeParse({}).success).toBe(true);
+	test("track は SpotifyTrack（必須フィールドを持つオブジェクト）", () => {
+		const validTrack: SpotifyTrack = {
+			id: "t-1",
+			name: "曲名",
+			artistName: "アーティスト",
+			artistId: "a-1",
+			albumName: "アルバム",
+			genres: ["pop"],
+			popularity: 80,
+			releaseDate: "2024-01-01",
+			albumArtUrl: "https://example.com/art.jpg",
+		};
+		expect(schema.track!.safeParse(validTrack).success).toBe(true);
+		expect(schema.track!.safeParse({}).success).toBe(false);
+		expect(schema.track!.safeParse({ a: 1, b: "s" }).success).toBe(false);
 		expect(schema.track!.safeParse("string").success).toBe(false);
 		expect(schema.track!.safeParse(null).success).toBe(false);
 	});
@@ -171,7 +184,7 @@ describe("save_listening_fact — input schema", () => {
 describe("save_listening_fact — handler", () => {
 	test("deps.saveListening に track と impression が渡される", async () => {
 		const calls: Array<{
-			track: Record<string, unknown>;
+			track: SpotifyTrack;
 			impression: string;
 			listenedAt: Date;
 		}> = [];
@@ -184,7 +197,17 @@ describe("save_listening_fact — handler", () => {
 			}),
 		);
 
-		const track = { id: "t-1", name: "曲", artistName: "A" };
+		const track: SpotifyTrack = {
+			id: "t-1",
+			name: "曲",
+			artistName: "A",
+			artistId: "a-1",
+			albumName: "アルバム",
+			genres: ["pop"],
+			popularity: 80,
+			releaseDate: "2024-01-01",
+			albumArtUrl: "https://example.com/art.jpg",
+		};
 		await tools.get("save_listening_fact")!.handler({ track, impression: "好き" });
 
 		expect(calls).toHaveLength(1);
@@ -203,8 +226,19 @@ describe("save_listening_fact — handler", () => {
 			}),
 		);
 
+		const validTrack: SpotifyTrack = {
+			id: "t-1",
+			name: "曲名",
+			artistName: "アーティスト",
+			artistId: "a-1",
+			albumName: "アルバム",
+			genres: ["pop"],
+			popularity: 80,
+			releaseDate: "2024-01-01",
+			albumArtUrl: "https://example.com/art.jpg",
+		};
 		const before = Date.now();
-		await tools.get("save_listening_fact")!.handler({ track: {}, impression: "x" });
+		await tools.get("save_listening_fact")!.handler({ track: validTrack, impression: "x" });
 		const after = Date.now();
 
 		expect(calls[0]?.listenedAt).toBeInstanceOf(Date);
@@ -215,8 +249,21 @@ describe("save_listening_fact — handler", () => {
 
 	test("成功時: isError は undefined で成功テキストが返る", async () => {
 		const tools = captureTools(stubDeps());
+		const validTrack: SpotifyTrack = {
+			id: "t-1",
+			name: "曲名",
+			artistName: "アーティスト",
+			artistId: "a-1",
+			albumName: "アルバム",
+			genres: ["pop"],
+			popularity: 80,
+			releaseDate: "2024-01-01",
+			albumArtUrl: "https://example.com/art.jpg",
+		};
 
-		const result = await tools.get("save_listening_fact")!.handler({ track: {}, impression: "x" });
+		const result = await tools
+			.get("save_listening_fact")!
+			.handler({ track: validTrack, impression: "x" });
 
 		expect(result.isError).toBeUndefined();
 		expect(result.content[0]!.type).toBe("text");
@@ -227,15 +274,28 @@ describe("save_listening_fact — handler", () => {
 		const tools = captureTools(
 			stubDeps({ saveListening: () => Promise.reject(new Error("db err")) }),
 		);
+		const validTrack: SpotifyTrack = {
+			id: "t-1",
+			name: "曲名",
+			artistName: "アーティスト",
+			artistId: "a-1",
+			albumName: "アルバム",
+			genres: ["pop"],
+			popularity: 80,
+			releaseDate: "2024-01-01",
+			albumArtUrl: "https://example.com/art.jpg",
+		};
 
-		const result = await tools.get("save_listening_fact")!.handler({ track: {}, impression: "x" });
+		const result = await tools
+			.get("save_listening_fact")!
+			.handler({ track: validTrack, impression: "x" });
 
 		expect(result.isError).toBe(true);
 		expect(result.content[0]!.text).toContain("db err");
 	});
 
-	test("track はネストしたオブジェクトでもそのまま渡される", async () => {
-		const calls: Array<{ track: Record<string, unknown> }> = [];
+	test("track は SpotifyTrack としてそのまま渡される", async () => {
+		const calls: Array<{ track: SpotifyTrack }> = [];
 		const tools = captureTools(
 			stubDeps({
 				saveListening: (r) => {
@@ -245,10 +305,16 @@ describe("save_listening_fact — handler", () => {
 			}),
 		);
 
-		const track = {
+		const track: SpotifyTrack = {
 			id: "t",
-			album: { name: "A", images: [{ url: "u" }] },
+			name: "曲名",
+			artistName: "アーティスト",
+			artistId: "a-1",
+			albumName: "アルバム",
 			genres: ["pop", "rock"],
+			popularity: 70,
+			releaseDate: "2023-05-01",
+			albumArtUrl: "https://example.com/art.jpg",
 		};
 		await tools.get("save_listening_fact")!.handler({ track, impression: "感想" });
 

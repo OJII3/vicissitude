@@ -1,10 +1,23 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import { z } from "zod";
+
+const spotifyTrackSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	artistName: z.string(),
+	artistId: z.string(),
+	albumName: z.string(),
+	genres: z.array(z.string()),
+	popularity: z.number(),
+	releaseDate: z.string(),
+	albumArtUrl: z.string(),
+});
 
 export interface ListeningToolDeps {
 	fetchLyrics(title: string, artist: string): Promise<string | null>;
 	saveListening(record: {
-		track: Record<string, unknown>;
+		track: SpotifyTrack;
 		impression: string;
 		listenedAt: Date;
 	}): Promise<void>;
@@ -45,7 +58,7 @@ export function registerListeningTools(server: McpServer, deps: ListeningToolDep
 			description:
 				"ふあが楽曲を聴いた感想を Memory (internal namespace, category=experience) に保存する。listenedAt は現在時刻が自動で付与される。",
 			inputSchema: {
-				track: z.record(z.string(), z.unknown()).describe("Spotify Track オブジェクト"),
+				track: spotifyTrackSchema.describe("Spotify Track オブジェクト"),
 				impression: z.string().describe("ふあの感想"),
 			},
 		},
