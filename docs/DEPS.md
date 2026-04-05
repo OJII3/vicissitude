@@ -32,6 +32,9 @@ graph LR
   infrastructure --> application
   infrastructure --> shared
   infrastructure --> store
+  listening --> memory
+  listening --> shared
+  listening --> spotify
   mcp --> agent
   mcp --> infrastructure
   mcp --> memory
@@ -104,6 +107,12 @@ graph LR
 - 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js
 - ファイル数: 6
 
+### listening
+
+- 内部依存: memory, shared, spotify
+- 外部依存: なし
+- ファイル数: 6
+
 ### mcp
 
 - 内部依存: agent, infrastructure, memory, minecraft, observability, ollama, scheduling, shared, spotify, store
@@ -114,7 +123,7 @@ graph LR
 
 - 内部依存: ollama, shared
 - 外部依存: bun:sqlite, fs
-- ファイル数: 33
+- ファイル数: 34
 
 ### minecraft
 

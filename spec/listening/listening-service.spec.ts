@@ -195,10 +195,10 @@ describe("ListeningService.listenTo", () => {
 		const { ListeningService } = await import("@vicissitude/listening/listening-service");
 		const { port } = createRecordingMemory();
 
-		let lyricsPassed: string | null | undefined = undefined;
+		const lyricsCalls: Array<string | null> = [];
 		const llm: TrackLlmPort = {
 			inferUnderstanding: async (input) => {
-				lyricsPassed = (input as { lyrics: string | null }).lyrics;
+				lyricsCalls.push((input as { lyrics: string | null }).lyrics);
 				return makeUnderstanding();
 			},
 			generateImpression: async () => "感想",
@@ -208,7 +208,8 @@ describe("ListeningService.listenTo", () => {
 		const service = new ListeningService(createMockLyrics(null), llm, port);
 		await service.listenTo(makeTrack());
 
-		expect(lyricsPassed).toBeNull();
+		expect(lyricsCalls).toHaveLength(1);
+		expect(lyricsCalls[0]).toBeNull();
 	});
 
 	it("TrackUnderstanding は vocalGender / tieIn / moodThemes / summary を含む", async () => {
