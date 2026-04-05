@@ -3,8 +3,6 @@
 import type { Emotion } from "./emotion";
 import type { MemoryNamespace } from "./namespace";
 
-export type { MemoryNamespace };
-
 export interface AgentResponse {
 	text: string;
 	sessionId: string;

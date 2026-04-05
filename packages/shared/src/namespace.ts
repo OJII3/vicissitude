@@ -22,7 +22,7 @@ export const HUA_SELF_SUBJECT = "hua:self";
 /** internal namespace のシングルトン */
 export const INTERNAL_NAMESPACE: MemoryNamespace = { surface: "internal" };
 
-const GUILD_ID_RE = /^\d+$/;
+export const GUILD_ID_RE = /^\d+$/;
 
 /** discord-guild namespace を生成する（guildId のバリデーション付き） */
 export function discordGuildNamespace(guildId: string): MemoryNamespace {
@@ -58,16 +58,6 @@ export function namespaceKey(namespace: MemoryNamespace): string {
 		case "internal":
 			return "internal";
 	}
-}
-
-/** namespaceKey() の逆変換。未知の形式は null を返す */
-export function parseNamespaceKey(key: string): MemoryNamespace | null {
-	if (key === "internal") return INTERNAL_NAMESPACE;
-	const m = key.match(/^discord-guild:(.+)$/);
-	if (m?.[1] && GUILD_ID_RE.test(m[1])) {
-		return { surface: "discord-guild", guildId: m[1] };
-	}
-	return null;
 }
 
 /**
