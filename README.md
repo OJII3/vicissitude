@@ -59,6 +59,7 @@ MCP サーバー経由で各種操作を提供する。
 | ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block, attack_entity, craft_item 等                      |
 | ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
 | ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
+| 選曲         | core         | spotify_pick_track                                                                                    |
 
 OpenCode SDK 組み込み: `webfetch`, `websearch`
 
