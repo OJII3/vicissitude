@@ -1,4 +1,4 @@
-import type { SpotifyAuth } from "./auth.ts";
+import type { SpotifyAuthPort } from "./auth.ts";
 import type { SpotifyTrack } from "./types.ts";
 
 const API_BASE = "https://api.spotify.com/v1";
@@ -30,7 +30,7 @@ function normalizeTrack(raw: SpotifyApiTrack): SpotifyTrack {
 }
 
 export class SpotifyClient {
-	constructor(private readonly auth: Pick<SpotifyAuth, "getAccessToken">) {}
+	constructor(private readonly auth: SpotifyAuthPort) {}
 
 	private async apiGet(path: string): Promise<unknown> {
 		const token = await this.auth.getAccessToken();

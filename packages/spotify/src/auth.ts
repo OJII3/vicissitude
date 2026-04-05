@@ -1,9 +1,13 @@
+export interface SpotifyAuthPort {
+	getAccessToken(): Promise<string>;
+}
+
 interface TokenCache {
 	accessToken: string;
 	expiresAt: number;
 }
 
-export class SpotifyAuth {
+export class SpotifyAuth implements SpotifyAuthPort {
 	private cache: TokenCache | null = null;
 
 	constructor(
