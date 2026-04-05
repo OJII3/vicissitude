@@ -92,6 +92,9 @@
         "discord.js": "^14.19.3",
       },
     },
+    "packages/listening": {
+      "name": "@vicissitude/listening",
+    },
     "packages/mcp": {
       "name": "@vicissitude/mcp",
       "dependencies": {
@@ -607,6 +610,8 @@
     "@vicissitude/gateway": ["@vicissitude/gateway@workspace:packages/gateway"],
 
     "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
+
+    "@vicissitude/listening": ["@vicissitude/listening@workspace:packages/listening"],
 
     "@vicissitude/mcp": ["@vicissitude/mcp@workspace:packages/mcp"],
 
