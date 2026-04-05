@@ -11,6 +11,8 @@ graph LR
   heartbeat_helpers["heartbeat-helpers"]
   heartbeat_scheduler["heartbeat-scheduler"] --> heartbeat_config["heartbeat-config"]
   heartbeat_scheduler["heartbeat-scheduler"] --> heartbeat_helpers["heartbeat-helpers"]
+  listening_schedule["listening-schedule"]
+  listening_scheduler["listening-scheduler"] --> listening_schedule["listening-schedule"]
 ```
 
 ## ファイル別依存一覧
@@ -34,3 +36,12 @@ graph LR
 - モジュール内依存: heartbeat-config, heartbeat-helpers
 - 他モジュール依存: application, observability, shared
 - 外部依存: path
+
+### listening-schedule.ts
+
+- 依存なし
+
+### listening-scheduler.ts
+
+- モジュール内依存: listening-schedule
+- 他モジュール依存: observability, shared

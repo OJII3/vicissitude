@@ -25,6 +25,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			providerId: "test-provider",
 			modelId: "test-model",
 		},
+		listening: { enabled: false },
 		dataDir: "/tmp/vicissitude-bootstrap-test",
 		contextDir: "/tmp/test-context",
 		...overrides,

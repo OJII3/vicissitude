@@ -154,7 +154,7 @@ graph LR
 
 - 内部依存: application, observability, shared
 - 外部依存: .bun, fs, path
-- ファイル数: 7
+- ファイル数: 10
 
 ### shared
 
