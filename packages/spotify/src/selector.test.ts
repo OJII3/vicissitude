@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { createTrackSelector } from "./selector.ts";
+import { TrackSelector } from "./selector.ts";
 import type { SpotifyTrack } from "./types.ts";
 
 function createTrack(overrides: Partial<SpotifyTrack> = {}): SpotifyTrack {
@@ -19,7 +19,7 @@ function createTrack(overrides: Partial<SpotifyTrack> = {}): SpotifyTrack {
 
 describe("selector – 重み計算", () => {
 	it("popularity=0 の曲でも最低重み 1 が付与される", () => {
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const track = createTrack({ id: "zero", popularity: 0 });
 
 		// popularity=0 でも select から返されることを確認（重み=1 なので必ず選ばれる）
@@ -29,7 +29,7 @@ describe("selector – 重み計算", () => {
 	});
 
 	it("popularity が負の値でも Math.max により重み 1 が適用される", () => {
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const track = createTrack({ id: "neg", popularity: -10 });
 
 		const result = selector.select([track]);
@@ -40,7 +40,7 @@ describe("selector – 重み計算", () => {
 	it("重みは Math.max(popularity, 1) で計算される", () => {
 		// popularity=0 → weight=1, popularity=50 → weight=50
 		// 比率は 1:50 なので、popularity=50 の曲が圧倒的に多く選ばれるはず
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const zeroTrack = createTrack({ id: "zero", popularity: 0 });
 		const fiftyTrack = createTrack({ id: "fifty", popularity: 50 });
 
@@ -58,7 +58,7 @@ describe("selector – 重み計算", () => {
 
 describe("selector – 均等分布", () => {
 	it("全曲同じ popularity の場合、均等に近い分布になる", () => {
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const tracks = Array.from({ length: 5 }, (_, i) =>
 			createTrack({ id: `t${i}`, popularity: 50 }),
 		);
@@ -85,7 +85,7 @@ describe("selector – 均等分布", () => {
 
 describe("selector – 大量データ", () => {
 	it("1000 曲のリストでも正しく 1 曲を選択する", () => {
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const tracks = Array.from({ length: 1000 }, (_, i) =>
 			createTrack({ id: `t${i}`, popularity: i % 100 }),
 		);
@@ -96,7 +96,7 @@ describe("selector – 大量データ", () => {
 	});
 
 	it("10000 曲のリストでもパフォーマンスに問題がない", () => {
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const tracks = Array.from({ length: 10000 }, (_, i) =>
 			createTrack({ id: `t${i}`, popularity: (i % 100) + 1 }),
 		);
@@ -116,7 +116,7 @@ describe("selector – フォールバック", () => {
 	it("ループで選択されなかった場合、最後の曲が返される", () => {
 		// totalWeight と random がちょうど等しい場合のエッジケース
 		// tracks.at(-1) がフォールバックとして返される
-		const selector = createTrackSelector();
+		const selector = new TrackSelector();
 		const tracks = [
 			createTrack({ id: "a", popularity: 1 }),
 			createTrack({ id: "b", popularity: 1 }),

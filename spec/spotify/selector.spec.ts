@@ -21,8 +21,8 @@ function createTrack(overrides: Partial<SpotifyTrack> = {}): SpotifyTrack {
 
 describe("TrackSelector", () => {
 	it("楽曲リストから1曲を選曲できる", async () => {
-		const { createTrackSelector } = await import("@vicissitude/spotify/selector");
-		const selector: TrackSelector = createTrackSelector();
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector();
 
 		const tracks = [
 			createTrack({ id: "a", name: "Song A" }),
@@ -37,8 +37,8 @@ describe("TrackSelector", () => {
 	});
 
 	it("人気度が高い曲ほど選ばれやすい（重み付け）", async () => {
-		const { createTrackSelector } = await import("@vicissitude/spotify/selector");
-		const selector: TrackSelector = createTrackSelector();
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector();
 
 		const popular = createTrack({ id: "popular", popularity: 100 });
 		const unpopular = createTrack({ id: "unpopular", popularity: 1 });
@@ -58,8 +58,8 @@ describe("TrackSelector", () => {
 	});
 
 	it("空リストの場合は null を返す", async () => {
-		const { createTrackSelector } = await import("@vicissitude/spotify/selector");
-		const selector: TrackSelector = createTrackSelector();
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector();
 
 		const selected = selector.select([]);
 
@@ -67,8 +67,8 @@ describe("TrackSelector", () => {
 	});
 
 	it("複数ソース（Saved Tracks + Recently Played + Playlist）を統合して選曲できる", async () => {
-		const { createTrackSelector } = await import("@vicissitude/spotify/selector");
-		const selector: TrackSelector = createTrackSelector();
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector();
 
 		const savedTracks = [createTrack({ id: "saved-1", name: "Saved Song" })];
 		const recentlyPlayed = [createTrack({ id: "recent-1", name: "Recent Song" })];
@@ -82,8 +82,8 @@ describe("TrackSelector", () => {
 	});
 
 	it("1曲だけのリストではその曲が必ず選ばれる", async () => {
-		const { createTrackSelector } = await import("@vicissitude/spotify/selector");
-		const selector: TrackSelector = createTrackSelector();
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector();
 
 		const tracks = [createTrack({ id: "only-one", name: "Only Song" })];
 

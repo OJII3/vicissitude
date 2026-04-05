@@ -1,14 +1,5 @@
-import type { SpotifyAuth } from "./auth.ts";
+import type { SpotifyAuthPort } from "./auth.ts";
 import type { SpotifyTrack } from "./types.ts";
-
-export type { SpotifyClient };
-
-interface SpotifyClient {
-	getSavedTracks(limit: number, offset: number): Promise<SpotifyTrack[]>;
-	getRecentlyPlayed(limit: number): Promise<SpotifyTrack[]>;
-	getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]>;
-	getArtist(artistId: string): Promise<{ id: string; name: string; genres: string[] }>;
-}
 
 const API_BASE = "https://api.spotify.com/v1";
 
@@ -38,9 +29,11 @@ function normalizeTrack(raw: SpotifyApiTrack): SpotifyTrack {
 	};
 }
 
-export function createSpotifyClient(auth: SpotifyAuth): SpotifyClient {
-	async function apiGet(path: string): Promise<unknown> {
-		const token = await auth.getAccessToken();
+export class SpotifyClient {
+	constructor(private readonly auth: SpotifyAuthPort) {}
+
+	private async apiGet(path: string): Promise<unknown> {
+		const token = await this.auth.getAccessToken();
 		const response = await fetch(`${API_BASE}${path}`, {
 			headers: { Authorization: `Bearer ${token}` },
 			signal: AbortSignal.timeout(10_000),
@@ -53,35 +46,33 @@ export function createSpotifyClient(auth: SpotifyAuth): SpotifyClient {
 		return response.json();
 	}
 
-	return {
-		async getSavedTracks(limit, offset) {
-			const data = (await apiGet(`/me/tracks?limit=${limit}&offset=${offset}`)) as {
-				items: Array<{ track: SpotifyApiTrack }>;
-			};
-			return data.items.map((item) => normalizeTrack(item.track));
-		},
+	async getSavedTracks(limit: number, offset: number): Promise<SpotifyTrack[]> {
+		const data = (await this.apiGet(`/me/tracks?limit=${limit}&offset=${offset}`)) as {
+			items: Array<{ track: SpotifyApiTrack }>;
+		};
+		return data.items.map((item) => normalizeTrack(item.track));
+	}
 
-		async getRecentlyPlayed(limit) {
-			const data = (await apiGet(`/me/player/recently-played?limit=${limit}`)) as {
-				items: Array<{ track: SpotifyApiTrack }>;
-			};
-			return data.items.map((item) => normalizeTrack(item.track));
-		},
+	async getRecentlyPlayed(limit: number): Promise<SpotifyTrack[]> {
+		const data = (await this.apiGet(`/me/player/recently-played?limit=${limit}`)) as {
+			items: Array<{ track: SpotifyApiTrack }>;
+		};
+		return data.items.map((item) => normalizeTrack(item.track));
+	}
 
-		async getPlaylistTracks(playlistId) {
-			const data = (await apiGet(`/playlists/${playlistId}/tracks`)) as {
-				items: Array<{ track: SpotifyApiTrack }>;
-			};
-			return data.items.map((item) => normalizeTrack(item.track));
-		},
+	async getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
+		const data = (await this.apiGet(`/playlists/${playlistId}/tracks`)) as {
+			items: Array<{ track: SpotifyApiTrack }>;
+		};
+		return data.items.map((item) => normalizeTrack(item.track));
+	}
 
-		async getArtist(artistId) {
-			const data = (await apiGet(`/artists/${artistId}`)) as {
-				id: string;
-				name: string;
-				genres: string[];
-			};
-			return { id: data.id, name: data.name, genres: data.genres };
-		},
-	};
+	async getArtist(artistId: string): Promise<{ id: string; name: string; genres: string[] }> {
+		const data = (await this.apiGet(`/artists/${artistId}`)) as {
+			id: string;
+			name: string;
+			genres: string[];
+		};
+		return { id: data.id, name: data.name, genres: data.genres };
+	}
 }

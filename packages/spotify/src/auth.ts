@@ -1,4 +1,4 @@
-export interface SpotifyAuth {
+export interface SpotifyAuthPort {
 	getAccessToken(): Promise<string>;
 }
 
@@ -7,15 +7,19 @@ interface TokenCache {
 	expiresAt: number;
 }
 
-export function createSpotifyAuth(config: {
-	clientId: string;
-	clientSecret: string;
-	refreshToken: string;
-}): SpotifyAuth {
-	let cache: TokenCache | null = null;
+export class SpotifyAuth implements SpotifyAuthPort {
+	private cache: TokenCache | null = null;
 
-	async function fetchToken(): Promise<TokenCache> {
-		const credentials = btoa(`${config.clientId}:${config.clientSecret}`);
+	constructor(
+		private readonly config: {
+			clientId: string;
+			clientSecret: string;
+			refreshToken: string;
+		},
+	) {}
+
+	private async fetchToken(): Promise<TokenCache> {
+		const credentials = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
 		const response = await fetch("https://accounts.spotify.com/api/token", {
 			method: "POST",
 			headers: {
@@ -24,7 +28,7 @@ export function createSpotifyAuth(config: {
 			},
 			body: new URLSearchParams({
 				grant_type: "refresh_token",
-				refresh_token: config.refreshToken,
+				refresh_token: this.config.refreshToken,
 			}),
 			signal: AbortSignal.timeout(10_000),
 		});
@@ -44,13 +48,11 @@ export function createSpotifyAuth(config: {
 		};
 	}
 
-	return {
-		async getAccessToken(): Promise<string> {
-			if (cache && Date.now() < cache.expiresAt) {
-				return cache.accessToken;
-			}
-			cache = await fetchToken();
-			return cache.accessToken;
-		},
-	};
+	async getAccessToken(): Promise<string> {
+		if (this.cache && Date.now() < this.cache.expiresAt) {
+			return this.cache.accessToken;
+		}
+		this.cache = await this.fetchToken();
+		return this.cache.accessToken;
+	}
 }

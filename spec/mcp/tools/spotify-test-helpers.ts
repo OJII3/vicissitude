@@ -1,4 +1,5 @@
 /* oxlint-disable no-non-null-assertion -- test helpers */
+/* oxlint-disable max-classes-per-file -- モック内の小クラス定義 */
 import { mock } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -20,22 +21,36 @@ export const stubs = {
 };
 
 void mock.module("@vicissitude/spotify/auth", () => ({
-	createSpotifyAuth: () => ({ __brand: "auth" }),
+	SpotifyAuth: class {
+		getAccessToken(): Promise<string> {
+			return Promise.resolve("test-access-token");
+		}
+	},
 }));
 
 void mock.module("@vicissitude/spotify/spotify-client", () => ({
-	createSpotifyClient: () => ({
-		getSavedTracks: (limit: number, offset: number) => stubs.getSavedTracks(limit, offset),
-		getRecentlyPlayed: (limit: number) => stubs.getRecentlyPlayed(limit),
-		getPlaylistTracks: (id: string) => stubs.getPlaylistTracks(id),
-		getArtist: (id: string) => stubs.getArtist(id),
-	}),
+	SpotifyClient: class {
+		getSavedTracks(limit: number, offset: number) {
+			return stubs.getSavedTracks(limit, offset);
+		}
+		getRecentlyPlayed(limit: number) {
+			return stubs.getRecentlyPlayed(limit);
+		}
+		getPlaylistTracks(id: string) {
+			return stubs.getPlaylistTracks(id);
+		}
+		getArtist(id: string) {
+			return stubs.getArtist(id);
+		}
+	},
 }));
 
 void mock.module("@vicissitude/spotify/selector", () => ({
-	createTrackSelector: () => ({
-		select: (tracks: SpotifyTrack[]) => stubs.select(tracks),
-	}),
+	TrackSelector: class {
+		select(tracks: SpotifyTrack[]) {
+			return stubs.select(tracks);
+		}
+	},
 }));
 
 // ─── captureSpotifyTool ─────────────────────────────────────────
