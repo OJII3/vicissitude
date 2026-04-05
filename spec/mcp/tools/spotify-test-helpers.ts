@@ -2,6 +2,7 @@
 import { mock } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { registerSpotifyTools } from "@vicissitude/mcp/tools/spotify";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 
 import type { ToolHandler } from "./discord-test-helpers";
@@ -39,12 +40,7 @@ void mock.module("@vicissitude/spotify/selector", () => ({
 
 // ─── captureSpotifyTool ─────────────────────────────────────────
 
-export type SpotifyConfig = {
-	clientId: string;
-	clientSecret: string;
-	refreshToken: string;
-	recommendPlaylistId?: string;
-};
+export type SpotifyConfig = Parameters<typeof registerSpotifyTools>[1];
 
 const defaultConfig: SpotifyConfig = {
 	clientId: "test-client-id",
@@ -57,7 +53,7 @@ const defaultConfig: SpotifyConfig = {
  * mock.module の後にインポートする必要があるため、動的インポートを使用。
  */
 export async function captureSpotifyTool(
-	config: SpotifyConfig = defaultConfig,
+	overrides: Partial<SpotifyConfig> = {},
 ): Promise<{ tools: Map<string, ToolHandler> }> {
 	const { registerSpotifyTools } = await import("@vicissitude/mcp/tools/spotify");
 
@@ -68,7 +64,7 @@ export async function captureSpotifyTool(
 		},
 	} as unknown as McpServer;
 
-	registerSpotifyTools(fakeServer, config);
+	registerSpotifyTools(fakeServer, { ...defaultConfig, ...overrides });
 	return { tools };
 }
 
