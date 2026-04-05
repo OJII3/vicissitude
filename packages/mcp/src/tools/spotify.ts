@@ -33,10 +33,10 @@ export function registerSpotifyTools(
 			const client = new SpotifyClient(auth);
 			const selector = new TrackSelector();
 			return {
-				getSavedTracks: d.getSavedTracks.bind(client),
-				getRecentlyPlayed: d.getRecentlyPlayed.bind(client),
-				getPlaylistTracks: d.getPlaylistTracks.bind(client),
-				getArtist: d.getArtist.bind(client),
+				getSavedTracks: client.getSavedTracks.bind(client),
+				getRecentlyPlayed: client.getRecentlyPlayed.bind(client),
+				getPlaylistTracks: client.getPlaylistTracks.bind(client),
+				getArtist: client.getArtist.bind(client),
 				select: selector.select.bind(selector),
 			};
 		})();
