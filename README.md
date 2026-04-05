@@ -74,7 +74,9 @@ OpenCode SDK 組み込み: `webfetch`, `websearch`
 
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は全テナントで共有。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
-- Memory 分離: テナントごとに独立した DB。
+- Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
+  - `discord-guild`: Discord ギルドごとの記憶。DB パス: `guilds/{guildId}/memory.db`
+  - `internal`: ふあ本人の内部記憶（ギルドに属さない自己の気づき等）。DB パス: `internal/memory.db`
 - テナント間で会話内容・メンバー情報・教訓が漏洩しない。
 
 ### 3.7 記憶システム

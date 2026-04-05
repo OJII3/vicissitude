@@ -104,7 +104,7 @@ graph LR
 
 - モジュール内依存: consolidation, episode, episodic, llm-port, namespace, segmenter, storage
 - 他モジュール依存: shared
-- 外部依存: fs, path
+- 外部依存: fs
 
 ### episode.ts
 

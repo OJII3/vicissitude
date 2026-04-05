@@ -15,7 +15,7 @@ graph LR
 ### server.ts
 
 - モジュール内依存: ws-handler
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/elysia@1.4.28/node_modules/elysia/dist/index.js
 
 ### ws-handler.ts
 
