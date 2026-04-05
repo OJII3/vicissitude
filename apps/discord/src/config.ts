@@ -22,6 +22,13 @@ const minecraftSchema = z.object({
 	viewerPort: safeInt,
 });
 
+const spotifySchema = z.object({
+	clientId: z.string(),
+	clientSecret: z.string(),
+	refreshToken: z.string(),
+	recommendPlaylistId: z.string().optional(),
+});
+
 const ttsSchema = z.object({
 	baseUrl: z.string(),
 	speakerId: safeInt,
@@ -48,6 +55,7 @@ const appConfigSchema = z.object({
 		providerId: z.string(),
 		modelId: z.string(),
 	}),
+	spotify: spotifySchema.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	dataDir: z.string(),
@@ -56,6 +64,7 @@ const appConfigSchema = z.object({
 
 // ─── Types ───────────────────────────────────────────────────────
 
+export type SpotifyConfig = z.infer<typeof spotifySchema>;
 export type TtsConfig = z.infer<typeof ttsSchema>;
 export type MinecraftConfig = z.infer<typeof minecraftSchema>;
 export type AppConfig = z.infer<typeof appConfigSchema>;
@@ -93,6 +102,14 @@ export function loadConfig(
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
 		},
+		spotify: env.SPOTIFY_CLIENT_ID
+			? {
+					clientId: env.SPOTIFY_CLIENT_ID,
+					clientSecret: env.SPOTIFY_CLIENT_SECRET ?? "",
+					refreshToken: env.SPOTIFY_REFRESH_TOKEN ?? "",
+					recommendPlaylistId: env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
+				}
+			: undefined,
 		tts: env.AIVIS_SPEECH_URL
 			? {
 					baseUrl: env.AIVIS_SPEECH_URL,

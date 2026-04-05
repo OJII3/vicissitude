@@ -23,7 +23,7 @@ graph LR
 ### db.ts
 
 - モジュール内依存: schema
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/bun-sqlite/index.js, bun:sqlite, fs, path
+- 外部依存: .bun, bun:sqlite, fs, path
 
 ### event-buffer.ts
 
@@ -33,19 +33,19 @@ graph LR
 ### mc-bridge.ts
 
 - モジュール内依存: db, schema
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs
+- 外部依存: .bun
 
 ### mood-store.ts
 
 - モジュール内依存: db, schema
 - 他モジュール依存: shared
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs
+- 外部依存: .bun
 
 ### queries.ts
 
 - モジュール内依存: db, schema
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/index.cjs
+- 外部依存: .bun
 
 ### schema.ts
 
-- 外部依存: ../../../node_modules/.bun/drizzle-orm@0.45.1/node_modules/drizzle-orm/sqlite-core/index.js
+- 外部依存: .bun

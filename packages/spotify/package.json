@@ -1,0 +1,10 @@
+{
+	"name": "@vicissitude/spotify",
+	"private": true,
+	"exports": {
+		"./types": "./src/types.ts",
+		"./auth": "./src/auth.ts",
+		"./spotify-client": "./src/spotify-client.ts",
+		"./selector": "./src/selector.ts"
+	}
+}

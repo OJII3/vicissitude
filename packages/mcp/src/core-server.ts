@@ -23,6 +23,7 @@ import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffe
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
+import { registerSpotifyTools } from "./tools/spotify.ts";
 
 // --- Logger ---
 
@@ -200,6 +201,19 @@ function createServer(agentId: string | null): McpServer {
 	}
 	registerMemoryTools(server, { getOrCreateMemory }, boundGuildId);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
+
+	if (
+		process.env.SPOTIFY_CLIENT_ID &&
+		process.env.SPOTIFY_CLIENT_SECRET &&
+		process.env.SPOTIFY_REFRESH_TOKEN
+	) {
+		registerSpotifyTools(server, {
+			clientId: process.env.SPOTIFY_CLIENT_ID,
+			clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+			refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
+			recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
+		});
+	}
 
 	return server;
 }
