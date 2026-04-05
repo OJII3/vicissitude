@@ -32,13 +32,13 @@ graph LR
 
 ### code-exec-server.ts
 
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, @modelcontextprotocol/sdk/server/stdio.js
 
 ### core-server.ts
 
 - モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/mc-bridge-discord, tools/memory, tools/schedule, tools/spotify
 - 他モジュール依存: agent, memory, observability, ollama, store
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### http-server.ts
 
@@ -59,38 +59,38 @@ graph LR
 
 - モジュール内依存: tools/event-buffer
 - 他モジュール依存: infrastructure, shared
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: ../../../node_modules/.bun/discord.js@14.25.1/node_modules/discord.js/src/index.js, ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/event-buffer.ts
 
 - 他モジュール依存: shared, store
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-discord.ts
 
 - 他モジュール依存: minecraft, store
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-minecraft.ts
 
 - モジュール内依存: tools/event-buffer
 - 他モジュール依存: minecraft, store
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-memory.ts
 
 - モジュール内依存: memory-helpers
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/memory.ts
 
 - 他モジュール依存: memory
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/schedule.ts
 
 - 他モジュール依存: scheduling, shared
-- 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs, path
+- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs, @modelcontextprotocol/sdk/server/mcp.js, fs, path
 
 ### tools/spotify.ts
 
