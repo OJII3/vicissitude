@@ -50,9 +50,8 @@ export class GeniusClient {
 		while ((openMatch = openPattern.exec(html)) !== null) {
 			const contentStart = openMatch.index + openMatch[0].length;
 			let depth = 1;
-			let pos = contentStart;
 			const divTagPattern = /<\/?div[\s>]/gi;
-			divTagPattern.lastIndex = pos;
+			divTagPattern.lastIndex = contentStart;
 			let tagMatch: RegExpExecArray | null;
 			while (depth > 0 && (tagMatch = divTagPattern.exec(html)) !== null) {
 				if (tagMatch[0].startsWith("</")) {
