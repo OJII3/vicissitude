@@ -73,6 +73,9 @@ export function resolveNamespaceFromAgentId(
 	if (m?.[1] && GUILD_ID_RE.test(m[1])) {
 		return { surface: "discord-guild", guildId: m[1] };
 	}
+	if (/^internal(?::.+)?$/.test(agentId)) {
+		return INTERNAL_NAMESPACE;
+	}
 	return null;
 }
 
