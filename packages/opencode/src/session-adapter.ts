@@ -127,6 +127,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				}
 				const typed = event.value as Event;
+
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
 				if (classified) {
 					this.logger?.info(`[opencode] session event: ${classified.type}`);
