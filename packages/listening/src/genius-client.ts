@@ -43,11 +43,29 @@ export class GeniusClient {
 		if (!response.ok) return null;
 		const html = await response.text();
 		// Genius は lyrics を <div data-lyrics-container="true">...</div> に入れる
-		const matches = [
-			...html.matchAll(/<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/g),
-		];
-		if (matches.length === 0) return null;
-		const raw = matches.map((m) => m[1] ?? "").join("\n");
+		// ネストした div がある場合に備え、深さカウントで対応する閉じタグを特定する
+		const contents: string[] = [];
+		const openPattern = /<div[^>]*data-lyrics-container="true"[^>]*>/g;
+		let openMatch: RegExpExecArray | null;
+		while ((openMatch = openPattern.exec(html)) !== null) {
+			const contentStart = openMatch.index + openMatch[0].length;
+			let depth = 1;
+			const divTagPattern = /<\/?div[\s>]/gi;
+			divTagPattern.lastIndex = contentStart;
+			let tagMatch: RegExpExecArray | null;
+			while (depth > 0 && (tagMatch = divTagPattern.exec(html)) !== null) {
+				if (tagMatch[0].startsWith("</")) {
+					depth--;
+					if (depth === 0) {
+						contents.push(html.slice(contentStart, tagMatch.index));
+					}
+				} else {
+					depth++;
+				}
+			}
+		}
+		if (contents.length === 0) return null;
+		const raw = contents.join("\n");
 		return raw
 			.replaceAll(/<br\s*\/?>/g, "\n")
 			.replaceAll(/<[^>]+>/g, "")

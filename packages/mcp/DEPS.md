@@ -39,7 +39,7 @@ graph LR
 ### core-server.ts
 
 - モジュール内依存: http-server, tool-metrics, tools/discord, tools/event-buffer, tools/listening, tools/mc-bridge-discord, tools/memory, tools/schedule, tools/spotify
-- 他モジュール依存: agent, listening, memory, observability, ollama, spotify, store
+- 他モジュール依存: agent, listening, memory, observability, ollama, store
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js, fs
 
 ### http-server.ts
@@ -70,6 +70,7 @@ graph LR
 
 ### tools/listening.ts
 
+- 他モジュール依存: spotify
 - 外部依存: .bun, @modelcontextprotocol/sdk/server/mcp.js
 
 ### tools/mc-bridge-discord.ts
