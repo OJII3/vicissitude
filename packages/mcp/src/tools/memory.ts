@@ -27,12 +27,10 @@ export function registerMemoryTools(
 	boundNamespace?: MemoryNamespace,
 ): void {
 	const { getOrCreateMemory } = deps;
-	const boundGuildId =
-		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
-
 	function resolveNamespace(guildIdInput: string | undefined): MemoryNamespace | null {
+		if (boundNamespace) return boundNamespace;
 		if (guildIdInput) return discordGuildNamespace(guildIdInput);
-		return boundNamespace ?? null;
+		return null;
 	}
 
 	server.registerTool(
@@ -41,7 +39,7 @@ export function registerMemoryTools(
 			description:
 				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
 			inputSchema: {
-				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
+				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
 				query: z.string().min(1).describe("検索クエリ"),
 				limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
 			},
@@ -51,7 +49,7 @@ export function registerMemoryTools(
 				const ns = resolveNamespace(guild_id);
 				if (!ns) {
 					return {
-						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],
 						isError: true,
 					};
 				}
@@ -103,7 +101,7 @@ export function registerMemoryTools(
 		{
 			description: "蓄積されたファクト（意味記憶）一覧を取得する",
 			inputSchema: {
-				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
+				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
 				category: z
 					.enum([
 						"identity",
@@ -138,7 +136,7 @@ export function registerMemoryTools(
 				const ns = resolveNamespace(guild_id);
 				if (!ns) {
 					return {
-						content: [{ type: "text" as const, text: "Error: guild_id is required" }],
+						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],
 						isError: true,
 					};
 				}

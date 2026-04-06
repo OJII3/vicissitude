@@ -45,7 +45,7 @@
  *   // agent_id → namespace の解決
  *   //   "discord:heartbeat:{guildId}" → discord-guild
  *   //   "discord:{guildId}"           → discord-guild
- *   //   "internal:*" 等（未定義）     → null（呼び出し元で fallback）
+ *   //   "internal:*" / "internal"     → internal
  *   export function resolveNamespaceFromAgentId(
  *     agentId: string | null | undefined,
  *   ): MemoryNamespace | null;
@@ -173,6 +173,18 @@ describe("resolveNamespaceFromAgentId", () => {
 		expect(resolveNamespaceFromAgentId("discord:heartbeat:abc")).toBeNull();
 		expect(resolveNamespaceFromAgentId("discord:../malicious")).toBeNull();
 	});
+
+	it("'internal:listening' を INTERNAL_NAMESPACE に解決する", () => {
+		expect(resolveNamespaceFromAgentId("internal:listening")).toEqual(INTERNAL_NAMESPACE);
+	});
+
+	it("'internal:any-suffix' を INTERNAL_NAMESPACE に解決する", () => {
+		expect(resolveNamespaceFromAgentId("internal:any-suffix")).toEqual(INTERNAL_NAMESPACE);
+	});
+
+	it("'internal'（suffix なし）を INTERNAL_NAMESPACE に解決する", () => {
+		expect(resolveNamespaceFromAgentId("internal")).toEqual(INTERNAL_NAMESPACE);
+	});
 });
 
 describe("defaultSubject", () => {
@@ -226,13 +238,11 @@ describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）",
 		}
 	});
 
-	it("将来の internal agent_id（仮）→ boundNamespace は設定、boundGuildId は undefined", () => {
-		// 現状 resolveNamespaceFromAgentId は internal を解決しないため、
-		// この契約は INTERNAL_NAMESPACE を直接与えた場合の挙動を検証する。
-		const ns: MemoryNamespace = INTERNAL_NAMESPACE;
-		const boundNamespace = ns;
-		const boundGuildId = ns.surface === "discord-guild" ? ns.guildId : undefined;
-
+	it("internal agent_id → boundNamespace は INTERNAL_NAMESPACE, boundGuildId は undefined", () => {
+		const ns = resolveNamespaceFromAgentId("internal:listening");
+		expect(ns).not.toBeNull();
+		const boundNamespace = ns ?? undefined;
+		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
 		expect(boundNamespace).toEqual(INTERNAL_NAMESPACE);
 		expect(boundGuildId).toBeUndefined();
 	});
@@ -256,6 +266,36 @@ describe("recorder subject 導出契約（defaultSubject）", () => {
 		// HUA_SELF_SUBJECT は validateUserId の制約を満たす
 		expect(HUA_SELF_SUBJECT.length).toBeGreaterThan(0);
 		expect(HUA_SELF_SUBJECT.length).toBeLessThanOrEqual(256);
+	});
+});
+
+describe("registerMemoryTools: boundNamespace による guild_id スキーマ省略契約", () => {
+	// これらは registerMemoryTools の inputSchema 生成ロジックの契約。
+	// 実際のスキーマ検証は integration test のスコープ。
+
+	// 契約 1: boundNamespace が INTERNAL_NAMESPACE の場合、
+	//   guild_id フィールドは inputSchema に含まれない。
+	//   → 内部エージェントは guild_id を指定せずに memory ツールを呼べる。
+
+	// 契約 2: boundNamespace が discordGuildNamespace("123") の場合、
+	//   guild_id フィールドは inputSchema に含まれない。
+	//   → guild-bound なエージェントも guild_id を省略できる。
+
+	// 契約 3: boundNamespace が undefined の場合、
+	//   guild_id が必須フィールドとして inputSchema に含まれる。
+	//   → unbound なエージェントは guild_id を明示的に指定する必要がある。
+
+	it("boundNamespace の有無で guild_id スキーマが切り替わる前提条件", () => {
+		// INTERNAL_NAMESPACE は discord-guild ではないので boundGuildId は undefined
+		const internalBoundGuildId =
+			INTERNAL_NAMESPACE.surface === "discord-guild" ? INTERNAL_NAMESPACE.guildId : undefined;
+		expect(internalBoundGuildId).toBeUndefined();
+
+		// discord-guild namespace は boundGuildId が設定される
+		const discordNs = discordGuildNamespace("123");
+		const discordBoundGuildId =
+			discordNs.surface === "discord-guild" ? discordNs.guildId : undefined;
+		expect(discordBoundGuildId).toBe("123");
 	});
 });
 
