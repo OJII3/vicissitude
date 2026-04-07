@@ -180,6 +180,12 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					this.config.temperature === null || this.config.temperature === undefined
 						? undefined
 						: { build: { temperature: this.config.temperature } },
+				experimental: {
+					// wait_for_events が最大 48 時間ブロックするため、
+					// デフォルト 60 秒では MCP リクエストタイムアウトが先に発火する。
+					// 3 日（259_200_000ms）に設定して実質無効化する。
+					mcp_timeout: 259_200_000,
+				},
 			},
 		});
 		this.client = result.client;
