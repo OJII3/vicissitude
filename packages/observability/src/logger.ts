@@ -9,34 +9,26 @@ export class ConsoleLogger implements Logger {
 	}
 
 	debug(message: string, ...args: unknown[]): void {
-		if (args.length > 0) {
-			this.pino.debug({ extra: args.length === 1 ? args[0] : args }, message);
-		} else {
-			this.pino.debug(message);
-		}
+		this.log("debug", message, args);
 	}
 
 	info(message: string, ...args: unknown[]): void {
-		if (args.length > 0) {
-			this.pino.info({ extra: args.length === 1 ? args[0] : args }, message);
-		} else {
-			this.pino.info(message);
-		}
+		this.log("info", message, args);
 	}
 
 	error(message: string, ...args: unknown[]): void {
-		if (args.length > 0) {
-			this.pino.error({ extra: args.length === 1 ? args[0] : args }, message);
-		} else {
-			this.pino.error(message);
-		}
+		this.log("error", message, args);
 	}
 
 	warn(message: string, ...args: unknown[]): void {
+		this.log("warn", message, args);
+	}
+
+	private log(level: pino.Level, message: string, args: unknown[]): void {
 		if (args.length > 0) {
-			this.pino.warn({ extra: args.length === 1 ? args[0] : args }, message);
+			this.pino[level]({ extra: args.length === 1 ? args[0] : args }, message);
 		} else {
-			this.pino.warn(message);
+			this.pino[level](message);
 		}
 	}
 }

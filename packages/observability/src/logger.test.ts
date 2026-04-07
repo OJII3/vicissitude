@@ -37,7 +37,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.info("hello");
 
-		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		expect(stdoutCapture.calls).toHaveLength(1);
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe(30);
 		expect(entry.msg).toBe("hello");
@@ -49,7 +49,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.error("oops");
 
-		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		expect(stdoutCapture.calls).toHaveLength(1);
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe(50);
 		expect(entry.msg).toBe("oops");
@@ -60,7 +60,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger();
 		logger.warn("caution");
 
-		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		expect(stdoutCapture.calls).toHaveLength(1);
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe(40);
 		expect(entry.msg).toBe("caution");
@@ -71,7 +71,7 @@ describe("ConsoleLogger", () => {
 		const logger = new ConsoleLogger("debug");
 		logger.debug("trace info");
 
-		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		expect(stdoutCapture.calls).toHaveLength(1);
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.level).toBe(20);
 		expect(entry.msg).toBe("trace info");
