@@ -6,5 +6,8 @@
 		"./auth": "./src/auth.ts",
 		"./spotify-client": "./src/spotify-client.ts",
 		"./selector": "./src/selector.ts"
+	},
+	"dependencies": {
+		"zod": "^4.3.6"
 	}
 }

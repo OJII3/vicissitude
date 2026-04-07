@@ -13,9 +13,6 @@ graph LR
   lib_audio_player["lib/audio-player"]
   lib_ws_client["lib/ws-client"]
   main.tsx --> index.css
-  main.tsx --> routeTree.gen
-  routeTree.gen --> routes___root.tsx["routes/__root.tsx"]
-  routeTree.gen --> routes_index.tsx["routes/index.tsx"]
   routes___root.tsx["routes/__root.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_avatar_VrmViewer.tsx["components/avatar/VrmViewer.tsx"]
   routes_index.tsx["routes/index.tsx"] --> components_chat_ChatPanel.tsx["components/chat/ChatPanel.tsx"]
@@ -49,12 +46,8 @@ graph LR
 
 ### main.tsx.ts
 
-- モジュール内依存: index.css, routeTree.gen
-- 外部依存: .bun
-
-### routeTree.gen.ts
-
-- モジュール内依存: routes/\_\_root.tsx, routes/index.tsx
+- モジュール内依存: index.css
+- 外部依存: ./routeTree.gen, .bun
 
 ### routes/\_\_root.tsx.ts
 
