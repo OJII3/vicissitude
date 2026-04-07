@@ -99,6 +99,7 @@ function createMockThreadChannel(
 
 function createSilentLogger() {
 	return {
+		debug: () => {},
 		info: () => {},
 		error: () => {},
 		warn: () => {},

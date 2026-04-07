@@ -134,7 +134,8 @@ export class DiscordGateway {
 				const isMentioned = message.mentions.has(client.user);
 				const isHome = this.isHomeMessage(message);
 
-				this.logger.info(
+				const logLevel = isHome || isMentioned ? "info" : "debug";
+				this.logger[logLevel](
 					`[discord] messageCreate: author=${message.author.username} ch=${message.channel.id} guild=${message.guildId ?? "none"} home=${isHome} mentioned=${isMentioned}`,
 				);
 
@@ -149,7 +150,7 @@ export class DiscordGateway {
 				if (isMentioned && this.handler) {
 					await this.handler(adapted, channel);
 				} else if (!isMentioned) {
-					this.logger.info("[discord] messageCreate: not mentioned and not home, ignoring");
+					this.logger.debug("[discord] messageCreate: not mentioned and not home, ignoring");
 				}
 			} catch (err) {
 				this.logger.error("[discord] messageCreate handler error:", err);

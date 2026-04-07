@@ -42,6 +42,7 @@ function createProfile(): AgentProfile {
 
 function createLogger(): Logger {
 	return {
+		debug: mock(() => {}),
 		info: mock(() => {}),
 		warn: mock(() => {}),
 		error: mock(() => {}),

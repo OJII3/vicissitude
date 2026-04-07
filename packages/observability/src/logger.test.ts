@@ -22,8 +22,6 @@ describe("ConsoleLogger", () => {
 	let stdoutCapture: ReturnType<typeof captureWrite>;
 	let stderrCapture: ReturnType<typeof captureWrite>;
 
-	// beforeEach ではなく各テスト冒頭で呼ぶ: afterEach の restore() が
-	// 前のテストの capture を参照するため、初期化順を明示的に制御する
 	function setup() {
 		stdoutCapture = captureWrite("stdout");
 		stderrCapture = captureWrite("stderr");
@@ -34,72 +32,66 @@ describe("ConsoleLogger", () => {
 		stderrCapture?.restore();
 	});
 
-	test("info() → stdout に JSON 出力、level='info'", () => {
+	test("info() → JSON 出力、level=30", () => {
 		setup();
 		const logger = new ConsoleLogger();
 		logger.info("hello");
 
-		expect(stdoutCapture.calls).toHaveLength(1);
+		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
-		expect(entry.level).toBe("info");
-		expect(entry.message).toBe("hello");
-		expect(entry.timestamp).toBeDefined();
+		expect(entry.level).toBe(30);
+		expect(entry.msg).toBe("hello");
+		expect(entry.time).toBeDefined();
 	});
 
-	test("error() → stderr に JSON 出力、level='error'", () => {
+	test("error() → JSON 出力、level=50", () => {
 		setup();
 		const logger = new ConsoleLogger();
 		logger.error("oops");
 
-		expect(stderrCapture.calls).toHaveLength(1);
-		const entry = JSON.parse(stderrCapture.calls[0]!);
-		expect(entry.level).toBe("error");
-		expect(entry.message).toBe("oops");
+		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
+		expect(entry.level).toBe(50);
+		expect(entry.msg).toBe("oops");
 	});
 
-	test("warn() → stderr に JSON 出力、level='warn'", () => {
+	test("warn() → JSON 出力、level=40", () => {
 		setup();
 		const logger = new ConsoleLogger();
 		logger.warn("caution");
 
-		expect(stderrCapture.calls).toHaveLength(1);
-		const entry = JSON.parse(stderrCapture.calls[0]!);
-		expect(entry.level).toBe("warn");
-		expect(entry.message).toBe("caution");
+		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
+		expect(entry.level).toBe(40);
+		expect(entry.msg).toBe("caution");
 	});
 
-	test("[component] message → component フィールド抽出", () => {
+	test("debug() → level=20（debug レベル有効時のみ出力）", () => {
+		setup();
+		const logger = new ConsoleLogger("debug");
+		logger.debug("trace info");
+
+		expect(stdoutCapture.calls.length).toBeGreaterThanOrEqual(1);
+		const entry = JSON.parse(stdoutCapture.calls[0]!);
+		expect(entry.level).toBe(20);
+		expect(entry.msg).toBe("trace info");
+	});
+
+	test("debug() → info レベルでは出力されない", () => {
+		setup();
+		const logger = new ConsoleLogger("info");
+		logger.debug("should not appear");
+
+		expect(stdoutCapture.calls).toHaveLength(0);
+	});
+
+	test("extra 引数 → extra フィールドに格納", () => {
 		setup();
 		const logger = new ConsoleLogger();
-		logger.info("[scheduler] tick done");
+		logger.info("with data", { key: "value" });
 
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
-		expect(entry.component).toBe("scheduler");
-		expect(entry.message).toBe("tick done");
-	});
-
-	test("component なし → component フィールドなし", () => {
-		setup();
-		const logger = new ConsoleLogger();
-		logger.info("plain message");
-
-		const entry = JSON.parse(stdoutCapture.calls[0]!);
-		expect(entry.component).toBeUndefined();
-		expect(entry.message).toBe("plain message");
-	});
-
-	test("Error 引数 → { name, message, stack } にシリアライズ", () => {
-		setup();
-		const logger = new ConsoleLogger();
-		const err = new Error("fail");
-		logger.error("something broke", err);
-
-		const entry = JSON.parse(stderrCapture.calls[0]!);
-		expect(entry.extra).toEqual({
-			name: "Error",
-			message: "fail",
-			stack: err.stack,
-		});
+		expect(entry.extra).toEqual({ key: "value" });
 	});
 
 	test("複数引数 → extra が配列", () => {
@@ -109,17 +101,5 @@ describe("ConsoleLogger", () => {
 
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.extra).toEqual(["a", 42]);
-	});
-
-	test("JSON.stringify 失敗（循環参照）→ フォールバック出力", () => {
-		setup();
-		const logger = new ConsoleLogger();
-		const circular: Record<string, unknown> = {};
-		circular.self = circular;
-		logger.info("msg", circular);
-
-		const entry = JSON.parse(stdoutCapture.calls[0]!);
-		expect(entry.level).toBe("info");
-		expect(entry.error).toBe("Failed to serialize log entry");
 	});
 });

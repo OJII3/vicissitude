@@ -39,6 +39,9 @@ function createMockLogger(): Logger & { calls: { method: string; args: unknown[]
 	const calls: { method: string; args: unknown[] }[] = [];
 	return {
 		calls,
+		debug(...args: unknown[]) {
+			calls.push({ method: "debug", args });
+		},
 		info(...args: unknown[]) {
 			calls.push({ method: "info", args });
 		},

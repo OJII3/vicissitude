@@ -16,6 +16,7 @@ function createTestDeps(overrides?: Partial<McBrainManagerDeps>): McBrainManager
 		// oxlint-disable-next-line no-explicit-any -- テスト用の最小モック
 		sessionStore: { get: mock(() => null), set: mock(() => {}), count: mock(() => 0) } as any,
 		logger: {
+			debug: mock(() => {}),
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: mock(() => {}),

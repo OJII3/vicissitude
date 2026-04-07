@@ -4,6 +4,7 @@ import type { Logger, MetricsCollector } from "./types";
 
 export function createMockLogger(): Logger {
 	return {
+		debug: mock(() => {}),
 		info: mock(() => {}),
 		error: mock(() => {}),
 		warn: mock(() => {}),

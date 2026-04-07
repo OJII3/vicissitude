@@ -45,6 +45,7 @@ describe("createStoreLayer", () => {
 describe("createMetrics", () => {
 	test("collector と server を返す", () => {
 		const logger = {
+			debug: mock(() => {}),
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: mock(() => {}),

@@ -50,6 +50,7 @@ function createProfile(restartPolicy: AgentProfile["restartPolicy"] = "immediate
 
 function createLogger(): Logger {
 	return {
+		debug: mock(() => {}),
 		info: mock(() => {}),
 		warn: mock(() => {}),
 		error: mock(() => {}),
