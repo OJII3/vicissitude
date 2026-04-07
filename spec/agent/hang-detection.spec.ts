@@ -5,11 +5,11 @@ import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import type {
 	ContextBuilderPort,
 	EventBuffer,
-	Logger,
 	OpencodeSessionPort,
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
+import { createMockLogger } from "../test-helpers.ts";
 
 // ─── テスト用サブクラス ───────────────────────────────────────────
 
@@ -37,15 +37,6 @@ function createProfile(): AgentProfile {
 		pollingPrompt: "loop forever",
 		restartPolicy: "wait_for_events",
 		model: { providerId: "test-provider", modelId: "test-model" },
-	};
-}
-
-function createLogger(): Logger {
-	return {
-		debug: mock(() => {}),
-		info: mock(() => {}),
-		warn: mock(() => {}),
-		error: mock(() => {}),
 	};
 }
 
@@ -114,7 +105,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: createSimpleSessionPort() as unknown as OpencodeSessionPort,
 				eventBuffer: createEventBuffer(),
 				sessionMaxAgeMs: 3_600_000,
@@ -147,7 +138,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -186,7 +177,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -224,7 +215,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -261,7 +252,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -294,7 +285,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -330,7 +321,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -368,7 +359,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -397,7 +388,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: createSimpleSessionPort() as unknown as OpencodeSessionPort,
 				eventBuffer: createEventBuffer(),
 				sessionMaxAgeMs: 3_600_000,
@@ -420,7 +411,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 				agentId: "agent-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,

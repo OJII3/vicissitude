@@ -1,8 +1,8 @@
-import { describe, expect, it, spyOn } from "bun:test";
+import { type mock, describe, expect, it, spyOn } from "bun:test";
 
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
-import type { Logger } from "@vicissitude/shared/types";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
 import { WsConnectionManager, type WebSocketConnection } from "./ws-handler.ts";
@@ -34,25 +34,6 @@ const sampleServerMessage: ServerMessage = {
 	messageId: "msg-001",
 	timestamp: NOW,
 };
-
-function createMockLogger(): Logger & { calls: { method: string; args: unknown[] }[] } {
-	const calls: { method: string; args: unknown[] }[] = [];
-	return {
-		calls,
-		debug(...args: unknown[]) {
-			calls.push({ method: "debug", args });
-		},
-		info(...args: unknown[]) {
-			calls.push({ method: "info", args });
-		},
-		error(...args: unknown[]) {
-			calls.push({ method: "error", args });
-		},
-		warn(...args: unknown[]) {
-			calls.push({ method: "warn", args });
-		},
-	};
-}
 
 // ─── handleMessage: 存在しない connectionId ─────────────────────
 
@@ -176,10 +157,10 @@ describe("WsConnectionManager (unit)", () => {
 			expect(errorMessages).toHaveLength(0);
 
 			// Logger.error が呼ばれる
-			const errorCalls = logger.calls.filter((c) => c.method === "error");
+			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
 			expect(errorCalls).toHaveLength(1);
-			expect(errorCalls[0]?.args[0]).toBe("[gateway] Message handler threw an exception");
-			const detail = errorCalls[0]?.args[1] as Record<string, unknown>;
+			expect(errorCalls[0]?.[0]).toBe("[gateway] Message handler threw an exception");
+			const detail = errorCalls[0]?.[1] as Record<string, unknown>;
 			expect(detail.connectionId).toBe("conn-1");
 			expect(detail.messageType).toBe("chat_input");
 			expect(detail.error).toBeInstanceOf(Error);
