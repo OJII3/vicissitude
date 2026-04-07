@@ -34,7 +34,6 @@ export function createConversationProfile(options: {
 		builtinTools: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
-			websearch: true,
 		},
 		pollingPrompt: POLLING_PROMPT,
 		restartPolicy: "wait_for_events",
