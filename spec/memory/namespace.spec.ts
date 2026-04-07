@@ -269,36 +269,6 @@ describe("recorder subject 導出契約（defaultSubject）", () => {
 	});
 });
 
-describe("registerMemoryTools: boundNamespace による guild_id スキーマ省略契約", () => {
-	// これらは registerMemoryTools の inputSchema 生成ロジックの契約。
-	// 実際のスキーマ検証は integration test のスコープ。
-
-	// 契約 1: boundNamespace が INTERNAL_NAMESPACE の場合、
-	//   guild_id フィールドは inputSchema に含まれない。
-	//   → 内部エージェントは guild_id を指定せずに memory ツールを呼べる。
-
-	// 契約 2: boundNamespace が discordGuildNamespace("123") の場合、
-	//   guild_id フィールドは inputSchema に含まれない。
-	//   → guild-bound なエージェントも guild_id を省略できる。
-
-	// 契約 3: boundNamespace が undefined の場合、
-	//   guild_id が必須フィールドとして inputSchema に含まれる。
-	//   → unbound なエージェントは guild_id を明示的に指定する必要がある。
-
-	it("boundNamespace の有無で guild_id スキーマが切り替わる前提条件", () => {
-		// INTERNAL_NAMESPACE は discord-guild ではないので boundGuildId は undefined
-		const internalBoundGuildId =
-			INTERNAL_NAMESPACE.surface === "discord-guild" ? INTERNAL_NAMESPACE.guildId : undefined;
-		expect(internalBoundGuildId).toBeUndefined();
-
-		// discord-guild namespace は boundGuildId が設定される
-		const discordNs = discordGuildNamespace("123");
-		const discordBoundGuildId =
-			discordNs.surface === "discord-guild" ? discordNs.guildId : undefined;
-		expect(discordBoundGuildId).toBe("123");
-	});
-});
-
 describe("MemoryNamespace: 型レベル契約", () => {
 	it("discriminated union として surface で分岐できる", () => {
 		const namespaces: MemoryNamespace[] = [discordGuildNamespace("123"), INTERNAL_NAMESPACE];
