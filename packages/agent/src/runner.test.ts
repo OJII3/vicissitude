@@ -1,10 +1,10 @@
 /* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import type {
 	ContextBuilderPort,
 	EventBuffer,
-	Logger,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 } from "@vicissitude/shared/types";
@@ -45,14 +45,6 @@ function createProfile(restartPolicy: AgentProfile["restartPolicy"] = "immediate
 		pollingPrompt: "loop forever",
 		restartPolicy,
 		model: { providerId: "test-provider", modelId: "test-model" },
-	};
-}
-
-function createLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		warn: mock(() => {}),
-		error: mock(() => {}),
 	};
 }
 
@@ -124,7 +116,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -162,7 +154,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -210,7 +202,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -253,7 +245,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder,
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -288,7 +280,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -342,7 +334,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -384,7 +376,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: sessionStore as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -414,7 +406,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: sessionStore as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -441,7 +433,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: sessionStore as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -475,7 +467,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: sessionStore as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -515,7 +507,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -565,7 +557,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -613,7 +605,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			// sessionMaxAgeMs を 0 にしてセッション期限切れを強制
@@ -656,7 +648,7 @@ describe("AgentRunner", () => {
 		);
 
 		const sessionStore = createSessionStore();
-		const logger = createLogger();
+		const logger = createMockLogger();
 		const runner = new TestAgent({
 			profile: createProfile(),
 			agentId: "guild-1",
@@ -700,7 +692,7 @@ describe("AgentRunner", () => {
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -745,7 +737,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -794,7 +786,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -830,7 +822,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -867,7 +859,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
@@ -910,7 +902,7 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 			agentId: "guild-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createLogger(),
+			logger: createMockLogger(),
 			sessionPort,
 			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,

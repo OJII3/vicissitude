@@ -5,13 +5,13 @@ import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import type {
 	ContextBuilderPort,
 	EventBuffer,
-	Logger,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
+import { createMockLogger } from "../test-helpers.ts";
 
 // ─── テスト用サブクラス ───────────────────────────────────────────
 
@@ -52,14 +52,6 @@ function createProfile(): AgentProfile {
 		restartPolicy: "immediate",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		summaryPrompt: TEST_SUMMARY_PROMPT,
-	};
-}
-
-function createLogger(): Logger {
-	return {
-		info: mock(() => {}),
-		warn: mock(() => {}),
-		error: mock(() => {}),
 	};
 }
 
@@ -178,7 +170,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 0,
@@ -239,7 +231,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 0,
@@ -286,7 +278,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 999_999_999,
@@ -326,7 +318,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore("existing-session-id");
-			const logger = createLogger();
+			const logger = createMockLogger();
 
 			const runner = new TestAgent({
 				profile: createProfile(),
@@ -374,7 +366,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			summaryWriter.write = mock(() => Promise.reject(new Error("write error")));
 
 			const sessionStore = createSessionStore("existing-session-id");
-			const logger = createLogger();
+			const logger = createMockLogger();
 
 			const runner = new TestAgent({
 				profile: createProfile(),
@@ -427,7 +419,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 0,
@@ -472,7 +464,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 0,
@@ -516,7 +508,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 0,
@@ -556,7 +548,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -588,7 +580,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -622,7 +614,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -652,7 +644,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
@@ -676,7 +668,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			const summaryWriter = createSummaryWriter();
 			const sessionStore = createSessionStore();
-			const logger = createLogger();
+			const logger = createMockLogger();
 
 			const runner = new TestAgent({
 				profile: createProfile(),
@@ -714,7 +706,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				agentId: "guild-1",
 				sessionStore: sessionStore as never,
 				contextBuilder: createContextBuilder(),
-				logger: createLogger(),
+				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,

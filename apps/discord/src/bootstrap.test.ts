@@ -1,4 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
+
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
 import { createStoreLayer, createMetrics } from "./bootstrap.ts";
 import type { AppConfig } from "./config.ts";
@@ -44,11 +46,7 @@ describe("createStoreLayer", () => {
 
 describe("createMetrics", () => {
 	test("collector と server を返す", () => {
-		const logger = {
-			info: mock(() => {}),
-			warn: mock(() => {}),
-			error: mock(() => {}),
-		};
+		const logger = createMockLogger();
 		const { collector, server } = createMetrics(logger);
 
 		expect(collector).toBeDefined();

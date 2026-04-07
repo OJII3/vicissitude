@@ -8,7 +8,7 @@ import { DiscordGateway } from "../../apps/discord/src/gateway/discord";
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function createSilentLogger() {
-	return { info: () => {}, error: () => {}, warn: () => {} };
+	return { debug: () => {}, info: () => {}, error: () => {}, warn: () => {} };
 }
 
 function createMockClient() {

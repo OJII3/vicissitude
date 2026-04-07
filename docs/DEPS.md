@@ -135,7 +135,7 @@ graph LR
 ### observability
 
 - 内部依存: shared
-- 外部依存: なし
+- 外部依存: .bun
 - ファイル数: 4
 
 ### ollama

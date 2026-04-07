@@ -1,53 +1,34 @@
 import type { Logger } from "@vicissitude/shared/types";
-
-type LogLevel = "info" | "warn" | "error";
-
-const COMPONENT_RE = /^\[([^\]]+)\]\s*/;
-
-function serializeArg(arg: unknown): unknown {
-	if (arg instanceof Error) {
-		return { name: arg.name, message: arg.message, stack: arg.stack };
-	}
-	return arg;
-}
-
-function buildEntry(level: LogLevel, message: string, args: unknown[]): string {
-	const entry: Record<string, unknown> = {
-		timestamp: new Date().toISOString(),
-		level,
-	};
-
-	const match = COMPONENT_RE.exec(message);
-	if (match) {
-		entry.component = match[1];
-		entry.message = message.slice(match[0].length);
-	} else {
-		entry.message = message;
-	}
-
-	if (args.length === 1) {
-		entry.extra = serializeArg(args[0]);
-	} else if (args.length > 1) {
-		entry.extra = args.map((a) => serializeArg(a));
-	}
-
-	try {
-		return `${JSON.stringify(entry)}\n`;
-	} catch {
-		return `${JSON.stringify({ timestamp: entry.timestamp, level, message, error: "Failed to serialize log entry" })}\n`;
-	}
-}
+import pino from "pino";
 
 export class ConsoleLogger implements Logger {
+	private readonly pino: pino.Logger;
+
+	constructor(level: string = process.env.LOG_LEVEL ?? "info") {
+		this.pino = pino({ level });
+	}
+
+	debug(message: string, ...args: unknown[]): void {
+		this.log("debug", message, args);
+	}
+
 	info(message: string, ...args: unknown[]): void {
-		process.stdout.write(buildEntry("info", message, args));
+		this.log("info", message, args);
 	}
 
 	error(message: string, ...args: unknown[]): void {
-		process.stderr.write(buildEntry("error", message, args));
+		this.log("error", message, args);
 	}
 
 	warn(message: string, ...args: unknown[]): void {
-		process.stderr.write(buildEntry("warn", message, args));
+		this.log("warn", message, args);
+	}
+
+	private log(level: pino.Level, message: string, args: unknown[]): void {
+		if (args.length > 0) {
+			this.pino[level]({ extra: args.length === 1 ? args[0] : args }, message);
+		} else {
+			this.pino[level](message);
+		}
 	}
 }

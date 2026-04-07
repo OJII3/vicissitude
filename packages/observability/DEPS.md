@@ -15,6 +15,7 @@ graph LR
 ### logger.ts
 
 - 他モジュール依存: shared
+- 外部依存: .bun
 
 ### metrics.ts
 
