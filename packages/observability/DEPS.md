@@ -15,7 +15,7 @@ graph LR
 ### logger.ts
 
 - 他モジュール依存: shared
-- 外部依存: .bun
+- 外部依存: ../../../node_modules/.bun/pino@10.3.1/node_modules/pino/pino.js
 
 ### metrics.ts
 
