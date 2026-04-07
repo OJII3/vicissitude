@@ -152,6 +152,9 @@
     },
     "packages/spotify": {
       "name": "@vicissitude/spotify",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
     },
     "packages/store": {
       "name": "@vicissitude/store",

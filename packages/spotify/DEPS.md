@@ -29,4 +29,4 @@ graph LR
 
 ### types.ts
 
-- 依存なし
+- 外部依存: .bun
