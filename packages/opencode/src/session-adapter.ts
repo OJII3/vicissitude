@@ -24,6 +24,13 @@ import {
 	sumTokens,
 } from "./stream-helpers.ts";
 
+/**
+ * MCP リクエストタイムアウトの上書き値（3日）。
+ * デフォルト 60 秒だと wait_for_events（60秒ブロック）とレースし、
+ * MCP 側が先にタイムアウトして無限ループに陥るため十分大きい値を設定する。
+ */
+const MCP_REQUEST_TIMEOUT_MS = 3 * 24 * 60 * 60 * 1000;
+
 export interface OpencodeSessionAdapterConfig {
 	port: number;
 	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
@@ -181,10 +188,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 						? undefined
 						: { build: { temperature: this.config.temperature } },
 				experimental: {
-					// wait_for_events が最大 48 時間ブロックするため、
-					// デフォルト 60 秒では MCP リクエストタイムアウトが先に発火する。
-					// 3 日（259_200_000ms）に設定して実質無効化する。
-					mcp_timeout: 259_200_000,
+					mcp_timeout: MCP_REQUEST_TIMEOUT_MS,
 				},
 			},
 		});
