@@ -63,7 +63,7 @@ MCP サーバー経由で各種操作を提供する。
 | 歌詞取得     | core         | fetch_lyrics                                                                                          |
 | 聴取記録     | core         | save_listening_fact                                                                                   |
 
-OpenCode SDK 組み込み: `webfetch`, `websearch`
+OpenCode SDK 組み込み: `webfetch`
 
 ### 3.5 コンテキスト管理
 
