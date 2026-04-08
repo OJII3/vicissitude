@@ -1,12 +1,7 @@
-import type { SpotifyAuthPort } from "./auth.ts";
+import type { SpotifyAuthPort, SpotifyLogger } from "./auth.ts";
 import type { SpotifyTrack } from "./types.ts";
 
 const API_BASE = "https://api.spotify.com/v1";
-
-export interface SpotifyClientLogger {
-	info(message: string, ...args: unknown[]): void;
-	error(message: string, ...args: unknown[]): void;
-}
 
 interface SpotifyApiTrack {
 	id: string;
@@ -37,7 +32,7 @@ function normalizeTrack(raw: SpotifyApiTrack): SpotifyTrack {
 export class SpotifyClient {
 	constructor(
 		private readonly auth: SpotifyAuthPort,
-		private readonly logger?: SpotifyClientLogger,
+		private readonly logger?: SpotifyLogger,
 	) {}
 
 	private async apiGet(path: string): Promise<unknown> {

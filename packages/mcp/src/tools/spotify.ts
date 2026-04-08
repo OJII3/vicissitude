@@ -1,13 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Logger } from "@vicissitude/shared/types";
 import { SpotifyAuth } from "@vicissitude/spotify/auth";
 import { TrackSelector } from "@vicissitude/spotify/selector";
 import { SpotifyClient } from "@vicissitude/spotify/spotify-client";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
-
-export interface SpotifyToolLogger {
-	info(message: string, ...args: unknown[]): void;
-	error(message: string, ...args: unknown[]): void;
-}
 
 export interface SpotifyToolDeps {
 	getSavedTracks(limit: number, offset: number): Promise<SpotifyTrack[]>;
@@ -25,8 +21,8 @@ export function registerSpotifyTools(
 		refreshToken: string;
 		recommendPlaylistId?: string;
 	},
+	logger?: Logger,
 	deps?: SpotifyToolDeps,
-	logger?: SpotifyToolLogger,
 ): void {
 	const d =
 		deps ??

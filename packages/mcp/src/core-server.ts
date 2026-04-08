@@ -227,7 +227,6 @@ function createServer(agentId: string | null): McpServer {
 				refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
 				recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
 			},
-			undefined,
 			logger,
 		);
 

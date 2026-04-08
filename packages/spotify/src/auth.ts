@@ -2,7 +2,8 @@ export interface SpotifyAuthPort {
 	getAccessToken(): Promise<string>;
 }
 
-export interface SpotifyAuthLogger {
+/** Spotify パッケージ共通の最小ロガーポート */
+export interface SpotifyLogger {
 	info(message: string, ...args: unknown[]): void;
 	error(message: string, ...args: unknown[]): void;
 }
@@ -21,7 +22,7 @@ export class SpotifyAuth implements SpotifyAuthPort {
 			clientSecret: string;
 			refreshToken: string;
 		},
-		private readonly logger?: SpotifyAuthLogger,
+		private readonly logger?: SpotifyLogger,
 	) {}
 
 	private async fetchToken(): Promise<TokenCache> {
