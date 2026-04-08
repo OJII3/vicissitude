@@ -130,6 +130,9 @@ export class AgentRunner implements AiAgent {
 			const mcpHeartbeat = this.heartbeatReader?.getLastSeenAt(this.agentId) ?? 0;
 			const lastAlive = Math.max(this.lastWaitForEventsAt, mcpHeartbeat);
 			const elapsed = Date.now() - lastAlive;
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] hang check: elapsed=${elapsed}ms threshold=${this.hangTimeoutMs}ms lastWaitForEvents=${this.lastWaitForEventsAt} mcpHeartbeat=${mcpHeartbeat}`,
+			);
 			if (elapsed >= this.hangTimeoutMs) {
 				this.logger.warn(
 					`[${this.profile.name}:${this.agentId}] hang detected (${elapsed}ms since last waitForEvents), requesting session rotation`,
@@ -164,6 +167,10 @@ export class AgentRunner implements AiAgent {
 					continue;
 				}
 
+				// ポーリングモードでは LLM が wait_for_events を呼び続けるため、
+				// sessionWatch は通常返らない。返るのは session.error / session.compacted /
+				// signal abort / stream タイムアウト（5分間イベントなし）のいずれか。
+				// セッションの異常検知は hang detection timer (startHangDetectionTimer) が担う。
 				// eslint-disable-next-line no-await-in-loop -- monitor the active session until it ends
 				const event = await this.sessionWatch;
 				this.sessionWatch = null;

@@ -29,4 +29,4 @@ graph LR
 
 ### types.ts
 
-- 外部依存: ../../../node_modules/.bun/zod@4.3.6/node_modules/zod/index.cjs
+- 外部依存: .bun

@@ -67,6 +67,7 @@ services:
     init: true
     environment:
       APP_ROOT: /app
+      LOG_LEVEL: debug
     env_file:
       - .env
     ports:
