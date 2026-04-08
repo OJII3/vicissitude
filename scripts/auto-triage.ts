@@ -38,12 +38,74 @@ function extractAssistantText(line: string): string[] {
 	}
 }
 
+/** gh issue list から help wanted を除いた issue があるか、または CI が失敗しているかを返す */
+async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> {
+	// CI 失敗チェック
+	const ciProc = Bun.spawn(
+		["gh", "run", "list", "--branch", "main", "--limit", "5", "--json", "conclusion"],
+		{ cwd: PROJECT_DIR, stdout: "pipe", stderr: "ignore" },
+	);
+	const ciOut = await new Response(ciProc.stdout).text();
+	await ciProc.exited;
+
+	let hasCiFailure = false;
+	try {
+		const runs = JSON.parse(ciOut) as { conclusion: string }[];
+		hasCiFailure = runs.some((r) => r.conclusion === "failure");
+	} catch {
+		// gh コマンド失敗時は安全側に倒して claude に任せる
+		hasCiFailure = true;
+	}
+
+	// help wanted を除いた open issue があるかチェック
+	const issueProc = Bun.spawn(
+		[
+			"gh",
+			"issue",
+			"list",
+			"--state",
+			"open",
+			"--search",
+			'-label:"help wanted"',
+			"--limit",
+			"1",
+			"--json",
+			"number",
+		],
+		{ cwd: PROJECT_DIR, stdout: "pipe", stderr: "ignore" },
+	);
+	const issueOut = await new Response(issueProc.stdout).text();
+	await issueProc.exited;
+
+	let hasIssue = false;
+	try {
+		const issues = JSON.parse(issueOut) as { number: number }[];
+		hasIssue = issues.length > 0;
+	} catch {
+		// gh コマンド失敗時は安全側に倒す
+		hasIssue = true;
+	}
+
+	return { hasCiFailure, hasIssue };
+}
+
 async function runOnce(): Promise<number> {
 	const timestamp = formatTimestamp();
 	const logFile = resolve(LOG_DIR, `${timestamp}.log`);
 	const jsonLog = resolve(LOG_DIR, `${timestamp}.jsonl`);
 
 	tee(`[${timestamp}] auto-triage starting`, logFile);
+
+	// 事前チェック: claude を起動する必要があるか判定
+	const { hasCiFailure, hasIssue } = await hasWork();
+	if (!hasCiFailure && !hasIssue) {
+		tee(`[${timestamp}] no work found (CI green, no actionable issues), skipping`, logFile);
+		return 0;
+	}
+	tee(
+		`[${timestamp}] work found: CI failure=${String(hasCiFailure)}, actionable issues=${String(hasIssue)}`,
+		logFile,
+	);
 
 	// main を最新化（worktree のベースになる）
 	const fetchProc = Bun.spawn(["git", "fetch", "origin", "main"], {
