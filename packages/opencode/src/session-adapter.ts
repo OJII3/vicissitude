@@ -97,6 +97,14 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 	}
 
+	/**
+	 * promptAsync でプロンプトを送信し、イベントストリームを監視する。
+	 *
+	 * 注意: ポーリングモードでは LLM が wait_for_events ツールを繰り返し呼ぶため、
+	 * セッションは半永続的に active であり続け、session.idle は通常発火しない。
+	 * そのため、この関数はポーリングモードでは事実上返らない。
+	 * セッションの異常検知は AgentRunner 側の hang detection timer が担う。
+	 */
 	async promptAsyncAndWatchSession(
 		params: OpencodePromptParams,
 		signal?: AbortSignal,
@@ -120,6 +128,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			}
 			this.logger?.info("[opencode] promptAsync sent, watching events...");
 
+			let unclassifiedCount = 0;
 			while (true) {
 				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
 				const event = await nextStreamEvent(stream, signal, () =>
@@ -134,11 +143,29 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				}
 				const typed = event.value as Event;
+				const rawType = (event.value as { type: string }).type;
+
+				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
+				const eventSessionId = props?.sessionID as string | undefined;
+				if (rawType !== "server.heartbeat") {
+					const msg = `[opencode] stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`;
+					if (rawType === "session.status" || rawType === "session.updated") {
+						this.logger?.info(`${msg} props=${JSON.stringify(props)}`);
+					} else {
+						this.logger?.debug(msg);
+					}
+				}
 
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
 				if (classified) {
 					this.logger?.info(`[opencode] session event: ${classified.type}`);
 					return classified;
+				}
+				unclassifiedCount++;
+				if (unclassifiedCount % 50 === 0) {
+					this.logger?.info(
+						`[opencode] ${unclassifiedCount} unclassified events so far (last: type=${typed.type} session=${eventSessionId ?? "?"})`,
+					);
 				}
 			}
 		} finally {
@@ -150,14 +177,33 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe();
 		const tokensByMessage = new Map<string, TokenUsage>();
+		let unclassifiedCount = 0;
 		try {
 			while (true) {
 				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
 				const event = await nextStreamEvent(stream, signal, () => abortSession(oc, sessionId));
 				if (event.type === "aborted") return { type: "cancelled" };
 				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
-				const result = classifyEvent(event.value as Event, sessionId, tokensByMessage);
+				const typed = event.value as Event;
+				const rawType = (event.value as { type: string }).type;
+				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
+				const eventSessionId = props?.sessionID as string | undefined;
+				if (rawType !== "server.heartbeat") {
+					this.logger?.debug(
+						`[opencode] waitIdle stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
+					);
+				}
+				if (rawType === "session.status" || rawType === "session.updated") {
+					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
+				}
+				const result = classifyEvent(typed, sessionId, tokensByMessage);
 				if (result) return result;
+				unclassifiedCount++;
+				if (unclassifiedCount % 50 === 0) {
+					this.logger?.info(
+						`[opencode] waitIdle: ${unclassifiedCount} unclassified events (last: type=${rawType} session=${eventSessionId ?? "?"})`,
+					);
+				}
 			}
 		} finally {
 			await returnStreamOnce(stream);
