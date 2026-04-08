@@ -226,7 +226,7 @@ export interface OpencodePromptParams {
 export type OpencodeSessionEvent =
 	| { type: "idle"; tokens?: TokenUsage }
 	| { type: "compacted" }
-	| { type: "streamDisconnected" }
+	| { type: "streamDisconnected"; tokens?: TokenUsage }
 	| { type: "cancelled" }
 	| { type: "error"; message: string };
 

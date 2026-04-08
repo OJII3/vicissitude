@@ -331,6 +331,12 @@ export class AgentRunner implements AiAgent {
 			this.logger.warn(
 				`[${this.profile.name}:${this.agentId}] SSE stream disconnected, will re-subscribe`,
 			);
+			if (event.tokens && this.metrics) {
+				recordTokenMetrics(this.metrics, event.tokens, {
+					agent_type: "polling",
+					trigger: "polling",
+				});
+			}
 			return;
 		}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
