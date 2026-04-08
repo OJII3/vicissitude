@@ -192,19 +192,12 @@ function createServer(agentId: string | null): McpServer {
 				})),
 			}));
 		};
-		const typingSender = async (channelId: string) => {
-			const ch = await discordClient.channels.fetch(channelId);
-			if (ch?.isTextBased() && "sendTyping" in ch) {
-				await ch.sendTyping();
-			}
-		};
 		registerEventBufferTools(server, {
 			db,
 			agentId,
 			moodKey,
 			recentMessagesFetcher,
 			moodReader: moodStore,
-			typingSender,
 			logger,
 			skipTracker,
 		});

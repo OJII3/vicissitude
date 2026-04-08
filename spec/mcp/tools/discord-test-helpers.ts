@@ -1,4 +1,6 @@
 /* oxlint-disable no-non-null-assertion -- test helpers */
+import { mock } from "bun:test";
+
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDiscordTools } from "@vicissitude/mcp/tools/discord";
 import type { DiscordDeps } from "@vicissitude/mcp/tools/discord";
@@ -43,20 +45,25 @@ export function createFakeAttachments(items: Array<{ url: string; contentType: s
 }
 
 /** send / reply / sendTyping / react / read_messages / list_channels が成功する Discord Client スタブ */
-export function createDiscordClientStub(): DiscordDeps["discordClient"] {
+export function createDiscordClientStub(): DiscordDeps["discordClient"] & {
+	/** sendTyping の mock。呼び出し回数を検証できる */
+	_sendTypingMock: ReturnType<typeof mock>;
+} {
+	const sendTypingMock = mock(() => Promise.resolve());
+
 	const sentMessage = {
 		id: "sent-msg-1",
 		reply: () => Promise.resolve({ id: "reply-msg-1" }),
 		react: () => Promise.resolve(),
 	};
 
-	return {
+	const client = {
 		channels: {
 			fetch: () =>
 				Promise.resolve({
 					isTextBased: () => true,
 					send: () => Promise.resolve(sentMessage),
-					sendTyping: () => Promise.resolve(),
+					sendTyping: sendTypingMock,
 					messages: {
 						fetch: (idOrOptions: unknown) => {
 							// messages.fetch({ limit }) はコレクションを返す
@@ -100,21 +107,12 @@ export function createDiscordClientStub(): DiscordDeps["discordClient"] {
 				}),
 		},
 	} as unknown as DiscordDeps["discordClient"];
-}
 
-/** sendTyping をサポートしないチャンネルを返すスタブ */
-export function createClientStubWithoutSendTyping(): DiscordDeps["discordClient"] {
-	return {
-		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve({ id: "msg-1" }),
-					// sendTyping が存在しない
-					messages: { fetch: () => Promise.resolve({ id: "msg-1" }) },
-				}),
-		},
-	} as unknown as DiscordDeps["discordClient"];
+	return Object.assign(client, {
+		_sendTypingMock: sendTypingMock,
+	}) as DiscordDeps["discordClient"] & {
+		_sendTypingMock: ReturnType<typeof mock>;
+	};
 }
 
 /** react() が reject するスタブ（無効な絵文字等） */
