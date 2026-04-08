@@ -143,19 +143,17 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				}
 				const typed = event.value as Event;
+				const rawType = (event.value as { type: string }).type;
 
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
 				const eventSessionId = props?.sessionID as string | undefined;
-				if (typed.type === "server.heartbeat") {
-					// heartbeat はノイズが多いのでスキップ（ログ不要）
-				} else if (typed.type === "session.status" || typed.type === "session.updated") {
-					this.logger?.info(
-						`[opencode] stream event: type=${typed.type} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId} props=${JSON.stringify(props)}`,
-					);
-				} else {
-					this.logger?.debug(
-						`[opencode] stream event: type=${typed.type} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`,
-					);
+				if (rawType !== "server.heartbeat") {
+					const msg = `[opencode] stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`;
+					if (rawType === "session.status" || rawType === "session.updated") {
+						this.logger?.info(`${msg} props=${JSON.stringify(props)}`);
+					} else {
+						this.logger?.debug(msg);
+					}
 				}
 
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
@@ -187,24 +185,23 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				if (event.type === "aborted") return { type: "cancelled" };
 				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				const typed = event.value as Event;
+				const rawType = (event.value as { type: string }).type;
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
 				const eventSessionId = props?.sessionID as string | undefined;
-				if (typed.type !== "server.heartbeat") {
+				if (rawType !== "server.heartbeat") {
 					this.logger?.debug(
-						`[opencode] waitIdle stream event: type=${typed.type} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
+						`[opencode] waitIdle stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
 					);
 				}
-				if (typed.type === "session.status" || typed.type === "session.updated") {
-					this.logger?.info(
-						`[opencode] waitIdle: type=${typed.type} props=${JSON.stringify(props)}`,
-					);
+				if (rawType === "session.status" || rawType === "session.updated") {
+					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
 				}
 				const result = classifyEvent(typed, sessionId, tokensByMessage);
 				if (result) return result;
 				unclassifiedCount++;
 				if (unclassifiedCount % 50 === 0) {
 					this.logger?.info(
-						`[opencode] waitIdle: ${unclassifiedCount} unclassified events (last: type=${typed.type} session=${eventSessionId ?? "?"})`,
+						`[opencode] waitIdle: ${unclassifiedCount} unclassified events (last: type=${rawType} session=${eventSessionId ?? "?"})`,
 					);
 				}
 			}
