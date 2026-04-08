@@ -12,7 +12,7 @@
  */
 import { describe, expect, mock, test } from "bun:test";
 
-import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import type { Event, OpencodeClient, Part } from "@opencode-ai/sdk/v2";
 import {
 	type AbortableAsyncStream,
 	abortSession,
@@ -59,14 +59,14 @@ describe("nextStreamEvent", () => {
 	});
 
 	test("stream.next() がタイムアウトで reject した場合、{ type: 'streamTimeout', reason } を返す", async () => {
-		const stream: AbortableAsyncStream<unknown> = {
+		const stream = {
 			next: mock(
 				() =>
 					new Promise((_resolve, reject) => {
 						setTimeout(() => reject(new Error("stream.next() timed out after 5 minutes")), 5);
 					}),
 			),
-		};
+		} as AbortableAsyncStream<unknown>;
 
 		const result = await nextStreamEvent(
 			stream,
@@ -81,11 +81,11 @@ describe("nextStreamEvent", () => {
 
 	test("signal が abort された場合、{ type: 'aborted' } を返す", async () => {
 		const controller = new AbortController();
-		const stream: AbortableAsyncStream<unknown> = {
+		const stream = {
 			// 永遠に解決しない
 			next: mock(() => new Promise(() => {})),
 			return: mock(() => Promise.resolve({ done: true as const, value: undefined })),
-		};
+		} as AbortableAsyncStream<unknown>;
 		const onAbort = mock(() => Promise.resolve());
 
 		// 少し遅延してから abort する
@@ -98,10 +98,10 @@ describe("nextStreamEvent", () => {
 
 	test("signal abort 時に onAbort コールバックが呼ばれる", async () => {
 		const controller = new AbortController();
-		const stream: AbortableAsyncStream<unknown> = {
+		const stream = {
 			next: mock(() => new Promise(() => {})),
 			return: mock(() => Promise.resolve({ done: true as const, value: undefined })),
-		};
+		} as AbortableAsyncStream<unknown>;
 		const onAbort = mock(() => Promise.resolve());
 
 		setTimeout(() => controller.abort(), 10);
@@ -116,10 +116,10 @@ describe("nextStreamEvent", () => {
 		// 事前に abort
 		controller.abort();
 
-		const stream: AbortableAsyncStream<unknown> = {
+		const stream = {
 			next: mock(() => new Promise(() => {})),
 			return: mock(() => Promise.resolve({ done: true as const, value: undefined })),
-		};
+		} as AbortableAsyncStream<unknown>;
 		const onAbort = mock(() => Promise.resolve());
 
 		const result = await nextStreamEvent(stream, controller.signal, onAbort);
@@ -250,7 +250,7 @@ describe("extractText", () => {
 		const parts = [
 			{ type: "text" as const, text: "Hello, " },
 			{ type: "text" as const, text: "world!" },
-		];
+		] as Part[];
 
 		const result = extractText(parts);
 
