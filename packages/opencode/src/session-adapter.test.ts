@@ -251,10 +251,11 @@ describe("OpencodeSessionAdapter", () => {
 		expect(streamState.returnMock).toHaveBeenCalledTimes(1);
 	});
 
-	test("signal なしで stream.next() がハングした場合タイムアウトエラーになる", async () => {
+	test("signal なしで stream.next() がハングした場合 streamDisconnected を返す", async () => {
 		// STREAM_NEXT_TIMEOUT_MS (5分) を待つのは非現実的なので、
-		// withTimeout 経由でエラーメッセージが含まれることだけ検証する。
-		// withTimeout 自体は core/functions.ts で別途テスト済み。
+		// withTimeout 経由で streamTimeout → streamDisconnected となることを検証する。
+		// nextStreamEvent はタイムアウトを catch して { type: "streamTimeout" } を返し、
+		// promptAsyncAndWatchSession はそれを { type: "streamDisconnected" } に変換する。
 		const stream = {
 			next: mock(
 				() =>
@@ -277,7 +278,7 @@ describe("OpencodeSessionAdapter", () => {
 				text: "watch",
 				model: { providerId: "provider", modelId: "model" },
 			}),
-		).rejects.toThrow("timed out");
+		).resolves.toEqual({ type: "streamDisconnected" });
 	});
 
 	test("abort 時に stream.return が reject しても finally 側で同じ reject を回収する", async () => {
