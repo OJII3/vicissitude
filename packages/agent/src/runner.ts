@@ -178,10 +178,10 @@ export class AgentRunner implements AiAgent {
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") return;
 
-				// compacted: セッションはまだ生きており LLM がポーリングを続けているため、
+				// compacted / streamDisconnected: セッションはまだ生きており LLM がポーリングを続けているため、
 				// waitForEvents を挟まず即座にセッション監視を再開する。
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
-				if (event.type === "compacted") {
+				if (event.type === "compacted" || event.type === "streamDisconnected") {
 					this.rewatchSession(signal);
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					continue;
@@ -252,14 +252,14 @@ export class AgentRunner implements AiAgent {
 		this.sessionPort.close();
 	}
 
-	/** compacted 後にイベントストリームだけ再購読する（セッションは生存中） */
+	/** compacted / streamDisconnected 後にイベントストリームだけ再購読する（セッションは生存中） */
 	private rewatchSession(signal: AbortSignal): void {
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) {
 			this.logger.warn(`[${this.profile.name}:${this.agentId}] rewatch skipped: no session`);
 			return;
 		}
-		this.logger.info(`[${this.profile.name}:${this.agentId}] re-watching after compaction`);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] re-watching event stream`);
 		this.sessionWatch = this.sessionPort.waitForSessionIdle(sessionId, signal);
 	}
 
@@ -325,6 +325,12 @@ export class AgentRunner implements AiAgent {
 		}
 		if (event.type === "compacted") {
 			this.logger.info(`[${this.profile.name}:${this.agentId}] session compacted`);
+			return;
+		}
+		if (event.type === "streamDisconnected") {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] SSE stream disconnected, will re-subscribe`,
+			);
 			return;
 		}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
