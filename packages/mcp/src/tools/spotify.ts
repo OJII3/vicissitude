@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Logger } from "@vicissitude/shared/types";
 import { SpotifyAuth } from "@vicissitude/spotify/auth";
 import { TrackSelector } from "@vicissitude/spotify/selector";
 import { SpotifyClient } from "@vicissitude/spotify/spotify-client";
@@ -20,17 +21,21 @@ export function registerSpotifyTools(
 		refreshToken: string;
 		recommendPlaylistId?: string;
 	},
+	logger?: Logger,
 	deps?: SpotifyToolDeps,
 ): void {
 	const d =
 		deps ??
 		(() => {
-			const auth = new SpotifyAuth({
-				clientId: config.clientId,
-				clientSecret: config.clientSecret,
-				refreshToken: config.refreshToken,
-			});
-			const client = new SpotifyClient(auth);
+			const auth = new SpotifyAuth(
+				{
+					clientId: config.clientId,
+					clientSecret: config.clientSecret,
+					refreshToken: config.refreshToken,
+				},
+				logger,
+			);
+			const client = new SpotifyClient(auth, logger);
 			const selector = new TrackSelector();
 			return {
 				getSavedTracks: client.getSavedTracks.bind(client),
@@ -48,6 +53,7 @@ export function registerSpotifyTools(
 				"Spotify ライブラリ（Saved Tracks, Recently Played, おすすめプレイリスト）から1曲ランダムに選んで情報を返す。人気度で重み付けされた選曲。",
 		},
 		async () => {
+			logger?.info("[spotify:pick] spotify_pick_track 呼び出し開始");
 			const tracks: SpotifyTrack[] = [];
 
 			const results = await Promise.allSettled([
@@ -65,8 +71,14 @@ export function registerSpotifyTools(
 				}
 			}
 
+			if (errors.length > 0) {
+				logger?.error(`[spotify:pick] 一部ソース取得失敗: ${errors.join("; ")}`);
+			}
+			logger?.info(`[spotify:pick] 候補曲数: ${tracks.length}`);
+
 			if (tracks.length === 0) {
 				const detail = errors.length > 0 ? ` (${errors.join("; ")})` : "";
+				logger?.error(`[spotify:pick] 楽曲が見つかりませんでした${detail}`);
 				return {
 					content: [{ type: "text", text: `楽曲が見つかりませんでした。${detail}` }],
 					isError: true,
@@ -75,6 +87,7 @@ export function registerSpotifyTools(
 
 			const picked = d.select(tracks);
 			if (!picked) {
+				logger?.error("[spotify:pick] 選曲に失敗しました");
 				return {
 					content: [{ type: "text", text: "選曲に失敗しました。" }],
 					isError: true,
@@ -90,6 +103,10 @@ export function registerSpotifyTools(
 					// genres fetch failure is non-critical
 				}
 			}
+
+			logger?.info(
+				`[spotify:pick] 選曲結果: "${picked.name}" - ${picked.artistName} (popularity=${picked.popularity})`,
+			);
 
 			const info = {
 				id: picked.id,

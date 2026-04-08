@@ -101,5 +101,5 @@ graph LR
 
 ### tools/spotify.ts
 
-- 他モジュール依存: spotify
+- 他モジュール依存: shared, spotify
 - 外部依存: @modelcontextprotocol/sdk/server/mcp.js

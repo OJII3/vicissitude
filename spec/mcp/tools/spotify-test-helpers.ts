@@ -49,7 +49,7 @@ export async function captureSpotifyTool(
 		select: (tracks) => stubs.select(tracks),
 	};
 
-	registerSpotifyTools(fakeServer, { ...defaultConfig, ...overrides }, deps);
+	registerSpotifyTools(fakeServer, { ...defaultConfig, ...overrides }, undefined, deps);
 	return { tools };
 }
 
