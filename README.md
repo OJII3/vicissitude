@@ -50,7 +50,7 @@ MCP サーバー経由で各種操作を提供する。
 
 | カテゴリ     | MCP サーバー | 主要ツール                                                                                            |
 | ------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
-| チャット     | core         | send_message, reply, add_reaction, read_messages, list_channels, send_typing                          |
+| チャット     | core         | send_message, reply, add_reaction, read_messages, list_channels                                       |
 | イベント     | core         | wait_for_events                                                                                       |
 | コード実行   | code-exec    | execute_code                                                                                          |
 | スケジュール | core         | list_reminders, add_reminder, update_reminder, remove_reminder                                        |

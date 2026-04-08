@@ -17,9 +17,6 @@ export interface RecentMessage {
 /** チャンネルIDを受け取り直近メッセージ一覧を返すポート */
 export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage[]>;
 
-/** イベント返却時に対象チャンネルへ typing インジケーターを自動送信するためのポート */
-export type TypingSender = (channelId: string) => Promise<void>;
-
 export interface SkipTracker {
 	readonly pendingResponse: boolean;
 	markPending(): void;
@@ -47,7 +44,6 @@ export interface EventBufferDeps {
 	moodKey?: string;
 	recentMessagesFetcher?: RecentMessagesFetcher;
 	moodReader?: MoodReader;
-	typingSender?: TypingSender;
 	logger?: Logger;
 	skipTracker?: SkipTracker;
 }
@@ -216,20 +212,6 @@ export function formatRecentMessages(channelMessages: Map<string, RecentMessage[
 	return ["<recent-messages>", ...sections, "</recent-messages>"].join("\n\n");
 }
 
-// ─── extractTypingChannels ───────────────────────────────────────
-
-/** EventOrError 配列から返信対象（system/bot 以外）のユニークな channelId を抽出する */
-export function extractTypingChannels(events: EventOrError[]): string[] {
-	const channels = new Set<string>();
-	for (const e of events) {
-		if (isErrorEvent(e)) continue;
-		if (e.authorId === "system") continue;
-		if (e.metadata?.isBot) continue;
-		if (e.metadata?.channelId) channels.add(e.metadata.channelId);
-	}
-	return [...channels];
-}
-
 // ─── pollEvents ──────────────────────────────────────────────────
 
 function sleep(ms: number): Promise<void> {
@@ -319,22 +301,11 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, recentMessagesFetcher, moodReader, typingSender, logger, skipTracker } =
-		deps;
+	const { db, agentId, recentMessagesFetcher, moodReader, logger, skipTracker } = deps;
 	const moodKey = deps.moodKey ?? agentId;
-
-	/** EventOrError 配列の対象チャンネルに typing インジケーターを送信する（fire-and-forget） */
-	function sendTypingForEvents(events: EventOrError[]): void {
-		if (!typingSender) return;
-		const channels = extractTypingChannels(events);
-		for (const channelId of channels) {
-			typingSender(channelId).catch(() => {});
-		}
-	}
 
 	/** イベント配列から応答コンテンツを組み立てる共通処理 */
 	async function buildResponseContent(events: EventOrError[]): Promise<{ content: TextContent[] }> {
-		sendTypingForEvents(events);
 		const text = formatEvents(events);
 		const metadataText = formatEventMetadata(events);
 		const content: TextContent[] = [
@@ -354,7 +325,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		"wait_for_events",
 		{
 			description:
-				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。直近のチャンネルメッセージがあれば別ブロックで付与する。対象チャンネルにはタイピングインジケーターを自動送信する。タイムアウト時は空配列を返す。",
+				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。直近のチャンネルメッセージがあれば別ブロックで付与する。タイムアウト時は空配列を返す。",
 			inputSchema: {
 				timeout_seconds: z.number().min(1).max(172800).default(60),
 			},

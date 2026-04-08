@@ -32,22 +32,24 @@ export interface DiscordDeps {
 	skipTracker?: SkipTracker;
 }
 
-const TYPING_INTERVAL_MS = 8_000;
-const TYPING_TIMEOUT_MS = 60_000;
-
-interface TypingState {
-	interval: ReturnType<typeof setInterval>;
-	timeout: ReturnType<typeof setTimeout>;
+function sleep(ms: number): Promise<void> {
+	return new Promise<void>((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
 
-/** Returns a cleanup function that clears all active typing timers */
+/** 文字数に応じた typing 遅延（2〜5秒） */
+function typingDelay(contentLength: number): number {
+	return Math.min(5000, Math.max(2000, contentLength * 20));
+}
+
+/** Returns a cleanup function */
 export function registerDiscordTools(
 	server: McpServer,
 	deps: DiscordDeps,
 	boundGuildId?: string,
 ): () => void {
 	const { discordClient } = deps;
-	const typingStates = new Map<string, TypingState>();
 
 	/** エージェント応答テキストから感情推定 → MoodStore 書き込み（fire-and-forget） */
 	function triggerEmotionEstimation(text: string): void {
@@ -62,21 +64,6 @@ export function registerDiscordTools(
 		})().catch(() => {});
 	}
 
-	function clearTyping(channelId: string) {
-		const state = typingStates.get(channelId);
-		if (state) {
-			clearInterval(state.interval);
-			clearTimeout(state.timeout);
-			typingStates.delete(channelId);
-		}
-	}
-
-	function clearAllTyping() {
-		for (const [channelId] of typingStates) {
-			clearTyping(channelId);
-		}
-	}
-
 	async function getTextChannel(channelId: string) {
 		const channel = await discordClient.channels.fetch(channelId);
 		if (!channel?.isTextBased() || !("send" in channel)) {
@@ -86,35 +73,10 @@ export function registerDiscordTools(
 	}
 
 	server.registerTool(
-		"send_typing",
-		{
-			description:
-				"Send a typing indicator to a Discord channel. Automatically repeats every 8s until send_message/reply is called, or 60s timeout.",
-			inputSchema: { channel_id: z.string() },
-		},
-		async ({ channel_id }) => {
-			const channel = await getTextChannel(channel_id);
-			if (!("sendTyping" in channel)) {
-				return {
-					content: [{ type: "text", text: "Channel does not support typing indicators" }],
-				};
-			}
-			clearTyping(channel_id);
-			await channel.sendTyping();
-			const interval = setInterval(() => {
-				channel.sendTyping().catch(() => clearTyping(channel_id));
-			}, TYPING_INTERVAL_MS);
-			const timeout = setTimeout(() => clearTyping(channel_id), TYPING_TIMEOUT_MS);
-			typingStates.set(channel_id, { interval, timeout });
-			return { content: [{ type: "text", text: "Typing indicator started" }] };
-		},
-	);
-
-	server.registerTool(
 		"send_message",
 		{
 			description:
-				"Send a message to a Discord channel (optionally with a file attachment). Also clears any active typing indicator.",
+				"Send a message to a Discord channel (optionally with a file attachment). Automatically shows typing indicator before sending.",
 			inputSchema: {
 				channel_id: z.string(),
 				content: z.string(),
@@ -122,9 +84,12 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, content, file_path }) => {
-			clearTyping(channel_id);
 			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
+			if ("sendTyping" in channel) {
+				await channel.sendTyping();
+			}
+			await sleep(typingDelay(content.length));
 			const options: { content: string; files?: { attachment: string }[] } = { content };
 			if (file_path) {
 				validateFilePath(file_path);
@@ -140,7 +105,7 @@ export function registerDiscordTools(
 		"reply",
 		{
 			description:
-				"Reply to a specific message in a Discord channel (optionally with a file attachment). Also clears any active typing indicator.",
+				"Reply to a specific message in a Discord channel (optionally with a file attachment). Automatically shows typing indicator before sending.",
 			inputSchema: {
 				channel_id: z.string(),
 				message_id: z.string(),
@@ -149,9 +114,12 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
-			clearTyping(channel_id);
 			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
+			if ("sendTyping" in channel) {
+				await channel.sendTyping();
+			}
+			await sleep(typingDelay(content.length));
 			const target = await channel.messages.fetch(message_id);
 			const options: { content: string; files?: { attachment: string }[] } = { content };
 			if (file_path) {
@@ -217,5 +185,5 @@ export function registerDiscordTools(
 		},
 	);
 
-	return clearAllTyping;
+	return () => {};
 }

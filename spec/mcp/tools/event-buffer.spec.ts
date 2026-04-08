@@ -5,7 +5,6 @@ import { describe, expect, test } from "bun:test";
 import {
 	classifyActionHint,
 	createSkipTracker,
-	extractTypingChannels,
 	formatEventMetadata,
 	formatEvents,
 	formatRecentMessages,
@@ -640,105 +639,6 @@ describe("formatRecentMessages", () => {
 		expect(result).toContain("2026-03-28");
 		expect(result).toContain("00:00");
 		expect(result).toContain("JST");
-	});
-});
-
-describe("extractTypingChannels", () => {
-	test("人間のイベントから channelId を抽出する", () => {
-		const events = [
-			{
-				ts: "",
-				content: "",
-				authorId: "user1",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch1", isBot: false },
-			},
-			{
-				ts: "",
-				content: "",
-				authorId: "user2",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch2", isBot: false },
-			},
-		];
-		expect(extractTypingChannels(events)).toEqual(["ch1", "ch2"]);
-	});
-
-	test("system イベントは除外する", () => {
-		const events = [
-			{
-				ts: "",
-				content: "",
-				authorId: "system",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch1" },
-			},
-			{
-				ts: "",
-				content: "",
-				authorId: "user1",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch2" },
-			},
-		];
-		expect(extractTypingChannels(events)).toEqual(["ch2"]);
-	});
-
-	test("bot イベントは除外する", () => {
-		const events = [
-			{
-				ts: "",
-				content: "",
-				authorId: "bot1",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch1", isBot: true },
-			},
-			{
-				ts: "",
-				content: "",
-				authorId: "user1",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch2", isBot: false },
-			},
-		];
-		expect(extractTypingChannels(events)).toEqual(["ch2"]);
-	});
-
-	test("同一チャンネルの重複は除去する", () => {
-		const events = [
-			{
-				ts: "",
-				content: "",
-				authorId: "user1",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch1" },
-			},
-			{
-				ts: "",
-				content: "",
-				authorId: "user2",
-				authorName: "",
-				messageId: "",
-				metadata: { channelId: "ch1" },
-			},
-		];
-		expect(extractTypingChannels(events)).toEqual(["ch1"]);
-	});
-
-	test("metadata がないイベントはスキップする", () => {
-		const events = [{ ts: "", content: "hello", authorId: "user1", authorName: "", messageId: "" }];
-		expect(extractTypingChannels(events)).toEqual([]);
-	});
-
-	test("空配列なら空配列を返す", () => {
-		expect(extractTypingChannels([])).toEqual([]);
 	});
 });
 
