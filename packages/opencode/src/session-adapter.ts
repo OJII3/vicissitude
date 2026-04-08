@@ -142,6 +142,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					this.logger?.info("[opencode] event stream done (idle)");
 					return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				}
+				if (event.type === "streamTimeout") {
+					this.logger?.warn("[opencode] SSE stream timed out (likely disconnected)");
+					return { type: "streamDisconnected" };
+				}
 				const typed = event.value as Event;
 				const rawType = (event.value as { type: string }).type;
 
@@ -184,6 +188,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				const event = await nextStreamEvent(stream, signal, () => abortSession(oc, sessionId));
 				if (event.type === "aborted") return { type: "cancelled" };
 				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
+				if (event.type === "streamTimeout") {
+					this.logger?.warn("[opencode] waitIdle: SSE stream timed out (likely disconnected)");
+					return { type: "streamDisconnected" };
+				}
 				const typed = event.value as Event;
 				const rawType = (event.value as { type: string }).type;
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};

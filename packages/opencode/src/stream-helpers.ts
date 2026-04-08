@@ -7,7 +7,11 @@ export type AbortableAsyncStream<T> = AsyncIterator<T> & {
 };
 const STREAM_RETURNED = Symbol("streamReturned"),
 	STREAM_RETURN_PROMISE = Symbol("streamReturnPromise");
-type StreamReadResult = { type: "event"; value: unknown } | { type: "done" } | { type: "aborted" };
+type StreamReadResult =
+	| { type: "event"; value: unknown }
+	| { type: "done" }
+	| { type: "aborted" }
+	| { type: "streamTimeout" };
 
 /** signal なしの stream.next() に適用するタイムアウト（5分） */
 const STREAM_NEXT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -18,12 +22,16 @@ export async function nextStreamEvent(
 	onAbort: () => Promise<void>,
 ): Promise<StreamReadResult> {
 	if (!signal) {
-		const result = await withTimeout(
-			stream.next(),
-			STREAM_NEXT_TIMEOUT_MS,
-			"stream.next() timed out after 5 minutes",
-		);
-		return result.done ? { type: "done" } : { type: "event", value: result.value };
+		try {
+			const result = await withTimeout(
+				stream.next(),
+				STREAM_NEXT_TIMEOUT_MS,
+				"stream.next() timed out after 5 minutes",
+			);
+			return result.done ? { type: "done" } : { type: "event", value: result.value };
+		} catch {
+			return { type: "streamTimeout" };
+		}
 	}
 	return waitForNextStreamEvent(stream, signal, onAbort);
 }
@@ -32,7 +40,7 @@ function waitForNextStreamEvent(
 	signal: AbortSignal,
 	onAbort: () => Promise<void>,
 ): Promise<StreamReadResult> {
-	return new Promise<StreamReadResult>((resolve, reject) => {
+	return new Promise<StreamReadResult>((resolve) => {
 		let settled = false;
 		const finish = (complete: () => void) => {
 			if (settled) return;
@@ -62,8 +70,8 @@ function waitForNextStreamEvent(
 				finish(() =>
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
-			} catch (error) {
-				finish(() => reject(error instanceof Error ? error : new Error(String(error))));
+			} catch {
+				finish(() => resolve({ type: "streamTimeout" }));
 			}
 		})();
 	});
