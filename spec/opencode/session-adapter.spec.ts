@@ -34,39 +34,6 @@ describe("OpencodeSessionEvent 型", () => {
 
 // ─── テストヘルパー ──────────────────────────────────────────────
 
-function deferred<T>() {
-	let resolveDeferred!: (value: T) => void;
-	let rejectDeferred!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolve, reject) => {
-		resolveDeferred = resolve;
-		rejectDeferred = reject;
-	});
-	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
-}
-
-function createStream() {
-	const pending = deferred<IteratorResult<Event, void>>();
-	let current = pending;
-	const stream = {
-		next: mock(() => current.promise),
-		return: mock((value?: unknown) => {
-			current.resolve({ done: true, value: undefined });
-			return Promise.resolve({ done: true, value: value as void });
-		}),
-		[Symbol.asyncIterator]() {
-			return this;
-		},
-	};
-	return {
-		stream: stream as unknown as AsyncGenerator<Event, void, unknown>,
-		returnMock: stream.return,
-		push(event: Event) {
-			current.resolve({ done: false, value: event });
-			current = deferred<IteratorResult<Event, void>>();
-		},
-	};
-}
-
 function createClient(stream: AsyncGenerator<Event, void, unknown>) {
 	const client = {
 		event: {
@@ -137,7 +104,8 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		const stream = {
 			next: mock(() => {
 				if (callCount < tokenEvents.length) {
-					const event = tokenEvents[callCount]!;
+					// biome-ignore lint: test code - index is always valid
+					const event = tokenEvents[callCount] as Event;
 					callCount++;
 					return Promise.resolve<IteratorResult<Event, void>>({
 						done: false,
@@ -165,11 +133,12 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		});
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage }).tokens;
+		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
+			.tokens as TokenUsage;
 		expect(tokens).toBeDefined();
-		expect(tokens!.input).toBe(300);
-		expect(tokens!.output).toBe(130);
-		expect(tokens!.cacheRead).toBe(30);
+		expect(tokens.input).toBe(300);
+		expect(tokens.output).toBe(130);
+		expect(tokens.cacheRead).toBe(30);
 	});
 
 	test("stream.next() がタイムアウトで reject した場合に蓄積トークンが streamDisconnected に含まれる", async () => {
@@ -185,7 +154,8 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		const stream = {
 			next: mock(() => {
 				if (callCount < tokenEvents.length) {
-					const event = tokenEvents[callCount]!;
+					// biome-ignore lint: test code - index is always valid
+					const event = tokenEvents[callCount] as Event;
 					callCount++;
 					return Promise.resolve<IteratorResult<Event, void>>({
 						done: false,
@@ -213,11 +183,12 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		});
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage }).tokens;
+		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
+			.tokens as TokenUsage;
 		expect(tokens).toBeDefined();
-		expect(tokens!.input).toBe(100);
-		expect(tokens!.output).toBe(50);
-		expect(tokens!.cacheRead).toBe(10);
+		expect(tokens.input).toBe(100);
+		expect(tokens.output).toBe(50);
+		expect(tokens.cacheRead).toBe(10);
 	});
 });
 
@@ -235,7 +206,8 @@ describe("waitForSessionIdle: SSE 切断時のトークン保持", () => {
 		const stream = {
 			next: mock(() => {
 				if (callCount < tokenEvents.length) {
-					const event = tokenEvents[callCount]!;
+					// biome-ignore lint: test code - index is always valid
+					const event = tokenEvents[callCount] as Event;
 					callCount++;
 					return Promise.resolve<IteratorResult<Event, void>>({
 						done: false,
@@ -258,11 +230,12 @@ describe("waitForSessionIdle: SSE 切断時のトークン保持", () => {
 		const result = await adapter.waitForSessionIdle("session-1");
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage }).tokens;
+		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
+			.tokens as TokenUsage;
 		expect(tokens).toBeDefined();
-		expect(tokens!.input).toBe(150);
-		expect(tokens!.output).toBe(60);
-		expect(tokens!.cacheRead).toBe(15);
+		expect(tokens.input).toBe(150);
+		expect(tokens.output).toBe(60);
+		expect(tokens.cacheRead).toBe(15);
 	});
 
 	test("トークン蓄積なしで SSE 切断した場合 tokens は undefined", async () => {
