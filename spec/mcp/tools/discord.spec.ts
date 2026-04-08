@@ -6,7 +6,6 @@ import {
 	createClientStubWithImageAttachments,
 	createClientStubWithMultipleImageAttachments,
 	createClientStubWithReactError,
-	createClientStubWithoutSendTyping,
 	createDiscordClientStub,
 	type ToolResult,
 } from "./discord-test-helpers";
@@ -14,11 +13,10 @@ import {
 // ─── Tests ───────────────────────────────────────────────────────
 
 describe("registerDiscordTools", () => {
-	test("6つのツールが登録される", () => {
+	test("5つのツールが登録される", () => {
 		const { tools } = captureTools({ discordClient: createDiscordClientStub() });
 
 		const expectedTools = [
-			"send_typing",
 			"send_message",
 			"reply",
 			"add_reaction",
@@ -28,35 +26,14 @@ describe("registerDiscordTools", () => {
 		for (const name of expectedTools) {
 			expect(tools.has(name)).toBe(true);
 		}
-		expect(tools.size).toBe(6);
+		expect(tools.size).toBe(5);
+		expect(tools.has("send_typing")).toBe(false);
 	});
 
 	test("戻り値はクリーンアップ関数である", () => {
 		const { cleanup } = captureTools({ discordClient: createDiscordClientStub() });
 
 		expect(typeof cleanup).toBe("function");
-	});
-});
-
-describe("send_typing", () => {
-	test("typing 開始メッセージを返す", async () => {
-		const { tools } = captureTools({ discordClient: createDiscordClientStub() });
-		const sendTyping = tools.get("send_typing")!;
-
-		const result = (await sendTyping({ channel_id: "ch-1" })) as ToolResult;
-
-		expect(result.content[0]!.text).toBe("Typing indicator started");
-	});
-
-	test("sendTyping 非対応チャンネルでは分岐メッセージを返す", async () => {
-		const { tools } = captureTools({
-			discordClient: createClientStubWithoutSendTyping(),
-		});
-		const sendTyping = tools.get("send_typing")!;
-
-		const result = (await sendTyping({ channel_id: "ch-1" })) as ToolResult;
-
-		expect(result.content[0]!.text).toBe("Channel does not support typing indicators");
 	});
 });
 
@@ -71,6 +48,43 @@ describe("send_message", () => {
 		})) as ToolResult;
 
 		expect(result.content[0]!.text).toBe("Sent message sent-msg-1");
+	});
+
+	test("送信時に typing が表示される", async () => {
+		const client = createDiscordClientStub();
+		const { tools } = captureTools({ discordClient: client });
+		const sendMessage = tools.get("send_message")!;
+
+		await sendMessage({ channel_id: "ch-1", content: "テスト" });
+
+		expect(client._sendTypingMock).toHaveBeenCalled();
+	});
+
+	test("メッセージ送信前に遅延がある（typing の自然さのため）", async () => {
+		const client = createDiscordClientStub();
+		const { tools } = captureTools({ discordClient: client });
+		const sendMessage = tools.get("send_message")!;
+
+		const start = Date.now();
+		await sendMessage({ channel_id: "ch-1", content: "短い" });
+		const elapsed = Date.now() - start;
+
+		// 最低2秒の遅延がある
+		expect(elapsed).toBeGreaterThanOrEqual(2000);
+	});
+
+	test("長いメッセージでも遅延は最大5秒", async () => {
+		const client = createDiscordClientStub();
+		const { tools } = captureTools({ discordClient: client });
+		const sendMessage = tools.get("send_message")!;
+
+		const longContent = "あ".repeat(10000);
+		const start = Date.now();
+		await sendMessage({ channel_id: "ch-1", content: longContent });
+		const elapsed = Date.now() - start;
+
+		// 最大5秒の遅延
+		expect(elapsed).toBeLessThanOrEqual(6000);
 	});
 
 	test("不正な file_path でエラーになる", async () => {
@@ -103,6 +117,16 @@ describe("reply", () => {
 		})) as ToolResult;
 
 		expect(result.content[0]!.text).toBe("Replied with message reply-msg-1");
+	});
+
+	test("リプライ送信時に typing が表示される", async () => {
+		const client = createDiscordClientStub();
+		const { tools } = captureTools({ discordClient: client });
+		const reply = tools.get("reply")!;
+
+		await reply({ channel_id: "ch-1", message_id: "msg-1", content: "返信テスト" });
+
+		expect(client._sendTypingMock).toHaveBeenCalled();
 	});
 
 	test("不正な file_path でエラーになる", async () => {
