@@ -10,7 +10,7 @@ import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type { OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
+import type { OpencodeSessionEvent } from "@vicissitude/shared/types";
 
 // ─── 型レベルテスト ──────────────────────────────────────────────
 
@@ -133,12 +133,11 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		});
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
-			.tokens as TokenUsage;
-		expect(tokens).toBeDefined();
-		expect(tokens.input).toBe(300);
-		expect(tokens.output).toBe(130);
-		expect(tokens.cacheRead).toBe(30);
+		if (result.type !== "streamDisconnected") throw new Error("unreachable");
+		expect(result.tokens).toBeDefined();
+		expect(result.tokens?.input).toBe(300);
+		expect(result.tokens?.output).toBe(130);
+		expect(result.tokens?.cacheRead).toBe(30);
 	});
 
 	test("stream.next() がタイムアウトで reject した場合に蓄積トークンが streamDisconnected に含まれる", async () => {
@@ -183,12 +182,11 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 		});
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
-			.tokens as TokenUsage;
-		expect(tokens).toBeDefined();
-		expect(tokens.input).toBe(100);
-		expect(tokens.output).toBe(50);
-		expect(tokens.cacheRead).toBe(10);
+		if (result.type !== "streamDisconnected") throw new Error("unreachable");
+		expect(result.tokens).toBeDefined();
+		expect(result.tokens?.input).toBe(100);
+		expect(result.tokens?.output).toBe(50);
+		expect(result.tokens?.cacheRead).toBe(10);
 	});
 });
 
@@ -230,12 +228,11 @@ describe("waitForSessionIdle: SSE 切断時のトークン保持", () => {
 		const result = await adapter.waitForSessionIdle("session-1");
 
 		expect(result.type).toBe("streamDisconnected");
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage })
-			.tokens as TokenUsage;
-		expect(tokens).toBeDefined();
-		expect(tokens.input).toBe(150);
-		expect(tokens.output).toBe(60);
-		expect(tokens.cacheRead).toBe(15);
+		if (result.type !== "streamDisconnected") throw new Error("unreachable");
+		expect(result.tokens).toBeDefined();
+		expect(result.tokens?.input).toBe(150);
+		expect(result.tokens?.output).toBe(60);
+		expect(result.tokens?.cacheRead).toBe(15);
 	});
 
 	test("トークン蓄積なしで SSE 切断した場合 tokens は undefined", async () => {
@@ -258,8 +255,8 @@ describe("waitForSessionIdle: SSE 切断時のトークン保持", () => {
 		const result = await adapter.waitForSessionIdle("session-1");
 
 		expect(result.type).toBe("streamDisconnected");
+		if (result.type !== "streamDisconnected") throw new Error("unreachable");
 		// トークン蓄積がない場合は tokens が undefined であること
-		const tokens = (result as { type: "streamDisconnected"; tokens?: TokenUsage }).tokens;
-		expect(tokens).toBeUndefined();
+		expect(result.tokens).toBeUndefined();
 	});
 });
