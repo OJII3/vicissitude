@@ -58,42 +58,29 @@ async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> 
 	}
 
 	// help wanted を除いた open issue があるかチェック
-	const [allProc, hwProc] = [
-		Bun.spawn(["gh", "issue", "list", "--state", "open", "--limit", "20", "--json", "number"], {
-			cwd: PROJECT_DIR,
-			stdout: "pipe",
-			stderr: "ignore",
-		}),
-		Bun.spawn(
-			[
-				"gh",
-				"issue",
-				"list",
-				"--state",
-				"open",
-				"--label",
-				"help wanted",
-				"--limit",
-				"20",
-				"--json",
-				"number",
-			],
-			{ cwd: PROJECT_DIR, stdout: "pipe", stderr: "ignore" },
-		),
-	];
-
-	const [allOut, hwOut] = await Promise.all([
-		new Response(allProc.stdout).text(),
-		new Response(hwProc.stdout).text(),
-	]);
-	await Promise.all([allProc.exited, hwProc.exited]);
+	const issueProc = Bun.spawn(
+		[
+			"gh",
+			"issue",
+			"list",
+			"--state",
+			"open",
+			"--search",
+			'-label:"help wanted"',
+			"--limit",
+			"1",
+			"--json",
+			"number",
+		],
+		{ cwd: PROJECT_DIR, stdout: "pipe", stderr: "ignore" },
+	);
+	const issueOut = await new Response(issueProc.stdout).text();
+	await issueProc.exited;
 
 	let hasIssue = false;
 	try {
-		const all = new Set((JSON.parse(allOut) as { number: number }[]).map((i) => i.number));
-		const hw = new Set((JSON.parse(hwOut) as { number: number }[]).map((i) => i.number));
-		// help wanted を除外した残りがあるか
-		hasIssue = [...all].some((n) => !hw.has(n));
+		const issues = JSON.parse(issueOut) as { number: number }[];
+		hasIssue = issues.length > 0;
 	} catch {
 		// gh コマンド失敗時は安全側に倒す
 		hasIssue = true;
