@@ -74,8 +74,11 @@ export class ListeningScheduler {
 			this.logger.info("[listening] 前回の実行がまだ進行中、スキップ");
 			return;
 		}
-		if (!this.shouldStart()) return;
+		const should = this.shouldStart();
+		this.logger.debug(`[listening] tick: shouldStart=${should}`);
+		if (!should) return;
 
+		this.logger.info("[listening] tick 開始");
 		this.running = true;
 		const start = performance.now();
 		const execution = this.executeTick();
@@ -99,12 +102,18 @@ export class ListeningScheduler {
 			sessionKey: LISTENING_SESSION_KEY,
 			message: LISTENING_PROMPT,
 		});
+		this.logger.info(
+			`[listening] agent応答 (${response.text.length}文字): ${response.text.slice(0, 200)}`,
+		);
 		const match = NOW_PLAYING_RE.exec(response.text);
 		if (match) {
 			const trackName = match[1]?.trim();
 			if (trackName) {
+				this.logger.info(`[listening] NOW_PLAYING: ${trackName}`);
 				this.presence.setListeningActivity(trackName);
 			}
+		} else {
+			this.logger.warn("[listening] NOW_PLAYING が応答に含まれていません");
 		}
 	}
 }

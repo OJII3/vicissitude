@@ -2,6 +2,11 @@ export interface SpotifyAuthPort {
 	getAccessToken(): Promise<string>;
 }
 
+export interface SpotifyAuthLogger {
+	info(message: string, ...args: unknown[]): void;
+	error(message: string, ...args: unknown[]): void;
+}
+
 interface TokenCache {
 	accessToken: string;
 	expiresAt: number;
@@ -16,6 +21,7 @@ export class SpotifyAuth implements SpotifyAuthPort {
 			clientSecret: string;
 			refreshToken: string;
 		},
+		private readonly logger?: SpotifyAuthLogger,
 	) {}
 
 	private async fetchToken(): Promise<TokenCache> {
@@ -34,13 +40,17 @@ export class SpotifyAuth implements SpotifyAuthPort {
 		});
 
 		if (!response.ok) {
-			throw new Error(`Spotify token request failed: ${response.status} ${response.statusText}`);
+			const msg = `Spotify token request failed: ${response.status} ${response.statusText}`;
+			this.logger?.error(`[spotify:auth] ${msg}`);
+			throw new Error(msg);
 		}
 
 		const data = (await response.json()) as {
 			access_token: string;
 			expires_in: number;
 		};
+
+		this.logger?.info(`[spotify:auth] トークン取得成功 (expires_in=${data.expires_in}s)`);
 
 		return {
 			accessToken: data.access_token,

@@ -3,6 +3,11 @@ import type { SpotifyTrack } from "./types.ts";
 
 const API_BASE = "https://api.spotify.com/v1";
 
+export interface SpotifyClientLogger {
+	info(message: string, ...args: unknown[]): void;
+	error(message: string, ...args: unknown[]): void;
+}
+
 interface SpotifyApiTrack {
 	id: string;
 	name: string;
@@ -30,7 +35,10 @@ function normalizeTrack(raw: SpotifyApiTrack): SpotifyTrack {
 }
 
 export class SpotifyClient {
-	constructor(private readonly auth: SpotifyAuthPort) {}
+	constructor(
+		private readonly auth: SpotifyAuthPort,
+		private readonly logger?: SpotifyClientLogger,
+	) {}
 
 	private async apiGet(path: string): Promise<unknown> {
 		const token = await this.auth.getAccessToken();
@@ -40,7 +48,9 @@ export class SpotifyClient {
 		});
 
 		if (!response.ok) {
-			throw new Error(`Spotify API error: ${response.status} ${response.statusText}`);
+			const msg = `Spotify API error: ${response.status} ${response.statusText} (${path})`;
+			this.logger?.error(`[spotify:api] ${msg}`);
+			throw new Error(msg);
 		}
 
 		return response.json();
@@ -50,21 +60,27 @@ export class SpotifyClient {
 		const data = (await this.apiGet(`/me/tracks?limit=${limit}&offset=${offset}`)) as {
 			items: Array<{ track: SpotifyApiTrack }>;
 		};
-		return data.items.map((item) => normalizeTrack(item.track));
+		const tracks = data.items.map((item) => normalizeTrack(item.track));
+		this.logger?.info(`[spotify:api] getSavedTracks: ${tracks.length}曲取得`);
+		return tracks;
 	}
 
 	async getRecentlyPlayed(limit: number): Promise<SpotifyTrack[]> {
 		const data = (await this.apiGet(`/me/player/recently-played?limit=${limit}`)) as {
 			items: Array<{ track: SpotifyApiTrack }>;
 		};
-		return data.items.map((item) => normalizeTrack(item.track));
+		const tracks = data.items.map((item) => normalizeTrack(item.track));
+		this.logger?.info(`[spotify:api] getRecentlyPlayed: ${tracks.length}曲取得`);
+		return tracks;
 	}
 
 	async getPlaylistTracks(playlistId: string): Promise<SpotifyTrack[]> {
 		const data = (await this.apiGet(`/playlists/${playlistId}/tracks`)) as {
 			items: Array<{ track: SpotifyApiTrack }>;
 		};
-		return data.items.map((item) => normalizeTrack(item.track));
+		const tracks = data.items.map((item) => normalizeTrack(item.track));
+		this.logger?.info(`[spotify:api] getPlaylistTracks(${playlistId}): ${tracks.length}曲取得`);
+		return tracks;
 	}
 
 	async getArtist(artistId: string): Promise<{ id: string; name: string; genres: string[] }> {
@@ -73,6 +89,7 @@ export class SpotifyClient {
 			name: string;
 			genres: string[];
 		};
+		this.logger?.info(`[spotify:api] getArtist: ${data.name} (genres=${data.genres.join(",")})`);
 		return { id: data.id, name: data.name, genres: data.genres };
 	}
 }

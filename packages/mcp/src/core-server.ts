@@ -219,12 +219,17 @@ function createServer(agentId: string | null): McpServer {
 		process.env.SPOTIFY_CLIENT_SECRET &&
 		process.env.SPOTIFY_REFRESH_TOKEN
 	) {
-		registerSpotifyTools(server, {
-			clientId: process.env.SPOTIFY_CLIENT_ID,
-			clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-			refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
-			recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
-		});
+		registerSpotifyTools(
+			server,
+			{
+				clientId: process.env.SPOTIFY_CLIENT_ID,
+				clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+				refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
+				recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
+			},
+			undefined,
+			logger,
+		);
 
 		if (process.env.GENIUS_ACCESS_TOKEN) {
 			const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
