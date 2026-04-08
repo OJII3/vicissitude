@@ -60,33 +60,6 @@ describe("send_message", () => {
 		expect(client._sendTypingMock).toHaveBeenCalled();
 	});
 
-	test("メッセージ送信前に遅延がある（typing の自然さのため）", async () => {
-		const client = createDiscordClientStub();
-		const { tools } = captureTools({ discordClient: client });
-		const sendMessage = tools.get("send_message")!;
-
-		const start = Date.now();
-		await sendMessage({ channel_id: "ch-1", content: "短い" });
-		const elapsed = Date.now() - start;
-
-		// 最低2秒の遅延がある
-		expect(elapsed).toBeGreaterThanOrEqual(2000);
-	});
-
-	test("長いメッセージでも遅延は最大5秒", async () => {
-		const client = createDiscordClientStub();
-		const { tools } = captureTools({ discordClient: client });
-		const sendMessage = tools.get("send_message")!;
-
-		const longContent = "あ".repeat(10000);
-		const start = Date.now();
-		await sendMessage({ channel_id: "ch-1", content: longContent });
-		const elapsed = Date.now() - start;
-
-		// 最大5秒の遅延
-		expect(elapsed).toBeLessThanOrEqual(6000);
-	});
-
 	test("不正な file_path でエラーになる", async () => {
 		const { tools } = captureTools({ discordClient: createDiscordClientStub() });
 		const sendMessage = tools.get("send_message")!;

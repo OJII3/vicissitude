@@ -84,12 +84,12 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, content, file_path }) => {
-			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
 			}
 			await sleep(typingDelay(content.length));
+			deps.skipTracker?.markResponded();
 			const options: { content: string; files?: { attachment: string }[] } = { content };
 			if (file_path) {
 				validateFilePath(file_path);
@@ -114,12 +114,12 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
-			deps.skipTracker?.markResponded();
 			const channel = await getTextChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
 			}
 			await sleep(typingDelay(content.length));
+			deps.skipTracker?.markResponded();
 			const target = await channel.messages.fetch(message_id);
 			const options: { content: string; files?: { attachment: string }[] } = { content };
 			if (file_path) {
