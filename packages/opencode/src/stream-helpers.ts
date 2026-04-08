@@ -11,7 +11,7 @@ type StreamReadResult =
 	| { type: "event"; value: unknown }
 	| { type: "done" }
 	| { type: "aborted" }
-	| { type: "streamTimeout" };
+	| { type: "streamTimeout"; reason?: string };
 
 /** signal なしの stream.next() に適用するタイムアウト（5分） */
 const STREAM_NEXT_TIMEOUT_MS = 5 * 60 * 1000;
@@ -29,8 +29,9 @@ export async function nextStreamEvent(
 				"stream.next() timed out after 5 minutes",
 			);
 			return result.done ? { type: "done" } : { type: "event", value: result.value };
-		} catch {
-			return { type: "streamTimeout" };
+		} catch (err) {
+			const reason = err instanceof Error ? err.message : String(err);
+			return { type: "streamTimeout", reason };
 		}
 	}
 	return waitForNextStreamEvent(stream, signal, onAbort);
@@ -70,8 +71,9 @@ function waitForNextStreamEvent(
 				finish(() =>
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
-			} catch {
-				finish(() => resolve({ type: "streamTimeout" }));
+			} catch (err) {
+				const reason = err instanceof Error ? err.message : String(err);
+				finish(() => resolve({ type: "streamTimeout", reason }));
 			}
 		})();
 	});

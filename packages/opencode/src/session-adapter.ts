@@ -143,7 +143,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				}
 				if (event.type === "streamTimeout") {
-					this.logger?.warn("[opencode] SSE stream timed out (likely disconnected)");
+					this.logger?.warn(`[opencode] SSE stream disconnected: ${event.reason ?? "unknown"}`);
 					return { type: "streamDisconnected" };
 				}
 				const typed = event.value as Event;
@@ -189,7 +189,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				if (event.type === "aborted") return { type: "cancelled" };
 				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				if (event.type === "streamTimeout") {
-					this.logger?.warn("[opencode] waitIdle: SSE stream timed out (likely disconnected)");
+					this.logger?.warn(
+						`[opencode] waitIdle: SSE stream disconnected: ${event.reason ?? "unknown"}`,
+					);
 					return { type: "streamDisconnected" };
 				}
 				const typed = event.value as Event;
