@@ -118,9 +118,7 @@ function createDeps(servicesMap: Map<string, MemoryReadServices>): MemoryDeps {
 describe("memory_retrieve", () => {
 	test("namespace 解決不能時に isError を返す", async () => {
 		const deps: MemoryDeps = {
-			getOrCreateMemory: () => {
-				throw new Error("should not be called");
-			},
+			getOrCreateMemory: () => createEmptyMockServices(),
 		};
 		// boundNamespace = undefined, guild_id も未指定
 		const { handlers } = captureMemoryToolHandlers(deps);
@@ -152,6 +150,33 @@ describe("memory_retrieve", () => {
 			},
 		};
 		const { handlers } = captureMemoryToolHandlers(deps, guildNs);
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ query: "test" });
+
+		expect(result.isError).toBe(true);
+	});
+
+	test("guild の retrieve が例外を投げた場合 isError を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const brokenServices: MemoryReadServices = {
+			retrieval: {
+				retrieve: async () => Promise.reject(new Error("retrieve boom")),
+				flushReviews: async () => {},
+			},
+			semantic: {
+				getFacts: async () => [],
+				getFactsByCategory: async () => [],
+				search: async () => [],
+				invalidate: async () => {},
+			},
+		} as unknown as MemoryReadServices;
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), brokenServices],
+			[namespaceKey(INTERNAL_NAMESPACE), createEmptyMockServices()],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap), guildNs);
 		const handler = handlers.get("memory_retrieve")!;
 		expect(handler).toBeDefined();
 
@@ -221,6 +246,11 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		// internal の記憶も含まれる
 		expect(text).toContain("最近よく聴いている曲はAimer");
 		expect(text).toContain("音楽聴取ログ");
+
+		// セクションヘッダーが含まれる
+		expect(text).toContain("## エピソード記憶");
+		expect(text).toContain("## ふあ自身の記憶（エピソード）");
+		expect(text).toContain("## ふあ自身の記憶（ファクト）");
 	});
 
 	test("boundNamespace が internal の場合、結果が重複しない（二重検索しない）", async () => {
@@ -277,9 +307,7 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 describe("memory_get_facts", () => {
 	test("namespace 解決不能時に isError を返す", async () => {
 		const deps: MemoryDeps = {
-			getOrCreateMemory: () => {
-				throw new Error("should not be called");
-			},
+			getOrCreateMemory: () => createEmptyMockServices(),
 		};
 		// boundNamespace = undefined, guild_id も未指定
 		const { handlers } = captureMemoryToolHandlers(deps);
