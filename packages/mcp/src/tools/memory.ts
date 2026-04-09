@@ -3,6 +3,7 @@ import {
 	defaultSubject,
 	discordGuildNamespace,
 	GUILD_ID_RE,
+	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 } from "@vicissitude/memory/namespace";
 import type { Retrieval } from "@vicissitude/memory/retrieval";
@@ -33,6 +34,9 @@ export function registerMemoryTools(
 		return null;
 	}
 
+	/** boundNamespace が internal でなければ true（internal も並行検索する必要がある） */
+	const shouldCrossSearch = boundNamespace?.surface !== "internal";
+
 	server.registerTool(
 		"memory_retrieve",
 		{
@@ -55,9 +59,20 @@ export function registerMemoryTools(
 				}
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
-				const result = await mem.retrieval.retrieve(subject, query, {
-					limit: limit ?? 10,
-				});
+				const retrieveOpts = { limit: limit ?? 10 };
+
+				const resultPromise = mem.retrieval.retrieve(subject, query, retrieveOpts);
+
+				const internalResultPromise =
+					shouldCrossSearch && ns.surface !== "internal"
+						? getOrCreateMemory(INTERNAL_NAMESPACE).retrieval.retrieve(
+								defaultSubject(INTERNAL_NAMESPACE),
+								query,
+								retrieveOpts,
+							)
+						: null;
+
+				const [result, internalResult] = await Promise.all([resultPromise, internalResultPromise]);
 
 				const parts: string[] = [];
 
@@ -74,6 +89,24 @@ export function registerMemoryTools(
 					parts.push("## 意味記憶（ファクト）");
 					for (const f of result.facts) {
 						parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
+					}
+				}
+
+				if (internalResult) {
+					if (internalResult.episodes.length > 0) {
+						parts.push("## ふあ自身の記憶（エピソード）");
+						for (const ep of internalResult.episodes) {
+							parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
+							parts.push(ep.episode.summary);
+							parts.push("");
+						}
+					}
+
+					if (internalResult.facts.length > 0) {
+						parts.push("## ふあ自身の記憶（ファクト）");
+						for (const f of internalResult.facts) {
+							parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
+						}
 					}
 				}
 
@@ -142,24 +175,39 @@ export function registerMemoryTools(
 				}
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
-				const facts = category
-					? await mem.semantic.getFactsByCategory(subject, category)
-					: await mem.semantic.getFacts(subject);
+				const factsPromise = category
+					? mem.semantic.getFactsByCategory(subject, category)
+					: mem.semantic.getFacts(subject);
 
-				if (facts.length === 0) {
+				const internalFactsPromise =
+					shouldCrossSearch && ns.surface !== "internal"
+						? (() => {
+								const internalMem = getOrCreateMemory(INTERNAL_NAMESPACE);
+								const internalSubject = defaultSubject(INTERNAL_NAMESPACE);
+								return category
+									? internalMem.semantic.getFactsByCategory(internalSubject, category)
+									: internalMem.semantic.getFacts(internalSubject);
+							})()
+						: null;
+
+				const [facts, internalFacts] = await Promise.all([factsPromise, internalFactsPromise]);
+
+				const allFacts = internalFacts ? [...facts, ...internalFacts] : facts;
+
+				if (allFacts.length === 0) {
 					return {
 						content: [{ type: "text", text: "ファクトはまだありません。" }],
 					};
 				}
 
-				const lines = facts.map(
+				const lines = allFacts.map(
 					(f: SemanticFact) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`,
 				);
 				return {
 					content: [
 						{
 							type: "text",
-							text: `${facts.length} 件のファクト:\n${lines.join("\n")}`,
+							text: `${allFacts.length} 件のファクト:\n${lines.join("\n")}`,
 						},
 					],
 				};

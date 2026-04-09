@@ -31,3 +31,43 @@ export function captureMemoryTools(boundNamespace?: MemoryNamespace): {
 
 	return { schemas };
 }
+
+// ─── ToolHandler type ────────────────────────────────────────────
+
+/** MCP tool handler の戻り値型 */
+export interface ToolResult {
+	content: { type: string; text: string }[];
+	isError?: boolean;
+}
+
+// oxlint-disable-next-line no-explicit-any -- MCP handler の引数型は動的
+type ToolHandler = (args: any) => Promise<ToolResult>;
+
+// ─── captureMemoryToolHandlers ───────────────────────────────────
+
+/** registerMemoryTools で登録されたツールのハンドラも含めてキャプチャする */
+export function captureMemoryToolHandlers(
+	deps: MemoryDeps,
+	boundNamespace?: MemoryNamespace,
+): {
+	schemas: Map<string, Record<string, unknown>>;
+	handlers: Map<string, ToolHandler>;
+} {
+	const schemas = new Map<string, Record<string, unknown>>();
+	const handlers = new Map<string, ToolHandler>();
+
+	const fakeServer = {
+		registerTool(
+			name: string,
+			config: { inputSchema: Record<string, unknown> },
+			handler: ToolHandler,
+		) {
+			schemas.set(name, config.inputSchema);
+			handlers.set(name, handler);
+		},
+	} as unknown as McpServer;
+
+	registerMemoryTools(fakeServer, deps, boundNamespace);
+
+	return { schemas, handlers };
+}
