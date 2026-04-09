@@ -44,6 +44,7 @@
  *
  *   // agent_id → namespace の解決
  *   //   "discord:heartbeat:{guildId}" → discord-guild
+ *   //   "discord:listening:{guildId}" → discord-guild
  *   //   "discord:{guildId}"           → discord-guild
  *   //   "internal:*" / "internal"     → internal
  *   export function resolveNamespaceFromAgentId(
