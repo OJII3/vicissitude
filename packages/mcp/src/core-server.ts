@@ -13,6 +13,7 @@ import {
 	parseAgentId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
+	resolveNamespaceFromAgentId,
 } from "@vicissitude/memory/namespace";
 import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
@@ -155,11 +156,7 @@ function createServer(agentId: string | null): McpServer {
 
 	const parsed = parseAgentId(agentId);
 	const boundNamespace: MemoryNamespace | undefined =
-		parsed?.platform === "discord"
-			? { surface: "discord-guild", guildId: parsed.guildId }
-			: parsed?.platform === "internal"
-				? INTERNAL_NAMESPACE
-				: undefined;
+		resolveNamespaceFromAgentId(agentId) ?? undefined;
 	if (agentId && !boundNamespace) {
 		logger.warn(
 			`[core-server] agent_id=${agentId} did not resolve to a known namespace — tools require explicit guild_id`,

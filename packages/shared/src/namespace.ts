@@ -80,7 +80,7 @@ export function parseAgentId(agentId: string | null | undefined): ParsedAgentId 
 	}
 	const m = agentId.match(/^discord:(?:(heartbeat|listening):)?(.+)$/);
 	if (m?.[2] && GUILD_ID_RE.test(m[2])) {
-		const role: DiscordAgentRole = (m[1] as DiscordAgentRole) ?? "polling";
+		const role = (m[1] ?? "polling") as DiscordAgentRole;
 		return { platform: "discord", role, guildId: m[2] };
 	}
 	return null;
