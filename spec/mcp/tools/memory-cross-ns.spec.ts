@@ -115,6 +115,114 @@ function createDeps(servicesMap: Map<string, MemoryReadServices>): MemoryDeps {
 
 // ─── Tests ───────────────────────────────────────────────────────
 
+describe("memory_retrieve", () => {
+	test("namespace 解決不能時に isError を返す", async () => {
+		const deps: MemoryDeps = {
+			getOrCreateMemory: () => createEmptyMockServices(),
+		};
+		// boundNamespace = undefined, guild_id も未指定
+		const { handlers } = captureMemoryToolHandlers(deps);
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ query: "test" });
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0]!.text).toContain("namespace");
+	});
+
+	test("getOrCreateMemory が例外を投げた場合 isError を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), createMockServices([guildFact1], [guildEpisode1])],
+		]);
+		const deps: MemoryDeps = {
+			getOrCreateMemory: (ns) => {
+				if (ns.surface === "internal") {
+					throw new Error("internal memory init failed");
+				}
+				const key = namespaceKey(ns);
+				const services = servicesMap.get(key);
+				if (!services) {
+					throw new Error(`Unexpected namespace: ${key}`);
+				}
+				return services;
+			},
+		};
+		const { handlers } = captureMemoryToolHandlers(deps, guildNs);
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ query: "test" });
+
+		expect(result.isError).toBe(true);
+	});
+
+	test("guild の retrieve が例外を投げた場合 isError を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const brokenServices: MemoryReadServices = {
+			retrieval: {
+				retrieve: async () => Promise.reject(new Error("retrieve boom")),
+				flushReviews: async () => {},
+			},
+			semantic: {
+				getFacts: async () => [],
+				getFactsByCategory: async () => [],
+				search: async () => [],
+				invalidate: async () => {},
+			},
+		} as unknown as MemoryReadServices;
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), brokenServices],
+			[namespaceKey(INTERNAL_NAMESPACE), createEmptyMockServices()],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap), guildNs);
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ query: "test" });
+
+		expect(result.isError).toBe(true);
+	});
+
+	test("両方の結果が空の場合「関連する記憶は見つかりませんでした」を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), createEmptyMockServices()],
+			[namespaceKey(INTERNAL_NAMESPACE), createEmptyMockServices()],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap), guildNs);
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ query: "nothing" });
+
+		expect(result.isError).toBeUndefined();
+		expect(result.content[0]!.text).toContain("関連する記憶は見つかりませんでした");
+	});
+
+	test("boundNamespace が undefined で guild_id 指定時に internal も並行検索される", async () => {
+		const dynamicGuildNs = discordGuildNamespace("999888777");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(dynamicGuildNs), createMockServices([guildFact1], [guildEpisode1])],
+			[namespaceKey(INTERNAL_NAMESPACE), createMockServices([internalFact1], [internalEpisode1])],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap));
+		const handler = handlers.get("memory_retrieve")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ guild_id: "999888777", query: "音楽" });
+
+		expect(result.isError).toBeUndefined();
+		const text = result.content[0]!.text;
+
+		expect(text).toContain("ギルドのファクト1");
+		expect(text).toContain("ギルドのエピソード1");
+		expect(text).toContain("最近よく聴いている曲はAimer");
+		expect(text).toContain("音楽聴取ログ");
+	});
+});
+
 describe("memory_retrieve: cross-namespace 検索", () => {
 	test("discord-guild バインド時に internal namespace のファクト/エピソードも結果に含まれる", async () => {
 		const servicesMap = new Map<string, MemoryReadServices>([
@@ -138,6 +246,11 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		// internal の記憶も含まれる
 		expect(text).toContain("最近よく聴いている曲はAimer");
 		expect(text).toContain("音楽聴取ログ");
+
+		// セクションヘッダーが含まれる
+		expect(text).toContain("## エピソード記憶");
+		expect(text).toContain("## ふあ自身の記憶（エピソード）");
+		expect(text).toContain("## ふあ自身の記憶（ファクト）");
 	});
 
 	test("boundNamespace が internal の場合、結果が重複しない（二重検索しない）", async () => {
@@ -188,6 +301,85 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		// ギルドの記憶は正常に返る
 		expect(text).toContain("ギルドのファクト1");
 		expect(text).toContain("ギルドのエピソード1");
+	});
+});
+
+describe("memory_get_facts", () => {
+	test("namespace 解決不能時に isError を返す", async () => {
+		const deps: MemoryDeps = {
+			getOrCreateMemory: () => createEmptyMockServices(),
+		};
+		// boundNamespace = undefined, guild_id も未指定
+		const { handlers } = captureMemoryToolHandlers(deps);
+		const handler = handlers.get("memory_get_facts")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({});
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0]!.text).toContain("namespace");
+	});
+
+	test("getOrCreateMemory が例外を投げた場合 isError を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), createMockServices([guildFact1], [])],
+		]);
+		const deps: MemoryDeps = {
+			getOrCreateMemory: (ns) => {
+				if (ns.surface === "internal") {
+					throw new Error("internal init error");
+				}
+				const key = namespaceKey(ns);
+				const services = servicesMap.get(key);
+				if (!services) {
+					throw new Error(`Unexpected namespace: ${key}`);
+				}
+				return services;
+			},
+		};
+		const { handlers } = captureMemoryToolHandlers(deps, guildNs);
+		const handler = handlers.get("memory_get_facts")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({});
+
+		expect(result.isError).toBe(true);
+	});
+
+	test("ファクト 0 件時に「ファクトはまだありません」を返す", async () => {
+		const guildNs = discordGuildNamespace("111");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(guildNs), createEmptyMockServices()],
+			[namespaceKey(INTERNAL_NAMESPACE), createEmptyMockServices()],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap), guildNs);
+		const handler = handlers.get("memory_get_facts")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({});
+
+		expect(result.isError).toBeUndefined();
+		expect(result.content[0]!.text).toContain("ファクトはまだありません");
+	});
+
+	test("boundNamespace が undefined で guild_id 指定時に internal もマージされる", async () => {
+		const dynamicGuildNs = discordGuildNamespace("555");
+		const servicesMap = new Map<string, MemoryReadServices>([
+			[namespaceKey(dynamicGuildNs), createMockServices([guildFact1], [])],
+			[namespaceKey(INTERNAL_NAMESPACE), createMockServices([internalFact1], [])],
+		]);
+		const { handlers } = captureMemoryToolHandlers(createDeps(servicesMap));
+		const handler = handlers.get("memory_get_facts")!;
+		expect(handler).toBeDefined();
+
+		const result: ToolResult = await handler({ guild_id: "555" });
+
+		expect(result.isError).toBeUndefined();
+		const text = result.content[0]!.text;
+
+		expect(text).toContain("ギルドのファクト1");
+		expect(text).toContain("最近よく聴いている曲はAimer");
 	});
 });
 
