@@ -60,6 +60,32 @@ export function namespaceKey(namespace: MemoryNamespace): string {
 	}
 }
 
+/** Discord agentId のエージェント種別 */
+export type DiscordAgentRole = "polling" | "heartbeat" | "listening";
+
+/** agentId のパース結果 */
+export type ParsedAgentId =
+	| { readonly platform: "discord"; readonly role: DiscordAgentRole; readonly guildId: string }
+	| { readonly platform: "internal" }
+	| null;
+
+/**
+ * agentId を解析してプラットフォーム・ロール・guildId を返す。
+ * 未知のプレフィックス・null/undefined/空文字・不正形式は null を返す。
+ */
+export function parseAgentId(agentId: string | null | undefined): ParsedAgentId {
+	if (!agentId) return null;
+	if (/^internal(?::.+)?$/.test(agentId)) {
+		return { platform: "internal" };
+	}
+	const m = agentId.match(/^discord:(?:(heartbeat|listening):)?(.+)$/);
+	if (m?.[2] && GUILD_ID_RE.test(m[2])) {
+		const role: DiscordAgentRole = (m[1] as DiscordAgentRole) ?? "polling";
+		return { platform: "discord", role, guildId: m[2] };
+	}
+	return null;
+}
+
 /**
  * agent_id から namespace を解決する。
  * 未知のプレフィックス・null/undefined/空文字・不正形式は null を返す
@@ -68,15 +94,14 @@ export function namespaceKey(namespace: MemoryNamespace): string {
 export function resolveNamespaceFromAgentId(
 	agentId: string | null | undefined,
 ): MemoryNamespace | null {
-	if (!agentId) return null;
-	const m = agentId.match(/^discord:(?:heartbeat:|listening:)?(.+)$/);
-	if (m?.[1] && GUILD_ID_RE.test(m[1])) {
-		return { surface: "discord-guild", guildId: m[1] };
+	const parsed = parseAgentId(agentId);
+	if (!parsed) return null;
+	switch (parsed.platform) {
+		case "discord":
+			return { surface: "discord-guild", guildId: parsed.guildId };
+		case "internal":
+			return INTERNAL_NAMESPACE;
 	}
-	if (/^internal(?::.+)?$/.test(agentId)) {
-		return INTERNAL_NAMESPACE;
-	}
-	return null;
 }
 
 /**
