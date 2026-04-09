@@ -13,6 +13,9 @@ import { z } from "zod";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
+const formatFacts = (fs: SemanticFact[]) =>
+	fs.map((f) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`);
+
 export interface MemoryReadServices {
 	retrieval: Retrieval;
 	semantic: SemanticMemory;
@@ -33,9 +36,6 @@ export function registerMemoryTools(
 		if (guildIdInput) return discordGuildNamespace(guildIdInput);
 		return null;
 	}
-
-	/** boundNamespace が internal でなければ true（internal も並行検索する必要がある） */
-	const shouldCrossSearch = boundNamespace?.surface !== "internal";
 
 	server.registerTool(
 		"memory_retrieve",
@@ -64,13 +64,13 @@ export function registerMemoryTools(
 				const resultPromise = mem.retrieval.retrieve(subject, query, retrieveOpts);
 
 				const internalResultPromise =
-					shouldCrossSearch && ns.surface !== "internal"
-						? getOrCreateMemory(INTERNAL_NAMESPACE).retrieval.retrieve(
+					ns.surface === "internal"
+						? null
+						: getOrCreateMemory(INTERNAL_NAMESPACE).retrieval.retrieve(
 								defaultSubject(INTERNAL_NAMESPACE),
 								query,
 								retrieveOpts,
-							)
-						: null;
+							);
 
 				const [result, internalResult] = await Promise.all([resultPromise, internalResultPromise]);
 
@@ -179,37 +179,34 @@ export function registerMemoryTools(
 					? mem.semantic.getFactsByCategory(subject, category)
 					: mem.semantic.getFacts(subject);
 
-				const internalFactsPromise =
-					shouldCrossSearch && ns.surface !== "internal"
-						? (() => {
-								const internalMem = getOrCreateMemory(INTERNAL_NAMESPACE);
-								const internalSubject = defaultSubject(INTERNAL_NAMESPACE);
-								return category
-									? internalMem.semantic.getFactsByCategory(internalSubject, category)
-									: internalMem.semantic.getFacts(internalSubject);
-							})()
-						: null;
+				const internalMem =
+					ns.surface === "internal" ? null : getOrCreateMemory(INTERNAL_NAMESPACE);
+				const internalFactsPromise = internalMem
+					? category
+						? internalMem.semantic.getFactsByCategory(defaultSubject(INTERNAL_NAMESPACE), category)
+						: internalMem.semantic.getFacts(defaultSubject(INTERNAL_NAMESPACE))
+					: null;
 
 				const [facts, internalFacts] = await Promise.all([factsPromise, internalFactsPromise]);
 
-				const allFacts = internalFacts ? [...facts, ...internalFacts] : facts;
-
-				if (allFacts.length === 0) {
+				if (facts.length === 0 && (!internalFacts || internalFacts.length === 0)) {
 					return {
 						content: [{ type: "text", text: "ファクトはまだありません。" }],
 					};
 				}
 
-				const lines = allFacts.map(
-					(f: SemanticFact) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`,
-				);
+				const parts: string[] = [];
+				if (facts.length > 0) {
+					parts.push(`${facts.length} 件のファクト:`);
+					parts.push(...formatFacts(facts));
+				}
+				if (internalFacts && internalFacts.length > 0) {
+					parts.push(`\nふあ自身の記憶（${internalFacts.length} 件）:`);
+					parts.push(...formatFacts(internalFacts));
+				}
+
 				return {
-					content: [
-						{
-							type: "text",
-							text: `${allFacts.length} 件のファクト:\n${lines.join("\n")}`,
-						},
-					],
+					content: [{ type: "text", text: parts.join("\n") }],
 				};
 			} catch (error) {
 				return {

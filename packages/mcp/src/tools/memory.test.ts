@@ -87,7 +87,7 @@ function stubMemoryReadServices(
 
 // --- shouldCrossSearch flag --------------------------------------------------
 
-describe("shouldCrossSearch flag", () => {
+describe("cross-namespace search flag", () => {
 	test("boundNamespace が discord-guild のとき internal も並行検索される", async () => {
 		const calledNamespaces: MemoryNamespace[] = [];
 		const guildNs = discordGuildNamespace("123456789");
@@ -315,9 +315,10 @@ describe("memory_get_facts — cross-namespace マージ", () => {
 		const result = await tools.get("memory_get_facts")!.handler({});
 		const text = result.content[0]!.text;
 
-		expect(text).toContain("3 件のファクト");
+		expect(text).toContain("2 件のファクト");
 		expect(text).toContain("guild fact 1");
 		expect(text).toContain("guild fact 2");
+		expect(text).toContain("ふあ自身の記憶");
 		expect(text).toContain("internal fact 1");
 	});
 
@@ -376,7 +377,8 @@ describe("memory_get_facts — cross-namespace マージ", () => {
 		const result = await tools.get("memory_get_facts")!.handler({ guild_id: "555" });
 
 		expect(calledNamespaces).toHaveLength(2);
-		expect(result.content[0]!.text).toContain("2 件のファクト");
+		expect(result.content[0]!.text).toContain("1 件のファクト");
+		expect(result.content[0]!.text).toContain("ふあ自身の記憶");
 	});
 
 	test("ファクトが 0 件のとき「ファクトはまだありません」が返る", async () => {
