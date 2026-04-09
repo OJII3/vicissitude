@@ -153,8 +153,8 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 
 			runner.ensurePolling();
 
-			// hangTimeoutMs（100ms）を超えて待機
-			await Bun.sleep(200);
+			// hangTimeoutMs（100ms）を超えて待機（2回目の発火前に停止するよう150msに抑制）
+			await Bun.sleep(150);
 
 			expect(rotationSpy).toHaveBeenCalledTimes(1);
 
