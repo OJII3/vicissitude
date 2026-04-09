@@ -174,6 +174,16 @@ describe("resolveNamespaceFromAgentId", () => {
 		expect(resolveNamespaceFromAgentId("discord:../malicious")).toBeNull();
 	});
 
+	it("'discord:listening:{guildId}' を discord-guild に解決する", () => {
+		expect(resolveNamespaceFromAgentId("discord:listening:123456789")).toEqual(
+			discordGuildNamespace("123456789"),
+		);
+	});
+
+	it("'discord:listening:abc'（非数値 guildId）は null を返す", () => {
+		expect(resolveNamespaceFromAgentId("discord:listening:abc")).toBeNull();
+	});
+
 	it("'internal:listening' を INTERNAL_NAMESPACE に解決する", () => {
 		expect(resolveNamespaceFromAgentId("internal:listening")).toEqual(INTERNAL_NAMESPACE);
 	});
@@ -245,6 +255,17 @@ describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）",
 		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
 		expect(boundNamespace).toEqual(INTERNAL_NAMESPACE);
 		expect(boundGuildId).toBeUndefined();
+	});
+
+	it("discord listening agent_id → boundNamespace と boundGuildId が両方設定される", () => {
+		const ns = resolveNamespaceFromAgentId("discord:listening:12345");
+		expect(ns).not.toBeNull();
+
+		const boundNamespace = ns ?? undefined;
+		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
+
+		expect(boundNamespace).toEqual(discordGuildNamespace("12345"));
+		expect(boundGuildId).toBe("12345");
 	});
 });
 

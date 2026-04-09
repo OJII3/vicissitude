@@ -69,7 +69,7 @@ export function resolveNamespaceFromAgentId(
 	agentId: string | null | undefined,
 ): MemoryNamespace | null {
 	if (!agentId) return null;
-	const m = agentId.match(/^discord:(?:heartbeat:)?(.+)$/);
+	const m = agentId.match(/^discord:(?:heartbeat:|listening:)?(.+)$/);
 	if (m?.[1] && GUILD_ID_RE.test(m[1])) {
 		return { surface: "discord-guild", guildId: m[1] };
 	}
