@@ -16,8 +16,11 @@ export {
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
 	namespaceKey,
+	parseAgentId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 	resolveNamespaceFromAgentId,
+	type DiscordAgentRole,
 	type MemoryNamespace,
+	type ParsedAgentId,
 } from "@vicissitude/shared/namespace";

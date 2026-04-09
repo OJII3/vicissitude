@@ -10,6 +10,7 @@ import {
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 	namespaceKey,
+	parseAgentId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 	resolveNamespaceFromAgentId,
@@ -153,7 +154,9 @@ function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
 	const server = wrapServerWithMetrics(rawServer, { metrics: metricsCollector, logger });
 
-	const boundNamespace = resolveNamespaceFromAgentId(agentId) ?? undefined;
+	const parsed = parseAgentId(agentId);
+	const boundNamespace: MemoryNamespace | undefined =
+		resolveNamespaceFromAgentId(agentId) ?? undefined;
 	if (agentId && !boundNamespace) {
 		logger.warn(
 			`[core-server] agent_id=${agentId} did not resolve to a known namespace — tools require explicit guild_id`,
@@ -207,7 +210,7 @@ function createServer(agentId: string | null): McpServer {
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
-	const isListeningAgent = agentId?.startsWith("discord:listening:");
+	const isListeningAgent = parsed?.platform === "discord" && parsed.role === "listening";
 	if (
 		isListeningAgent &&
 		process.env.SPOTIFY_CLIENT_ID &&
