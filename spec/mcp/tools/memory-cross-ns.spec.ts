@@ -162,7 +162,9 @@ describe("memory_retrieve", () => {
 		const guildNs = discordGuildNamespace("111");
 		const brokenServices: MemoryReadServices = {
 			retrieval: {
-				retrieve: async () => Promise.reject(new Error("retrieve boom")),
+				retrieve: async () => {
+					throw new Error("retrieve boom");
+				},
 				flushReviews: async () => {},
 			},
 			semantic: {
