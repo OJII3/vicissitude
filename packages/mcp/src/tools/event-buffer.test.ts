@@ -118,6 +118,8 @@ describe("wait_for_events × SkipTracker", () => {
 		expect(logger.info).toHaveBeenCalledTimes(1);
 		// タイムアウト時は pendingResponse をセットしないので false のまま
 		expect(skipTracker.pendingResponse).toBe(false);
+		// 1回スキップされたことが記録される
+		expect(skipTracker.consecutiveSkips).toBe(1);
 	});
 
 	test("タイムアウト時は pendingResponse をセットしない", async () => {

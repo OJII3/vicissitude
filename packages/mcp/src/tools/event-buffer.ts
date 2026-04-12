@@ -19,21 +19,41 @@ export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage
 
 export interface SkipTracker {
 	readonly pendingResponse: boolean;
+	/** pending になった時刻（ms）。pending でなければ 0 */
+	readonly pendingSince: number;
+	/** 連続スキップ回数 */
+	readonly consecutiveSkips: number;
 	markPending(): void;
+	/** スキップとして記録してから応答済みにする（consecutiveSkips はインクリメントされる） */
+	markSkipped(): void;
 	markResponded(): void;
 }
 
 export function createSkipTracker(): SkipTracker {
-	const state = { pending: false };
+	const state = { pending: false, pendingSince: 0, consecutiveSkips: 0 };
 	return {
 		get pendingResponse() {
 			return state.pending;
 		},
+		get pendingSince() {
+			return state.pendingSince;
+		},
+		get consecutiveSkips() {
+			return state.consecutiveSkips;
+		},
 		markPending() {
 			state.pending = true;
+			state.pendingSince = Date.now();
+		},
+		markSkipped() {
+			state.consecutiveSkips += 1;
+			state.pending = false;
+			state.pendingSince = 0;
 		},
 		markResponded() {
 			state.pending = false;
+			state.pendingSince = 0;
+			state.consecutiveSkips = 0;
 		},
 	};
 }
@@ -288,6 +308,13 @@ async function fetchRecentMessagesContext(
 	return { type: "text", text: context };
 }
 
+/** 文字列配列の各値の出現回数を返す */
+function countValues(values: string[]): Record<string, number> {
+	const counts: Record<string, number> = {};
+	for (const v of values) counts[v] = (counts[v] ?? 0) + 1;
+	return counts;
+}
+
 // ─── registerEventBufferTools ────────────────────────────────────
 
 function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): TextContent | null {
@@ -334,13 +361,23 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			touchHeartbeat(db, agentId);
 
 			if (skipTracker?.pendingResponse) {
-				logger?.info("[event-buffer] 前回のイベントに対する応答がスキップされました");
-				skipTracker.markResponded();
+				const elapsed = Date.now() - skipTracker.pendingSince;
+				skipTracker.markSkipped();
+				const msg = `[event-buffer] 前回のイベントに対する応答がスキップされました (経過=${elapsed}ms, 連続スキップ=${skipTracker.consecutiveSkips}回)`;
+				if (skipTracker.consecutiveSkips >= 3) {
+					logger?.warn(msg);
+				} else {
+					logger?.info(msg);
+				}
 			}
 
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
 				const events = parseEvents(immediate);
+				const hints = events.map((e) => (isErrorEvent(e) ? "error" : classifyActionHint(e)));
+				logger?.info(
+					`[event-buffer] ${events.length}件のイベントを即時消費 (hints=${JSON.stringify(countValues(hints))})`,
+				);
 				return buildResponseContent(events);
 			}
 
@@ -357,8 +394,13 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			const deadline = Date.now() + timeout_seconds * 1000;
 			const result = await pollEvents(db, agentId, deadline, { onPoll });
 			if (result === null) {
+				logger?.debug(`[event-buffer] タイムアウト (${timeout_seconds}s)`);
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
 			}
+			const hints = result.map((e) => (isErrorEvent(e) ? "error" : classifyActionHint(e)));
+			logger?.info(
+				`[event-buffer] ${result.length}件のイベントをポーリング消費 (hints=${JSON.stringify(countValues(hints))})`,
+			);
 			return buildResponseContent(result);
 		},
 	);
