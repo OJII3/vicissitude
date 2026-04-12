@@ -24,6 +24,8 @@ const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 /** MCP プロセスが書き込むハートビートを読み取るポート */
 export interface HeartbeatReader {
 	getLastSeenAt(agentId: string): number | undefined;
+	/** MCP 側からのローテーション要求を消費する。要求があればタイムスタンプを返し、DB 側はリセットする */
+	consumeRotationRequest?(agentId: string): number | null;
 }
 
 export interface RunnerDeps {
@@ -142,6 +144,22 @@ export class AgentRunner implements AiAgent {
 				this.requestSessionRotation().catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
+						err,
+					);
+				});
+				return;
+			}
+
+			// MCP 側からのローテーション要求をチェック（respond スキップ閾値超過時に書き込まれる）
+			const rotationTs = this.heartbeatReader?.consumeRotationRequest?.(this.agentId) ?? null;
+			if (rotationTs !== null) {
+				this.logger.warn(
+					`[${this.profile.name}:${this.agentId}] MCP respond-skip rotation request detected (requested at ${rotationTs}), rotating session`,
+				);
+				this.lastWaitForEventsAt = Date.now();
+				this.requestSessionRotation().catch((err) => {
+					this.logger.error(
+						`[${this.profile.name}:${this.agentId}] respond-skip recovery rotation failed`,
 						err,
 					);
 				});

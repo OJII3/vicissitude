@@ -7,7 +7,7 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
-import { getHeartbeat } from "@vicissitude/store/queries";
+import { consumeRotationRequest, getHeartbeat } from "@vicissitude/store/queries";
 
 import { mcpServerConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
@@ -55,7 +55,10 @@ export class DiscordAgent extends AgentRunner {
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,
 			summaryWriter: deps.summaryWriter,
-			heartbeatReader: { getLastSeenAt: (id) => getHeartbeat(deps.db, id) },
+			heartbeatReader: {
+				getLastSeenAt: (id) => getHeartbeat(deps.db, id),
+				consumeRotationRequest: (id) => consumeRotationRequest(deps.db, id),
+			},
 		});
 	}
 }
