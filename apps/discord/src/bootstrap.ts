@@ -670,7 +670,7 @@ export async function bootstrap(): Promise<void> {
 	const shutdown = async () => {
 		if (shuttingDown) return;
 		shuttingDown = true;
-		logger.info("Shutting down...");
+		logger.info("[bootstrap] Shutting down...");
 		// Force exit after 5 seconds if graceful shutdown hangs
 		const forceTimer = setTimeout(() => process.exit(1), 5000);
 		try {
@@ -692,7 +692,7 @@ export async function bootstrap(): Promise<void> {
 			mcProcess?.kill();
 			closeDb(db);
 		} catch (err) {
-			logger.error("Error during shutdown:", err);
+			logger.error("[bootstrap] Error during shutdown:", err);
 		}
 		clearTimeout(forceTimer);
 		process.exit(0);
