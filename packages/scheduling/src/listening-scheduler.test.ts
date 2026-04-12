@@ -154,7 +154,7 @@ describe("ListeningScheduler — 再入防止", () => {
 
 		// 2 回目は即座に return
 		await second;
-		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("前回の実行がまだ進行中"));
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("previous tick still running"));
 
 		resolveSend({ text: "", sessionId: "listening" });
 		await first;

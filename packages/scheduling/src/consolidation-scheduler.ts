@@ -24,7 +24,9 @@ export class ConsolidationScheduler {
 
 	start(): void {
 		if (this.timer || this.initialTimer) return;
-		this.logger.info("[memory-consolidation] スケジューラ開始（30分間隔、初回5分後）");
+		this.logger.info(
+			"[memory-consolidation] scheduler started (30min interval, first tick in 5min)",
+		);
 		this.initialTimer = setTimeout(() => {
 			this.initialTimer = null;
 			void this.tick();
@@ -44,12 +46,12 @@ export class ConsolidationScheduler {
 		if (this.executePromise) {
 			await this.executePromise.catch(() => {});
 		}
-		this.logger.info("[memory-consolidation] スケジューラ停止");
+		this.logger.info("[memory-consolidation] scheduler stopped");
 	}
 
 	private async tick(): Promise<void> {
 		if (this.running) {
-			this.logger.info("[memory-consolidation] 前回の実行がまだ進行中、スキップ");
+			this.logger.info("[memory-consolidation] previous tick still running, skipping");
 			return;
 		}
 
@@ -66,7 +68,7 @@ export class ConsolidationScheduler {
 			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "success" });
 		} catch (error) {
 			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "error" });
-			this.logger.error("[memory-consolidation] tick エラー:", error);
+			this.logger.error("[memory-consolidation] tick error:", error);
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.MEMORY_CONSOLIDATION_TICK_DURATION, duration);
@@ -90,7 +92,7 @@ export class ConsolidationScheduler {
 	private async executeConsolidation(): Promise<void> {
 		const namespaces = this.consolidator.getActiveNamespaces();
 		if (namespaces.length === 0) {
-			this.logger.info("[memory-consolidation] アクティブな namespace なし、スキップ");
+			this.logger.info("[memory-consolidation] no active namespaces, skipping");
 			return;
 		}
 
