@@ -119,31 +119,30 @@ export function getHeartbeat(db: StoreDb, agentId: string): number | undefined {
 	return row?.lastSeenAt;
 }
 
-/** MCP 側からセッションローテーションを要求する */
+/** MCP 側からセッションローテーションを要求する。行が存在しない場合は no-op（touchHeartbeat で先に作成されている前提） */
 export function requestRotation(db: StoreDb, agentId: string): void {
 	const now = Date.now();
-	db.insert(agentHeartbeat)
-		.values({ agentId, lastSeenAt: now, rotationRequestedAt: now })
-		.onConflictDoUpdate({
-			target: agentHeartbeat.agentId,
-			set: { rotationRequestedAt: now },
-		})
+	db.update(agentHeartbeat)
+		.set({ rotationRequestedAt: now })
+		.where(eq(agentHeartbeat.agentId, agentId))
 		.run();
 }
 
 /** ローテーション要求を消費する。要求があった場合はタイムスタンプを返し 0 にリセットする */
 export function consumeRotationRequest(db: StoreDb, agentId: string): number | null {
-	const row = db
-		.select({ rotationRequestedAt: agentHeartbeat.rotationRequestedAt })
-		.from(agentHeartbeat)
-		.where(eq(agentHeartbeat.agentId, agentId))
-		.get();
-	if (!row || row.rotationRequestedAt === 0) return null;
-	db.update(agentHeartbeat)
-		.set({ rotationRequestedAt: 0 })
-		.where(eq(agentHeartbeat.agentId, agentId))
-		.run();
-	return row.rotationRequestedAt;
+	return db.transaction((tx) => {
+		const row = tx
+			.select({ rotationRequestedAt: agentHeartbeat.rotationRequestedAt })
+			.from(agentHeartbeat)
+			.where(eq(agentHeartbeat.agentId, agentId))
+			.get();
+		if (!row || row.rotationRequestedAt === 0) return null;
+		tx.update(agentHeartbeat)
+			.set({ rotationRequestedAt: 0 })
+			.where(eq(agentHeartbeat.agentId, agentId))
+			.run();
+		return row.rotationRequestedAt;
+	});
 }
 
 /** 使用頻度トップ N の絵文字を返す */

@@ -4,7 +4,12 @@ import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment, Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { consumeEvents, hasEvents, requestRotation, touchHeartbeat } from "@vicissitude/store/queries";
+import {
+	consumeEvents,
+	hasEvents,
+	requestRotation,
+	touchHeartbeat,
+} from "@vicissitude/store/queries";
 import { z } from "zod";
 
 export interface RecentMessage {
@@ -420,7 +425,11 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 						logger?.error(
 							`[event-buffer] 連続respondスキップが閾値(${RESPOND_SKIP_ROTATION_THRESHOLD})に達しました。セッションローテーションを要求します`,
 						);
-						requestRotation(db, agentId);
+						try {
+							requestRotation(db, agentId);
+						} catch (err) {
+							logger?.error("[event-buffer] requestRotation failed", err);
+						}
 					}
 				} else if (skipTracker.consecutiveSkips >= 3) {
 					logger?.warn(msg);

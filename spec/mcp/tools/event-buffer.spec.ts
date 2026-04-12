@@ -220,9 +220,7 @@ describe("highestPriorityHint", () => {
 	});
 
 	test("respond がなく optional があれば optional を返す", () => {
-		const events = [
-			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
-		];
+		const events = [{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" }];
 		expect(highestPriorityHint(events)).toBe("optional");
 	});
 
