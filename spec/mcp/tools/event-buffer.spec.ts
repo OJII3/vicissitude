@@ -8,6 +8,7 @@ import {
 	formatEventMetadata,
 	formatEvents,
 	formatRecentMessages,
+	highestPriorityHint,
 	isErrorEvent,
 	parseEvents,
 	pollEvents,
@@ -199,6 +200,49 @@ describe("classifyActionHint", () => {
 			metadata: { isMentioned: true },
 		};
 		expect(classifyActionHint(event)).toBe("internal");
+	});
+});
+
+describe("highestPriorityHint", () => {
+	test("respond が1つでもあれば respond を返す", () => {
+		const events = [
+			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
+			{
+				ts: "t",
+				content: "b",
+				authorId: "u2",
+				authorName: "B",
+				messageId: "m2",
+				metadata: { isMentioned: true },
+			},
+		];
+		expect(highestPriorityHint(events)).toBe("respond");
+	});
+
+	test("respond がなく optional があれば optional を返す", () => {
+		const events = [
+			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
+		];
+		expect(highestPriorityHint(events)).toBe("optional");
+	});
+
+	test("internal のみなら internal を返す", () => {
+		const events = [
+			{ ts: "t", content: "sys", authorId: "system", authorName: "system", messageId: "s1" },
+		];
+		expect(highestPriorityHint(events)).toBe("internal");
+	});
+
+	test("空配列なら internal を返す", () => {
+		expect(highestPriorityHint([])).toBe("internal");
+	});
+
+	test("エラーイベントは無視して残りから判定する", () => {
+		const events = [
+			{ _raw: "broken", _error: "invalid JSON" },
+			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
+		];
+		expect(highestPriorityHint(events)).toBe("optional");
 	});
 });
 
@@ -650,7 +694,7 @@ describe("createSkipTracker", () => {
 
 	test("markPending() で true にした後、markResponded() で false に戻る", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		expect(tracker.pendingResponse).toBe(true);
 
 		tracker.markResponded();
@@ -659,7 +703,7 @@ describe("createSkipTracker", () => {
 
 	test("markResponded() を連続で呼んでも pendingResponse は false のまま", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markResponded();
 		tracker.markResponded();
 		expect(tracker.pendingResponse).toBe(false);
@@ -683,13 +727,13 @@ describe("createSkipTracker", () => {
 
 	test("markPending() で pendingSince が 0 より大きい値にセットされる", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		expect(tracker.pendingSince).toBeGreaterThan(0);
 	});
 
 	test("markSkipped() で consecutiveSkips がインクリメントされ、pendingResponse が false になる", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		expect(tracker.pendingResponse).toBe(true);
 
 		tracker.markSkipped();
@@ -700,15 +744,15 @@ describe("createSkipTracker", () => {
 	test("markSkipped() → markSkipped() の連続呼び出しでカウントが累積する", () => {
 		const tracker = createSkipTracker();
 
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markSkipped();
 		expect(tracker.consecutiveSkips).toBe(1);
 
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markSkipped();
 		expect(tracker.consecutiveSkips).toBe(2);
 
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markSkipped();
 		expect(tracker.consecutiveSkips).toBe(3);
 	});
@@ -716,20 +760,20 @@ describe("createSkipTracker", () => {
 	test("markResponded() が consecutiveSkips を 0 にリセットする", () => {
 		const tracker = createSkipTracker();
 
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markSkipped();
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markSkipped();
 		expect(tracker.consecutiveSkips).toBe(2);
 
-		tracker.markPending();
+		tracker.markPending("optional");
 		tracker.markResponded();
 		expect(tracker.consecutiveSkips).toBe(0);
 	});
 
 	test("markSkipped() で pendingSince が 0 にリセットされる", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		expect(tracker.pendingSince).toBeGreaterThan(0);
 
 		tracker.markSkipped();
@@ -738,11 +782,77 @@ describe("createSkipTracker", () => {
 
 	test("markResponded() で pendingSince が 0 にリセットされる", () => {
 		const tracker = createSkipTracker();
-		tracker.markPending();
+		tracker.markPending("optional");
 		expect(tracker.pendingSince).toBeGreaterThan(0);
 
 		tracker.markResponded();
 		expect(tracker.pendingSince).toBe(0);
+	});
+
+	test("初期状態は consecutiveRespondSkips === 0", () => {
+		const tracker = createSkipTracker();
+		expect(tracker.consecutiveRespondSkips).toBe(0);
+	});
+
+	test("respond hint でスキップすると consecutiveRespondSkips がインクリメントされる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending("respond");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(1);
+		expect(tracker.consecutiveSkips).toBe(1);
+	});
+
+	test("optional hint でスキップしても consecutiveRespondSkips は増えない", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending("optional");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(0);
+		expect(tracker.consecutiveSkips).toBe(1);
+	});
+
+	test("respond → respond の連続スキップでカウントが累積する", () => {
+		const tracker = createSkipTracker();
+
+		tracker.markPending("respond");
+		tracker.markSkipped();
+		tracker.markPending("respond");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(2);
+	});
+
+	test("respond → optional のスキップでは consecutiveRespondSkips が累積しない", () => {
+		const tracker = createSkipTracker();
+
+		tracker.markPending("respond");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(1);
+
+		tracker.markPending("optional");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(1);
+		expect(tracker.consecutiveSkips).toBe(2);
+	});
+
+	test("markResponded() で consecutiveRespondSkips が 0 にリセットされる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending("respond");
+		tracker.markSkipped();
+		expect(tracker.consecutiveRespondSkips).toBe(1);
+
+		tracker.markPending("optional");
+		tracker.markResponded();
+		expect(tracker.consecutiveRespondSkips).toBe(0);
+	});
+
+	test("pendingHint は markPending に渡した値を反映する", () => {
+		const tracker = createSkipTracker();
+		expect(tracker.pendingHint).toBeNull();
+
+		tracker.markPending("respond");
+		expect(tracker.pendingHint).toBe("respond");
+
+		tracker.markSkipped();
+		expect(tracker.pendingHint).toBeNull();
 	});
 });
 
