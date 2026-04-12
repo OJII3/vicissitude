@@ -308,8 +308,6 @@ async function fetchRecentMessagesContext(
 	return { type: "text", text: context };
 }
 
-// ─── helpers ─────────────────────────────────────────────────────
-
 /** 文字列配列の各値の出現回数を返す */
 function countValues(values: string[]): Record<string, number> {
 	const counts: Record<string, number> = {};
@@ -365,10 +363,12 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			if (skipTracker?.pendingResponse) {
 				const elapsed = Date.now() - skipTracker.pendingSince;
 				skipTracker.markSkipped();
-				const level = skipTracker.consecutiveSkips >= 3 ? "warn" : "info";
-				logger?.[level](
-					`[event-buffer] 前回のイベントに対する応答がスキップされました (経過=${elapsed}ms, 連続スキップ=${skipTracker.consecutiveSkips}回)`,
-				);
+				const msg = `[event-buffer] 前回のイベントに対する応答がスキップされました (経過=${elapsed}ms, 連続スキップ=${skipTracker.consecutiveSkips}回)`;
+				if (skipTracker.consecutiveSkips >= 3) {
+					logger?.warn(msg);
+				} else {
+					logger?.info(msg);
+				}
 			}
 
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
