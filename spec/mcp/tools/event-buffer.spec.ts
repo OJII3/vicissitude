@@ -670,6 +670,80 @@ describe("createSkipTracker", () => {
 		expect(() => tracker.markResponded()).not.toThrow();
 		expect(tracker.pendingResponse).toBe(false);
 	});
+
+	test("初期状態は consecutiveSkips === 0", () => {
+		const tracker = createSkipTracker();
+		expect(tracker.consecutiveSkips).toBe(0);
+	});
+
+	test("初期状態は pendingSince === 0", () => {
+		const tracker = createSkipTracker();
+		expect(tracker.pendingSince).toBe(0);
+	});
+
+	test("markPending() で pendingSince が 0 より大きい値にセットされる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending();
+		expect(tracker.pendingSince).toBeGreaterThan(0);
+	});
+
+	test("markSkipped() で consecutiveSkips がインクリメントされ、pendingResponse が false になる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending();
+		expect(tracker.pendingResponse).toBe(true);
+
+		tracker.markSkipped();
+		expect(tracker.consecutiveSkips).toBe(1);
+		expect(tracker.pendingResponse).toBe(false);
+	});
+
+	test("markSkipped() → markSkipped() の連続呼び出しでカウントが累積する", () => {
+		const tracker = createSkipTracker();
+
+		tracker.markPending();
+		tracker.markSkipped();
+		expect(tracker.consecutiveSkips).toBe(1);
+
+		tracker.markPending();
+		tracker.markSkipped();
+		expect(tracker.consecutiveSkips).toBe(2);
+
+		tracker.markPending();
+		tracker.markSkipped();
+		expect(tracker.consecutiveSkips).toBe(3);
+	});
+
+	test("markResponded() が consecutiveSkips を 0 にリセットする", () => {
+		const tracker = createSkipTracker();
+
+		tracker.markPending();
+		tracker.markSkipped();
+		tracker.markPending();
+		tracker.markSkipped();
+		expect(tracker.consecutiveSkips).toBe(2);
+
+		tracker.markPending();
+		tracker.markResponded();
+		expect(tracker.consecutiveSkips).toBe(0);
+	});
+
+	test("markSkipped() で pendingSince が 0 にリセットされる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending();
+		expect(tracker.pendingSince).toBeGreaterThan(0);
+
+		tracker.markSkipped();
+		expect(tracker.pendingSince).toBe(0);
+	});
+
+	test("markResponded() で pendingSince が 0 にリセットされる", () => {
+		const tracker = createSkipTracker();
+		tracker.markPending();
+		expect(tracker.pendingSince).toBeGreaterThan(0);
+
+		tracker.markResponded();
+		expect(tracker.pendingSince).toBe(0);
+	});
 });
 
 describe("pollEvents", () => {
