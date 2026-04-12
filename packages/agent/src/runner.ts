@@ -164,6 +164,9 @@ export class AgentRunner implements AiAgent {
 				await this.ensureSessionStarted(signal);
 				if (!this.sessionWatch) {
 					if (signal.aborted) return;
+					this.logger.warn(
+						`[${this.profile.name}:${this.agentId}] ensureSessionStarted returned without sessionWatch (not aborted)`,
+					);
 					continue;
 				}
 
@@ -171,9 +174,15 @@ export class AgentRunner implements AiAgent {
 				// sessionWatch は通常返らない。返るのは session.error / session.compacted /
 				// signal abort / stream タイムアウト（5分間イベントなし）のいずれか。
 				// セッションの異常検知は hang detection timer (startHangDetectionTimer) が担う。
+				this.logger.info(
+					`[${this.profile.name}:${this.agentId}] sessionWatch started, waiting for session end event...`,
+				);
 				// eslint-disable-next-line no-await-in-loop -- monitor the active session until it ends
 				const event = await this.sessionWatch;
 				this.sessionWatch = null;
+				this.logger.info(
+					`[${this.profile.name}:${this.agentId}] sessionWatch resolved: type=${event.type}${event.type === "error" ? ` message=${event.message}` : ""}`,
+				);
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") return;
@@ -220,6 +229,9 @@ export class AgentRunner implements AiAgent {
 			this.lastRotationRequestAt &&
 			now - this.lastRotationRequestAt < this.minRotationIntervalMs
 		) {
+			this.logger.debug(
+				`[${this.profile.name}:${this.agentId}] session rotation throttled (${now - this.lastRotationRequestAt}ms since last)`,
+			);
 			return;
 		}
 		this.lastRotationRequestAt = now;
@@ -291,19 +303,31 @@ export class AgentRunner implements AiAgent {
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
 		if (this.hasStartedSession && this.profile.restartPolicy === "immediate") {
-			this.logger.info(`[${this.profile.name}:${this.agentId}] restarting long-lived session`);
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] restarting long-lived session (restartPolicy=immediate)`,
+			);
 			await this.startLongLivedSession(signal);
 			return;
 		}
 
-		this.logger.info(`[${this.profile.name}:${this.agentId}] waiting for events...`);
+		this.logger.info(
+			`[${this.profile.name}:${this.agentId}] waiting for events... (hasStartedSession=${this.hasStartedSession}, restartPolicy=${this.profile.restartPolicy})`,
+		);
 		this.lastWaitForEventsAt = Date.now();
 		await this.eventBuffer.waitForEvents(signal);
 		this.lastWaitForEventsAt = Date.now();
-		if (signal.aborted) return;
+		if (signal.aborted) {
+			this.logger.info(`[${this.profile.name}:${this.agentId}] waitForEvents aborted`);
+			return;
+		}
 		this.logger.info(`[${this.profile.name}:${this.agentId}] events detected, starting session`);
 		await this.startLongLivedSession(signal);
-		if (signal.aborted || !this.sessionWatch) return;
+		if (signal.aborted || !this.sessionWatch) {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] startLongLivedSession failed (aborted=${signal.aborted}, sessionWatch=${!!this.sessionWatch})`,
+			);
+			return;
+		}
 		this.hasStartedSession = true;
 	}
 

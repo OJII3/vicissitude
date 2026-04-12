@@ -12,6 +12,9 @@ export class SqliteEventBuffer implements EventBuffer {
 
 	append(event: BufferedEvent): void {
 		appendEvent(this.db, this.agentId, JSON.stringify(event));
+		this.logger?.debug(
+			`[event-buffer:${this.agentId}] append: author=${event.authorName} content=${event.content.slice(0, 80)}`,
+		);
 	}
 
 	waitForEvents(signal: AbortSignal): Promise<void> {
