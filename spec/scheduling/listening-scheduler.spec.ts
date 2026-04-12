@@ -188,7 +188,7 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 		await second;
 		expect(logger.info).toHaveBeenCalledWith(
-			expect.stringContaining("前回の実行がまだ進行中、スキップ"),
+			expect.stringContaining("previous tick still running, skipping"),
 		);
 
 		resolveSend({ text: "NOW_PLAYING: x - y", sessionId: "listening" });

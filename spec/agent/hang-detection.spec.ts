@@ -380,6 +380,140 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 		});
 	});
 
+	describe("heartbeatReader.consumeRotationRequest によるローテーション要求検知", () => {
+		test("getLastSeenAt が alive でも consumeRotationRequest が非 null ならローテーションが発生する", async () => {
+			const rotationSpy = mock(() => Promise.resolve());
+			const sessionStore = createSessionStore("existing-session-id");
+
+			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+			const sessionPort = createSimpleSessionPort();
+
+			// heartbeatReader: alive だがローテーション要求あり
+			let rotationConsumed = false;
+			const heartbeatReader = {
+				getLastSeenAt: mock(() => Date.now()),
+				consumeRotationRequest: mock(() => {
+					if (!rotationConsumed) {
+						rotationConsumed = true;
+						return Date.now();
+					}
+					return null;
+				}),
+			};
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "agent-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				hangTimeoutMs: 100,
+				heartbeatReader,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.requestSessionRotation = rotationSpy;
+			runner.ensurePolling();
+
+			await Bun.sleep(250);
+
+			// alive なのでハング検知はされないが、consumeRotationRequest 経由でローテーションが発生する
+			expect(rotationSpy).toHaveBeenCalledTimes(1);
+			expect(heartbeatReader.consumeRotationRequest).toHaveBeenCalled();
+
+			runner.stop();
+		});
+
+		test("consumeRotationRequest 消費後は再度ローテーションが発生しない", async () => {
+			const rotationSpy = mock(() => Promise.resolve());
+			const sessionStore = createSessionStore("existing-session-id");
+
+			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+			const sessionPort = createSimpleSessionPort();
+
+			// 1 回だけ要求を返し、以降は null
+			let consumed = false;
+			const heartbeatReader = {
+				getLastSeenAt: mock(() => Date.now()),
+				consumeRotationRequest: mock(() => {
+					if (!consumed) {
+						consumed = true;
+						return Date.now();
+					}
+					return null;
+				}),
+			};
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "agent-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				hangTimeoutMs: 100,
+				heartbeatReader,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.requestSessionRotation = rotationSpy;
+			runner.ensurePolling();
+
+			// 十分待って複数回 interval が発火する
+			await Bun.sleep(250);
+
+			// 消費型なので 1 回だけローテーションが発生する
+			expect(rotationSpy).toHaveBeenCalledTimes(1);
+
+			runner.stop();
+		});
+
+		test("consumeRotationRequest が未実装（undefined）の場合、ローテーションは発生しない", async () => {
+			const rotationSpy = mock(() => Promise.resolve());
+			const sessionStore = createSessionStore("existing-session-id");
+
+			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+			const sessionPort = createSimpleSessionPort();
+
+			// consumeRotationRequest を持たない heartbeatReader
+			const heartbeatReader = {
+				getLastSeenAt: mock(() => Date.now()),
+			};
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "agent-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				hangTimeoutMs: 100,
+				heartbeatReader,
+			});
+			runner.sleepSpy = () => Promise.resolve();
+			activeRunners.add(runner);
+
+			runner.requestSessionRotation = rotationSpy;
+			runner.ensurePolling();
+
+			await Bun.sleep(250);
+
+			// heartbeat は alive、consumeRotationRequest は undefined なのでローテーションは発生しない
+			expect(rotationSpy).not.toHaveBeenCalled();
+
+			runner.stop();
+		});
+	});
+
 	describe("RunnerDeps の hangTimeoutMs 設定", () => {
 		test("hangTimeoutMs を明示的に設定できる", () => {
 			const sessionStore = createSessionStore();

@@ -35,7 +35,7 @@ describe("ConsolidationScheduler", () => {
 
 		expect(consolidator.consolidate).not.toHaveBeenCalled();
 		expect(logger.info).toHaveBeenCalledWith(
-			expect.stringContaining("アクティブな namespace なし"),
+			expect.stringContaining("no active namespaces, skipping"),
 		);
 	});
 
@@ -131,7 +131,7 @@ describe("ConsolidationScheduler", () => {
 		// 2 回目は即座に完了し、スキップログが出る
 		await second;
 		expect(logger.info).toHaveBeenCalledWith(
-			expect.stringContaining("前回の実行がまだ進行中、スキップ"),
+			expect.stringContaining("previous tick still running, skipping"),
 		);
 
 		// 1 回目を完了させる
@@ -172,6 +172,6 @@ describe("ConsolidationScheduler", () => {
 		await tickPromise;
 		await stopPromise;
 
-		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("スケジューラ停止"));
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("scheduler stopped"));
 	});
 });
