@@ -4,12 +4,12 @@ import { bootstrap } from "./bootstrap.ts";
 
 const logger = new ConsoleLogger();
 
-logger.info("Starting Vicissitude...");
+logger.info("[app] Starting Vicissitude...");
 
 try {
 	await bootstrap();
-	logger.info("Vicissitude is running.");
+	logger.info("[app] Vicissitude is running.");
 } catch (error) {
-	logger.error("Failed to start:", error);
+	logger.error("[app] Failed to start:", error);
 	process.exit(1);
 }

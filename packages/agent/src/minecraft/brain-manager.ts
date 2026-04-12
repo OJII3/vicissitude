@@ -45,12 +45,14 @@ export class McBrainManager {
 		clearSessionLock(this.deps.db);
 		this.pollCount = 0;
 		this.schedulePoll();
-		this.deps.logger.info(`[McBrainManager] lifecycle polling started (interval=${this.pollMs}ms)`);
+		this.deps.logger.info(
+			`[mc-brain-manager] lifecycle polling started (interval=${this.pollMs}ms)`,
+		);
 	}
 
 	stop(): void {
 		if (this.pollTimer) {
-			this.deps.logger.info("[McBrainManager] stopping lifecycle polling");
+			this.deps.logger.info("[mc-brain-manager] stopping lifecycle polling");
 			clearTimeout(this.pollTimer);
 			this.pollTimer = undefined;
 		}
@@ -64,7 +66,7 @@ export class McBrainManager {
 			if (this.pollCount % 30 === 0) {
 				const agentState = this.agent ? "running" : "idle";
 				this.deps.logger.info(
-					`[McBrainManager] alive (polls=${this.pollCount}, agent=${agentState})`,
+					`[mc-brain-manager] alive (polls=${this.pollCount}, agent=${agentState})`,
 				);
 			}
 			this.checkLifecycleState();
@@ -98,7 +100,7 @@ export class McBrainManager {
 		};
 		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(bootstrapEvent));
 		this.agent.ensurePolling();
-		logger.info("[McBrainManager] minecraft brain started");
+		logger.info("[mc-brain-manager] minecraft brain started");
 	}
 
 	private stopAgent(): void {
@@ -106,7 +108,7 @@ export class McBrainManager {
 		this.stopping = true;
 		this.agent.stop();
 		this.agent = undefined;
-		this.deps.logger.info("[McBrainManager] minecraft brain stopped");
+		this.deps.logger.info("[mc-brain-manager] minecraft brain stopped");
 		this.stopping = false;
 	}
 
@@ -116,14 +118,14 @@ export class McBrainManager {
 		try {
 			const lockActive = hasSessionLock(this.deps.db);
 			if (lockActive && !this.agent) {
-				this.deps.logger.info("[McBrainManager] session lock detected, starting agent");
+				this.deps.logger.info("[mc-brain-manager] session lock detected, starting agent");
 				this.createAgent();
 			} else if (!lockActive && this.agent) {
-				this.deps.logger.info("[McBrainManager] session lock released, stopping agent");
+				this.deps.logger.info("[mc-brain-manager] session lock released, stopping agent");
 				this.stopAgent();
 			}
 		} catch (err) {
-			this.deps.logger.error("[McBrainManager] lifecycle check error", err);
+			this.deps.logger.error("[mc-brain-manager] lifecycle check error", err);
 		}
 	}
 }

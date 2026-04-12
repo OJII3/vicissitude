@@ -69,7 +69,7 @@ export class DiscordGateway {
 		});
 
 		client.once(Events.ClientReady, (readyClient) => {
-			this.logger.info(`Logged in as ${readyClient.user.tag}`);
+			this.logger.info(`[discord] Logged in as ${readyClient.user.tag}`);
 		});
 
 		this.registerMessageHandler(client);
