@@ -3,15 +3,14 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
 import type { AgentResponse, AiAgent } from "@vicissitude/shared/types";
 
+import type { NowPlayingReader } from "./listening-scheduler.ts";
 import { ListeningScheduler } from "./listening-scheduler.ts";
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-function createMockAgent(responseText = "NOW_PLAYING: 夜に駆ける - YOASOBI"): AiAgent {
+function createMockAgent(): AiAgent {
 	return {
-		send: mock(
-			(): Promise<AgentResponse> => Promise.resolve({ text: responseText, sessionId: "listening" }),
-		),
+		send: mock((): Promise<AgentResponse> => Promise.resolve({ text: "", sessionId: "listening" })),
 		stop: mock(() => {}),
 	};
 }
@@ -25,6 +24,16 @@ function createMockPresence(): MockPresence {
 	return {
 		setListeningActivity: mock((_: string) => {}),
 		clearActivity: mock(() => {}),
+	};
+}
+
+function createMockNowPlayingReader(entries: { trackName: string }[] = []): NowPlayingReader {
+	let idx = 0;
+	return {
+		consume: mock(() => {
+			if (idx < entries.length) return entries[idx++] ?? null;
+			return null;
+		}),
 	};
 }
 
@@ -45,7 +54,7 @@ describe("ListeningScheduler — timer 管理", () => {
 		globalThis.clearInterval = originalClearInterval;
 	});
 
-	test("start() で setInterval が呼ばれる", () => {
+	test("start() で setInterval が呼ばれる（tick + nowPlaying poller）", () => {
 		const setIntervalMock = mock(
 			(..._args: unknown[]) => 42 as unknown as ReturnType<typeof setInterval>,
 		);
@@ -54,38 +63,72 @@ describe("ListeningScheduler — timer 管理", () => {
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 		scheduler.start();
 
-		expect(setIntervalMock).toHaveBeenCalledTimes(1);
-		// interval = 240_000 ms
-		expect(setIntervalMock.mock.calls[0]?.[1]).toBe(240_000);
+		expect(setIntervalMock).toHaveBeenCalledTimes(2);
+		// tick interval = 240_000 ms
+		const intervals = setIntervalMock.mock.calls.map((c) => c[1]);
+		expect(intervals).toContain(240_000);
+		// now_playing poll interval = 10_000 ms
+		expect(intervals).toContain(10_000);
 
 		void scheduler.stop();
 	});
 
 	test("stop() で clearInterval が呼ばれる", async () => {
-		const timerId = 999 as unknown as ReturnType<typeof setInterval>;
-		globalThis.setInterval = mock(() => timerId) as unknown as typeof setInterval;
+		const timerId1 = 998 as unknown as ReturnType<typeof setInterval>;
+		const timerId2 = 999 as unknown as ReturnType<typeof setInterval>;
+		let callCount = 0;
+		globalThis.setInterval = mock(() => {
+			callCount++;
+			return callCount === 1 ? timerId1 : timerId2;
+		}) as unknown as typeof setInterval;
 		const clearIntervalMock = mock((_id: unknown) => {});
 		globalThis.clearInterval = clearIntervalMock as unknown as typeof clearInterval;
 
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 		scheduler.start();
 		await scheduler.stop();
 
-		expect(clearIntervalMock).toHaveBeenCalledTimes(1);
-		expect(clearIntervalMock.mock.calls[0]?.[0]).toBe(timerId);
+		expect(clearIntervalMock).toHaveBeenCalledTimes(2);
 	});
 
-	test("start() の冪等性: 2 回呼んでも setInterval は 1 回だけ", () => {
+	test("stop() 後に再度 stop() しても clearInterval は追加で呼ばれない", async () => {
+		const timerId1 = 998 as unknown as ReturnType<typeof setInterval>;
+		const timerId2 = 999 as unknown as ReturnType<typeof setInterval>;
+		let callCount = 0;
+		globalThis.setInterval = mock(() => {
+			callCount++;
+			return callCount === 1 ? timerId1 : timerId2;
+		}) as unknown as typeof setInterval;
+		const clearIntervalMock = mock((_id: unknown) => {});
+		globalThis.clearInterval = clearIntervalMock as unknown as typeof clearInterval;
+
+		const scheduler = new ListeningScheduler({
+			agent: createMockAgent(),
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: fixedDecision(false),
+		});
+		scheduler.start();
+		await scheduler.stop();
+		await scheduler.stop();
+
+		expect(clearIntervalMock).toHaveBeenCalledTimes(2);
+	});
+
+	test("start() の冪等性: 2 回呼んでも setInterval は 2 回だけ（tick + poller）", () => {
 		const setIntervalMock = mock(
 			(..._args: unknown[]) => 42 as unknown as ReturnType<typeof setInterval>,
 		);
@@ -94,34 +137,16 @@ describe("ListeningScheduler — timer 管理", () => {
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 		scheduler.start();
 		scheduler.start();
 
-		expect(setIntervalMock).toHaveBeenCalledTimes(1);
+		expect(setIntervalMock).toHaveBeenCalledTimes(2);
 
 		void scheduler.stop();
-	});
-
-	test("stop() 後の timer 解除: timer が null になり再度 stop() しても clearInterval は呼ばれない", async () => {
-		const timerId = 42 as unknown as ReturnType<typeof setInterval>;
-		globalThis.setInterval = mock(() => timerId) as unknown as typeof setInterval;
-		const clearIntervalMock = mock((_id: unknown) => {});
-		globalThis.clearInterval = clearIntervalMock as unknown as typeof clearInterval;
-
-		const scheduler = new ListeningScheduler({
-			agent: createMockAgent(),
-			presence: createMockPresence(),
-			logger: createMockLogger(),
-			shouldStart: fixedDecision(false),
-		});
-		scheduler.start();
-		await scheduler.stop();
-		await scheduler.stop();
-
-		expect(clearIntervalMock).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -144,6 +169,7 @@ describe("ListeningScheduler — 再入防止", () => {
 		const scheduler = new ListeningScheduler({
 			agent,
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger,
 			shouldStart: fixedDecision(true),
 		});
@@ -165,118 +191,76 @@ describe("ListeningScheduler — 再入防止", () => {
 	});
 });
 
-// ─── NOW_PLAYING 正規表現のパースエッジケース ────────────────────
+// ─── nowPlaying ポーリング ─────────────────────────────────────
 
-describe("ListeningScheduler — NOW_PLAYING パース", () => {
-	test("NOW_PLAYING: 無し → presence 未更新", async () => {
-		const agent = createMockAgent("感想を書きました。特に良い曲でした。");
+describe("ListeningScheduler — nowPlaying ポーリング", () => {
+	test("pollNowPlaying で consume の結果を presence に反映する", () => {
 		const presence = createMockPresence();
+		const reader = createMockNowPlayingReader([{ trackName: "Lemon - 米津玄師" }]);
 
 		const scheduler = new ListeningScheduler({
-			agent,
+			agent: createMockAgent(),
 			presence,
+			nowPlayingReader: reader,
 			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
+			shouldStart: fixedDecision(false),
 		});
-		await (scheduler as unknown as TickFn).tick();
 
-		expect(presence.setListeningActivity).not.toHaveBeenCalled();
-	});
-
-	test("空行のみ → presence 未更新", async () => {
-		const agent = createMockAgent("\n\n\n");
-		const presence = createMockPresence();
-
-		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
-		});
-		await (scheduler as unknown as TickFn).tick();
-
-		expect(presence.setListeningActivity).not.toHaveBeenCalled();
-	});
-
-	test("複数行の中に NOW_PLAYING がある → 正しく抽出", async () => {
-		const text = [
-			"良い曲を見つけました。",
-			"歌詞も素晴らしかったです。",
-			"NOW_PLAYING: Lemon - 米津玄師",
-		].join("\n");
-		const agent = createMockAgent(text);
-		const presence = createMockPresence();
-
-		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
-		});
-		await (scheduler as unknown as TickFn).tick();
+		// pollNowPlaying is private, call it via tick-independent path
+		(scheduler as unknown as { pollNowPlaying(): void }).pollNowPlaying();
 
 		expect(presence.setListeningActivity).toHaveBeenCalledWith("Lemon - 米津玄師");
 	});
 
-	test("特殊文字を含む曲名 → そのまま抽出", async () => {
-		const agent = createMockAgent("NOW_PLAYING: A/B (feat. C&D) [Remix] - E×F");
+	test("consume が null → presence 未更新", () => {
 		const presence = createMockPresence();
+		const reader = createMockNowPlayingReader([]);
 
 		const scheduler = new ListeningScheduler({
-			agent,
+			agent: createMockAgent(),
 			presence,
+			nowPlayingReader: reader,
 			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
+			shouldStart: fixedDecision(false),
 		});
-		await (scheduler as unknown as TickFn).tick();
 
-		expect(presence.setListeningActivity).toHaveBeenCalledWith("A/B (feat. C&D) [Remix] - E×F");
-	});
+		(scheduler as unknown as { pollNowPlaying(): void }).pollNowPlaying();
 
-	test("NOW_PLAYING: の後にスペースが多い → trim される", async () => {
-		const agent = createMockAgent("NOW_PLAYING:   曲名 - アーティスト  ");
-		const presence = createMockPresence();
-
-		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
-		});
-		await (scheduler as unknown as TickFn).tick();
-
-		expect(presence.setListeningActivity).toHaveBeenCalledWith("曲名 - アーティスト");
-	});
-
-	test("NOW_PLAYING: のみ（曲名なし）→ presence 未更新", async () => {
-		const agent = createMockAgent("NOW_PLAYING:   ");
-		const presence = createMockPresence();
-
-		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger: createMockLogger(),
-			shouldStart: fixedDecision(true),
-		});
-		await (scheduler as unknown as TickFn).tick();
-
-		// 正規表現は " " にマッチするが trim() 後は空文字列 → setListeningActivity は呼ばれない
 		expect(presence.setListeningActivity).not.toHaveBeenCalled();
 	});
+});
 
-	test("行の途中に NOW_PLAYING がある → マッチする（$ は行末）", async () => {
-		const agent = createMockAgent("結果: NOW_PLAYING: Test - Artist\n終了");
-		const presence = createMockPresence();
+// ─── fire-and-forget send ─────────────────────────────────────
+
+describe("ListeningScheduler — executeTick (fire-and-forget)", () => {
+	test("shouldStart=true → agent.send が呼ばれる", async () => {
+		const agent = createMockAgent();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			shouldStart: fixedDecision(true),
 		});
 		await (scheduler as unknown as TickFn).tick();
 
-		expect(presence.setListeningActivity).toHaveBeenCalledWith("Test - Artist");
+		expect(agent.send).toHaveBeenCalledTimes(1);
+	});
+
+	test("shouldStart=false → agent.send は呼ばれない", async () => {
+		const agent = createMockAgent();
+
+		const scheduler = new ListeningScheduler({
+			agent,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: fixedDecision(false),
+		});
+		await (scheduler as unknown as TickFn).tick();
+
+		expect(agent.send).not.toHaveBeenCalled();
 	});
 });
 
@@ -289,6 +273,7 @@ describe("ListeningScheduler — metrics 記録", () => {
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			metrics,
 			shouldStart: fixedDecision(true),
@@ -312,6 +297,7 @@ describe("ListeningScheduler — metrics 記録", () => {
 		const scheduler = new ListeningScheduler({
 			agent,
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			metrics,
 			shouldStart: fixedDecision(true),
@@ -331,6 +317,7 @@ describe("ListeningScheduler — metrics 記録", () => {
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),
 			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger: createMockLogger(),
 			metrics,
 			shouldStart: fixedDecision(false),

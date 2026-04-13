@@ -9,9 +9,35 @@ export interface ListeningToolDeps {
 		impression: string;
 		listenedAt: Date;
 	}): Promise<void>;
+	setNowPlaying(trackName: string): void;
 }
 
 export function registerListeningTools(server: McpServer, deps: ListeningToolDeps): void {
+	server.registerTool(
+		"set_now_playing",
+		{
+			description: "Discord のプレゼンス表示（「〇〇を再生中」）を設定する。",
+			inputSchema: {
+				trackName: z.string().describe("「曲名 - アーティスト名」形式のトラック表示名"),
+			},
+		},
+		({ trackName }) => {
+			try {
+				deps.setNowPlaying(trackName);
+				return {
+					content: [{ type: "text" as const, text: `プレゼンスを設定しました: ${trackName}` }],
+				};
+			} catch (err) {
+				return {
+					content: [
+						{ type: "text" as const, text: `プレゼンス設定に失敗しました: ${String(err)}` },
+					],
+					isError: true,
+				};
+			}
+		},
+	);
+
 	server.registerTool(
 		"fetch_lyrics",
 		{

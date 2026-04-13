@@ -14,6 +14,7 @@ export const listeningStubs = {
 		impression: string;
 		listenedAt: Date;
 	}): Promise<void> => Promise.resolve(),
+	setNowPlaying: (_trackName: string): void => {},
 };
 
 // ─── captureListeningTools ──────────────────────────────────────
@@ -35,6 +36,7 @@ export async function captureListeningTools(): Promise<{
 	const deps: ListeningToolDeps = {
 		fetchLyrics: (title, artist) => listeningStubs.fetchLyrics(title, artist),
 		saveListening: (record) => listeningStubs.saveListening(record),
+		setNowPlaying: (trackName) => listeningStubs.setNowPlaying(trackName),
 	};
 
 	registerListeningTools(fakeServer, deps);
@@ -46,4 +48,5 @@ export async function captureListeningTools(): Promise<{
 export function resetListeningStubs(): void {
 	listeningStubs.fetchLyrics = () => Promise.resolve(null);
 	listeningStubs.saveListening = () => Promise.resolve();
+	listeningStubs.setNowPlaying = () => {};
 }

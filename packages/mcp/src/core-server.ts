@@ -24,6 +24,7 @@ import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
+import { setNowPlaying } from "@vicissitude/store/queries";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
@@ -246,6 +247,7 @@ function createServer(agentId: string | null): McpServer {
 							listenedAt: record.listenedAt,
 						});
 					},
+					setNowPlaying: (trackName) => setNowPlaying(db, trackName),
 				});
 			}
 		}

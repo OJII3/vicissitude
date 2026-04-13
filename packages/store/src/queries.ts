@@ -1,7 +1,7 @@
 import { desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
-import { agentHeartbeat, emojiUsage, eventBuffer, sessions } from "./schema.ts";
+import { agentHeartbeat, emojiUsage, eventBuffer, nowPlaying, sessions } from "./schema.ts";
 
 /** event_buffer から該当エージェントのイベントを取得して削除する（トランザクションでアトミック） */
 export function consumeEvents(
@@ -142,6 +142,27 @@ export function consumeRotationRequest(db: StoreDb, agentId: string): number | n
 			.where(eq(agentHeartbeat.agentId, agentId))
 			.run();
 		return row.rotationRequestedAt;
+	});
+}
+
+/** Now Playing を設定する（UPSERT、id=1 固定） */
+export function setNowPlaying(db: StoreDb, trackName: string): void {
+	db.insert(nowPlaying)
+		.values({ id: 1, trackName })
+		.onConflictDoUpdate({
+			target: nowPlaying.id,
+			set: { trackName },
+		})
+		.run();
+}
+
+/** Now Playing を消費する。未読の場合はトラック名を返し、行を削除する */
+export function consumeNowPlaying(db: StoreDb): { trackName: string } | null {
+	return db.transaction((tx) => {
+		const row = tx.select().from(nowPlaying).get();
+		if (!row) return null;
+		tx.delete(nowPlaying).run();
+		return { trackName: row.trackName };
 	});
 }
 

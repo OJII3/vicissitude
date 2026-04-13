@@ -10,14 +10,13 @@ const LISTENING_TICK_INTERVAL_MS = 240_000;
 const LISTENING_TICK_TIMEOUT_MS = 180_000;
 /** sessionKey 固定 */
 const LISTENING_SESSION_KEY = "listening";
-
-/** NOW_PLAYING: <曲名> - <アーティスト名> を抽出する正規表現 */
-const NOW_PLAYING_RE = /NOW_PLAYING:\s*(.+)$/m;
+/** now_playing ポーリング間隔 (10秒) */
+const NOW_PLAYING_POLL_INTERVAL_MS = 10_000;
 
 const LISTENING_PROMPT = [
 	"今から一曲選んで聴き、感想を書いて記録してください。",
 	"選曲には `spotify_pick_track`、歌詞は `fetch_lyrics`、感想は `save_listening_fact` を使ってください。",
-	"曲を選んだら、プレゼンス表示のために最後の行に `NOW_PLAYING: <曲名> - <アーティスト名>` の形式で出力してください。",
+	"曲を選んだら、`set_now_playing` でプレゼンス表示を設定してください。",
 ].join("\n");
 
 export interface ListeningPresencePort {
@@ -25,21 +24,29 @@ export interface ListeningPresencePort {
 	clearActivity(): void;
 }
 
+/** store から now_playing を消費するポート */
+export interface NowPlayingReader {
+	consume(): { trackName: string } | null;
+}
+
 export interface ListeningSchedulerDeps {
 	agent: AiAgent;
 	presence: ListeningPresencePort;
+	nowPlayingReader: NowPlayingReader;
 	logger: Logger;
 	metrics?: MetricsCollector;
-	/** テスト用: 確率判定の注入。未指定時はデフォルトの時間帯ベース判定 */
+	/** テスト用: 活動判定の注入。未指定時は活動時間帯（JST 7:00-翌2:00）判定 */
 	shouldStart?: () => boolean;
 }
 
 export class ListeningScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
+	private nowPlayingTimer: ReturnType<typeof setInterval> | null = null;
 	private running = false;
 	private executePromise: Promise<void> | null = null;
 	private readonly agent: AiAgent;
 	private readonly presence: ListeningPresencePort;
+	private readonly nowPlayingReader: NowPlayingReader;
 	private readonly logger: Logger;
 	private readonly metrics: MetricsCollector | undefined;
 	private readonly shouldStart: () => boolean;
@@ -47,15 +54,17 @@ export class ListeningScheduler {
 	constructor(deps: ListeningSchedulerDeps) {
 		this.agent = deps.agent;
 		this.presence = deps.presence;
+		this.nowPlayingReader = deps.nowPlayingReader;
 		this.logger = deps.logger;
 		this.metrics = deps.metrics;
-		this.shouldStart = deps.shouldStart ?? (() => shouldStartListening(new Date(), Math.random));
+		this.shouldStart = deps.shouldStart ?? (() => shouldStartListening(new Date()));
 	}
 
 	start(): void {
-		if (this.timer) return;
+		if (this.timer || this.nowPlayingTimer) return;
 		this.logger.info("[listening] scheduler started (4min interval)");
 		this.timer = setInterval(() => void this.tick(), LISTENING_TICK_INTERVAL_MS);
+		this.nowPlayingTimer = setInterval(() => this.pollNowPlaying(), NOW_PLAYING_POLL_INTERVAL_MS);
 	}
 
 	async stop(): Promise<void> {
@@ -63,10 +72,22 @@ export class ListeningScheduler {
 			clearInterval(this.timer);
 			this.timer = null;
 		}
+		if (this.nowPlayingTimer) {
+			clearInterval(this.nowPlayingTimer);
+			this.nowPlayingTimer = null;
+		}
 		if (this.executePromise) {
 			await this.executePromise.catch(() => {});
 		}
 		this.logger.info("[listening] scheduler stopped");
+	}
+
+	private pollNowPlaying(): void {
+		const entry = this.nowPlayingReader.consume();
+		if (entry) {
+			this.logger.info(`[listening] now_playing consumed: ${entry.trackName}`);
+			this.presence.setListeningActivity(entry.trackName);
+		}
 	}
 
 	private async tick(): Promise<void> {
@@ -98,22 +119,10 @@ export class ListeningScheduler {
 	}
 
 	private async executeTick(): Promise<void> {
-		const response = await this.agent.send({
+		await this.agent.send({
 			sessionKey: LISTENING_SESSION_KEY,
 			message: LISTENING_PROMPT,
 		});
-		this.logger.info(
-			`[listening] agent response (${response.text.length} chars): ${response.text.slice(0, 200)}`,
-		);
-		const match = NOW_PLAYING_RE.exec(response.text);
-		if (match) {
-			const trackName = match[1]?.trim();
-			if (trackName) {
-				this.logger.info(`[listening] NOW_PLAYING: ${trackName}`);
-				this.presence.setListeningActivity(trackName);
-			}
-		} else {
-			this.logger.warn("[listening] NOW_PLAYING not found in response");
-		}
+		this.logger.info("[listening] tick message sent to agent");
 	}
 }

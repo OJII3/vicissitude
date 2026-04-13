@@ -40,7 +40,7 @@ import type {
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
-import { incrementEmoji } from "@vicissitude/store/queries";
+import { incrementEmoji, consumeNowPlaying } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
@@ -474,6 +474,9 @@ function setupListeningScheduler(deps: {
 		presence: {
 			setListeningActivity: (trackName) => deps.gateway.setListeningActivity(trackName),
 			clearActivity: () => deps.gateway.clearActivity(),
+		},
+		nowPlayingReader: {
+			consume: () => consumeNowPlaying(deps.db),
 		},
 		logger,
 		metrics: deps.metrics,
