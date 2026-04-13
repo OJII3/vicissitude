@@ -6,7 +6,7 @@
       "name": "vicissitude",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
-        "@opencode-ai/sdk": "^1.2.15",
+        "@opencode-ai/sdk": "^1.4.3",
         "canvas": "^3.2.1",
         "discord.js": "^14.25.1",
         "drizzle-orm": "^0.45.1",
@@ -138,7 +138,7 @@
     "packages/opencode": {
       "name": "@vicissitude/opencode",
       "dependencies": {
-        "@opencode-ai/sdk": "^1.2.15",
+        "@opencode-ai/sdk": "^1.4.3",
       },
     },
     "packages/scheduling": {
@@ -304,7 +304,7 @@
 
     "@monogrid/gainmap-js": ["@monogrid/gainmap-js@3.4.0", "", { "dependencies": { "promise-worker-transferable": "^1.0.4" }, "peerDependencies": { "three": ">= 0.159.0" } }, "sha512-2Z0FATFHaoYJ8b+Y4y4Hgfn3FRFwuU5zRrk+9dFWp4uGAdHGqVEdP7HP+gLA3X469KXHmfupJaUbKo1b/aDKIg=="],
 
-    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.2.15", "", {}, "sha512-NUJNlyBCdZ4R0EBLjJziEQOp2XbRPJosaMcTcWSWO5XJPKGUpz0u8ql+5cR8K+v2RJ+hp2NobtNwpjEYfe6BRQ=="],
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.4.3", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-X0CAVbwoGAjTY2iecpWkx2B+GAa2jSaQKYpJ+xILopeF/OGKZUN15mjqci+L7cEuwLHV5wk3x2TStUOVCa5p0A=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
