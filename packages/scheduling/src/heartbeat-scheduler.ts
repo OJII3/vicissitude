@@ -33,7 +33,7 @@ export class HeartbeatScheduler {
 
 	start(): void {
 		if (this.timer) return;
-		this.logger.info("[heartbeat] スケジューラ開始（1分間隔）");
+		this.logger.info("[heartbeat] scheduler started (1min interval)");
 		void this.tick();
 		this.timer = setInterval(() => void this.tick(), HEARTBEAT_TICK_INTERVAL_MS);
 	}
@@ -43,12 +43,12 @@ export class HeartbeatScheduler {
 			clearInterval(this.timer);
 			this.timer = null;
 		}
-		this.logger.info("[heartbeat] スケジューラ停止");
+		this.logger.info("[heartbeat] scheduler stopped");
 	}
 
 	private async tick(): Promise<void> {
 		if (this.running) {
-			this.logger.info("[heartbeat] 前回の実行がまだ進行中、スキップ");
+			this.logger.info("[heartbeat] previous tick still running, skipping");
 			return;
 		}
 
@@ -60,7 +60,7 @@ export class HeartbeatScheduler {
 			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "success" });
 		} catch (error) {
 			this.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "error" });
-			this.logger.error("[heartbeat] tick エラー:", error);
+			this.logger.error("[heartbeat] tick error:", error);
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
@@ -91,12 +91,12 @@ export class HeartbeatScheduler {
 		const dueReminders = evaluateDueReminders(config, new Date());
 		if (dueReminders.length === 0) return false;
 		this.logger.info(
-			`[heartbeat] ${String(dueReminders.length)} 件の due リマインダー: ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
+			`[heartbeat] ${String(dueReminders.length)} due reminder(s): ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
 		);
 
 		const succeededIds = await this.heartbeatService.execute(dueReminders);
 		if (succeededIds.size === 0) {
-			this.logger.info("[heartbeat] 成功した Guild なし、config 更新をスキップ");
+			this.logger.info("[heartbeat] no guilds succeeded, skipping config update");
 			return true;
 		}
 
@@ -107,7 +107,7 @@ export class HeartbeatScheduler {
 			}
 		}
 		await this.configRepo.save(config);
-		this.logger.info("[heartbeat] 完了");
+		this.logger.info("[heartbeat] done");
 		return true;
 	}
 }

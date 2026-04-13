@@ -59,14 +59,14 @@ export class HeartbeatService {
 				const sessionKey = `${HEARTBEAT_SESSION_PREFIX}${guildKey}`;
 				const prompt = buildHeartbeatPrompt(reminders);
 				this.deps.logger.info(
-					`[heartbeat] guild=${guildKey}: ${reminders.length} 件の due リマインダーを実行`,
+					`[heartbeat] guild=${guildKey}: executing ${reminders.length} due reminder(s)`,
 				);
 
 				try {
 					await this.deps.agent.send({ sessionKey, message: prompt, guildId });
 					return reminders.map((reminder) => reminder.reminder.id);
 				} catch (error) {
-					this.deps.logger.error(`[heartbeat] guild=${guildKey} AI 実行エラー:`, error);
+					this.deps.logger.error(`[heartbeat] guild=${guildKey} AI execution error:`, error);
 					return [];
 				}
 			}),

@@ -54,7 +54,7 @@ export class ListeningScheduler {
 
 	start(): void {
 		if (this.timer) return;
-		this.logger.info("[listening] スケジューラ開始（4分間隔）");
+		this.logger.info("[listening] scheduler started (4min interval)");
 		this.timer = setInterval(() => void this.tick(), LISTENING_TICK_INTERVAL_MS);
 	}
 
@@ -66,19 +66,19 @@ export class ListeningScheduler {
 		if (this.executePromise) {
 			await this.executePromise.catch(() => {});
 		}
-		this.logger.info("[listening] スケジューラ停止");
+		this.logger.info("[listening] scheduler stopped");
 	}
 
 	private async tick(): Promise<void> {
 		if (this.running) {
-			this.logger.info("[listening] 前回の実行がまだ進行中、スキップ");
+			this.logger.info("[listening] previous tick still running, skipping");
 			return;
 		}
 		const should = this.shouldStart();
 		this.logger.debug(`[listening] tick: shouldStart=${should}`);
 		if (!should) return;
 
-		this.logger.info("[listening] tick 開始");
+		this.logger.info("[listening] tick started");
 		this.running = true;
 		const start = performance.now();
 		const execution = this.executeTick();
@@ -88,7 +88,7 @@ export class ListeningScheduler {
 			this.metrics?.incrementCounter(METRIC.LISTENING_TICKS, { outcome: "success" });
 		} catch (error) {
 			this.metrics?.incrementCounter(METRIC.LISTENING_TICKS, { outcome: "error" });
-			this.logger.error("[listening] tick エラー:", error);
+			this.logger.error("[listening] tick error:", error);
 		} finally {
 			const duration = (performance.now() - start) / 1000;
 			this.metrics?.observeHistogram(METRIC.LISTENING_TICK_DURATION, duration);
@@ -103,7 +103,7 @@ export class ListeningScheduler {
 			message: LISTENING_PROMPT,
 		});
 		this.logger.info(
-			`[listening] agent応答 (${response.text.length}文字): ${response.text.slice(0, 200)}`,
+			`[listening] agent response (${response.text.length} chars): ${response.text.slice(0, 200)}`,
 		);
 		const match = NOW_PLAYING_RE.exec(response.text);
 		if (match) {
@@ -113,7 +113,7 @@ export class ListeningScheduler {
 				this.presence.setListeningActivity(trackName);
 			}
 		} else {
-			this.logger.warn("[listening] NOW_PLAYING が応答に含まれていません");
+			this.logger.warn("[listening] NOW_PLAYING not found in response");
 		}
 	}
 }

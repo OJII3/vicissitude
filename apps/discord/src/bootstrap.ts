@@ -445,7 +445,7 @@ function setupListeningScheduler(deps: {
 	const enabled = config.listening.enabled && !!config.spotify && !!config.genius;
 	if (!enabled) {
 		logger.info(
-			"[bootstrap] Listening scheduler disabled (spotify/genius 未設定 or LISTENING_ENABLED=false)",
+			"[bootstrap] Listening scheduler disabled (spotify/genius not configured or LISTENING_ENABLED=false)",
 		);
 		return undefined;
 	}
