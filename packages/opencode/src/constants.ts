@@ -1,4 +1,4 @@
-/** OpenCode の全ビルトインツールを無効化する設定 (OpenCode 1.2.24) */
+/** OpenCode の全ビルトインツールを無効化する設定 (OpenCode 1.4.3) */
 export const OPENCODE_ALL_TOOLS_DISABLED: Record<string, boolean> = {
 	question: false,
 	read: false,
