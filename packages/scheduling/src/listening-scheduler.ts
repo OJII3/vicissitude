@@ -35,7 +35,7 @@ export interface ListeningSchedulerDeps {
 	nowPlayingReader: NowPlayingReader;
 	logger: Logger;
 	metrics?: MetricsCollector;
-	/** テスト用: 確率判定の注入。未指定時はデフォルトの時間帯ベース判定 */
+	/** テスト用: 活動判定の注入。未指定時は活動時間帯（JST 7:00-翌2:00）判定 */
 	shouldStart?: () => boolean;
 }
 
@@ -57,7 +57,7 @@ export class ListeningScheduler {
 		this.nowPlayingReader = deps.nowPlayingReader;
 		this.logger = deps.logger;
 		this.metrics = deps.metrics;
-		this.shouldStart = deps.shouldStart ?? (() => shouldStartListening(new Date(), Math.random));
+		this.shouldStart = deps.shouldStart ?? (() => shouldStartListening(new Date()));
 	}
 
 	start(): void {
