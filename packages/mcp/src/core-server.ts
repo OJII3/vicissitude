@@ -249,6 +249,10 @@ function createServer(agentId: string | null): McpServer {
 					},
 					setNowPlaying: (trackName) => setNowPlaying(db, trackName),
 				});
+			} else {
+				logger.error(
+					"[core-server] Failed to get internalStorage for listening tools — set_now_playing will be unavailable",
+				);
 			}
 		}
 	}
