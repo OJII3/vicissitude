@@ -8,6 +8,6 @@
 		"./stream-helpers": "./src/stream-helpers.ts"
 	},
 	"dependencies": {
-		"@opencode-ai/sdk": "^1.2.15"
+		"@opencode-ai/sdk": "^1.4.3"
 	}
 }
