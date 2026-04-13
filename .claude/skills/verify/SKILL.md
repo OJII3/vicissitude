@@ -25,10 +25,6 @@ description: "Use when verifying code quality — running tests, type checks, li
 
 - `README.md`: 要件定義に記載された機能が実装に反映されているか
 
-### 4. 依存関係の確認
-
-- `docs/DEPS.md` および `src/*/DEPS.md` の内容が実際のインポート関係と矛盾していないか軽くチェックする。
-
 ## 完了宣言の検証義務
 
 検証なしに完了を主張することは不誠実であり、効率的ではない。
