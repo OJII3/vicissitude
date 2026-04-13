@@ -43,6 +43,12 @@ function fixedDecision(result: boolean): () => boolean {
 	return () => result;
 }
 
+/** tick ごとに異なる値を返す decision 関数 */
+function sequenceDecision(...results: boolean[]): () => boolean {
+	let idx = 0;
+	return () => results[idx++] ?? false;
+}
+
 type TickFn = { tick(): Promise<void> };
 type PollFn = { pollNowPlaying(): void };
 
@@ -275,5 +281,59 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 			expect.any(String),
 			expect.objectContaining({ outcome: "error" }),
 		);
+	});
+
+	test("活動中→睡眠時間帯への遷移で clearActivity が1回呼ばれる", async () => {
+		const presence = createMockPresence();
+
+		const scheduler = new ListeningScheduler({
+			agent: createMockAgent(),
+			presence,
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: sequenceDecision(true, false),
+		});
+		const tickFn = scheduler as unknown as TickFn;
+
+		await tickFn.tick();
+		await tickFn.tick();
+
+		expect(presence.clearActivity).toHaveBeenCalledTimes(1);
+	});
+
+	test("睡眠時間帯が続いている間は clearActivity を繰り返し呼ばない", async () => {
+		const presence = createMockPresence();
+
+		const scheduler = new ListeningScheduler({
+			agent: createMockAgent(),
+			presence,
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: sequenceDecision(false, false),
+		});
+		const tickFn = scheduler as unknown as TickFn;
+
+		await tickFn.tick();
+		await tickFn.tick();
+
+		expect(presence.clearActivity).not.toHaveBeenCalled();
+	});
+
+	test("活動時間帯が続いている間は clearActivity を呼ばない", async () => {
+		const presence = createMockPresence();
+
+		const scheduler = new ListeningScheduler({
+			agent: createMockAgent(),
+			presence,
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: sequenceDecision(true, true),
+		});
+		const tickFn = scheduler as unknown as TickFn;
+
+		await tickFn.tick();
+		await tickFn.tick();
+
+		expect(presence.clearActivity).not.toHaveBeenCalled();
 	});
 });

@@ -43,6 +43,7 @@ export class ListeningScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private nowPlayingTimer: ReturnType<typeof setInterval> | null = null;
 	private running = false;
+	private wasActive = false;
 	private executePromise: Promise<void> | null = null;
 	private readonly agent: AiAgent;
 	private readonly presence: ListeningPresencePort;
@@ -97,7 +98,14 @@ export class ListeningScheduler {
 		}
 		const should = this.shouldStart();
 		this.logger.debug(`[listening] tick: shouldStart=${should}`);
-		if (!should) return;
+		if (!should) {
+			if (this.wasActive) {
+				this.presence.clearActivity();
+				this.wasActive = false;
+			}
+			return;
+		}
+		this.wasActive = true;
 
 		this.logger.info("[listening] tick started");
 		this.running = true;
