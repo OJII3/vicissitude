@@ -43,11 +43,10 @@ export const agentHeartbeat = sqliteTable("agent_heartbeat", {
 	rotationRequestedAt: integer("rotation_requested_at").notNull().default(0),
 });
 
-/** Now Playing テーブル（MCP → メインプロセスへのプレゼンス通知用） */
+/** Now Playing テーブル（MCP → メインプロセスへのプレゼンス通知用、id=1 固定の単一行） */
 export const nowPlaying = sqliteTable("now_playing", {
 	id: integer("id").primaryKey().default(1),
 	trackName: text("track_name").notNull(),
-	updatedAt: integer("updated_at").notNull(),
 });
 
 /** MC セッション排他ロックテーブル（最大1行） */

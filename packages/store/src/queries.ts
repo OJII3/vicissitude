@@ -147,23 +147,22 @@ export function consumeRotationRequest(db: StoreDb, agentId: string): number | n
 
 /** Now Playing を設定する（UPSERT、id=1 固定） */
 export function setNowPlaying(db: StoreDb, trackName: string): void {
-	const now = Date.now();
 	db.insert(nowPlaying)
-		.values({ id: 1, trackName, updatedAt: now })
+		.values({ id: 1, trackName })
 		.onConflictDoUpdate({
 			target: nowPlaying.id,
-			set: { trackName, updatedAt: now },
+			set: { trackName },
 		})
 		.run();
 }
 
 /** Now Playing を消費する。未読の場合はトラック名を返し、行を削除する */
-export function consumeNowPlaying(db: StoreDb): { trackName: string; updatedAt: number } | null {
+export function consumeNowPlaying(db: StoreDb): { trackName: string } | null {
 	return db.transaction((tx) => {
 		const row = tx.select().from(nowPlaying).get();
 		if (!row) return null;
 		tx.delete(nowPlaying).run();
-		return { trackName: row.trackName, updatedAt: row.updatedAt };
+		return { trackName: row.trackName };
 	});
 }
 

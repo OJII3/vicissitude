@@ -71,8 +71,7 @@ CREATE TABLE IF NOT EXISTS agent_heartbeat (
 
 CREATE TABLE IF NOT EXISTS now_playing (
 	id INTEGER PRIMARY KEY DEFAULT 1,
-	track_name TEXT NOT NULL,
-	updated_at INTEGER NOT NULL
+	track_name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS mc_session_lock (

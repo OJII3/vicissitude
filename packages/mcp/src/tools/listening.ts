@@ -16,17 +16,25 @@ export function registerListeningTools(server: McpServer, deps: ListeningToolDep
 	server.registerTool(
 		"set_now_playing",
 		{
-			description:
-				"Discord のプレゼンス表示（「〇〇を再生中」）を設定する。曲を選んだら必ず呼ぶこと。",
+			description: "Discord のプレゼンス表示（「〇〇を再生中」）を設定する。",
 			inputSchema: {
 				trackName: z.string().describe("「曲名 - アーティスト名」形式のトラック表示名"),
 			},
 		},
 		({ trackName }) => {
-			deps.setNowPlaying(trackName);
-			return {
-				content: [{ type: "text" as const, text: `プレゼンスを設定しました: ${trackName}` }],
-			};
+			try {
+				deps.setNowPlaying(trackName);
+				return {
+					content: [{ type: "text" as const, text: `プレゼンスを設定しました: ${trackName}` }],
+				};
+			} catch (err) {
+				return {
+					content: [
+						{ type: "text" as const, text: `プレゼンス設定に失敗しました: ${String(err)}` },
+					],
+					isError: true,
+				};
+			}
 		},
 	);
 

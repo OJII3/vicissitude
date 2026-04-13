@@ -27,9 +27,7 @@ function createMockPresence(): MockPresence {
 	};
 }
 
-function createMockNowPlayingReader(
-	entries: { trackName: string; updatedAt: number }[] = [],
-): NowPlayingReader {
+function createMockNowPlayingReader(entries: { trackName: string }[] = []): NowPlayingReader {
 	let idx = 0;
 	return {
 		consume: mock(() => {
@@ -105,6 +103,31 @@ describe("ListeningScheduler — timer 管理", () => {
 		expect(clearIntervalMock).toHaveBeenCalledTimes(2);
 	});
 
+	test("stop() 後に再度 stop() しても clearInterval は追加で呼ばれない", async () => {
+		const timerId1 = 998 as unknown as ReturnType<typeof setInterval>;
+		const timerId2 = 999 as unknown as ReturnType<typeof setInterval>;
+		let callCount = 0;
+		globalThis.setInterval = mock(() => {
+			callCount++;
+			return callCount === 1 ? timerId1 : timerId2;
+		}) as unknown as typeof setInterval;
+		const clearIntervalMock = mock((_id: unknown) => {});
+		globalThis.clearInterval = clearIntervalMock as unknown as typeof clearInterval;
+
+		const scheduler = new ListeningScheduler({
+			agent: createMockAgent(),
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
+			shouldStart: fixedDecision(false),
+		});
+		scheduler.start();
+		await scheduler.stop();
+		await scheduler.stop();
+
+		expect(clearIntervalMock).toHaveBeenCalledTimes(2);
+	});
+
 	test("start() の冪等性: 2 回呼んでも setInterval は 2 回だけ（tick + poller）", () => {
 		const setIntervalMock = mock(
 			(..._args: unknown[]) => 42 as unknown as ReturnType<typeof setInterval>,
@@ -173,9 +196,7 @@ describe("ListeningScheduler — 再入防止", () => {
 describe("ListeningScheduler — nowPlaying ポーリング", () => {
 	test("pollNowPlaying で consume の結果を presence に反映する", () => {
 		const presence = createMockPresence();
-		const reader = createMockNowPlayingReader([
-			{ trackName: "Lemon - 米津玄師", updatedAt: Date.now() },
-		]);
+		const reader = createMockNowPlayingReader([{ trackName: "Lemon - 米津玄師" }]);
 
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),

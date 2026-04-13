@@ -28,9 +28,7 @@ function createMockPresence(): MockPresence {
 	};
 }
 
-function createMockNowPlayingReader(
-	entries: { trackName: string; updatedAt: number }[] = [],
-): NowPlayingReader {
+function createMockNowPlayingReader(entries: { trackName: string }[] = []): NowPlayingReader {
 	let idx = 0;
 	return {
 		consume: mock(() => {
@@ -98,9 +96,7 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 	test("nowPlayingReader.consume が track を返す → presence.setListeningActivity が呼ばれる", () => {
 		const presence = createMockPresence();
-		const reader = createMockNowPlayingReader([
-			{ trackName: "群青 - YOASOBI", updatedAt: Date.now() },
-		]);
+		const reader = createMockNowPlayingReader([{ trackName: "群青 - YOASOBI" }]);
 
 		const scheduler = new ListeningScheduler({
 			agent: createMockAgent(),

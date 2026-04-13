@@ -26,7 +26,7 @@ export interface ListeningPresencePort {
 
 /** store から now_playing を消費するポート */
 export interface NowPlayingReader {
-	consume(): { trackName: string; updatedAt: number } | null;
+	consume(): { trackName: string } | null;
 }
 
 export interface ListeningSchedulerDeps {
@@ -61,7 +61,7 @@ export class ListeningScheduler {
 	}
 
 	start(): void {
-		if (this.timer) return;
+		if (this.timer || this.nowPlayingTimer) return;
 		this.logger.info("[listening] scheduler started (4min interval)");
 		this.timer = setInterval(() => void this.tick(), LISTENING_TICK_INTERVAL_MS);
 		this.nowPlayingTimer = setInterval(() => this.pollNowPlaying(), NOW_PLAYING_POLL_INTERVAL_MS);
@@ -123,6 +123,6 @@ export class ListeningScheduler {
 			sessionKey: LISTENING_SESSION_KEY,
 			message: LISTENING_PROMPT,
 		});
-		this.logger.info("[listening] tick message sent to agent (fire-and-forget)");
+		this.logger.info("[listening] tick message sent to agent");
 	}
 }
