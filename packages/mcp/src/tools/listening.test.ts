@@ -39,21 +39,24 @@ function stubDeps(overrides: Partial<ListeningToolDeps> = {}): ListeningToolDeps
 	return {
 		fetchLyrics: overrides.fetchLyrics ?? (() => Promise.resolve(null)),
 		saveListening: overrides.saveListening ?? (() => Promise.resolve()),
+		setNowPlaying: overrides.setNowPlaying ?? (() => {}),
 	};
 }
 
 // ─── Tool registration ──────────────────────────────────────────
 
 describe("registerListeningTools — 登録", () => {
-	test("fetch_lyrics と save_listening_fact の 2 つが登録される", () => {
+	test("set_now_playing, fetch_lyrics, save_listening_fact の 3 つが登録される", () => {
 		const tools = captureTools(stubDeps());
-		expect(tools.size).toBe(2);
+		expect(tools.size).toBe(3);
+		expect(tools.has("set_now_playing")).toBe(true);
 		expect(tools.has("fetch_lyrics")).toBe(true);
 		expect(tools.has("save_listening_fact")).toBe(true);
 	});
 
 	test("各ツールに description が設定されている", () => {
 		const tools = captureTools(stubDeps());
+		expect(tools.get("set_now_playing")!.schema.description.length).toBeGreaterThan(0);
 		expect(tools.get("fetch_lyrics")!.schema.description.length).toBeGreaterThan(0);
 		expect(tools.get("save_listening_fact")!.schema.description.length).toBeGreaterThan(0);
 	});

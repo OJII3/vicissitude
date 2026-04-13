@@ -1,6 +1,7 @@
 /* oxlint-disable require-await -- mock implementations */
 import { describe, expect, mock, test } from "bun:test";
 
+import type { NowPlayingReader } from "@vicissitude/scheduling/listening-scheduler";
 import { ListeningScheduler } from "@vicissitude/scheduling/listening-scheduler";
 import type { AgentResponse, AiAgent } from "@vicissitude/shared/types";
 
@@ -8,11 +9,9 @@ import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 
 // ─── Mocks ───────────────────────────────────────────────────────
 
-function createMockAgent(responseText = "NOW_PLAYING: 夜に駆ける - YOASOBI"): AiAgent {
+function createMockAgent(): AiAgent {
 	return {
-		send: mock(
-			async (): Promise<AgentResponse> => ({ text: responseText, sessionId: "listening" }),
-		),
+		send: mock(async (): Promise<AgentResponse> => ({ text: "", sessionId: "listening" })),
 		stop: mock(() => {}),
 	};
 }
@@ -29,25 +28,37 @@ function createMockPresence(): MockPresence {
 	};
 }
 
+function createMockNowPlayingReader(
+	entries: { trackName: string; updatedAt: number }[] = [],
+): NowPlayingReader {
+	let idx = 0;
+	return {
+		consume: mock(() => {
+			if (idx < entries.length) return entries[idx++] ?? null;
+			return null;
+		}),
+	};
+}
+
 /** 固定値を返す decision 関数（確率判定を決定論化） */
 function fixedDecision(result: boolean): () => boolean {
 	return () => result;
 }
 
 type TickFn = { tick(): Promise<void> };
+type PollFn = { pollNowPlaying(): void };
 
 // ─── Tests ───────────────────────────────────────────────────────
 
 describe("ListeningScheduler — 公開 API 契約", () => {
 	test("確率に当選したら agent.send が 1 回呼ばれる", async () => {
 		const agent = createMockAgent();
-		const presence = createMockPresence();
-		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
-			logger,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			shouldStart: fixedDecision(true),
 		});
 		await (scheduler as unknown as TickFn).tick();
@@ -57,13 +68,12 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 	test("確率に外れたら agent.send は呼ばれない", async () => {
 		const agent = createMockAgent();
-		const presence = createMockPresence();
-		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
-			logger,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 		await (scheduler as unknown as TickFn).tick();
@@ -73,13 +83,12 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 	test("当選した場合、agent.send に sessionKey='listening' が渡される", async () => {
 		const agent = createMockAgent();
-		const presence = createMockPresence();
-		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
-			logger,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			shouldStart: fixedDecision(true),
 		});
 		await (scheduler as unknown as TickFn).tick();
@@ -87,18 +96,20 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 		expect(agent.send).toHaveBeenCalledWith(expect.objectContaining({ sessionKey: "listening" }));
 	});
 
-	test("agent 応答の NOW_PLAYING 行から presence.setListeningActivity が呼ばれる", async () => {
-		const agent = createMockAgent("感想を書きました。\nNOW_PLAYING: 群青 - YOASOBI");
+	test("nowPlayingReader.consume が track を返す → presence.setListeningActivity が呼ばれる", () => {
 		const presence = createMockPresence();
-		const logger = createMockLogger();
+		const reader = createMockNowPlayingReader([
+			{ trackName: "群青 - YOASOBI", updatedAt: Date.now() },
+		]);
 
 		const scheduler = new ListeningScheduler({
-			agent,
+			agent: createMockAgent(),
 			presence,
-			logger,
-			shouldStart: fixedDecision(true),
+			nowPlayingReader: reader,
+			logger: createMockLogger(),
+			shouldStart: fixedDecision(false),
 		});
-		await (scheduler as unknown as TickFn).tick();
+		(scheduler as unknown as PollFn).pollNowPlaying();
 
 		expect(presence.setListeningActivity).toHaveBeenCalledTimes(1);
 		const arg = (presence.setListeningActivity.mock.calls[0] as unknown as string[])[0];
@@ -106,31 +117,30 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 		expect(arg).toContain("YOASOBI");
 	});
 
-	test("NOW_PLAYING 行が応答に含まれない場合、presence は更新されない", async () => {
-		const agent = createMockAgent("普通のテキストのみ");
+	test("nowPlayingReader.consume が null → presence は更新されない", () => {
 		const presence = createMockPresence();
-		const logger = createMockLogger();
+		const reader = createMockNowPlayingReader([]);
 
 		const scheduler = new ListeningScheduler({
-			agent,
+			agent: createMockAgent(),
 			presence,
-			logger,
-			shouldStart: fixedDecision(true),
+			nowPlayingReader: reader,
+			logger: createMockLogger(),
+			shouldStart: fixedDecision(false),
 		});
-		await (scheduler as unknown as TickFn).tick();
+		(scheduler as unknown as PollFn).pollNowPlaying();
 
 		expect(presence.setListeningActivity).not.toHaveBeenCalled();
 	});
 
 	test("外れた tick では presence は更新されない（次 tick まで継続）", async () => {
-		const agent = createMockAgent();
 		const presence = createMockPresence();
-		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
-			agent,
+			agent: createMockAgent(),
 			presence,
-			logger,
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 		await (scheduler as unknown as TickFn).tick();
@@ -146,12 +156,12 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 			}),
 			stop: mock(() => {}),
 		};
-		const presence = createMockPresence();
 		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger,
 			shouldStart: fixedDecision(true),
 		});
@@ -162,7 +172,6 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 	});
 
 	test("tick 中に再度 tick → 排他制御で 2 回目スキップ", async () => {
-		const presence = createMockPresence();
 		const logger = createMockLogger();
 		let resolveSend!: (value: AgentResponse) => void;
 		const agent: AiAgent = {
@@ -177,7 +186,8 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger,
 			shouldStart: fixedDecision(true),
 		});
@@ -191,21 +201,19 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 			expect.stringContaining("previous tick still running, skipping"),
 		);
 
-		resolveSend({ text: "NOW_PLAYING: x - y", sessionId: "listening" });
+		resolveSend({ text: "", sessionId: "listening" });
 		await first;
 
-		// 2 回目の tick では agent.send は呼ばれていない（1 回のみ）
 		expect(agent.send).toHaveBeenCalledTimes(1);
 	});
 
 	test("start() は冪等（複数回呼んでも timer は 1 つ）", () => {
-		const agent = createMockAgent();
-		const presence = createMockPresence();
 		const logger = createMockLogger();
 
 		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
+			agent: createMockAgent(),
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
 			logger,
 			shouldStart: fixedDecision(false),
 		});
@@ -214,19 +222,15 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 		scheduler.start();
 		void scheduler.stop();
 
-		// 警告やエラーが出ないこと（info ログ経由で開始は 1 回のみ）
 		expect(logger.error).not.toHaveBeenCalled();
 	});
 
 	test("stop() は start() 前でも呼べる（冪等）", () => {
-		const agent = createMockAgent();
-		const presence = createMockPresence();
-		const logger = createMockLogger();
-
 		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger,
+			agent: createMockAgent(),
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			shouldStart: fixedDecision(false),
 		});
 
@@ -234,15 +238,13 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 	});
 
 	test("成功時に success メトリクスが記録される", async () => {
-		const agent = createMockAgent();
-		const presence = createMockPresence();
-		const logger = createMockLogger();
 		const metrics = createMockMetrics();
 
 		const scheduler = new ListeningScheduler({
-			agent,
-			presence,
-			logger,
+			agent: createMockAgent(),
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			metrics,
 			shouldStart: fixedDecision(true),
 		});
@@ -261,14 +263,13 @@ describe("ListeningScheduler — 公開 API 契約", () => {
 			}),
 			stop: mock(() => {}),
 		};
-		const presence = createMockPresence();
-		const logger = createMockLogger();
 		const metrics = createMockMetrics();
 
 		const scheduler = new ListeningScheduler({
 			agent,
-			presence,
-			logger,
+			presence: createMockPresence(),
+			nowPlayingReader: createMockNowPlayingReader(),
+			logger: createMockLogger(),
 			metrics,
 			shouldStart: fixedDecision(true),
 		});
