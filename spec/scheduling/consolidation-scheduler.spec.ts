@@ -34,9 +34,7 @@ describe("ConsolidationScheduler", () => {
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(consolidator.consolidate).not.toHaveBeenCalled();
-		expect(logger.info).toHaveBeenCalledWith(
-			expect.stringContaining("no active namespaces"),
-		);
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("no active namespaces"));
 	});
 
 	test("アクティブギルド 1 件 → consolidate 呼び出し、success メトリクス", async () => {
