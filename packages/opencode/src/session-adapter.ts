@@ -249,7 +249,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			},
 		});
 		this.client = result.client;
-		this.closeServer = result.server.close;
+		this.closeServer = result.server.close.bind(result.server);
 		this.logger?.info(`[opencode] client initialized (port=${this.config.port})`);
 		return this.client;
 	}

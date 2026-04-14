@@ -92,7 +92,11 @@ const connection = createBotConnection(
 	logger,
 );
 
-const jobManager = new JobManager(ctx.pushEvent, ctx.setActionState, mcCollector);
+const jobManager = new JobManager(
+	ctx.pushEvent.bind(ctx),
+	ctx.setActionState.bind(ctx),
+	mcCollector,
+);
 
 const reactiveLayer = new ReactiveLayer(ctx, {
 	onCancelJob: () => jobManager.cancelCurrentJob(),

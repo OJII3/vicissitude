@@ -63,7 +63,7 @@
 		"typescript/no-unsafe-return": "error",
 		"typescript/strict-boolean-expressions": "off",
 		"typescript/no-confusing-void-expression": "off",
-		"typescript/unbound-method": "off",
+		"typescript/unbound-method": "error",
 		"typescript/await-thenable": "error"
 	},
 	"overrides": [
@@ -97,7 +97,8 @@
 					{ "max": 300, "skipBlankLines": true, "skipComments": true }
 				],
 				"eslint/max-params": "off",
-				"import/max-dependencies": "off"
+				"import/max-dependencies": "off",
+				"typescript/unbound-method": "off"
 			}
 		},
 		{
