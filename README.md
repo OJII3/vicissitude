@@ -60,7 +60,9 @@ MCP サーバー経由で各種操作を提供する。
 | ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
 | ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
 | 選曲         | core         | spotify_pick_track                                                                                    |
-| プレゼンス   | core         | set_now_playing                                                                                       |
+| 楽曲検索     | core         | spotify_search                                                                                        |
+| お気に入り   | core         | spotify_saved_tracks                                                                                  |
+| 楽曲詳細     | core         | spotify_track_detail                                                                                  |
 | 歌詞取得     | core         | fetch_lyrics                                                                                          |
 | 聴取記録     | core         | save_listening_fact                                                                                   |
 | メタ         | core         | list_tools                                                                                            |
@@ -112,15 +114,7 @@ OpenCode SDK 組み込み: `webfetch`
 - 感想保存: 聴いた楽曲について LLM が感想を生成し、`SemanticFact`（category = `experience`）として Memory の internal namespace に保存する。曲名・アーティスト名を keywords に含め、既存の `memory_retrieve` / `memory_get_facts` で引き出せる。
 - 保存先 namespace: `INTERNAL_NAMESPACE` + `HUA_SELF_SUBJECT`（ふあ自身の体験として記録、ギルド横断で参照可能）。
 
-### 3.9 音楽リスニングスケジューラ
-
-- 専用スケジューラ（`ListeningScheduler`）が一定間隔（4 分）で tick し、活動時間帯判定に基づき「選曲 → 曲理解 → 感想生成 → プレゼンス更新」のパイプラインを起動する。
-- パイプラインの実体は専用 AiAgent（`listeningRouter`）で、ツール（`spotify_pick_track`, `set_now_playing`, `fetch_lyrics`, `save_listening_fact`）を orchestrate する。セッションキーは `"listening"` で固定。
-- 活動時間帯判定（JST）: 睡眠帯（2:00-7:00）は起動しない。それ以外の時間帯（7:00-翌 2:00）は毎 tick 起動する。
-- プレゼンス表示: エージェントが `set_now_playing` MCP ツールで `<曲名> - <アーティスト名>` を store の `now_playing` テーブルに書き込む。スケジューラが 10 秒間隔でポーリングし、未消費のエントリがあれば Discord の `ActivityType.Listening` に設定する。次の選曲が行われるまでそのまま継続。
-- チャット応答・Minecraft タスクと独立に動作する。
-
-### 3.10 エラー応答
+### 3.9 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
@@ -137,7 +131,6 @@ OpenCode SDK 組み込み: `webfetch`
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 - `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）
-- `LISTENING_ENABLED`: リスニングスケジューラの有効化フラグ（任意、デフォルト `true`）
 
 ## 6. 受け入れ条件
 
