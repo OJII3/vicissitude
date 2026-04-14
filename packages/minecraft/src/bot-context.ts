@@ -14,12 +14,12 @@ export interface BotEvent {
 const MAX_EVENTS = 100;
 
 export interface BotContext {
-	getBot(): mineflayer.Bot | null;
-	setBot(bot: mineflayer.Bot | null): void;
-	getEvents(): BotEvent[];
-	pushEvent(kind: string, description: string, importance: Importance): void;
-	getActionState(): ActionState;
-	setActionState(state: ActionState): void;
+	getBot: () => mineflayer.Bot | null;
+	setBot: (bot: mineflayer.Bot | null) => void;
+	getEvents: () => BotEvent[];
+	pushEvent: (kind: string, description: string, importance: Importance) => void;
+	getActionState: () => ActionState;
+	setActionState: (state: ActionState) => void;
 }
 
 const BOT_EVENT_KINDS = new Set(["spawn", "death", "kicked", "disconnect"]);
