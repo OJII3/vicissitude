@@ -154,7 +154,12 @@ metricsServer.start();
 
 function createServer(agentId: string | null): McpServer {
 	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
-	const server = wrapServerWithMetrics(rawServer, { metrics: metricsCollector, logger });
+	const toolDescriptions = new Map<string, string | undefined>();
+	const server = wrapServerWithMetrics(rawServer, {
+		metrics: metricsCollector,
+		logger,
+		toolDescriptions,
+	});
 
 	const parsed = parseAgentId(agentId);
 	const boundNamespace: MemoryNamespace | undefined =
@@ -258,7 +263,7 @@ function createServer(agentId: string | null): McpServer {
 		}
 	}
 
-	registerMetaTools(server);
+	registerMetaTools(server, toolDescriptions);
 
 	return server;
 }

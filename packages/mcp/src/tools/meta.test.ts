@@ -1,4 +1,4 @@
-/* oxlint-disable no-non-null-assertion, no-explicit-any -- test assertions & fake server casting */
+/* oxlint-disable no-non-null-assertion -- test assertions */
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -15,23 +15,27 @@ type ToolResult = { content: Array<{ type: string; text: string }> };
 function createFakeServer(): {
 	server: McpServer;
 	tools: Map<string, ToolHandler>;
+	toolDescriptions: Map<string, string | undefined>;
 } {
 	const tools = new Map<string, ToolHandler>();
-	const registeredTools: Record<string, { description?: string }> = {};
+	const toolDescriptions = new Map<string, string | undefined>();
 
 	const fakeServer = {
-		_registeredTools: registeredTools,
 		registerTool(name: string, config: { description?: string }, handler: ToolHandler) {
 			tools.set(name, handler);
-			registeredTools[name] = { description: config.description };
+			toolDescriptions.set(name, config.description);
 		},
 	} as unknown as McpServer;
 
-	return { server: fakeServer, tools };
+	return { server: fakeServer, tools, toolDescriptions };
 }
 
-function callListTools(server: McpServer, tools: Map<string, ToolHandler>): ToolResult {
-	registerMetaTools(server);
+function callListTools(
+	server: McpServer,
+	tools: Map<string, ToolHandler>,
+	toolDescriptions: Map<string, string | undefined>,
+): ToolResult {
+	registerMetaTools(server, toolDescriptions);
 	const handler = tools.get("list_tools")!;
 	return handler({}) as ToolResult;
 }
@@ -40,11 +44,11 @@ function callListTools(server: McpServer, tools: Map<string, ToolHandler>): Tool
 
 describe("list_tools 内部フォーマット", () => {
 	test("各ツールは改行で区切られる", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["tool_a"] = { description: "Desc A" };
-		(server as any)._registeredTools["tool_b"] = { description: "Desc B" };
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("tool_a", "Desc A");
+		toolDescriptions.set("tool_b", "Desc B");
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 		const lines = result.content[0]!.text.split("\n");
 
 		expect(lines).toHaveLength(2);
@@ -53,53 +57,47 @@ describe("list_tools 内部フォーマット", () => {
 	});
 
 	test("description が空文字列の場合は name のみ出力される", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["empty_desc"] = { description: "" };
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("empty_desc", "");
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 
 		// 空文字列は falsy なので `desc ? ... : name` で name のみになる
 		expect(result.content[0]!.text).toBe("empty_desc");
 	});
 
 	test("description に改行を含むツールはそのまま出力される", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["multi_line"] = {
-			description: "Line 1\nLine 2",
-		};
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("multi_line", "Line 1\nLine 2");
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 		const text = result.content[0]!.text;
 
 		expect(text).toBe("multi_line: Line 1\nLine 2");
 	});
 
 	test("description にマルチバイト文字を含むツールが正しくフォーマットされる", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["greet"] = {
-			description: "挨拶メッセージを送信する",
-		};
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("greet", "挨拶メッセージを送信する");
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 
 		expect(result.content[0]!.text).toBe("greet: 挨拶メッセージを送信する");
 	});
 
 	test("ツール名にスペースや特殊文字が含まれる場合もそのまま出力される", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["my tool!@#"] = {
-			description: "Special",
-		};
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("my tool!@#", "Special");
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 
 		expect(result.content[0]!.text).toBe("my tool!@#: Special");
 	});
 
 	test("0件の場合は空文字列を返す", () => {
-		const { server, tools } = createFakeServer();
+		const { server, tools, toolDescriptions } = createFakeServer();
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 
 		expect(result.content[0]!.text).toBe("");
 	});
@@ -107,15 +105,13 @@ describe("list_tools 内部フォーマット", () => {
 
 describe("list_tools 大量ツール", () => {
 	test("100個のツールが登録されていても全て一覧に含まれる", () => {
-		const { server, tools } = createFakeServer();
+		const { server, tools, toolDescriptions } = createFakeServer();
 
 		for (let i = 0; i < 100; i++) {
-			(server as any)._registeredTools[`tool_${i}`] = {
-				description: `Description ${i}`,
-			};
+			toolDescriptions.set(`tool_${i}`, `Description ${i}`);
 		}
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 		const lines = result.content[0]!.text.split("\n");
 
 		expect(lines).toHaveLength(100);
@@ -127,20 +123,20 @@ describe("list_tools 大量ツール", () => {
 
 describe("list_tools description 境界値", () => {
 	test("description が undefined のツールは name のみ出力される", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["no_desc"] = { description: undefined };
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("no_desc", undefined);
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 
 		expect(result.content[0]!.text).toBe("no_desc");
 	});
 
 	test("description と undefined が混在する場合のフォーマット", () => {
-		const { server, tools } = createFakeServer();
-		(server as any)._registeredTools["with_desc"] = { description: "Has desc" };
-		(server as any)._registeredTools["without_desc"] = {};
+		const { server, tools, toolDescriptions } = createFakeServer();
+		toolDescriptions.set("with_desc", "Has desc");
+		toolDescriptions.set("without_desc", undefined);
 
-		const result = callListTools(server, tools);
+		const result = callListTools(server, tools, toolDescriptions);
 		const text = result.content[0]!.text;
 
 		expect(text).toContain("with_desc: Has desc");
