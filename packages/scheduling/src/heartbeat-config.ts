@@ -35,7 +35,7 @@ export class JsonHeartbeatConfigRepository {
 			return Promise.resolve(createDefaultHeartbeatConfig());
 		}
 		try {
-			const raw = readFileSync(this.filePath, "utf-8");
+			const raw: string = readFileSync(this.filePath, "utf-8");
 			const parsed = heartbeatConfigSchema.parse(JSON.parse(raw));
 			return Promise.resolve(parsed as HeartbeatConfig);
 		} catch {

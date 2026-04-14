@@ -34,17 +34,23 @@ export function discordGuildNamespace(guildId: string): MemoryNamespace {
 
 /** namespace に対応する DB 配置ディレクトリの絶対パスを返す（mkdirSync 用） */
 export function resolveMemoryDbDir(dataDir: string, namespace: MemoryNamespace): string {
+	let dir: string;
 	switch (namespace.surface) {
 		case "discord-guild":
-			return resolve(dataDir, "guilds", namespace.guildId);
+			dir = resolve(dataDir, "guilds", namespace.guildId);
+			break;
 		case "internal":
-			return resolve(dataDir, "internal");
+			dir = resolve(dataDir, "internal");
+			break;
 	}
+	return dir;
 }
 
 /** namespace に対応する DB ファイルの絶対パスを返す */
 export function resolveMemoryDbPath(dataDir: string, namespace: MemoryNamespace): string {
-	return resolve(resolveMemoryDbDir(dataDir, namespace), "memory.db");
+	const dir: string = resolveMemoryDbDir(dataDir, namespace);
+	const dbPath: string = resolve(dir, "memory.db");
+	return dbPath;
 }
 
 /**

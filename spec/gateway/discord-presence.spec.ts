@@ -35,6 +35,7 @@ let currentMockClient: ReturnType<typeof createMockClient> | null = null;
 void mock.module("discord.js", () => {
 	// oxlint-disable-next-line typescript/no-require-imports
 	const actual = require("discord.js");
+	// oxlint-disable-next-line typescript/no-unsafe-return -- mock.module のコールバックは require() の any を spread するため
 	return {
 		...actual,
 		// oxlint-disable-next-line no-constructor-return

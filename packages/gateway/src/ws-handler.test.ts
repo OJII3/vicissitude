@@ -75,7 +75,7 @@ describe("WsConnectionManager (unit)", () => {
 
 			manager.handleMessage("conn-1", "not json");
 
-			const errorMsg = JSON.parse(conn.sent[0] as string);
+			const errorMsg = JSON.parse(conn.sent[0] as string) as { code: string; message: string };
 			expect(errorMsg.code).toBe("INVALID_MESSAGE");
 			expect(errorMsg.message).toBe("Failed to parse client message");
 		});
@@ -87,7 +87,7 @@ describe("WsConnectionManager (unit)", () => {
 
 			manager.handleMessage("conn-1", "bad");
 
-			const errorMsg = JSON.parse(conn.sent[0] as string);
+			const errorMsg = JSON.parse(conn.sent[0] as string) as { timestamp: string };
 			expect(errorMsg.timestamp).toBeDefined();
 			// ISO 8601 形式であることを確認
 			expect(new Date(errorMsg.timestamp).toISOString()).toBe(errorMsg.timestamp);
@@ -269,7 +269,7 @@ describe("WsConnectionManager (unit)", () => {
 			});
 			expect(audioMsg).toBeDefined();
 
-			const parsed = JSON.parse(audioMsg as string);
+			const parsed = JSON.parse(audioMsg as string) as { audio: string };
 			const decoded = Buffer.from(parsed.audio, "base64");
 			expect(new Uint8Array(decoded)).toEqual(dummyAudio);
 		});

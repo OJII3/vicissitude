@@ -30,9 +30,11 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 
 	return new Proxy(server, {
 		get(target, prop, receiver) {
+			// oxlint-disable-next-line typescript/no-unsafe-return -- Proxy の get トラップは any を返す
 			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
 			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
 			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
+				// oxlint-disable-next-line typescript/no-unsafe-argument -- config は McpServer.registerTool の第2引数で any 型
 				options.toolDescriptions?.set(name, config?.description);
 				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
 				// oxlint-disable-next-line no-explicit-any -- wrappedCb は元の cb と同じ戻り値型を維持する必要がある
@@ -40,6 +42,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 					// oxlint-disable-next-line no-explicit-any -- cb の戻り値は同期/非同期で異なるため any で受ける
 					let result: any;
 					try {
+						// oxlint-disable-next-line typescript/no-unsafe-argument -- handlerArgs は any[] で cb に透過的に渡す
 						result = cb(...handlerArgs);
 					} catch (err) {
 						handleError(name, err);
@@ -50,6 +53,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 							// oxlint-disable-next-line no-explicit-any -- Promise の resolve 値はツールごとに異なる
 							(value: any) => {
 								increment(name, "success");
+								// oxlint-disable-next-line typescript/no-unsafe-return -- Promise resolve 値を透過的に返す
 								return value;
 							},
 							(err: unknown) => {
@@ -61,6 +65,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 					increment(name, "success");
 					return result;
 				};
+				// oxlint-disable-next-line typescript/no-unsafe-argument -- config は McpServer.registerTool の第2引数で any 型
 				return target.registerTool(name, config, wrappedCb);
 			};
 		},

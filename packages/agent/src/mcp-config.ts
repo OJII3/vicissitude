@@ -5,7 +5,9 @@ import type { McpServerConfig } from "./profile.ts";
 const DEFAULT_BASE_PORT = 4096;
 
 function getRoot(): string {
-	return process.env.APP_ROOT ?? resolve(import.meta.dirname, "../..");
+	const fallback: string = resolve(import.meta.dirname, "../..");
+	const root: string = process.env.APP_ROOT ?? fallback;
+	return root;
 }
 
 /**

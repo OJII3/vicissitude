@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 
 import { createEmotion } from "@vicissitude/shared/emotion";
+import { createTtsStyleParams } from "@vicissitude/shared/tts";
 
 import { createEmotionToTtsStyleMapper } from "./emotion-to-tts-style-mapper";
 
@@ -159,23 +160,18 @@ describe("computeSpeed — clamp behavior", () => {
 
 describe("createTtsStyleParams — zod validation errors", () => {
 	it("styleWeight > 1 のとき ZodError がスローされる", () => {
-		// createTtsStyleParams は内部で TtsStyleParamsSchema.parse() を呼ぶ
-		const { createTtsStyleParams } = require("@vicissitude/shared/tts");
 		expect(() => createTtsStyleParams("happy", 1.5, 1.0)).toThrow();
 	});
 
 	it("styleWeight < 0 のとき ZodError がスローされる", () => {
-		const { createTtsStyleParams } = require("@vicissitude/shared/tts");
 		expect(() => createTtsStyleParams("happy", -0.1, 1.0)).toThrow();
 	});
 
 	it("speed > 2.0 のとき ZodError がスローされる", () => {
-		const { createTtsStyleParams } = require("@vicissitude/shared/tts");
 		expect(() => createTtsStyleParams("happy", 0.5, 2.5)).toThrow();
 	});
 
 	it("speed < 0.5 のとき ZodError がスローされる", () => {
-		const { createTtsStyleParams } = require("@vicissitude/shared/tts");
 		expect(() => createTtsStyleParams("happy", 0.5, 0.3)).toThrow();
 	});
 });

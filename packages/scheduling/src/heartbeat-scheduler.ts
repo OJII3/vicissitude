@@ -25,9 +25,8 @@ export class HeartbeatScheduler {
 		private readonly metrics: MetricsCollector | undefined,
 		root: string,
 	) {
-		this.configRepo = new JsonHeartbeatConfigRepository(
-			resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH),
-		);
+		const configPath: string = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
+		this.configRepo = new JsonHeartbeatConfigRepository(configPath);
 		this.heartbeatService = new HeartbeatService({ agent, logger });
 	}
 
