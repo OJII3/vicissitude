@@ -34,6 +34,7 @@ import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffe
 import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
+import { registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 import { registerSpotifyTools } from "./tools/spotify.ts";
 
@@ -256,6 +257,8 @@ function createServer(agentId: string | null): McpServer {
 			}
 		}
 	}
+
+	registerMetaTools(server);
 
 	return server;
 }
