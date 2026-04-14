@@ -24,13 +24,12 @@ beforeEach(() => {
 });
 
 describe("registerListeningTools", () => {
-	test("set_now_playing, fetch_lyrics, save_listening_fact の3つのツールが登録される", async () => {
+	test("fetch_lyrics, save_listening_fact の2つのツールが登録される", async () => {
 		const { tools } = await captureListeningTools();
 
-		expect(tools.has("set_now_playing")).toBe(true);
 		expect(tools.has("fetch_lyrics")).toBe(true);
 		expect(tools.has("save_listening_fact")).toBe(true);
-		expect(tools.size).toBe(3);
+		expect(tools.size).toBe(2);
 	});
 });
 
