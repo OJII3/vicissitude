@@ -12,6 +12,8 @@ export const stubs = {
 	getRecentlyPlayed: (_limit: number): Promise<SpotifyTrack[]> => Promise.resolve([]),
 	getPlaylistTracks: (_id: string): Promise<SpotifyTrack[]> => Promise.resolve([]),
 	getArtist: (_id: string): Promise<{ genres: string[] }> => Promise.resolve({ genres: [] }),
+	searchTracks: (_query: string, _limit: number): Promise<SpotifyTrack[]> => Promise.resolve([]),
+	getTrack: (_id: string): Promise<SpotifyTrack> => Promise.resolve(createFakeTrack()),
 	select: (_tracks: SpotifyTrack[]): SpotifyTrack | null => null,
 };
 
@@ -46,6 +48,8 @@ export async function captureSpotifyTool(
 		getRecentlyPlayed: (limit) => stubs.getRecentlyPlayed(limit),
 		getPlaylistTracks: (id) => stubs.getPlaylistTracks(id),
 		getArtist: (id) => stubs.getArtist(id),
+		searchTracks: (query, limit) => stubs.searchTracks(query, limit),
+		getTrack: (id) => stubs.getTrack(id),
 		select: (tracks) => stubs.select(tracks),
 	};
 
@@ -79,5 +83,7 @@ export function resetStubs(): void {
 	stubs.getRecentlyPlayed = () => Promise.resolve([]);
 	stubs.getPlaylistTracks = () => Promise.resolve([]);
 	stubs.getArtist = () => Promise.resolve({ genres: [] });
+	stubs.searchTracks = () => Promise.resolve([]);
+	stubs.getTrack = () => Promise.resolve(createFakeTrack());
 	stubs.select = () => null;
 }

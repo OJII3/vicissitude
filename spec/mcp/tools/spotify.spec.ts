@@ -6,9 +6,12 @@ import { captureSpotifyTool, createFakeTrack, resetStubs, stubs } from "./spotif
 
 // ─── Helper ─────────────────────────────────────────────────────
 
-async function getHandler(config?: Parameters<typeof captureSpotifyTool>[0]): Promise<ToolHandler> {
+async function getHandler(
+	name: string,
+	config?: Parameters<typeof captureSpotifyTool>[0],
+): Promise<ToolHandler> {
 	const { tools } = await captureSpotifyTool(config);
-	return tools.get("spotify_pick_track")!;
+	return tools.get(name)!;
 }
 
 // ─── Tests ───────────────────────────────────────────────────────
@@ -18,11 +21,14 @@ beforeEach(() => {
 });
 
 describe("registerSpotifyTools", () => {
-	test("spotify_pick_track ツールが1つ登録される", async () => {
+	test("spotify_pick_track, spotify_search, spotify_saved_tracks, spotify_track_detail の4つが登録される", async () => {
 		const { tools } = await captureSpotifyTool();
 
 		expect(tools.has("spotify_pick_track")).toBe(true);
-		expect(tools.size).toBe(1);
+		expect(tools.has("spotify_search")).toBe(true);
+		expect(tools.has("spotify_saved_tracks")).toBe(true);
+		expect(tools.has("spotify_track_detail")).toBe(true);
+		expect(tools.size).toBe(4);
 	});
 });
 
@@ -32,7 +38,7 @@ describe("spotify_pick_track", () => {
 		stubs.getSavedTracks = () => Promise.resolve([track]);
 		stubs.select = () => track;
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBeUndefined();
@@ -49,7 +55,7 @@ describe("spotify_pick_track", () => {
 	});
 
 	test("空結果時: isError: true とエラーメッセージが返る", async () => {
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBe(true);
@@ -60,7 +66,7 @@ describe("spotify_pick_track", () => {
 		stubs.getSavedTracks = () => Promise.reject(new Error("API error"));
 		stubs.getRecentlyPlayed = () => Promise.reject(new Error("Timeout"));
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBe(true);
@@ -75,7 +81,7 @@ describe("spotify_pick_track", () => {
 		stubs.getRecentlyPlayed = () => Promise.resolve([track]);
 		stubs.select = () => track;
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBeUndefined();
@@ -88,7 +94,7 @@ describe("spotify_pick_track", () => {
 		stubs.getPlaylistTracks = () => Promise.resolve([playlistTrack]);
 		stubs.select = () => playlistTrack;
 
-		const handler = await getHandler({ recommendPlaylistId: "playlist-abc" });
+		const handler = await getHandler("spotify_pick_track", { recommendPlaylistId: "playlist-abc" });
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBeUndefined();
@@ -101,7 +107,7 @@ describe("spotify_pick_track", () => {
 		stubs.getSavedTracks = () => Promise.resolve([track]);
 		stubs.select = () => null;
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBe(true);
@@ -114,7 +120,7 @@ describe("spotify_pick_track", () => {
 		stubs.select = () => track;
 		stubs.getArtist = () => Promise.resolve({ genres: ["j-pop", "rock"] });
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBeUndefined();
@@ -128,11 +134,114 @@ describe("spotify_pick_track", () => {
 		stubs.select = () => track;
 		stubs.getArtist = () => Promise.reject(new Error("Artist API failure"));
 
-		const handler = await getHandler();
+		const handler = await getHandler("spotify_pick_track");
 		const result = (await handler({})) as ToolResult;
 
 		expect(result.isError).toBeUndefined();
 		const info = JSON.parse(result.content[0]!.text);
 		expect(info.genres).toEqual([]);
+	});
+});
+
+describe("spotify_search", () => {
+	test("正常系: 検索結果がJSON配列で返る", async () => {
+		const track = createFakeTrack({ name: "夜に駆ける" });
+		stubs.searchTracks = () => Promise.resolve([track]);
+
+		const handler = await getHandler("spotify_search");
+		const result = (await handler({ query: "夜に駆ける", limit: 10 })) as ToolResult;
+
+		expect(result.isError).toBeUndefined();
+		const results = JSON.parse(result.content[0]!.text);
+		expect(results).toHaveLength(1);
+		expect(results[0].name).toBe("夜に駆ける");
+	});
+
+	test("結果0件時: エラーではなく見つからなかったメッセージが返る", async () => {
+		stubs.searchTracks = () => Promise.resolve([]);
+
+		const handler = await getHandler("spotify_search");
+		const result = (await handler({ query: "存在しない曲", limit: 10 })) as ToolResult;
+
+		expect(result.isError).toBeUndefined();
+		expect(result.content[0]!.text).toContain("存在しない曲");
+	});
+
+	test("API失敗時: isError: true が返る", async () => {
+		stubs.searchTracks = () => Promise.reject(new Error("API down"));
+
+		const handler = await getHandler("spotify_search");
+		const result = (await handler({ query: "test", limit: 10 })) as ToolResult;
+
+		expect(result.isError).toBe(true);
+	});
+});
+
+describe("spotify_saved_tracks", () => {
+	test("正常系: お気に入り曲がJSON配列で返る", async () => {
+		const tracks = [createFakeTrack(), createFakeTrack({ id: "track-2", name: "Song 2" })];
+		stubs.getSavedTracks = () => Promise.resolve(tracks);
+
+		const handler = await getHandler("spotify_saved_tracks");
+		const result = (await handler({ limit: 20, offset: 0 })) as ToolResult;
+
+		expect(result.isError).toBeUndefined();
+		const results = JSON.parse(result.content[0]!.text);
+		expect(results).toHaveLength(2);
+	});
+
+	test("結果0件時: 見つからなかったメッセージが返る", async () => {
+		stubs.getSavedTracks = () => Promise.resolve([]);
+
+		const handler = await getHandler("spotify_saved_tracks");
+		const result = (await handler({ limit: 20, offset: 0 })) as ToolResult;
+
+		expect(result.isError).toBeUndefined();
+		expect(result.content[0]!.text).toContain("見つかりませんでした");
+	});
+
+	test("API失敗時: isError: true が返る", async () => {
+		stubs.getSavedTracks = () => Promise.reject(new Error("API error"));
+
+		const handler = await getHandler("spotify_saved_tracks");
+		const result = (await handler({ limit: 20, offset: 0 })) as ToolResult;
+
+		expect(result.isError).toBe(true);
+	});
+});
+
+describe("spotify_track_detail", () => {
+	test("正常系: トラック詳細がJSONで返る", async () => {
+		const track = createFakeTrack({ id: "abc123" });
+		stubs.getTrack = () => Promise.resolve(track);
+
+		const handler = await getHandler("spotify_track_detail");
+		const result = (await handler({ trackId: "abc123" })) as ToolResult;
+
+		expect(result.isError).toBeUndefined();
+		const info = JSON.parse(result.content[0]!.text);
+		expect(info.id).toBe("abc123");
+		expect(info.spotifyUrl).toBe("https://open.spotify.com/track/abc123");
+	});
+
+	test("genres 空時: getArtist からジャンルを補完する", async () => {
+		const track = createFakeTrack({ genres: [], artistId: "a-1" });
+		stubs.getTrack = () => Promise.resolve(track);
+		stubs.getArtist = () => Promise.resolve({ genres: ["rock"] });
+
+		const handler = await getHandler("spotify_track_detail");
+		const result = (await handler({ trackId: "track-1" })) as ToolResult;
+
+		const info = JSON.parse(result.content[0]!.text);
+		expect(info.genres).toEqual(["rock"]);
+	});
+
+	test("API失敗時: isError: true が返る", async () => {
+		stubs.getTrack = () => Promise.reject(new Error("Not found"));
+
+		const handler = await getHandler("spotify_track_detail");
+		const result = (await handler({ trackId: "invalid" })) as ToolResult;
+
+		expect(result.isError).toBe(true);
 	});
 });

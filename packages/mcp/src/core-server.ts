@@ -10,7 +10,6 @@ import {
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 	namespaceKey,
-	parseAgentId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 	resolveNamespaceFromAgentId,
@@ -24,7 +23,6 @@ import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
-import { setNowPlaying } from "@vicissitude/store/queries";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
@@ -161,7 +159,6 @@ function createServer(agentId: string | null): McpServer {
 		toolDescriptions,
 	});
 
-	const parsed = parseAgentId(agentId);
 	const boundNamespace: MemoryNamespace | undefined =
 		resolveNamespaceFromAgentId(agentId) ?? undefined;
 	if (agentId && !boundNamespace) {
@@ -217,9 +214,7 @@ function createServer(agentId: string | null): McpServer {
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
-	const isListeningAgent = parsed?.platform === "discord" && parsed.role === "listening";
 	if (
-		isListeningAgent &&
 		process.env.SPOTIFY_CLIENT_ID &&
 		process.env.SPOTIFY_CLIENT_SECRET &&
 		process.env.SPOTIFY_REFRESH_TOKEN
@@ -253,11 +248,10 @@ function createServer(agentId: string | null): McpServer {
 							listenedAt: record.listenedAt,
 						});
 					},
-					setNowPlaying: (trackName) => setNowPlaying(db, trackName),
 				});
 			} else {
 				logger.error(
-					"[core-server] Failed to get internalStorage for listening tools — set_now_playing will be unavailable",
+					"[core-server] Failed to get internalStorage for listening tools — fetch_lyrics/save_listening_fact will be unavailable",
 				);
 			}
 		}

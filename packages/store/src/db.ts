@@ -69,11 +69,6 @@ CREATE TABLE IF NOT EXISTS agent_heartbeat (
 	rotation_requested_at INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS now_playing (
-	id INTEGER PRIMARY KEY DEFAULT 1,
-	track_name TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS mc_session_lock (
 	id INTEGER PRIMARY KEY CHECK (id = 1),
 	guild_id TEXT NOT NULL,

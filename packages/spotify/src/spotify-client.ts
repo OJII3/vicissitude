@@ -87,4 +87,20 @@ export class SpotifyClient {
 		this.logger?.info(`[spotify:api] getArtist: ${data.name} (genres=${data.genres.join(",")})`);
 		return { id: data.id, name: data.name, genres: data.genres };
 	}
+
+	async searchTracks(query: string, limit: number): Promise<SpotifyTrack[]> {
+		const params = new URLSearchParams({ q: query, type: "track", limit: String(limit) });
+		const data = (await this.apiGet(`/search?${params.toString()}`)) as {
+			tracks: { items: SpotifyApiTrack[] };
+		};
+		const tracks = data.tracks.items.map((item) => normalizeTrack(item));
+		this.logger?.info(`[spotify:api] searchTracks("${query}"): ${tracks.length}曲取得`);
+		return tracks;
+	}
+
+	async getTrack(trackId: string): Promise<SpotifyTrack> {
+		const data = (await this.apiGet(`/tracks/${trackId}`)) as SpotifyApiTrack;
+		this.logger?.info(`[spotify:api] getTrack: ${data.name}`);
+		return normalizeTrack(data);
+	}
 }
