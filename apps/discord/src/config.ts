@@ -63,9 +63,6 @@ const appConfigSchema = z.object({
 	genius: geniusSchema.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
-	listening: z.object({
-		enabled: z.boolean(),
-	}),
 	dataDir: z.string(),
 	contextDir: z.string(),
 });
@@ -138,9 +135,6 @@ export function loadConfig(
 					viewerPort: Number(env.MC_VIEWER_PORT ?? "3007"),
 				}
 			: undefined,
-		listening: {
-			enabled: env.LISTENING_ENABLED !== "false",
-		},
 		dataDir: resolve(resolvedRoot, "data"),
 		contextDir: resolve(resolvedRoot, "context"),
 	};

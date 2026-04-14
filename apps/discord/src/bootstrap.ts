@@ -28,7 +28,6 @@ import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
-import { ListeningScheduler } from "@vicissitude/scheduling/listening-scheduler";
 import type {
 	AiAgent,
 	ContextBuilderPort,
@@ -40,7 +39,7 @@ import type {
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
-import { incrementEmoji, consumeNowPlaying } from "@vicissitude/store/queries";
+import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
@@ -141,8 +140,6 @@ export function createMetrics(logger: Logger) {
 		METRIC.MEMORY_CONSOLIDATION_TICK_DURATION,
 		"Memory consolidation tick duration in seconds",
 	);
-	collector.registerCounter(METRIC.LISTENING_TICKS, "Listening scheduler ticks");
-	collector.registerHistogram(METRIC.LISTENING_TICK_DURATION, "Listening tick duration in seconds");
 	// Token metrics
 	collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "LLM input tokens total");
 	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "LLM output tokens total");
@@ -423,67 +420,6 @@ function startSessionGauge(
 	return setInterval(update, 30_000);
 }
 
-// ─── Listening Scheduler Setup ──────────────────────────────────
-
-interface ListeningSetup {
-	scheduler: ListeningScheduler;
-	router: InstrumentedAiAgent;
-}
-
-function setupListeningScheduler(deps: {
-	config: AppConfig;
-	guildIds: string[];
-	db: StoreDb;
-	sessionStore: SessionStore;
-	contextBuilder: ContextBuilderPort;
-	logger: Logger;
-	metrics: PrometheusCollector;
-	listeningPortOffset: number;
-	gateway: DiscordGateway;
-}): ListeningSetup | undefined {
-	const { config, logger } = deps;
-	const enabled = config.listening.enabled && !!config.spotify && !!config.genius;
-	if (!enabled) {
-		logger.info(
-			"[bootstrap] Listening scheduler disabled (spotify/genius not configured or LISTENING_ENABLED=false)",
-		);
-		return undefined;
-	}
-	const listeningAgents = createGuildAgents(config, deps.guildIds, {
-		db: deps.db,
-		sessionStore: deps.sessionStore,
-		contextBuilder: deps.contextBuilder,
-		logger,
-		metrics: deps.metrics,
-		agentIdPrefix: "discord:listening",
-		portOffset: deps.listeningPortOffset,
-	});
-	const first = listeningAgents.values().next().value as AiAgent | undefined;
-	if (!first) {
-		throw new Error(
-			"No listening agents available; cannot create defaultAgent for listening GuildRouter",
-		);
-	}
-	const router = new InstrumentedAiAgent(
-		new GuildRouter(listeningAgents, first),
-		deps.metrics,
-		"listening",
-	);
-	const scheduler = new ListeningScheduler({
-		agent: router,
-		presence: {
-			setListeningActivity: (trackName) => deps.gateway.setListeningActivity(trackName),
-			clearActivity: () => deps.gateway.clearActivity(),
-		},
-		nowPlayingReader: {
-			consume: () => consumeNowPlaying(deps.db),
-		},
-		logger,
-		metrics: deps.metrics,
-	});
-	return { scheduler, router };
-}
-
 // ─── Main Bootstrap ─────────────────────────────────────────────
 
 export async function bootstrap(): Promise<void> {
@@ -633,19 +569,6 @@ export async function bootstrap(): Promise<void> {
 		root,
 	);
 
-	// Listening scheduler — spotify/genius 両方設定済みかつ有効化されている場合のみ起動
-	const listening = setupListeningScheduler({
-		config,
-		guildIds,
-		db,
-		sessionStore,
-		contextBuilder,
-		logger,
-		metrics: metrics.collector,
-		listeningPortOffset: ports.listeningOffset,
-		gateway,
-	});
-
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
 
@@ -680,12 +603,10 @@ export async function bootstrap(): Promise<void> {
 			clearInterval(sessionGaugeTimer);
 			await memoryResources?.consolidationScheduler.stop();
 			heartbeatScheduler.stop();
-			await listening?.scheduler.stop();
 			gateway.stop();
 			await gatewayServer.stop();
 			mcBrainManager?.stop();
 			heartbeatRouter.stop();
-			listening?.router.stop();
 			routingAgent.stop();
 			metrics.server.stop();
 			await factReader.close();
@@ -707,7 +628,6 @@ export async function bootstrap(): Promise<void> {
 	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
 	await gateway.start();
 	heartbeatScheduler.start();
-	listening?.scheduler.start();
 	memoryResources?.consolidationScheduler.start();
 	// DiscordAgent は lazy start: 最初の send() 呼び出しで自動的にポーリングループが起動する
 	mcBrainManager?.start();

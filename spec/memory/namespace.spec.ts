@@ -44,7 +44,6 @@
  *
  *   // agent_id → namespace の解決
  *   //   "discord:heartbeat:{guildId}" → discord-guild
- *   //   "discord:listening:{guildId}" → discord-guild
  *   //   "discord:{guildId}"           → discord-guild
  *   //   "internal:*" / "internal"     → internal
  *   export function resolveNamespaceFromAgentId(
@@ -175,14 +174,8 @@ describe("resolveNamespaceFromAgentId", () => {
 		expect(resolveNamespaceFromAgentId("discord:../malicious")).toBeNull();
 	});
 
-	it("'discord:listening:{guildId}' を discord-guild に解決する", () => {
-		expect(resolveNamespaceFromAgentId("discord:listening:123456789")).toEqual(
-			discordGuildNamespace("123456789"),
-		);
-	});
-
-	it("'discord:listening:abc'（非数値 guildId）は null を返す", () => {
-		expect(resolveNamespaceFromAgentId("discord:listening:abc")).toBeNull();
+	it("'discord:listening:{guildId}'（廃止されたロール）は null を返す", () => {
+		expect(resolveNamespaceFromAgentId("discord:listening:123456789")).toBeNull();
 	});
 
 	it("'internal:listening' を INTERNAL_NAMESPACE に解決する", () => {
@@ -258,15 +251,13 @@ describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）",
 		expect(boundGuildId).toBeUndefined();
 	});
 
-	it("discord listening agent_id → boundNamespace と boundGuildId が両方設定される", () => {
+	it("discord listening agent_id（廃止されたロール）→ boundNamespace / boundGuildId ともに undefined", () => {
 		const ns = resolveNamespaceFromAgentId("discord:listening:12345");
-		expect(ns).not.toBeNull();
-
 		const boundNamespace = ns ?? undefined;
 		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
 
-		expect(boundNamespace).toEqual(discordGuildNamespace("12345"));
-		expect(boundGuildId).toBe("12345");
+		expect(boundNamespace).toBeUndefined();
+		expect(boundGuildId).toBeUndefined();
 	});
 });
 

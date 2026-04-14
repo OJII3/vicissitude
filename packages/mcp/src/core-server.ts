@@ -10,7 +10,6 @@ import {
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 	namespaceKey,
-	parseAgentId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 	resolveNamespaceFromAgentId,
@@ -161,7 +160,6 @@ function createServer(agentId: string | null): McpServer {
 		toolDescriptions,
 	});
 
-	const parsed = parseAgentId(agentId);
 	const boundNamespace: MemoryNamespace | undefined =
 		resolveNamespaceFromAgentId(agentId) ?? undefined;
 	if (agentId && !boundNamespace) {
@@ -217,9 +215,7 @@ function createServer(agentId: string | null): McpServer {
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
 	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
-	const isListeningAgent = parsed?.platform === "discord" && parsed.role === "listening";
 	if (
-		isListeningAgent &&
 		process.env.SPOTIFY_CLIENT_ID &&
 		process.env.SPOTIFY_CLIENT_SECRET &&
 		process.env.SPOTIFY_REFRESH_TOKEN

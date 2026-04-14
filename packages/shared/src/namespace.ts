@@ -61,7 +61,7 @@ export function namespaceKey(namespace: MemoryNamespace): string {
 }
 
 /** Discord agentId のエージェント種別 */
-export type DiscordAgentRole = "polling" | "heartbeat" | "listening";
+export type DiscordAgentRole = "polling" | "heartbeat";
 
 /** agentId のパース結果 */
 export type ParsedAgentId =
@@ -78,7 +78,7 @@ export function parseAgentId(agentId: string | null | undefined): ParsedAgentId 
 	if (/^internal(?::.+)?$/.test(agentId)) {
 		return { platform: "internal" };
 	}
-	const m = agentId.match(/^discord:(?:(heartbeat|listening):)?(.+)$/);
+	const m = agentId.match(/^discord:(?:(heartbeat):)?(.+)$/);
 	if (m?.[2] && GUILD_ID_RE.test(m[2])) {
 		const role = (m[1] ?? "polling") as DiscordAgentRole;
 		return { platform: "discord", role, guildId: m[2] };
