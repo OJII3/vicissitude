@@ -232,28 +232,22 @@ function createServer(agentId: string | null): McpServer {
 
 		if (process.env.GENIUS_ACCESS_TOKEN) {
 			const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
-			// internal namespace の MemoryStorage を確保
+			// getOrCreateMemory は必ず memoryStorages にエントリを挿入するため non-null
 			getOrCreateMemory(INTERNAL_NAMESPACE);
-			const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE));
-			if (internalStorage) {
-				const listeningMemory = new ListeningMemory(internalStorage, {
-					embed: (text) => ollama.embed(text),
-				});
-				registerListeningTools(server, {
-					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
-					saveListening: async (record) => {
-						await listeningMemory.saveListening({
-							track: record.track,
-							impression: record.impression,
-							listenedAt: record.listenedAt,
-						});
-					},
-				});
-			} else {
-				logger.error(
-					"[core-server] Failed to get internalStorage for listening tools — fetch_lyrics/save_listening_fact will be unavailable",
-				);
-			}
+			const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE))!;
+			const listeningMemory = new ListeningMemory(internalStorage, {
+				embed: (text) => ollama.embed(text),
+			});
+			registerListeningTools(server, {
+				fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
+				saveListening: async (record) => {
+					await listeningMemory.saveListening({
+						track: record.track,
+						impression: record.impression,
+						listenedAt: record.listenedAt,
+					});
+				},
+			});
 		}
 	}
 
