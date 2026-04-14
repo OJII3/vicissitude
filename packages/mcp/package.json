@@ -17,7 +17,8 @@
 		"./tools/schedule": "./src/tools/schedule.ts",
 		"./tools/spotify": "./src/tools/spotify.ts",
 		"./tools/listening": "./src/tools/listening.ts",
-		"./tools/meta": "./src/tools/meta.ts"
+		"./tools/meta": "./src/tools/meta.ts",
+		"./tools/meta-test-helpers": "./src/tools/meta-test-helpers.ts"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
