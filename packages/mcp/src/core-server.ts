@@ -263,7 +263,11 @@ function createServer(agentId: string | null): McpServer {
 		}
 	}
 
+<<<<<<< HEAD
 	registerMetaTools(server, toolDescriptions);
+=======
+	registerMetaTools(server);
+>>>>>>> origin/main
 
 	return server;
 }
