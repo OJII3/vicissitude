@@ -5,6 +5,7 @@ import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 export interface MetricsOptions {
 	metrics: MetricsCollector;
 	logger?: Logger;
+	toolDescriptions?: Map<string, string | undefined>;
 }
 
 /**
@@ -32,6 +33,7 @@ export function wrapServerWithMetrics(server: McpServer, options: MetricsOptions
 			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
 			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
 			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
+				options.toolDescriptions?.set(name, config?.description);
 				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
 				// oxlint-disable-next-line no-explicit-any -- wrappedCb は元の cb と同じ戻り値型を維持する必要がある
 				const wrappedCb = (...handlerArgs: any[]): any => {
