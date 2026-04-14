@@ -1,4 +1,4 @@
-/* oxlint-disable no-non-null-assertion, no-explicit-any -- test assertions & fake server casting */
+/* oxlint-disable no-non-null-assertion -- test assertions */
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -21,7 +21,6 @@ function createFakeServer(): {
 } {
 	const tools = new Map<string, ToolHandler>();
 
-	// _registeredTools は list_tools ハンドラが参照する内部プロパティ
 	const registeredTools: Record<string, { description?: string }> = {};
 
 	const fakeServer = {
@@ -33,6 +32,18 @@ function createFakeServer(): {
 	} as unknown as McpServer;
 
 	return { server: fakeServer, tools };
+}
+
+/**
+ * fakeServer にダミーツールを registerTool 経由で登録する。
+ * spec テストが内部プロパティに直接アクセスしないようにする。
+ */
+function registerDummyTool(server: McpServer, name: string, description?: string): void {
+	(
+		server as unknown as {
+			registerTool: (n: string, c: { description?: string }, h: ToolHandler) => void;
+		}
+	).registerTool(name, { description }, () => ({ content: [] }));
 }
 
 // ─── Tests ───────────────────────────────────────────────────────
@@ -57,13 +68,8 @@ describe("list_tools", () => {
 	test("登録済みツールの name と description を返す", async () => {
 		const { server, tools } = createFakeServer();
 
-		// 他のツールをあらかじめ登録
-		(server as any)._registeredTools["send_message"] = {
-			description: "Send a message to a Discord channel",
-		};
-		(server as any)._registeredTools["read_messages"] = {
-			description: "Read recent messages from a Discord channel",
-		};
+		registerDummyTool(server, "send_message", "Send a message to a Discord channel");
+		registerDummyTool(server, "read_messages", "Read recent messages from a Discord channel");
 
 		registerMetaTools(server);
 		const listTools = tools.get("list_tools")!;
@@ -83,9 +89,7 @@ describe("list_tools", () => {
 	test("list_tools 自身は一覧から除外される", async () => {
 		const { server, tools } = createFakeServer();
 
-		(server as any)._registeredTools["add_reaction"] = {
-			description: "Add a reaction emoji",
-		};
+		registerDummyTool(server, "add_reaction", "Add a reaction emoji");
 
 		registerMetaTools(server);
 		const listTools = tools.get("list_tools")!;
@@ -111,9 +115,7 @@ describe("list_tools", () => {
 	test("返却形式は { content: [{ type: 'text', text: string }] } である", async () => {
 		const { server, tools } = createFakeServer();
 
-		(server as any)._registeredTools["some_tool"] = {
-			description: "A tool",
-		};
+		registerDummyTool(server, "some_tool", "A tool");
 
 		registerMetaTools(server);
 		const listTools = tools.get("list_tools")!;
@@ -132,7 +134,7 @@ describe("list_tools", () => {
 	test("description が未定義のツールも一覧に含まれる", async () => {
 		const { server, tools } = createFakeServer();
 
-		(server as any)._registeredTools["no_desc_tool"] = {};
+		registerDummyTool(server, "no_desc_tool");
 
 		registerMetaTools(server);
 		const listTools = tools.get("list_tools")!;
