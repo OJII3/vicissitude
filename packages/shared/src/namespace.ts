@@ -36,14 +36,17 @@ export function discordGuildNamespace(guildId: string): MemoryNamespace {
 export function resolveMemoryDbDir(dataDir: string, namespace: MemoryNamespace): string {
 	switch (namespace.surface) {
 		case "discord-guild":
+			// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() の戻り値は string だが oxlint が誤検知する
 			return resolve(dataDir, "guilds", namespace.guildId);
 		case "internal":
+			// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() の戻り値は string だが oxlint が誤検知する
 			return resolve(dataDir, "internal");
 	}
 }
 
 /** namespace に対応する DB ファイルの絶対パスを返す */
 export function resolveMemoryDbPath(dataDir: string, namespace: MemoryNamespace): string {
+	// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() の戻り値は string だが oxlint が誤検知する
 	return resolve(resolveMemoryDbDir(dataDir, namespace), "memory.db");
 }
 

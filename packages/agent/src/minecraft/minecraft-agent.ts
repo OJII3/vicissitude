@@ -27,14 +27,13 @@ export class MinecraftAgent extends AgentRunner {
 			...deps.model,
 			mcpServers: mcpMinecraftConfigs(),
 		});
+		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
+		const baseDir: string = resolve(deps.root, "context/minecraft");
 		super({
 			profile,
 			agentId: MINECRAFT_AGENT_ID,
 			sessionStore: deps.sessionStore,
-			contextBuilder: new MinecraftContextBuilder(
-				resolve(deps.root, "data/context/minecraft"),
-				resolve(deps.root, "context/minecraft"),
-			),
+			contextBuilder: new MinecraftContextBuilder(overlayDir, baseDir),
 			logger: deps.logger,
 			sessionPort: new OpencodeSessionAdapter({
 				port: deps.opencodePort,

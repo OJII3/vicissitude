@@ -37,9 +37,10 @@ function createFakeBot() {
 	bot.loadPlugin = mock(() => {});
 	// removeAllListeners は EventEmitter 由来だが、spy で呼び出し検知できるように上書き
 	const originalRemoveAll = bot.removeAllListeners.bind(bot);
-	bot.removeAllListeners = mock((...args: Parameters<typeof bot.removeAllListeners>) =>
-		originalRemoveAll(...args),
-	);
+	bot.removeAllListeners = mock((...args: Parameters<typeof bot.removeAllListeners>) => {
+		// oxlint-disable-next-line typescript/no-unsafe-argument, typescript/no-unsafe-return -- EventEmitter の型を透過的に渡す
+		return originalRemoveAll(...args);
+	});
 	return bot;
 }
 

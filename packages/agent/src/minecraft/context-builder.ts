@@ -42,18 +42,18 @@ export class MinecraftContextBuilder implements ContextBuilderPort {
 	}
 
 	private async readOverlaid(relativePath: string): Promise<string | null> {
-		const overlayPath = resolve(this.overlayDir, relativePath);
+		const overlayPath: string = resolve(this.overlayDir, relativePath);
 		const content = await this.readFile(overlayPath);
 		if (content) return content;
 
-		const basePath = resolve(this.baseDir, relativePath);
+		const basePath: string = resolve(this.baseDir, relativePath);
 		return this.readFile(basePath);
 	}
 
 	private async readFile(filepath: string): Promise<string | null> {
 		try {
 			const content = await Bun.file(filepath).text();
-			const trimmed = content.trim();
+			const trimmed: string = content.trim();
 			if (!trimmed) return null;
 
 			if (trimmed.length > PER_FILE_MAX) {

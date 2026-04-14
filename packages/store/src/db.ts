@@ -142,6 +142,7 @@ export function createDb(dataDir: string): StoreDb {
 	sqlite.exec("PRAGMA busy_timeout = 5000");
 	migrateDb(sqlite);
 	sqlite.exec(CREATE_TABLES_SQL);
+	// oxlint-disable-next-line typescript/no-unsafe-argument -- Database インスタンスの型が drizzle の期待する型と一致しない
 	const db = drizzle(sqlite, { schema });
 	dbInstances.set(db, sqlite);
 	return db;

@@ -14,7 +14,7 @@ describe("auth – fetchToken internals", () => {
 	};
 
 	const defaultBody = { access_token: "tok", expires_in: 3600 };
-	function installMockFetch(body: unknown = defaultBody, status = 200) {
+	function installMockFetch(body: unknown = defaultBody, status = 200): void {
 		const fn = mock((url: string | URL | Request, init?: RequestInit) => {
 			capturedUrl = url;
 			capturedInit = init;
@@ -26,7 +26,6 @@ describe("auth – fetchToken internals", () => {
 			);
 		});
 		globalThis.fetch = fn as unknown as typeof fetch;
-		return fn;
 	}
 
 	beforeEach(() => {

@@ -10,5 +10,6 @@ export function createTestDb(): StoreDb {
 	const sqlite = new Database(":memory:");
 	sqlite.exec("PRAGMA journal_mode = WAL");
 	sqlite.exec(CREATE_TABLES_SQL);
+	// oxlint-disable-next-line typescript/no-unsafe-argument -- Database インスタンスの型が drizzle の期待する型と一致しない
 	return drizzle(sqlite, { schema });
 }

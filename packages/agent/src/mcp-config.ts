@@ -5,6 +5,7 @@ import type { McpServerConfig } from "./profile.ts";
 const DEFAULT_BASE_PORT = 4096;
 
 function getRoot(): string {
+	// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() / process.env の戻り値は string だが oxlint が誤検知する
 	return process.env.APP_ROOT ?? resolve(import.meta.dirname, "../..");
 }
 

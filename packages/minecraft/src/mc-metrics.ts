@@ -78,7 +78,7 @@ export function createMcMetrics(logger: Logger): {
 			bunServer = Bun.serve({
 				port,
 				hostname,
-				fetch: (req) => {
+				fetch: (req: Request) => {
 					const url = new URL(req.url);
 					if (url.pathname === "/metrics") {
 						return new Response(collector.serialize(), {

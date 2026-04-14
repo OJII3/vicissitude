@@ -170,14 +170,17 @@ function registerViewerUrlTool(server: McpServer, ctx: BotContext, viewerPort: n
 function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): McpServer {
 	return new Proxy(server, {
 		get(target, prop, receiver) {
+			// oxlint-disable-next-line typescript/no-unsafe-return -- Proxy の get トラップは any を返す
 			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
 			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
 			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
 				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
 				const wrappedCb = (...handlerArgs: any[]) => {
 					metrics.incrementCounter(METRIC.MC_MCP_TOOL_CALLS, { tool: name });
+					// oxlint-disable-next-line typescript/no-unsafe-return, typescript/no-unsafe-argument -- cb の引数・戻り値は any 型で透過的に渡す
 					return cb(...handlerArgs);
 				};
+				// oxlint-disable-next-line typescript/no-unsafe-argument -- config は McpServer.registerTool の第2引数で any 型
 				return target.registerTool(name, config, wrappedCb);
 			};
 		},

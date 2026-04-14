@@ -84,7 +84,7 @@ describe("mc-bridge ラウンドトリップ結合テスト", () => {
 		const events = consumeEvents(db, "minecraft:brain");
 		expect(events).toHaveLength(3);
 
-		const contents = events.map((e) => JSON.parse(e.payload).content);
+		const contents = events.map((e) => (JSON.parse(e.payload) as { content: string }).content);
 		expect(contents).toEqual(["first", "second", "third"]);
 
 		// id が昇順であることを確認
