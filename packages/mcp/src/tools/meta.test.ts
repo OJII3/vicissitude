@@ -4,31 +4,9 @@ import { describe, expect, test } from "bun:test";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import { registerMetaTools } from "./meta";
-
-// ─── Types ───────────────────────────────────────────────────────
-
-type ToolHandler = (args: Record<string, unknown>) => unknown;
-type ToolResult = { content: Array<{ type: string; text: string }> };
+import { createFakeServer, type ToolHandler, type ToolResult } from "./meta-test-helpers";
 
 // ─── Helpers ─────────────────────────────────────────────────────
-
-function createFakeServer(): {
-	server: McpServer;
-	tools: Map<string, ToolHandler>;
-	toolDescriptions: Map<string, string | undefined>;
-} {
-	const tools = new Map<string, ToolHandler>();
-	const toolDescriptions = new Map<string, string | undefined>();
-
-	const fakeServer = {
-		registerTool(name: string, config: { description?: string }, handler: ToolHandler) {
-			tools.set(name, handler);
-			toolDescriptions.set(name, config.description);
-		},
-	} as unknown as McpServer;
-
-	return { server: fakeServer, tools, toolDescriptions };
-}
 
 function callListTools(
 	server: McpServer,
