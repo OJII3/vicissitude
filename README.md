@@ -63,6 +63,7 @@ MCP サーバー経由で各種操作を提供する。
 | プレゼンス   | core         | set_now_playing                                                                                       |
 | 歌詞取得     | core         | fetch_lyrics                                                                                          |
 | 聴取記録     | core         | save_listening_fact                                                                                   |
+| メタ         | core         | list_tools                                                                                            |
 
 OpenCode SDK 組み込み: `webfetch`
 
