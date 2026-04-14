@@ -232,9 +232,10 @@ function createServer(agentId: string | null): McpServer {
 
 		if (process.env.GENIUS_ACCESS_TOKEN) {
 			const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
-			// getOrCreateMemory は必ず memoryStorages にエントリを挿入するため non-null
 			getOrCreateMemory(INTERNAL_NAMESPACE);
-			const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE))!;
+			const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE));
+			if (!internalStorage)
+				throw new Error("unreachable: getOrCreateMemory failed to populate memoryStorages");
 			const listeningMemory = new ListeningMemory(internalStorage, {
 				embed: (text) => ollama.embed(text),
 			});
