@@ -11,7 +11,6 @@ import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
-	namespaceKey,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 	resolveNamespaceFromAgentId,
@@ -29,6 +28,7 @@ import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
 
 import { startHttpServer } from "./http-server.ts";
+import { MemoryInstanceCache } from "./memory-cache.ts";
 import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
@@ -105,31 +105,7 @@ async function main(): Promise<void> {
 		embed: (text: string) => ollama.embed(text),
 	};
 
-	const MAX_MEMORY_INSTANCES = 50;
-
-	const memoryInstances = new Map<string, MemoryReadServices>();
-	const memoryStorages = new Map<string, MemoryStorage>();
-
-	function getOrCreateMemory(namespace: MemoryNamespace): MemoryReadServices {
-		const key = namespaceKey(namespace);
-
-		const existing = memoryInstances.get(key);
-		if (existing) {
-			// LRU: 再挿入して最新アクセスとして記録
-			memoryInstances.delete(key);
-			memoryInstances.set(key, existing);
-			return existing;
-		}
-
-		// Evict oldest entry if at capacity
-		if (memoryInstances.size >= MAX_MEMORY_INSTANCES) {
-			const oldestKey = memoryInstances.keys().next().value as string;
-			memoryInstances.delete(oldestKey);
-			const oldStorage = memoryStorages.get(oldestKey);
-			oldStorage?.close();
-			memoryStorages.delete(oldestKey);
-		}
-
+	const memoryCache = new MemoryInstanceCache(50, (namespace) => {
 		const dbDir = resolveMemoryDbDir(MEMORY_DATA_DIR, namespace);
 		mkdirSync(dbDir, { recursive: true });
 		const storage = new MemoryStorage(resolveMemoryDbPath(MEMORY_DATA_DIR, namespace));
@@ -138,9 +114,11 @@ async function main(): Promise<void> {
 			retrieval: new Retrieval(embedOnlyLlm, storage, episodic),
 			semantic: new SemanticMemory(storage),
 		};
-		memoryInstances.set(key, instance);
-		memoryStorages.set(key, storage);
-		return instance;
+		return { instance, storage };
+	});
+
+	function getOrCreateMemory(namespace: MemoryNamespace): MemoryReadServices {
+		return memoryCache.getOrCreate(namespace);
 	}
 
 	// --- Prometheus Metrics ---
@@ -237,10 +215,10 @@ async function main(): Promise<void> {
 
 			if (process.env.GENIUS_ACCESS_TOKEN) {
 				const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
-				getOrCreateMemory(INTERNAL_NAMESPACE);
-				const internalStorage = memoryStorages.get(namespaceKey(INTERNAL_NAMESPACE));
+				memoryCache.getOrCreate(INTERNAL_NAMESPACE);
+				const internalStorage = memoryCache.getStorage(INTERNAL_NAMESPACE);
 				if (!internalStorage)
-					throw new Error("unreachable: getOrCreateMemory failed to populate memoryStorages");
+					throw new Error("unreachable: getOrCreate failed to populate memoryCache");
 				const listeningMemory = new ListeningMemory(internalStorage, {
 					embed: (text) => ollama.embed(text),
 				});
@@ -279,11 +257,7 @@ async function main(): Promise<void> {
 		closeAllSessions();
 		stopServer();
 		void discordClient.destroy();
-		for (const storage of memoryStorages.values()) {
-			storage.close();
-		}
-		memoryInstances.clear();
-		memoryStorages.clear();
+		memoryCache.closeAll();
 		closeDb(db);
 		process.exit(0);
 	}
