@@ -4,7 +4,7 @@ import { METRIC } from "@vicissitude/observability/metrics";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { MoodReader } from "@vicissitude/shared/ports";
-import type { Attachment, Logger } from "@vicissitude/shared/types";
+import type { Attachment, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import {
 	consumeEvents,
@@ -99,7 +99,7 @@ export interface EventBufferDeps {
 	moodReader?: MoodReader;
 	logger?: Logger;
 	skipTracker?: SkipTracker;
-	metrics?: { incrementCounter(name: string, labels?: Record<string, string>): void };
+	metrics?: Pick<MetricsCollector, "incrementCounter">;
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
@@ -265,7 +265,7 @@ export interface PollOptions {
 	pollIntervalMs?: number;
 	onPoll?: () => void;
 	logger?: Logger;
-	metrics?: { incrementCounter(name: string, labels?: Record<string, string>): void };
+	metrics?: Pick<MetricsCollector, "incrementCounter">;
 }
 
 export async function pollEvents(

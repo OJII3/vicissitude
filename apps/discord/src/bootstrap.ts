@@ -129,9 +129,8 @@ export function createGuildAgents(
 			temperature: 0.7,
 			logger: deps.logger,
 		});
-		const eventBuffer = new SqliteEventBuffer(deps.db, agentId, deps.logger, (err) => {
+		const eventBuffer = new SqliteEventBuffer(deps.db, agentId, deps.logger, () => {
 			deps.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, { agent_id: agentId });
-			deps.logger.warn(`[bootstrap] event buffer poll error for ${agentId}`, err);
 		});
 		const agent = new DiscordAgent({
 			guildId,

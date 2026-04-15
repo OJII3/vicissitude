@@ -49,7 +49,11 @@ export class SqliteEventBuffer implements EventBuffer {
 					}
 					this.consecutivePollErrors = 0;
 				} catch (err) {
-					this.onPollError?.(err);
+					try {
+						this.onPollError?.(err);
+					} catch {
+						/* コールバックの例外はポーリング継続を妨げない */
+					}
 					this.consecutivePollErrors += 1;
 					if (this.consecutivePollErrors >= CONSECUTIVE_POLL_ERROR_WARN_THRESHOLD) {
 						this.logger?.error(
