@@ -39,6 +39,12 @@ export type { RetrievalOptions, RetrievalResult, ScoredEpisode, ScoredFact } fro
 // Re-export storage
 export { MemoryStorage } from "./storage.ts";
 
+/** Memory の読み取り専用サブセット（retrieval + semantic のみ） */
+export interface MemoryReadServices {
+	retrieval: Retrieval;
+	semantic: SemanticMemory;
+}
+
 /** Memory instance — the main entry point */
 export interface Memory {
 	segmenter: Segmenter;

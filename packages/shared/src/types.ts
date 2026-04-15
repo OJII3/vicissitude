@@ -195,6 +195,18 @@ export interface AiAgent {
 	stop(): void;
 }
 
+// ─── Session Store Port ─────────────────────────────────────────
+
+export interface SessionStorePort {
+	get(agentName: string, sessionKey: string): string | undefined;
+	getRow(
+		agentName: string,
+		sessionKey: string,
+	): { sessionId: string; createdAt: number } | undefined;
+	save(agentName: string, sessionKey: string, sessionId: string): void;
+	delete(agentName: string, sessionKey: string): void;
+}
+
 // ─── Context Builder Port ────────────────────────────────────────
 
 export interface ContextBuilderPort {

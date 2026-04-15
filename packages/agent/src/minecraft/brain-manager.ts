@@ -1,18 +1,17 @@
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
-import type { Logger } from "@vicissitude/shared/types";
+import type { Logger, SessionStorePort } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
 
-import type { SessionStore } from "../session-store.ts";
 import { MinecraftAgent } from "./minecraft-agent.ts";
 
 const DEFAULT_LIFECYCLE_POLL_MS = 10_000;
 
 export interface McBrainManagerDeps {
 	db: StoreDb;
-	sessionStore: SessionStore;
+	sessionStore: SessionStorePort;
 	logger: Logger;
 	root: string;
 	opencodePort: number;

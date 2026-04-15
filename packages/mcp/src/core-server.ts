@@ -4,6 +4,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
+import type { MemoryReadServices } from "@vicissitude/memory";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
@@ -31,7 +32,7 @@ import { registerDiscordTools } from "./tools/discord.ts";
 import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
-import { type MemoryReadServices, registerMemoryTools } from "./tools/memory.ts";
+import { registerMemoryTools } from "./tools/memory.ts";
 import { registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 import { registerSpotifyTools } from "./tools/spotify.ts";

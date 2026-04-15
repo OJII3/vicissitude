@@ -10,11 +10,11 @@ import type {
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SendOptions,
+	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "./profile.ts";
-import type { SessionStore } from "./session-store.ts";
 
 const MAX_RECONNECT_DELAY_MS = 30_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
@@ -31,7 +31,7 @@ export interface HeartbeatReader {
 export interface RunnerDeps {
 	profile: AgentProfile;
 	agentId: string;
-	sessionStore: SessionStore;
+	sessionStore: SessionStorePort;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
 	sessionPort: OpencodeSessionPort;
@@ -61,7 +61,7 @@ export class AgentRunner implements AiAgent {
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
-	private readonly sessionStore: SessionStore;
+	private readonly sessionStore: SessionStorePort;
 	private readonly contextBuilder: ContextBuilderPort;
 	private readonly logger: Logger;
 	private readonly sessionPort: OpencodeSessionPort;

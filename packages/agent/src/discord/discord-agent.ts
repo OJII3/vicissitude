@@ -3,6 +3,7 @@ import type {
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
+	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
@@ -11,13 +12,12 @@ import { consumeRotationRequest, getHeartbeat } from "@vicissitude/store/queries
 
 import { mcpServerConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
-import type { SessionStore } from "../session-store.ts";
 import { createConversationProfile } from "./profile.ts";
 
 export interface DiscordAgentDeps {
 	guildId: string;
 	db: StoreDb;
-	sessionStore: SessionStore;
+	sessionStore: SessionStorePort;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
 	/** OpenCode SDK サーバーのポート番号 */

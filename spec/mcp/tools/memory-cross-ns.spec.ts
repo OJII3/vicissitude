@@ -2,7 +2,8 @@
 /* oxlint-disable require-await -- モック関数は同期値を返すが、インターフェースが async を要求する */
 import { describe, expect, test } from "bun:test";
 
-import type { MemoryDeps, MemoryReadServices } from "@vicissitude/mcp/tools/memory";
+import type { MemoryDeps } from "@vicissitude/mcp/tools/memory";
+import type { MemoryReadServices } from "@vicissitude/memory";
 import type { Episode } from "@vicissitude/memory/episode";
 import {
 	discordGuildNamespace,

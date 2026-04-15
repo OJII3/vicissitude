@@ -1,8 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import type { BufferedEventStore } from "@vicissitude/application/message-ingestion-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { discordGuildNamespace } from "@vicissitude/memory/namespace";
+import type { BufferedEventStore } from "@vicissitude/shared/ports";
 import type {
 	BufferedEvent,
 	ConversationRecorder,
