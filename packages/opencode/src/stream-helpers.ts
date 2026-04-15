@@ -11,10 +11,19 @@ type StreamReadResult =
 	| { type: "event"; value: unknown }
 	| { type: "done" }
 	| { type: "aborted" }
-	| { type: "streamTimeout"; reason?: string };
+	| { type: "streamTimeout"; reason?: string }
+	| { type: "streamError"; reason: string };
 
 /** signal なしの stream.next() に適用するタイムアウト（5分） */
 const STREAM_NEXT_TIMEOUT_MS = 5 * 60 * 1000;
+
+function classifyStreamError(err: unknown): StreamReadResult {
+	const reason = err instanceof Error ? err.message : String(err);
+	if (reason.includes("timed out")) {
+		return { type: "streamTimeout", reason };
+	}
+	return { type: "streamError", reason };
+}
 
 export async function nextStreamEvent(
 	stream: AbortableAsyncStream<unknown>,
@@ -30,8 +39,7 @@ export async function nextStreamEvent(
 			);
 			return result.done ? { type: "done" } : { type: "event", value: result.value };
 		} catch (err) {
-			const reason = err instanceof Error ? err.message : String(err);
-			return { type: "streamTimeout", reason };
+			return classifyStreamError(err);
 		}
 	}
 	return waitForNextStreamEvent(stream, signal, onAbort);
@@ -72,8 +80,7 @@ function waitForNextStreamEvent(
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
 			} catch (err) {
-				const reason = err instanceof Error ? err.message : String(err);
-				finish(() => resolve({ type: "streamTimeout", reason }));
+				finish(() => resolve(classifyStreamError(err)));
 			}
 		})();
 	});

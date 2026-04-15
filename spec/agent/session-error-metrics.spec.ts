@@ -1,0 +1,318 @@
+/**
+ * セッションエラー検知改善: Runner のリトライメトリクスの仕様テスト
+ *
+ * 期待仕様:
+ * 1. handleSessionEnd で error が返った場合、SESSION_ERRORS カウンタがインクリメントされる
+ * 2. handleSessionEnd で streamDisconnected が返った場合、SESSION_ERRORS カウンタがインクリメントされる
+ * 3. エラー/streamDisconnected 後の再起動時に SESSION_RESTARTS カウンタがインクリメントされる
+ * 4. ハング検知によるセッションローテーション時に SESSION_RESTARTS がインクリメントされる
+ */
+import { afterEach, describe, expect, mock, test } from "bun:test";
+
+import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
+import { METRIC } from "@vicissitude/observability/metrics";
+import type {
+	ContextBuilderPort,
+	EventBuffer,
+	OpencodeSessionEvent,
+	OpencodeSessionPort,
+} from "@vicissitude/shared/types";
+
+import type { AgentProfile } from "../../packages/agent/src/profile.ts";
+import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
+
+// ─── テスト用サブクラス ───────────────────────────────────────────
+
+class TestAgent extends AgentRunner {
+	sleepSpy: ((ms: number) => Promise<void>) | null = null;
+
+	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
+	constructor(deps: RunnerDeps) {
+		super(deps);
+	}
+
+	protected override sleep(ms: number): Promise<void> {
+		if (this.sleepSpy) return this.sleepSpy(ms);
+		return super.sleep(ms);
+	}
+}
+
+// ─── ヘルパー ─────────────────────────────────────────────────────
+
+function deferred<T>() {
+	let resolveDeferred!: (value: T) => void;
+	let rejectDeferred!: (reason?: unknown) => void;
+	const promise = new Promise<T>((resolve, reject) => {
+		resolveDeferred = resolve;
+		rejectDeferred = reject;
+	});
+	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
+}
+
+function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
+	return {
+		name: "conversation",
+		mcpServers: {},
+		builtinTools: {},
+		pollingPrompt: "loop forever",
+		restartPolicy: "wait_for_events",
+		model: { providerId: "test-provider", modelId: "test-model" },
+		...overrides,
+	};
+}
+
+function createContextBuilder(): ContextBuilderPort {
+	return { build: mock(() => Promise.resolve("system prompt")) };
+}
+
+function createSessionStore() {
+	let sessionId: string | undefined;
+	return {
+		get: mock(() => sessionId),
+		getRow: mock(() => (sessionId ? { key: "k", sessionId, createdAt: Date.now() } : undefined)),
+		save: mock((_profile: string, _key: string, nextSessionId: string) => {
+			sessionId = nextSessionId;
+		}),
+		delete: mock(() => {
+			sessionId = undefined;
+		}),
+	};
+}
+
+function neverResolve(_signal: AbortSignal): Promise<void> {
+	return new Promise(() => {});
+}
+
+function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
+	return {
+		append: mock(() => {}),
+		waitForEvents: mock(waitImpl ?? neverResolve),
+	};
+}
+
+function createSessionPortWithControlledResult(
+	firstDone: Promise<OpencodeSessionEvent>,
+	secondDone: Promise<OpencodeSessionEvent>,
+): OpencodeSessionPort & { close: ReturnType<typeof mock> } {
+	let callCount = 0;
+	return {
+		createSession: mock(() => Promise.resolve("session-1")),
+		sessionExists: mock(() => Promise.resolve(false)),
+		prompt: mock(() => Promise.resolve({ text: "summary", tokens: undefined })),
+		promptAsync: mock(() => Promise.resolve()),
+		promptAsyncAndWatchSession: mock(() => {
+			callCount += 1;
+			return callCount === 1 ? firstDone : secondDone;
+		}),
+		waitForSessionIdle: mock(() => {
+			callCount += 1;
+			return callCount <= 2 ? firstDone : secondDone;
+		}),
+		deleteSession: mock(() => Promise.resolve()),
+		close: mock(() => {}),
+	} as unknown as OpencodeSessionPort & { close: ReturnType<typeof mock> };
+}
+
+const activeRunners = new Set<AgentRunner>();
+
+afterEach(() => {
+	for (const runner of activeRunners) {
+		runner.stop();
+	}
+	activeRunners.clear();
+});
+
+// ─── テスト ───────────────────────────────────────────────────────
+
+describe("Runner: session error メトリクス記録", () => {
+	test("セッションが error で終了した場合、SESSION_ERRORS カウンタがインクリメントされる", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "error", message: "session failed" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const sessionErrorCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
+		);
+		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("セッションが streamDisconnected で終了した場合、SESSION_ERRORS カウンタがインクリメントされる", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "streamDisconnected" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const sessionErrorCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
+		);
+		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+});
+
+describe("Runner: session restart メトリクス記録", () => {
+	test("エラー後の再起動時に SESSION_RESTARTS カウンタがインクリメントされる", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "error", message: "session failed" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const restartCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
+		);
+		expect(restartCalls.length).toBeGreaterThanOrEqual(1);
+		// reason ラベルに "error" が含まれる
+		const errorRestarts = restartCalls.filter(
+			(call: unknown[]) => (call[1] as Record<string, string> | undefined)?.reason === "error",
+		);
+		expect(errorRestarts.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("streamDisconnected 後の再起動時に SESSION_RESTARTS カウンタが reason=stream_disconnected でインクリメントされる", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "streamDisconnected" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const restartCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
+		);
+		expect(restartCalls.length).toBeGreaterThanOrEqual(1);
+		// reason ラベルに "stream_disconnected" が含まれる
+		const disconnectedRestarts = restartCalls.filter(
+			(call: unknown[]) =>
+				(call[1] as Record<string, string> | undefined)?.reason === "stream_disconnected",
+		);
+		expect(disconnectedRestarts.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+});

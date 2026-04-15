@@ -177,6 +177,10 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "LLM input tokens total");
 	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "LLM output tokens total");
 	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "LLM cache read tokens total");
+	// Session error metrics
+	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
+	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
+	collector.registerCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, "Event buffer poll errors total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
 }

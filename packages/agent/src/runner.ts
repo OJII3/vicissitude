@@ -1,5 +1,5 @@
 /* oxlint-disable max-lines -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
-import { recordTokenMetrics } from "@vicissitude/observability/metrics";
+import { METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -141,6 +141,7 @@ export class AgentRunner implements AiAgent {
 				);
 				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
 				this.lastWaitForEventsAt = Date.now();
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_detected" });
 				this.requestSessionRotation().catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
@@ -157,6 +158,7 @@ export class AgentRunner implements AiAgent {
 					`[${this.profile.name}:${this.agentId}] MCP respond-skip rotation request detected (requested at ${rotationTs}), rotating session`,
 				);
 				this.lastWaitForEventsAt = Date.now();
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "respond_skip" });
 				this.requestSessionRotation().catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] respond-skip recovery rotation failed`,
@@ -230,6 +232,7 @@ export class AgentRunner implements AiAgent {
 					err,
 				);
 				this.sessionWatch = null;
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
 			}
 
 			if (signal.aborted) return;
@@ -373,6 +376,13 @@ export class AgentRunner implements AiAgent {
 			this.logger.warn(
 				`[${this.profile.name}:${this.agentId}] SSE stream disconnected, will re-subscribe`,
 			);
+			this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
+				source: "session_event",
+				error_type: "stream_disconnected",
+			});
+			this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+				reason: "stream_disconnected",
+			});
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(this.metrics, event.tokens, {
 					agent_type: "polling",
@@ -382,6 +392,11 @@ export class AgentRunner implements AiAgent {
 			return;
 		}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
+		this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
+			source: "session_event",
+			error_type: "session_error",
+		});
+		this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
 	}
 
 	private async resolveSessionId(): Promise<string> {
