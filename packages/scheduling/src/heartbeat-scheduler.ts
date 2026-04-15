@@ -1,5 +1,6 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type {
 	DueReminder,
 	HeartbeatConfig,
@@ -15,10 +16,7 @@ const HEARTBEAT_TICK_INTERVAL_MS = 60_000;
 const HEARTBEAT_TICK_TIMEOUT_MS = 180_000;
 
 export interface HeartbeatSchedulerDeps {
-	configRepo: {
-		load(): HeartbeatConfig | Promise<HeartbeatConfig>;
-		save(config: HeartbeatConfig): Promise<void>;
-	};
+	configRepo: HeartbeatConfigPort;
 	heartbeatService: { execute(dueReminders: DueReminder[]): Promise<Set<string>> };
 	logger: Logger;
 	metrics?: MetricsCollector;

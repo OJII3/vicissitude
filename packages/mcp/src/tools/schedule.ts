@@ -1,15 +1,11 @@
 /* oxlint-disable max-lines -- schedule tools register 5 MCP tools in one module */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GUILD_ID_RE } from "@vicissitude/shared/namespace";
-import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
+import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
+import type { HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
-
-export interface HeartbeatConfigPort {
-	load(): Promise<HeartbeatConfig>;
-	save(config: HeartbeatConfig): Promise<void>;
-}
 
 export function filterRemindersByGuild(
 	reminders: HeartbeatReminder[],
