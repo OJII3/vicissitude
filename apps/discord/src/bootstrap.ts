@@ -36,6 +36,7 @@ import type {
 	Logger,
 	MemoryFactReader,
 	MetricsCollector,
+	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
@@ -92,7 +93,7 @@ export function createGuildAgents(
 	guildIds: string[],
 	deps: {
 		db: StoreDb;
-		sessionStore: SessionStore;
+		sessionStore: SessionStorePort;
 		contextBuilder: ContextBuilderPort;
 		logger: Logger;
 		metrics?: MetricsCollector;
