@@ -19,6 +19,7 @@ import {
 	classifyEvent,
 	extractText,
 	extractTokens,
+	logPartActivity,
 	nextStreamEvent,
 	returnStreamOnce,
 	sumTokens,
@@ -164,6 +165,8 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					}
 				}
 
+				logPartActivity(typed, params.sessionId, this.logger);
+
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
 				if (classified) {
 					if (classified.type === "error") {
@@ -220,6 +223,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				if (rawType === "session.status" || rawType === "session.updated") {
 					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
 				}
+				logPartActivity(typed, sessionId, this.logger);
 				const result = classifyEvent(typed, sessionId, tokensByMessage);
 				if (result) {
 					if (result.type === "error") {
