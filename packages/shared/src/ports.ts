@@ -1,6 +1,6 @@
 import type { Emotion, VrmExpressionWeight } from "./emotion";
 import type { TtsResult, TtsStyleParams } from "./tts";
-import type { BufferedEvent } from "./types";
+import type { BufferedEvent, HeartbeatConfig } from "./types";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
 // ─── LlmPromptPort ──────────────────────────────────────────────
@@ -130,4 +130,12 @@ export interface GatewayPort {
 /** イベントバッファへの追記ポート */
 export interface BufferedEventStore {
 	append(agentId: string, event: BufferedEvent): void;
+}
+
+// ─── HeartbeatConfigPort ────────────────────────────────────────
+
+/** Heartbeat 設定の読み書きポート */
+export interface HeartbeatConfigPort {
+	load(): HeartbeatConfig | Promise<HeartbeatConfig>;
+	save(config: HeartbeatConfig): Promise<void>;
 }
