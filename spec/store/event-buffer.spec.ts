@@ -1,6 +1,6 @@
-import type { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 
+import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -28,23 +28,12 @@ function createMockLogger() {
 
 /** テスト用: DB の event_buffer テーブルを DROP してポーリングエラーを発生させる */
 function breakEventBufferTable(db: ReturnType<typeof createTestDb>): void {
-	// drizzle の $client プロパティから内部の sqlite Database にアクセスする
-	const sqlite = (db as unknown as { $client: Database }).$client;
-	sqlite.exec("DROP TABLE event_buffer");
+	db.$client.exec("DROP TABLE event_buffer");
 }
 
 /** テスト用: DB の event_buffer テーブルを再作成してエラーを解消する */
 function restoreEventBufferTable(db: ReturnType<typeof createTestDb>): void {
-	const sqlite = (db as unknown as { $client: Database }).$client;
-	sqlite.exec(`
-		CREATE TABLE IF NOT EXISTS event_buffer (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			agent_id TEXT NOT NULL,
-			payload TEXT NOT NULL,
-			created_at INTEGER NOT NULL
-		)
-	`);
-	sqlite.exec("CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id)");
+	db.$client.exec(CREATE_TABLES_SQL);
 }
 
 describe("SqliteEventBuffer", () => {
