@@ -61,7 +61,13 @@ function main(): void {
 	const DATA_DIR = process.env.DATA_DIR;
 
 	// ── Metrics ───────────────────────────────────────────────────────────────────
-	const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics(logger);
+	const mcMetricsPort = Number(process.env.MC_METRICS_PORT) || 9092;
+	const mcMetricsHost = process.env.MC_METRICS_HOST ?? "0.0.0.0";
+	const { collector: mcCollector, server: mcMetricsServer } = createMcMetrics(
+		logger,
+		mcMetricsPort,
+		mcMetricsHost,
+	);
 	mcMetricsServer.start();
 
 	// ── Bridge DB (auto-notification) ─────────────────────────────────────────────

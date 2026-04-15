@@ -133,7 +133,7 @@ export function createGuildAgents(
 
 // ─── Metrics ────────────────────────────────────────────────────
 
-export function createMetrics(logger: Logger) {
+export function createMetrics(logger: Logger, port: number) {
 	const collector = new PrometheusCollector();
 	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
 	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
@@ -157,7 +157,7 @@ export function createMetrics(logger: Logger) {
 	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "LLM output tokens total");
 	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "LLM cache read tokens total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
-	return { collector, server: new PrometheusServer(collector, logger) };
+	return { collector, server: new PrometheusServer(collector, logger, port) };
 }
 
 // ─── Channel Config ─────────────────────────────────────────────
@@ -420,7 +420,8 @@ export async function bootstrap(): Promise<void> {
 	const { contextBuilder } = createContextLayer(config, root, factReader);
 
 	// Metrics
-	const metrics = createMetrics(logger);
+	const metricsPort = Number(process.env.METRICS_PORT) || 9091;
+	const metrics = createMetrics(logger, metricsPort);
 	metrics.server.start();
 
 	// Channel config

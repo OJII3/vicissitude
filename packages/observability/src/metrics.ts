@@ -240,29 +240,24 @@ export class PrometheusCollector implements MetricsCollector {
 
 // ─── Prometheus Server ──────────────────────────────────────────
 
-const DEFAULT_METRICS_PORT = 9091;
-
 export class PrometheusServer {
 	// oxlint-disable-next-line typescript/no-redundant-type-constituents -- Bun.serve の戻り値型が any を含むため
 	private server: ReturnType<typeof Bun.serve> | null = null;
-	private readonly port: number;
 
 	constructor(
 		private readonly collector: PrometheusCollector,
 		private readonly logger: Logger,
-		port?: number,
-	) {
-		this.port = port ?? (Number(process.env.METRICS_PORT) || DEFAULT_METRICS_PORT);
-	}
+		private readonly port: number,
+		private readonly hostname: string = "0.0.0.0",
+	) {}
 
 	start(): void {
-		const hostname = process.env.METRICS_HOST ?? "0.0.0.0";
 		this.server = Bun.serve({
 			port: this.port,
-			hostname,
+			hostname: this.hostname,
 			fetch: (req: Request) => this.handleRequest(req),
 		});
-		this.logger.info(`[metrics] Prometheus server listening on ${hostname}:${String(this.port)}`);
+		this.logger.info(`[metrics] Prometheus server listening on ${this.hostname}:${String(this.port)}`);
 	}
 
 	stop(): void {
