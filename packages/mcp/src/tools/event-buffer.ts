@@ -403,9 +403,9 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		"wait_for_events",
 		{
 			description:
-				"イベントが届くまで待機し、届いたら最大10件まとめて消費して返す。直近のチャンネルメッセージがあれば別ブロックで付与する。タイムアウト時は空配列を返す。",
+				"Wait for incoming events, consuming up to 10 at once. Returns recent channel messages in a separate block if available. Returns an empty result on timeout. On connection errors, call this tool again immediately WITHOUT generating any text or commentary.",
 			inputSchema: {
-				timeout_seconds: z.number().min(1).max(172800).default(60),
+				timeout_seconds: z.number().min(1).max(172800).default(172800),
 			},
 		},
 		async ({ timeout_seconds }) => {
