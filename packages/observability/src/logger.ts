@@ -4,7 +4,7 @@ import pino from "pino";
 export class ConsoleLogger implements Logger {
 	private readonly pino: pino.Logger;
 
-	constructor(level: string = "info") {
+	constructor(level: string = process.env.LOG_LEVEL ?? "info") {
 		this.pino = pino({ level });
 	}
 
