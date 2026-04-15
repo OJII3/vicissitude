@@ -1075,6 +1075,7 @@ describe("timeout constraints", () => {
 
 		expect(capturedInputSchema).toBeDefined();
 		const timeoutSchema = capturedInputSchema!.timeout_seconds as { parse(v: unknown): number };
+		// oxlint-disable-next-line no-useless-undefined -- undefined を渡してデフォルト値の適用を検証する
 		expect(timeoutSchema.parse(undefined)).toBe(MAX_POLL_TIMEOUT_SECONDS);
 	});
 });

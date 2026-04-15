@@ -118,7 +118,9 @@ describe("idle タイムアウト無効化", () => {
 	function createSlowServer(): McpServer {
 		const server = new McpServer({ name: "slow-test", version: "0.1.0" });
 		server.registerTool("slow_tool", { description: "slow tool" }, async () => {
-			await new Promise((resolve) => setTimeout(resolve, 2000));
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 2000);
+			});
 			return { content: [{ type: "text" as const, text: "done" }] };
 		});
 		return server;
@@ -176,7 +178,9 @@ describe("セッション TTL クリーンアップ", () => {
 		expect(handle.sessionCount()).toBe(1);
 
 		// lastAccess が確実に過去になるよう 1 tick 待つ
-		await new Promise((resolve) => setTimeout(resolve, 5));
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 5);
+		});
 		handle.runCleanup(0);
 		expect(handle.sessionCount()).toBe(0);
 	});
@@ -195,7 +199,9 @@ describe("セッション TTL クリーンアップ", () => {
 		expect(handle.sessionCount()).toBe(1);
 
 		// 後片付け
-		await new Promise((resolve) => setTimeout(resolve, 5));
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 5);
+		});
 		handle.runCleanup(0);
 	});
 });
