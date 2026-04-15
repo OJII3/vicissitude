@@ -119,11 +119,8 @@ export class McBrainManager {
 			contextBuilder,
 			sessionStore: deps.sessionStore,
 			logger: deps.logger,
-			root: deps.root,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
-			model: { providerId: deps.providerId, modelId: deps.modelId },
-			mcHost: deps.mcHost,
-			mcMcpPort: deps.mcMcpPort,
+			profile,
 		});
 		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
 		const bootstrapEvent = {

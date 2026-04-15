@@ -7,35 +7,23 @@ import type {
 	SessionStorePort,
 } from "@vicissitude/shared/types";
 
-import { mcpMinecraftConfigs } from "../mcp-config.ts";
+import type { AgentProfile } from "../profile.ts";
 import { AgentRunner } from "../runner.ts";
-import { createMinecraftProfile } from "./profile.ts";
 
 export interface MinecraftAgentDeps {
 	sessionStore: SessionStorePort;
 	logger: Logger;
-	root: string;
 	eventBuffer: EventBuffer;
 	sessionPort: OpencodeSessionPort;
 	contextBuilder: ContextBuilderPort;
 	sessionMaxAgeMs: number;
-	model: { providerId: string; modelId: string };
-	mcHost?: string;
-	mcMcpPort?: string;
+	profile: AgentProfile;
 }
 
 export class MinecraftAgent extends AgentRunner {
 	constructor(deps: MinecraftAgentDeps) {
-		const profile = createMinecraftProfile({
-			...deps.model,
-			mcpServers: mcpMinecraftConfigs({
-				appRoot: deps.root,
-				mcHost: deps.mcHost,
-				mcMcpPort: deps.mcMcpPort,
-			}),
-		});
 		super({
-			profile,
+			profile: deps.profile,
 			agentId: MINECRAFT_AGENT_ID,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,

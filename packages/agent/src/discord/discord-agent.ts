@@ -10,9 +10,8 @@ import type {
 import type { StoreDb } from "@vicissitude/store/db";
 import { consumeRotationRequest, getHeartbeat } from "@vicissitude/store/queries";
 
-import { mcpServerConfigs } from "../mcp-config.ts";
+import type { AgentProfile } from "../profile.ts";
 import { AgentRunner } from "../runner.ts";
-import { createConversationProfile } from "./profile.ts";
 
 export interface DiscordAgentDeps {
 	guildId: string;
@@ -24,26 +23,17 @@ export interface DiscordAgentDeps {
 	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
-	model: { providerId: string; modelId: string };
+	profile: AgentProfile;
 	summaryWriter?: SessionSummaryWriter;
 	/** agentId のプレフィックス（デフォルト: "discord"）。Heartbeat 専用エージェントなどでセッション分離に使用 */
 	agentIdPrefix?: string;
-	appRoot: string;
-	coreMcpPort: number;
 }
 
 export class DiscordAgent extends AgentRunner {
 	constructor(deps: DiscordAgentDeps) {
 		const agentId = `${deps.agentIdPrefix ?? "discord"}:${deps.guildId}`;
-		const profile = createConversationProfile({
-			...deps.model,
-			mcpServers: mcpServerConfigs(agentId, {
-				appRoot: deps.appRoot,
-				coreMcpPort: deps.coreMcpPort,
-			}),
-		});
 		super({
-			profile,
+			profile: deps.profile,
 			agentId,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
