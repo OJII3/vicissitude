@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Logger } from "@vicissitude/shared/types";
+import type { Server as BunServer } from "bun";
 
 interface SessionEntry {
 	server: McpServer;
@@ -18,8 +19,8 @@ function createFetchHandler(
 	sessions: Map<string, SessionEntry>,
 	label: string,
 	logger: Logger,
-): (req: Request) => Response | Promise<Response> {
-	return async (req) => {
+): (req: Request, server: BunServer) => Response | Promise<Response> {
+	return async (req, bunServer) => {
 		const url = new URL(req.url);
 		const pathname = url.pathname;
 		if (pathname === "/health")
@@ -28,6 +29,9 @@ function createFetchHandler(
 				headers: { "Content-Type": "application/json" },
 			});
 		if (pathname !== "/mcp") return new Response("Not Found", { status: 404 });
+		// MCP ツール実行（wait_for_events 等）は長時間かかるため、
+		// リクエスト単位の idle タイムアウトを無効化する
+		bunServer.timeout(req, 0);
 		const sessionId = req.headers.get("mcp-session-id");
 		const entry = sessionId ? sessions.get(sessionId) : undefined;
 		if (entry) {
