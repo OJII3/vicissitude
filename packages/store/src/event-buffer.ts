@@ -12,6 +12,7 @@ export class SqliteEventBuffer implements EventBuffer {
 		private readonly db: StoreDb,
 		private readonly agentId: string,
 		private readonly logger?: Logger,
+		private readonly onPollError?: (err: unknown) => void,
 	) {}
 
 	append(event: BufferedEvent): void {
@@ -48,6 +49,7 @@ export class SqliteEventBuffer implements EventBuffer {
 					}
 					this.consecutivePollErrors = 0;
 				} catch (err) {
+					this.onPollError?.(err);
 					this.consecutivePollErrors += 1;
 					if (this.consecutivePollErrors >= CONSECUTIVE_POLL_ERROR_WARN_THRESHOLD) {
 						this.logger?.error(

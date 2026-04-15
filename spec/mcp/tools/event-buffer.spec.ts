@@ -855,6 +855,67 @@ describe("createSkipTracker", () => {
 });
 
 describe("pollEvents", () => {
+	test("エラー時に metrics.incrementCounter が呼ばれる", async () => {
+		const db = createTestDb();
+		// テーブルを DROP してクエリを失敗させる
+		db.run("DROP TABLE event_buffer");
+
+		const incremented: { name: string; labels?: Record<string, string> }[] = [];
+		const metrics = {
+			incrementCounter(name: string, labels?: Record<string, string>) {
+				incremented.push({ name, labels });
+			},
+		};
+
+		const deadline = Date.now() + 300;
+		const result = await pollEvents(db, "guild-1", deadline, {
+			pollIntervalMs: 50,
+			metrics,
+		});
+
+		expect(result).toBeNull();
+		expect(incremented.length).toBeGreaterThan(0);
+		expect(incremented.every((e) => e.name === "event_buffer_poll_errors_total")).toBe(true);
+	});
+
+	test("正常なポーリングでは metrics.incrementCounter が呼ばれない", async () => {
+		const db = createTestDb();
+		appendEvent(
+			db,
+			"guild-1",
+			JSON.stringify({
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "test",
+				authorId: "u1",
+				authorName: "A",
+				messageId: "m1",
+			}),
+		);
+
+		const incremented: { name: string }[] = [];
+		const metrics = {
+			incrementCounter(name: string) {
+				incremented.push({ name });
+			},
+		};
+
+		const deadline = Date.now() + 5000;
+		const result = await pollEvents(db, "guild-1", deadline, { metrics });
+
+		expect(result).not.toBeNull();
+		expect(incremented).toHaveLength(0);
+	});
+
+	test("metrics が未指定でもエラー時にクラッシュしない", async () => {
+		const db = createTestDb();
+		db.run("DROP TABLE event_buffer");
+
+		const deadline = Date.now() + 200;
+		// metrics なしでもクラッシュせず null を返す
+		const result = await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 50 });
+		expect(result).toBeNull();
+	});
+
 	test("イベントが既にあれば即座に ParsedEvent 配列を返す", async () => {
 		const db = createTestDb();
 		appendEvent(

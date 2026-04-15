@@ -111,7 +111,9 @@ export class McBrainManager {
 		const contextBuilder = new MinecraftContextBuilder(overlayDir, baseDir);
 		const eventBuffer = deps.eventBufferFactory
 			? deps.eventBufferFactory(MINECRAFT_AGENT_ID)
-			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger);
+			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger, (err) => {
+					deps.logger.warn(`[mc-brain-manager] event buffer poll error`, err);
+				});
 
 		this.agent = new MinecraftAgent({
 			eventBuffer,
