@@ -1,5 +1,5 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
@@ -46,6 +46,11 @@ import { spawn, type Subprocess } from "bun";
 import { type AppConfig, loadConfig } from "./config.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
+import {
+	migrateMemoryDir,
+	removeLegacyConsolidateReminder,
+	syncMcCheckReminder,
+} from "./migrations.ts";
 import { createPortLayout } from "./port-allocator.ts";
 
 // ─── Store Layer ────────────────────────────────────────────────
@@ -150,45 +155,6 @@ export function createMetrics(logger: Logger) {
 	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "LLM cache read tokens total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger) };
-}
-
-// ─── mc-check Reminder Sync ─────────────────────────────────────
-
-/** config.minecraft の有無に応じて mc-check リマインダーの enabled を同期する */
-function syncMcCheckReminder(configPath: string, minecraftEnabled: boolean, logger: Logger): void {
-	if (!existsSync(configPath)) return;
-	try {
-		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
-			reminders?: { id: string; enabled: boolean }[];
-		};
-		const mcCheck = raw.reminders?.find((r) => r.id === "mc-check");
-		if (!mcCheck || mcCheck.enabled === minecraftEnabled) return;
-		mcCheck.enabled = minecraftEnabled;
-		writeFileSync(configPath, JSON.stringify(raw, null, 2));
-		logger.info(
-			`[bootstrap] mc-check reminder ${minecraftEnabled ? "enabled" : "disabled"} (synced with config.minecraft)`,
-		);
-	} catch {
-		// パース失敗時はスキップ（HeartbeatScheduler がデフォルト設定で初期化する）
-	}
-}
-
-/** ltm-consolidate リマインダーを削除する（MCP ツール廃止に伴う移行） */
-function removeLegacyConsolidateReminder(configPath: string, logger: Logger): void {
-	if (!existsSync(configPath)) return;
-	try {
-		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
-			reminders?: { id: string }[];
-		};
-		if (!raw.reminders) return;
-		const idx = raw.reminders.findIndex((r) => r.id === "ltm-consolidate");
-		if (idx === -1) return;
-		raw.reminders.splice(idx, 1);
-		writeFileSync(configPath, JSON.stringify(raw, null, 2));
-		logger.info("[bootstrap] Removed ltm-consolidate reminder (consolidation is now automatic)");
-	} catch {
-		// パース失敗時はスキップ
-	}
 }
 
 // ─── Channel Config ─────────────────────────────────────────────
@@ -432,12 +398,7 @@ export async function bootstrap(): Promise<void> {
 	const logger = new ConsoleLogger();
 
 	// Migrate data/ltm → data/memory
-	const oldMemoryDir = resolve(config.dataDir, "ltm");
-	const newMemoryDir = resolve(config.dataDir, "memory");
-	if (existsSync(oldMemoryDir) && !existsSync(newMemoryDir)) {
-		renameSync(oldMemoryDir, newMemoryDir);
-		logger.info("[bootstrap] Migrated data/ltm → data/memory");
-	}
+	migrateMemoryDir(config.dataDir, logger);
 
 	// Store
 	const { db, sessionStore } = createStoreLayer(config);
