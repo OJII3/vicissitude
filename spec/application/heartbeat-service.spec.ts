@@ -25,7 +25,7 @@ describe("buildHeartbeatPrompt", () => {
 		]);
 
 		expect(prompt).toContain("水やり");
-		expect(prompt).toContain("30分ごと");
+		expect(prompt).toContain("every 30min");
 	});
 });
 

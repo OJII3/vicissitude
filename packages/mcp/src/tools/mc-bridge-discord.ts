@@ -26,9 +26,13 @@ export function registerDiscordBridgeTools(
 	server.registerTool(
 		"minecraft_delegate",
 		{
-			description: "マイクラの自分に指示を出す。次のポーリングで反映される。",
+			description: "Delegate a command to the Minecraft agent. Reflected on next poll.",
 			inputSchema: {
-				command: z.string().min(1).max(MAX_COMMAND_CHARS).describe("マイクラでやること"),
+				command: z
+					.string()
+					.min(1)
+					.max(MAX_COMMAND_CHARS)
+					.describe("Command for the Minecraft agent"),
 			},
 		},
 		({ command }) => {
@@ -47,23 +51,27 @@ export function registerDiscordBridgeTools(
 		},
 	);
 
-	server.registerTool("minecraft_status", { description: "マイクラの最新状況を確認する。" }, () => {
-		const status = getMcConnectionStatus(db);
-		const label = status.connected ? "接続中" : "未接続";
-		const text = `接続状態: ${label}${status.since ? ` (${status.since})` : ""}`;
+	server.registerTool(
+		"minecraft_status",
+		{ description: "Check the latest Minecraft connection status." },
+		() => {
+			const status = getMcConnectionStatus(db);
+			const label = status.connected ? "connected" : "disconnected";
+			const text = `Connection status: ${label}${status.since ? ` (${status.since})` : ""}`;
 
-		return {
-			content: [{ type: "text" as const, text }],
-		};
-	});
+			return {
+				content: [{ type: "text" as const, text }],
+			};
+		},
+	);
 
 	server.registerTool(
 		"minecraft_start_session",
 		{
-			description: "マイクラのセッションを開始する。マイクラが停止中のときに使う。",
+			description: "Start a Minecraft session. Use when Minecraft is stopped.",
 			inputSchema: boundGuildId
 				? {}
-				: { guild_id: z.string().min(1).describe("呼び出し元の guild ID") },
+				: { guild_id: z.string().min(1).describe("Caller's guild ID") },
 		},
 		({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
@@ -95,10 +103,10 @@ export function registerDiscordBridgeTools(
 	server.registerTool(
 		"minecraft_stop_session",
 		{
-			description: "マイクラのセッションを停止する。",
+			description: "Stop the Minecraft session.",
 			inputSchema: boundGuildId
 				? {}
-				: { guild_id: z.string().min(1).describe("呼び出し元の guild ID") },
+				: { guild_id: z.string().min(1).describe("Caller's guild ID") },
 		},
 		({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;

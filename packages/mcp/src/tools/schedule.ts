@@ -25,7 +25,7 @@ function registerReadTools(
 ): void {
 	server.registerTool(
 		"get_heartbeat_config",
-		{ description: "現在の heartbeat 設定を表示する" },
+		{ description: "Show current heartbeat configuration" },
 		async () => {
 			const config = await configPort.load();
 			return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
@@ -35,7 +35,7 @@ function registerReadTools(
 	server.registerTool(
 		"list_reminders",
 		{
-			description: "リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
+			description: "List reminders (current guild + global only)",
 			inputSchema: boundGuildId ? {} : { guild_id: guildIdSchema },
 		},
 		async ({ guild_id }: { guild_id?: string }) => {
@@ -48,22 +48,22 @@ function registerReadTools(
 			const lines = visible.map((r) => {
 				const schedule =
 					r.schedule.type === "interval"
-						? `${String(r.schedule.minutes)}分ごと`
-						: `毎日 ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
-				const status = r.enabled ? "有効" : "無効";
-				const last = r.lastExecutedAt ?? "未実行";
+						? `every ${String(r.schedule.minutes)}min`
+						: `daily ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
+				const status = r.enabled ? "enabled" : "disabled";
+				const last = r.lastExecutedAt ?? "never";
 				const scope = r.guildId ? `guild:${r.guildId}` : "global";
-				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, 最後: ${last})`;
+				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, last: ${last})`;
 			});
-			return { content: [{ type: "text" as const, text: lines.join("\n") || "リマインダーなし" }] };
+			return { content: [{ type: "text" as const, text: lines.join("\n") || "No reminders" }] };
 		},
 	);
 
 	server.registerTool(
 		"set_base_interval",
 		{
-			description: "ベースチェック間隔を変更する（分）",
-			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
+			description: "Set base check interval (minutes)",
+			inputSchema: { minutes: z.number().min(1).describe("Check interval in minutes") },
 		},
 		async ({ minutes }) => {
 			const config = await configPort.load();
@@ -73,7 +73,7 @@ function registerReadTools(
 				content: [
 					{
 						type: "text",
-						text: `ベース間隔を ${String(minutes)} 分に変更しました`,
+						text: `Base interval set to ${String(minutes)} minutes`,
 					},
 				],
 			};
@@ -89,21 +89,23 @@ function registerAddReminder(
 	server.registerTool(
 		"add_reminder",
 		{
-			description: "新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
+			description: "Add a new reminder (defaults to current guild)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("一意の識別子"),
-				description: z.string().describe("リマインダーの説明"),
-				schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
-				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+				id: z.string().describe("Unique identifier"),
+				description: z.string().describe("Reminder description"),
+				schedule_type: z.enum(["interval", "daily"]).describe("Schedule type"),
+				interval_minutes: z
+					.number()
+					.min(1)
+					.optional()
+					.describe("Minutes for interval type (min 1)"),
+				daily_hour: z.number().min(0).max(23).optional().describe("Hour for daily type"),
+				daily_minute: z.number().min(0).max(59).optional().describe("Minute for daily type"),
 				global: z
 					.boolean()
 					.optional()
-					.describe(
-						"true にするとギルドに紐づかないグローバルリマインダーになる（デフォルト: false）",
-					),
+					.describe("Set true for a global reminder not bound to any guild (default: false)"),
 			},
 		},
 		async ({
@@ -172,7 +174,7 @@ function registerAddReminder(
 			config.reminders.push(reminder);
 			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を追加しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" added` }],
 			};
 		},
 	);
@@ -186,19 +188,20 @@ function registerModifyReminders(
 	server.registerTool(
 		"update_reminder",
 		{
-			description: "リマインダーを更新する（自ギルドまたはグローバルのみ）",
+			description: "Update a reminder (own guild or global only)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("更新するリマインダーの ID"),
-				description: z.string().optional().describe("新しい説明"),
-				enabled: z.boolean().optional().describe("有効/無効"),
-				schedule_type: z
-					.enum(["interval", "daily"])
+				id: z.string().describe("ID of the reminder to update"),
+				description: z.string().optional().describe("New description"),
+				enabled: z.boolean().optional().describe("Enable/disable"),
+				schedule_type: z.enum(["interval", "daily"]).optional().describe("New schedule type"),
+				interval_minutes: z
+					.number()
+					.min(1)
 					.optional()
-					.describe("新しいスケジュールタイプ"),
-				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+					.describe("Minutes for interval type (min 1)"),
+				daily_hour: z.number().min(0).max(23).optional().describe("Hour for daily type"),
+				daily_minute: z.number().min(0).max(59).optional().describe("Minute for daily type"),
 			},
 		},
 		async ({
@@ -259,7 +262,7 @@ function registerModifyReminders(
 
 			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を更新しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" updated` }],
 			};
 		},
 	);
@@ -267,10 +270,10 @@ function registerModifyReminders(
 	server.registerTool(
 		"remove_reminder",
 		{
-			description: "リマインダーを削除する（自ギルドまたはグローバルのみ）",
+			description: "Remove a reminder (own guild or global only)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("削除するリマインダーの ID"),
+				id: z.string().describe("ID of the reminder to remove"),
 			},
 		},
 		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
@@ -301,7 +304,7 @@ function registerModifyReminders(
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
 			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を削除しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" removed` }],
 			};
 		},
 	);
