@@ -1,12 +1,14 @@
-import { resolve } from "path";
-
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
-import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type { EventBuffer, Logger, SessionStorePort } from "@vicissitude/shared/types";
+import type {
+	ContextBuilderPort,
+	EventBuffer,
+	Logger,
+	OpencodeSessionPort,
+	SessionStorePort,
+} from "@vicissitude/shared/types";
 
 import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
-import { MinecraftContextBuilder } from "./context-builder.ts";
 import { createMinecraftProfile } from "./profile.ts";
 
 export interface MinecraftAgentDeps {
@@ -14,8 +16,8 @@ export interface MinecraftAgentDeps {
 	logger: Logger;
 	root: string;
 	eventBuffer: EventBuffer;
-	/** OpenCode SDK サーバーのポート番号 */
-	opencodePort: number;
+	sessionPort: OpencodeSessionPort;
+	contextBuilder: ContextBuilderPort;
 	sessionMaxAgeMs: number;
 	model: { providerId: string; modelId: string };
 	mcHost?: string;
@@ -32,21 +34,13 @@ export class MinecraftAgent extends AgentRunner {
 				mcMcpPort: deps.mcMcpPort,
 			}),
 		});
-		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
-		const baseDir: string = resolve(deps.root, "context/minecraft");
 		super({
 			profile,
 			agentId: MINECRAFT_AGENT_ID,
 			sessionStore: deps.sessionStore,
-			contextBuilder: new MinecraftContextBuilder(overlayDir, baseDir),
+			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
-			sessionPort: new OpencodeSessionAdapter({
-				port: deps.opencodePort,
-				mcpServers: profile.mcpServers,
-				builtinTools: profile.builtinTools,
-				temperature: 0.7,
-				logger: deps.logger,
-			}),
+			sessionPort: deps.sessionPort,
 			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 		});

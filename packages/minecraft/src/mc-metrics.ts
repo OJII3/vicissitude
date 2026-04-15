@@ -52,11 +52,14 @@ export interface McMetricsServer {
 	stop(): void;
 }
 
-export function createMcMetrics(logger: Logger): {
+export function createMcMetrics(
+	logger: Logger,
+	port: number,
+	hostname: string = "0.0.0.0",
+): {
 	collector: McMetricsCollector;
 	server: McMetricsServer;
 } {
-	const port = Number(process.env.MC_METRICS_PORT) || 9092;
 	const collector = new McMetricsCollector();
 	collector.registerCounter(METRIC.MC_JOBS, "Minecraft jobs total");
 	collector.registerCounter(METRIC.MC_BOT_EVENTS, "Minecraft bot events total");
@@ -74,7 +77,6 @@ export function createMcMetrics(logger: Logger): {
 
 	const server: McMetricsServer = {
 		start() {
-			const hostname = process.env.MC_METRICS_HOST ?? "0.0.0.0";
 			bunServer = Bun.serve({
 				port,
 				hostname,

@@ -1,13 +1,13 @@
-import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type {
 	ContextBuilderPort,
+	EventBuffer,
 	Logger,
 	MetricsCollector,
+	OpencodeSessionPort,
 	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { consumeRotationRequest, getHeartbeat } from "@vicissitude/store/queries";
 
 import { mcpServerConfigs } from "../mcp-config.ts";
@@ -20,8 +20,8 @@ export interface DiscordAgentDeps {
 	sessionStore: SessionStorePort;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
-	/** OpenCode SDK サーバーのポート番号 */
-	opencodePort: number;
+	sessionPort: OpencodeSessionPort;
+	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
 	model: { providerId: string; modelId: string };
@@ -48,14 +48,8 @@ export class DiscordAgent extends AgentRunner {
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
-			sessionPort: new OpencodeSessionAdapter({
-				port: deps.opencodePort,
-				mcpServers: profile.mcpServers,
-				builtinTools: profile.builtinTools,
-				temperature: 0.7,
-				logger: deps.logger,
-			}),
-			eventBuffer: new SqliteEventBuffer(deps.db, agentId, deps.logger),
+			sessionPort: deps.sessionPort,
+			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,

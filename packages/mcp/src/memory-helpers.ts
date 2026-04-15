@@ -1,12 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import path, { resolve } from "path";
 
-import { APP_ROOT } from "@vicissitude/shared/config";
-
-const root = APP_ROOT;
-export const BASE_CONTEXT_DIR = resolve(root, "context");
-export const OVERLAY_CONTEXT_DIR = resolve(root, "data/context");
-
 export function ensureDir(dir: string): void {
 	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }

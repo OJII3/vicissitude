@@ -28,11 +28,13 @@ export class MemoryInstanceCache {
 
 		// Evict oldest entry if at capacity
 		if (this.instances.size >= this.maxSize) {
-			const oldestKey = this.instances.keys().next().value as string;
-			this.instances.delete(oldestKey);
-			const oldStorage = this.storages.get(oldestKey);
-			oldStorage?.close();
-			this.storages.delete(oldestKey);
+			const oldestKey = this.instances.keys().next().value;
+			if (oldestKey !== undefined) {
+				this.instances.delete(oldestKey);
+				const oldStorage = this.storages.get(oldestKey);
+				oldStorage?.close();
+				this.storages.delete(oldestKey);
+			}
 		}
 
 		const { instance, storage } = this.factory(namespace);

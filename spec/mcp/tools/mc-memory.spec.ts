@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
-import { join } from "path";
+import { join, resolve } from "path";
 
 import {
 	readOverlay,
@@ -10,6 +10,8 @@ import {
 	sanitizeSkillName,
 	writeOverlay,
 } from "@vicissitude/mcp/tools/mc-memory";
+
+const BASE_CONTEXT_DIR = resolve(import.meta.dirname, "../../../context");
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));
@@ -20,20 +22,20 @@ describe("readOverlay", () => {
 		const dataDir = createTmpDir();
 		writeFileSync(join(dataDir, "TEST.md"), "overlay content");
 
-		const result = readOverlay(dataDir, "TEST.md");
+		const result = readOverlay(dataDir, "TEST.md", BASE_CONTEXT_DIR);
 		expect(result).toBe("overlay content");
 	});
 
 	it("overlay にファイルがなければ base（context/minecraft/）にフォールバックする", () => {
 		const dataDir = createTmpDir();
 		// base の context/minecraft/ には MINECRAFT-GOALS.md テンプレートが存在する
-		const result = readOverlay(dataDir, "MINECRAFT-GOALS.md");
+		const result = readOverlay(dataDir, "MINECRAFT-GOALS.md", BASE_CONTEXT_DIR);
 		expect(result).toContain("Minecraft 目標管理");
 	});
 
 	it("どちらにもなければ空文字列を返す", () => {
 		const dataDir = createTmpDir();
-		const result = readOverlay(dataDir, "NONEXISTENT.md");
+		const result = readOverlay(dataDir, "NONEXISTENT.md", BASE_CONTEXT_DIR);
 		expect(result).toBe("");
 	});
 });
@@ -117,7 +119,7 @@ describe("sanitizeSingleLine", () => {
 describe("progress の読み書き", () => {
 	it("base テンプレートからフォールバック読み込みできる", () => {
 		const dataDir = createTmpDir();
-		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md");
+		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md", BASE_CONTEXT_DIR);
 		expect(result).toContain("Minecraft ワールド進捗");
 		expect(result).toContain("装備段階");
 	});
@@ -127,7 +129,7 @@ describe("progress の読み書き", () => {
 		const progressContent = "# Minecraft ワールド進捗\n\n## 装備段階\n\n- 現在: 石\n";
 		writeOverlay(dataDir, "MINECRAFT-PROGRESS.md", progressContent);
 
-		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md");
+		const result = readOverlay(dataDir, "MINECRAFT-PROGRESS.md", BASE_CONTEXT_DIR);
 		expect(result).toContain("現在: 石");
 	});
 });
@@ -138,7 +140,7 @@ describe("mc_record_skill の追記ロジック", () => {
 		writeFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "# Minecraft スキルライブラリ\n");
 
 		// mc_record_skill のロジックを再現
-		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const entry = `\n## テストスキル\n\nテスト説明\n`;
 		const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated);
@@ -152,7 +154,7 @@ describe("mc_record_skill の追記ロジック", () => {
 	it("スキルファイルが空の場合はヘッダー付きで新規作成される", () => {
 		const dataDir = createTmpDir();
 
-		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const entry = `\n## 初回スキル\n\n説明文\n`;
 		// existing が空文字列の場合は falsy
 		const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
@@ -170,13 +172,13 @@ describe("mc_record_skill の追記ロジック", () => {
 		mkdirSync(dataDir, { recursive: true });
 
 		// 1つ目
-		const existing1 = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing1 = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const entry1 = `\n## スキルA\n\n説明A\n`;
 		const updated1 = existing1 ? existing1 + entry1 : `# Minecraft スキルライブラリ\n${entry1}`;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated1);
 
 		// 2つ目
-		const existing2 = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing2 = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const entry2 = `\n## スキルB\n\n説明B\n`;
 		const updated2 = existing2 + entry2;
 		writeOverlay(dataDir, "MINECRAFT-SKILLS.md", updated2);
@@ -190,7 +192,7 @@ describe("mc_record_skill の追記ロジック", () => {
 		const dataDir = createTmpDir();
 		writeFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "# Minecraft スキルライブラリ\n");
 
-		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const safeName = sanitizeSkillName("鉄鉱石採掘");
 		const safeDescription = sanitizeSkillDescription("Y=-64〜16 で鉄鉱石を採掘する");
 		const preconditions = sanitizeSingleLine("石のピッケル以上が必要");
@@ -215,7 +217,7 @@ describe("mc_record_skill の追記ロジック", () => {
 		const dataDir = createTmpDir();
 		writeFileSync(join(dataDir, "MINECRAFT-SKILLS.md"), "# Minecraft スキルライブラリ\n");
 
-		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md");
+		const existing = readOverlay(dataDir, "MINECRAFT-SKILLS.md", BASE_CONTEXT_DIR);
 		const safeName = sanitizeSkillName("テストスキル");
 		const safeDescription = sanitizeSkillDescription("説明文");
 		const preconditions = sanitizeSingleLine("条件1\n条件2\r\n条件3");
