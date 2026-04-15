@@ -4,21 +4,29 @@ import type { McpServerConfig } from "./profile.ts";
 
 export interface McpConfigOptions {
 	appRoot: string;
-	coreMcpPort: number;
+	/** core MCP プロセスに渡す環境変数 */
+	coreEnvironment: Record<string, string>;
 }
 
 /**
  * MCP サーバー設定を返す。
- * core MCP は HTTP サーバーとして全 guild で共有。
- * agentId は URL クエリパラメータとしてサーバーに渡され、wait_for_events のバインドに使われる。
+ *
+ * core MCP は stdio (local) モードでエージェントごとに子プロセスとして起動される。
+ * AGENT_ID 環境変数で wait_for_events のバインド先を指定する。
+ *
+ * @see {@link ../../../../docs/architecture/polling-model.md}
  */
 export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
-	const { appRoot, coreMcpPort } = opts;
+	const { appRoot, coreEnvironment } = opts;
 
 	const configs: Record<string, McpServerConfig> = {
 		core: {
-			type: "remote",
-			url: `http://localhost:${coreMcpPort}/mcp?agent_id=${encodeURIComponent(agentId)}`,
+			type: "local",
+			command: ["bun", "run", resolve(appRoot, "dist/core-server.js")],
+			environment: {
+				...coreEnvironment,
+				AGENT_ID: agentId,
+			},
 		},
 		"code-exec": {
 			type: "local",

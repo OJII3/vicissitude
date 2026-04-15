@@ -48,6 +48,7 @@ import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
+// spawn は startMinecraftMcp で使用
 
 import { type AppConfig, loadConfig } from "./config.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
@@ -91,6 +92,38 @@ function createFileSessionSummaryWriter(overlayDir: string): SessionSummaryWrite
 	};
 }
 
+/** core MCP stdio プロセスに渡す環境変数を組み立てる */
+export function buildCoreEnvironment(
+	config: AppConfig,
+	root: string,
+): Record<string, string> {
+	const env: Record<string, string> = {
+		PATH: process.env.PATH ?? "",
+		HOME: process.env.HOME ?? "",
+		DISCORD_TOKEN: config.discordToken,
+		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
+		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
+		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
+		DATA_DIR: resolve(root, "data"),
+		EMOTION_CHAT_MODEL: process.env.EMOTION_CHAT_MODEL ?? "gemma3",
+	};
+
+	if (config.spotify) {
+		env.SPOTIFY_CLIENT_ID = config.spotify.clientId;
+		env.SPOTIFY_CLIENT_SECRET = config.spotify.clientSecret;
+		env.SPOTIFY_REFRESH_TOKEN = config.spotify.refreshToken;
+		if (config.spotify.recommendPlaylistId) {
+			env.SPOTIFY_RECOMMEND_PLAYLIST_ID = config.spotify.recommendPlaylistId;
+		}
+	}
+
+	if (config.genius) {
+		env.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
+	}
+
+	return env;
+}
+
 export function createGuildAgents(
 	config: AppConfig,
 	guildIds: string[],
@@ -106,7 +139,7 @@ export function createGuildAgents(
 		/** ポート番号のオフセット（デフォルト: 0）。basePort + portOffset + index でポートを決定 */
 		portOffset?: number;
 		appRoot: string;
-		coreMcpPort: number;
+		coreEnvironment: Record<string, string>;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
@@ -119,7 +152,7 @@ export function createGuildAgents(
 			...config.opencode,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
-				coreMcpPort: deps.coreMcpPort,
+				coreEnvironment: deps.coreEnvironment,
 			}),
 		});
 		const sessionPort = new OpencodeSessionAdapter({
@@ -146,7 +179,7 @@ export function createGuildAgents(
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
 			appRoot: deps.appRoot,
-			coreMcpPort: deps.coreMcpPort,
+			coreEnvironment: deps.coreEnvironment,
 		});
 		agents.set(guildId, agent);
 	}
@@ -317,53 +350,6 @@ async function waitForMcpReady(
 	return "timeout";
 }
 
-async function startCoreMcp(config: AppConfig, root: string, logger: Logger): Promise<Subprocess> {
-	const coreEnv: Record<string, string> = {
-		PATH: process.env.PATH ?? "",
-		HOME: process.env.HOME ?? "",
-		DISCORD_TOKEN: config.discordToken,
-		CORE_MCP_PORT: String(config.coreMcpPort),
-		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
-		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
-		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
-		DATA_DIR: resolve(root, "data"),
-		EMOTION_CHAT_MODEL: process.env.EMOTION_CHAT_MODEL ?? "gemma3",
-	};
-
-	if (config.spotify) {
-		coreEnv.SPOTIFY_CLIENT_ID = config.spotify.clientId;
-		coreEnv.SPOTIFY_CLIENT_SECRET = config.spotify.clientSecret;
-		coreEnv.SPOTIFY_REFRESH_TOKEN = config.spotify.refreshToken;
-		if (config.spotify.recommendPlaylistId) {
-			coreEnv.SPOTIFY_RECOMMEND_PLAYLIST_ID = config.spotify.recommendPlaylistId;
-		}
-	}
-
-	if (config.genius) {
-		coreEnv.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
-	}
-
-	const coreProcess = spawn({
-		cmd: ["bun", "run", resolve(root, "dist/core-server.js")],
-		env: coreEnv,
-		stdout: "inherit",
-		stderr: "inherit",
-	});
-
-	const port = String(config.coreMcpPort);
-	const status = await waitForMcpReady(coreProcess, port);
-	if (status === "died") {
-		throw new Error(`[bootstrap] Core MCP process exited with code ${coreProcess.exitCode}`);
-	}
-	if (status === "timeout") {
-		coreProcess.kill();
-		throw new Error("[bootstrap] Core MCP server health check timed out");
-	}
-
-	logger.info(`[bootstrap] Core MCP server started (port=${config.coreMcpPort})`);
-	return coreProcess;
-}
-
 async function startMinecraftMcp(
 	config: AppConfig,
 	root: string,
@@ -479,9 +465,11 @@ export async function bootstrap(): Promise<void> {
 		`[bootstrap] Gateway server started (port=${config.gatewayPort}, tts=${!!config.tts})`,
 	);
 
-	// Core MCP + Minecraft MCP (start in parallel)
-	const coreReady = startCoreMcp(config, root, logger);
+	// Minecraft MCP (HTTP, start async)
 	const mcReady = startMinecraftMcp(config, root, logger);
+
+	// Core MCP environment (stdio プロセスに渡す環境変数)
+	const coreEnvironment = buildCoreEnvironment(config, root);
 
 	// Port layout
 	const guildIds = channelConfig.getGuildIds();
@@ -497,7 +485,7 @@ export async function bootstrap(): Promise<void> {
 		metrics: metrics.collector,
 		summaryWriter,
 		appRoot: root,
-		coreMcpPort: config.coreMcpPort,
+		coreEnvironment,
 	});
 
 	// Memory recording
@@ -545,7 +533,7 @@ export async function bootstrap(): Promise<void> {
 		agentIdPrefix: "discord:heartbeat",
 		portOffset: ports.heartbeatOffset,
 		appRoot: root,
-		coreMcpPort: config.coreMcpPort,
+		coreEnvironment,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {
@@ -573,8 +561,7 @@ export async function bootstrap(): Promise<void> {
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
 
-	// MCP processes
-	const coreProcess = await coreReady;
+	// MCP processes (Minecraft のみ HTTP、core は stdio で OpenCode が管理)
 	const mcProcess = await mcReady;
 
 	// Minecraft brain manager
@@ -615,7 +602,6 @@ export async function bootstrap(): Promise<void> {
 			await factReader.close();
 			memoryResources?.chatAdapter.close();
 			await memoryResources?.recorder.close();
-			coreProcess.kill();
 			mcProcess?.kill();
 			closeDb(db);
 		} catch (err) {

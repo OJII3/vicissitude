@@ -16,7 +16,6 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			basePort: 4096,
 			sessionMaxAgeHours: 48,
 		},
-		coreMcpPort: 4095,
 		memory: {
 			providerId: "test-provider",
 			modelId: "test-model",
