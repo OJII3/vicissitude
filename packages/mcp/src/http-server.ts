@@ -7,6 +7,8 @@ interface SessionEntry {
 	server: McpServer;
 	transport: WebStandardStreamableHTTPServerTransport;
 	lastAccess: number;
+	/** 処理中のリクエスト数。0 より大きい間は TTL クリーンアップをスキップする */
+	activeRequests: number;
 }
 
 // 30 分
@@ -36,7 +38,13 @@ function createFetchHandler(
 		const entry = sessionId ? sessions.get(sessionId) : undefined;
 		if (entry) {
 			entry.lastAccess = Date.now();
-			return entry.transport.handleRequest(req);
+			entry.activeRequests++;
+			try {
+				return await entry.transport.handleRequest(req);
+			} finally {
+				entry.activeRequests--;
+				entry.lastAccess = Date.now();
+			}
 		}
 		if (sessionId) return new Response("Session Not Found", { status: 404 });
 		if (req.method === "POST") {
@@ -51,7 +59,7 @@ function createFetchHandler(
 			const t = new WebStandardStreamableHTTPServerTransport({
 				sessionIdGenerator: () => crypto.randomUUID(),
 				onsessioninitialized: (id) => {
-					sessions.set(id, { server, transport: t, lastAccess: Date.now() });
+					sessions.set(id, { server, transport: t, lastAccess: Date.now(), activeRequests: 0 });
 				},
 				onsessionclosed: (id) => {
 					sessions.delete(id);
@@ -104,6 +112,7 @@ export function startHttpServer(
 	const cleanupTimer = setInterval(() => {
 		const now = Date.now();
 		for (const [id, entry] of sessions) {
+			if (entry.activeRequests > 0) continue;
 			if (now - entry.lastAccess > SESSION_TTL_MS) {
 				entry.server.close().catch(() => {});
 				entry.transport.close().catch(() => {});
