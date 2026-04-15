@@ -111,6 +111,6 @@ describe("MCP HTTP + mc-bridge ツール結合テスト", () => {
 
 		expect(result.result).toBeDefined();
 		const text = result.result?.content.at(0)?.text ?? "";
-		expect(text).toContain("接続中");
+		expect(text).toContain("connected");
 	});
 });

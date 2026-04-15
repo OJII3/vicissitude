@@ -1,11 +1,18 @@
+/* oxlint-disable max-dependencies -- brain-manager creates MinecraftAgent with all DI dependencies */
+import { resolve } from "path";
+
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
-import type { Logger, SessionStorePort } from "@vicissitude/shared/types";
+import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
+import type { EventBuffer, Logger, SessionStorePort } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
 
+import { mcpMinecraftConfigs } from "../mcp-config.ts";
+import { MinecraftContextBuilder } from "./context-builder.ts";
 import { MinecraftAgent } from "./minecraft-agent.ts";
+import { createMinecraftProfile } from "./profile.ts";
 
 const DEFAULT_LIFECYCLE_POLL_MS = 10_000;
 
@@ -18,6 +25,8 @@ export interface McBrainManagerDeps {
 	providerId: string;
 	modelId: string;
 	sessionMaxAgeMs: number;
+	/** EventBuffer ファクトリ。省略時は SqliteEventBuffer を生成 */
+	eventBufferFactory?: (agentId: string) => EventBuffer;
 	/** ライフサイクルポーリング間隔（ms）。デフォルト 10_000 */
 	lifecyclePollMs?: number;
 	mcHost?: string;
@@ -80,28 +89,38 @@ export class McBrainManager {
 	private createAgent(): void {
 		if (this.agent || this.stopping) return;
 
-		const {
-			db,
-			sessionStore,
-			logger,
-			root,
-			opencodePort,
-			providerId,
-			modelId,
-			sessionMaxAgeMs,
-			mcHost,
-			mcMcpPort,
-		} = this.deps;
+		const { deps } = this;
+		const profile = createMinecraftProfile({
+			providerId: deps.providerId,
+			modelId: deps.modelId,
+			mcpServers: mcpMinecraftConfigs({
+				appRoot: deps.root,
+				mcHost: deps.mcHost,
+				mcMcpPort: deps.mcMcpPort,
+			}),
+		});
+		const sessionPort = new OpencodeSessionAdapter({
+			port: deps.opencodePort,
+			mcpServers: profile.mcpServers,
+			builtinTools: profile.builtinTools,
+			temperature: 0.7,
+			logger: deps.logger,
+		});
+		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
+		const baseDir: string = resolve(deps.root, "context/minecraft");
+		const contextBuilder = new MinecraftContextBuilder(overlayDir, baseDir);
+		const eventBuffer = deps.eventBufferFactory
+			? deps.eventBufferFactory(MINECRAFT_AGENT_ID)
+			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger);
+
 		this.agent = new MinecraftAgent({
-			eventBuffer: new SqliteEventBuffer(db, MINECRAFT_AGENT_ID, logger),
-			sessionStore,
-			logger,
-			root,
-			opencodePort,
-			sessionMaxAgeMs,
-			model: { providerId, modelId },
-			mcHost,
-			mcMcpPort,
+			eventBuffer,
+			sessionPort,
+			contextBuilder,
+			sessionStore: deps.sessionStore,
+			logger: deps.logger,
+			sessionMaxAgeMs: deps.sessionMaxAgeMs,
+			profile,
 		});
 		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
 		const bootstrapEvent = {
@@ -111,9 +130,9 @@ export class McBrainManager {
 			authorName: "system",
 			messageId: `mc-bootstrap-${Date.now()}`,
 		};
-		appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(bootstrapEvent));
+		appendEvent(deps.db, MINECRAFT_AGENT_ID, JSON.stringify(bootstrapEvent));
 		this.agent.ensurePolling();
-		logger.info("[mc-brain-manager] minecraft brain started");
+		deps.logger.info("[mc-brain-manager] minecraft brain started");
 	}
 
 	private stopAgent(): void {

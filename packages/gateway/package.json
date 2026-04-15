@@ -8,7 +8,6 @@
 	"dependencies": {
 		"@sinclair/typebox": "^0.34.48",
 		"@vicissitude/avatar": "workspace:*",
-		"@vicissitude/observability": "workspace:*",
 		"@vicissitude/shared": "workspace:*",
 		"elysia": "^1.4.27"
 	}

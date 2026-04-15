@@ -3,6 +3,7 @@ import { describe, expect, it } from "bun:test";
 
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams, type TtsResult } from "@vicissitude/shared/tts";
 import type {
 	AudioDataMessage,
@@ -11,6 +12,8 @@ import type {
 	ErrorMessage,
 	ServerMessage,
 } from "@vicissitude/shared/ws-protocol";
+
+const noopLogger = createMockLogger();
 
 // ─── WebSocketConnection Mock ───────────────────────────────────
 //
@@ -61,7 +64,7 @@ const sampleEmotionUpdate: ServerMessage = {
 describe("WsConnectionManager", () => {
 	describe("接続管理", () => {
 		it("handleOpen で接続を追加すると getConnectionCount が増える", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 
 			manager.handleOpen("conn-1", conn);
@@ -70,7 +73,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("複数の接続を追加すると getConnectionCount がその数を返す", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			manager.handleOpen("conn-1", createMockConnection());
 			manager.handleOpen("conn-2", createMockConnection());
 			manager.handleOpen("conn-3", createMockConnection());
@@ -79,7 +82,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("handleClose で接続を削除すると getConnectionCount が減る", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			manager.handleOpen("conn-1", createMockConnection());
 			manager.handleOpen("conn-2", createMockConnection());
 
@@ -89,12 +92,12 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("接続がない状態で getConnectionCount は 0 を返す", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			expect(manager.getConnectionCount()).toBe(0);
 		});
 
 		it("存在しない connectionId の handleClose はエラーにならない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			expect(() => manager.handleClose("nonexistent")).not.toThrow();
 		});
 	});
@@ -103,7 +106,7 @@ describe("WsConnectionManager", () => {
 
 	describe("send", () => {
 		it("指定 connectionId の接続にメッセージが JSON 文字列として送られる", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -114,7 +117,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("他の接続には送信されない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn1 = createMockConnection();
 			const conn2 = createMockConnection();
 			manager.handleOpen("conn-1", conn1);
@@ -127,7 +130,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("存在しない connectionId への send はエラーにならない（静かに無視）", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			expect(() => manager.send("nonexistent", sampleServerMessage)).not.toThrow();
 		});
 	});
@@ -136,7 +139,7 @@ describe("WsConnectionManager", () => {
 
 	describe("broadcast", () => {
 		it("全接続にメッセージが JSON 文字列として送られる", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn1 = createMockConnection();
 			const conn2 = createMockConnection();
 			const conn3 = createMockConnection();
@@ -153,7 +156,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("接続がない状態で broadcast してもエラーにならない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			expect(() => manager.broadcast(sampleServerMessage)).not.toThrow();
 		});
 	});
@@ -162,7 +165,7 @@ describe("WsConnectionManager", () => {
 
 	describe("onMessage", () => {
 		it("登録したハンドラが parseClientMessage 通過後のメッセージで呼ばれる", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const received: { connectionId: string; message: unknown }[] = [];
 			manager.onMessage((connectionId, message) => {
 				received.push({ connectionId, message });
@@ -179,7 +182,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("複数のハンドラを登録した場合、全てが呼ばれる", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			let count1 = 0;
 			let count2 = 0;
 			manager.onMessage(() => {
@@ -202,7 +205,7 @@ describe("WsConnectionManager", () => {
 
 	describe("不正メッセージ処理", () => {
 		it("不正な JSON を受信すると送信元に ErrorMessage が返される", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -214,7 +217,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("JSON は有効だがスキーマ違反の場合、送信元に ErrorMessage が返される", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -226,7 +229,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("パースエラー時の ErrorMessage の code は INVALID_MESSAGE である", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -239,7 +242,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("不正メッセージ時にハンドラは呼ばれない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			let handlerCalled = false;
 			manager.onMessage(() => {
 				handlerCalled = true;
@@ -253,7 +256,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("不正メッセージでも他の接続には影響しない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn1 = createMockConnection();
 			const conn2 = createMockConnection();
 			manager.handleOpen("conn-1", conn1);
@@ -272,7 +275,7 @@ describe("WsConnectionManager", () => {
 
 	describe("ハンドラ例外の隔離", () => {
 		it("ハンドラが例外を投げても INVALID_MESSAGE ErrorMessage は送信されない", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			manager.onMessage(() => {
 				throw new Error("handler crashed");
 			});
@@ -288,7 +291,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("先行ハンドラが例外を投げても後続ハンドラは呼ばれる", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			let secondHandlerCalled = false;
 
 			manager.onMessage(() => {
@@ -306,7 +309,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("ハンドラが例外を投げてもパース自体は成功しているのでメッセージは有効である", () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const received: unknown[] = [];
 
 			manager.onMessage(() => {
@@ -349,6 +352,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: createMockSynthesizer(),
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -374,6 +378,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: createMockSynthesizer(),
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -400,6 +405,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: createMockSynthesizer(),
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -421,7 +427,7 @@ describe("WsConnectionManager", () => {
 		});
 
 		it("TTS synthesizer 未設定時はテキスト応答のみ（AudioDataMessage なし）", async () => {
-			const manager = new WsConnectionManager();
+			const manager = new WsConnectionManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -441,6 +447,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: createMockSynthesizer(null),
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -479,6 +486,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: signalAwareSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
@@ -507,6 +515,7 @@ describe("WsConnectionManager", () => {
 			const manager = new WsConnectionManager({
 				ttsSynthesizer: failingSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
+				logger: noopLogger,
 			});
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);

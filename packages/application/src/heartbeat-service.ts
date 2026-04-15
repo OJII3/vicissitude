@@ -11,9 +11,9 @@ export function buildHeartbeatPrompt(dueReminders: DueReminder[]): string {
 			const schedule = due.reminder.schedule;
 			const scheduleLabel =
 				schedule.type === "interval"
-					? `${String(schedule.minutes)}分ごと`
-					: `毎日 ${String(schedule.hour)}:${String(schedule.minute).padStart(2, "0")}`;
-			const lastLabel = due.reminder.lastExecutedAt ?? "なし";
+					? `every ${String(schedule.minutes)}min`
+					: `daily ${String(schedule.hour)}:${String(schedule.minute).padStart(2, "0")}`;
+			const lastLabel = due.reminder.lastExecutedAt ?? "never";
 			return `- [${scheduleLabel}] ${due.reminder.description}（最後: ${lastLabel}）`;
 		})
 		.join("\n");

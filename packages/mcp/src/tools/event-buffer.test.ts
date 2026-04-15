@@ -2,6 +2,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { METRIC } from "@vicissitude/observability/metrics";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -9,6 +10,7 @@ import { createTestDb } from "@vicissitude/store/test-helpers";
 import {
 	createSkipTracker,
 	escapeUserMessageTag,
+	pollEvents,
 	registerEventBufferTools,
 } from "./event-buffer.ts";
 import type { EventBufferDeps } from "./event-buffer.ts";
@@ -132,5 +134,76 @@ describe("wait_for_events × SkipTracker", () => {
 		await waitForEvents({ timeout_seconds: 1 });
 
 		expect(skipTracker.pendingResponse).toBe(false);
+	});
+});
+
+// ─── pollEvents × metrics 連携 ───────────────────────────────────
+
+describe("pollEvents × metrics (internal)", () => {
+	test("エラーごとに incrementCounter が agent_id ラベル付きで呼ばれる", async () => {
+		const db = createTestDb();
+		db.run("DROP TABLE event_buffer");
+
+		const calls: { name: string; labels?: Record<string, string> }[] = [];
+		const metrics = {
+			incrementCounter(name: string, labels?: Record<string, string>) {
+				calls.push({ name, labels });
+			},
+		};
+
+		const deadline = Date.now() + 300;
+		await pollEvents(db, "guild-test", deadline, { pollIntervalMs: 50, metrics });
+
+		expect(calls.length).toBeGreaterThan(0);
+		// すべての呼び出しで正しいメトリクス名と agent_id ラベルが渡される
+		for (const call of calls) {
+			expect(call.name).toBe(METRIC.EVENT_BUFFER_POLL_ERRORS);
+			expect(call.labels).toEqual({ agent_id: "guild-test" });
+		}
+	});
+
+	test("複数回のポーリングエラーで incrementCounter が複数回呼ばれる", async () => {
+		const db = createTestDb();
+		db.run("DROP TABLE event_buffer");
+
+		let count = 0;
+		const metrics = {
+			incrementCounter() {
+				count += 1;
+			},
+		};
+
+		const deadline = Date.now() + 300;
+		await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 50, metrics });
+
+		// 300ms / 50ms = 最大6回程度ポーリングされるので複数回呼ばれる
+		expect(count).toBeGreaterThan(1);
+	});
+
+	test("deps.metrics が pollEvents に渡されエラー時に incrementCounter が呼ばれる", async () => {
+		const db = createTestDb();
+
+		const calls: string[] = [];
+		const metrics = {
+			incrementCounter(name: string) {
+				calls.push(name);
+			},
+		};
+
+		const tools = captureEventBufferTools({ db, agentId: "agent-1", metrics });
+		const waitForEvents = tools.get("wait_for_events")!;
+
+		// consumeEvents(空) → pollEvents に進んだ直後にテーブルを壊す
+		// pollEvents のデフォルト pollIntervalMs=1000 なので、最初のポーリングは即時実行される
+		// 即時ポーリング(t=0)は成功するが、テーブルDROP後の次回ポーリングでエラーが起きる
+		setTimeout(() => {
+			db.run("DROP TABLE event_buffer");
+		}, 50);
+
+		// 2.5秒あれば t=0(成功), sleep 1s, t=1s(エラー), sleep 1s でエラーが1回以上起きる
+		await waitForEvents({ timeout_seconds: 3 });
+
+		expect(calls.length).toBeGreaterThan(0);
+		expect(calls.every((n) => n === METRIC.EVENT_BUFFER_POLL_ERRORS)).toBe(true);
 	});
 });

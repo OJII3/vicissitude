@@ -4,12 +4,7 @@ import { resolve } from "path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import {
-	BASE_CONTEXT_DIR,
-	createBackup,
-	ensureDir,
-	readWithFallbackFrom,
-} from "../memory-helpers.ts";
+import { createBackup, ensureDir, readWithFallbackFrom } from "../memory-helpers.ts";
 
 const MAX_GOALS_CHARS = 20_000;
 const MAX_PROGRESS_CHARS = 20_000;
@@ -21,11 +16,13 @@ const SKILLS_FILENAME = "MINECRAFT-SKILLS.md";
 
 export interface McMemoryDeps {
 	dataDir: string;
+	/** base コンテキストディレクトリ（context/minecraft のフォールバック元） */
+	baseContextDir: string;
 }
 
 /** @internal テスト用にもエクスポート */
-export function baseMinecraftDir(): string {
-	return resolve(BASE_CONTEXT_DIR, "minecraft");
+export function baseMinecraftDir(baseContextDir: string): string {
+	return resolve(baseContextDir, "minecraft");
 }
 
 /**
@@ -33,9 +30,9 @@ export function baseMinecraftDir(): string {
  * dataDir 内のファイルを優先し、なければ base（context/minecraft/）から読む。
  * @internal テスト用にもエクスポート
  */
-export function readOverlay(dataDir: string, filename: string): string {
+export function readOverlay(dataDir: string, filename: string, baseContextDir: string): string {
 	const overlayPath = resolve(dataDir, filename);
-	return readWithFallbackFrom(overlayPath, dataDir, baseMinecraftDir());
+	return readWithFallbackFrom(overlayPath, dataDir, baseMinecraftDir(baseContextDir));
 }
 
 /** @internal テスト用にもエクスポート */
@@ -64,7 +61,7 @@ export function sanitizeSingleLine(text: string): string {
 }
 
 export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): void {
-	const { dataDir } = deps;
+	const { dataDir, baseContextDir } = deps;
 
 	// --- Goals ---
 
@@ -72,7 +69,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		"mc_read_goals",
 		{ description: "Minecraft 目標ファイルを読む（現在の目標のみ）" },
 		() => {
-			const content = readOverlay(dataDir, GOALS_FILENAME);
+			const content = readOverlay(dataDir, GOALS_FILENAME, baseContextDir);
 			return {
 				content: [{ type: "text" as const, text: content || "(目標ファイルは空です)" }],
 			};
@@ -114,7 +111,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 				"Minecraft ワールド進捗を読む（装備段階、拠点、探索範囲、主要資源、達成済み目標、プレイヤーメモ）",
 		},
 		() => {
-			const content = readOverlay(dataDir, PROGRESS_FILENAME);
+			const content = readOverlay(dataDir, PROGRESS_FILENAME, baseContextDir);
 			return {
 				content: [{ type: "text" as const, text: content || "(進捗ファイルは空です)" }],
 			};
@@ -150,7 +147,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 	// --- Skills ---
 
 	server.registerTool("mc_read_skills", { description: "Minecraft スキルライブラリを読む" }, () => {
-		const content = readOverlay(dataDir, SKILLS_FILENAME);
+		const content = readOverlay(dataDir, SKILLS_FILENAME, baseContextDir);
 		return {
 			content: [{ type: "text" as const, text: content || "(スキルライブラリは空です)" }],
 		};
@@ -177,7 +174,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 			},
 		},
 		({ name, description, preconditions, failure_patterns }) => {
-			const existing = readOverlay(dataDir, SKILLS_FILENAME);
+			const existing = readOverlay(dataDir, SKILLS_FILENAME, baseContextDir);
 			const safeName = sanitizeSkillName(name);
 			const safeDescription = sanitizeSkillDescription(description);
 

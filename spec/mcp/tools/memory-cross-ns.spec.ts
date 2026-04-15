@@ -201,7 +201,7 @@ describe("memory_retrieve", () => {
 		const result: ToolResult = await handler({ query: "nothing" });
 
 		expect(result.isError).toBeUndefined();
-		expect(result.content[0]!.text).toContain("関連する記憶は見つかりませんでした");
+		expect(result.content[0]!.text).toContain("No relevant memories found.");
 	});
 
 	test("boundNamespace が undefined で guild_id 指定時に internal も並行検索される", async () => {
@@ -251,9 +251,9 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		expect(text).toContain("音楽聴取ログ");
 
 		// セクションヘッダーが含まれる
-		expect(text).toContain("## エピソード記憶");
-		expect(text).toContain("## ふあ自身の記憶（エピソード）");
-		expect(text).toContain("## ふあ自身の記憶（ファクト）");
+		expect(text).toContain("## Episodic Memory");
+		expect(text).toContain("## Hua's Own Memory (Episodes)");
+		expect(text).toContain("## Hua's Own Memory (Facts)");
 	});
 
 	test("boundNamespace が internal の場合、結果が重複しない（二重検索しない）", async () => {
@@ -363,7 +363,7 @@ describe("memory_get_facts", () => {
 		const result: ToolResult = await handler({});
 
 		expect(result.isError).toBeUndefined();
-		expect(result.content[0]!.text).toContain("ファクトはまだありません");
+		expect(result.content[0]!.text).toContain("No facts yet.");
 	});
 
 	test("boundNamespace が undefined で guild_id 指定時に internal もマージされる", async () => {

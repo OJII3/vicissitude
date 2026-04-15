@@ -21,7 +21,7 @@ describe("buildHeartbeatPrompt", () => {
 		];
 		const result = buildHeartbeatPrompt(reminders);
 		expect(result).toContain("[heartbeat]");
-		expect(result).toContain("30分ごと");
+		expect(result).toContain("every 30min");
 		expect(result).toContain("ホームチャンネルの様子を見る");
 		expect(result).toContain("2026-03-01T00:00:00Z");
 	});
@@ -40,9 +40,9 @@ describe("buildHeartbeatPrompt", () => {
 			},
 		];
 		const result = buildHeartbeatPrompt(reminders);
-		expect(result).toContain("毎日 9:00");
+		expect(result).toContain("daily 9:00");
 		expect(result).toContain("朝の挨拶");
-		expect(result).toContain("なし");
+		expect(result).toContain("never");
 	});
 
 	it("複数のリマインダーがすべてプロンプトに含まれる", () => {
@@ -71,8 +71,8 @@ describe("buildHeartbeatPrompt", () => {
 		const result = buildHeartbeatPrompt(reminders);
 		expect(result).toContain("タスクA");
 		expect(result).toContain("タスクB");
-		expect(result).toContain("10分ごと");
-		expect(result).toContain("毎日 21:30");
+		expect(result).toContain("every 10min");
+		expect(result).toContain("daily 21:30");
 	});
 });
 

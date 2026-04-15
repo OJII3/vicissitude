@@ -19,6 +19,7 @@ import {
 	classifyEvent,
 	extractText,
 	extractTokens,
+	logPartActivity,
 	nextStreamEvent,
 	returnStreamOnce,
 	sumTokens,
@@ -146,6 +147,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					this.logger?.warn(`[opencode] SSE stream disconnected: ${event.reason ?? "unknown"}`);
 					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
 				}
+				if (event.type === "streamError") {
+					this.logger?.error(`[opencode] SSE stream error: ${event.reason}`);
+					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
+				}
 				const typed = event.value as Event;
 				const rawType = (event.value as { type: string }).type;
 
@@ -160,9 +165,17 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					}
 				}
 
+				logPartActivity(typed, params.sessionId, this.logger);
+
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
 				if (classified) {
-					this.logger?.info(`[opencode] session event: ${classified.type}`);
+					if (classified.type === "error") {
+						this.logger?.error(
+							`[opencode] session.error event: ${classified.message ?? "unknown"}`,
+						);
+					} else {
+						this.logger?.info(`[opencode] session event: ${classified.type}`);
+					}
 					return classified;
 				}
 				unclassifiedCount++;
@@ -194,6 +207,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					);
 					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
 				}
+				if (event.type === "streamError") {
+					this.logger?.error(`[opencode] waitIdle: SSE stream error: ${event.reason}`);
+					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
+				}
 				const typed = event.value as Event;
 				const rawType = (event.value as { type: string }).type;
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
@@ -206,8 +223,16 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				if (rawType === "session.status" || rawType === "session.updated") {
 					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
 				}
+				logPartActivity(typed, sessionId, this.logger);
 				const result = classifyEvent(typed, sessionId, tokensByMessage);
-				if (result) return result;
+				if (result) {
+					if (result.type === "error") {
+						this.logger?.error(
+							`[opencode] waitIdle: session.error event: ${result.message ?? "unknown"}`,
+						);
+					}
+					return result;
+				}
 				unclassifiedCount++;
 				if (unclassifiedCount % 50 === 0) {
 					this.logger?.info(
