@@ -136,6 +136,6 @@ export interface BufferedEventStore {
 
 /** Heartbeat 設定の読み書きポート */
 export interface HeartbeatConfigPort {
-	load(): HeartbeatConfig | Promise<HeartbeatConfig>;
+	load(): Promise<HeartbeatConfig>;
 	save(config: HeartbeatConfig): Promise<void>;
 }
