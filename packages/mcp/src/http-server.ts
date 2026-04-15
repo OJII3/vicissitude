@@ -83,6 +83,10 @@ export interface HttpServerHandle {
 	cleanupTimer: ReturnType<typeof setInterval>;
 	closeAllSessions: () => void;
 	stopServer: () => void;
+	/** 現在のアクティブセッション数を返す */
+	sessionCount: () => number;
+	/** TTL クリーンアップを手動実行する。ttlOverrideMs でセッション TTL を上書き可能 */
+	runCleanup: (ttlOverrideMs?: number) => void;
 }
 
 export function startHttpServer(
@@ -110,19 +114,29 @@ export function startHttpServer(
 		void httpServer.stop(true);
 	};
 
-	const cleanupTimer = setInterval(() => {
+	const runCleanup = (ttlOverrideMs?: number): void => {
+		const ttl = ttlOverrideMs ?? SESSION_TTL_MS;
 		const now = Date.now();
 		for (const [id, entry] of sessions) {
 			if (entry.activeRequests > 0) continue;
-			if (now - entry.lastAccess > SESSION_TTL_MS) {
+			if (now - entry.lastAccess > ttl) {
 				entry.server.close().catch(() => {});
 				entry.transport.close().catch(() => {});
 				sessions.delete(id);
 			}
 		}
-	}, SESSION_CLEANUP_INTERVAL_MS);
+	};
+
+	const cleanupTimer = setInterval(() => runCleanup(), SESSION_CLEANUP_INTERVAL_MS);
 
 	logger.info(`[${label}] MCP server listening on port ${httpServer.port}`);
 
-	return { port: httpServer.port ?? port, cleanupTimer, closeAllSessions, stopServer };
+	return {
+		port: httpServer.port ?? port,
+		cleanupTimer,
+		closeAllSessions,
+		stopServer,
+		sessionCount: () => sessions.size,
+		runCleanup,
+	};
 }

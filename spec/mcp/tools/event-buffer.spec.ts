@@ -2,6 +2,7 @@
 /* oxlint-disable max-lines -- spec file covering all event-buffer public APIs */
 import { describe, expect, mock, test } from "bun:test";
 
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
 	MAX_POLL_TIMEOUT_SECONDS,
 	classifyActionHint,
@@ -13,6 +14,7 @@ import {
 	isErrorEvent,
 	parseEvents,
 	pollEvents,
+	registerEventBufferTools,
 } from "@vicissitude/mcp/tools/event-buffer";
 import type { ErrorEvent, ParsedEvent, RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
 import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
@@ -1051,5 +1053,29 @@ describe("timeout constraints", () => {
 
 	test("MAX_POLL_TIMEOUT_SECONDS が Bun idleTimeout (255s) 未満である", () => {
 		expect(MAX_POLL_TIMEOUT_SECONDS).toBeLessThan(BUN_IDLE_TIMEOUT_MAX);
+	});
+
+	test("timeout_seconds のデフォルト値は MAX_POLL_TIMEOUT_SECONDS である", () => {
+		let capturedInputSchema: Record<string, unknown> | undefined;
+
+		const fakeServer = {
+			registerTool(
+				_name: string,
+				metadata: { inputSchema: Record<string, unknown> },
+				_handler: unknown,
+			) {
+				capturedInputSchema = metadata.inputSchema;
+			},
+		} as unknown as McpServer;
+
+		registerEventBufferTools(fakeServer, {
+			db: createTestDb(),
+			agentId: "test-agent",
+		});
+
+		expect(capturedInputSchema).toBeDefined();
+		const timeoutSchema = capturedInputSchema!.timeout_seconds as { parse(v: unknown): number };
+		// oxlint-disable-next-line no-useless-undefined -- undefined を渡してデフォルト値の適用を検証する
+		expect(timeoutSchema.parse(undefined)).toBe(MAX_POLL_TIMEOUT_SECONDS);
 	});
 });
