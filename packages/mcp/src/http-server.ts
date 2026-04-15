@@ -2,6 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Logger } from "@vicissitude/shared/types";
 import type { Server as BunServer } from "bun";
+type HttpServer = BunServer<undefined>;
 
 interface SessionEntry {
 	server: McpServer;
@@ -21,7 +22,7 @@ function createFetchHandler(
 	sessions: Map<string, SessionEntry>,
 	label: string,
 	logger: Logger,
-): (req: Request, server: BunServer) => Response | Promise<Response> {
+): (req: Request, server: HttpServer) => Response | Promise<Response> {
 	return async (req, bunServer) => {
 		const url = new URL(req.url);
 		const pathname = url.pathname;
