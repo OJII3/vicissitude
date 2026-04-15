@@ -372,7 +372,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0]![0] as string;
+		const msg = logger.info.mock.calls[0][0] as string;
 		expect(msg).toContain("[opencode:activity] text:");
 		expect(msg).toContain("Hello world");
 	});
@@ -394,7 +394,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0]![0] as string;
+		const msg = logger.info.mock.calls[0][0] as string;
 		// 200 文字 + "…" で切り詰められる
 		expect(msg.length).toBeLessThan(longText.length + 50);
 	});
@@ -410,7 +410,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0]![0] as string;
+		const msg = logger.info.mock.calls[0][0] as string;
 		expect(msg).toContain("[opencode:activity] tool-start:");
 		expect(msg).toContain("search_code");
 	});
@@ -426,7 +426,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0]![0] as string;
+		const msg = logger.info.mock.calls[0][0] as string;
 		expect(msg).toContain("[opencode:activity] tool-done:");
 		expect(msg).toContain("read_file");
 		expect(msg).toContain("500ms");
@@ -443,7 +443,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.error).toHaveBeenCalledTimes(1);
-		const msg = logger.error.mock.calls[0]![0] as string;
+		const msg = logger.error.mock.calls[0][0] as string;
 		expect(msg).toContain("[opencode:activity] tool-error:");
 		expect(msg).toContain("write_file");
 		expect(msg).toContain("permission denied");
@@ -461,7 +461,7 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0]![0] as string;
+		const msg = logger.info.mock.calls[0][0] as string;
 		expect(msg).toContain("[opencode:activity] step-finish:");
 		expect(msg).toContain("reason=end_turn");
 		expect(msg).toContain("in=1000");
@@ -484,7 +484,8 @@ describe("logPartActivity", () => {
 		const event = makePartEvent({ type: "text", text: "Hello" });
 
 		// エラーなく完了すること
-		expect(() => logPartActivity(event, sessionId, undefined)).not.toThrow();
+		const noLogger: undefined = void 0;
+		expect(() => logPartActivity(event, sessionId, noLogger)).not.toThrow();
 	});
 
 	test("message.part.updated 以外のイベントは無視する", () => {
