@@ -106,7 +106,7 @@ export function startHttpServer(
 	};
 
 	const stopServer = (): void => {
-		httpServer.stop(true);
+		void httpServer.stop(true);
 	};
 
 	const cleanupTimer = setInterval(() => {
