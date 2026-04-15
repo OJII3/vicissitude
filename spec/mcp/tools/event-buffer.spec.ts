@@ -1,6 +1,6 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 /* oxlint-disable max-lines -- spec file covering all event-buffer public APIs */
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 import {
 	classifyActionHint,
@@ -14,6 +14,7 @@ import {
 	pollEvents,
 } from "@vicissitude/mcp/tools/event-buffer";
 import type { ErrorEvent, ParsedEvent, RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
+import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -982,5 +983,63 @@ describe("pollEvents", () => {
 
 		expect(result).not.toBeNull();
 		expect((result![0]! as ParsedEvent).content).toBe("delayed");
+	});
+
+	test("DBエラーが発生してもポーリングが継続し、タイムアウトで null を返す", async () => {
+		const db = createTestDb();
+		// テーブルを DROP して DB クエリをエラーにする
+		db.run("DROP TABLE event_buffer");
+
+		const deadline = Date.now() + 200;
+		const result = await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 20 });
+
+		expect(result).toBeNull();
+	});
+
+	test("DBエラー発生時に logger.error が呼ばれる", async () => {
+		const db = createTestDb();
+		db.run("DROP TABLE event_buffer");
+
+		const errorFn = mock(() => {});
+		const logger = {
+			debug: mock(() => {}),
+			info: mock(() => {}),
+			warn: mock(() => {}),
+			error: errorFn,
+		};
+
+		const deadline = Date.now() + 200;
+		await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 20, logger });
+
+		expect(errorFn).toHaveBeenCalled();
+	});
+
+	test("一時的なDBエラーの後、正常復帰してイベントを返す", async () => {
+		const db = createTestDb();
+		// テーブルを DROP して一時的にエラー状態にする
+		db.run("DROP TABLE event_buffer");
+
+		// 80ms 後にテーブルを再作成してイベントを挿入
+		setTimeout(() => {
+			// oxlint-disable-next-line no-deprecated -- CREATE_TABLES_SQL は複数文を含むため drizzle の run では実行不可
+			db.$client.exec(CREATE_TABLES_SQL);
+			appendEvent(
+				db,
+				"guild-1",
+				JSON.stringify({
+					ts: "2026-03-27T00:00:00.000Z",
+					content: "recovered",
+					authorId: "u1",
+					authorName: "A",
+					messageId: "m1",
+				}),
+			);
+		}, 80);
+
+		const deadline = Date.now() + 500;
+		const result = await pollEvents(db, "guild-1", deadline, { pollIntervalMs: 20 });
+
+		expect(result).not.toBeNull();
+		expect((result![0]! as ParsedEvent).content).toBe("recovered");
 	});
 });
