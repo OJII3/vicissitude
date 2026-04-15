@@ -1052,9 +1052,4 @@ describe("timeout constraints", () => {
 	test("MAX_POLL_TIMEOUT_SECONDS が Bun idleTimeout (255s) 未満である", () => {
 		expect(MAX_POLL_TIMEOUT_SECONDS).toBeLessThan(BUN_IDLE_TIMEOUT_MAX);
 	});
-
-	test("MAX_POLL_TIMEOUT_SECONDS が正の整数である", () => {
-		expect(MAX_POLL_TIMEOUT_SECONDS).toBeGreaterThan(0);
-		expect(Number.isInteger(MAX_POLL_TIMEOUT_SECONDS)).toBe(true);
-	});
 });

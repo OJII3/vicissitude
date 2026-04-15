@@ -105,7 +105,7 @@ export interface EventBufferDeps {
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
 export const MAX_BATCH_SIZE = 10;
 
-/** wait_for_events の timeout_seconds 上限。Bun の WebSocket idleTimeout 上限（255秒）未満に収める。 */
+/** wait_for_events の timeout_seconds 上限。Bun HTTP サーバーの idleTimeout 上限（255秒）未満に収める。 */
 export const MAX_POLL_TIMEOUT_SECONDS = 200;
 
 // ─── ActionHint ──────────────────────────────────────────────────
