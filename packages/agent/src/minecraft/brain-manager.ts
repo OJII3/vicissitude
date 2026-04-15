@@ -20,6 +20,8 @@ export interface McBrainManagerDeps {
 	sessionMaxAgeMs: number;
 	/** ライフサイクルポーリング間隔（ms）。デフォルト 10_000 */
 	lifecyclePollMs?: number;
+	mcHost?: string;
+	mcMcpPort?: string;
 }
 
 /**
@@ -78,8 +80,18 @@ export class McBrainManager {
 	private createAgent(): void {
 		if (this.agent || this.stopping) return;
 
-		const { db, sessionStore, logger, root, opencodePort, providerId, modelId, sessionMaxAgeMs } =
-			this.deps;
+		const {
+			db,
+			sessionStore,
+			logger,
+			root,
+			opencodePort,
+			providerId,
+			modelId,
+			sessionMaxAgeMs,
+			mcHost,
+			mcMcpPort,
+		} = this.deps;
 		this.agent = new MinecraftAgent({
 			eventBuffer: new SqliteEventBuffer(db, MINECRAFT_AGENT_ID, logger),
 			sessionStore,
@@ -88,6 +100,8 @@ export class McBrainManager {
 			opencodePort,
 			sessionMaxAgeMs,
 			model: { providerId, modelId },
+			mcHost,
+			mcMcpPort,
 		});
 		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
 		const bootstrapEvent = {

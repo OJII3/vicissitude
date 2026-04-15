@@ -28,6 +28,8 @@ export interface DiscordAgentDeps {
 	summaryWriter?: SessionSummaryWriter;
 	/** agentId のプレフィックス（デフォルト: "discord"）。Heartbeat 専用エージェントなどでセッション分離に使用 */
 	agentIdPrefix?: string;
+	appRoot: string;
+	coreMcpPort: number;
 }
 
 export class DiscordAgent extends AgentRunner {
@@ -35,7 +37,10 @@ export class DiscordAgent extends AgentRunner {
 		const agentId = `${deps.agentIdPrefix ?? "discord"}:${deps.guildId}`;
 		const profile = createConversationProfile({
 			...deps.model,
-			mcpServers: mcpServerConfigs(agentId),
+			mcpServers: mcpServerConfigs(agentId, {
+				appRoot: deps.appRoot,
+				coreMcpPort: deps.coreMcpPort,
+			}),
 		});
 		super({
 			profile,

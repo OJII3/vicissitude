@@ -1,18 +1,15 @@
 /* oxlint-disable max-lines -- schedule tools register 5 MCP tools in one module */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { dirname, resolve } from "path";
-
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-	HEARTBEAT_CONFIG_RELATIVE_PATH,
-	createDefaultHeartbeatConfig,
-} from "@vicissitude/scheduling/heartbeat-helpers";
-import { APP_ROOT } from "@vicissitude/shared/config";
 import { GUILD_ID_RE } from "@vicissitude/shared/namespace";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
+
+export interface HeartbeatConfigPort {
+	load(): Promise<HeartbeatConfig>;
+	save(config: HeartbeatConfig): Promise<void>;
+}
 
 export function filterRemindersByGuild(
 	reminders: HeartbeatReminder[],
@@ -25,32 +22,16 @@ export function checkGuildScope(reminder: HeartbeatReminder, guildId: string): b
 	return reminder.guildId === guildId || reminder.guildId === undefined;
 }
 
-const DATA_DIR = process.env.DATA_DIR;
-const CONFIG_PATH = DATA_DIR
-	? resolve(DATA_DIR, "heartbeat-config.json")
-	: resolve(APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH);
-
-function loadConfig(): HeartbeatConfig {
-	if (!existsSync(CONFIG_PATH)) return createDefaultHeartbeatConfig();
-	try {
-		return JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as HeartbeatConfig;
-	} catch {
-		return createDefaultHeartbeatConfig();
-	}
-}
-
-async function saveConfig(config: HeartbeatConfig): Promise<void> {
-	const dir = dirname(CONFIG_PATH);
-	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	await Bun.write(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
-
-function registerReadTools(server: McpServer, boundGuildId?: string): void {
+function registerReadTools(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"get_heartbeat_config",
 		{ description: "現在の heartbeat 設定を表示する" },
-		() => {
-			const config = loadConfig();
+		async () => {
+			const config = await configPort.load();
 			return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
 		},
 	);
@@ -61,12 +42,12 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 			description: "リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
 			inputSchema: boundGuildId ? {} : { guild_id: guildIdSchema },
 		},
-		({ guild_id }: { guild_id?: string }) => {
+		async ({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const visible = filterRemindersByGuild(config.reminders, gid);
 			const lines = visible.map((r) => {
 				const schedule =
@@ -89,9 +70,9 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
 		},
 		async ({ minutes }) => {
-			const config = loadConfig();
+			const config = await configPort.load();
 			config.baseIntervalMinutes = minutes;
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
 				content: [
 					{
@@ -104,7 +85,11 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 	);
 }
 
-function registerAddReminder(server: McpServer, boundGuildId?: string): void {
+function registerAddReminder(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"add_reminder",
 		{
@@ -148,7 +133,7 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 			if (!resolvedGuildId) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 
 			if (config.reminders.some((r) => r.id === id)) {
 				return {
@@ -189,7 +174,7 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 			}
 
 			config.reminders.push(reminder);
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
 				content: [{ type: "text" as const, text: `リマインダー "${id}" を追加しました` }],
 			};
@@ -197,7 +182,11 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 	);
 }
 
-function registerModifyReminders(server: McpServer, boundGuildId?: string): void {
+function registerModifyReminders(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"update_reminder",
 		{
@@ -239,7 +228,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
@@ -272,7 +261,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 				};
 			}
 
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
 				content: [{ type: "text" as const, text: `リマインダー "${id}" を更新しました` }],
 			};
@@ -293,7 +282,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
@@ -314,7 +303,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			}
 
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
 				content: [{ type: "text" as const, text: `リマインダー "${id}" を削除しました` }],
 			};
@@ -322,8 +311,12 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 	);
 }
 
-export function registerScheduleTools(server: McpServer, boundGuildId?: string): void {
-	registerReadTools(server, boundGuildId);
-	registerAddReminder(server, boundGuildId);
-	registerModifyReminders(server, boundGuildId);
+export function registerScheduleTools(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
+	registerReadTools(server, configPort, boundGuildId);
+	registerAddReminder(server, configPort, boundGuildId);
+	registerModifyReminders(server, configPort, boundGuildId);
 }

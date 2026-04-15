@@ -18,13 +18,19 @@ export interface MinecraftAgentDeps {
 	opencodePort: number;
 	sessionMaxAgeMs: number;
 	model: { providerId: string; modelId: string };
+	mcHost?: string;
+	mcMcpPort?: string;
 }
 
 export class MinecraftAgent extends AgentRunner {
 	constructor(deps: MinecraftAgentDeps) {
 		const profile = createMinecraftProfile({
 			...deps.model,
-			mcpServers: mcpMinecraftConfigs(),
+			mcpServers: mcpMinecraftConfigs({
+				appRoot: deps.root,
+				mcHost: deps.mcHost,
+				mcMcpPort: deps.mcMcpPort,
+			}),
 		});
 		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
 		const baseDir: string = resolve(deps.root, "context/minecraft");

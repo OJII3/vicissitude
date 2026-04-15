@@ -94,6 +94,8 @@ export function createGuildAgents(
 		agentIdPrefix?: string;
 		/** ポート番号のオフセット（デフォルト: 0）。basePort + portOffset + index でポートを決定 */
 		portOffset?: number;
+		appRoot: string;
+		coreMcpPort: number;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
@@ -112,6 +114,8 @@ export function createGuildAgents(
 			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
+			appRoot: deps.appRoot,
+			coreMcpPort: deps.coreMcpPort,
 		});
 		agents.set(guildId, agent);
 	}
@@ -499,6 +503,8 @@ export async function bootstrap(): Promise<void> {
 		logger,
 		metrics: metrics.collector,
 		summaryWriter,
+		appRoot: root,
+		coreMcpPort: config.coreMcpPort,
 	});
 
 	// Memory recording
@@ -545,6 +551,8 @@ export async function bootstrap(): Promise<void> {
 		metrics: metrics.collector,
 		agentIdPrefix: "discord:heartbeat",
 		portOffset: ports.heartbeatOffset,
+		appRoot: root,
+		coreMcpPort: config.coreMcpPort,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {
@@ -588,6 +596,8 @@ export async function bootstrap(): Promise<void> {
 			providerId: config.mcBrain.providerId,
 			modelId: config.mcBrain.modelId,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+			mcHost: config.minecraft.host,
+			mcMcpPort: String(config.minecraft.mcpPort),
 		});
 	}
 
