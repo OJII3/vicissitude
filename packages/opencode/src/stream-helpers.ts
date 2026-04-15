@@ -173,10 +173,9 @@ export function sumTokens(tokensByMessage: Map<string, TokenUsage>): TokenUsage 
 	return { input, output, cacheRead };
 }
 
-const TEXT_LOG_MAX = 200;
-
 /** message.part.updated イベントからセッション内のアクティビティをログに出す */
 export function logPartActivity(event: Event, sessionId: string, logger: Logger | undefined): void {
+	const TEXT_LOG_MAX = 200;
 	if (!logger || event.type !== "message.part.updated") return;
 	const { part } = event.properties;
 	if (part.sessionID !== sessionId) return;
@@ -191,10 +190,7 @@ export function logPartActivity(event: Event, sessionId: string, logger: Logger 
 		if (status === "running") {
 			logger.info(`[opencode:activity] tool-start: ${part.tool}`);
 		} else if (status === "completed") {
-			const elapsed =
-				"time" in part.state && part.state.time
-					? `${part.state.time.end - part.state.time.start}ms`
-					: "?";
+			const elapsed = part.state.time ? `${part.state.time.end - part.state.time.start}ms` : "?";
 			logger.info(`[opencode:activity] tool-done: ${part.tool} (${elapsed})`);
 		} else if (status === "error") {
 			const errMsg = "error" in part.state ? part.state.error : "unknown";
