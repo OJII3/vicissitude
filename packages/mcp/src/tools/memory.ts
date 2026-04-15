@@ -35,11 +35,11 @@ export function registerMemoryTools(
 		"memory_retrieve",
 		{
 			description:
-				"クエリに関連する長期記憶をハイブリッド検索（テキスト＋ベクトル＋FSRS リランキング）で取得する",
+				"Retrieve long-term memories related to the query via hybrid search (text + vector + FSRS re-ranking)",
 			inputSchema: {
 				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
-				query: z.string().min(1).describe("検索クエリ"),
-				limit: z.number().min(1).max(50).optional().describe("最大取得件数（デフォルト: 10）"),
+				query: z.string().min(1).describe("Search query"),
+				limit: z.number().min(1).max(50).optional().describe("Max results (default: 10)"),
 			},
 		},
 		async ({ guild_id, query, limit }: { guild_id?: string; query: string; limit?: number }) => {
@@ -71,7 +71,7 @@ export function registerMemoryTools(
 				const parts: string[] = [];
 
 				if (result.episodes.length > 0) {
-					parts.push("## エピソード記憶");
+					parts.push("## Episodic Memory");
 					for (const ep of result.episodes) {
 						parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
 						parts.push(ep.episode.summary);
@@ -80,7 +80,7 @@ export function registerMemoryTools(
 				}
 
 				if (result.facts.length > 0) {
-					parts.push("## 意味記憶（ファクト）");
+					parts.push("## Semantic Memory (Facts)");
 					for (const f of result.facts) {
 						parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
 					}
@@ -88,7 +88,7 @@ export function registerMemoryTools(
 
 				if (internalResult) {
 					if (internalResult.episodes.length > 0) {
-						parts.push("## ふあ自身の記憶（エピソード）");
+						parts.push("## Hua's Own Memory (Episodes)");
 						for (const ep of internalResult.episodes) {
 							parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
 							parts.push(ep.episode.summary);
@@ -97,7 +97,7 @@ export function registerMemoryTools(
 					}
 
 					if (internalResult.facts.length > 0) {
-						parts.push("## ふあ自身の記憶（ファクト）");
+						parts.push("## Hua's Own Memory (Facts)");
 						for (const f of internalResult.facts) {
 							parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
 						}
@@ -105,7 +105,7 @@ export function registerMemoryTools(
 				}
 
 				if (parts.length === 0) {
-					parts.push("関連する記憶は見つかりませんでした。");
+					parts.push("No relevant memories found.");
 				}
 
 				return { content: [{ type: "text", text: parts.join("\n") }] };
@@ -126,7 +126,7 @@ export function registerMemoryTools(
 	server.registerTool(
 		"memory_get_facts",
 		{
-			description: "蓄積されたファクト（意味記憶）一覧を取得する",
+			description: "List accumulated facts (semantic memory)",
 			inputSchema: {
 				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
 				category: z
@@ -141,7 +141,7 @@ export function registerMemoryTools(
 						"guideline",
 					])
 					.optional()
-					.describe("カテゴリでフィルタ（省略で全件）"),
+					.describe("Filter by category (omit for all)"),
 			},
 		},
 		async ({
@@ -185,17 +185,17 @@ export function registerMemoryTools(
 
 				if (facts.length === 0 && (!internalFacts || internalFacts.length === 0)) {
 					return {
-						content: [{ type: "text", text: "ファクトはまだありません。" }],
+						content: [{ type: "text", text: "No facts yet." }],
 					};
 				}
 
 				const parts: string[] = [];
 				if (facts.length > 0) {
-					parts.push(`${facts.length} 件のファクト:`);
+					parts.push(`${facts.length} facts:`);
 					parts.push(...formatFacts(facts));
 				}
 				if (internalFacts && internalFacts.length > 0) {
-					parts.push(`\nふあ自身の記憶（${internalFacts.length} 件）:`);
+					parts.push(`\nHua's own memory (${internalFacts.length} facts):`);
 					parts.push(...formatFacts(internalFacts));
 				}
 

@@ -1,15 +1,8 @@
 /* oxlint-disable max-lines -- schedule tools register 5 MCP tools in one module */
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { dirname, resolve } from "path";
-
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-	HEARTBEAT_CONFIG_RELATIVE_PATH,
-	createDefaultHeartbeatConfig,
-} from "@vicissitude/scheduling/heartbeat-helpers";
-import { APP_ROOT } from "@vicissitude/shared/config";
 import { GUILD_ID_RE } from "@vicissitude/shared/namespace";
-import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
+import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
+import type { HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
@@ -25,32 +18,16 @@ export function checkGuildScope(reminder: HeartbeatReminder, guildId: string): b
 	return reminder.guildId === guildId || reminder.guildId === undefined;
 }
 
-const DATA_DIR = process.env.DATA_DIR;
-const CONFIG_PATH = DATA_DIR
-	? resolve(DATA_DIR, "heartbeat-config.json")
-	: resolve(APP_ROOT, HEARTBEAT_CONFIG_RELATIVE_PATH);
-
-function loadConfig(): HeartbeatConfig {
-	if (!existsSync(CONFIG_PATH)) return createDefaultHeartbeatConfig();
-	try {
-		return JSON.parse(readFileSync(CONFIG_PATH, "utf-8")) as HeartbeatConfig;
-	} catch {
-		return createDefaultHeartbeatConfig();
-	}
-}
-
-async function saveConfig(config: HeartbeatConfig): Promise<void> {
-	const dir = dirname(CONFIG_PATH);
-	if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-	await Bun.write(CONFIG_PATH, JSON.stringify(config, null, 2));
-}
-
-function registerReadTools(server: McpServer, boundGuildId?: string): void {
+function registerReadTools(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"get_heartbeat_config",
-		{ description: "現在の heartbeat 設定を表示する" },
-		() => {
-			const config = loadConfig();
+		{ description: "Show current heartbeat configuration" },
+		async () => {
+			const config = await configPort.load();
 			return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
 		},
 	);
@@ -58,45 +35,45 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 	server.registerTool(
 		"list_reminders",
 		{
-			description: "リマインダー一覧を表示する（現在のギルド＋グローバルのみ）",
+			description: "List reminders (current guild + global only)",
 			inputSchema: boundGuildId ? {} : { guild_id: guildIdSchema },
 		},
-		({ guild_id }: { guild_id?: string }) => {
+		async ({ guild_id }: { guild_id?: string }) => {
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const visible = filterRemindersByGuild(config.reminders, gid);
 			const lines = visible.map((r) => {
 				const schedule =
 					r.schedule.type === "interval"
-						? `${String(r.schedule.minutes)}分ごと`
-						: `毎日 ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
-				const status = r.enabled ? "有効" : "無効";
-				const last = r.lastExecutedAt ?? "未実行";
+						? `every ${String(r.schedule.minutes)}min`
+						: `daily ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
+				const status = r.enabled ? "enabled" : "disabled";
+				const last = r.lastExecutedAt ?? "never";
 				const scope = r.guildId ? `guild:${r.guildId}` : "global";
-				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, 最後: ${last})`;
+				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, last: ${last})`;
 			});
-			return { content: [{ type: "text" as const, text: lines.join("\n") || "リマインダーなし" }] };
+			return { content: [{ type: "text" as const, text: lines.join("\n") || "No reminders" }] };
 		},
 	);
 
 	server.registerTool(
 		"set_base_interval",
 		{
-			description: "ベースチェック間隔を変更する（分）",
-			inputSchema: { minutes: z.number().min(1).describe("チェック間隔（分）") },
+			description: "Set base check interval (minutes)",
+			inputSchema: { minutes: z.number().min(1).describe("Check interval in minutes") },
 		},
 		async ({ minutes }) => {
-			const config = loadConfig();
+			const config = await configPort.load();
 			config.baseIntervalMinutes = minutes;
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
 				content: [
 					{
 						type: "text",
-						text: `ベース間隔を ${String(minutes)} 分に変更しました`,
+						text: `Base interval set to ${String(minutes)} minutes`,
 					},
 				],
 			};
@@ -104,25 +81,31 @@ function registerReadTools(server: McpServer, boundGuildId?: string): void {
 	);
 }
 
-function registerAddReminder(server: McpServer, boundGuildId?: string): void {
+function registerAddReminder(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"add_reminder",
 		{
-			description: "新しいリマインダーを追加する（デフォルトで現在のギルドに紐づく）",
+			description: "Add a new reminder (defaults to current guild)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("一意の識別子"),
-				description: z.string().describe("リマインダーの説明"),
-				schedule_type: z.enum(["interval", "daily"]).describe("スケジュールタイプ"),
-				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+				id: z.string().describe("Unique identifier"),
+				description: z.string().describe("Reminder description"),
+				schedule_type: z.enum(["interval", "daily"]).describe("Schedule type"),
+				interval_minutes: z
+					.number()
+					.min(1)
+					.optional()
+					.describe("Minutes for interval type (min 1)"),
+				daily_hour: z.number().min(0).max(23).optional().describe("Hour for daily type"),
+				daily_minute: z.number().min(0).max(59).optional().describe("Minute for daily type"),
 				global: z
 					.boolean()
 					.optional()
-					.describe(
-						"true にするとギルドに紐づかないグローバルリマインダーになる（デフォルト: false）",
-					),
+					.describe("Set true for a global reminder not bound to any guild (default: false)"),
 			},
 		},
 		async ({
@@ -148,7 +131,7 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 			if (!resolvedGuildId) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 
 			if (config.reminders.some((r) => r.id === id)) {
 				return {
@@ -189,31 +172,36 @@ function registerAddReminder(server: McpServer, boundGuildId?: string): void {
 			}
 
 			config.reminders.push(reminder);
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を追加しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" added` }],
 			};
 		},
 	);
 }
 
-function registerModifyReminders(server: McpServer, boundGuildId?: string): void {
+function registerModifyReminders(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
 	server.registerTool(
 		"update_reminder",
 		{
-			description: "リマインダーを更新する（自ギルドまたはグローバルのみ）",
+			description: "Update a reminder (own guild or global only)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("更新するリマインダーの ID"),
-				description: z.string().optional().describe("新しい説明"),
-				enabled: z.boolean().optional().describe("有効/無効"),
-				schedule_type: z
-					.enum(["interval", "daily"])
+				id: z.string().describe("ID of the reminder to update"),
+				description: z.string().optional().describe("New description"),
+				enabled: z.boolean().optional().describe("Enable/disable"),
+				schedule_type: z.enum(["interval", "daily"]).optional().describe("New schedule type"),
+				interval_minutes: z
+					.number()
+					.min(1)
 					.optional()
-					.describe("新しいスケジュールタイプ"),
-				interval_minutes: z.number().min(1).optional().describe("interval の場合の分数（1以上）"),
-				daily_hour: z.number().min(0).max(23).optional().describe("daily の場合の時"),
-				daily_minute: z.number().min(0).max(59).optional().describe("daily の場合の分"),
+					.describe("Minutes for interval type (min 1)"),
+				daily_hour: z.number().min(0).max(23).optional().describe("Hour for daily type"),
+				daily_minute: z.number().min(0).max(59).optional().describe("Minute for daily type"),
 			},
 		},
 		async ({
@@ -239,7 +227,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
@@ -272,9 +260,9 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 				};
 			}
 
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を更新しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" updated` }],
 			};
 		},
 	);
@@ -282,10 +270,10 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 	server.registerTool(
 		"remove_reminder",
 		{
-			description: "リマインダーを削除する（自ギルドまたはグローバルのみ）",
+			description: "Remove a reminder (own guild or global only)",
 			inputSchema: {
 				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
-				id: z.string().describe("削除するリマインダーの ID"),
+				id: z.string().describe("ID of the reminder to remove"),
 			},
 		},
 		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
@@ -293,7 +281,7 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
 			}
-			const config = loadConfig();
+			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
@@ -314,16 +302,20 @@ function registerModifyReminders(server: McpServer, boundGuildId?: string): void
 			}
 
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
-			await saveConfig(config);
+			await configPort.save(config);
 			return {
-				content: [{ type: "text" as const, text: `リマインダー "${id}" を削除しました` }],
+				content: [{ type: "text" as const, text: `Reminder "${id}" removed` }],
 			};
 		},
 	);
 }
 
-export function registerScheduleTools(server: McpServer, boundGuildId?: string): void {
-	registerReadTools(server, boundGuildId);
-	registerAddReminder(server, boundGuildId);
-	registerModifyReminders(server, boundGuildId);
+export function registerScheduleTools(
+	server: McpServer,
+	configPort: HeartbeatConfigPort,
+	boundGuildId?: string,
+): void {
+	registerReadTools(server, configPort, boundGuildId);
+	registerAddReminder(server, configPort, boundGuildId);
+	registerModifyReminders(server, configPort, boundGuildId);
 }

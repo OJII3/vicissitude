@@ -1,6 +1,6 @@
 import type { Event, EventMessageUpdated, OpencodeClient, Part } from "@opencode-ai/sdk/v2";
 import { withTimeout } from "@vicissitude/shared/functions";
-import type { OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
+import type { Logger, OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
 
 export type AbortableAsyncStream<T> = AsyncIterator<T> & {
 	return?: (value?: unknown) => Promise<IteratorResult<T>>;
@@ -11,10 +11,19 @@ type StreamReadResult =
 	| { type: "event"; value: unknown }
 	| { type: "done" }
 	| { type: "aborted" }
-	| { type: "streamTimeout"; reason?: string };
+	| { type: "streamTimeout"; reason?: string }
+	| { type: "streamError"; reason: string };
 
 /** signal なしの stream.next() に適用するタイムアウト（5分） */
 const STREAM_NEXT_TIMEOUT_MS = 5 * 60 * 1000;
+
+function classifyStreamError(err: unknown): StreamReadResult {
+	const reason = err instanceof Error ? err.message : String(err);
+	if (reason.includes("timed out")) {
+		return { type: "streamTimeout", reason };
+	}
+	return { type: "streamError", reason };
+}
 
 export async function nextStreamEvent(
 	stream: AbortableAsyncStream<unknown>,
@@ -30,8 +39,7 @@ export async function nextStreamEvent(
 			);
 			return result.done ? { type: "done" } : { type: "event", value: result.value };
 		} catch (err) {
-			const reason = err instanceof Error ? err.message : String(err);
-			return { type: "streamTimeout", reason };
+			return classifyStreamError(err);
 		}
 	}
 	return waitForNextStreamEvent(stream, signal, onAbort);
@@ -72,8 +80,7 @@ function waitForNextStreamEvent(
 					resolve(result.done ? { type: "done" } : { type: "event", value: result.value }),
 				);
 			} catch (err) {
-				const reason = err instanceof Error ? err.message : String(err);
-				finish(() => resolve({ type: "streamTimeout", reason }));
+				finish(() => resolve(classifyStreamError(err)));
 			}
 		})();
 	});
@@ -164,4 +171,35 @@ export function sumTokens(tokensByMessage: Map<string, TokenUsage>): TokenUsage 
 		cacheRead += t.cacheRead;
 	}
 	return { input, output, cacheRead };
+}
+
+/** message.part.updated イベントからセッション内のアクティビティをログに出す */
+export function logPartActivity(event: Event, sessionId: string, logger: Logger | undefined): void {
+	const TEXT_LOG_MAX = 200;
+	if (!logger || event.type !== "message.part.updated") return;
+	const { part } = event.properties;
+	if (part.sessionID !== sessionId) return;
+
+	if (part.type === "text") {
+		const text = part.text.trim();
+		if (!text) return;
+		const preview = text.length > TEXT_LOG_MAX ? `${text.slice(0, TEXT_LOG_MAX)}…` : text;
+		logger.info(`[opencode:activity] text: ${preview}`);
+	} else if (part.type === "tool") {
+		const status = part.state.status;
+		if (status === "running") {
+			logger.info(`[opencode:activity] tool-start: ${part.tool}`);
+		} else if (status === "completed") {
+			const elapsed = part.state.time ? `${part.state.time.end - part.state.time.start}ms` : "?";
+			logger.info(`[opencode:activity] tool-done: ${part.tool} (${elapsed})`);
+		} else if (status === "error") {
+			const errMsg = "error" in part.state ? part.state.error : "unknown";
+			logger.error(`[opencode:activity] tool-error: ${part.tool}: ${errMsg}`);
+		}
+	} else if (part.type === "step-finish") {
+		const { input: i, output: o, reasoning: r } = part.tokens;
+		logger.info(
+			`[opencode:activity] step-finish: reason=${part.reason} tokens(in=${i} out=${o} reasoning=${r}) cost=${part.cost}`,
+		);
+	}
 }

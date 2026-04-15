@@ -46,7 +46,7 @@ describe("createStoreLayer", () => {
 describe("createMetrics", () => {
 	test("collector と server を返す", () => {
 		const logger = createMockLogger();
-		const { collector, server } = createMetrics(logger);
+		const { collector, server } = createMetrics(logger, 0);
 
 		expect(collector).toBeDefined();
 		expect(server).toBeDefined();
