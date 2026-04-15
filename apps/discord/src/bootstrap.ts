@@ -7,6 +7,7 @@ import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
+import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
@@ -26,6 +27,7 @@ import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
+import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
 import type {
@@ -441,6 +443,7 @@ export async function bootstrap(): Promise<void> {
 		ttsSynthesizer,
 		ttsStyleMapper,
 		moodReader: moodStore,
+		logger,
 	});
 	const gatewayServer = createGatewayServer(config.gatewayPort, wsManager);
 	logger.info(
@@ -531,12 +534,12 @@ export async function bootstrap(): Promise<void> {
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
 	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
 	removeLegacyConsolidateReminder(heartbeatConfigPath, logger);
-	const heartbeatScheduler = new HeartbeatScheduler(
-		heartbeatRouter,
+	const heartbeatScheduler = new HeartbeatScheduler({
+		configRepo: new JsonHeartbeatConfigRepository(heartbeatConfigPath),
+		heartbeatService: new HeartbeatService({ agent: heartbeatRouter, logger }),
 		logger,
-		metrics.collector,
-		root,
-	);
+		metrics: metrics.collector,
+	});
 
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);

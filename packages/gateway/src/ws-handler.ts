@@ -1,5 +1,4 @@
 import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
-import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type {
 	ClientMessageHandler,
@@ -34,7 +33,7 @@ export interface WsConnectionManagerDeps {
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
 	moodReader?: MoodReader;
-	logger?: Logger;
+	logger: Logger;
 }
 
 export class WsConnectionManager implements GatewayPort {
@@ -46,11 +45,11 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly moodReader: MoodReader | undefined;
 	private readonly logger: Logger;
 
-	constructor(deps?: WsConnectionManagerDeps) {
-		this.ttsSynthesizer = deps?.ttsSynthesizer;
-		this.ttsStyleMapper = deps?.ttsStyleMapper;
-		this.moodReader = deps?.moodReader;
-		this.logger = deps?.logger ?? new ConsoleLogger();
+	constructor(deps: WsConnectionManagerDeps) {
+		this.ttsSynthesizer = deps.ttsSynthesizer;
+		this.ttsStyleMapper = deps.ttsStyleMapper;
+		this.moodReader = deps.moodReader;
+		this.logger = deps.logger;
 	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
