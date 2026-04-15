@@ -9,6 +9,7 @@
  * - extractTokens: トークン情報の変換
  * - sumTokens: トークン合算
  * - abortSession: ベストエフォート停止
+ * - logPartActivity: セッション内アクティビティのログ出力
  */
 import { describe, expect, mock, test } from "bun:test";
 
@@ -19,6 +20,7 @@ import {
 	classifyEvent,
 	extractText,
 	extractTokens,
+	logPartActivity,
 	nextStreamEvent,
 	returnStreamOnce,
 	sumTokens,
@@ -337,5 +339,164 @@ describe("abortSession", () => {
 		// エラーがスローされないことを確認
 		const result = await abortSession(client, "session-1");
 		expect(result).toBeUndefined();
+	});
+});
+
+// ─── logPartActivity ──────────────────────────────────────────────
+
+describe("logPartActivity", () => {
+	const sessionId = "test-session";
+
+	function makeLogger() {
+		return {
+			info: mock(() => {}),
+			error: mock(() => {}),
+			warn: mock(() => {}),
+			debug: mock(() => {}),
+		};
+	}
+
+	function makePartEvent(partProps: Record<string, unknown>, sid: string = sessionId): Event {
+		return {
+			type: "message.part.updated",
+			properties: {
+				part: { sessionID: sid, ...partProps },
+			},
+		} as unknown as Event;
+	}
+
+	test("text パートのログ出力", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({ type: "text", text: "Hello world" });
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		const msg = logger.info.mock.calls[0]![0] as string;
+		expect(msg).toContain("[opencode:activity] text:");
+		expect(msg).toContain("Hello world");
+	});
+
+	test("text パートが空白のみの場合はログを出力しない", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({ type: "text", text: "   \n  " });
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	test("text パートが長い場合は切り詰める", () => {
+		const logger = makeLogger();
+		const longText = "a".repeat(300);
+		const event = makePartEvent({ type: "text", text: longText });
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		const msg = logger.info.mock.calls[0]![0] as string;
+		// 200 文字 + "…" で切り詰められる
+		expect(msg.length).toBeLessThan(longText.length + 50);
+	});
+
+	test("tool パート（running）のログ出力", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({
+			type: "tool",
+			tool: "search_code",
+			state: { status: "running" },
+		});
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		const msg = logger.info.mock.calls[0]![0] as string;
+		expect(msg).toContain("[opencode:activity] tool-start:");
+		expect(msg).toContain("search_code");
+	});
+
+	test("tool パート（completed）のログ出力", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({
+			type: "tool",
+			tool: "read_file",
+			state: { status: "completed", time: { start: 1000, end: 1500 } },
+		});
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		const msg = logger.info.mock.calls[0]![0] as string;
+		expect(msg).toContain("[opencode:activity] tool-done:");
+		expect(msg).toContain("read_file");
+		expect(msg).toContain("500ms");
+	});
+
+	test("tool パート（error）のログ出力", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({
+			type: "tool",
+			tool: "write_file",
+			state: { status: "error", error: "permission denied" },
+		});
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.error).toHaveBeenCalledTimes(1);
+		const msg = logger.error.mock.calls[0]![0] as string;
+		expect(msg).toContain("[opencode:activity] tool-error:");
+		expect(msg).toContain("write_file");
+		expect(msg).toContain("permission denied");
+	});
+
+	test("step-finish パートのログ出力", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({
+			type: "step-finish",
+			reason: "end_turn",
+			tokens: { input: 1000, output: 500, reasoning: 200 },
+			cost: 0.05,
+		});
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
+		const msg = logger.info.mock.calls[0]![0] as string;
+		expect(msg).toContain("[opencode:activity] step-finish:");
+		expect(msg).toContain("reason=end_turn");
+		expect(msg).toContain("in=1000");
+		expect(msg).toContain("out=500");
+		expect(msg).toContain("reasoning=200");
+		expect(msg).toContain("cost=0.05");
+	});
+
+	test("sessionId が異なる場合にログが出ない", () => {
+		const logger = makeLogger();
+		const event = makePartEvent({ type: "text", text: "Hello" }, "other-session");
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).not.toHaveBeenCalled();
+		expect(logger.error).not.toHaveBeenCalled();
+	});
+
+	test("logger が undefined の場合にエラーにならない", () => {
+		const event = makePartEvent({ type: "text", text: "Hello" });
+
+		// エラーなく完了すること
+		expect(() => logPartActivity(event, sessionId, undefined)).not.toThrow();
+	});
+
+	test("message.part.updated 以外のイベントは無視する", () => {
+		const logger = makeLogger();
+		const event = {
+			type: "session.idle",
+			properties: { sessionID: sessionId },
+		} as unknown as Event;
+
+		logPartActivity(event, sessionId, logger);
+
+		expect(logger.info).not.toHaveBeenCalled();
+		expect(logger.error).not.toHaveBeenCalled();
 	});
 });
