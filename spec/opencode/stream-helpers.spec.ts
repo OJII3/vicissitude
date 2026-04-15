@@ -348,11 +348,19 @@ describe("logPartActivity", () => {
 	const sessionId = "test-session";
 
 	function makeLogger() {
+		const infoMessages: string[] = [];
+		const errorMessages: string[] = [];
 		return {
-			info: mock(() => {}),
-			error: mock(() => {}),
+			info: mock((msg: string) => {
+				infoMessages.push(msg);
+			}),
+			error: mock((msg: string) => {
+				errorMessages.push(msg);
+			}),
 			warn: mock(() => {}),
 			debug: mock(() => {}),
+			infoMessages,
+			errorMessages,
 		};
 	}
 
@@ -372,9 +380,8 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0][0] as string;
-		expect(msg).toContain("[opencode:activity] text:");
-		expect(msg).toContain("Hello world");
+		expect(logger.infoMessages[0]).toContain("[opencode:activity] text:");
+		expect(logger.infoMessages[0]).toContain("Hello world");
 	});
 
 	test("text パートが空白のみの場合はログを出力しない", () => {
@@ -394,9 +401,8 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0][0] as string;
 		// 200 文字 + "…" で切り詰められる
-		expect(msg.length).toBeLessThan(longText.length + 50);
+		expect(logger.infoMessages[0].length).toBeLessThan(longText.length + 50);
 	});
 
 	test("tool パート（running）のログ出力", () => {
@@ -410,9 +416,8 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0][0] as string;
-		expect(msg).toContain("[opencode:activity] tool-start:");
-		expect(msg).toContain("search_code");
+		expect(logger.infoMessages[0]).toContain("[opencode:activity] tool-start:");
+		expect(logger.infoMessages[0]).toContain("search_code");
 	});
 
 	test("tool パート（completed）のログ出力", () => {
@@ -426,10 +431,9 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0][0] as string;
-		expect(msg).toContain("[opencode:activity] tool-done:");
-		expect(msg).toContain("read_file");
-		expect(msg).toContain("500ms");
+		expect(logger.infoMessages[0]).toContain("[opencode:activity] tool-done:");
+		expect(logger.infoMessages[0]).toContain("read_file");
+		expect(logger.infoMessages[0]).toContain("500ms");
 	});
 
 	test("tool パート（error）のログ出力", () => {
@@ -443,10 +447,9 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.error).toHaveBeenCalledTimes(1);
-		const msg = logger.error.mock.calls[0][0] as string;
-		expect(msg).toContain("[opencode:activity] tool-error:");
-		expect(msg).toContain("write_file");
-		expect(msg).toContain("permission denied");
+		expect(logger.errorMessages[0]).toContain("[opencode:activity] tool-error:");
+		expect(logger.errorMessages[0]).toContain("write_file");
+		expect(logger.errorMessages[0]).toContain("permission denied");
 	});
 
 	test("step-finish パートのログ出力", () => {
@@ -461,13 +464,12 @@ describe("logPartActivity", () => {
 		logPartActivity(event, sessionId, logger);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
-		const msg = logger.info.mock.calls[0][0] as string;
-		expect(msg).toContain("[opencode:activity] step-finish:");
-		expect(msg).toContain("reason=end_turn");
-		expect(msg).toContain("in=1000");
-		expect(msg).toContain("out=500");
-		expect(msg).toContain("reasoning=200");
-		expect(msg).toContain("cost=0.05");
+		expect(logger.infoMessages[0]).toContain("[opencode:activity] step-finish:");
+		expect(logger.infoMessages[0]).toContain("reason=end_turn");
+		expect(logger.infoMessages[0]).toContain("in=1000");
+		expect(logger.infoMessages[0]).toContain("out=500");
+		expect(logger.infoMessages[0]).toContain("reasoning=200");
+		expect(logger.infoMessages[0]).toContain("cost=0.05");
 	});
 
 	test("sessionId が異なる場合にログが出ない", () => {
