@@ -145,6 +145,8 @@ export function createGuildAgents(
 			profile,
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
+			appRoot: deps.appRoot,
+			coreMcpPort: deps.coreMcpPort,
 		});
 		agents.set(guildId, agent);
 	}
