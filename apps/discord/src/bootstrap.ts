@@ -4,7 +4,9 @@ import { resolve } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
+import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
@@ -41,6 +43,7 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb, closeDb } from "@vicissitude/store/db";
+import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
@@ -110,13 +113,31 @@ export function createGuildAgents(
 	const portOffset = deps.portOffset ?? 0;
 
 	for (const [index, guildId] of guildIds.entries()) {
+		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
+		const agentId = `${agentIdPrefix}:${guildId}`;
+		const profile = createConversationProfile({
+			...config.opencode,
+			mcpServers: mcpServerConfigs(agentId, {
+				appRoot: deps.appRoot,
+				coreMcpPort: deps.coreMcpPort,
+			}),
+		});
+		const sessionPort = new OpencodeSessionAdapter({
+			port: config.opencode.basePort + portOffset + index,
+			mcpServers: profile.mcpServers,
+			builtinTools: profile.builtinTools,
+			temperature: 0.7,
+			logger: deps.logger,
+		});
+		const eventBuffer = new SqliteEventBuffer(deps.db, agentId, deps.logger);
 		const agent = new DiscordAgent({
 			guildId,
 			db: deps.db,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
-			opencodePort: config.opencode.basePort + portOffset + index,
+			sessionPort,
+			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
 			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
