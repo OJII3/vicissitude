@@ -1,3 +1,4 @@
+import { JST_OFFSET_MS } from "@vicissitude/shared/functions";
 import type { DueReminder, HeartbeatConfig } from "@vicissitude/shared/types";
 
 /** Heartbeat config JSON の相対パス（プロジェクトルート起点） */
@@ -38,9 +39,6 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 }
 
 // ─── evaluateDueReminders ────────────────────────────────────────
-
-/** JST (UTC+9) のオフセット（ミリ秒） */
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 /**
  * 設定と現在時刻から、実行すべきリマインダーを判定する純粋関数。

@@ -1,7 +1,7 @@
 // ─── formatTimestamp / formatTime ────────────────────────────────
 
 /** JST (UTC+9) のオフセット（ミリ秒） */
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+export const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function pad(n: number): string {
 	return n.toString().padStart(2, "0");

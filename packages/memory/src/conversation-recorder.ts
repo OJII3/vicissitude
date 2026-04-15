@@ -20,9 +20,10 @@ import {
 } from "./namespace.ts";
 import { Segmenter } from "./segmenter.ts";
 import { MemoryStorage } from "./storage.ts";
+import type { ChatMessage } from "./types.ts";
 
 export interface GuildInstance {
-	segmenter: { addMessage(userId: string, msg: unknown): Promise<Episode[]> };
+	segmenter: { addMessage(userId: string, msg: ChatMessage): Promise<Episode[]> };
 	storage: { close(): void };
 	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }

@@ -25,7 +25,7 @@ const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 export interface HeartbeatReader {
 	getLastSeenAt(agentId: string): number | undefined;
 	/** MCP 側からのローテーション要求を消費する。要求があればタイムスタンプを返し、DB 側はリセットする */
-	consumeRotationRequest?(agentId: string): number | null;
+	consumeRotationRequest(agentId: string): number | null;
 }
 
 export interface RunnerDeps {
@@ -151,7 +151,7 @@ export class AgentRunner implements AiAgent {
 			}
 
 			// MCP 側からのローテーション要求をチェック（respond スキップ閾値超過時に書き込まれる）
-			const rotationTs = this.heartbeatReader?.consumeRotationRequest?.(this.agentId) ?? null;
+			const rotationTs = this.heartbeatReader?.consumeRotationRequest(this.agentId) ?? null;
 			if (rotationTs !== null) {
 				this.logger.warn(
 					`[${this.profile.name}:${this.agentId}] MCP respond-skip rotation request detected (requested at ${rotationTs}), rotating session`,
