@@ -1,18 +1,13 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
+import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
 import type { EventOrError } from "./event-buffer.ts";
-import {
-	MAX_BATCH_SIZE,
-	escapeUserMessageTag,
-	isErrorEvent,
-	parseEvents,
-	toJstString,
-} from "./event-buffer.ts";
+import { MAX_BATCH_SIZE, escapeUserMessageTag, isErrorEvent, parseEvents } from "./event-buffer.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 
@@ -29,7 +24,7 @@ export function formatCommands(events: EventOrError[]): string {
 				return `[ERROR] ${e._error}: ${e._raw}`;
 			}
 
-			const dateStr = toJstString(e.ts);
+			const dateStr = formatTimestamp(new Date(e.ts));
 			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
 			const content = isUserMessage
 				? `<user_message>${escapeUserMessageTag(e.content)}</user_message>`

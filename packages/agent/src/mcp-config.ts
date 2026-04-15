@@ -2,11 +2,9 @@ import { resolve } from "path";
 
 import type { McpServerConfig } from "./profile.ts";
 
-const DEFAULT_BASE_PORT = 4096;
-
-function getRoot(): string {
-	// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() / process.env の戻り値は string だが oxlint が誤検知する
-	return process.env.APP_ROOT ?? resolve(import.meta.dirname, "../..");
+export interface McpConfigOptions {
+	appRoot: string;
+	coreMcpPort: number;
 }
 
 /**
@@ -14,10 +12,8 @@ function getRoot(): string {
  * core MCP は HTTP サーバーとして全 guild で共有。
  * agentId は URL クエリパラメータとしてサーバーに渡され、wait_for_events のバインドに使われる。
  */
-export function mcpServerConfigs(agentId: string) {
-	const root = getRoot();
-	const basePort = Number(process.env.OPENCODE_BASE_PORT ?? String(DEFAULT_BASE_PORT));
-	const coreMcpPort = Number(process.env.CORE_MCP_PORT ?? String(basePort - 1));
+export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
+	const { appRoot, coreMcpPort } = opts;
 
 	const configs: Record<string, McpServerConfig> = {
 		core: {
@@ -26,35 +22,42 @@ export function mcpServerConfigs(agentId: string) {
 		},
 		"code-exec": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "dist/code-exec-server.js")],
+			command: ["bun", "run", resolve(appRoot, "dist/code-exec-server.js")],
 		},
 	};
 
 	return configs;
 }
 
+export interface McpMinecraftConfigOptions {
+	appRoot: string;
+	mcHost?: string;
+	mcMcpPort?: string;
+}
+
 /**
  * Minecraft エージェント用 MCP サーバー設定を返す。
  * mc-bridge-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
  */
-export function mcpMinecraftConfigs(): Record<string, McpServerConfig> {
-	const root = getRoot();
+export function mcpMinecraftConfigs(
+	opts: McpMinecraftConfigOptions,
+): Record<string, McpServerConfig> {
+	const { appRoot, mcHost, mcMcpPort } = opts;
 
 	const configs: Record<string, McpServerConfig> = {
 		"mc-bridge": {
 			type: "local",
-			command: ["bun", "run", resolve(root, "dist/mc-bridge-server.js")],
+			command: ["bun", "run", resolve(appRoot, "dist/mc-bridge-server.js")],
 			environment: {
-				DATA_DIR: resolve(root, "data"),
+				DATA_DIR: resolve(appRoot, "data"),
 			},
 		},
 	};
 
-	if (process.env.MC_HOST) {
-		const mcMcpPort = process.env.MC_MCP_PORT ?? "3001";
+	if (mcHost) {
 		configs.minecraft = {
 			type: "remote",
-			url: `http://localhost:${mcMcpPort}/mcp`,
+			url: `http://localhost:${mcMcpPort ?? "3001"}/mcp`,
 		};
 	}
 

@@ -314,7 +314,10 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			const sessionPort = createSimpleSessionPort();
 
 			// heartbeatReader が常に現在時刻を返す（MCP wait_for_events が呼ばれている状態）
-			const heartbeatReader = { getLastSeenAt: mock(() => Date.now()) };
+			const heartbeatReader = {
+				getLastSeenAt: mock(() => Date.now()),
+				consumeRotationRequest: mock(() => null),
+			};
 
 			const runner = new TestAgent({
 				profile: createProfile(),
@@ -352,7 +355,10 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 
 			// heartbeatReader が古い値を返す（MCP が止まっている状態）
 			const staleTime = Date.now() - 10_000;
-			const heartbeatReader = { getLastSeenAt: mock(() => staleTime) };
+			const heartbeatReader = {
+				getLastSeenAt: mock(() => staleTime),
+				consumeRotationRequest: mock(() => null),
+			};
 
 			const runner = new TestAgent({
 				profile: createProfile(),
@@ -475,16 +481,17 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.stop();
 		});
 
-		test("consumeRotationRequest が未実装（undefined）の場合、ローテーションは発生しない", async () => {
+		test("consumeRotationRequest が常に null を返す場合、ローテーションは発生しない", async () => {
 			const rotationSpy = mock(() => Promise.resolve());
 			const sessionStore = createSessionStore("existing-session-id");
 
 			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
 			const sessionPort = createSimpleSessionPort();
 
-			// consumeRotationRequest を持たない heartbeatReader
+			// consumeRotationRequest が常に null を返す heartbeatReader
 			const heartbeatReader = {
 				getLastSeenAt: mock(() => Date.now()),
+				consumeRotationRequest: mock(() => null),
 			};
 
 			const runner = new TestAgent({
@@ -507,7 +514,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 
 			await Bun.sleep(250);
 
-			// heartbeat は alive、consumeRotationRequest は undefined なのでローテーションは発生しない
+			// heartbeat は alive、consumeRotationRequest は常に null なのでローテーションは発生しない
 			expect(rotationSpy).not.toHaveBeenCalled();
 
 			runner.stop();

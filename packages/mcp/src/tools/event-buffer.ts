@@ -1,6 +1,7 @@
 /* oxlint-disable max-lines -- event-buffer tools + polling + formatting helpers are tightly coupled */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
+import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment, Logger } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
@@ -165,19 +166,6 @@ export function escapeUserMessageTag(content: string): string {
 
 // ─── formatEvents ────────────────────────────────────────────────
 
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-export function toJstString(ts: string | Date): string {
-	const utc = ts instanceof Date ? ts.getTime() : new Date(ts).getTime();
-	const jst = new Date(utc + JST_OFFSET_MS);
-	const y = jst.getUTCFullYear();
-	const mo = String(jst.getUTCMonth() + 1).padStart(2, "0");
-	const d = String(jst.getUTCDate()).padStart(2, "0");
-	const h = String(jst.getUTCHours()).padStart(2, "0");
-	const mi = String(jst.getUTCMinutes()).padStart(2, "0");
-	return `${y}-${mo}-${d} ${h}:${mi}`;
-}
-
 /** parseEvents がパースに失敗したエラーイベントかどうかを判定する type guard */
 export function isErrorEvent(e: EventOrError): e is ErrorEvent {
 	return "_error" in e && "_raw" in e;
@@ -194,7 +182,7 @@ export function formatEvents(events: EventOrError[]): string {
 				return `[ERROR] ${e._error}: ${e._raw}`;
 			}
 
-			const dateStr = toJstString(e.ts);
+			const dateStr = formatTimestamp(new Date(e.ts));
 			const channel = e.metadata?.channelName ? ` #${e.metadata.channelName}` : "";
 			const hint = classifyActionHint(e);
 			const extras: string[] = [];
@@ -247,7 +235,7 @@ export function formatRecentMessages(channelMessages: Map<string, RecentMessage[
 		if (messages.length === 0) continue;
 		const lines: string[] = [`## #${channelName}`];
 		for (const msg of messages) {
-			const dateStr = toJstString(msg.timestamp);
+			const dateStr = formatTimestamp(msg.timestamp);
 			let line = `[${dateStr} JST] ${msg.authorName}: ${msg.content}`;
 			if (msg.reactions.length > 0) {
 				const reactionStr = msg.reactions.map((r) => `${r.emoji}×${r.count}`).join(" ");

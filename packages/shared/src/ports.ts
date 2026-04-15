@@ -1,5 +1,6 @@
 import type { Emotion, VrmExpressionWeight } from "./emotion";
 import type { TtsResult, TtsStyleParams } from "./tts";
+import type { BufferedEvent } from "./types";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
 // ─── LlmPromptPort ──────────────────────────────────────────────
@@ -122,4 +123,11 @@ export interface GatewayPort {
 	broadcast(message: ServerMessage): void;
 	onMessage(handler: ClientMessageHandler): void;
 	getConnectionCount(): number;
+}
+
+// ─── BufferedEventStore ─────────────────────────────────────────
+
+/** イベントバッファへの追記ポート */
+export interface BufferedEventStore {
+	append(agentId: string, event: BufferedEvent): void;
 }

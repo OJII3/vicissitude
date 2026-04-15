@@ -1,4 +1,5 @@
 import { discordGuildNamespace } from "@vicissitude/shared/namespace";
+import type { BufferedEventStore } from "@vicissitude/shared/ports";
 import type {
 	BufferedEvent,
 	ConversationMessage,
@@ -6,10 +7,6 @@ import type {
 	IncomingMessage,
 	Logger,
 } from "@vicissitude/shared/types";
-
-export interface BufferedEventStore {
-	append(agentId: string, event: BufferedEvent): void;
-}
 
 export interface MessageIngestionServiceDeps {
 	eventStore: BufferedEventStore;

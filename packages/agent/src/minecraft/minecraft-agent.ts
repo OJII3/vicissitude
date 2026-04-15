@@ -2,16 +2,15 @@ import { resolve } from "path";
 
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type { EventBuffer, Logger } from "@vicissitude/shared/types";
+import type { EventBuffer, Logger, SessionStorePort } from "@vicissitude/shared/types";
 
 import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { AgentRunner } from "../runner.ts";
-import type { SessionStore } from "../session-store.ts";
 import { MinecraftContextBuilder } from "./context-builder.ts";
 import { createMinecraftProfile } from "./profile.ts";
 
 export interface MinecraftAgentDeps {
-	sessionStore: SessionStore;
+	sessionStore: SessionStorePort;
 	logger: Logger;
 	root: string;
 	eventBuffer: EventBuffer;
@@ -19,13 +18,19 @@ export interface MinecraftAgentDeps {
 	opencodePort: number;
 	sessionMaxAgeMs: number;
 	model: { providerId: string; modelId: string };
+	mcHost?: string;
+	mcMcpPort?: string;
 }
 
 export class MinecraftAgent extends AgentRunner {
 	constructor(deps: MinecraftAgentDeps) {
 		const profile = createMinecraftProfile({
 			...deps.model,
-			mcpServers: mcpMinecraftConfigs(),
+			mcpServers: mcpMinecraftConfigs({
+				appRoot: deps.root,
+				mcHost: deps.mcHost,
+				mcMcpPort: deps.mcMcpPort,
+			}),
 		});
 		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
 		const baseDir: string = resolve(deps.root, "context/minecraft");

@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { MemoryReadServices } from "@vicissitude/memory";
 import {
 	defaultSubject,
 	discordGuildNamespace,
@@ -6,20 +7,13 @@ import {
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 } from "@vicissitude/memory/namespace";
-import type { Retrieval } from "@vicissitude/memory/retrieval";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
-import type { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { z } from "zod";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
 const formatFacts = (fs: SemanticFact[]) =>
 	fs.map((f) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`);
-
-export interface MemoryReadServices {
-	retrieval: Retrieval;
-	semantic: SemanticMemory;
-}
 
 export interface MemoryDeps {
 	getOrCreateMemory: (namespace: MemoryNamespace) => MemoryReadServices;
