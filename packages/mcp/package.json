@@ -5,6 +5,7 @@
 		"./core-server": "./src/core-server.ts",
 		"./code-exec-server": "./src/code-exec-server.ts",
 		"./http-server": "./src/http-server.ts",
+		"./memory-cache": "./src/memory-cache.ts",
 		"./memory-helpers": "./src/memory-helpers.ts",
 		"./test-helpers": "./src/test-helpers.ts",
 		"./tool-metrics": "./src/tool-metrics.ts",
