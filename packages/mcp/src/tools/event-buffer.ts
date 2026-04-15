@@ -105,6 +105,9 @@ export interface EventBufferDeps {
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
 export const MAX_BATCH_SIZE = 10;
 
+/** wait_for_events の timeout_seconds 上限。Bun HTTP サーバーの idleTimeout 上限（255秒）未満に収める。 */
+export const MAX_POLL_TIMEOUT_SECONDS = 200;
+
 // ─── ActionHint ──────────────────────────────────────────────────
 
 export type ActionHint = "respond" | "optional" | "read_only" | "internal";
@@ -402,10 +405,13 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 	server.registerTool(
 		"wait_for_events",
 		{
-			description:
-				"Wait for incoming events, consuming up to 10 at once. Returns recent channel messages in a separate block if available. Returns an empty result on timeout. On connection errors, call this tool again immediately WITHOUT generating any text or commentary.",
+			description: `Wait for incoming events, consuming up to 10 at once. Returns recent channel messages in a separate block if available. Returns an empty result on timeout. On connection errors, call this tool again immediately WITHOUT generating any text or commentary. Max timeout_seconds is ${MAX_POLL_TIMEOUT_SECONDS}s.`,
 			inputSchema: {
-				timeout_seconds: z.number().min(1).max(172800).default(172800),
+				timeout_seconds: z
+					.number()
+					.min(1)
+					.max(MAX_POLL_TIMEOUT_SECONDS)
+					.default(MAX_POLL_TIMEOUT_SECONDS),
 			},
 		},
 		async ({ timeout_seconds }) => {

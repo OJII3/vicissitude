@@ -3,6 +3,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import {
+	MAX_POLL_TIMEOUT_SECONDS,
 	classifyActionHint,
 	createSkipTracker,
 	formatEventMetadata,
@@ -1041,5 +1042,14 @@ describe("pollEvents", () => {
 
 		expect(result).not.toBeNull();
 		expect((result![0]! as ParsedEvent).content).toBe("recovered");
+	});
+});
+
+describe("timeout constraints", () => {
+	/** Bun HTTP サーバーの idleTimeout 上限（秒） */
+	const BUN_IDLE_TIMEOUT_MAX = 255;
+
+	test("MAX_POLL_TIMEOUT_SECONDS が Bun idleTimeout (255s) 未満である", () => {
+		expect(MAX_POLL_TIMEOUT_SECONDS).toBeLessThan(BUN_IDLE_TIMEOUT_MAX);
 	});
 });
