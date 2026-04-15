@@ -114,6 +114,92 @@ describe("MCP HTTP Server ライフサイクル", () => {
 	});
 });
 
+describe("idle タイムアウト無効化", () => {
+	function createSlowServer(): McpServer {
+		const server = new McpServer({ name: "slow-test", version: "0.1.0" });
+		server.registerTool("slow_tool", { description: "slow tool" }, async () => {
+			await new Promise((resolve) => setTimeout(resolve, 2000));
+			return { content: [{ type: "text" as const, text: "done" }] };
+		});
+		return server;
+	}
+
+	const handle = startHttpServer(createSlowServer, 0, "slow-test", stubLogger);
+	const baseUrl = `http://localhost:${handle.port}`;
+
+	afterAll(() => {
+		clearInterval(handle.cleanupTimer);
+		handle.closeAllSessions();
+		handle.stopServer();
+	});
+
+	test("MCP ツール実行が長時間かかっても idle タイムアウトで切断されない", async () => {
+		const initRes = await fetch(`${baseUrl}/mcp`, {
+			method: "POST",
+			headers: MCP_HEADERS,
+			body: MCP_INIT_BODY,
+		});
+		const sessionId = initRes.headers.get("mcp-session-id");
+		expect(sessionId).toBeTruthy();
+
+		const res = await fetch(`${baseUrl}/mcp`, {
+			method: "POST",
+			headers: { ...MCP_HEADERS, "mcp-session-id": sessionId ?? "" },
+			body: JSON.stringify({
+				jsonrpc: "2.0",
+				id: 2,
+				method: "tools/call",
+				params: { name: "slow_tool" },
+			}),
+		});
+		expect(res.status).toBe(200);
+	});
+});
+
+describe("セッション TTL クリーンアップ", () => {
+	const handle = startHttpServer(createTestServer, 0, "ttl-test", stubLogger);
+	const baseUrl = `http://localhost:${handle.port}`;
+
+	afterAll(() => {
+		clearInterval(handle.cleanupTimer);
+		handle.closeAllSessions();
+		handle.stopServer();
+	});
+
+	test("アイドル状態のセッションは TTL 超過で削除される", async () => {
+		const initRes = await fetch(`${baseUrl}/mcp`, {
+			method: "POST",
+			headers: MCP_HEADERS,
+			body: MCP_INIT_BODY,
+		});
+		expect(initRes.headers.get("mcp-session-id")).toBeTruthy();
+		expect(handle.sessionCount()).toBe(1);
+
+		// lastAccess が確実に過去になるよう 1 tick 待つ
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		handle.runCleanup(0);
+		expect(handle.sessionCount()).toBe(0);
+	});
+
+	test("TTL 以内のセッションはクリーンアップで削除されない", async () => {
+		const initRes = await fetch(`${baseUrl}/mcp`, {
+			method: "POST",
+			headers: MCP_HEADERS,
+			body: MCP_INIT_BODY,
+		});
+		expect(initRes.headers.get("mcp-session-id")).toBeTruthy();
+		expect(handle.sessionCount()).toBe(1);
+
+		// 十分大きな TTL でクリーンアップ → lastAccess が新しいので削除されない
+		handle.runCleanup(60 * 60 * 1000);
+		expect(handle.sessionCount()).toBe(1);
+
+		// 後片付け
+		await new Promise((resolve) => setTimeout(resolve, 5));
+		handle.runCleanup(0);
+	});
+});
+
 function createFailingServer(): McpServer {
 	throw new Error("factory error");
 }
