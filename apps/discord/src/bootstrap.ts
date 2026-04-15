@@ -140,11 +140,9 @@ export function createGuildAgents(
 			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
-			model: { providerId: config.opencode.providerId, modelId: config.opencode.modelId },
+			profile,
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
-			appRoot: deps.appRoot,
-			coreMcpPort: deps.coreMcpPort,
 		});
 		agents.set(guildId, agent);
 	}
