@@ -1,9 +1,10 @@
 /* oxlint-disable max-lines -- event-buffer tools + polling + formatting helpers are tightly coupled */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { METRIC } from "@vicissitude/observability/metrics";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { MoodReader } from "@vicissitude/shared/ports";
-import type { Attachment, Logger } from "@vicissitude/shared/types";
+import type { Attachment, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import {
 	consumeEvents,
@@ -98,6 +99,7 @@ export interface EventBufferDeps {
 	moodReader?: MoodReader;
 	logger?: Logger;
 	skipTracker?: SkipTracker;
+	metrics?: Pick<MetricsCollector, "incrementCounter">;
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
@@ -263,6 +265,7 @@ export interface PollOptions {
 	pollIntervalMs?: number;
 	onPoll?: () => void;
 	logger?: Logger;
+	metrics?: Pick<MetricsCollector, "incrementCounter">;
 }
 
 export async function pollEvents(
@@ -281,6 +284,7 @@ export async function pollEvents(
 			}
 		} catch (err) {
 			pollLogger?.error("[event-buffer] pollEvents error during hasEvents/consumeEvents", err);
+			options?.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, { agent_id: agentId });
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
 		await sleep(pollIntervalMs);
@@ -452,7 +456,11 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			};
 
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, agentId, deadline, { onPoll, logger });
+			const result = await pollEvents(db, agentId, deadline, {
+				onPoll,
+				logger,
+				metrics: deps.metrics,
+			});
 			if (result === null) {
 				logger?.debug(`[event-buffer] タイムアウト (${timeout_seconds}s)`);
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };

@@ -127,6 +127,10 @@ async function main(): Promise<void> {
 
 	const metricsCollector = new PrometheusCollector();
 	metricsCollector.registerCounter(METRIC.MCP_TOOL_CALLS, "Core MCP tool calls total");
+	metricsCollector.registerCounter(
+		METRIC.EVENT_BUFFER_POLL_ERRORS,
+		"Event buffer poll errors total",
+	);
 
 	const metricsServer = new PrometheusServer(metricsCollector, logger, CORE_METRICS_PORT);
 	metricsServer.start();
@@ -190,6 +194,7 @@ async function main(): Promise<void> {
 				moodReader: moodStore,
 				logger,
 				skipTracker,
+				metrics: metricsCollector,
 			});
 		} else {
 			logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");

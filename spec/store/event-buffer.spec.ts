@@ -28,11 +28,13 @@ function createMockLogger() {
 
 /** テスト用: DB の event_buffer テーブルを DROP してポーリングエラーを発生させる */
 function breakEventBufferTable(db: ReturnType<typeof createTestDb>): void {
+	// oxlint-disable-next-line no-deprecated -- raw SQL exec は $client 経由でのみ利用可能
 	db.$client.exec("DROP TABLE event_buffer");
 }
 
 /** テスト用: DB の event_buffer テーブルを再作成してエラーを解消する */
 function restoreEventBufferTable(db: ReturnType<typeof createTestDb>): void {
+	// oxlint-disable-next-line no-deprecated -- CREATE_TABLES_SQL は複数文を含むため drizzle の run では実行不可
 	db.$client.exec(CREATE_TABLES_SQL);
 }
 
@@ -91,6 +93,54 @@ describe("SqliteEventBuffer", () => {
 		await buffer.waitForEvents(new AbortController().signal);
 
 		expect(Date.now() - start).toBeLessThan(50);
+	});
+
+	test("ポーリングエラー時に onPollError コールバックが呼ばれる", async () => {
+		const db = createTestDb();
+		const errors: unknown[] = [];
+		const buffer = new SqliteEventBuffer(db, "agent-1", undefined, (err) => {
+			errors.push(err);
+		});
+
+		// テーブルを DROP してクエリを失敗させる
+		db.run("DROP TABLE event_buffer");
+
+		const controller = new AbortController();
+		// 少しだけポーリングさせてから abort
+		setTimeout(() => controller.abort(), 200);
+
+		await buffer.waitForEvents(controller.signal);
+
+		expect(errors.length).toBeGreaterThan(0);
+	});
+
+	test("onPollError が未指定でもエラー時にクラッシュしない", async () => {
+		const db = createTestDb();
+		const buffer = new SqliteEventBuffer(db, "agent-1");
+
+		db.run("DROP TABLE event_buffer");
+
+		const controller = new AbortController();
+		setTimeout(() => controller.abort(), 100);
+
+		// onPollError なしでもクラッシュせずに resolve する
+		const promise = buffer.waitForEvents(controller.signal);
+		// abort 後に正常終了すること
+		await promise;
+	});
+
+	test("正常なポーリングでは onPollError が呼ばれない", async () => {
+		const db = createTestDb();
+		const errors: unknown[] = [];
+		const buffer = new SqliteEventBuffer(db, "agent-1", undefined, (err) => {
+			errors.push(err);
+		});
+
+		appendEvent(db, "agent-1", '{"kind":"discord"}');
+
+		await buffer.waitForEvents(new AbortController().signal);
+
+		expect(errors).toHaveLength(0);
 	});
 
 	test("DBエラーが発生してもポーリングは継続しクラッシュしない", async () => {
