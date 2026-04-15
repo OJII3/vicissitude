@@ -105,7 +105,11 @@ export interface EventBufferDeps {
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
 export const MAX_BATCH_SIZE = 10;
 
-/** wait_for_events の timeout_seconds 上限。Bun HTTP サーバーの idleTimeout 上限（255秒）未満に収める。 */
+/**
+ * wait_for_events の timeout_seconds 上限（秒）。
+ * LLM はこのツールを繰り返し呼び出すことでセッションを半永続的に維持する。
+ * @see {@link ../../../../docs/architecture/polling-model.md}
+ */
 export const MAX_POLL_TIMEOUT_SECONDS = 200;
 
 // ─── ActionHint ──────────────────────────────────────────────────
