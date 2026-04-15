@@ -4,7 +4,7 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 
 const POLLING_PROMPT = `以下のイベントループを実行してください:
 
-1. wait_for_events ツールでイベントを待つ（タイムアウトは172800秒＝48時間）
+1. wait_for_events ツールでイベントを待つ
 2. イベントが返ってきたら、配列内の全イベントをまとめて確認し、各イベントの [action: ...] ヒントに従って行動する
 3. 1 に戻る
 
