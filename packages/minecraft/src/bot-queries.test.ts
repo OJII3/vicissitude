@@ -87,7 +87,7 @@ describe("canPerceiveEntity", () => {
 			height: 1.95,
 		};
 
-		await expect(canPerceiveEntity(bot, entity as never)).resolves.toBe(true);
+		expect(await canPerceiveEntity(bot, entity as never)).toBe(true);
 		expect(raycast).not.toHaveBeenCalled();
 	});
 
@@ -103,7 +103,7 @@ describe("canPerceiveEntity", () => {
 			height: 1.95,
 		};
 
-		await expect(canPerceiveEntity(bot, entity as never)).resolves.toBe(false);
+		expect(await canPerceiveEntity(bot, entity as never)).toBe(false);
 	});
 });
 

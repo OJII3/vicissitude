@@ -95,7 +95,7 @@ export function createMcMetrics(
 		},
 		stop() {
 			if (bunServer) {
-				bunServer.stop();
+				void bunServer.stop();
 				bunServer = null;
 				logger.info("[mc-metrics] Prometheus server stopped");
 			}
