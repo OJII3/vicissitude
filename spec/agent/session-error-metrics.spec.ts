@@ -265,7 +265,7 @@ describe("Runner: session restart メトリクス記録", () => {
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
 
-	test("streamDisconnected 後の再起動時に SESSION_RESTARTS カウンタが reason=stream_disconnected でインクリメントされる", async () => {
+	test("streamDisconnected は SSE 再購読のみなので SESSION_RESTARTS はインクリメントされない", async () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -301,16 +301,16 @@ describe("Runner: session restart メトリクス記録", () => {
 		await Bun.sleep(0);
 
 		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		// SESSION_ERRORS は記録される
+		const sessionErrorCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
+		);
+		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+		// SESSION_RESTARTS はインクリメントされない（セッション再起動ではなくSSE再購読のため）
 		const restartCalls = incrementCalls.filter(
 			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
 		);
-		expect(restartCalls.length).toBeGreaterThanOrEqual(1);
-		// reason ラベルに "stream_disconnected" が含まれる
-		const disconnectedRestarts = restartCalls.filter(
-			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason === "stream_disconnected",
-		);
-		expect(disconnectedRestarts.length).toBeGreaterThanOrEqual(1);
+		expect(restartCalls.length).toBe(0);
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });

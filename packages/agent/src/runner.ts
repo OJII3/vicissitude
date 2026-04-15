@@ -380,9 +380,6 @@ export class AgentRunner implements AiAgent {
 				source: "session_event",
 				error_type: "stream_disconnected",
 			});
-			this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-				reason: "stream_disconnected",
-			});
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(this.metrics, event.tokens, {
 					agent_type: "polling",

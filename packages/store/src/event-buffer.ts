@@ -50,12 +50,12 @@ export class SqliteEventBuffer implements EventBuffer {
 				} catch (err) {
 					this.consecutivePollErrors += 1;
 					if (this.consecutivePollErrors >= CONSECUTIVE_POLL_ERROR_WARN_THRESHOLD) {
-						this.logger?.warn(
+						this.logger?.error(
 							`[event-buffer:${this.agentId}] ${this.consecutivePollErrors} consecutive poll errors`,
 							err,
 						);
 					} else {
-						this.logger?.error(`[event-buffer:${this.agentId}] poll error`, err);
+						this.logger?.warn(`[event-buffer:${this.agentId}] poll error`, err);
 					}
 				}
 				timer = setTimeout(poll, interval);
