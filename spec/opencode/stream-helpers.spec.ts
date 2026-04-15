@@ -402,7 +402,7 @@ describe("logPartActivity", () => {
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
 		// 200 文字 + "…" で切り詰められる
-		expect(logger.infoMessages[0].length).toBeLessThan(longText.length + 50);
+		expect(logger.infoMessages[0]?.length).toBeLessThan(longText.length + 50);
 	});
 
 	test("tool パート（running）のログ出力", () => {
