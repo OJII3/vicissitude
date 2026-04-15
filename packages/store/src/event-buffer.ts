@@ -3,7 +3,11 @@ import type { BufferedEvent, EventBuffer, Logger } from "@vicissitude/shared/typ
 import type { StoreDb } from "./db.ts";
 import { appendEvent, hasEvents } from "./queries.ts";
 
+const CONSECUTIVE_POLL_ERROR_WARN_THRESHOLD = 10;
+
 export class SqliteEventBuffer implements EventBuffer {
+	private consecutivePollErrors = 0;
+
 	constructor(
 		private readonly db: StoreDb,
 		private readonly agentId: string,
@@ -38,11 +42,21 @@ export class SqliteEventBuffer implements EventBuffer {
 						return;
 					}
 					if (hasEvents(this.db, this.agentId)) {
+						this.consecutivePollErrors = 0;
 						done();
 						return;
 					}
+					this.consecutivePollErrors = 0;
 				} catch (err) {
-					this.logger?.error(`[event-buffer:${this.agentId}] poll error`, err);
+					this.consecutivePollErrors += 1;
+					if (this.consecutivePollErrors >= CONSECUTIVE_POLL_ERROR_WARN_THRESHOLD) {
+						this.logger?.error(
+							`[event-buffer:${this.agentId}] ${this.consecutivePollErrors} consecutive poll errors`,
+							err,
+						);
+					} else {
+						this.logger?.warn(`[event-buffer:${this.agentId}] poll error`, err);
+					}
 				}
 				timer = setTimeout(poll, interval);
 				interval = Math.min(interval * 1.5, POLL_MAX_MS);

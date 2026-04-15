@@ -262,6 +262,7 @@ function sleep(ms: number): Promise<void> {
 export interface PollOptions {
 	pollIntervalMs?: number;
 	onPoll?: () => void;
+	logger?: Logger;
 }
 
 export async function pollEvents(
@@ -270,12 +271,16 @@ export async function pollEvents(
 	deadlineMs: number,
 	options?: PollOptions,
 ): Promise<EventOrError[] | null> {
-	const { pollIntervalMs = 1000, onPoll } = options ?? {};
+	const { pollIntervalMs = 1000, onPoll, logger: pollLogger } = options ?? {};
 	while (Date.now() < deadlineMs) {
 		onPoll?.();
-		if (hasEvents(db, agentId)) {
-			const rows = consumeEvents(db, agentId, MAX_BATCH_SIZE);
-			if (rows.length > 0) return parseEvents(rows);
+		try {
+			if (hasEvents(db, agentId)) {
+				const rows = consumeEvents(db, agentId, MAX_BATCH_SIZE);
+				if (rows.length > 0) return parseEvents(rows);
+			}
+		} catch (err) {
+			pollLogger?.error("[event-buffer] pollEvents error during hasEvents/consumeEvents", err);
 		}
 		// oxlint-disable-next-line no-await-in-loop -- intentional sequential polling
 		await sleep(pollIntervalMs);
@@ -447,7 +452,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			};
 
 			const deadline = Date.now() + timeout_seconds * 1000;
-			const result = await pollEvents(db, agentId, deadline, { onPoll });
+			const result = await pollEvents(db, agentId, deadline, { onPoll, logger });
 			if (result === null) {
 				logger?.debug(`[event-buffer] タイムアウト (${timeout_seconds}s)`);
 				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
