@@ -469,7 +469,7 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 			});
 			if (result === null) {
 				logger?.debug(`[event-buffer] タイムアウト (${timeout_seconds}s)`);
-				return { content: [{ type: "text" as const, text: "イベントなし（タイムアウト）" }] };
+				return { content: [{ type: "text" as const, text: "No events (timeout)" }] };
 			}
 			const hints = result.map((e) => (isErrorEvent(e) ? "error" : classifyActionHint(e)));
 			logger?.info(
