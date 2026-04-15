@@ -21,7 +21,10 @@ async function main(): Promise<void> {
 	const server = new McpServer({ name: "mc-bridge", version: "1.0.0" });
 
 	registerMinecraftBridgeTools(server, { db });
-	registerMcMemoryTools(server, { dataDir: resolve(DATA_DIR, "context/minecraft") });
+	registerMcMemoryTools(server, {
+		dataDir: resolve(DATA_DIR, "context/minecraft"),
+		baseContextDir: resolve(APP_ROOT, "context"),
+	});
 
 	// --- Graceful Shutdown ---
 

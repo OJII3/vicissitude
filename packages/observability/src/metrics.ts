@@ -257,7 +257,9 @@ export class PrometheusServer {
 			hostname: this.hostname,
 			fetch: (req: Request) => this.handleRequest(req),
 		});
-		this.logger.info(`[metrics] Prometheus server listening on ${this.hostname}:${String(this.port)}`);
+		this.logger.info(
+			`[metrics] Prometheus server listening on ${this.hostname}:${String(this.port)}`,
+		);
 	}
 
 	stop(): void {
