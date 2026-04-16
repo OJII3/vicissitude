@@ -22,7 +22,7 @@
  * | error_non_retryable_rotation| retryable:false の即時ローテーション              |
  * | hang_detected               | (既存) ハング検知によるローテーション             |
  */
-/* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
+/* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
@@ -513,10 +513,11 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 	test("idle 後のエラーでは delay が 2s にリセットされている", async () => {
 		const firstEvent = deferred<void>();
 		const sessions = [
-			deferred<OpencodeSessionEvent>(),
-			deferred<OpencodeSessionEvent>(),
-			deferred<OpencodeSessionEvent>(),
-			deferred<OpencodeSessionEvent>(),
+			deferred<OpencodeSessionEvent>(), // [0] error → sleep 2s
+			deferred<OpencodeSessionEvent>(), // [1] error → sleep 4s
+			deferred<OpencodeSessionEvent>(), // [2] idle → delay reset
+			deferred<OpencodeSessionEvent>(), // [3] error → sleep 2s (reset確認)
+			deferred<OpencodeSessionEvent>(), // [4] pending (runner.stop() 後のガード)
 		];
 		let waitCallCount = 0;
 		const eventBuffer = createEventBuffer(() => {
@@ -581,6 +582,7 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 		expect(sleepAfterIdle).toBe(2000);
 
 		runner.stop();
+		sessions[4]?.resolve({ type: "cancelled" });
 	});
 });
 
