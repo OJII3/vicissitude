@@ -1493,6 +1493,174 @@
 			],
 			"title": "All Logs",
 			"type": "logs"
+		},
+		{
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 100
+			},
+			"id": 900,
+			"title": "Session Errors",
+			"type": "row"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 30,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 101
+			},
+			"id": 30,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "sum by (http_status) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
+					"legendFormat": "{{http_status}}"
+				}
+			],
+			"title": "Session Errors by http_status (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 30,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 101
+			},
+			"id": 31,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "sum by (retryable) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
+					"legendFormat": "retryable={{retryable}}"
+				}
+			],
+			"title": "Session Errors by retryable (1h)",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 30,
+						"lineWidth": 1,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false,
+						"stacking": {
+							"group": "A",
+							"mode": "normal"
+						}
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 101
+			},
+			"id": 32,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom"
+				},
+				"tooltip": {
+					"mode": "multi"
+				}
+			},
+			"targets": [
+				{
+					"expr": "sum by (error_class) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
+					"legendFormat": "{{error_class}}"
+				}
+			],
+			"title": "Session Errors by error_class (1h)",
+			"type": "timeseries"
 		}
 	],
 	"schemaVersion": 39,
