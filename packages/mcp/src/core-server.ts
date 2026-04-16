@@ -29,7 +29,7 @@ import { Client } from "discord.js";
 
 import { MemoryInstanceCache } from "./memory-cache.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
-import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
+import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
@@ -136,7 +136,6 @@ async function main(): Promise<void> {
 	const boundGuildId =
 		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
 	const moodKey = boundGuildId ? `discord:${boundGuildId}` : AGENT_ID;
-	const skipTracker = createSkipTracker();
 
 	registerDiscordTools(
 		server,
@@ -146,7 +145,6 @@ async function main(): Promise<void> {
 			moodWriter: moodStore,
 			agentId: AGENT_ID,
 			moodKey,
-			skipTracker,
 		},
 		boundGuildId,
 	);
@@ -173,7 +171,6 @@ async function main(): Promise<void> {
 		recentMessagesFetcher,
 		moodReader: moodStore,
 		logger,
-		skipTracker,
 	});
 
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);

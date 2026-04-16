@@ -4,13 +4,11 @@ import {
 	appendEvent,
 	consumeNextEvent,
 	consumeEvents,
-	consumeRotationRequest,
 	deleteSession,
 	getHeartbeat,
 	getSession,
 	getTopEmojis,
 	incrementEmoji,
-	requestRotation,
 	saveSession,
 	touchHeartbeat,
 } from "@vicissitude/store/queries";
@@ -207,62 +205,6 @@ describe("store", () => {
 			touchHeartbeat(db, "agent-1");
 			const second = getHeartbeat(db, "agent-1");
 			expect(second).toBeGreaterThanOrEqual(first ?? 0);
-		});
-
-		test("requestRotation を呼ぶと rotation_requested_at が設定される", () => {
-			const db = createTestDb();
-			touchHeartbeat(db, "agent-1");
-			requestRotation(db, "agent-1");
-			const ts = consumeRotationRequest(db, "agent-1");
-			expect(ts).toBeTypeOf("number");
-			expect(ts).toBeGreaterThan(0);
-		});
-
-		test("consumeRotationRequest を呼ぶとタイムスタンプが返り DB 側が 0 にリセットされる", () => {
-			const db = createTestDb();
-			touchHeartbeat(db, "agent-1");
-			requestRotation(db, "agent-1");
-			const ts = consumeRotationRequest(db, "agent-1");
-			expect(ts).toBeTypeOf("number");
-			expect(ts).toBeGreaterThan(0);
-
-			// DB 側はリセットされている
-			const after = consumeRotationRequest(db, "agent-1");
-			expect(after).toBeNull();
-		});
-
-		test("consumeRotationRequest を連続で呼ぶと 2 回目以降は null を返す", () => {
-			const db = createTestDb();
-			touchHeartbeat(db, "agent-1");
-			requestRotation(db, "agent-1");
-
-			const first = consumeRotationRequest(db, "agent-1");
-			expect(first).toBeTypeOf("number");
-			expect(first).toBeGreaterThan(0);
-
-			const second = consumeRotationRequest(db, "agent-1");
-			expect(second).toBeNull();
-
-			const third = consumeRotationRequest(db, "agent-1");
-			expect(third).toBeNull();
-		});
-
-		test("ローテーション要求がない状態で consumeRotationRequest を呼ぶと null を返す", () => {
-			const db = createTestDb();
-			touchHeartbeat(db, "agent-1");
-			const result = consumeRotationRequest(db, "agent-1");
-			expect(result).toBeNull();
-		});
-
-		test("行が存在しない場合に consumeRotationRequest を呼ぶと null を返す", () => {
-			const db = createTestDb();
-			const result = consumeRotationRequest(db, "nonexistent-agent");
-			expect(result).toBeNull();
-		});
-
-		test("行が存在しない場合に requestRotation を呼んでもエラーにならない", () => {
-			const db = createTestDb();
-			expect(() => requestRotation(db, "nonexistent-agent")).not.toThrow();
 		});
 	});
 });
