@@ -364,6 +364,9 @@ export class AgentRunner implements AiAgent {
 			this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
 				source: "session_event",
 				error_type: "stream_disconnected",
+				http_status: "unknown",
+				retryable: "unknown",
+				error_class: "unknown",
 			});
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(this.metrics, event.tokens, {
@@ -377,6 +380,9 @@ export class AgentRunner implements AiAgent {
 		this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
 			source: "session_event",
 			error_type: "session_error",
+			http_status: typeof event.status === "number" ? String(event.status) : "unknown",
+			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
+			error_class: event.errorClass ?? "unknown",
 		});
 		this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
 	}

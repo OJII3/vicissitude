@@ -125,10 +125,31 @@ export function classifyEvent(
 	if (typed.type === "session.error") {
 		const err = typed;
 		if (err.properties.sessionID === sessionId) {
-			return { type: "error", message: JSON.stringify(err.properties) };
+			return {
+				type: "error",
+				message: JSON.stringify(err.properties),
+				...extractErrorFields(err.properties.error),
+			};
 		}
 	}
 	return null;
+}
+
+function extractErrorFields(error: unknown): {
+	errorClass?: string;
+	status?: number;
+	retryable?: boolean;
+} {
+	if (!error || typeof error !== "object") return {};
+	const e = error as { name?: unknown; data?: unknown };
+	const errorClass = typeof e.name === "string" ? e.name : undefined;
+	if (errorClass !== "APIError") {
+		return { errorClass };
+	}
+	const data = e.data && typeof e.data === "object" ? (e.data as Record<string, unknown>) : {};
+	const status = typeof data.statusCode === "number" ? data.statusCode : undefined;
+	const retryable = typeof data.isRetryable === "boolean" ? data.isRetryable : undefined;
+	return { errorClass, status, retryable };
 }
 function accumulateTokens(
 	typed: EventMessageUpdated,

@@ -208,6 +208,113 @@ describe("Runner: session error メトリクス記録", () => {
 			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
 		);
 		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+		// ラベルセットが session_error と揃っていること（Prometheus 系列一貫性のため）
+		const labels = sessionErrorCalls[0]?.[1] as Record<string, string> | undefined;
+		expect(labels?.http_status).toBe("unknown");
+		expect(labels?.retryable).toBe("unknown");
+		expect(labels?.error_class).toBe("unknown");
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("error イベントに status/retryable/errorClass が含まれる場合、ラベルとして記録される", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({
+			type: "error",
+			message: "Bad Request",
+			status: 400,
+			retryable: false,
+			errorClass: "APIError",
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const sessionErrorCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
+		);
+		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+		const sessionErrorLabels = sessionErrorCalls[0]?.[1] as Record<string, string> | undefined;
+		expect(sessionErrorLabels?.http_status).toBe("400");
+		expect(sessionErrorLabels?.retryable).toBe("false");
+		expect(sessionErrorLabels?.error_class).toBe("APIError");
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("error イベントに構造化フィールドが無い場合、ラベルは unknown", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPortWithControlledResult(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "error", message: "unknown failure" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const sessionErrorCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
+		);
+		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+		const labels = sessionErrorCalls[0]?.[1] as Record<string, string> | undefined;
+		expect(labels?.http_status).toBe("unknown");
+		expect(labels?.retryable).toBe("unknown");
+		expect(labels?.error_class).toBe("unknown");
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
