@@ -75,6 +75,7 @@ async function main(): Promise<void> {
 
 	const discordClient = new Client({ intents: [] });
 	discordClient.token = process.env.DISCORD_TOKEN;
+	discordClient.rest.setToken(process.env.DISCORD_TOKEN);
 
 	// --- Drizzle DB ---
 
