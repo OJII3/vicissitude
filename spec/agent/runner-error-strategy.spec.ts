@@ -512,12 +512,14 @@ describe("rotation 後のリセット", () => {
 describe("正常復帰後の delay リセット（既存契約維持）", () => {
 	test("idle 後のエラーでは delay が 2s にリセットされている", async () => {
 		const firstEvent = deferred<void>();
+		// [0] error → sleep 2s, [1] error → sleep 4s, [2] idle → delay reset,
+		// [3] error → sleep 2s (reset確認), [4] pending (runner.stop() 後のガード)
 		const sessions = [
-			deferred<OpencodeSessionEvent>(), // [0] error → sleep 2s
-			deferred<OpencodeSessionEvent>(), // [1] error → sleep 4s
-			deferred<OpencodeSessionEvent>(), // [2] idle → delay reset
-			deferred<OpencodeSessionEvent>(), // [3] error → sleep 2s (reset確認)
-			deferred<OpencodeSessionEvent>(), // [4] pending (runner.stop() 後のガード)
+			deferred<OpencodeSessionEvent>(),
+			deferred<OpencodeSessionEvent>(),
+			deferred<OpencodeSessionEvent>(),
+			deferred<OpencodeSessionEvent>(),
+			deferred<OpencodeSessionEvent>(),
 		];
 		let waitCallCount = 0;
 		const eventBuffer = createEventBuffer(() => {

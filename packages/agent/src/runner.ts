@@ -1,4 +1,4 @@
-/* oxlint-disable max-lines -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
+/* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
 import { METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
 import type {
 	AgentResponse,
@@ -16,7 +16,7 @@ import type {
 
 import type { AgentProfile } from "./profile.ts";
 
-const MAX_RECONNECT_DELAY_MS = 30_000;
+const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_HANG_TIMEOUT_MS = 600_000;
@@ -144,7 +144,7 @@ export class AgentRunner implements AiAgent {
 				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
 				this.lastWaitForEventsAt = Date.now();
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_detected" });
-				this.requestSessionRotation().catch((err) => {
+				this.requestSessionRotation(true).catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
 						err,
@@ -162,6 +162,9 @@ export class AgentRunner implements AiAgent {
 		const signal = this.abortController.signal;
 
 		let delay = INITIAL_RECONNECT_DELAY_MS;
+		// 直前のループで cap に到達した sleep を行ったかどうかを追跡する。
+		// cap 到達後も error が継続した場合にローテーションへエスカレーションするために使用。
+		let prevSleepWasCapped = false;
 
 		while (this.running && !signal.aborted) {
 			try {
@@ -198,6 +201,7 @@ export class AgentRunner implements AiAgent {
 				if (event.type === "compacted" || event.type === "streamDisconnected") {
 					this.rewatchSession(signal);
 					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
 					continue;
 				}
 
@@ -206,10 +210,39 @@ export class AgentRunner implements AiAgent {
 
 				if (event.type !== "error") {
 					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
 				}
+
+				// --- error イベントのエラー戦略 ---
+				if (event.retryable === false) {
+					// retryable:false: 即時ローテーション（バックオフなし）
+					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+						reason: "error_non_retryable_rotation",
+					});
+					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
+					await this.requestSessionRotation(true);
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
+					continue;
+				}
+
+				// retryable:true / undefined: exp backoff。直前 sleep が cap かつ今回も error ならローテーション
+				if (prevSleepWasCapped) {
+					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+						reason: "error_retryable_rotation",
+					});
+					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
+					await this.requestSessionRotation(true);
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
+					continue;
+				}
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+					reason: "error_retryable_backoff",
+				});
 			} catch (err) {
 				if (signal.aborted) return;
 				this.logger.error(
@@ -217,7 +250,10 @@ export class AgentRunner implements AiAgent {
 					err,
 				);
 				this.sessionWatch = null;
-				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
+				// 例外時は retryable 不明のため retryable:true 扱いのバックオフ
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+					reason: "error_retryable_backoff",
+				});
 			}
 
 			if (signal.aborted) return;
@@ -225,13 +261,18 @@ export class AgentRunner implements AiAgent {
 			this.logger.info(`[${this.profile.name}:${this.agentId}] restarting in ${delay}ms...`);
 			// eslint-disable-next-line no-await-in-loop -- backoff delay between restarts
 			await this.sleep(delay);
-			delay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
+			const nextDelay = Math.min(delay * 2, MAX_RECONNECT_DELAY_MS);
+			prevSleepWasCapped = delay >= MAX_RECONNECT_DELAY_MS;
+			delay = nextDelay;
+
+			if (signal.aborted) return;
 		}
 	}
 
-	async requestSessionRotation(): Promise<void> {
+	async requestSessionRotation(force = false): Promise<void> {
 		const now = Date.now();
 		if (
+			!force &&
 			this.lastRotationRequestAt &&
 			now - this.lastRotationRequestAt < this.minRotationIntervalMs
 		) {
@@ -384,7 +425,6 @@ export class AgentRunner implements AiAgent {
 			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
 			error_class: event.errorClass ?? "unknown",
 		});
-		this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
 	}
 
 	private async resolveSessionId(): Promise<string> {
