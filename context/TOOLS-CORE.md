@@ -2,7 +2,7 @@
 
 ### discord サーバー
 
-- `send_message(channel_id, content, file_path?)` - チャンネルにメッセージ送信（オプションでファイル添付）。送信前にタイピングインジケーターと文字数に応じた遅延を自動挿入
+- `send_message(channel_id, content, file_path?)` - チャンネルにメッセージ送信（オプションでファイル添付）。スレッド・フォーラムスレッドにも送信可能
 - `reply(channel_id, message_id, content, file_path?)` - メッセージに返信（オプションでファイル添付）
 - `add_reaction(channel_id, message_id, emoji)` - リアクション追加
 - `read_messages(channel_id, limit?)` - チャンネルの最近のメッセージを読む
