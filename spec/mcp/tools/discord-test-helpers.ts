@@ -168,6 +168,76 @@ export function createClientStubWithImageAttachments(): DiscordDeps["discordClie
 	} as unknown as DiscordDeps["discordClient"];
 }
 
+/**
+ * 通常スレッド（テキストチャンネル配下のスレッド）相当の channel を返すスタブ。
+ * `getTextChannel` が通過できる最低条件（`isTextBased() === true` と `send` プロパティ）を満たしつつ、
+ * スレッド性の意図を明示するため `isThread: () => true` と `parent` を持たせている。
+ */
+export function createThreadChannelClientStub(): DiscordDeps["discordClient"] {
+	const sentMessage = {
+		id: "thread-sent-msg-1",
+		reply: () => Promise.resolve({ id: "thread-reply-msg-1" }),
+		react: () => Promise.resolve(),
+	};
+
+	return {
+		channels: {
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					isThread: () => true,
+					// 通常テキストチャンネル配下のスレッドを模倣
+					parent: { type: 0, isTextBased: () => true },
+					send: () => Promise.resolve(sentMessage),
+					sendTyping: () => Promise.resolve(),
+					messages: {
+						fetch: (idOrOptions: unknown) => {
+							if (typeof idOrOptions === "object" && idOrOptions !== null) {
+								return Promise.resolve([]);
+							}
+							return Promise.resolve(sentMessage);
+						},
+					},
+				}),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
+/**
+ * フォーラムチャンネル配下のスレッド（フォーラムポスト）相当の channel を返すスタブ。
+ * 通常スレッドと同様に `getTextChannel` を通過する条件を満たし、
+ * `parent.type` をフォーラム相当 (15 = GuildForum) に設定することで意図を明示する。
+ */
+export function createForumThreadClientStub(): DiscordDeps["discordClient"] {
+	const sentMessage = {
+		id: "forum-sent-msg-1",
+		reply: () => Promise.resolve({ id: "forum-reply-msg-1" }),
+		react: () => Promise.resolve(),
+	};
+
+	return {
+		channels: {
+			fetch: () =>
+				Promise.resolve({
+					isTextBased: () => true,
+					isThread: () => true,
+					// GuildForum (ChannelType.GuildForum = 15) 配下のスレッド
+					parent: { type: 15, isTextBased: () => false },
+					send: () => Promise.resolve(sentMessage),
+					sendTyping: () => Promise.resolve(),
+					messages: {
+						fetch: (idOrOptions: unknown) => {
+							if (typeof idOrOptions === "object" && idOrOptions !== null) {
+								return Promise.resolve([]);
+							}
+							return Promise.resolve(sentMessage);
+						},
+					},
+				}),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
 /** 複数画像添付ありのメッセージを返すスタブ */
 export function createClientStubWithMultipleImageAttachments(): DiscordDeps["discordClient"] {
 	return {
