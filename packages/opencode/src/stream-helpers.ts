@@ -128,7 +128,10 @@ export function classifyEvent(
 	}
 	if (typed.type === "session.error") {
 		const err = typed;
-		if (err.properties.sessionID === sessionId) {
+		// SDK v2 では sessionID は optional。未設定の場合は OpenCode がサーバ全体の
+		// エラーとして発火しているため、現在監視中のセッションにも終端エラーとして伝播させる。
+		const eventSessionId = err.properties.sessionID;
+		if (eventSessionId === sessionId || eventSessionId === undefined) {
 			return {
 				type: "error",
 				message: JSON.stringify(err.properties),
