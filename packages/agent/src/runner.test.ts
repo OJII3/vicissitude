@@ -761,13 +761,10 @@ describe("AgentRunner", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// session_deleted_rotation ラベルで incrementCounter が呼ばれている
-		const deletedRotationCalls = metrics.incrementCounter.mock.calls.filter(
-			(args) => (args[1] as { reason?: string } | undefined)?.reason === "session_deleted_rotation",
-		);
-		expect(deletedRotationCalls.length).toBe(1);
-		// メトリクス名は session_restarts_total
-		expect(deletedRotationCalls[0]?.[0]).toBe("session_restarts_total");
+		// session_restarts_total メトリクスが reason=session_deleted_rotation で呼ばれている
+		expect(metrics.incrementCounter).toHaveBeenCalledWith("session_restarts_total", {
+			reason: "session_deleted_rotation",
+		});
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
