@@ -28,7 +28,7 @@
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
-		"@opencode-ai/sdk": "^1.4.3",
+		"@opencode-ai/sdk": "^1.4.6",
 		"canvas": "^3.2.1",
 		"discord.js": "^14.25.1",
 		"drizzle-orm": "^0.45.1",

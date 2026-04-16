@@ -160,13 +160,11 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
 				const eventSessionId = props?.sessionID as string | undefined;
-				if (rawType !== "server.heartbeat") {
-					const msg = `[opencode] stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`;
-					if (rawType === "session.status" || rawType === "session.updated") {
-						this.logger?.info(`${msg} props=${JSON.stringify(props)}`);
-					} else {
-						this.logger?.debug(msg);
-					}
+				const msg = `[opencode] stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`;
+				if (rawType === "session.status" || rawType === "session.updated") {
+					this.logger?.info(`${msg} props=${JSON.stringify(props)}`);
+				} else {
+					this.logger?.debug(msg);
 				}
 
 				logPartActivity(typed, params.sessionId, this.logger);
@@ -219,11 +217,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				const rawType = (event.value as { type: string }).type;
 				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
 				const eventSessionId = props?.sessionID as string | undefined;
-				if (rawType !== "server.heartbeat") {
-					this.logger?.debug(
-						`[opencode] waitIdle stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
-					);
-				}
+				this.logger?.debug(
+					`[opencode] waitIdle stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
+				);
 				if (rawType === "session.status" || rawType === "session.updated") {
 					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
 				}
