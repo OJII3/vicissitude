@@ -26,9 +26,10 @@ import {
 } from "./stream-helpers.ts";
 
 /**
- * MCP リクエストタイムアウトの上書き値（3日）。
- * デフォルト 60 秒だと wait_for_events（60秒ブロック）とレースし、
- * MCP 側が先にタイムアウトして無限ループに陥るため十分大きい値を設定する。
+ * OpenCode Go バイナリが MCP ツール呼び出しに適用するタイムアウト（3日）。
+ * wait_for_events は半無限ポーリング（下記参照）のため、事実上タイムアウトしない値が必要。
+ *
+ * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
  */
 const MCP_REQUEST_TIMEOUT_MS = 3 * 24 * 60 * 60 * 1000;
 

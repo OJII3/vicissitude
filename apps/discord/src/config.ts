@@ -48,7 +48,6 @@ const appConfigSchema = z.object({
 		basePort: safeInt,
 		sessionMaxAgeHours: safeNumber,
 	}),
-	coreMcpPort: safeInt,
 	memory: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
@@ -97,7 +96,6 @@ export function loadConfig(
 			basePort,
 			sessionMaxAgeHours: Number(env.SESSION_MAX_AGE_HOURS ?? "48"),
 		},
-		coreMcpPort: Number(env.CORE_MCP_PORT ?? String(basePort - 1)),
 		memory: {
 			providerId: env.MEMORY_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MEMORY_MODEL_ID ?? "gpt-4o",

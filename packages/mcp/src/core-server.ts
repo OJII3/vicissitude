@@ -2,6 +2,7 @@ import { mkdirSync } from "fs";
 import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
@@ -19,7 +20,6 @@ import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
-import { METRIC, PrometheusCollector, PrometheusServer } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
@@ -27,9 +27,7 @@ import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client, GatewayIntentBits } from "discord.js";
 
-import { startHttpServer } from "./http-server.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
-import { wrapServerWithMetrics } from "./tool-metrics.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { createSkipTracker, registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerListeningTools } from "./tools/listening.ts";
@@ -39,14 +37,26 @@ import { registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 import { registerSpotifyTools } from "./tools/spotify.ts";
 
+/**
+ * core MCP サーバーのエントリポイント（stdio モード）。
+ *
+ * OpenCode が子プロセスとして起動し、stdin/stdout で MCP 通信を行う。
+ * エージェントごとに1プロセスが生成されるため、AGENT_ID 環境変数で
+ * 自分がどの agentId にバインドされているかを知る。
+ *
+ * @see {@link ./tools/event-buffer.ts} — ポーリングモデルの詳細
+ */
 async function main(): Promise<void> {
-	// --- Logger ---
-
-	const logger = new ConsoleLogger();
+	const logger = new ConsoleLogger({ destination: "stderr" });
 
 	// --- Configuration from environment ---
 
-	const CORE_MCP_PORT = Number(process.env.CORE_MCP_PORT ?? "4095");
+	const AGENT_ID = process.env.AGENT_ID;
+	if (!AGENT_ID) {
+		logger.error("[core-server] AGENT_ID environment variable is required");
+		process.exit(1);
+	}
+
 	const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 	const MEMORY_EMBEDDING_MODEL = process.env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma";
 	const MEMORY_DATA_DIR = process.env.MEMORY_DATA_DIR ?? "data/memory";
@@ -121,154 +131,121 @@ async function main(): Promise<void> {
 		return memoryCache.getOrCreate(namespace);
 	}
 
-	// --- Prometheus Metrics ---
+	// --- MCP Server ---
 
-	const CORE_METRICS_PORT = Number(process.env.CORE_METRICS_PORT) || 9093;
+	const server = new McpServer({ name: "core", version: "1.0.0" });
+	const toolDescriptions = new Map<string, string | undefined>();
 
-	const metricsCollector = new PrometheusCollector();
-	metricsCollector.registerCounter(METRIC.MCP_TOOL_CALLS, "Core MCP tool calls total");
-	metricsCollector.registerCounter(
-		METRIC.EVENT_BUFFER_POLL_ERRORS,
-		"Event buffer poll errors total",
+	const boundNamespace: MemoryNamespace | undefined =
+		resolveNamespaceFromAgentId(AGENT_ID) ?? undefined;
+	if (!boundNamespace) {
+		logger.warn(
+			`[core-server] AGENT_ID=${AGENT_ID} did not resolve to a known namespace — tools require explicit guild_id`,
+		);
+	}
+	const boundGuildId =
+		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
+	const moodKey = boundGuildId ? `discord:${boundGuildId}` : AGENT_ID;
+	const skipTracker = createSkipTracker();
+
+	registerDiscordTools(
+		server,
+		{
+			discordClient,
+			emotionAnalyzer: emotionEstimator,
+			moodWriter: moodStore,
+			agentId: AGENT_ID,
+			moodKey,
+			skipTracker,
+		},
+		boundGuildId,
 	);
+	registerScheduleTools(server, configRepo, boundGuildId);
 
-	const metricsServer = new PrometheusServer(metricsCollector, logger, CORE_METRICS_PORT);
-	metricsServer.start();
+	const recentMessagesFetcher = async (channelId: string) => {
+		const ch = await discordClient.channels.fetch(channelId);
+		if (!ch?.isTextBased() || !("messages" in ch)) return [];
+		const msgs = await ch.messages.fetch({ limit: 5 });
+		return [...msgs.values()].map((m) => ({
+			authorName: m.member?.displayName ?? m.author.displayName,
+			content: m.content,
+			timestamp: m.createdAt,
+			reactions: [...m.reactions.cache.values()].map((r) => ({
+				emoji: r.emoji.name ?? r.emoji.toString(),
+				count: r.count,
+			})),
+		}));
+	};
+	registerEventBufferTools(server, {
+		db,
+		agentId: AGENT_ID,
+		moodKey,
+		recentMessagesFetcher,
+		moodReader: moodStore,
+		logger,
+		skipTracker,
+	});
 
-	// --- MCP Server Factory ---
+	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
+	registerDiscordBridgeTools(server, { db }, boundGuildId);
 
-	function createServer(agentId: string | null): McpServer {
-		const rawServer = new McpServer({ name: "core", version: "1.0.0" });
-		const toolDescriptions = new Map<string, string | undefined>();
-		const server = wrapServerWithMetrics(rawServer, {
-			metrics: metricsCollector,
-			logger,
-			toolDescriptions,
-		});
-
-		const boundNamespace: MemoryNamespace | undefined =
-			resolveNamespaceFromAgentId(agentId) ?? undefined;
-		if (agentId && !boundNamespace) {
-			logger.warn(
-				`[core-server] agent_id=${agentId} did not resolve to a known namespace — tools require explicit guild_id`,
-			);
-		}
-		const boundGuildId =
-			boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
-		const moodKey = boundGuildId ? `discord:${boundGuildId}` : (agentId ?? undefined);
-		const skipTracker = agentId ? createSkipTracker() : undefined;
-
-		registerDiscordTools(
+	if (
+		process.env.SPOTIFY_CLIENT_ID &&
+		process.env.SPOTIFY_CLIENT_SECRET &&
+		process.env.SPOTIFY_REFRESH_TOKEN
+	) {
+		registerSpotifyTools(
 			server,
 			{
-				discordClient,
-				emotionAnalyzer: emotionEstimator,
-				moodWriter: moodStore,
-				agentId: agentId ?? undefined,
-				moodKey,
-				skipTracker,
+				clientId: process.env.SPOTIFY_CLIENT_ID,
+				clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
+				refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
+				recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
 			},
-			boundGuildId,
+			logger,
 		);
-		registerScheduleTools(server, configRepo, boundGuildId);
-		if (agentId) {
-			const recentMessagesFetcher = async (channelId: string) => {
-				const ch = await discordClient.channels.fetch(channelId);
-				if (!ch?.isTextBased() || !("messages" in ch)) return [];
-				const msgs = await ch.messages.fetch({ limit: 5 });
-				return [...msgs.values()].map((m) => ({
-					authorName: m.member?.displayName ?? m.author.displayName,
-					content: m.content,
-					timestamp: m.createdAt,
-					reactions: [...m.reactions.cache.values()].map((r) => ({
-						emoji: r.emoji.name ?? r.emoji.toString(),
-						count: r.count,
-					})),
-				}));
-			};
-			registerEventBufferTools(server, {
-				db,
-				agentId,
-				moodKey,
-				recentMessagesFetcher,
-				moodReader: moodStore,
-				logger,
-				skipTracker,
-				metrics: metricsCollector,
+
+		if (process.env.GENIUS_ACCESS_TOKEN) {
+			const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
+			memoryCache.getOrCreate(INTERNAL_NAMESPACE);
+			const internalStorage = memoryCache.getStorage(INTERNAL_NAMESPACE);
+			if (!internalStorage)
+				throw new Error("unreachable: getOrCreate failed to populate memoryCache");
+			const listeningMemory = new ListeningMemory(internalStorage, {
+				embed: (text) => ollama.embed(text),
 			});
-		} else {
-			logger.warn("[core-server] session created without agent_id — wait_for_events unavailable");
-		}
-		registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
-		registerDiscordBridgeTools(server, { db }, boundGuildId);
-
-		if (
-			process.env.SPOTIFY_CLIENT_ID &&
-			process.env.SPOTIFY_CLIENT_SECRET &&
-			process.env.SPOTIFY_REFRESH_TOKEN
-		) {
-			registerSpotifyTools(
-				server,
-				{
-					clientId: process.env.SPOTIFY_CLIENT_ID,
-					clientSecret: process.env.SPOTIFY_CLIENT_SECRET,
-					refreshToken: process.env.SPOTIFY_REFRESH_TOKEN,
-					recommendPlaylistId: process.env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
+			registerListeningTools(server, {
+				fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
+				saveListening: async (record) => {
+					await listeningMemory.saveListening({
+						track: record.track,
+						impression: record.impression,
+						listenedAt: record.listenedAt,
+					});
 				},
-				logger,
-			);
-
-			if (process.env.GENIUS_ACCESS_TOKEN) {
-				const geniusClient = new GeniusClient(process.env.GENIUS_ACCESS_TOKEN);
-				memoryCache.getOrCreate(INTERNAL_NAMESPACE);
-				const internalStorage = memoryCache.getStorage(INTERNAL_NAMESPACE);
-				if (!internalStorage)
-					throw new Error("unreachable: getOrCreate failed to populate memoryCache");
-				const listeningMemory = new ListeningMemory(internalStorage, {
-					embed: (text) => ollama.embed(text),
-				});
-				registerListeningTools(server, {
-					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
-					saveListening: async (record) => {
-						await listeningMemory.saveListening({
-							track: record.track,
-							impression: record.impression,
-							listenedAt: record.listenedAt,
-						});
-					},
-				});
-			}
+			});
 		}
-
-		registerMetaTools(server, toolDescriptions);
-
-		return server;
 	}
 
-	// --- Start HTTP Server ---
-
-	const { cleanupTimer, closeAllSessions, stopServer } = startHttpServer(
-		createServer,
-		CORE_MCP_PORT,
-		"core",
-		logger,
-	);
+	registerMetaTools(server, toolDescriptions);
 
 	// --- Graceful Shutdown ---
 
-	function shutdown() {
-		metricsServer.stop();
-		clearInterval(cleanupTimer);
-		closeAllSessions();
-		stopServer();
+	async function shutdown() {
+		await server.close();
 		void discordClient.destroy();
 		memoryCache.closeAll();
 		closeDb(db);
 		process.exit(0);
 	}
 
-	process.on("SIGINT", () => shutdown());
-	process.on("SIGTERM", () => shutdown());
+	process.on("SIGINT", () => void shutdown());
+	process.on("SIGTERM", () => void shutdown());
+
+	// --- Start server (stdio) ---
+
+	const transport = new StdioServerTransport();
+	await server.connect(transport);
 }
 
 void main();

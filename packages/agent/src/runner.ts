@@ -111,6 +111,10 @@ export class AgentRunner implements AiAgent {
 	 * ポーリングループが未起動なら起動する。
 	 * 通常は `send()` 経由で自動起動される。
 	 * タイマーベース EventBuffer など `send()` なしで起動が必要な場合のみ直接呼ぶ。
+	 *
+	 * ポーリングモードでは 1回の promptAsync で LLM が wait_for_events MCP ツールを
+	 * 繰り返し呼び出し、セッションを半永続的に維持する（Copilot チケット節約のため）。
+	 * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
 	 */
 	ensurePolling(): void {
 		if (this.running) return;
