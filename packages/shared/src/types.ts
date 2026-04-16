@@ -254,7 +254,7 @@ export type OpencodeSessionEvent =
 export interface OpencodeSessionPort {
 	createSession(title: string): Promise<string>;
 	sessionExists(sessionId: string): Promise<boolean>;
-	prompt(params: OpencodePromptParams): Promise<PromptResult>;
+	prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult>;
 	promptAsync(params: OpencodePromptParams): Promise<void>;
 	promptAsyncAndWatchSession(
 		params: OpencodePromptParams,
