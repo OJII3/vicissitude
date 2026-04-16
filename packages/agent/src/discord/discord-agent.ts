@@ -8,7 +8,7 @@ import type {
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { consumeRotationRequest, getHeartbeat } from "@vicissitude/store/queries";
+import { getHeartbeat } from "@vicissitude/store/queries";
 
 import type { AgentProfile } from "../profile.ts";
 import { AgentRunner } from "../runner.ts";
@@ -46,7 +46,6 @@ export class DiscordAgent extends AgentRunner {
 			summaryWriter: deps.summaryWriter,
 			heartbeatReader: {
 				getLastSeenAt: (id) => getHeartbeat(deps.db, id),
-				consumeRotationRequest: (id) => consumeRotationRequest(deps.db, id),
 			},
 		});
 	}

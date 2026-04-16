@@ -316,7 +316,6 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			// heartbeatReader が常に現在時刻を返す（MCP wait_for_events が呼ばれている状態）
 			const heartbeatReader = {
 				getLastSeenAt: mock(() => Date.now()),
-				consumeRotationRequest: mock(() => null),
 			};
 
 			const runner = new TestAgent({
@@ -357,7 +356,6 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			const staleTime = Date.now() - 10_000;
 			const heartbeatReader = {
 				getLastSeenAt: mock(() => staleTime),
-				consumeRotationRequest: mock(() => null),
 			};
 
 			const runner = new TestAgent({
@@ -381,141 +379,6 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			await Bun.sleep(200);
 
 			expect(rotationSpy).toHaveBeenCalled();
-
-			runner.stop();
-		});
-	});
-
-	describe("heartbeatReader.consumeRotationRequest によるローテーション要求検知", () => {
-		test("getLastSeenAt が alive でも consumeRotationRequest が非 null ならローテーションが発生する", async () => {
-			const rotationSpy = mock(() => Promise.resolve());
-			const sessionStore = createSessionStore("existing-session-id");
-
-			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
-			const sessionPort = createSimpleSessionPort();
-
-			// heartbeatReader: alive だがローテーション要求あり
-			let rotationConsumed = false;
-			const heartbeatReader = {
-				getLastSeenAt: mock(() => Date.now()),
-				consumeRotationRequest: mock(() => {
-					if (!rotationConsumed) {
-						rotationConsumed = true;
-						return Date.now();
-					}
-					return null;
-				}),
-			};
-
-			const runner = new TestAgent({
-				profile: createProfile(),
-				agentId: "agent-1",
-				sessionStore: sessionStore as never,
-				contextBuilder: createContextBuilder(),
-				logger: createMockLogger(),
-				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
-				sessionMaxAgeMs: 3_600_000,
-				hangTimeoutMs: 100,
-				heartbeatReader,
-			});
-			runner.sleepSpy = () => Promise.resolve();
-			activeRunners.add(runner);
-
-			runner.requestSessionRotation = rotationSpy;
-			runner.ensurePolling();
-
-			await Bun.sleep(250);
-
-			// alive なのでハング検知はされないが、consumeRotationRequest 経由でローテーションが発生する
-			expect(rotationSpy).toHaveBeenCalledTimes(1);
-			expect(heartbeatReader.consumeRotationRequest).toHaveBeenCalled();
-
-			runner.stop();
-		});
-
-		test("consumeRotationRequest 消費後は再度ローテーションが発生しない", async () => {
-			const rotationSpy = mock(() => Promise.resolve());
-			const sessionStore = createSessionStore("existing-session-id");
-
-			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
-			const sessionPort = createSimpleSessionPort();
-
-			// 1 回だけ要求を返し、以降は null
-			let consumed = false;
-			const heartbeatReader = {
-				getLastSeenAt: mock(() => Date.now()),
-				consumeRotationRequest: mock(() => {
-					if (!consumed) {
-						consumed = true;
-						return Date.now();
-					}
-					return null;
-				}),
-			};
-
-			const runner = new TestAgent({
-				profile: createProfile(),
-				agentId: "agent-1",
-				sessionStore: sessionStore as never,
-				contextBuilder: createContextBuilder(),
-				logger: createMockLogger(),
-				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
-				sessionMaxAgeMs: 3_600_000,
-				hangTimeoutMs: 100,
-				heartbeatReader,
-			});
-			runner.sleepSpy = () => Promise.resolve();
-			activeRunners.add(runner);
-
-			runner.requestSessionRotation = rotationSpy;
-			runner.ensurePolling();
-
-			// 十分待って複数回 interval が発火する
-			await Bun.sleep(250);
-
-			// 消費型なので 1 回だけローテーションが発生する
-			expect(rotationSpy).toHaveBeenCalledTimes(1);
-
-			runner.stop();
-		});
-
-		test("consumeRotationRequest が常に null を返す場合、ローテーションは発生しない", async () => {
-			const rotationSpy = mock(() => Promise.resolve());
-			const sessionStore = createSessionStore("existing-session-id");
-
-			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
-			const sessionPort = createSimpleSessionPort();
-
-			// consumeRotationRequest が常に null を返す heartbeatReader
-			const heartbeatReader = {
-				getLastSeenAt: mock(() => Date.now()),
-				consumeRotationRequest: mock(() => null),
-			};
-
-			const runner = new TestAgent({
-				profile: createProfile(),
-				agentId: "agent-1",
-				sessionStore: sessionStore as never,
-				contextBuilder: createContextBuilder(),
-				logger: createMockLogger(),
-				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
-				sessionMaxAgeMs: 3_600_000,
-				hangTimeoutMs: 100,
-				heartbeatReader,
-			});
-			runner.sleepSpy = () => Promise.resolve();
-			activeRunners.add(runner);
-
-			runner.requestSessionRotation = rotationSpy;
-			runner.ensurePolling();
-
-			await Bun.sleep(250);
-
-			// heartbeat は alive、consumeRotationRequest は常に null なのでローテーションは発生しない
-			expect(rotationSpy).not.toHaveBeenCalled();
 
 			runner.stop();
 		});

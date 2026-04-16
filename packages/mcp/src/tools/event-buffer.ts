@@ -22,12 +22,7 @@ import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import {
-	consumeEvents,
-	hasEvents,
-	requestRotation,
-	touchHeartbeat,
-} from "@vicissitude/store/queries";
+import { consumeEvents, hasEvents, touchHeartbeat } from "@vicissitude/store/queries";
 import { z } from "zod";
 
 export interface RecentMessage {
@@ -40,73 +35,6 @@ export interface RecentMessage {
 /** チャンネルIDを受け取り直近メッセージ一覧を返すポート */
 export type RecentMessagesFetcher = (channelId: string) => Promise<RecentMessage[]>;
 
-export interface SkipTracker {
-	readonly pendingResponse: boolean;
-	/** pending になった時刻（ms）。pending でなければ 0 */
-	readonly pendingSince: number;
-	/** 連続スキップ回数 */
-	readonly consecutiveSkips: number;
-	/** 連続で respond イベントがスキップされた回数 */
-	readonly consecutiveRespondSkips: number;
-	/** pending 中のイベントに含まれる最も優先度の高い ActionHint。pending でなければ null */
-	readonly pendingHint: ActionHint | null;
-	markPending(hint: ActionHint): void;
-	/** スキップとして記録してから応答済みにする（consecutiveSkips はインクリメントされる） */
-	markSkipped(): void;
-	markResponded(): void;
-}
-
-export function createSkipTracker(): SkipTracker {
-	const state = {
-		pending: false,
-		pendingSince: 0,
-		consecutiveSkips: 0,
-		consecutiveRespondSkips: 0,
-		pendingHint: null as ActionHint | null,
-	};
-	return {
-		get pendingResponse() {
-			return state.pending;
-		},
-		get pendingSince() {
-			return state.pendingSince;
-		},
-		get consecutiveSkips() {
-			return state.consecutiveSkips;
-		},
-		get consecutiveRespondSkips() {
-			return state.consecutiveRespondSkips;
-		},
-		get pendingHint() {
-			return state.pendingHint;
-		},
-		markPending(hint: ActionHint) {
-			state.pending = true;
-			state.pendingSince = Date.now();
-			state.pendingHint = hint;
-		},
-		markSkipped() {
-			state.consecutiveSkips += 1;
-			if (state.pendingHint === "respond") {
-				state.consecutiveRespondSkips += 1;
-			}
-			state.pending = false;
-			state.pendingSince = 0;
-			state.pendingHint = null;
-		},
-		markResponded() {
-			state.pending = false;
-			state.pendingSince = 0;
-			state.consecutiveSkips = 0;
-			state.consecutiveRespondSkips = 0;
-			state.pendingHint = null;
-		},
-	};
-}
-
-/** 連続 respond スキップでセッションローテーションを要求する閾値 */
-export const RESPOND_SKIP_ROTATION_THRESHOLD = 2;
-
 export interface EventBufferDeps {
 	db: StoreDb;
 	agentId: string;
@@ -114,7 +42,6 @@ export interface EventBufferDeps {
 	recentMessagesFetcher?: RecentMessagesFetcher;
 	moodReader?: MoodReader;
 	logger?: Logger;
-	skipTracker?: SkipTracker;
 	metrics?: Pick<MetricsCollector, "incrementCounter">;
 }
 
@@ -395,7 +322,7 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, recentMessagesFetcher, moodReader, logger, skipTracker } = deps;
+	const { db, agentId, recentMessagesFetcher, moodReader, logger } = deps;
 	const moodKey = deps.moodKey ?? agentId;
 
 	/** イベント配列から応答コンテンツを組み立てる共通処理 */
@@ -411,10 +338,6 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		}
 		const moodContent = buildMoodContent(moodReader, moodKey);
 		if (moodContent) content.unshift(moodContent);
-		if (skipTracker) {
-			const highestHint = highestPriorityHint(events);
-			skipTracker.markPending(highestHint);
-		}
 		return { content };
 	}
 
@@ -432,30 +355,6 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		},
 		async ({ timeout_seconds }) => {
 			touchHeartbeat(db, agentId);
-
-			if (skipTracker?.pendingResponse) {
-				const elapsed = Date.now() - skipTracker.pendingSince;
-				const skippedHint = skipTracker.pendingHint;
-				skipTracker.markSkipped();
-				const msg = `[event-buffer] 前回のイベントに対する応答がスキップされました (hint=${skippedHint}, 経過=${elapsed}ms, 連続スキップ=${skipTracker.consecutiveSkips}回, 連続respondスキップ=${skipTracker.consecutiveRespondSkips}回)`;
-				if (skippedHint === "respond") {
-					logger?.error(msg);
-					if (skipTracker.consecutiveRespondSkips >= RESPOND_SKIP_ROTATION_THRESHOLD) {
-						logger?.error(
-							`[event-buffer] 連続respondスキップが閾値(${RESPOND_SKIP_ROTATION_THRESHOLD})に達しました。セッションローテーションを要求します`,
-						);
-						try {
-							requestRotation(db, agentId);
-						} catch (err) {
-							logger?.error("[event-buffer] requestRotation failed", err);
-						}
-					}
-				} else if (skipTracker.consecutiveSkips >= 3) {
-					logger?.warn(msg);
-				} else {
-					logger?.info(msg);
-				}
-			}
 
 			const immediate = consumeEvents(db, agentId, MAX_BATCH_SIZE);
 			if (immediate.length > 0) {
