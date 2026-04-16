@@ -1178,3 +1178,580 @@ describe("AgentRunner ハング検知タイマー（内部ロジック）", () =
 		waitDeferred.resolve();
 	});
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// セッション要約生成の内部ロジック（ホワイトボックス）
+// raceAbort / abortReasonToError / generateSessionSummary / summaryTimeoutMs DI
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** summaryPrompt 付きプロファイル（内部ロジック検証用） */
+function createProfileWithSummary(): AgentProfile {
+	return {
+		...createProfile(),
+		summaryPrompt: "要約してください",
+	};
+}
+
+/** rotation を単発で呼ぶためのシンプルな sessionPort（ポーリングループは起動しない） */
+function createSimpleSessionPort(
+	promptImpl: (signal?: AbortSignal) => Promise<{ text: string; tokens: undefined }>,
+): OpencodeSessionPort & {
+	prompt: ReturnType<typeof mock>;
+	deleteSession: ReturnType<typeof mock>;
+} {
+	return {
+		createSession: mock(() => Promise.resolve("session-1")),
+		sessionExists: mock(() => Promise.resolve(false)),
+		prompt: mock((_params: unknown, signal?: AbortSignal) => promptImpl(signal)),
+		promptAsync: mock(() => Promise.resolve()),
+		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
+		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
+		deleteSession: mock(() => Promise.resolve()),
+		close: mock(() => {}),
+	} as unknown as OpencodeSessionPort & {
+		prompt: ReturnType<typeof mock>;
+		deleteSession: ReturnType<typeof mock>;
+	};
+}
+
+describe("AgentRunner セッション要約生成の内部ロジック（ホワイトボックス）", () => {
+	describe("raceAbort ヘルパー（generateSessionSummary 経由で観察）", () => {
+		test("promise が先に resolve したら resolve 値を使って summaryWriter.write が呼ばれる", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "summarized", tokens: undefined }),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(summaryWriter.write).toHaveBeenCalledWith("g1", "summarized");
+		});
+
+		test("signal が先に abort したら abort reason で reject される（logger.warn が呼ばれる）", async () => {
+			// prompt は永久に pending のまま → timeout 側の signal が先に abort する
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() => new Promise(() => {}));
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+			const logger = createMockLogger();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger,
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				// 短いタイムアウトで raceAbort の signal 先行を誘発
+				summaryTimeoutMs: 20,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			// summaryWriter.write は呼ばれず、logger.warn でハンドリング
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+			expect(logger.warn).toHaveBeenCalled();
+			// logger.error ではないこと（AbortError/TimeoutError は warn 扱い）
+			expect(logger.error).toHaveBeenCalledTimes(0);
+		});
+
+		test("abortController.signal が事前に aborted なら prompt は呼ばれず早期 return する", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "ok", tokens: undefined }),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			// abortController を生成させる（ensurePolling 経由）
+			runner.ensurePolling();
+			await Bun.sleep(0);
+
+			// abortController.signal を abort 済みにする（stop() は使わず、null 化しないことで
+			// generateSessionSummary の `if (this.abortController?.signal.aborted) return;` を発火させる）
+			// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+			const ac = runner.abortController as AbortController;
+			ac.abort();
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			// generateSessionSummary 冒頭の早期 return により prompt は呼ばれない
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+			// ただし rotation 本体は完遂（deleteSession / sessionStore.delete は呼ばれる）
+			expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-abc");
+		});
+
+		test("raceAbort の finally で abort listener が removeEventListener される（メモリリークしない）", async () => {
+			// AbortSignal.timeout をモンキーパッチして、返された signal の
+			// addEventListener / removeEventListener をスパイでラップする。
+			// 成功パスでは raceAbort の addEventListener と finally の removeEventListener が
+			// ペアで呼ばれるはず（listener が外れないとリーク）。
+			//
+			// abortController が null の状態（ensurePolling 未呼び出し）では
+			// combinedSignal = timeoutSignal となり、raceAbort は timeoutSignal に直接
+			// addEventListener("abort", ...) を呼ぶ。
+			const origTimeout = AbortSignal.timeout.bind(AbortSignal);
+			const addAbortCount = { n: 0 };
+			const removeAbortCount = { n: 0 };
+			AbortSignal.timeout = ((ms: number) => {
+				const s = origTimeout(ms);
+				const origAdd = s.addEventListener.bind(s);
+				const origRemove = s.removeEventListener.bind(s);
+				s.addEventListener = ((type: string, ...rest: unknown[]) => {
+					if (type === "abort") addAbortCount.n += 1;
+					return (origAdd as unknown as (...args: unknown[]) => void)(type, ...rest);
+				}) as typeof s.addEventListener;
+				s.removeEventListener = ((type: string, ...rest: unknown[]) => {
+					if (type === "abort") removeAbortCount.n += 1;
+					return (origRemove as unknown as (...args: unknown[]) => void)(type, ...rest);
+				}) as typeof s.removeEventListener;
+				return s;
+			}) as typeof AbortSignal.timeout;
+
+			try {
+				const eventBuffer = createEventBuffer(() => Promise.resolve());
+				const sessionPort = createSimpleSessionPort(() =>
+					Promise.resolve({ text: "ok", tokens: undefined }),
+				);
+				const summaryWriter = { write: mock(() => Promise.resolve()) };
+				const sessionStore = createSessionStore();
+
+				const runner = new TestAgent({
+					profile: createProfileWithSummary(),
+					agentId: "guild-1",
+					sessionStore: sessionStore as never,
+					contextBuilder: createContextBuilder(),
+					logger: createMockLogger(),
+					sessionPort: sessionPort as unknown as OpencodeSessionPort,
+					eventBuffer,
+					sessionMaxAgeMs: 3_600_000,
+					contextGuildId: "g1",
+					summaryWriter,
+					summaryTimeoutMs: 5_000,
+				});
+				activeRunners.add(runner);
+
+				// ensurePolling は呼ばない → abortController は null → combinedSignal = timeoutSignal
+				sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+				await runner.requestSessionRotation(true);
+
+				// 成功パスでは:
+				// 1. raceAbort が addEventListener("abort", ...) を 1 回呼ぶ
+				// 2. 成功して finally で removeEventListener を 1 回呼ぶ
+				expect(addAbortCount.n).toBeGreaterThanOrEqual(1);
+				expect(removeAbortCount.n).toBe(addAbortCount.n);
+				expect(summaryWriter.write).toHaveBeenCalledTimes(1);
+			} finally {
+				AbortSignal.timeout = origTimeout;
+			}
+		});
+	});
+
+	describe("abortReasonToError の正規化（logger メッセージから観察）", () => {
+		test("AbortSignal.timeout 由来の TimeoutError が保たれ、logger.warn に TimeoutError が含まれる", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			// prompt を永久 pending にして timeout 側から打ち切らせる
+			const sessionPort = createSimpleSessionPort(() => new Promise(() => {}));
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+			const logger = createMockLogger();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger,
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 20,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			// logger.warn の第1引数（メッセージ文字列）に TimeoutError が含まれるはず
+			const warnMessages = (logger.warn as ReturnType<typeof mock>).mock.calls
+				.map((args) => String(args[0]))
+				.join("\n");
+			expect(warnMessages).toContain("TimeoutError");
+			expect(logger.error).toHaveBeenCalledTimes(0);
+		});
+
+		test("AbortController.abort() (reason 未設定) では AbortError に正規化され logger.warn が呼ばれる", async () => {
+			// prompt を pending のままにして、runner 側の abortController を手動 abort させる。
+			// AbortController.abort() は reason 未指定のため DOMException("AbortError") になる。
+			const promptDeferred = deferred<{ text: string; tokens: undefined }>();
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() => promptDeferred.promise);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+			const logger = createMockLogger();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger,
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				// timeout より先に abort が走るよう十分長く
+				summaryTimeoutMs: 60_000,
+			});
+			activeRunners.add(runner);
+
+			// abortController を生成させるために ensurePolling → 即 stop
+			runner.ensurePolling();
+			await Bun.sleep(0);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			const rotationPromise = runner.requestSessionRotation(true);
+			// prompt 呼び出しが走るのを待つ
+			await Bun.sleep(0);
+
+			// runner.stop() → abortController.abort() により signal が abort される
+			runner.stop();
+			await rotationPromise;
+
+			const warnMessages = (logger.warn as ReturnType<typeof mock>).mock.calls
+				.map((args) => String(args[0]))
+				.join("\n");
+			expect(warnMessages).toContain("AbortError");
+			expect(logger.error).toHaveBeenCalledTimes(0);
+		});
+	});
+
+	describe("generateSessionSummary の内部分岐", () => {
+		test("早期 return: summaryWriter 未設定なら prompt は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "ok", tokens: undefined }),
+			);
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				// summaryWriter は未設定
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
+			// rotation 本体は完遂する
+			expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-abc");
+		});
+
+		test("早期 return: contextGuildId 未設定なら prompt は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "ok", tokens: undefined }),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				// contextGuildId 未設定
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+
+		test("早期 return: profile.summaryPrompt 未設定なら prompt は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "ok", tokens: undefined }),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				// summaryPrompt 無しの通常プロファイル
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+
+		test("text が空白のみなら summaryWriter.write は呼ばれない", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.resolve({ text: "   \n  ", tokens: undefined }),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+
+		test("非 Abort/Timeout の例外は logger.error で記録される（既存契約維持）", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() =>
+				Promise.reject(new Error("some runtime error")),
+			);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+			const logger = createMockLogger();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger,
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 5_000,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			await runner.requestSessionRotation(true);
+
+			expect(logger.error).toHaveBeenCalled();
+			// warn ではなく error 側
+			const warnTimeoutCalls = (logger.warn as ReturnType<typeof mock>).mock.calls.filter((args) =>
+				String(args[0]).includes("session summary aborted"),
+			);
+			expect(warnTimeoutCalls.length).toBe(0);
+		});
+
+		test("AbortSignal.any 合成: abortController 側が先に abort しても logger.warn で AbortError 扱いになる", async () => {
+			// summaryTimeoutMs を十分長くし、runner.stop() を先に走らせて
+			// abortController 側が先に打ち切ることを確認する（timeoutSignal と合成した signal の動作検証）。
+			const promptDeferred = deferred<{ text: string; tokens: undefined }>();
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort(() => promptDeferred.promise);
+			const summaryWriter = { write: mock(() => Promise.resolve()) };
+			const sessionStore = createSessionStore();
+			const logger = createMockLogger();
+
+			const runner = new TestAgent({
+				profile: createProfileWithSummary(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger,
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "g1",
+				summaryWriter,
+				summaryTimeoutMs: 60_000,
+			});
+			activeRunners.add(runner);
+
+			runner.ensurePolling();
+			await Bun.sleep(0);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+			const rotationPromise = runner.requestSessionRotation(true);
+			await Bun.sleep(0);
+
+			runner.stop();
+			await rotationPromise;
+
+			// AbortError 側での warn が記録されている
+			const warnMessages = (logger.warn as ReturnType<typeof mock>).mock.calls
+				.map((args) => String(args[0]))
+				.join("\n");
+			expect(warnMessages).toContain("session summary aborted");
+			expect(warnMessages).toContain("AbortError");
+		});
+	});
+
+	describe("summaryTimeoutMs の DI", () => {
+		test("未指定時は DEFAULT_SUMMARY_TIMEOUT_MS (30_000) が AbortSignal.timeout に渡される", async () => {
+			// AbortSignal.timeout をモンキーパッチして呼び出し時の ms を記録する
+			const timeoutCalls: number[] = [];
+			const origTimeout = AbortSignal.timeout.bind(AbortSignal);
+			AbortSignal.timeout = ((ms: number) => {
+				timeoutCalls.push(ms);
+				return origTimeout(ms);
+			}) as typeof AbortSignal.timeout;
+
+			try {
+				const eventBuffer = createEventBuffer(() => Promise.resolve());
+				const sessionPort = createSimpleSessionPort(() =>
+					Promise.resolve({ text: "ok", tokens: undefined }),
+				);
+				const summaryWriter = { write: mock(() => Promise.resolve()) };
+				const sessionStore = createSessionStore();
+
+				const runner = new TestAgent({
+					profile: createProfileWithSummary(),
+					agentId: "guild-1",
+					sessionStore: sessionStore as never,
+					contextBuilder: createContextBuilder(),
+					logger: createMockLogger(),
+					sessionPort: sessionPort as unknown as OpencodeSessionPort,
+					eventBuffer,
+					sessionMaxAgeMs: 3_600_000,
+					contextGuildId: "g1",
+					summaryWriter,
+					// summaryTimeoutMs 未指定
+				});
+				activeRunners.add(runner);
+
+				sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+				await runner.requestSessionRotation(true);
+
+				expect(timeoutCalls).toContain(30_000);
+			} finally {
+				AbortSignal.timeout = origTimeout;
+			}
+		});
+
+		test("指定時は渡された値が AbortSignal.timeout に使われる", async () => {
+			const timeoutCalls: number[] = [];
+			const origTimeout = AbortSignal.timeout.bind(AbortSignal);
+			AbortSignal.timeout = ((ms: number) => {
+				timeoutCalls.push(ms);
+				return origTimeout(ms);
+			}) as typeof AbortSignal.timeout;
+
+			try {
+				const eventBuffer = createEventBuffer(() => Promise.resolve());
+				const sessionPort = createSimpleSessionPort(() =>
+					Promise.resolve({ text: "ok", tokens: undefined }),
+				);
+				const summaryWriter = { write: mock(() => Promise.resolve()) };
+				const sessionStore = createSessionStore();
+
+				const runner = new TestAgent({
+					profile: createProfileWithSummary(),
+					agentId: "guild-1",
+					sessionStore: sessionStore as never,
+					contextBuilder: createContextBuilder(),
+					logger: createMockLogger(),
+					sessionPort: sessionPort as unknown as OpencodeSessionPort,
+					eventBuffer,
+					sessionMaxAgeMs: 3_600_000,
+					contextGuildId: "g1",
+					summaryWriter,
+					summaryTimeoutMs: 12_345,
+				});
+				activeRunners.add(runner);
+
+				sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+				await runner.requestSessionRotation(true);
+
+				expect(timeoutCalls).toContain(12_345);
+				expect(timeoutCalls).not.toContain(30_000);
+			} finally {
+				AbortSignal.timeout = origTimeout;
+			}
+		});
+	});
+});

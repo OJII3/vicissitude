@@ -69,15 +69,18 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return !result.error && !!result.data;
 	}
 
-	async prompt(params: OpencodePromptParams): Promise<PromptResult> {
+	async prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult> {
 		const oc = await this.getClient();
-		const result = await oc.session.prompt({
-			sessionID: params.sessionId,
-			parts: [{ type: "text", text: params.text }],
-			model: { providerID: params.model.providerId, modelID: params.model.modelId },
-			system: params.system,
-			tools: params.tools ?? {},
-		});
+		const result = await oc.session.prompt(
+			{
+				sessionID: params.sessionId,
+				parts: [{ type: "text", text: params.text }],
+				model: { providerID: params.model.providerId, modelID: params.model.modelId },
+				system: params.system,
+				tools: params.tools ?? {},
+			},
+			{ signal },
+		);
 		if (result.error || !result.data) {
 			throw new Error(`Prompt failed: ${JSON.stringify(result.error)}`);
 		}

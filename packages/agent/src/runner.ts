@@ -20,6 +20,39 @@ const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_HANG_TIMEOUT_MS = 600_000;
+const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
+
+/**
+ * AbortSignal の abort reason を Error に正規化する。
+ * `AbortSignal.timeout` → `TimeoutError` (DOMException)、
+ * `AbortController.abort()` → 任意の reason (未設定なら DOMException "AbortError")。
+ */
+function abortReasonToError(signal: AbortSignal): Error {
+	const reason = signal.reason;
+	if (reason instanceof Error) return reason;
+	return new DOMException("Aborted", "AbortError");
+}
+
+/**
+ * Promise と AbortSignal を競合させ、signal が先に abort されたら reject する。
+ * signal 側の打ち切りで即座にリジェクトさせるため、promise 実装が signal を
+ * 尊重しない（= 永久 pending のまま）場合でも呼び出し元を解放できる。
+ */
+async function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+	if (signal.aborted) {
+		throw abortReasonToError(signal);
+	}
+	let onAbort: (() => void) | undefined;
+	const abortPromise = new Promise<never>((_resolve, reject) => {
+		onAbort = () => reject(abortReasonToError(signal));
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+	try {
+		return await Promise.race([promise, abortPromise]);
+	} finally {
+		if (onAbort) signal.removeEventListener("abort", onAbort);
+	}
+}
 
 /** MCP プロセスが書き込むハートビートを読み取るポート */
 export interface HeartbeatReader {
@@ -44,6 +77,8 @@ export interface RunnerDeps {
 	hangTimeoutMs?: number;
 	/** MCP wait_for_events のハートビートリーダー。設定時は SQLite のハートビートも考慮してハング判定する */
 	heartbeatReader?: HeartbeatReader;
+	/** セッション要約生成 (`sessionPort.prompt`) のタイムアウト（ms）。壊れたセッションで summary が永久に返らないときに rotation を止めないため必須。デフォルト: 30_000 */
+	summaryTimeoutMs?: number;
 }
 
 export class AgentRunner implements AiAgent {
@@ -70,6 +105,7 @@ export class AgentRunner implements AiAgent {
 	private readonly summaryWriter?: SessionSummaryWriter;
 	private readonly hangTimeoutMs: number;
 	private readonly heartbeatReader?: HeartbeatReader;
+	private readonly summaryTimeoutMs: number;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -89,6 +125,7 @@ export class AgentRunner implements AiAgent {
 		this.summaryWriter = deps.summaryWriter;
 		this.hangTimeoutMs = deps.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS;
 		this.heartbeatReader = deps.heartbeatReader;
+		this.summaryTimeoutMs = deps.summaryTimeoutMs ?? DEFAULT_SUMMARY_TIMEOUT_MS;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -477,24 +514,53 @@ export class AgentRunner implements AiAgent {
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);
 	}
 
+	/**
+	 * セッション要約を best-effort で生成する。
+	 *
+	 * 壊れたセッションでは `sessionPort.prompt` が永久に返らないケースがある。
+	 * この関数は timeout + runner abort を合成した AbortSignal で prompt を打ち切り、
+	 * いかなる失敗（同期 throw・reject・timeout・abort）が起きても関数全体は resolve する。
+	 * これにより呼び出し元の rotation (deleteSession / sessionStore.delete) が必ず完遂する。
+	 *
+	 * 実装メモ: `combinedSignal` を `sessionPort.prompt` に渡して SDK 側で HTTP
+	 * リクエストをキャンセルさせる。加えて、SDK 側が signal を尊重しない実装
+	 * （モック・SDK 不具合）でも rotation を止めないため、runner 側でも
+	 * `raceAbort` により独立して打ち切る（二重防衛）。
+	 */
 	private async generateSessionSummary(sessionId: string): Promise<void> {
 		if (this.abortController?.signal.aborted) return;
 		if (!this.contextGuildId || !this.summaryWriter || !this.profile.summaryPrompt) return;
+		const timeoutSignal = AbortSignal.timeout(this.summaryTimeoutMs);
+		const combinedSignal = this.abortController
+			? AbortSignal.any([timeoutSignal, this.abortController.signal])
+			: timeoutSignal;
 		try {
-			const { text } = await this.sessionPort.prompt({
-				sessionId,
-				text: this.profile.summaryPrompt,
-				model: this.profile.model,
-				tools: {},
-			});
+			const promptPromise = this.sessionPort.prompt(
+				{
+					sessionId,
+					text: this.profile.summaryPrompt,
+					model: this.profile.model,
+					tools: {},
+				},
+				combinedSignal,
+			);
+			const { text } = await raceAbort(promptPromise, combinedSignal);
 			if (!text.trim()) return;
 			await this.summaryWriter.write(this.contextGuildId, text);
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] session summary saved for guild ${this.contextGuildId}`,
 			);
 		} catch (err) {
+			const name = err instanceof Error ? err.name : "";
+			if (name === "AbortError" || name === "TimeoutError") {
+				this.logger.warn(
+					`[${this.profile.name}:${this.agentId}] session summary aborted (sessionId=${sessionId}, ${name}, timeout=${this.summaryTimeoutMs}ms); continuing rotation without summary`,
+					err,
+				);
+				return;
+			}
 			this.logger.error(
-				`[${this.profile.name}:${this.agentId}] failed to generate session summary`,
+				`[${this.profile.name}:${this.agentId}] failed to generate session summary (sessionId=${sessionId})`,
 				err,
 			);
 		}
