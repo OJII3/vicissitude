@@ -522,9 +522,10 @@ export class AgentRunner implements AiAgent {
 	 * いかなる失敗（同期 throw・reject・timeout・abort）が起きても関数全体は resolve する。
 	 * これにより呼び出し元の rotation (deleteSession / sessionStore.delete) が必ず完遂する。
 	 *
-	 * 実装メモ: `sessionPort.prompt` が signal に反応しない実装（SDK 側の不具合や
-	 * モック）でも rotation を止めないため、runner 側でも `Promise.race` により
-	 * 独立して打ち切る。SDK に signal を伝播する強化はアダプタ層で別途行う。
+	 * 実装メモ: `combinedSignal` を `sessionPort.prompt` に渡して SDK 側で HTTP
+	 * リクエストをキャンセルさせる。加えて、SDK 側が signal を尊重しない実装
+	 * （モック・SDK 不具合）でも rotation を止めないため、runner 側でも
+	 * `raceAbort` により独立して打ち切る（二重防衛）。
 	 */
 	private async generateSessionSummary(sessionId: string): Promise<void> {
 		if (this.abortController?.signal.aborted) return;
@@ -534,12 +535,15 @@ export class AgentRunner implements AiAgent {
 			? AbortSignal.any([timeoutSignal, this.abortController.signal])
 			: timeoutSignal;
 		try {
-			const promptPromise = this.sessionPort.prompt({
-				sessionId,
-				text: this.profile.summaryPrompt,
-				model: this.profile.model,
-				tools: {},
-			});
+			const promptPromise = this.sessionPort.prompt(
+				{
+					sessionId,
+					text: this.profile.summaryPrompt,
+					model: this.profile.model,
+					tools: {},
+				},
+				combinedSignal,
+			);
 			const { text } = await raceAbort(promptPromise, combinedSignal);
 			if (!text.trim()) return;
 			await this.summaryWriter.write(this.contextGuildId, text);
@@ -550,12 +554,13 @@ export class AgentRunner implements AiAgent {
 			const name = err instanceof Error ? err.name : "";
 			if (name === "AbortError" || name === "TimeoutError") {
 				this.logger.warn(
-					`[${this.profile.name}:${this.agentId}] session summary aborted (${name}, timeout=${this.summaryTimeoutMs}ms); continuing rotation without summary`,
+					`[${this.profile.name}:${this.agentId}] session summary aborted (sessionId=${sessionId}, ${name}, timeout=${this.summaryTimeoutMs}ms); continuing rotation without summary`,
+					err,
 				);
 				return;
 			}
 			this.logger.error(
-				`[${this.profile.name}:${this.agentId}] failed to generate session summary`,
+				`[${this.profile.name}:${this.agentId}] failed to generate session summary (sessionId=${sessionId})`,
 				err,
 			);
 		}

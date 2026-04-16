@@ -694,7 +694,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 	});
 
 	describe("prompt(要約) の呼び出しパラメータ", () => {
-		test("prompt は sessionId・summaryPrompt・model で呼ばれる", async () => {
+		test("prompt は sessionId・summaryPrompt・model・AbortSignal で呼ばれる", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 
@@ -719,12 +719,15 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 			await runner.requestSessionRotation();
 
-			expect(sessionPort.prompt).toHaveBeenCalledWith({
-				sessionId: "session-xyz",
-				text: TEST_SUMMARY_PROMPT,
-				model: { providerId: "test-provider", modelId: "test-model" },
-				tools: {},
-			});
+			expect(sessionPort.prompt).toHaveBeenCalledWith(
+				{
+					sessionId: "session-xyz",
+					text: TEST_SUMMARY_PROMPT,
+					model: { providerId: "test-provider", modelId: "test-model" },
+					tools: {},
+				},
+				expect.any(AbortSignal),
+			);
 		});
 	});
 });
