@@ -196,6 +196,86 @@ describe("classifyEvent", () => {
 		expect(result.message.length).toBeGreaterThan(0);
 	});
 
+	test("session.error で APIError ペイロードの場合、structured フィールドを含む", () => {
+		const event = {
+			type: "session.error",
+			properties: {
+				sessionID,
+				error: {
+					name: "APIError",
+					data: {
+						message: "Bad Request",
+						statusCode: 400,
+						isRetryable: false,
+					},
+				},
+			},
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.status).toBe(400);
+		expect(result.retryable).toBe(false);
+		expect(result.errorClass).toBe("APIError");
+	});
+
+	test("session.error で 5xx かつ isRetryable=true のペイロード", () => {
+		const event = {
+			type: "session.error",
+			properties: {
+				sessionID,
+				error: {
+					name: "APIError",
+					data: {
+						message: "Upstream timeout",
+						statusCode: 502,
+						isRetryable: true,
+					},
+				},
+			},
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.status).toBe(502);
+		expect(result.retryable).toBe(true);
+		expect(result.errorClass).toBe("APIError");
+	});
+
+	test("session.error で ApiError 以外のエラー種別では status/retryable が undefined", () => {
+		const event = {
+			type: "session.error",
+			properties: {
+				sessionID,
+				error: {
+					name: "UnknownError",
+					data: { message: "oops" },
+				},
+			},
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.status).toBeUndefined();
+		expect(result.retryable).toBeUndefined();
+		expect(result.errorClass).toBe("UnknownError");
+	});
+
+	test("session.error で error プロパティ自体がない場合、全て undefined", () => {
+		const event = {
+			type: "session.error",
+			properties: { sessionID },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.status).toBeUndefined();
+		expect(result.retryable).toBeUndefined();
+		expect(result.errorClass).toBeUndefined();
+	});
+
 	test("session.compacted イベントで { type: 'compacted' } を返す", () => {
 		const event = {
 			type: "session.compacted",

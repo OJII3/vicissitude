@@ -28,31 +28,40 @@ describe("METRIC 定数: セッションエラー関連", () => {
 // ─── カウンタ動作の検証 ──────────────────────────────────────────
 
 describe("SESSION_ERRORS カウンタ", () => {
-	it("source, error_type ラベル付きでインクリメントできる", () => {
+	it("source, error_type, http_status, retryable, error_class ラベル付きでインクリメントできる", () => {
 		const c = new PrometheusCollector();
 		c.registerCounter(METRIC.SESSION_ERRORS, "session errors");
 		c.incrementCounter(METRIC.SESSION_ERRORS, {
-			source: "promptAsyncAndWatchSession",
+			source: "session_event",
 			error_type: "session_error",
+			http_status: "400",
+			retryable: "false",
+			error_class: "APIError",
 		});
 		c.incrementCounter(METRIC.SESSION_ERRORS, {
-			source: "waitForSessionIdle",
+			source: "session_event",
 			error_type: "session_error",
+			http_status: "502",
+			retryable: "true",
+			error_class: "APIError",
 		});
 		c.incrementCounter(METRIC.SESSION_ERRORS, {
-			source: "promptAsyncAndWatchSession",
+			source: "session_event",
 			error_type: "stream_disconnected",
+			http_status: "unknown",
+			retryable: "unknown",
+			error_class: "unknown",
 		});
 
 		const output = c.serialize();
 		expect(output).toContain(
-			'session_errors_total{error_type="session_error",source="promptAsyncAndWatchSession"} 1',
+			'session_errors_total{error_class="APIError",error_type="session_error",http_status="400",retryable="false",source="session_event"} 1',
 		);
 		expect(output).toContain(
-			'session_errors_total{error_type="session_error",source="waitForSessionIdle"} 1',
+			'session_errors_total{error_class="APIError",error_type="session_error",http_status="502",retryable="true",source="session_event"} 1',
 		);
 		expect(output).toContain(
-			'session_errors_total{error_type="stream_disconnected",source="promptAsyncAndWatchSession"} 1',
+			'session_errors_total{error_class="unknown",error_type="stream_disconnected",http_status="unknown",retryable="unknown",source="session_event"} 1',
 		);
 	});
 });

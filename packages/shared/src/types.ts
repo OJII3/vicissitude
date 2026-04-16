@@ -240,7 +240,16 @@ export type OpencodeSessionEvent =
 	| { type: "compacted" }
 	| { type: "streamDisconnected"; tokens?: TokenUsage }
 	| { type: "cancelled" }
-	| { type: "error"; message: string };
+	| {
+			type: "error";
+			message: string;
+			/** HTTP ステータスコード（ApiError の場合のみ） */
+			status?: number;
+			/** リトライ可能か（ApiError の場合のみ） */
+			retryable?: boolean;
+			/** エラーの分類名（例: "APIError", "ProviderAuthError", "UnknownError"） */
+			errorClass?: string;
+	  };
 
 export interface OpencodeSessionPort {
 	createSession(title: string): Promise<string>;
