@@ -208,6 +208,11 @@ describe("Runner: session error メトリクス記録", () => {
 			(call: unknown[]) => call[0] === METRIC.SESSION_ERRORS,
 		);
 		expect(sessionErrorCalls.length).toBeGreaterThanOrEqual(1);
+		// ラベルセットが session_error と揃っていること（Prometheus 系列一貫性のため）
+		const labels = sessionErrorCalls[0]?.[1] as Record<string, string> | undefined;
+		expect(labels?.http_status).toBe("unknown");
+		expect(labels?.retryable).toBe("unknown");
+		expect(labels?.error_class).toBe("unknown");
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });

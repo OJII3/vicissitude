@@ -244,7 +244,7 @@ describe("classifyEvent", () => {
 		expect(result.errorClass).toBe("APIError");
 	});
 
-	test("session.error で ApiError 以外のエラー種別では status/retryable が undefined", () => {
+	test("session.error で APIError 以外のエラー種別では status/retryable が undefined", () => {
 		const event = {
 			type: "session.error",
 			properties: {
