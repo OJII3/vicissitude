@@ -47,10 +47,10 @@ describe("buildCoreEnvironment", () => {
 	});
 
 	afterEach(() => {
-		if (savedEmotionChatModel !== undefined) {
-			process.env.EMOTION_CHAT_MODEL = savedEmotionChatModel;
-		} else {
+		if (savedEmotionChatModel === undefined) {
 			delete process.env.EMOTION_CHAT_MODEL;
+		} else {
+			process.env.EMOTION_CHAT_MODEL = savedEmotionChatModel;
 		}
 	});
 
