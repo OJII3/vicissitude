@@ -48,7 +48,6 @@ import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
-// spawn は startMinecraftMcp で使用
 
 import { type AppConfig, loadConfig } from "./config.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
@@ -93,10 +92,7 @@ function createFileSessionSummaryWriter(overlayDir: string): SessionSummaryWrite
 }
 
 /** core MCP stdio プロセスに渡す環境変数を組み立てる */
-export function buildCoreEnvironment(
-	config: AppConfig,
-	root: string,
-): Record<string, string> {
+export function buildCoreEnvironment(config: AppConfig, root: string): Record<string, string> {
 	const env: Record<string, string> = {
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
@@ -178,8 +174,6 @@ export function createGuildAgents(
 			profile,
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
-			appRoot: deps.appRoot,
-			coreEnvironment: deps.coreEnvironment,
 		});
 		agents.set(guildId, agent);
 	}

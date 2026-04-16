@@ -12,10 +12,7 @@ export class ConsoleLogger implements Logger {
 	constructor(options?: string | { level?: string; destination?: "stdout" | "stderr" }) {
 		const opts = typeof options === "string" ? { level: options } : (options ?? {});
 		const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
-		this.pino = pino(
-			{ level },
-			opts.destination === "stderr" ? pino.destination(2) : undefined,
-		);
+		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
 	}
 
 	debug(message: string, ...args: unknown[]): void {

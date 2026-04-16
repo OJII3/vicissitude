@@ -114,7 +114,7 @@ export class AgentRunner implements AiAgent {
 	 *
 	 * ポーリングモードでは 1回の promptAsync で LLM が wait_for_events MCP ツールを
 	 * 繰り返し呼び出し、セッションを半永続的に維持する（Copilot チケット節約のため）。
-	 * @see {@link ../../../../docs/architecture/polling-model.md}
+	 * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
 	 */
 	ensurePolling(): void {
 		if (this.running) return;

@@ -44,7 +44,7 @@ import { registerSpotifyTools } from "./tools/spotify.ts";
  * エージェントごとに1プロセスが生成されるため、AGENT_ID 環境変数で
  * 自分がどの agentId にバインドされているかを知る。
  *
- * @see {@link ../../../docs/architecture/polling-model.md}
+ * @see {@link ./tools/event-buffer.ts} — ポーリングモデルの詳細
  */
 async function main(): Promise<void> {
 	const logger = new ConsoleLogger({ destination: "stderr" });
@@ -133,10 +133,8 @@ async function main(): Promise<void> {
 
 	// --- MCP Server ---
 
-	const rawServer = new McpServer({ name: "core", version: "1.0.0" });
+	const server = new McpServer({ name: "core", version: "1.0.0" });
 	const toolDescriptions = new Map<string, string | undefined>();
-	// stdio モードでは metrics は省略（将来的にメインプロセスに統合予定）
-	const server = rawServer;
 
 	const boundNamespace: MemoryNamespace | undefined =
 		resolveNamespaceFromAgentId(AGENT_ID) ?? undefined;

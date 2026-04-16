@@ -1,3 +1,19 @@
+/**
+ * ポーリングモデル（半無限セッション）
+ *
+ * Copilot はリクエスト単位のチケット制課金のため、1回の promptAsync で LLM セッションを起動し、
+ * LLM 自身が wait_for_events MCP ツールを繰り返し呼び出すことでセッションを終了させずに
+ * 半永続的に動作させる。追加のプロンプト送信なしでイベント駆動の応答を実現する。
+ *
+ *   promptAsync → LLM: wait_for_events() ──timeout──→ wait_for_events()
+ *                        ├─ events arrive → respond ──→ wait_for_events()
+ *                        └─ (このループが半永続的に続く)
+ *
+ * core MCP は stdio (local) モードで動作し、OpenCode がエージェントごとに子プロセスとして
+ * core-server.js を起動する。AGENT_ID 環境変数で wait_for_events のバインド先を指定する。
+ *
+ * @module
+ */
 /* oxlint-disable max-lines -- event-buffer tools + polling + formatting helpers are tightly coupled */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { METRIC } from "@vicissitude/observability/metrics";
@@ -105,11 +121,7 @@ export interface EventBufferDeps {
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
 export const MAX_BATCH_SIZE = 10;
 
-/**
- * wait_for_events の timeout_seconds 上限（秒）。
- * LLM はこのツールを繰り返し呼び出すことでセッションを半永続的に維持する。
- * @see {@link ../../../../docs/architecture/polling-model.md}
- */
+/** wait_for_events の timeout_seconds 上限（秒）。 */
 export const MAX_POLL_TIMEOUT_SECONDS = 200;
 
 // ─── ActionHint ──────────────────────────────────────────────────

@@ -27,8 +27,6 @@ export interface DiscordAgentDeps {
 	summaryWriter?: SessionSummaryWriter;
 	/** agentId のプレフィックス（デフォルト: "discord"）。Heartbeat 専用エージェントなどでセッション分離に使用 */
 	agentIdPrefix?: string;
-	appRoot: string;
-	coreEnvironment: Record<string, string>;
 }
 
 export class DiscordAgent extends AgentRunner {
