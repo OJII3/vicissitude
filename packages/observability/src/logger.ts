@@ -5,12 +5,11 @@ export class ConsoleLogger implements Logger {
 	private readonly pino: pino.Logger;
 
 	/**
-	 * @param options — ログレベルまたは設定オブジェクト。
-	 *   文字列を渡すとログレベルとして扱う（後方互換）。
+	 * @param options — 設定オブジェクト。
 	 *   stdio MCP サーバーでは stdout が MCP 通信に使われるため `{ destination: "stderr" }` を指定する。
 	 */
-	constructor(options?: string | { level?: string; destination?: "stdout" | "stderr" }) {
-		const opts = typeof options === "string" ? { level: options } : (options ?? {});
+	constructor(options?: { level?: string; destination?: "stderr" }) {
+		const opts = options ?? {};
 		const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
 		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
 	}

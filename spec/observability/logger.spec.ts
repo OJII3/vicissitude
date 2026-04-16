@@ -39,35 +39,35 @@ describe("ConsoleLogger", () => {
 
 	describe("ログレベルフィルタリング", () => {
 		it("info レベルで debug() は出力されない", () => {
-			const logger = new ConsoleLogger("info");
+			const logger = new ConsoleLogger({ level: "info" });
 			logger.debug("should not appear");
 
 			expect(output()).toBe("");
 		});
 
 		it("debug レベルで debug() が出力される", () => {
-			const logger = new ConsoleLogger("debug");
+			const logger = new ConsoleLogger({ level: "debug" });
 			logger.debug("visible");
 
 			expect(output()).toContain("visible");
 		});
 
 		it("info レベルで info() が出力される", () => {
-			const logger = new ConsoleLogger("info");
+			const logger = new ConsoleLogger({ level: "info" });
 			logger.info("info message");
 
 			expect(output()).toContain("info message");
 		});
 
 		it("info レベルで warn() が出力される", () => {
-			const logger = new ConsoleLogger("info");
+			const logger = new ConsoleLogger({ level: "info" });
 			logger.warn("warn message");
 
 			expect(output()).toContain("warn message");
 		});
 
 		it("info レベルで error() が出力される", () => {
-			const logger = new ConsoleLogger("info");
+			const logger = new ConsoleLogger({ level: "info" });
 			logger.error("error message");
 
 			expect(output()).toContain("error message");
