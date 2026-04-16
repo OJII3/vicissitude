@@ -362,10 +362,15 @@ describe("Runner: session restart メトリクス記録", () => {
 			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
 		);
 		expect(restartCalls.length).toBeGreaterThanOrEqual(1);
-		// reason ラベルに "error" が含まれる
-		const errorRestarts = restartCalls.filter(
-			(call: unknown[]) => (call[1] as Record<string, string> | undefined)?.reason === "error",
-		);
+		// reason ラベルにエラー系の値が含まれる（retryable:undefined は retryable:true 扱いでバックオフ）
+		const errorRestarts = restartCalls.filter((call: unknown[]) => {
+			const reason = (call[1] as Record<string, string> | undefined)?.reason;
+			return (
+				reason === "error_retryable_backoff" ||
+				reason === "error_retryable_rotation" ||
+				reason === "error_non_retryable_rotation"
+			);
+		});
 		expect(errorRestarts.length).toBeGreaterThanOrEqual(1);
 
 		runner.stop();
