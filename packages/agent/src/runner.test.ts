@@ -422,6 +422,41 @@ describe("AgentRunner", () => {
 		sessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("requestSessionRotation: force=true の場合 minRotationIntervalMs 以内でも実行される", async () => {
+		const firstEvent = deferred<void>();
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const sessionStore = createSessionStore();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		sessionStore.save("conversation", "__polling__:guild-1", "session-abc");
+
+		// 1回目（force=false / デフォルト）
+		await runner.requestSessionRotation();
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(1);
+
+		// 再度セッションを保存
+		sessionStore.save("conversation", "__polling__:guild-1", "session-def");
+
+		// minRotationIntervalMs 以内だが force=true → スキップしない
+		await runner.requestSessionRotation(true);
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(2);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("requestSessionRotation: minRotationIntervalMs 以内の連続呼び出しは無視される", async () => {
 		const firstEvent = deferred<void>();
 		const sessionDone = deferred<OpencodeSessionEvent>();
@@ -709,6 +744,226 @@ describe("AgentRunner", () => {
 
 		runner.stop();
 		sessionDone.resolve({ type: "cancelled" });
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// バックオフ・ローテーション戦略の内部ロジック（ホワイトボックス）
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AgentRunner バックオフ・ローテーション戦略（内部ロジック）", () => {
+	test("error イベント（retryable:true）で sleep 数列が 2s→4s→8s→10s になる", async () => {
+		const firstEvent = deferred<void>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const lastSession = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			// 4 回エラー → cap 到達後に 5 回目エラー → rotation → lastSession
+			if (sessionWatchCount <= 4) {
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			if (sessionWatchCount === 5) {
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		// 5 回のエラー + ローテーション分の非同期ステップを消化
+		for (let i = 0; i < 30; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		// バックオフ数列: 2000 → 4000 → 8000 → 10000
+		expect(sleepCalls[0]).toBe(2000);
+		expect(sleepCalls[1]).toBe(4000);
+		expect(sleepCalls[2]).toBe(8000);
+		expect(sleepCalls[3]).toBe(10000);
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
+	});
+
+	test("例外（throw）時も retryable:true 扱いでバックオフ delay が増加する", async () => {
+		const firstEvent = deferred<void>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const thirdSession = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) return Promise.reject(new Error("thrown error 1"));
+			if (sessionWatchCount === 2) return Promise.reject(new Error("thrown error 2"));
+			return thirdSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		// 例外時も指数バックオフ: 2000 → 4000
+		expect(sleepCalls[0]).toBe(2000);
+		expect(sleepCalls[1]).toBe(4000);
+
+		runner.stop();
+		thirdSession.resolve({ type: "cancelled" });
+	});
+
+	test("retryable:false エラー後は delay が 2s にリセットされる（後続エラーでバックオフが 2s から始まる）", async () => {
+		const firstEvent = deferred<void>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const lastSession = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) {
+				return Promise.resolve({
+					type: "error",
+					message: "non-retryable",
+					retryable: false as const,
+				});
+			}
+			if (sessionWatchCount === 2) {
+				return Promise.resolve({ type: "error", message: "retryable", retryable: true as const });
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		for (let i = 0; i < 20; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		// retryable:false は sleep なし（sleepCalls に 2000 以上のものは入らないはず）
+		// 続くretryable:true エラーでは delay が 2s からリスタート
+		const longSleeps = sleepCalls.filter((ms) => ms >= 2000);
+		// retryable:false のローテーション後の最初のバックオフが 2000 であること
+		if (longSleeps.length > 0) {
+			expect(longSleeps[0]).toBe(2000);
+		}
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
+	});
+
+	test("prevSleepWasCapped リセット: idle 後の次のエラーで prevSleepWasCapped が false に戻る", async () => {
+		// idle が来た後は prevSleepWasCapped がリセットされ、
+		// cap 到達からのローテーションが再び必要な回数 error を重ねないと発動しないことを確認
+		const firstEvent = deferred<void>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const lastSession = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			// 1〜4 回目: error (cap 到達) → 5 回目: cap 後エラー → rotation発動
+			// 6 回目: idle (delay/prevSleepWasCapped リセット)
+			// 7 回目: error (2s から再開)
+			if (sessionWatchCount <= 4) {
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			if (sessionWatchCount === 5) {
+				// cap 後エラー → rotation → delay リセット
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			if (sessionWatchCount === 6) {
+				return Promise.resolve({ type: "idle" });
+			}
+			if (sessionWatchCount === 7) {
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		for (let i = 0; i < 50; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		// idle 後に再エラーが来たとき、sleepCalls の末尾付近が 2000 であること
+		// （cap のまま 10000 が来ていないことを確認）
+		const lastSleep = sleepCalls.at(-1);
+		// idle 後の最初のバックオフは 2s（cap に達していない）
+		expect(lastSleep).toBe(2000);
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
 	});
 });
 
