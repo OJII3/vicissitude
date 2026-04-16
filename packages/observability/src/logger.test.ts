@@ -68,7 +68,7 @@ describe("ConsoleLogger", () => {
 
 	test("debug() → level=20（debug レベル有効時のみ出力）", () => {
 		setup();
-		const logger = new ConsoleLogger("debug");
+		const logger = new ConsoleLogger({ level: "debug" });
 		logger.debug("trace info");
 
 		expect(stdoutCapture.calls).toHaveLength(1);
@@ -79,7 +79,7 @@ describe("ConsoleLogger", () => {
 
 	test("debug() → info レベルでは出力されない", () => {
 		setup();
-		const logger = new ConsoleLogger("info");
+		const logger = new ConsoleLogger({ level: "info" });
 		logger.debug("should not appear");
 
 		expect(stdoutCapture.calls).toHaveLength(0);
