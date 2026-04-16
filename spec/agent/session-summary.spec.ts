@@ -141,8 +141,15 @@ afterEach(() => {
 // ─── テスト ───────────────────────────────────────────────────────
 
 describe("AgentRunner セッション要約引き継ぎ", () => {
+	/**
+	 * 本 describe の callOrder 契約は **summary 成功時のみ** を記述する。
+	 *
+	 * summary がタイムアウト / アボート / reject した場合は、
+	 * `write` はスキップされて callOrder が `["prompt", "deleteSession"]` となる。
+	 * その隔離契約は `spec/agent/session-rotation-summary-isolation.spec.ts` を参照。
+	 */
 	describe("rotateSessionIfExpired での要約生成", () => {
-		test("セッションローテーション時に prompt → summaryWriter.write の順で呼ばれる", async () => {
+		test("セッションローテーション時に prompt → summaryWriter.write の順で呼ばれる（summary 成功時のみ）", async () => {
 			const callOrder: string[] = [];
 
 			const firstEvent = deferred<void>();
@@ -199,7 +206,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			secondSessionDone.resolve({ type: "cancelled" });
 		});
 
-		test("summaryWriter.write は sessionPort.deleteSession より前に呼ばれる", async () => {
+		test("summaryWriter.write は sessionPort.deleteSession より前に呼ばれる（summary 成功時のみ）", async () => {
 			const callOrder: string[] = [];
 
 			const firstEvent = deferred<void>();

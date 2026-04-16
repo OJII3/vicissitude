@@ -391,6 +391,134 @@ describe("セッション要約生成のハング隔離", () => {
 		});
 	});
 
+	describe("summary abort/timeout 時の callOrder 契約", () => {
+		test("summary prompt が hang (timeout) した場合: callOrder は ['prompt', 'deleteSession'] で write はスキップ", async () => {
+			const callOrder: string[] = [];
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort();
+			sessionPort.prompt = mock(() => {
+				callOrder.push("prompt");
+				return new Promise<PromptResult>(() => {});
+			});
+			sessionPort.deleteSession = mock(() => {
+				callOrder.push("deleteSession");
+				return Promise.resolve();
+			});
+
+			const summaryWriter = createSummaryWriter();
+			summaryWriter.write = mock(() => {
+				callOrder.push("write");
+				return Promise.resolve();
+			});
+
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "123456789",
+				summaryWriter,
+				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
+
+			await runner.requestSessionRotation(true);
+
+			expect(callOrder).toEqual(["prompt", "deleteSession"]);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+
+		test("summary prompt が throw (reject) した場合: callOrder は ['prompt', 'deleteSession'] で write はスキップ", async () => {
+			const callOrder: string[] = [];
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort();
+			sessionPort.prompt = mock(() => {
+				callOrder.push("prompt");
+				return Promise.reject(new Error("prompt failed"));
+			});
+			sessionPort.deleteSession = mock(() => {
+				callOrder.push("deleteSession");
+				return Promise.resolve();
+			});
+
+			const summaryWriter = createSummaryWriter();
+			summaryWriter.write = mock(() => {
+				callOrder.push("write");
+				return Promise.resolve();
+			});
+
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "123456789",
+				summaryWriter,
+				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-throw");
+
+			await runner.requestSessionRotation(true);
+
+			expect(callOrder).toEqual(["prompt", "deleteSession"]);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
+		});
+	});
+
+	describe("summary signal 伝播契約", () => {
+		test("sessionPort.prompt には AbortSignal が渡され、summary timeout 経過後は aborted となる", async () => {
+			const eventBuffer = createEventBuffer(() => Promise.resolve());
+			const sessionPort = createSimpleSessionPort();
+
+			let capturedSignal: AbortSignal | undefined;
+			sessionPort.prompt = mock((_params: unknown, signal?: AbortSignal) => {
+				capturedSignal = signal;
+				return new Promise<PromptResult>(() => {});
+			});
+
+			const summaryWriter = createSummaryWriter();
+			const sessionStore = createSessionStore();
+
+			const runner = new TestAgent({
+				profile: createProfile(),
+				agentId: "guild-1",
+				sessionStore: sessionStore as never,
+				contextBuilder: createContextBuilder(),
+				logger: createMockLogger(),
+				sessionPort: sessionPort as unknown as OpencodeSessionPort,
+				eventBuffer,
+				sessionMaxAgeMs: 3_600_000,
+				contextGuildId: "123456789",
+				summaryWriter,
+				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
+			});
+			activeRunners.add(runner);
+
+			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
+
+			await runner.requestSessionRotation(true);
+
+			expect(capturedSignal).toBeInstanceOf(AbortSignal);
+			expect(capturedSignal?.aborted).toBe(true);
+		});
+	});
+
 	describe("summary timeout のタイミング契約", () => {
 		test("summary prompt が hang しても rotation 全体は summaryTimeoutMs + α 以内に完了する", async () => {
 			const eventBuffer = createEventBuffer(() => Promise.resolve());
