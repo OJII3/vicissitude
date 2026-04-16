@@ -135,9 +135,11 @@ export function classifyEvent(
 	return null;
 }
 
-function extractErrorFields(
-	error: unknown,
-): { errorClass?: string; status?: number; retryable?: boolean } {
+function extractErrorFields(error: unknown): {
+	errorClass?: string;
+	status?: number;
+	retryable?: boolean;
+} {
 	if (!error || typeof error !== "object") return {};
 	const e = error as { name?: unknown; data?: unknown };
 	const errorClass = typeof e.name === "string" ? e.name : undefined;
