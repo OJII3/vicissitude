@@ -200,7 +200,7 @@ describe("classifyEvent", () => {
 		const event = {
 			type: "session.error",
 			properties: {
-				sessionID,
+				sessionID: sessionId,
 				error: {
 					name: "APIError",
 					data: {
@@ -225,7 +225,7 @@ describe("classifyEvent", () => {
 		const event = {
 			type: "session.error",
 			properties: {
-				sessionID,
+				sessionID: sessionId,
 				error: {
 					name: "APIError",
 					data: {
@@ -248,7 +248,7 @@ describe("classifyEvent", () => {
 		const event = {
 			type: "session.error",
 			properties: {
-				sessionID,
+				sessionID: sessionId,
 				error: {
 					name: "UnknownError",
 					data: { message: "oops" },
@@ -266,7 +266,7 @@ describe("classifyEvent", () => {
 	test("session.error で error プロパティ自体がない場合、全て undefined", () => {
 		const event = {
 			type: "session.error",
-			properties: { sessionID },
+			properties: { sessionID: sessionId },
 		} as unknown as Event;
 
 		const result = classifyEvent(event, sessionId, new Map());
