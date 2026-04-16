@@ -1,5 +1,6 @@
 /* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
 import { METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
+import { raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -21,38 +22,6 @@ const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
-
-/**
- * AbortSignal の abort reason を Error に正規化する。
- * `AbortSignal.timeout` → `TimeoutError` (DOMException)、
- * `AbortController.abort()` → 任意の reason (未設定なら DOMException "AbortError")。
- */
-function abortReasonToError(signal: AbortSignal): Error {
-	const reason = signal.reason;
-	if (reason instanceof Error) return reason;
-	return new DOMException("Aborted", "AbortError");
-}
-
-/**
- * Promise と AbortSignal を競合させ、signal が先に abort されたら reject する。
- * signal 側の打ち切りで即座にリジェクトさせるため、promise 実装が signal を
- * 尊重しない（= 永久 pending のまま）場合でも呼び出し元を解放できる。
- */
-async function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-	if (signal.aborted) {
-		throw abortReasonToError(signal);
-	}
-	let onAbort: (() => void) | undefined;
-	const abortPromise = new Promise<never>((_resolve, reject) => {
-		onAbort = () => reject(abortReasonToError(signal));
-		signal.addEventListener("abort", onAbort, { once: true });
-	});
-	try {
-		return await Promise.race([promise, abortPromise]);
-	} finally {
-		if (onAbort) signal.removeEventListener("abort", onAbort);
-	}
-}
 
 /** MCP プロセスが書き込むハートビートを読み取るポート */
 export interface HeartbeatReader {
