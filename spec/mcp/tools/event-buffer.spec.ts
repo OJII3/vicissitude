@@ -9,7 +9,6 @@ import {
 	formatEventMetadata,
 	formatEvents,
 	formatRecentMessages,
-	highestPriorityHint,
 	isErrorEvent,
 	parseEvents,
 	pollEvents,
@@ -203,47 +202,6 @@ describe("classifyActionHint", () => {
 			metadata: { isMentioned: true },
 		};
 		expect(classifyActionHint(event)).toBe("internal");
-	});
-});
-
-describe("highestPriorityHint", () => {
-	test("respond が1つでもあれば respond を返す", () => {
-		const events = [
-			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
-			{
-				ts: "t",
-				content: "b",
-				authorId: "u2",
-				authorName: "B",
-				messageId: "m2",
-				metadata: { isMentioned: true },
-			},
-		];
-		expect(highestPriorityHint(events)).toBe("respond");
-	});
-
-	test("respond がなく optional があれば optional を返す", () => {
-		const events = [{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" }];
-		expect(highestPriorityHint(events)).toBe("optional");
-	});
-
-	test("internal のみなら internal を返す", () => {
-		const events = [
-			{ ts: "t", content: "sys", authorId: "system", authorName: "system", messageId: "s1" },
-		];
-		expect(highestPriorityHint(events)).toBe("internal");
-	});
-
-	test("空配列なら internal を返す", () => {
-		expect(highestPriorityHint([])).toBe("internal");
-	});
-
-	test("エラーイベントは無視して残りから判定する", () => {
-		const events = [
-			{ _raw: "broken", _error: "invalid JSON" },
-			{ ts: "t", content: "a", authorId: "u1", authorName: "A", messageId: "m1" },
-		];
-		expect(highestPriorityHint(events)).toBe("optional");
 	});
 });
 
