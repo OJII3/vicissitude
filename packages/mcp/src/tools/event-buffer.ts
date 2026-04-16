@@ -282,26 +282,6 @@ async function fetchRecentMessagesContext(
 	return { type: "text", text: context };
 }
 
-const HINT_PRIORITY: Record<ActionHint, number> = {
-	respond: 3,
-	optional: 2,
-	read_only: 1,
-	internal: 0,
-};
-
-/** EventOrError 配列から最も優先度の高い ActionHint を返す */
-export function highestPriorityHint(events: EventOrError[]): ActionHint {
-	let best: ActionHint = "internal";
-	for (const e of events) {
-		if (isErrorEvent(e)) continue;
-		const hint = classifyActionHint(e);
-		if (HINT_PRIORITY[hint] > HINT_PRIORITY[best]) {
-			best = hint;
-		}
-	}
-	return best;
-}
-
 /** 文字列配列の各値の出現回数を返す */
 function countValues(values: string[]): Record<string, number> {
 	const counts: Record<string, number> = {};
