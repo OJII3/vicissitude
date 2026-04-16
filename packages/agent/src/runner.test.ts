@@ -717,6 +717,213 @@ describe("AgentRunner", () => {
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("deleted イベント受信時に SESSION_RESTARTS が reason=session_deleted_rotation でインクリメントされる", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+		const sessionStore = createSessionStore();
+		const metrics = {
+			incrementCounter: mock(() => {}),
+			addCounter: mock(() => {}),
+			setGauge: mock(() => {}),
+			incrementGauge: mock(() => {}),
+			decrementGauge: mock(() => {}),
+			observeHistogram: mock(() => {}),
+		};
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+
+		// deleted イベント発火
+		firstSessionDone.resolve({ type: "deleted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// session_restarts_total メトリクスが reason=session_deleted_rotation で呼ばれている
+		expect(metrics.incrementCounter).toHaveBeenCalledWith("session_restarts_total", {
+			reason: "session_deleted_rotation",
+		});
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("deleted イベント受信時に requestSessionRotation(force=true) が呼ばれる（throttle 回避）", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+		const sessionStore = createSessionStore();
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		const rotationSpy = mock(() => Promise.resolve());
+		runner.requestSessionRotation = rotationSpy;
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "deleted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// requestSessionRotation が呼ばれ、かつ force=true が渡されている
+		expect(rotationSpy).toHaveBeenCalledTimes(1);
+		expect(rotationSpy).toHaveBeenCalledWith(true);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("handleSessionEnd: deleted イベントで warn ログが出力される", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+		const logger = createMockLogger();
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger,
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		// requestSessionRotation をモックして副作用を止める（warn ログ検証のノイズを減らす）
+		runner.requestSessionRotation = mock(() => Promise.resolve());
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+
+		firstSessionDone.resolve({ type: "deleted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// "deleted externally" を含む warn ログが出ている
+		const warnMessages = (logger.warn as ReturnType<typeof mock>).mock.calls
+			.map((args) => String(args[0]))
+			.join("\n");
+		expect(warnMessages).toContain("deleted externally");
+		// error ログは出ていない
+		expect(logger.error).toHaveBeenCalledTimes(0);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("deleted 後に delay が INITIAL_RECONNECT_DELAY_MS にリセットされる", async () => {
+		// deleted → rotation → 次の error で backoff が 2s から始まることを確認
+		const firstEvent = deferred<void>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		let sessionWatchCount = 0;
+		const lastSession = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) {
+				// まず error を何度か経験させて delay を膨らませる
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			if (sessionWatchCount === 2) {
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			if (sessionWatchCount === 3) {
+				// deleted で delay リセット
+				return Promise.resolve({ type: "deleted" as const });
+			}
+			if (sessionWatchCount === 4) {
+				// リセット確認用の error
+				return Promise.resolve({ type: "error", message: "err", retryable: true as const });
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		// requestSessionRotation はスタブ化（実際の delete 等の副作用を止める）
+		runner.requestSessionRotation = mock(() => Promise.resolve());
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		for (let i = 0; i < 30; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		// error×2 で sleep が 2000, 4000 と進み、deleted 後の error では 2000 に戻る
+		expect(sleepCalls[0]).toBe(2000);
+		expect(sleepCalls[1]).toBe(4000);
+		// deleted 後の最初の error 時の sleep は INITIAL に戻っている
+		expect(sleepCalls[2]).toBe(2000);
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
+	});
+
 	test("send() はポーリングループが未起動なら自動起動する", async () => {
 		const firstEvent = deferred<void>();
 		const sessionDone = deferred<OpencodeSessionEvent>();

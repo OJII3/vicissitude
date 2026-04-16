@@ -287,6 +287,30 @@ describe("classifyEvent", () => {
 		expect(result).toEqual({ type: "compacted" });
 	});
 
+	test("session.deleted イベントで { type: 'deleted' } を返す", () => {
+		// SDK v2 の EventSessionDeleted は properties.info: Session を持ち、
+		// セッション ID は info.id で識別する
+		const event = {
+			type: "session.deleted",
+			properties: { info: { id: sessionId } },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toEqual({ type: "deleted" });
+	});
+
+	test("別セッション ID の session.deleted は null を返す", () => {
+		const event = {
+			type: "session.deleted",
+			properties: { info: { id: "other-session" } },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toBeNull();
+	});
+
 	test("message.updated イベントはトークンを蓄積し null を返す", () => {
 		const tokensByMessage = new Map<string, TokenUsage>();
 		const event = {

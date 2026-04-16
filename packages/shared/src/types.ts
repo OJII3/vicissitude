@@ -240,6 +240,7 @@ export type OpencodeSessionEvent =
 	| { type: "compacted" }
 	| { type: "streamDisconnected"; tokens?: TokenUsage }
 	| { type: "cancelled" }
+	| { type: "deleted" }
 	| {
 			type: "error";
 			message: string;
