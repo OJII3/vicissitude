@@ -201,6 +201,17 @@ export class AgentRunner implements AiAgent {
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") return;
 
+				if (event.type === "deleted") {
+					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
+						reason: "session_deleted_rotation",
+					});
+					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
+					await this.requestSessionRotation(true);
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
+					continue;
+				}
+
 				// compacted / streamDisconnected: セッションはまだ生きており LLM がポーリングを続けているため、
 				// waitForEvents を挟まず即座にセッション監視を再開する。
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
@@ -421,6 +432,12 @@ export class AgentRunner implements AiAgent {
 					trigger: "polling",
 				});
 			}
+			return;
+		}
+		if (event.type === "deleted") {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] session deleted externally, will rotate`,
+			);
 			return;
 		}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);

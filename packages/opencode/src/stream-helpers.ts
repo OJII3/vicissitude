@@ -122,6 +122,10 @@ export function classifyEvent(
 		const compacted = typed;
 		if (compacted.properties.sessionID === sessionId) return { type: "compacted" };
 	}
+	if (typed.type === "session.deleted") {
+		const deleted = typed;
+		if (deleted.properties.info.id === sessionId) return { type: "deleted" };
+	}
 	if (typed.type === "session.error") {
 		const err = typed;
 		if (err.properties.sessionID === sessionId) {
