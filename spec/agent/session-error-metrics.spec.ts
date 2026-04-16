@@ -9,86 +9,21 @@
  */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
+import type { AgentRunner } from "@vicissitude/agent/runner";
 import { METRIC } from "@vicissitude/observability/metrics";
-import type {
-	ContextBuilderPort,
-	EventBuffer,
-	OpencodeSessionEvent,
-	OpencodeSessionPort,
-} from "@vicissitude/shared/types";
+import type { OpencodeSessionEvent, OpencodeSessionPort } from "@vicissitude/shared/types";
 
-import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
-
-// ─── テスト用サブクラス ───────────────────────────────────────────
-
-class TestAgent extends AgentRunner {
-	sleepSpy: ((ms: number) => Promise<void>) | null = null;
-
-	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
-	constructor(deps: RunnerDeps) {
-		super(deps);
-	}
-
-	protected override sleep(ms: number): Promise<void> {
-		if (this.sleepSpy) return this.sleepSpy(ms);
-		return super.sleep(ms);
-	}
-}
+import {
+	TestAgent,
+	createContextBuilder,
+	createEventBuffer,
+	createProfile,
+	createSessionStore,
+	deferred,
+} from "./runner-test-helpers.ts";
 
 // ─── ヘルパー ─────────────────────────────────────────────────────
-
-function deferred<T>() {
-	let resolveDeferred!: (value: T) => void;
-	let rejectDeferred!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolve, reject) => {
-		resolveDeferred = resolve;
-		rejectDeferred = reject;
-	});
-	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
-}
-
-function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
-	return {
-		name: "conversation",
-		mcpServers: {},
-		builtinTools: {},
-		pollingPrompt: "loop forever",
-		restartPolicy: "wait_for_events",
-		model: { providerId: "test-provider", modelId: "test-model" },
-		...overrides,
-	};
-}
-
-function createContextBuilder(): ContextBuilderPort {
-	return { build: mock(() => Promise.resolve("system prompt")) };
-}
-
-function createSessionStore() {
-	let sessionId: string | undefined;
-	return {
-		get: mock(() => sessionId),
-		getRow: mock(() => (sessionId ? { key: "k", sessionId, createdAt: Date.now() } : undefined)),
-		save: mock((_profile: string, _key: string, nextSessionId: string) => {
-			sessionId = nextSessionId;
-		}),
-		delete: mock(() => {
-			sessionId = undefined;
-		}),
-	};
-}
-
-function neverResolve(_signal: AbortSignal): Promise<void> {
-	return new Promise(() => {});
-}
-
-function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl ?? neverResolve),
-	};
-}
 
 function createSessionPortWithControlledResult(
 	firstDone: Promise<OpencodeSessionEvent>,
