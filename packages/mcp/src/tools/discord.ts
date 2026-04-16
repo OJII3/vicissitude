@@ -73,7 +73,7 @@ export function registerDiscordTools(
 		"send_message",
 		{
 			description:
-				"Send a message to a Discord channel (optionally with a file attachment). Automatically shows typing indicator before sending.",
+				"Send a message to a Discord channel (optionally with a file attachment). channel_id accepts text channels, threads, and forum threads.",
 			inputSchema: {
 				channel_id: z.string(),
 				content: z.string(),
