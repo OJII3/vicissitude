@@ -25,7 +25,7 @@ import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client } from "discord.js";
 
 import { MemoryInstanceCache } from "./memory-cache.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
@@ -69,23 +69,13 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	// --- Discord Client ---
+	// --- Discord Client (REST-only, no Gateway connection) ---
+	// MCP ツールは REST API のみ使用し、Gateway イベントは不要。
+	// login() を呼ばないことで Gateway セッションの生成を回避する。
 
-	const discordClient = new Client({
-		intents: [
-			GatewayIntentBits.Guilds,
-			GatewayIntentBits.GuildMessages,
-			GatewayIntentBits.MessageContent,
-			GatewayIntentBits.GuildMessageReactions,
-		],
-	});
-
-	try {
-		await discordClient.login(process.env.DISCORD_TOKEN);
-	} catch (err) {
-		logger.error("[core-server] Failed to login to Discord:", err);
-		process.exit(1);
-	}
+	const discordClient = new Client({ intents: [] });
+	discordClient.token = process.env.DISCORD_TOKEN;
+	discordClient.rest.setToken(process.env.DISCORD_TOKEN);
 
 	// --- Drizzle DB ---
 
