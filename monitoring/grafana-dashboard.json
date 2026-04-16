@@ -1371,7 +1371,7 @@
 			},
 			"targets": [
 				{
-					"expr": "sum by (level) (count_over_time({job=\"vicissitude\"} | json [1m]))",
+					"expr": "sum by (level) (count_over_time({job=\"vicissitude\"} | json | label_format level=`{{if eq .level \"60\"}}fatal{{else if eq .level \"50\"}}error{{else if eq .level \"40\"}}warn{{else if eq .level \"30\"}}info{{else if eq .level \"20\"}}debug{{else if eq .level \"10\"}}trace{{else}}{{.level}}{{end}}` [1m]))",
 					"legendFormat": "{{level}}"
 				}
 			],
@@ -1455,7 +1455,7 @@
 			},
 			"targets": [
 				{
-					"expr": "{job=\"vicissitude\"} | json | level=~\"error|warn\"",
+					"expr": "{job=\"vicissitude\"} | json | label_format level=`{{if eq .level \"60\"}}fatal{{else if eq .level \"50\"}}error{{else if eq .level \"40\"}}warn{{else if eq .level \"30\"}}info{{else if eq .level \"20\"}}debug{{else if eq .level \"10\"}}trace{{else}}{{.level}}{{end}}` | level=~\"error|warn|fatal\"",
 					"legendFormat": ""
 				}
 			],
