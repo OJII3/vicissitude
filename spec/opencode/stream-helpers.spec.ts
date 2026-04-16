@@ -347,6 +347,53 @@ describe("classifyEvent", () => {
 
 		expect(result).toBeNull();
 	});
+
+	test("session.error で sessionID が undefined の場合もエラーとして扱う", () => {
+		// SDK v2 では EventSessionError.properties.sessionID は optional。
+		// OpenCode がサーバ全体のエラーとして sessionID 無しで session.error を
+		// 発火した場合、現在監視中のセッションに対しても終端エラーとして扱う必要がある。
+		const event = {
+			type: "session.error",
+			properties: {
+				error: {
+					name: "APIError",
+					data: {
+						message: "Server-wide failure",
+						statusCode: 500,
+						isRetryable: false,
+					},
+				},
+			},
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		expect(result?.type).toBe("error");
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.errorClass).toBe("APIError");
+	});
+
+	test("session.error で別セッション ID の場合は null を返す（sessionID 未設定ケースと区別）", () => {
+		const event = {
+			type: "session.error",
+			properties: {
+				sessionID: "other-session",
+				error: {
+					name: "APIError",
+					data: {
+						message: "Other session failure",
+						statusCode: 500,
+						isRetryable: false,
+					},
+				},
+			},
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toBeNull();
+	});
 });
 
 // ─── extractText ──────────────────────────────────────────────
