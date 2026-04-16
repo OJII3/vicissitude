@@ -323,9 +323,7 @@ describe("retryable:true のバックオフ戦略", () => {
 		// sleep が呼ばれた（即時ローテーションではなくバックオフ）
 		expect(sleepValues.length).toBeGreaterThanOrEqual(1);
 		// 即時ローテーションではないので deleteSession は呼ばれない
-		expect(
-			(sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls.length,
-		).toBe(0);
+		expect((sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls.length).toBe(0);
 
 		runner.stop();
 		session2.resolve({ type: "cancelled" });
@@ -424,7 +422,8 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		const deleteCallCount1 = (sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls.length;
+		const deleteCallCount1 = (sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls
+			.length;
 		expect(deleteCallCount1).toBeGreaterThanOrEqual(1);
 
 		// 2回目: 再度 retryable:false → 再ローテーション（ランナー停止していない）
@@ -434,7 +433,8 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		const deleteCallCount2 = (sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls.length;
+		const deleteCallCount2 = (sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls
+			.length;
 		expect(deleteCallCount2).toBeGreaterThan(deleteCallCount1);
 
 		runner.stop();
@@ -744,8 +744,7 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 		);
 		const nonRetryableRotations = restartCalls.filter(
 			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason ===
-				"error_non_retryable_rotation",
+				(call[1] as Record<string, string> | undefined)?.reason === "error_non_retryable_rotation",
 		);
 		expect(nonRetryableRotations.length).toBeGreaterThanOrEqual(1);
 
