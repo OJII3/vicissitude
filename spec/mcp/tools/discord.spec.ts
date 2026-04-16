@@ -7,6 +7,8 @@ import {
 	createClientStubWithMultipleImageAttachments,
 	createClientStubWithReactError,
 	createDiscordClientStub,
+	createForumThreadClientStub,
+	createThreadChannelClientStub,
 	type ToolResult,
 } from "./discord-test-helpers";
 
@@ -118,6 +120,60 @@ describe("reply", () => {
 			threw = true;
 		}
 		expect(threw).toBe(true);
+	});
+});
+
+describe("send_message (thread/forum)", () => {
+	test("通常スレッド相当のチャンネルでも送信が成功する", async () => {
+		const { tools } = captureTools({ discordClient: createThreadChannelClientStub() });
+		const sendMessage = tools.get("send_message")!;
+
+		const result = (await sendMessage({
+			channel_id: "thread-1",
+			content: "スレッドへ送信",
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toBe("Sent message thread-sent-msg-1");
+	});
+
+	test("フォーラム配下スレッド相当のチャンネルでも送信が成功する", async () => {
+		const { tools } = captureTools({ discordClient: createForumThreadClientStub() });
+		const sendMessage = tools.get("send_message")!;
+
+		const result = (await sendMessage({
+			channel_id: "forum-thread-1",
+			content: "フォーラムポストへ送信",
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toBe("Sent message forum-sent-msg-1");
+	});
+});
+
+describe("reply (thread/forum)", () => {
+	test("通常スレッド相当のチャンネルでもリプライが成功する", async () => {
+		const { tools } = captureTools({ discordClient: createThreadChannelClientStub() });
+		const reply = tools.get("reply")!;
+
+		const result = (await reply({
+			channel_id: "thread-1",
+			message_id: "thread-sent-msg-1",
+			content: "スレッドでリプライ",
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toBe("Replied with message thread-reply-msg-1");
+	});
+
+	test("フォーラム配下スレッド相当のチャンネルでもリプライが成功する", async () => {
+		const { tools } = captureTools({ discordClient: createForumThreadClientStub() });
+		const reply = tools.get("reply")!;
+
+		const result = (await reply({
+			channel_id: "forum-thread-1",
+			message_id: "forum-sent-msg-1",
+			content: "フォーラムポストでリプライ",
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toBe("Replied with message forum-reply-msg-1");
 	});
 });
 
