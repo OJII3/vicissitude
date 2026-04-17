@@ -190,6 +190,72 @@ describe("ContextBuilder", () => {
 		});
 	});
 
+	describe("excludeFiles オプション", () => {
+		it("excludeFiles に指定したファイルが出力から除外される", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "SOUL.md", "soul");
+			writeFile(baseDir, "DISCORD.md", "discord");
+			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
+
+			const excludeFiles = new Set(["TOOLS-MINECRAFT.md", "DISCORD.md"]);
+			const builder = new ContextBuilder(overlayDir, baseDir, undefined, excludeFiles);
+			const result = await builder.build();
+
+			expect(result).toContain("<IDENTITY.md>");
+			expect(result).toContain("<SOUL.md>");
+			expect(result).not.toContain("<TOOLS-MINECRAFT.md>");
+			expect(result).not.toContain("<DISCORD.md>");
+		});
+
+		it("excludeFiles が空セットの場合は全ファイルが含まれる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "SOUL.md", "soul");
+			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
+
+			const builder = new ContextBuilder(overlayDir, baseDir, undefined, new Set());
+			const result = await builder.build();
+
+			expect(result).toContain("<IDENTITY.md>");
+			expect(result).toContain("<SOUL.md>");
+			expect(result).toContain("<TOOLS-MINECRAFT.md>");
+		});
+
+		it("excludeFiles に存在しないファイル名を指定してもエラーにならない", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+
+			const excludeFiles = new Set(["NON-EXISTENT.md", "ANOTHER-FAKE.md"]);
+			const builder = new ContextBuilder(overlayDir, baseDir, undefined, excludeFiles);
+			const result = await builder.build();
+
+			expect(result).toContain("<IDENTITY.md>");
+		});
+
+		it("excludeFiles と factReader を併用できる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
+
+			const factReader = createMockFactReader([
+				{
+					content: "テストファクト",
+					category: "preference",
+					createdAt: "2026-01-01T00:00:00.000Z",
+				},
+			]);
+
+			const excludeFiles = new Set(["TOOLS-MINECRAFT.md"]);
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader, excludeFiles);
+			const result = await builder.build("111");
+
+			expect(result).toContain("<IDENTITY.md>");
+			expect(result).toContain("<MEMORY-FACTS>");
+			expect(result).not.toContain("<TOOLS-MINECRAFT.md>");
+		});
+	});
+
 	describe("MemoryFactReader 連携", () => {
 		it("factReader が渡された場合に MEMORY-FACTS セクションが含まれる", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();

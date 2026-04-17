@@ -70,10 +70,12 @@ export function createStoreLayer(config: AppConfig) {
 // ─── Context Layer ──────────────────────────────────────────────
 
 export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
+	const excludeFiles = config.minecraft ? undefined : new Set(["TOOLS-MINECRAFT.md"]);
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 		factReader,
+		excludeFiles,
 	);
 	return { contextBuilder };
 }
@@ -117,6 +119,10 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 		env.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
 	}
 
+	if (config.minecraft) {
+		env.MC_HOST = config.minecraft.host;
+	}
+
 	return env;
 }
 
@@ -150,6 +156,7 @@ export function createGuildAgents(
 				appRoot: deps.appRoot,
 				coreEnvironment: deps.coreEnvironment,
 			}),
+			minecraftEnabled: !!config.minecraft,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: config.opencode.basePort + portOffset + index,

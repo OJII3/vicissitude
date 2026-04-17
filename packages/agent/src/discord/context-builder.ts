@@ -38,6 +38,7 @@ export class ContextBuilder implements ContextBuilderPort {
 		private readonly overlayDir: string,
 		private readonly baseDir: string,
 		private readonly factReader?: MemoryFactReader,
+		private readonly excludeFiles?: ReadonlySet<string>,
 	) {}
 
 	async build(guildId?: string): Promise<string> {
@@ -54,6 +55,7 @@ export class ContextBuilder implements ContextBuilderPort {
 		for (let i = 0; i < CONTEXT_FILES.length; i++) {
 			const entry = CONTEXT_FILES[i];
 			if (!entry) continue;
+			if (this.excludeFiles?.has(entry.name)) continue;
 			const content = fileContents[i];
 
 			if (content) {
