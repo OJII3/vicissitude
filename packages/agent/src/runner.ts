@@ -297,14 +297,10 @@ export class AgentRunner implements AiAgent {
 			);
 			return;
 		}
-		await this.performSessionRotation();
+		await this.forceSessionRotation();
 	}
 
 	async forceSessionRotation(): Promise<void> {
-		await this.performSessionRotation();
-	}
-
-	private async performSessionRotation(): Promise<void> {
 		this.lastRotationRequestAt = Date.now();
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;

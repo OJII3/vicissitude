@@ -124,7 +124,7 @@ function createSummaryWriter(): SessionSummaryWriter & { write: ReturnType<typeo
 }
 
 /**
- * 単発 rotation 用（ポーリングループを使わず、`requestSessionRotation()` を直接呼ぶ）。
+ * 単発 rotation 用（ポーリングループを使わず、`forceSessionRotation()` を直接呼ぶ）。
  */
 function createSimpleSessionPort(): OpencodeSessionPort & {
 	prompt: ReturnType<typeof mock>;
@@ -214,7 +214,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
 
-			// requestSessionRotation は age 超過経路でも使われる公開 API。
+			// forceSessionRotation は age 超過経路でも使われる公開 API。
 			// summary が hang しても現実時間内に resolve することを期待。
 			await runner.forceSessionRotation();
 
