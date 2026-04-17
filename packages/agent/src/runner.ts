@@ -150,7 +150,7 @@ export class AgentRunner implements AiAgent {
 				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
 				this.lastWaitForEventsAt = Date.now();
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_detected" });
-				this.requestSessionRotation(true).catch((err) => {
+				this.forceSessionRotation().catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
 						err,
@@ -206,7 +206,7 @@ export class AgentRunner implements AiAgent {
 						reason: "session_deleted_rotation",
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
-					await this.requestSessionRotation(true);
+					await this.forceSessionRotation();
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
 					continue;
@@ -240,7 +240,7 @@ export class AgentRunner implements AiAgent {
 						reason: "error_non_retryable_rotation",
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
-					await this.requestSessionRotation(true);
+					await this.forceSessionRotation();
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
 					continue;
@@ -252,7 +252,7 @@ export class AgentRunner implements AiAgent {
 						reason: "error_retryable_rotation",
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
-					await this.requestSessionRotation(true);
+					await this.forceSessionRotation();
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
 					continue;
@@ -286,10 +286,9 @@ export class AgentRunner implements AiAgent {
 		}
 	}
 
-	async requestSessionRotation(force = false): Promise<void> {
+	async requestSessionRotation(): Promise<void> {
 		const now = Date.now();
 		if (
-			!force &&
 			this.lastRotationRequestAt &&
 			now - this.lastRotationRequestAt < this.minRotationIntervalMs
 		) {
@@ -298,7 +297,15 @@ export class AgentRunner implements AiAgent {
 			);
 			return;
 		}
-		this.lastRotationRequestAt = now;
+		await this.performSessionRotation();
+	}
+
+	async forceSessionRotation(): Promise<void> {
+		await this.performSessionRotation();
+	}
+
+	private async performSessionRotation(): Promise<void> {
+		this.lastRotationRequestAt = Date.now();
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 
@@ -307,13 +314,11 @@ export class AgentRunner implements AiAgent {
 		try {
 			await this.sessionPort.deleteSession(sessionId);
 		} catch (err) {
-			this.logger.error(`[${this.profile.name}:${this.agentId}] forced rotation failed`, err);
+			this.logger.error(`[${this.profile.name}:${this.agentId}] session rotation failed`, err);
 		}
 		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
-		this.logger.info(
-			`[${this.profile.name}:${this.agentId}] session force-rotated (stuck recovery)`,
-		);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated`);
 	}
 
 	stop(): void {

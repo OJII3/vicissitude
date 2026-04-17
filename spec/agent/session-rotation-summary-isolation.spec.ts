@@ -216,7 +216,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			// requestSessionRotation は age 超過経路でも使われる公開 API。
 			// summary が hang しても現実時間内に resolve することを期待。
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
@@ -344,7 +344,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-throw");
 
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
@@ -381,7 +381,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-ok");
 
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(sessionPort.prompt).toHaveBeenCalledTimes(1);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(1);
@@ -430,7 +430,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
 
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(callOrder).toEqual(["prompt", "deleteSession"]);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
@@ -474,7 +474,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-throw");
 
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(callOrder).toEqual(["prompt", "deleteSession"]);
 			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
@@ -512,7 +512,7 @@ describe("セッション要約生成のハング隔離", () => {
 
 			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
 
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 
 			expect(capturedSignal).toBeInstanceOf(AbortSignal);
 			expect(capturedSignal?.aborted).toBe(true);
@@ -550,7 +550,7 @@ describe("セッション要約生成のハング隔離", () => {
 			sessionStore.save("conversation", "__polling__:guild-1", "session-hang");
 
 			const start = Date.now();
-			await runner.requestSessionRotation(true);
+			await runner.forceSessionRotation();
 			const elapsed = Date.now() - start;
 
 			expect(elapsed).toBeLessThan(summaryTimeoutMs + marginMs);

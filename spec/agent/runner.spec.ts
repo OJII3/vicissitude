@@ -505,6 +505,37 @@ describe("requestSessionRotation()", () => {
 	});
 });
 
+describe("forceSessionRotation()", () => {
+	test("minRotationIntervalMs 以内でも実行される", async () => {
+		const sessionStore = createSessionStore();
+		const sessionPort = createSimpleSessionPort();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer: createEventBuffer(),
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		sessionStore.save("conversation", "__polling__:agent-1", "session-abc");
+
+		// 1回目: requestSessionRotation (throttle あり)
+		await runner.requestSessionRotation();
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(1);
+
+		// 再度セッションを設定
+		sessionStore.save("conversation", "__polling__:agent-1", "session-def");
+
+		// minRotationIntervalMs 以内だが forceSessionRotation → スキップしない
+		await runner.forceSessionRotation();
+		expect(sessionPort.deleteSession).toHaveBeenCalledTimes(2);
+	});
+});
+
 describe("stop()", () => {
 	test("ポーリングループを停止する", async () => {
 		const firstEvent = deferred<void>();
