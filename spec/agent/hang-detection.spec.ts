@@ -119,7 +119,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 	});
 
 	describe("ハング検知基本動作", () => {
-		test("wait_for_events が hangTimeoutMs 以上呼ばれない場合、requestSessionRotation が呼ばれる", async () => {
+		test("wait_for_events が hangTimeoutMs 以上呼ばれない場合、forceSessionRotation が呼ばれる", async () => {
 			const rotationSpy = mock(() => Promise.resolve());
 			const sessionStore = createSessionStore("existing-session-id");
 
@@ -148,8 +148,8 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			// requestSessionRotation をスパイ
-			runner.requestSessionRotation = rotationSpy;
+			// forceSessionRotation をスパイ
+			runner.forceSessionRotation = rotationSpy;
 
 			runner.ensurePolling();
 
@@ -187,7 +187,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			// hangTimeoutMs（500ms）より十分短い時間だけ待機
@@ -225,7 +225,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			// 複数回 waitForEvents が呼ばれる時間は待つが閾値は超えない
@@ -262,7 +262,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			// stop() を先に呼ぶ
@@ -294,7 +294,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 			runner.stop();
 
@@ -333,7 +333,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			// hangTimeoutMs を超えて待機しても、heartbeatReader が alive なのでローテーションされない
@@ -373,7 +373,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			await Bun.sleep(200);
@@ -424,7 +424,7 @@ describe("AgentRunner ハング検知と自動ローテーション", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.requestSessionRotation = rotationSpy;
+			runner.forceSessionRotation = rotationSpy;
 			runner.ensurePolling();
 
 			// 0ms タイムアウトなので即座に検知される
