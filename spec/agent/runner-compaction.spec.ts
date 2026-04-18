@@ -177,6 +177,10 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 		const sessionMaxAgeMs = 3_600_000;
 		// 閾値を 1000 に設定 → 深夜帯では 500 以上で発火
 		const compactionTokenThreshold = 1000;
+		// nowProvider: セッション作成時は2時間前、compaction 判定時は深夜帯 3:00 JST
+		const nightTime = new Date("2026-04-18T18:00:00Z").getTime();
+		const sessionCreateTime = nightTime - 2 * 3_600_000;
+		let nowCallCount = 0;
 		const runner = new TestAgent({
 			profile: createProfile(),
 			agentId: "agent-1",
@@ -187,11 +191,12 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 			eventBuffer,
 			sessionMaxAgeMs,
 			compactionTokenThreshold,
-			// テスト用に現在時刻を深夜帯に差し替え
 			nowProvider: () => {
-				// 3:00 JST = 18:00 UTC
-				const d = new Date("2026-04-18T18:00:00Z");
-				return d.getTime();
+				nowCallCount++;
+				// 最初の呼び出し（セッション作成時）は2時間前の時刻を返す
+				if (nowCallCount <= 1) return sessionCreateTime;
+				// 以降（compaction 判定時）は深夜帯 3:00 JST を返す
+				return nightTime;
 			},
 		});
 		runner.sleepSpy = () => Promise.resolve();
