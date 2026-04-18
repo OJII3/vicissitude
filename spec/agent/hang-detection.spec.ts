@@ -70,6 +70,7 @@ function createSimpleSessionPort(): OpencodeSessionPort & {
 		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
 		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
 		deleteSession: mock(() => Promise.resolve()),
+		summarizeSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	} as unknown as OpencodeSessionPort & { deleteSession: ReturnType<typeof mock> };
 }
