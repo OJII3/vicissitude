@@ -11,7 +11,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
-import { MemoryRetrieveCache } from "@vicissitude/mcp/memory-retrieve-cache";
+import { LruCache } from "@vicissitude/mcp/lru-cache";
 
 // ─── テストヘルパー ──────────────────────────────────────────────
 
@@ -23,12 +23,12 @@ function makeKey(ns: string, query: string, limit: number): string {
 	return `${ns}:${query}:${limit}`;
 }
 
-describe("MemoryRetrieveCache", () => {
-	let cache: MemoryRetrieveCache<CacheEntry>;
+describe("LruCache", () => {
+	let cache: LruCache<CacheEntry>;
 
 	beforeEach(() => {
 		// 30分 TTL
-		cache = new MemoryRetrieveCache<CacheEntry>({
+		cache = new LruCache<CacheEntry>({
 			ttlMs: 30 * 60 * 1000,
 			maxSize: 100,
 		});
@@ -99,7 +99,7 @@ describe("MemoryRetrieveCache", () => {
 	describe("TTL による自動 eviction", () => {
 		it("TTL 経過後はキャッシュから evict される", () => {
 			// 50ms TTL
-			const shortTtlCache = new MemoryRetrieveCache<CacheEntry>({
+			const shortTtlCache = new LruCache<CacheEntry>({
 				ttlMs: 50,
 				maxSize: 100,
 			});
@@ -134,7 +134,7 @@ describe("MemoryRetrieveCache", () => {
 
 	describe("LRU eviction", () => {
 		it("maxSize を超えると最も古いエントリが evict される", () => {
-			const smallCache = new MemoryRetrieveCache<CacheEntry>({
+			const smallCache = new LruCache<CacheEntry>({
 				ttlMs: 30 * 60 * 1000,
 				maxSize: 3,
 			});
@@ -154,7 +154,7 @@ describe("MemoryRetrieveCache", () => {
 		});
 
 		it("get でアクセスされたエントリは LRU の先頭に移動する", () => {
-			const smallCache = new MemoryRetrieveCache<CacheEntry>({
+			const smallCache = new LruCache<CacheEntry>({
 				ttlMs: 30 * 60 * 1000,
 				maxSize: 3,
 			});
