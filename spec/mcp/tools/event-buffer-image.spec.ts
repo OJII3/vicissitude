@@ -1,10 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-	MAX_IMAGES_PER_RESPONSE,
-	registerEventBufferTools,
-} from "@vicissitude/mcp/tools/event-buffer";
+import { registerEventBufferTools } from "@vicissitude/mcp/tools/event-buffer";
 import type { FetchedImage, ImageFetcher } from "@vicissitude/shared/ports";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -78,6 +75,9 @@ function isImagePart(c: ContentPart): c is { type: "image"; data: string; mimeTy
 	return c.type === "image";
 }
 
+/** 仕様で定める 1 応答あたりの画像上限。実装側の定数に依存しないようハードコードする。 */
+const EXPECTED_MAX_IMAGES = 4;
+
 describe("wait_for_events への画像同梱", () => {
 	test("imageFetcher があれば image content part が content 配列に含まれる", async () => {
 		const db = createTestDb();
@@ -130,10 +130,10 @@ describe("wait_for_events への画像同梱", () => {
 		expect(calls).toEqual(["https://cdn.example.com/img.png"]);
 	});
 
-	test(`1 回の応答に同梱する画像は最大 ${MAX_IMAGES_PER_RESPONSE} 枚に制限される`, async () => {
+	test(`1 回の応答に同梱する画像は最大 ${EXPECTED_MAX_IMAGES} 枚に制限される`, async () => {
 		const db = createTestDb();
 		const agentId = "agent-img-4";
-		const overflow = MAX_IMAGES_PER_RESPONSE + 2;
+		const overflow = EXPECTED_MAX_IMAGES + 2;
 		const attachments = Array.from({ length: overflow }, (_, i) => ({
 			url: `https://cdn.example.com/img-${i}.png`,
 			contentType: "image/png",
@@ -145,8 +145,8 @@ describe("wait_for_events への画像同梱", () => {
 		const result = await callWaitForEvents({ db, agentId, imageFetcher: fetcher });
 
 		// 上限を超えた URL は fetch されず、image part も生成されない
-		expect(calls).toHaveLength(MAX_IMAGES_PER_RESPONSE);
-		expect(result.content.filter(isImagePart)).toHaveLength(MAX_IMAGES_PER_RESPONSE);
+		expect(calls).toHaveLength(EXPECTED_MAX_IMAGES);
+		expect(result.content.filter(isImagePart)).toHaveLength(EXPECTED_MAX_IMAGES);
 		// text 側には全ての filename が列挙される（LLM が「超過した画像もあった」ことを認識できるように）
 		const text = result.content
 			.filter((c): c is { type: "text"; text: string } => c.type === "text")
