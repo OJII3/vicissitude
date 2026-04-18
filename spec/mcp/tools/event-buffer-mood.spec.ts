@@ -32,10 +32,16 @@ function createSpyMoodReader(mood: Emotion): {
 	};
 }
 
+/**
+ * wait_for_events のレスポンスは text と image が混在する可能性があるため、
+ * image part 到来時に `.text` が undefined となる前提で緩い型を宣言する。
+ */
+type ContentPart = { type: string; text?: string };
+
 /** registerEventBufferTools で登録された wait_for_events を直接呼び出すヘルパー */
 async function callWaitForEvents(
 	deps: Parameters<typeof registerEventBufferTools>[1],
-): Promise<{ content: Array<{ type: string; text: string }> }> {
+): Promise<{ content: ContentPart[] }> {
 	let registeredHandler: ((args: { timeout_seconds: number }) => Promise<unknown>) | undefined;
 
 	const fakeServer = {
@@ -51,9 +57,7 @@ async function callWaitForEvents(
 	registerEventBufferTools(fakeServer, deps);
 
 	if (!registeredHandler) throw new Error("handler not registered");
-	return (await registeredHandler({ timeout_seconds: 5 })) as {
-		content: Array<{ type: string; text: string }>;
-	};
+	return (await registeredHandler({ timeout_seconds: 5 })) as { content: ContentPart[] };
 }
 
 function insertTestEvent(db: ReturnType<typeof createTestDb>, agentId: string): void {
@@ -84,7 +88,7 @@ describe("wait_for_events への mood 注入", () => {
 			moodReader: createStubMoodReader(happyMood),
 		});
 
-		const allText = result.content.map((c) => c.text).join("\n");
+		const allText = result.content.map((c) => c.text ?? "").join("\n");
 		expect(allText).toContain("<current-mood>");
 		expect(allText).toContain("</current-mood>");
 	});
@@ -100,7 +104,7 @@ describe("wait_for_events への mood 注入", () => {
 			moodReader: createStubMoodReader(NEUTRAL_EMOTION),
 		});
 
-		const allText = result.content.map((c) => c.text).join("\n");
+		const allText = result.content.map((c) => c.text ?? "").join("\n");
 		expect(allText).not.toContain("<current-mood>");
 	});
 
@@ -127,8 +131,10 @@ describe("wait_for_events への mood 注入", () => {
 
 		// content 配列内で <current-mood> を含む要素のインデックスが
 		// <recent-messages> を含む要素より前にあること
-		const moodIndex = result.content.findIndex((c) => c.text.includes("<current-mood>"));
-		const recentIndex = result.content.findIndex((c) => c.text.includes("<recent-messages>"));
+		const moodIndex = result.content.findIndex((c) => c.text?.includes("<current-mood>") ?? false);
+		const recentIndex = result.content.findIndex(
+			(c) => c.text?.includes("<recent-messages>") ?? false,
+		);
 
 		expect(moodIndex).toBeGreaterThanOrEqual(0);
 		expect(recentIndex).toBeGreaterThanOrEqual(0);

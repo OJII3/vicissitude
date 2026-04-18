@@ -4,6 +4,7 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
+import { createHttpImageFetcher } from "@vicissitude/infrastructure/http/image-fetcher";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import type { MemoryReadServices } from "@vicissitude/memory";
@@ -171,6 +172,7 @@ async function main(): Promise<void> {
 		recentMessagesFetcher,
 		moodReader: moodStore,
 		logger,
+		imageFetcher: createHttpImageFetcher({ logger }),
 	});
 
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);

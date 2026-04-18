@@ -249,7 +249,7 @@ describe("formatEvents", () => {
 		expect(result).not.toContain("</user_message>");
 	});
 
-	test("添付ファイルがあれば件数を表示する", () => {
+	test("添付ファイルがあれば filename と MIME type を列挙する", () => {
 		const events = [
 			{
 				ts: "2026-03-27T00:00:00.000Z",
@@ -257,14 +257,33 @@ describe("formatEvents", () => {
 				authorId: "user1",
 				authorName: "テスト",
 				messageId: "msg3",
-				attachments: [{ url: "https://example.com/a.png" }, { url: "https://example.com/b.png" }],
+				attachments: [
+					{ url: "https://example.com/a.png", contentType: "image/png", filename: "a.png" },
+					{ url: "https://example.com/b.jpg", contentType: "image/jpeg", filename: "b.jpg" },
+				],
 			},
 		];
 		const result = formatEvents(events);
-		expect(result).toContain("[添付: 2件]");
+		// image content part 同梱時に LLM が「どの画像について話しているか」参照できる必要がある
+		expect(result).toContain("[添付: a.png (image/png); b.jpg (image/jpeg)]");
 		// 添付ファイル付きのユーザー発言もタグで囲まれる
 		expect(result).toContain("<user_message>画像送るよ</user_message>");
 		expect(result).toContain("[action: optional]");
+	});
+
+	test("filename や contentType が欠けても安全にフォーマットする", () => {
+		const events = [
+			{
+				ts: "2026-03-27T00:00:00.000Z",
+				content: "",
+				authorId: "user1",
+				authorName: "テスト",
+				messageId: "msg-miss",
+				attachments: [{ url: "https://example.com/unknown.bin" }],
+			},
+		];
+		const result = formatEvents(events);
+		expect(result).toContain("[添付: attachment (unknown)]");
 	});
 
 	test("空配列なら空文字列を返す", () => {
