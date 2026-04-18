@@ -25,6 +25,7 @@
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@vicissitude/agent": "workspace:*",
+		"@vicissitude/infrastructure": "workspace:*",
 		"@vicissitude/minecraft": "workspace:*",
 		"@vicissitude/observability": "workspace:*",
 		"@vicissitude/ollama": "workspace:*",

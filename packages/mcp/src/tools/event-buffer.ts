@@ -19,7 +19,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { METRIC } from "@vicissitude/observability/metrics";
 import { describeEmotion, isNeutralEmotion } from "@vicissitude/shared/emotion";
 import { formatTimestamp } from "@vicissitude/shared/functions";
-import type { MoodReader } from "@vicissitude/shared/ports";
+import type { ImageFetcher, MoodReader } from "@vicissitude/shared/ports";
 import type { Attachment, Logger, MetricsCollector } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { consumeEvents, hasEvents, touchHeartbeat } from "@vicissitude/store/queries";
@@ -43,6 +43,11 @@ export interface EventBufferDeps {
 	moodReader?: MoodReader;
 	logger?: Logger;
 	metrics?: Pick<MetricsCollector, "incrementCounter">;
+	/**
+	 * 画像添付を base64 化して LLM vision input に同梱するためのポート。
+	 * 未指定なら画像は text 表記のみで渡され、LLM から画像本体は見えない。
+	 */
+	imageFetcher?: ImageFetcher;
 }
 
 /** 一度に消費するイベントの最大件数。LLM が確実に処理できる範囲に制限する。 */
@@ -50,6 +55,13 @@ export const MAX_BATCH_SIZE = 10;
 
 /** wait_for_events の timeout_seconds 上限（秒）。 */
 export const MAX_POLL_TIMEOUT_SECONDS = 200;
+
+/**
+ * 1 回の wait_for_events レスポンスに同梱する画像の最大枚数。
+ * トークンコストと応答品質のバランスで 4 枚に制限する。超過分は text 表記のみで参照され、
+ * LLM は画像を「認識はしているが見えない」状態になる。
+ */
+export const MAX_IMAGES_PER_RESPONSE = 4;
 
 // ─── ActionHint ──────────────────────────────────────────────────
 
@@ -135,7 +147,15 @@ export function formatEvents(events: EventOrError[]): string {
 			const hint = classifyActionHint(e);
 			const extras: string[] = [];
 			if (e.attachments && e.attachments.length > 0) {
-				extras.push(`[添付: ${e.attachments.length}件]`);
+				// 画像添付は可能な範囲で image content part として別途 vision input に同梱される。
+				// ここでは LLM が「どの添付について話しているか」を参照できるよう filename + MIME を列挙する。
+				const labels = e.attachments.map((a) => {
+					// filename / contentType はユーザー入力起源なのでタグインジェクション対策に escape する
+					const name = escapeUserMessageTag(a.filename ?? "attachment");
+					const mime = escapeUserMessageTag(a.contentType ?? "unknown");
+					return `${name} (${mime})`;
+				});
+				extras.push(`[添付: ${labels.join("; ")}]`);
 			}
 			extras.push(`[action: ${hint}]`);
 			const extraStr = ` ${extras.join(" ")}`;
@@ -241,6 +261,8 @@ export async function pollEvents(
 // ─── fetchRecentMessagesContext ──────────────────────────────────
 
 type TextContent = { type: "text"; text: string };
+type ImageContent = { type: "image"; data: string; mimeType: string };
+type MessageContent = TextContent | ImageContent;
 
 /** EventOrError 配列からユニークな channelId + channelName ペアを抽出する（全イベント対象） */
 function extractAllChannels(events: EventOrError[]): { channelId: string; channelName: string }[] {
@@ -289,6 +311,44 @@ function countValues(values: string[]): Record<string, number> {
 	return counts;
 }
 
+// ─── buildImageContents ──────────────────────────────────────────
+
+/** EventOrError 配列に含まれる画像添付の URL を、最大件数まで出現順に抽出する */
+function collectImageUrls(events: EventOrError[], limit: number): string[] {
+	const urls: string[] = [];
+	for (const e of events) {
+		if (isErrorEvent(e)) continue;
+		for (const a of e.attachments ?? []) {
+			if (a.contentType?.startsWith("image/")) {
+				urls.push(a.url);
+				if (urls.length >= limit) return urls;
+			}
+		}
+	}
+	return urls;
+}
+
+/**
+ * 画像添付を並列 fetch して MCP の image content part に変換する。
+ * fetch に失敗した画像は結果から除外される（text 表記のみで LLM に渡される）。
+ */
+async function buildImageContents(
+	events: EventOrError[],
+	imageFetcher: ImageFetcher,
+	logger?: Logger,
+): Promise<ImageContent[]> {
+	const urls = collectImageUrls(events, MAX_IMAGES_PER_RESPONSE);
+	if (urls.length === 0) return [];
+
+	const fetched = await Promise.all(urls.map((u) => imageFetcher(u)));
+	const images: ImageContent[] = [];
+	for (const r of fetched) {
+		if (r) images.push({ type: "image", data: r.base64, mimeType: r.mimeType });
+	}
+	logger?.info(`[event-buffer] vision 入力: ${images.length}/${urls.length}枚の画像を同梱`);
+	return images;
+}
+
 // ─── registerEventBufferTools ────────────────────────────────────
 
 function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): TextContent | null {
@@ -302,14 +362,16 @@ function buildMoodContent(moodReader: MoodReader | undefined, agentId: string): 
 }
 
 export function registerEventBufferTools(server: McpServer, deps: EventBufferDeps): void {
-	const { db, agentId, recentMessagesFetcher, moodReader, logger } = deps;
+	const { db, agentId, recentMessagesFetcher, moodReader, logger, imageFetcher } = deps;
 	const moodKey = deps.moodKey ?? agentId;
 
 	/** イベント配列から応答コンテンツを組み立てる共通処理 */
-	async function buildResponseContent(events: EventOrError[]): Promise<{ content: TextContent[] }> {
+	async function buildResponseContent(
+		events: EventOrError[],
+	): Promise<{ content: MessageContent[] }> {
 		const text = formatEvents(events);
 		const metadataText = formatEventMetadata(events);
-		const content: TextContent[] = [
+		const content: MessageContent[] = [
 			{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
 		];
 		if (recentMessagesFetcher) {
@@ -318,6 +380,10 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		}
 		const moodContent = buildMoodContent(moodReader, moodKey);
 		if (moodContent) content.unshift(moodContent);
+		if (imageFetcher) {
+			const images = await buildImageContents(events, imageFetcher, logger);
+			content.push(...images);
+		}
 		return { content };
 	}
 

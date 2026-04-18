@@ -4,6 +4,7 @@
 	"exports": {
 		"./discord/attachment-mapper": "./src/discord/attachment-mapper.ts",
 		"./discord/url-rewriter": "./src/discord/url-rewriter.ts",
+		"./http/image-fetcher": "./src/http/image-fetcher.ts",
 		"./store/sqlite-buffered-event-store": "./src/store/sqlite-buffered-event-store.ts"
 	},
 	"dependencies": {

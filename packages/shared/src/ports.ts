@@ -139,3 +139,24 @@ export interface HeartbeatConfigPort {
 	load(): Promise<HeartbeatConfig>;
 	save(config: HeartbeatConfig): Promise<void>;
 }
+
+// ─── ImageFetcher ───────────────────────────────────────────────
+//
+// URL から画像バイト列を取得し base64 + MIME type に変換するポート。
+// event-buffer MCP ツールが Discord CDN 等から画像を fetch し、
+// Claude vision input (MCP image content part) に変換するために利用する。
+
+/** 取得成功時の画像データ */
+export interface FetchedImage {
+	/** base64 エンコードされた画像バイト列（data URL prefix は含まない） */
+	base64: string;
+	/** Content-Type ヘッダから抽出した MIME type（例: "image/png"） */
+	mimeType: string;
+}
+
+/**
+ * URL から画像を取得し base64 化するポート。
+ * - ネットワーク失敗、タイムアウト、サイズ超過、非画像 MIME などは例外を投げず `null` を返す。
+ * - 呼び出し側は `null` を「画像として送れなかった」と解釈してフォールバックすること。
+ */
+export type ImageFetcher = (url: string) => Promise<FetchedImage | null>;
