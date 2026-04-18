@@ -62,9 +62,9 @@ export class LruCache<T> {
 		if (this.entries.size >= this.maxSize) {
 			const oldestKey = this.entries.keys().next().value;
 			if (oldestKey !== undefined) {
-				const oldest = this.entries.get(oldestKey)!;
+				const oldest = this.entries.get(oldestKey);
 				this.entries.delete(oldestKey);
-				this.onEvict?.(oldestKey, oldest.value);
+				if (oldest) this.onEvict?.(oldestKey, oldest.value);
 			}
 		}
 
