@@ -515,11 +515,12 @@ export class AgentRunner implements AiAgent {
 			}
 		}
 
-		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過
+		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過かつトークンが閾値の半分以上
 		const jstHour = (new Date(now).getUTCHours() + 9) % 24;
-		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null) {
+		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null && event.tokens) {
+			const total = event.tokens.input + event.tokens.output;
 			const age = now - this.sessionCreatedAt;
-			if (age >= this.sessionMaxAgeMs / 2) {
+			if (age >= this.sessionMaxAgeMs / 2 && total >= this.compactionTokenThreshold / 2) {
 				return true;
 			}
 		}

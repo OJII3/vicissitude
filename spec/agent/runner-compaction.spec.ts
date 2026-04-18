@@ -163,7 +163,7 @@ describe("トークン閾値による proactive compaction", () => {
 // ─── 深夜帯による compaction ─────────────────────────────────────
 
 describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
-	test("深夜帯に sessionMaxAgeMs の半分以上経過していたら summarizeSession が呼ばれる", async () => {
+	test("深夜帯 + セッション経過半分以上 + トークン閾値半分以上なら summarizeSession が呼ばれる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const rewatchDone = deferred<OpencodeSessionEvent>();
 		const firstEvent = deferred<void>();
@@ -175,6 +175,8 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 		});
 
 		const sessionMaxAgeMs = 3_600_000;
+		// 閾値を 1000 に設定 → 深夜帯では 500 以上で発火
+		const compactionTokenThreshold = 1000;
 		const runner = new TestAgent({
 			profile: createProfile(),
 			agentId: "agent-1",
@@ -184,8 +186,7 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			eventBuffer,
 			sessionMaxAgeMs,
-			// 閾値は超えないようにする
-			compactionTokenThreshold: 999_999,
+			compactionTokenThreshold,
 			// テスト用に現在時刻を深夜帯に差し替え
 			nowProvider: () => {
 				// 3:00 JST = 18:00 UTC
@@ -201,16 +202,15 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// セッションが idle になった（深夜帯 + 一定時間アクティブ）
+		// 深夜帯 + トークン 600（閾値の半分 500 以上）
 		sessionDone.resolve({
 			type: "idle",
-			tokens: { input: 100, output: 50, cacheRead: 10 },
+			tokens: { input: 400, output: 200, cacheRead: 10 },
 		});
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// 深夜帯なので summarizeSession が呼ばれる
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
 
 		runner.stop();
