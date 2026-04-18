@@ -45,8 +45,9 @@ export function createHttpImageFetcher(options: CreateHttpImageFetcherOptions = 
 				return null;
 			}
 			const rawContentType = res.headers.get("content-type") ?? "";
-			const mimeType = rawContentType.split(";")[0]?.trim() ?? "";
-			if (!mimeType.startsWith(IMAGE_MIME_PREFIX)) {
+			const mimeType = rawContentType.split(";")[0]?.trim().toLowerCase() ?? "";
+			// "image/" だけ（subtype 空）も MCP / Claude が受け付けないので拒否する
+			if (!mimeType.startsWith(IMAGE_MIME_PREFIX) || mimeType.length <= IMAGE_MIME_PREFIX.length) {
 				logger?.warn(
 					`[image-fetcher] non-image content-type: ${rawContentType || "(empty)"} (${url})`,
 				);

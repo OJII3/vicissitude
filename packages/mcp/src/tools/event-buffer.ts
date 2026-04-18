@@ -150,8 +150,9 @@ export function formatEvents(events: EventOrError[]): string {
 				// 画像添付は可能な範囲で image content part として別途 vision input に同梱される。
 				// ここでは LLM が「どの添付について話しているか」を参照できるよう filename + MIME を列挙する。
 				const labels = e.attachments.map((a) => {
-					const name = a.filename ?? "attachment";
-					const mime = a.contentType ?? "unknown";
+					// filename / contentType はユーザー入力起源なのでタグインジェクション対策に escape する
+					const name = escapeUserMessageTag(a.filename ?? "attachment");
+					const mime = escapeUserMessageTag(a.contentType ?? "unknown");
 					return `${name} (${mime})`;
 				});
 				extras.push(`[添付: ${labels.join("; ")}]`);
