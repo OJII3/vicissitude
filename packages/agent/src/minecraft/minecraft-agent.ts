@@ -18,6 +18,10 @@ export interface MinecraftAgentDeps {
 	contextBuilder: ContextBuilderPort;
 	sessionMaxAgeMs: number;
 	profile: AgentProfile;
+	/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
+	compactionTokenThreshold?: number;
+	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
+	compactionCooldownMs?: number;
 }
 
 export class MinecraftAgent extends AgentRunner {
@@ -31,6 +35,8 @@ export class MinecraftAgent extends AgentRunner {
 			sessionPort: deps.sessionPort,
 			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
+			compactionTokenThreshold: deps.compactionTokenThreshold,
+			compactionCooldownMs: deps.compactionCooldownMs,
 		});
 	}
 }

@@ -31,6 +31,10 @@ export interface McBrainManagerDeps {
 	lifecyclePollMs?: number;
 	mcHost?: string;
 	mcMcpPort?: string;
+	/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
+	compactionTokenThreshold?: number;
+	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
+	compactionCooldownMs?: number;
 }
 
 /**
@@ -121,6 +125,8 @@ export class McBrainManager {
 			logger: deps.logger,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			profile,
+			compactionTokenThreshold: deps.compactionTokenThreshold,
+			compactionCooldownMs: deps.compactionCooldownMs,
 		});
 		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
 		const bootstrapEvent = {

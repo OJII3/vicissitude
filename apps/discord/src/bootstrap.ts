@@ -144,6 +144,10 @@ export function createGuildAgents(
 		portOffset?: number;
 		appRoot: string;
 		coreEnvironment: Record<string, string>;
+		/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
+		compactionTokenThreshold?: number;
+		/** compaction 間のクールダウン（ms） */
+		compactionCooldownMs?: number;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
@@ -183,6 +187,8 @@ export function createGuildAgents(
 			profile,
 			summaryWriter: deps.summaryWriter,
 			agentIdPrefix: deps.agentIdPrefix,
+			compactionTokenThreshold: deps.compactionTokenThreshold,
+			compactionCooldownMs: deps.compactionCooldownMs,
 		});
 		agents.set(guildId, agent);
 	}
@@ -489,6 +495,7 @@ export async function bootstrap(): Promise<void> {
 		summaryWriter,
 		appRoot: root,
 		coreEnvironment,
+		compactionTokenThreshold: 20_000,
 	});
 
 	// Memory recording
@@ -537,6 +544,7 @@ export async function bootstrap(): Promise<void> {
 		portOffset: ports.heartbeatOffset,
 		appRoot: root,
 		coreEnvironment,
+		compactionTokenThreshold: 20_000,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {
@@ -581,6 +589,7 @@ export async function bootstrap(): Promise<void> {
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			mcHost: config.minecraft.host,
 			mcMcpPort: String(config.minecraft.mcpPort),
+			compactionTokenThreshold: 20_000,
 		});
 	}
 
