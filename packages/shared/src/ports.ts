@@ -159,4 +159,6 @@ export interface FetchedImage {
  * - ネットワーク失敗、タイムアウト、サイズ超過、非画像 MIME などは例外を投げず `null` を返す。
  * - 呼び出し側は `null` を「画像として送れなかった」と解釈してフォールバックすること。
  */
-export type ImageFetcher = (url: string) => Promise<FetchedImage | null>;
+export interface ImageFetcher {
+	fetch(url: string): Promise<FetchedImage | null>;
+}

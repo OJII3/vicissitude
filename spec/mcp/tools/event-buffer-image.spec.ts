@@ -64,9 +64,11 @@ function createStubImageFetcher(response: FetchedImage | null): {
 } {
 	const calls: string[] = [];
 	return {
-		fetcher: (url: string) => {
-			calls.push(url);
-			return Promise.resolve(response);
+		fetcher: {
+			fetch: (url: string) => {
+				calls.push(url);
+				return Promise.resolve(response);
+			},
 		},
 		calls,
 	};

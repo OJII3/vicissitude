@@ -340,7 +340,7 @@ async function buildImageContents(
 	const urls = collectImageUrls(events, MAX_IMAGES_PER_RESPONSE);
 	if (urls.length === 0) return [];
 
-	const fetched = await Promise.all(urls.map((u) => imageFetcher(u)));
+	const fetched = await Promise.all(urls.map((u) => imageFetcher.fetch(u)));
 	const images: ImageContent[] = [];
 	for (const r of fetched) {
 		if (r) images.push({ type: "image", data: r.base64, mimeType: r.mimeType });
