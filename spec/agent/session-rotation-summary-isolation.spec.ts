@@ -5,11 +5,12 @@
  *
  * 実運用で判明した問題: 壊れたセッションに summary prompt (`sessionPort.prompt(...)`)
  * を投げても OpenCode 側が応答を返さず、rotation の後段 (`deleteSession`, `sessionStore.delete`)
- * に到達しなくなる。これは以下 3 経路すべてで発生する:
+ * に到達しなくなる。これは以下 2 経路で発生する:
  *
  *   1. hang detection 経路 (`startHangDetectionTimer`)
- *   2. session error (retryable:false) 経路 (`startPollingLoop` 内)
- *   3. age 超過経路 (`rotateSessionIfExpired`)
+ *   2. age 超過経路 (`rotateSessionIfExpired`)
+ *
+ * ※ session error (retryable:false) 経路は summary 生成自体をスキップするため対象外。
  *
  * ## 契約
  *
@@ -17,6 +18,7 @@
  *   rotation は `sessionPort.deleteSession` → `sessionStore.delete` まで完遂する。
  * - summary 生成が **throw** しても、rotation は完遂する（既存契約の再確認）。
  * - summary 生成が **正常 resolve** する場合は `summaryWriter.write` が呼ばれる（回帰防止）。
+ * - **retryable:false 経路では summary 生成自体がスキップされ**、即座に rotation が完遂する。
  *
  * ## RunnerDeps の前提
  *
