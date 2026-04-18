@@ -27,6 +27,10 @@ export interface DiscordAgentDeps {
 	summaryWriter?: SessionSummaryWriter;
 	/** agentId のプレフィックス（デフォルト: "discord"）。Heartbeat 専用エージェントなどでセッション分離に使用 */
 	agentIdPrefix?: string;
+	/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
+	compactionTokenThreshold?: number;
+	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
+	compactionCooldownMs?: number;
 }
 
 export class DiscordAgent extends AgentRunner {
@@ -44,6 +48,8 @@ export class DiscordAgent extends AgentRunner {
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,
 			summaryWriter: deps.summaryWriter,
+			compactionTokenThreshold: deps.compactionTokenThreshold,
+			compactionCooldownMs: deps.compactionCooldownMs,
 			heartbeatReader: {
 				getLastSeenAt: (id) => getHeartbeat(deps.db, id),
 			},
