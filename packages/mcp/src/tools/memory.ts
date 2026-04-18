@@ -11,7 +11,7 @@ import {
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import { z } from "zod";
 
-import type { MemoryRetrieveCache } from "../memory-retrieve-cache";
+import type { LruCache } from "../lru-cache";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
@@ -20,7 +20,7 @@ const formatFacts = (fs: SemanticFact[]) =>
 
 export interface MemoryDeps {
 	getOrCreateMemory: (namespace: MemoryNamespace) => MemoryReadServices;
-	cache?: MemoryRetrieveCache<{ content: Array<{ type: "text"; text: string }> }>;
+	cache?: LruCache<{ content: Array<{ type: "text"; text: string }> }>;
 }
 
 export function registerMemoryTools(

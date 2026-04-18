@@ -28,8 +28,8 @@ import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client } from "discord.js";
 
+import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
-import { MemoryRetrieveCache } from "./memory-retrieve-cache.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerListeningTools } from "./tools/listening.ts";
@@ -176,9 +176,10 @@ async function main(): Promise<void> {
 		imageFetcher: createHttpImageFetcher({ logger }),
 	});
 
-	const retrieveCache = new MemoryRetrieveCache<{ content: Array<{ type: "text"; text: string }> }>(
-		{ ttlMs: 30 * 60 * 1_000, maxSize: 100 },
-	);
+	const retrieveCache = new LruCache<{ content: Array<{ type: "text"; text: string }> }>({
+		ttlMs: 30 * 60 * 1_000,
+		maxSize: 100,
+	});
 	registerMemoryTools(server, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
 	if (process.env.MC_HOST) {
 		registerDiscordBridgeTools(server, { db }, boundGuildId);
