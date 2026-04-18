@@ -174,7 +174,9 @@ async function main(): Promise<void> {
 	});
 
 	registerMemoryTools(server, { getOrCreateMemory }, boundNamespace);
-	registerDiscordBridgeTools(server, { db }, boundGuildId);
+	if (process.env.MC_HOST) {
+		registerDiscordBridgeTools(server, { db }, boundGuildId);
+	}
 
 	if (
 		process.env.SPOTIFY_CLIENT_ID &&
