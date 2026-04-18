@@ -200,4 +200,34 @@ describe("wait_for_events への画像同梱", () => {
 			"https://cdn.example.com/e2b.png",
 		]);
 	});
+
+	test("image content parts は全ての text content parts の後に配置される", async () => {
+		const db = createTestDb();
+		const agentId = "agent-img-order";
+		insertEventWithImages(db, agentId, [
+			{
+				url: "https://cdn.example.com/order1.png",
+				contentType: "image/png",
+				filename: "order1.png",
+			},
+			{
+				url: "https://cdn.example.com/order2.png",
+				contentType: "image/png",
+				filename: "order2.png",
+			},
+		]);
+
+		const { fetcher } = createStubImageFetcher({ base64: "DATA", mimeType: "image/png" });
+		const result = await callWaitForEvents({ db, agentId, imageFetcher: fetcher });
+
+		const lastTextIndex = result.content.reduce(
+			(max, part, i) => (part.type === "text" ? i : max),
+			-1,
+		);
+		const firstImageIndex = result.content.findIndex(isImagePart);
+
+		expect(firstImageIndex).toBeGreaterThan(-1);
+		expect(lastTextIndex).toBeGreaterThan(-1);
+		expect(lastTextIndex).toBeLessThan(firstImageIndex);
+	});
 });

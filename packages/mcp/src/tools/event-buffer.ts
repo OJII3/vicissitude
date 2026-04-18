@@ -380,6 +380,8 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 		}
 		const moodContent = buildMoodContent(moodReader, moodKey);
 		if (moodContent) content.unshift(moodContent);
+		// 順序契約: text content parts が先、image content parts が末尾に続く。
+		// この順序は event-buffer-image.spec.ts で検証されている。
 		if (imageFetcher) {
 			const images = await buildImageContents(events, imageFetcher, logger);
 			content.push(...images);
