@@ -91,6 +91,7 @@ function createSessionPort(
 		promptAsync: mock(() => Promise.resolve()),
 		promptAsyncAndWatchSession: mock((_params, _signal) => promptAsyncAndWatchSessionImpl()),
 		waitForSessionIdle: mock(waitForSessionIdleImpl ?? promptAsyncAndWatchSessionImpl),
+		summarizeSession: mock(() => Promise.resolve()),
 		deleteSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	};

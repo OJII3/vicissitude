@@ -6,9 +6,12 @@ import {
 	GUILD_ID_RE,
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
+	namespaceKey,
 } from "@vicissitude/memory/namespace";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import { z } from "zod";
+
+import type { MemoryRetrieveCache } from "../memory-retrieve-cache";
 
 const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
 
@@ -17,6 +20,7 @@ const formatFacts = (fs: SemanticFact[]) =>
 
 export interface MemoryDeps {
 	getOrCreateMemory: (namespace: MemoryNamespace) => MemoryReadServices;
+	cache?: MemoryRetrieveCache<{ content: Array<{ type: "text"; text: string }> }>;
 }
 
 export function registerMemoryTools(
@@ -24,7 +28,7 @@ export function registerMemoryTools(
 	deps: MemoryDeps,
 	boundNamespace?: MemoryNamespace,
 ): void {
-	const { getOrCreateMemory } = deps;
+	const { getOrCreateMemory, cache } = deps;
 	function resolveNamespace(guildIdInput: string | undefined): MemoryNamespace | null {
 		if (boundNamespace) return boundNamespace;
 		if (guildIdInput) return discordGuildNamespace(guildIdInput);
@@ -51,9 +55,17 @@ export function registerMemoryTools(
 						isError: true,
 					};
 				}
+
+				const effectiveLimit = limit ?? 10;
+				const cacheKey = `${namespaceKey(ns)}:${query}:${effectiveLimit}`;
+				const cached = cache?.get(cacheKey);
+				if (cached) {
+					return cached;
+				}
+
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
-				const retrieveOpts = { limit: limit ?? 10 };
+				const retrieveOpts = { limit: effectiveLimit };
 
 				const resultPromise = mem.retrieval.retrieve(subject, query, retrieveOpts);
 
@@ -66,22 +78,25 @@ export function registerMemoryTools(
 								retrieveOpts,
 							);
 
-				const [result, internalResult] = await Promise.all([resultPromise, internalResultPromise]);
+				const [retrievalResult, internalResult] = await Promise.all([
+					resultPromise,
+					internalResultPromise,
+				]);
 
 				const parts: string[] = [];
 
-				if (result.episodes.length > 0) {
+				if (retrievalResult.episodes.length > 0) {
 					parts.push("## Episodic Memory");
-					for (const ep of result.episodes) {
+					for (const ep of retrievalResult.episodes) {
 						parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
 						parts.push(ep.episode.summary);
 						parts.push("");
 					}
 				}
 
-				if (result.facts.length > 0) {
+				if (retrievalResult.facts.length > 0) {
 					parts.push("## Semantic Memory (Facts)");
-					for (const f of result.facts) {
+					for (const f of retrievalResult.facts) {
 						parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
 					}
 				}
@@ -108,7 +123,9 @@ export function registerMemoryTools(
 					parts.push("No relevant memories found.");
 				}
 
-				return { content: [{ type: "text", text: parts.join("\n") }] };
+				const result = { content: [{ type: "text" as const, text: parts.join("\n") }] };
+				cache?.set(cacheKey, result);
+				return result;
 			} catch (error) {
 				return {
 					content: [

@@ -262,6 +262,7 @@ export interface OpencodeSessionPort {
 		signal?: AbortSignal,
 	): Promise<OpencodeSessionEvent>;
 	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
+	summarizeSession(sessionId: string): Promise<void>;
 	deleteSession(sessionId: string): Promise<void>;
 	close(): void;
 }

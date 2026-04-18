@@ -48,6 +48,12 @@ export interface RunnerDeps {
 	heartbeatReader?: HeartbeatReader;
 	/** セッション要約生成 (`sessionPort.prompt`) のタイムアウト（ms）。壊れたセッションで summary が永久に返らないときに rotation を止めないため必須。デフォルト: 30_000 */
 	summaryTimeoutMs?: number;
+	/** proactive compaction のトークン閾値（input + output）。省略時は proactive compaction 無効 */
+	compactionTokenThreshold?: number;
+	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
+	compactionCooldownMs?: number;
+	/** テスト用時刻プロバイダー。デフォルト: Date.now */
+	nowProvider?: () => number;
 }
 
 export class AgentRunner implements AiAgent {
@@ -75,6 +81,10 @@ export class AgentRunner implements AiAgent {
 	private readonly hangTimeoutMs: number;
 	private readonly heartbeatReader?: HeartbeatReader;
 	private readonly summaryTimeoutMs: number;
+	private readonly compactionTokenThreshold?: number;
+	private readonly compactionCooldownMs: number;
+	private readonly nowProvider: () => number;
+	private lastCompactionAt: number | null = null;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -95,6 +105,9 @@ export class AgentRunner implements AiAgent {
 		this.hangTimeoutMs = deps.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS;
 		this.heartbeatReader = deps.heartbeatReader;
 		this.summaryTimeoutMs = deps.summaryTimeoutMs ?? DEFAULT_SUMMARY_TIMEOUT_MS;
+		this.compactionTokenThreshold = deps.compactionTokenThreshold;
+		this.compactionCooldownMs = deps.compactionCooldownMs ?? 1_800_000;
+		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -217,6 +230,14 @@ export class AgentRunner implements AiAgent {
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
 				if (event.type === "compacted" || event.type === "streamDisconnected") {
 					this.rewatchSession(signal);
+					delay = INITIAL_RECONNECT_DELAY_MS;
+					prevSleepWasCapped = false;
+					continue;
+				}
+
+				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
+				// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
+				if (event.type === "idle" && (await this.tryProactiveCompact(event, signal))) {
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
 					continue;
@@ -449,6 +470,61 @@ export class AgentRunner implements AiAgent {
 			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
 			error_class: event.errorClass ?? "unknown",
 		});
+	}
+
+	/** proactive compaction を試行し、成功して rewatch を開始した場合に true を返す */
+	private async tryProactiveCompact(
+		event: OpencodeSessionEvent & { type: "idle" },
+		signal: AbortSignal,
+	): Promise<boolean> {
+		if (!this.shouldProactiveCompact(event)) return false;
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
+		if (!sessionId) return false;
+		try {
+			await this.sessionPort.summarizeSession(sessionId);
+			this.lastCompactionAt = this.nowProvider();
+			this.logger.info(`[${this.profile.name}:${this.agentId}] proactive compaction triggered`);
+			this.rewatchSession(signal);
+			return true;
+		} catch (err) {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally`,
+				err,
+			);
+			return false;
+		}
+	}
+
+	private shouldProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): boolean {
+		if (this.compactionTokenThreshold === undefined) return false;
+
+		// クールダウンチェック
+		const now = this.nowProvider();
+		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
+			this.logger.debug(
+				`[${this.profile.name}:${this.agentId}] proactive compaction skipped: cooldown`,
+			);
+			return false;
+		}
+
+		// トークン閾値チェック
+		if (event.tokens) {
+			const total = event.tokens.input + event.tokens.output;
+			if (total >= this.compactionTokenThreshold) {
+				return true;
+			}
+		}
+
+		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過
+		const jstHour = (new Date(now).getUTCHours() + 9) % 24;
+		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null) {
+			const age = now - this.sessionCreatedAt;
+			if (age >= this.sessionMaxAgeMs / 2) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	private async resolveSessionId(): Promise<string> {
