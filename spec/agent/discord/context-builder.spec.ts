@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
@@ -198,7 +198,7 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "DISCORD.md", "discord");
 			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
 
-			const excludeFiles = new Set(["TOOLS-MINECRAFT.md", "DISCORD.md"]);
+			const excludeFiles = new Set<ContextFileName>(["TOOLS-MINECRAFT.md", "DISCORD.md"]);
 			const builder = new ContextBuilder(overlayDir, baseDir, undefined, excludeFiles);
 			const result = await builder.build();
 
@@ -214,7 +214,12 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "SOUL.md", "soul");
 			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
 
-			const builder = new ContextBuilder(overlayDir, baseDir, undefined, new Set());
+			const builder = new ContextBuilder(
+				overlayDir,
+				baseDir,
+				undefined,
+				new Set<ContextFileName>(),
+			);
 			const result = await builder.build();
 
 			expect(result).toContain("<IDENTITY.md>");
@@ -226,7 +231,10 @@ describe("ContextBuilder", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			writeFile(baseDir, "IDENTITY.md", "identity");
 
-			const excludeFiles = new Set(["NON-EXISTENT.md", "ANOTHER-FAKE.md"]);
+			const excludeFiles = new Set([
+				"NON-EXISTENT.md",
+				"ANOTHER-FAKE.md",
+			] as unknown as ContextFileName[]);
 			const builder = new ContextBuilder(overlayDir, baseDir, undefined, excludeFiles);
 			const result = await builder.build();
 
@@ -246,7 +254,7 @@ describe("ContextBuilder", () => {
 				},
 			]);
 
-			const excludeFiles = new Set(["TOOLS-MINECRAFT.md"]);
+			const excludeFiles = new Set<ContextFileName>(["TOOLS-MINECRAFT.md"]);
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader, excludeFiles);
 			const result = await builder.build("111");
 

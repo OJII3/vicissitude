@@ -2,7 +2,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
-import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
@@ -70,7 +70,9 @@ export function createStoreLayer(config: AppConfig) {
 // ─── Context Layer ──────────────────────────────────────────────
 
 export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
-	const excludeFiles = config.minecraft ? undefined : new Set(["TOOLS-MINECRAFT.md"]);
+	const excludeFiles: ReadonlySet<ContextFileName> | undefined = config.minecraft
+		? undefined
+		: new Set<ContextFileName>(["TOOLS-MINECRAFT.md"]);
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
