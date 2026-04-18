@@ -133,6 +133,7 @@ function createSessionPortWithSessions(
 			return sessions[idx];
 		}),
 		deleteSession: mock(() => Promise.resolve()),
+		summarizeSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	} as unknown as OpencodeSessionPort & {
 		deleteSession: ReturnType<typeof mock>;

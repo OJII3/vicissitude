@@ -44,6 +44,7 @@ function createSessionPortWithControlledResult(
 			return callCount <= 2 ? firstDone : secondDone;
 		}),
 		deleteSession: mock(() => Promise.resolve()),
+		summarizeSession: mock(() => Promise.resolve()),
 		close: mock(() => {}),
 	} as unknown as OpencodeSessionPort & { close: ReturnType<typeof mock> };
 }
