@@ -57,7 +57,7 @@ export function registerMemoryTools(
 				}
 
 				const effectiveLimit = limit ?? 10;
-				const cacheKey = `${namespaceKey(ns)}:${query}:${effectiveLimit}`;
+				const cacheKey = `${namespaceKey(ns)}\0${query}\0${effectiveLimit}`;
 				const cached = cache?.get(cacheKey);
 				if (cached) {
 					return cached;
