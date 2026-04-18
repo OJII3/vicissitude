@@ -261,7 +261,7 @@ export class AgentRunner implements AiAgent {
 						reason: "error_non_retryable_rotation",
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
-					await this.forceSessionRotation();
+					await this.forceSessionRotation({ skipSummary: true });
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
 					continue;
@@ -321,12 +321,14 @@ export class AgentRunner implements AiAgent {
 		await this.forceSessionRotation();
 	}
 
-	async forceSessionRotation(): Promise<void> {
+	async forceSessionRotation(options?: { skipSummary?: boolean }): Promise<void> {
 		this.lastRotationRequestAt = Date.now();
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 
-		await this.generateSessionSummary(sessionId);
+		if (!options?.skipSummary) {
+			await this.generateSessionSummary(sessionId);
+		}
 
 		try {
 			await this.sessionPort.deleteSession(sessionId);

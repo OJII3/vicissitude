@@ -263,7 +263,7 @@ describe("セッション要約生成のハング隔離", () => {
 			runner.stop();
 		});
 
-		test("retryable:false エラー経路: summary prompt が hang しても deleteSession / sessionStore.delete は呼ばれる", async () => {
+		test("retryable:false エラー経路: summary prompt はスキップされ deleteSession / sessionStore.delete が即座に呼ばれる", async () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -272,7 +272,7 @@ describe("セッション要約生成のハング隔離", () => {
 				firstSessionDone.promise,
 				secondSessionDone.promise,
 			);
-			// summary 用 prompt が永久に resolve しない
+			// summary 用 prompt を mock — retryable:false 経路では呼ばれないはず
 			sessionPort.prompt = mock(() => new Promise<PromptResult>(() => {}));
 
 			const summaryWriter = createSummaryWriter();
@@ -306,10 +306,13 @@ describe("セッション要約生成のハング隔離", () => {
 				retryable: false,
 			});
 
-			// summary prompt の timeout (100ms) 経過後に rotation が完遂することを確認。
-			// マージンを取って 400ms 待機。
-			await Bun.sleep(400);
+			// summary prompt がスキップされるため、timeout 待ちは不要。
+			// 非同期処理の伝播を待つために短い待機のみ。
+			await Bun.sleep(50);
 
+			// retryable:false 経路では summary 生成がスキップされる
+			expect(sessionPort.prompt).toHaveBeenCalledTimes(0);
+			expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 			expect(sessionPort.deleteSession).toHaveBeenCalled();
 			expect(sessionStore.delete).toHaveBeenCalled();
 
