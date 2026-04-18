@@ -1,6 +1,6 @@
 /* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
 import { METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
-import { raceAbort } from "@vicissitude/shared/functions";
+import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -516,7 +516,7 @@ export class AgentRunner implements AiAgent {
 		}
 
 		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過かつトークンが閾値の半分以上
-		const jstHour = (new Date(now).getUTCHours() + 9) % 24;
+		const jstHour = new Date(now + JST_OFFSET_MS).getUTCHours();
 		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null && event.tokens) {
 			const total = event.tokens.input + event.tokens.output;
 			const age = now - this.sessionCreatedAt;
@@ -540,12 +540,12 @@ export class AgentRunner implements AiAgent {
 
 		if (realId) {
 			const row = this.sessionStore.getRow(this.profile.name, this.sessionKey);
-			this.sessionCreatedAt = row?.createdAt ?? Date.now();
+			this.sessionCreatedAt = row?.createdAt ?? this.nowProvider();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] reusing existing session ${realId}`);
 		} else {
 			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.agentId}`);
 			this.sessionStore.save(this.profile.name, this.sessionKey, realId);
-			this.sessionCreatedAt = Date.now();
+			this.sessionCreatedAt = this.nowProvider();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] created new session ${realId}`);
 		}
 
@@ -554,7 +554,7 @@ export class AgentRunner implements AiAgent {
 
 	private async rotateSessionIfExpired(): Promise<void> {
 		if (this.sessionCreatedAt === null) return;
-		const age = Date.now() - this.sessionCreatedAt;
+		const age = this.nowProvider() - this.sessionCreatedAt;
 		if (age < this.sessionMaxAgeMs) return;
 
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
