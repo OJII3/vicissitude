@@ -744,6 +744,112 @@ describe("compacted イベント処理", () => {
 	});
 });
 
+describe("deleted イベント処理", () => {
+	test("deleted イベント受信 → forceSessionRotation が呼ばれる（deleteSession と sessionStore.delete が実行される）", async () => {
+		const firstEvent = deferred<void>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const eventBuffer = createEventBuffer(() => firstEvent.promise);
+		const sessionStore = createSessionStore();
+		const sessionPort = createSessionPortWithTwoSessions(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const runner = new TestAgent({
+			profile: createProfile({ restartPolicy: "wait_for_events" }),
+			agentId: "agent-1",
+			sessionStore: sessionStore as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// セッションが作成された後に sessionStore にセッション ID を保存
+		// （実装側で ensureSessionStarted 内で save されるが、テストでは明示的に設定）
+		sessionStore.save("conversation", "__polling__:agent-1", "session-1");
+
+		// deleted イベントを発火
+		firstSessionDone.resolve({ type: "deleted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// forceSessionRotation により deleteSession が呼ばれる
+		expect(
+			(sessionPort.deleteSession as ReturnType<typeof mock>).mock.calls.length,
+		).toBeGreaterThanOrEqual(1);
+		// sessionStore.delete が呼ばれる
+		expect(sessionStore.delete).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("deleted 後に新規セッションが作成される（ポーリングループが再開する）", async () => {
+		const firstEvent = deferred<void>();
+		const secondEvent = deferred<void>();
+		let waitCallCount = 0;
+		const eventBuffer = createEventBuffer(() => {
+			waitCallCount += 1;
+			return waitCallCount === 1 ? firstEvent.promise : secondEvent.promise;
+		});
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithTwoSessions(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const runner = new TestAgent({
+			profile: createProfile({ restartPolicy: "wait_for_events" }),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// deleted イベントを発火
+		firstSessionDone.resolve({ type: "deleted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// deleted 後のループ再開で waitForEvents が2回目呼ばれる
+		expect(waitCallCount).toBeGreaterThanOrEqual(2);
+
+		// 2回目の waitForEvents を resolve して新規セッション作成を許可
+		secondEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// promptAsyncAndWatchSession が2回呼ばれる（新規セッション作成）
+		expect(
+			(sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls.length,
+		).toBeGreaterThanOrEqual(2);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+});
+
 describe("エラーからの復帰", () => {
 	test("連続エラー時にバックオフ delay が増加する", async () => {
 		const firstEvent = deferred<void>();
