@@ -394,7 +394,7 @@ describe("Runner: session restart メトリクス記録", () => {
 		);
 		const hangRestarts = restartCalls.filter(
 			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason === "hang_detected",
+				(call[1] as Record<string, string> | undefined)?.reason === "hang_rotation",
 		);
 		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
 
