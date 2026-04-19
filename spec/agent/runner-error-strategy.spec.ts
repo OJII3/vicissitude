@@ -32,6 +32,7 @@ import type {
 	EventBuffer,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
+	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
@@ -378,6 +379,57 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		// 2s 以上の sleep は発生していない
 		const longSleeps = sleepValues.filter((ms) => ms >= 2000);
 		expect(longSleeps.length).toBe(0);
+
+		runner.stop();
+		session2.resolve({ type: "cancelled" });
+	});
+
+	test("retryable:false のローテーションでは sessionPort.prompt (要約生成) が呼ばれない", async () => {
+		const firstEvent = deferred<void>();
+		const session1 = deferred<OpencodeSessionEvent>();
+		const session2 = deferred<OpencodeSessionEvent>();
+		let waitCallCount = 0;
+		const eventBuffer = createEventBuffer(() => {
+			waitCallCount += 1;
+			if (waitCallCount === 1) return firstEvent.promise;
+			return Promise.resolve();
+		});
+		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
+		const summaryWriter: SessionSummaryWriter = {
+			write: mock(() => Promise.resolve()),
+		};
+
+		const runner = new TestAgent({
+			profile: createProfile({ summaryPrompt: "要約してください" }),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			contextGuildId: "123456789",
+			summaryWriter,
+			summaryTimeoutMs: 100,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		firstEvent.resolve();
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// retryable:false → 即時ローテーション（サマリ生成スキップ）
+		session1.resolve({ type: "error", message: "Bad Request", status: 400, retryable: false });
+		await Bun.sleep(50);
+
+		// rotation は発動するが、prompt (要約生成) は呼ばれない
+		expect(sessionPort.deleteSession).toHaveBeenCalled();
+		expect(
+			(sessionPort as unknown as { prompt: ReturnType<typeof mock> }).prompt,
+		).toHaveBeenCalledTimes(0);
+		expect(summaryWriter.write).toHaveBeenCalledTimes(0);
 
 		runner.stop();
 		session2.resolve({ type: "cancelled" });
