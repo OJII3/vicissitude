@@ -184,4 +184,24 @@ describe("McBrainManager", () => {
 		);
 		expect(lifecycleErrors).toHaveLength(0);
 	});
+
+	test("metrics を渡した場合に createAgent がエラーなく動作する", async () => {
+		const metrics = {
+			incrementCounter: mock(() => {}),
+		};
+		const depsWithMetrics = createTestDeps({ metrics: metrics as any });
+		const mgr = new McBrainManager(depsWithMetrics);
+		mgr.start();
+
+		tryAcquireSessionLock(depsWithMetrics.db, "test-guild-metrics");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		const infoCalls = (depsWithMetrics.logger.info as ReturnType<typeof mock>).mock.calls;
+		const startedLog = infoCalls.some(
+			(call: unknown[]) =>
+				typeof call[0] === "string" && call[0].includes("minecraft brain started"),
+		);
+		expect(startedLog).toBe(true);
+		mgr.stop();
+	});
 });
