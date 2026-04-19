@@ -140,25 +140,23 @@ export function classifyEvent(
 		}
 	}
 	if (typed.type === "workspace.failed") {
-		const props = typed.properties as { message?: string };
 		return {
 			type: "error",
-			message: props.message ?? "workspace failed",
+			message: typed.properties.message,
 			retryable: true,
 			errorClass: "WorkspaceFailed",
 		};
 	}
 	if (typed.type === "workspace.status") {
-		const props = typed.properties as { status?: string; error?: string };
-		if (props.status === "error") {
+		if (typed.properties.status === "error") {
 			return {
 				type: "error",
-				message: props.error ?? "workspace error",
+				message: typed.properties.error ?? "workspace error",
 				retryable: true,
 				errorClass: "WorkspaceError",
 			};
 		}
-		if (props.status === "disconnected") {
+		if (typed.properties.status === "disconnected") {
 			return {
 				type: "error",
 				message: "workspace disconnected",

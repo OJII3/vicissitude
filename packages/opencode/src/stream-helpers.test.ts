@@ -12,21 +12,7 @@ import type { TokenUsage } from "@vicissitude/shared/types";
 const SESSION_ID = "unit-test-session";
 
 describe("classifyEvent — workspace イベント", () => {
-	// 1. workspace.failed で message が undefined → フォールバック
-	test("workspace.failed で message が undefined の場合、'workspace failed' にフォールバック", () => {
-		const event = {
-			type: "workspace.failed",
-			properties: {},
-		} as unknown as Event;
-
-		const result = classifyEvent(event, SESSION_ID, new Map());
-
-		expect(result).not.toBeNull();
-		if (result?.type !== "error") throw new Error("unreachable");
-		expect(result.message).toBe("workspace failed");
-	});
-
-	// 2. workspace.failed の戻り値全フィールド厳密一致
+	// 1. workspace.failed の戻り値全フィールド厳密一致
 	test("workspace.failed の戻り値が全フィールド厳密に一致する", () => {
 		const event = {
 			type: "workspace.failed",
