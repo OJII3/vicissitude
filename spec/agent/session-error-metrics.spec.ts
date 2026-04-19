@@ -363,4 +363,41 @@ describe("Runner: session restart メトリクス記録", () => {
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
+
+	test("ハング検知によるセッションローテーション時に SESSION_RESTARTS がインクリメントされる", async () => {
+		const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+		const sessionPort = createSessionPortWithControlledResult(
+			new Promise(() => {}),
+			new Promise(() => {}),
+		);
+		const metrics = createMockMetrics();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore("existing-session-id") as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs: 100,
+			metrics,
+		});
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		await Bun.sleep(150);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const restartCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
+		);
+		const hangRestarts = restartCalls.filter(
+			(call: unknown[]) =>
+				(call[1] as Record<string, string> | undefined)?.reason === "hang_detected",
+		);
+		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+	});
 });
