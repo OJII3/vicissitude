@@ -153,7 +153,7 @@ export class AgentRunner implements AiAgent {
 			const mcpHeartbeat = this.heartbeatReader?.getLastSeenAt(this.agentId) ?? 0;
 			const lastAlive = Math.max(this.lastWaitForEventsAt, mcpHeartbeat);
 			const elapsed = Date.now() - lastAlive;
-			this.logger.info(
+			this.logger.debug(
 				`[${this.profile.name}:${this.agentId}] hang check: elapsed=${elapsed}ms threshold=${this.hangTimeoutMs}ms lastWaitForEvents=${this.lastWaitForEventsAt} mcpHeartbeat=${mcpHeartbeat}`,
 			);
 			if (elapsed >= this.hangTimeoutMs) {
