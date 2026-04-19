@@ -162,7 +162,7 @@ export class AgentRunner implements AiAgent {
 				);
 				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
 				this.lastWaitForEventsAt = Date.now();
-				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_detected" });
+				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_rotation" });
 				this.forceSessionRotation().catch((err) => {
 					this.logger.error(
 						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
