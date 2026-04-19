@@ -131,43 +131,43 @@ export function isErrorEvent(e: EventOrError): e is ErrorEvent {
 	return "_error" in e && "_raw" in e;
 }
 
+/** 単一の EventOrError を人間可読形式にフォーマットする */
+function formatEvent(e: EventOrError): string {
+	// エラーイベント
+	if (isErrorEvent(e)) {
+		return `[ERROR] ${e._error}: ${e._raw}`;
+	}
+
+	const dateStr = formatTimestamp(new Date(e.ts));
+	const channel = e.metadata?.channelName ? ` #${e.metadata.channelName}` : "";
+	const hint = classifyActionHint(e);
+	const extras: string[] = [];
+	if (e.attachments && e.attachments.length > 0) {
+		// 画像添付は可能な範囲で image content part として別途 vision input に同梱される。
+		// ここでは LLM が「どの添付について話しているか」を参照できるよう filename + MIME を列挙する。
+		const labels = e.attachments.map((a) => {
+			// filename / contentType はユーザー入力起源なのでタグインジェクション対策に escape する
+			const name = escapeUserMessageTag(a.filename ?? "attachment");
+			const mime = escapeUserMessageTag(a.contentType ?? "unknown");
+			return `${name} (${mime})`;
+		});
+		extras.push(`[添付: ${labels.join("; ")}]`);
+	}
+	extras.push(`[action: ${hint}]`);
+	const extraStr = ` ${extras.join(" ")}`;
+
+	const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
+	const content = isUserMessage
+		? `<user_message>${escapeUserMessageTag(e.content)}</user_message>`
+		: e.content;
+
+	return `[${dateStr}${channel}] ${e.authorName}: ${content}${extraStr}`;
+}
+
 /** EventOrError 配列を人間可読形式にフォーマットする */
 export function formatEvents(events: EventOrError[]): string {
 	if (events.length === 0) return "";
-
-	return events
-		.map((e) => {
-			// エラーイベント
-			if (isErrorEvent(e)) {
-				return `[ERROR] ${e._error}: ${e._raw}`;
-			}
-
-			const dateStr = formatTimestamp(new Date(e.ts));
-			const channel = e.metadata?.channelName ? ` #${e.metadata.channelName}` : "";
-			const hint = classifyActionHint(e);
-			const extras: string[] = [];
-			if (e.attachments && e.attachments.length > 0) {
-				// 画像添付は可能な範囲で image content part として別途 vision input に同梱される。
-				// ここでは LLM が「どの添付について話しているか」を参照できるよう filename + MIME を列挙する。
-				const labels = e.attachments.map((a) => {
-					// filename / contentType はユーザー入力起源なのでタグインジェクション対策に escape する
-					const name = escapeUserMessageTag(a.filename ?? "attachment");
-					const mime = escapeUserMessageTag(a.contentType ?? "unknown");
-					return `${name} (${mime})`;
-				});
-				extras.push(`[添付: ${labels.join("; ")}]`);
-			}
-			extras.push(`[action: ${hint}]`);
-			const extraStr = ` ${extras.join(" ")}`;
-
-			const isUserMessage = e.authorId !== "system" && e.metadata?.isBot !== true;
-			const content = isUserMessage
-				? `<user_message>${escapeUserMessageTag(e.content)}</user_message>`
-				: e.content;
-
-			return `[${dateStr}${channel}] ${e.authorName}: ${content}${extraStr}`;
-		})
-		.join("\n");
+	return events.map((e) => formatEvent(e)).join("\n");
 }
 
 // ─── formatEventMetadata ─────────────────────────────────────────
@@ -328,25 +328,36 @@ function collectImageUrls(events: EventOrError[], limit: number): string[] {
 	return urls;
 }
 
+/** 単一イベントから画像 URL を抽出する */
+function collectEventImageUrls(event: EventOrError): string[] {
+	if (isErrorEvent(event)) return [];
+	const urls: string[] = [];
+	for (const a of event.attachments ?? []) {
+		if (a.contentType?.startsWith("image/")) urls.push(a.url);
+	}
+	return urls;
+}
+
 /**
- * 画像添付を並列 fetch して MCP の image content part に変換する。
- * fetch に失敗した画像は結果から除外される（text 表記のみで LLM に渡される）。
+ * 全イベントの画像 URL を一括 fetch し、URL→ImageContent のマップを返す。
+ * fetch に失敗した画像は結果から除外される。
  */
-async function buildImageContents(
-	events: EventOrError[],
+async function fetchAllImages(
+	urls: string[],
 	imageFetcher: ImageFetcher,
 	logger?: Logger,
-): Promise<ImageContent[]> {
-	const urls = collectImageUrls(events, MAX_IMAGES_PER_RESPONSE);
-	if (urls.length === 0) return [];
+): Promise<Map<string, ImageContent>> {
+	if (urls.length === 0) return new Map();
 
 	const fetched = await Promise.all(urls.map((u) => imageFetcher.fetch(u)));
-	const images: ImageContent[] = [];
-	for (const r of fetched) {
-		if (r) images.push({ type: "image", data: r.base64, mimeType: r.mimeType });
+	const map = new Map<string, ImageContent>();
+	for (let i = 0; i < urls.length; i++) {
+		const r = fetched[i];
+		const url = urls[i];
+		if (r && url) map.set(url, { type: "image", data: r.base64, mimeType: r.mimeType });
 	}
-	logger?.info(`[event-buffer] vision 入力: ${images.length}/${urls.length}枚の画像を同梱`);
-	return images;
+	logger?.info(`[event-buffer] vision 入力: ${map.size}/${urls.length}枚の画像を同梱`);
+	return map;
 }
 
 // ─── registerEventBufferTools ────────────────────────────────────
@@ -369,23 +380,38 @@ export function registerEventBufferTools(server: McpServer, deps: EventBufferDep
 	async function buildResponseContent(
 		events: EventOrError[],
 	): Promise<{ content: MessageContent[] }> {
-		const text = formatEvents(events);
-		const metadataText = formatEventMetadata(events);
-		const content: MessageContent[] = [
-			{ type: "text", text: text + (metadataText ? `\n${metadataText}` : "") },
-		];
+		const content: MessageContent[] = [];
+
+		// mood を先頭に追加
+		const moodContent = buildMoodContent(moodReader, moodKey);
+		if (moodContent) content.push(moodContent);
+
+		// recent messages を追加
 		if (recentMessagesFetcher) {
 			const ctx = await fetchRecentMessagesContext(events, recentMessagesFetcher);
-			if (ctx) content.unshift(ctx);
+			if (ctx) content.push(ctx);
 		}
-		const moodContent = buildMoodContent(moodReader, moodKey);
-		if (moodContent) content.unshift(moodContent);
-		// 順序契約: text content parts が先、image content parts が末尾に続く。
-		// この順序は event-buffer-image.spec.ts で検証されている。
+
+		// 画像を一括 fetch（イベント単位でインターリーブ配置するため）
+		let imageMap = new Map<string, ImageContent>();
 		if (imageFetcher) {
-			const images = await buildImageContents(events, imageFetcher, logger);
-			content.push(...images);
+			const allUrls = collectImageUrls(events, MAX_IMAGES_PER_RESPONSE);
+			imageMap = await fetchAllImages(allUrls, imageFetcher, logger);
 		}
+		// イベントをイテレート: 各イベントの text part + image parts をインターリーブ配置
+		for (const event of events) {
+			content.push({ type: "text", text: formatEvent(event) });
+			const eventUrls = collectEventImageUrls(event);
+			for (const url of eventUrls) {
+				const img = imageMap.get(url);
+				if (img) content.push(img);
+			}
+		}
+
+		// metadata text part を最後に追加
+		const metadataText = formatEventMetadata(events);
+		if (metadataText) content.push({ type: "text", text: metadataText });
+
 		return { content };
 	}
 
