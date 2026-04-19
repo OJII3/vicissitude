@@ -139,6 +139,32 @@ export function classifyEvent(
 			};
 		}
 	}
+	if (typed.type === "workspace.failed") {
+		return {
+			type: "error",
+			message: typed.properties.message,
+			retryable: true,
+			errorClass: "WorkspaceFailed",
+		};
+	}
+	if (typed.type === "workspace.status") {
+		if (typed.properties.status === "error") {
+			return {
+				type: "error",
+				message: typed.properties.error ?? "workspace error",
+				retryable: true,
+				errorClass: "WorkspaceError",
+			};
+		}
+		if (typed.properties.status === "disconnected") {
+			return {
+				type: "error",
+				message: "workspace disconnected",
+				retryable: true,
+				errorClass: "WorkspaceDisconnected",
+			};
+		}
+	}
 	return null;
 }
 
