@@ -12,4 +12,14 @@ describe("createConversationProfile", () => {
 
 		expect(profile.restartPolicy).toBe("wait_for_events");
 	});
+
+	test("pollingPrompt に core_wait_for_events ツール名が含まれる", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+		});
+
+		expect(profile.pollingPrompt).toContain("core_wait_for_events");
+	});
 });
