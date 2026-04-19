@@ -2,8 +2,14 @@
 import { resolve } from "path";
 
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
+import { METRIC } from "@vicissitude/observability/metrics";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type { EventBuffer, Logger, SessionStorePort } from "@vicissitude/shared/types";
+import type {
+	EventBuffer,
+	Logger,
+	MetricsCollector,
+	SessionStorePort,
+} from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
@@ -35,6 +41,8 @@ export interface McBrainManagerDeps {
 	compactionTokenThreshold?: number;
 	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
 	compactionCooldownMs?: number;
+	/** MetricsCollector。省略時はメトリクス記録なし */
+	metrics?: MetricsCollector;
 }
 
 /**
@@ -115,7 +123,11 @@ export class McBrainManager {
 		const contextBuilder = new MinecraftContextBuilder(overlayDir, baseDir);
 		const eventBuffer = deps.eventBufferFactory
 			? deps.eventBufferFactory(MINECRAFT_AGENT_ID)
-			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger);
+			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger, () => {
+					deps.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, {
+						agent_id: MINECRAFT_AGENT_ID,
+					});
+				});
 
 		this.agent = new MinecraftAgent({
 			eventBuffer,
