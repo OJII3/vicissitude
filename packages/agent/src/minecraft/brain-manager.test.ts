@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
+import type { MetricsCollector } from "@vicissitude/shared/types";
 import { clearSessionLock, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -186,10 +187,15 @@ describe("McBrainManager", () => {
 	});
 
 	test("metrics を渡した場合に createAgent がエラーなく動作する", async () => {
-		const metrics = {
+		const metrics: MetricsCollector = {
 			incrementCounter: mock(() => {}),
+			addCounter: mock(() => {}),
+			setGauge: mock(() => {}),
+			incrementGauge: mock(() => {}),
+			decrementGauge: mock(() => {}),
+			observeHistogram: mock(() => {}),
 		};
-		const depsWithMetrics = createTestDeps({ metrics: metrics as any });
+		const depsWithMetrics = createTestDeps({ metrics });
 		const mgr = new McBrainManager(depsWithMetrics);
 		mgr.start();
 
