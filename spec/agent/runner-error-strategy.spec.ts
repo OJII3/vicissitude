@@ -82,11 +82,12 @@ function createContextBuilder(): ContextBuilderPort {
 	return { build: mock(() => Promise.resolve("system prompt")) };
 }
 
-function createSessionStore() {
-	let sessionId: string | undefined;
+function createSessionStore(existingSessionId?: string) {
+	let sessionId: string | undefined = existingSessionId;
+	const createdAt: number | undefined = existingSessionId ? Date.now() : undefined;
 	return {
 		get: mock(() => sessionId),
-		getRow: mock(() => (sessionId ? { key: "k", sessionId, createdAt: Date.now() } : undefined)),
+		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
 		save: mock((_profile: string, _key: string, nextSessionId: string) => {
 			sessionId = nextSessionId;
 		}),
@@ -803,5 +804,40 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 
 		runner.stop();
 		session2.resolve({ type: "cancelled" });
+	});
+
+	test("ハング検知によるローテーションは reason=hang_detected", async () => {
+		const eventBuffer = createEventBuffer(() => new Promise(() => {}));
+		const sessionPort = createSessionPortWithSessions([new Promise(() => {})]);
+		const metrics = createMockMetrics();
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore("existing-session-id") as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			eventBuffer,
+			sessionMaxAgeMs: 3_600_000,
+			hangTimeoutMs: 100,
+			metrics,
+		});
+		activeRunners.add(runner);
+
+		runner.ensurePolling();
+		await Bun.sleep(150);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const restartCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
+		);
+		const hangRestarts = restartCalls.filter(
+			(call: unknown[]) =>
+				(call[1] as Record<string, string> | undefined)?.reason === "hang_detected",
+		);
+		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
 	});
 });
