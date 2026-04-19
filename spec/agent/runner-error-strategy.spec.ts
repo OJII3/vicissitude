@@ -806,7 +806,7 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 		session2.resolve({ type: "cancelled" });
 	});
 
-	test("ハング検知によるローテーションは reason=hang_detected", async () => {
+	test("ハング検知によるローテーションは reason=hang_rotation", async () => {
 		const eventBuffer = createEventBuffer(() => new Promise(() => {}));
 		const sessionPort = createSessionPortWithSessions([new Promise(() => {})]);
 		const metrics = createMockMetrics();
@@ -834,7 +834,7 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 		);
 		const hangRestarts = restartCalls.filter(
 			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason === "hang_detected",
+				(call[1] as Record<string, string> | undefined)?.reason === "hang_rotation",
 		);
 		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
 
