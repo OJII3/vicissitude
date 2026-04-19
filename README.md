@@ -40,19 +40,19 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 ### 3.3 エージェントアーキテクチャ
 
 - OpenCode SDK + GitHub Copilot プロバイダ（claude モデル）で推論。
-- `promptAsync()` による長寿命ポーリングプロンプト方式。エージェント自身が `wait_for_events` でイベントを待ち受ける。
+- `promptAsync()` による長寿命ポーリングプロンプト方式。エージェント自身が `core_wait_for_events` でイベントを待ち受ける。
 - マルチテナント: テナント（Discord ギルド等）ごとに独立したセッションを持つ。
 - セッション ID は SQLite で永続化する。
 - セッションライフサイクル:
   1. **作成**: 既存セッション ID があればリモート存在確認の上で再利用、なければ新規作成。
-  2. **長寿命ポーリング**: LLM が `wait_for_events` を繰り返し呼び、セッションを半永続的に維持する。
+  2. **長寿命ポーリング**: LLM が `core_wait_for_events` を繰り返し呼び、セッションを半永続的に維持する。
   3. **要約生成**: ローテーション前に best-effort で LLM にセッション要約を生成させ、コンテキストファイルに書き出す。非リトライアブルエラー（セッション破損）時は生成自体をスキップし、タイムアウトや失敗時もスキップして、ローテーションを優先する。
   4. **ローテーション**: 旧セッションを削除し、次のループで新規セッションを作成する。
 - ローテーション契機:
   - **経過時間超過**: セッション寿命を超えたら idle 遷移時にローテーション。
   - **非リトライアブルエラー**: 即時ローテーション（バックオフなし）。
   - **リトライアブルエラー**: 指数バックオフで再試行し、バックオフ上限到達後さらにエラーが続いた場合にローテーション。
-  - **ハング検知**: `wait_for_events` が一定時間呼ばれない場合、セッションがハングしたとみなしローテーション。MCP ハートビートも考慮する。
+  - **ハング検知**: `core_wait_for_events` が一定時間呼ばれない場合、セッションがハングしたとみなしローテーション。MCP ハートビートも考慮する。
   - **外部削除**: セッションが外部から削除された場合。
 - Proactive compaction（ローテーション不要・コンテキスト圧縮）:
   - 発火条件: idle 遷移時に以下のいずれかを満たす場合（クールダウン 30 分）。
@@ -64,26 +64,26 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 ### 3.4 ツール構成
 
-MCP サーバー経由で各種操作を提供する。
+MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツールに `{サーバー名}_{ツール名}` のプレフィックスを付けるため、実際の呼び出し名は下表の通り。
 
-| カテゴリ     | MCP サーバー | 主要ツール                                                                                            |
-| ------------ | ------------ | ----------------------------------------------------------------------------------------------------- |
-| チャット     | core         | send_message, reply, add_reaction, read_messages, list_channels                                       |
-| イベント     | core         | wait_for_events                                                                                       |
-| コード実行   | code-exec    | execute_code                                                                                          |
-| スケジュール | core         | list_reminders, add_reminder, update_reminder, remove_reminder                                        |
-| 記憶         | core         | memory_retrieve, memory_get_facts                                                                     |
-| ゲーム委譲   | core         | minecraft_delegate, minecraft_status, minecraft_start_session, minecraft_stop_session                 |
-| ゲーム操作   | minecraft    | observe_state, follow_player, go_to, collect_block, attack_entity, craft_item 等                      |
-| ゲーム通信   | mc-bridge    | mc_report, check_commands                                                                             |
-| ゲーム記憶   | mc-bridge    | mc_read_goals, mc_update_goals, mc_read_progress, mc_update_progress, mc_read_skills, mc_record_skill |
-| 選曲         | core         | spotify_pick_track                                                                                    |
-| 楽曲検索     | core         | spotify_search                                                                                        |
-| お気に入り   | core         | spotify_saved_tracks                                                                                  |
-| 楽曲詳細     | core         | spotify_track_detail                                                                                  |
-| 歌詞取得     | core         | fetch_lyrics                                                                                          |
-| 聴取記録     | core         | save_listening_fact                                                                                   |
-| メタ         | core         | list_tools                                                                                            |
+| カテゴリ     | MCP サーバー | 主要ツール                                                                                                                                                        |
+| ------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| チャット     | core         | core_send_message, core_reply, core_add_reaction, core_read_messages, core_list_channels                                                                          |
+| イベント     | core         | core_wait_for_events                                                                                                                                              |
+| コード実行   | code-exec    | code-exec_execute_code                                                                                                                                            |
+| スケジュール | core         | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                |
+| 記憶         | core         | core_memory_retrieve, core_memory_get_facts                                                                                                                       |
+| ゲーム委譲   | core         | core_minecraft_delegate, core_minecraft_status, core_minecraft_start_session, core_minecraft_stop_session                                                         |
+| ゲーム操作   | minecraft    | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                      |
+| ゲーム通信   | mc-bridge    | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                     |
+| ゲーム記憶   | mc-bridge    | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill |
+| 選曲         | core         | core_spotify_pick_track                                                                                                                                           |
+| 楽曲検索     | core         | core_spotify_search                                                                                                                                               |
+| お気に入り   | core         | core_spotify_saved_tracks                                                                                                                                         |
+| 楽曲詳細     | core         | core_spotify_track_detail                                                                                                                                         |
+| 歌詞取得     | core         | core_fetch_lyrics                                                                                                                                                 |
+| 聴取記録     | core         | core_save_listening_fact                                                                                                                                          |
+| メタ         | core         | core_list_tools                                                                                                                                                   |
 
 OpenCode SDK 組み込み: `webfetch`
 
