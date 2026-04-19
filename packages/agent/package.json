@@ -13,6 +13,7 @@
 		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
 		"./discord/profile": "./src/discord/profile.ts",
 		"./minecraft/context-builder": "./src/minecraft/context-builder.ts",
+		"./minecraft/profile": "./src/minecraft/profile.ts",
 		"./emotion/estimator": "./src/emotion/estimator.ts"
 	},
 	"dependencies": {
