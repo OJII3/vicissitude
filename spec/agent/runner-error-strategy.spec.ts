@@ -20,7 +20,7 @@
  * | error_retryable_backoff     | retryable:true でバックオフ中の再起動             |
  * | error_retryable_rotation    | retryable:true で cap 到達後のローテーション      |
  * | error_non_retryable_rotation| retryable:false の即時ローテーション              |
- * | hang_detected               | (既存) ハング検知によるローテーション             |
+ * | hang_rotation               | ハング検知によるローテーション                    |
  */
 /* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";

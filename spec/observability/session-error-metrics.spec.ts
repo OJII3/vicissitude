@@ -72,11 +72,11 @@ describe("SESSION_RESTARTS カウンタ", () => {
 		c.registerCounter(METRIC.SESSION_RESTARTS, "session restarts");
 		c.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
 		c.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "error" });
-		c.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_detected" });
+		c.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_rotation" });
 
 		const output = c.serialize();
 		expect(output).toContain('session_restarts_total{reason="error"} 2');
-		expect(output).toContain('session_restarts_total{reason="hang_detected"} 1');
+		expect(output).toContain('session_restarts_total{reason="hang_rotation"} 1');
 	});
 });
 
