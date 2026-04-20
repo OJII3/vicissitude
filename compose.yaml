@@ -107,6 +107,12 @@ services:
       - prometheus-data:/prometheus
     networks:
       - vicissitude-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     logging:
       driver: journald
       options:
@@ -137,7 +143,8 @@ services:
     networks:
       - vicissitude-net
     depends_on:
-      - prometheus
+      prometheus:
+        condition: service_healthy
     logging:
       driver: journald
       options:
