@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
+import type { Logger } from "@vicissitude/shared/types";
+
 import { createShutdown, type ShutdownDeps } from "../../apps/discord/src/shutdown.ts";
 
 function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callOrder: string[] } {
@@ -11,7 +13,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 	return {
 		callOrder,
 		logger: (() => {
-			const l: import("@vicissitude/shared/types").Logger = {
+			const l: Logger = {
 				info: mock(),
 				error: mock(),
 				warn: mock(),

@@ -23,10 +23,10 @@ export function generateCorrelationId(): string {
 	bytes[5] = now & 0xff;
 
 	// version: 上位 4 ビットを 0111 に設定
-	bytes[6] = (bytes[6]! & 0x0f) | 0x70;
+	bytes[6] = ((bytes[6] ?? 0) & 0x0f) | 0x70;
 
 	// variant: 上位 2 ビットを 10 に設定
-	bytes[8] = (bytes[8]! & 0x3f) | 0x80;
+	bytes[8] = ((bytes[8] ?? 0) & 0x3f) | 0x80;
 
 	const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
