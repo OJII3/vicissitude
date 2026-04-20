@@ -43,7 +43,7 @@ function redactRecursive(obj: unknown, seen: WeakSet<object>): unknown {
 	}
 
 	if (seen.has(obj)) {
-		return obj;
+		return "[circular]";
 	}
 	seen.add(obj);
 

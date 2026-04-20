@@ -56,9 +56,10 @@ describe("redactObject - 内部ロジック", () => {
 			const obj: Record<string, unknown> = { name: "user@test.com" };
 			obj.self = obj;
 
-			// 無限再帰しなければ正常に返る
 			const result = redactObject(obj) as Record<string, unknown>;
 			expect(result.name).toBe("[REDACTED]");
+			// 循環参照はセンチネル値に置換される
+			expect(result.self).toBe("[circular]");
 		});
 
 		test("相互参照オブジェクトで無限再帰しない", () => {
@@ -71,6 +72,8 @@ describe("redactObject - 内部ロジック", () => {
 			expect(result.email).toBe("[REDACTED]");
 			const bResult = result.ref as Record<string, unknown>;
 			expect(bResult.email).toBe("[REDACTED]");
+			// 循環参照先はセンチネル値（元データがリークしない）
+			expect(bResult.ref).toBe("[circular]");
 		});
 
 		test("配列内の循環参照で無限再帰しない", () => {
@@ -79,6 +82,7 @@ describe("redactObject - 内部ロジック", () => {
 
 			const result = redactObject(arr) as unknown[];
 			expect(result[0]).toBe("[REDACTED]");
+			expect(result[1]).toBe("[circular]");
 		});
 	});
 
