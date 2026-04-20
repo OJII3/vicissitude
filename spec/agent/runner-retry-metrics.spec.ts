@@ -19,7 +19,7 @@
  * - ローテーション後にリセット
  * - idle（正常復帰）後にリセット
  */
-/* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop -- テストファイルはケース数に応じて長くなるため許容 */
+/* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop, no-non-null-assertion -- テストファイルはケース数に応じて長くなるため許容。non-null は length チェック後のインデックスアクセスに使用 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
@@ -196,8 +196,8 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 
 		const retryCalls = extractRetryCalls(metrics);
 		expect(retryCalls.length).toBe(1);
-		expect((retryCalls[0][1] as Record<string, string>).error_type).toBe("session_error");
-		expect((retryCalls[0][1] as Record<string, string>).attempt).toBe("1");
+		expect((retryCalls[0]![1] as Record<string, string>).error_type).toBe("session_error");
+		expect((retryCalls[0]![1] as Record<string, string>).attempt).toBe("1");
 
 		runner.stop();
 		session2.resolve({ type: "cancelled" });
@@ -259,9 +259,9 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 
 		const retryCalls = extractRetryCalls(metrics);
 		expect(retryCalls.length).toBe(3);
-		expect((retryCalls[0][1] as Record<string, string>).attempt).toBe("1");
-		expect((retryCalls[1][1] as Record<string, string>).attempt).toBe("2");
-		expect((retryCalls[2][1] as Record<string, string>).attempt).toBe("3");
+		expect((retryCalls[0]![1] as Record<string, string>).attempt).toBe("1");
+		expect((retryCalls[1]![1] as Record<string, string>).attempt).toBe("2");
+		expect((retryCalls[2]![1] as Record<string, string>).attempt).toBe("3");
 
 		runner.stop();
 		sessions[3]?.resolve({ type: "cancelled" });
@@ -431,7 +431,7 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 
 		const retryCalls = extractRetryCalls(metrics);
 		// 最後の retry call は attempt="1"（リセット後の初回）
-		const lastRetryCall = retryCalls.at(-1);
+		const lastRetryCall = retryCalls.at(-1)!;
 		expect((lastRetryCall[1] as Record<string, string>).attempt).toBe("1");
 
 		runner.stop();
@@ -491,7 +491,7 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 
 		const retryCallsBeforeIdle = extractRetryCalls(metrics);
 		expect(retryCallsBeforeIdle.length).toBe(2);
-		expect((retryCallsBeforeIdle[1][1] as Record<string, string>).attempt).toBe("2");
+		expect((retryCallsBeforeIdle[1]![1] as Record<string, string>).attempt).toBe("2");
 
 		// idle（正常復帰）→ attempt リセット
 		sessions[2]?.resolve({ type: "idle" });
@@ -507,7 +507,7 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 		await Bun.sleep(0);
 
 		const retryCallsAfterIdle = extractRetryCalls(metrics);
-		const lastRetryCall = retryCallsAfterIdle.at(-1);
+		const lastRetryCall = retryCallsAfterIdle.at(-1)!;
 		expect((lastRetryCall[1] as Record<string, string>).attempt).toBe("1");
 
 		runner.stop();
