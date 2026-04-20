@@ -22,6 +22,12 @@ export class MemoryChatAdapter {
 
 	async chat(messages: ChatMessage[]): Promise<string> {
 		const { system, userContent } = separateMessages(messages);
+		const modelLabel = `${this.providerId}/${this.modelId}`;
+		this.logger.debug("[memory-chat] llm_request", {
+			model: modelLabel,
+			prompt: userContent,
+			system,
+		});
 
 		const sessionId = await this.sessionPort.createSession("memory-chat");
 
@@ -32,6 +38,10 @@ export class MemoryChatAdapter {
 				model: { providerId: this.providerId, modelId: this.modelId },
 				system,
 				tools: {},
+			});
+			this.logger.debug("[memory-chat] llm_response", {
+				model: modelLabel,
+				text: result.text,
 			});
 			return result.text;
 		} finally {

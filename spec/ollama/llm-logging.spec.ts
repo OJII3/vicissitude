@@ -7,7 +7,7 @@
  * 3. debug ログにモデル情報が含まれる
  * 4. Logger が未設定（optional）の場合にエラーにならない
  */
-import { afterEach, describe, expect, it, mock } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
 
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";

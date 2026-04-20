@@ -22,7 +22,7 @@ function createMockClient() {
 				Promise.resolve({
 					stream: {
 						next: mock(() => new Promise<IteratorResult<never, void>>(() => {})),
-						return: mock(() => Promise.resolve({ done: true, value: undefined })),
+						return: mock(() => ({ done: true, value: undefined })),
 						[Symbol.asyncIterator]() {
 							return this;
 						},
