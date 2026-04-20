@@ -42,7 +42,7 @@ import type {
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { createDb } from "@vicissitude/store/db";
+import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
@@ -610,7 +610,7 @@ export async function bootstrap(): Promise<void> {
 		chatAdapter: memoryResources?.chatAdapter,
 		recorder: memoryResources?.recorder,
 		mcProcess,
-		db,
+		closeDb: () => closeDb(db),
 	});
 	process.on("SIGINT", () => void shutdown());
 	process.on("SIGTERM", () => void shutdown());

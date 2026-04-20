@@ -1,15 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, mock, spyOn } from "bun:test";
 
-import type { ShutdownDeps } from "../../apps/discord/src/shutdown.ts";
-
-// closeDb をモック
-const closeDbMock = mock(() => {});
-void mock.module("@vicissitude/store/db", () => ({
-	closeDb: closeDbMock,
-}));
-
-// モック後にインポート
-const { createShutdown } = await import("../../apps/discord/src/shutdown.ts");
+import { createShutdown, type ShutdownDeps } from "../../apps/discord/src/shutdown.ts";
 
 function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callOrder: string[] } {
 	const callOrder: string[] = [];
@@ -38,7 +29,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 		chatAdapter: { close: mock(track("chatAdapter")) },
 		recorder: { close: mock(track("recorder")) },
 		mcProcess: { kill: mock(track("mcProcess")) },
-		db: {} as ShutdownDeps["db"],
+		closeDb: mock(track("db")),
 		...overrides,
 	};
 }
@@ -58,7 +49,6 @@ describe("createShutdown()", () => {
 			42 as unknown as ReturnType<typeof setTimeout>,
 		);
 		clearTimeoutSpy = spyOn(globalThis, "clearTimeout");
-		closeDbMock.mockReset();
 	});
 
 	afterEach(() => {
@@ -71,9 +61,6 @@ describe("createShutdown()", () => {
 	describe("シャットダウン順序", () => {
 		it("14 コンポーネントが定義順にシャットダウンされる", async () => {
 			const deps = makeDeps();
-			closeDbMock.mockImplementation(() => {
-				deps.callOrder.push("db");
-			});
 			// clearInterval のスパイで sessionGauge の順序を記録
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {
 				deps.callOrder.push("sessionGauge");
@@ -114,9 +101,6 @@ describe("createShutdown()", () => {
 						throw new Error("heartbeatRouter error");
 					}),
 				},
-			});
-			closeDbMock.mockImplementation(() => {
-				deps.callOrder.push("db");
 			});
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {
 				deps.callOrder.push("sessionGauge");
@@ -161,12 +145,11 @@ describe("createShutdown()", () => {
 			expect(exitSpy).toHaveBeenCalledTimes(1);
 
 			exitSpy.mockClear();
-			closeDbMock.mockClear();
 
 			// 二度目の呼び出しは無視される
 			await shutdown();
 			expect(exitSpy).not.toHaveBeenCalled();
-			expect(closeDbMock).not.toHaveBeenCalled();
+			expect(deps.closeDb).toHaveBeenCalledTimes(1);
 		});
 	});
 
@@ -220,9 +203,6 @@ describe("createShutdown()", () => {
 				chatAdapter: undefined,
 				recorder: undefined,
 				mcProcess: undefined,
-			});
-			closeDbMock.mockImplementation(() => {
-				deps.callOrder.push("db");
 			});
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {
 				deps.callOrder.push("sessionGauge");

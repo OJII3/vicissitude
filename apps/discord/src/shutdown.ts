@@ -1,6 +1,4 @@
 import type { Logger } from "@vicissitude/shared/types";
-import type { StoreDb } from "@vicissitude/store/db";
-import { closeDb } from "@vicissitude/store/db";
 
 export interface ShutdownDeps {
 	logger: Logger;
@@ -17,7 +15,7 @@ export interface ShutdownDeps {
 	chatAdapter?: { close(): void };
 	recorder?: { close(): void };
 	mcProcess?: { kill(): void } | null;
-	db: StoreDb;
+	closeDb: () => void;
 }
 
 export function createShutdown(deps: ShutdownDeps): () => Promise<void> {
@@ -54,7 +52,7 @@ export function createShutdown(deps: ShutdownDeps): () => Promise<void> {
 		await safe("chatAdapter", () => deps.chatAdapter?.close());
 		await safe("recorder", () => deps.recorder?.close());
 		await safe("mcProcess", () => deps.mcProcess?.kill());
-		await safe("db", () => closeDb(deps.db));
+		await safe("db", () => deps.closeDb());
 
 		clearTimeout(forceTimer);
 		process.exit(0);
