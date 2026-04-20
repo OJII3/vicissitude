@@ -66,6 +66,7 @@ export class AgentRunner implements AiAgent {
 	private readonly minRotationIntervalMs = 300_000;
 	private lastWaitForEventsAt: number = Date.now();
 	private hangTimer: ReturnType<typeof setInterval> | null = null;
+	private retryAttempt = 0;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -222,6 +223,7 @@ export class AgentRunner implements AiAgent {
 					await this.forceSessionRotation();
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					continue;
 				}
 
@@ -232,6 +234,7 @@ export class AgentRunner implements AiAgent {
 					this.rewatchSession(signal);
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					continue;
 				}
 
@@ -240,6 +243,7 @@ export class AgentRunner implements AiAgent {
 				if (event.type === "idle" && (await this.tryProactiveCompact(event, signal))) {
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					continue;
 				}
 
@@ -249,6 +253,7 @@ export class AgentRunner implements AiAgent {
 				if (event.type !== "error") {
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
@@ -264,6 +269,7 @@ export class AgentRunner implements AiAgent {
 					await this.forceSessionRotation({ skipSummary: true });
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					continue;
 				}
 
@@ -276,8 +282,14 @@ export class AgentRunner implements AiAgent {
 					await this.forceSessionRotation();
 					delay = INITIAL_RECONNECT_DELAY_MS;
 					prevSleepWasCapped = false;
+					this.retryAttempt = 0;
 					continue;
 				}
+				this.retryAttempt += 1;
+				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
+					error_type: classifyErrorType(event),
+					attempt: String(this.retryAttempt),
+				});
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
 					reason: "error_retryable_backoff",
 				});
@@ -289,6 +301,11 @@ export class AgentRunner implements AiAgent {
 				);
 				this.sessionWatch = null;
 				// 例外時は retryable 不明のため retryable:true 扱いのバックオフ
+				this.retryAttempt += 1;
+				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
+					error_type: "session_error",
+					attempt: String(this.retryAttempt),
+				});
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
 					reason: "error_retryable_backoff",
 				});

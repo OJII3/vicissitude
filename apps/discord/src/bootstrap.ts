@@ -227,6 +227,7 @@ export function createMetrics(logger: Logger, port: number) {
 	// Session error metrics
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
+	collector.registerCounter(METRIC.SESSION_RETRIES, "Session retries total");
 	collector.registerCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, "Event buffer poll errors total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
