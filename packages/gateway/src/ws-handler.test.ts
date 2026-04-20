@@ -1,4 +1,4 @@
-import { type mock, describe, expect, it, spyOn } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
