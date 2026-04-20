@@ -42,7 +42,7 @@ import type {
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { createDb, closeDb } from "@vicissitude/store/db";
+import { createDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
@@ -58,6 +58,7 @@ import {
 	syncMcCheckReminder,
 } from "./migrations.ts";
 import { createPortLayout } from "./port-allocator.ts";
+import { createShutdown } from "./shutdown.ts";
 
 // ─── Store Layer ────────────────────────────────────────────────
 
@@ -594,43 +595,23 @@ export async function bootstrap(): Promise<void> {
 	}
 
 	// Graceful shutdown
-	let shuttingDown = false;
-	const shutdown = async () => {
-		if (shuttingDown) return;
-		shuttingDown = true;
-		logger.info("[bootstrap] Shutting down...");
-		// Force exit after 5 seconds if graceful shutdown hangs
-		const forceTimer = setTimeout(() => process.exit(1), 5000);
-
-		const safe = async (label: string, fn: () => void | Promise<void>) => {
-			try {
-				await fn();
-			} catch (err) {
-				logger.error(`[bootstrap] ${label}:`, err);
-			}
-		};
-
-		await safe("sessionGauge", () => clearInterval(sessionGaugeTimer));
-		await safe("consolidation", () => memoryResources?.consolidationScheduler.stop());
-		await safe("heartbeatScheduler", () => heartbeatScheduler.stop());
-		await safe("gateway", () => gateway.stop());
-		await safe("gatewayServer", async () => void (await gatewayServer.stop()));
-		await safe("mcBrainManager", () => mcBrainManager?.stop());
-		// heartbeatRouter.stop() -> each AgentRunner.stop() -> sessionPort.close() (SIGTERM to opencode child)
-		await safe("heartbeatRouter", () => heartbeatRouter.stop());
-		// routingAgent.stop() -> GuildRouter.stop() -> each AgentRunner.stop() -> sessionPort.close()
-		await safe("routingAgent", () => routingAgent.stop());
-		await safe("metrics", () => metrics.server.stop());
-		await safe("factReader", () => factReader.close());
-		// chatAdapter.close() -> MemoryChatAdapter.close() -> memorySessionPort.close()
-		await safe("chatAdapter", () => memoryResources?.chatAdapter.close());
-		await safe("recorder", () => memoryResources?.recorder.close());
-		await safe("mcProcess", () => mcProcess?.kill());
-		await safe("db", () => closeDb(db));
-
-		clearTimeout(forceTimer);
-		process.exit(0);
-	};
+	const shutdown = createShutdown({
+		logger,
+		sessionGaugeTimer,
+		consolidationScheduler: memoryResources?.consolidationScheduler,
+		heartbeatScheduler,
+		gateway,
+		gatewayServer,
+		mcBrainManager,
+		heartbeatRouter,
+		routingAgent,
+		metricsServer: metrics.server,
+		factReader,
+		chatAdapter: memoryResources?.chatAdapter,
+		recorder: memoryResources?.recorder,
+		mcProcess,
+		db,
+	});
 	process.on("SIGINT", () => void shutdown());
 	process.on("SIGTERM", () => void shutdown());
 
