@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 import { ConsoleLogger } from "@vicissitude/observability/logger";
+import type { Logger } from "@vicissitude/shared/types";
 
 function captureWrite(stream: "stdout" | "stderr") {
 	const original = process[stream].write;
@@ -118,6 +119,55 @@ describe("ConsoleLogger", () => {
 			logger.info("no extra");
 
 			expect(output()).toContain("no extra");
+		});
+	});
+
+	// ─── child logger ───────────────────────────────────────────────
+
+	describe("child logger", () => {
+		it("bindings を全ログに付与する", () => {
+			const logger = new ConsoleLogger();
+			const child = logger.child({ correlationId: "test-correlation-id" });
+			child.info("child message");
+
+			const out = output();
+			expect(out).toContain("child message");
+			expect(out).toContain("test-correlation-id");
+		});
+
+		it("ログレベルを親から引き継ぐ", () => {
+			const logger = new ConsoleLogger({ level: "info" });
+			const child = logger.child({ correlationId: "id-1" });
+			child.debug("should not appear");
+
+			expect(output()).toBe("");
+		});
+
+		it("Logger interface を満たす", () => {
+			const logger = new ConsoleLogger();
+			const child = logger.child({ correlationId: "id-2" });
+
+			// Logger interface の全メソッドが存在する
+			expect(typeof child.debug).toBe("function");
+			expect(typeof child.info).toBe("function");
+			expect(typeof child.error).toBe("function");
+			expect(typeof child.warn).toBe("function");
+			expect(typeof child.child).toBe("function");
+
+			// 型レベルでも Logger を満たすことを確認
+			const _: Logger = child;
+			expect(_).toBeDefined();
+		});
+
+		it("ネストした child logger が全 bindings をマージする", () => {
+			const logger = new ConsoleLogger();
+			const nested = logger.child({ a: 1 }).child({ b: 2 });
+			nested.info("nested message");
+
+			const out = output();
+			expect(out).toContain("nested message");
+			expect(out).toContain("1");
+			expect(out).toContain("2");
 		});
 	});
 });
