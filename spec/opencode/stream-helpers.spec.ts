@@ -599,7 +599,7 @@ describe("logPartActivity", () => {
 	function makeLogger() {
 		const infoMessages: string[] = [];
 		const errorMessages: string[] = [];
-		return {
+		const logger = {
 			info: mock((msg: string) => {
 				infoMessages.push(msg);
 			}),
@@ -608,9 +608,13 @@ describe("logPartActivity", () => {
 			}),
 			warn: mock(() => {}),
 			debug: mock(() => {}),
+			child() {
+				return logger;
+			},
 			infoMessages,
 			errorMessages,
 		};
+		return logger;
 	}
 
 	function makePartEvent(partProps: Record<string, unknown>, sid: string = sessionId): Event {

@@ -1,6 +1,7 @@
 /* oxlint-disable require-await, no-constructor-return, typescript/no-floating-promises -- テスト用モック */
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
+import type { Logger } from "@vicissitude/shared/types";
 import { Events } from "discord.js";
 
 import { DiscordGateway } from "./discord";
@@ -56,13 +57,15 @@ type LogLevel = "debug" | "info" | "warn" | "error";
 
 function createSpyLogger() {
 	const calls: { level: LogLevel; args: unknown[] }[] = [];
+	const logger: Logger = {
+		debug: (...args: unknown[]) => calls.push({ level: "debug", args }),
+		info: (...args: unknown[]) => calls.push({ level: "info", args }),
+		warn: (...args: unknown[]) => calls.push({ level: "warn", args }),
+		error: (...args: unknown[]) => calls.push({ level: "error", args }),
+		child: () => logger,
+	};
 	return {
-		logger: {
-			debug: (...args: unknown[]) => calls.push({ level: "debug", args }),
-			info: (...args: unknown[]) => calls.push({ level: "info", args }),
-			warn: (...args: unknown[]) => calls.push({ level: "warn", args }),
-			error: (...args: unknown[]) => calls.push({ level: "error", args }),
-		},
+		logger,
 		calls,
 		warnCalls: () => calls.filter((c) => c.level === "warn"),
 	};

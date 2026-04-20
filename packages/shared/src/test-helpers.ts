@@ -3,12 +3,14 @@ import { mock } from "bun:test";
 import type { Logger, MetricsCollector } from "./types";
 
 export function createMockLogger(): Logger {
-	return {
+	const logger: Logger = {
 		debug: mock(() => {}),
 		info: mock(() => {}),
 		error: mock(() => {}),
 		warn: mock(() => {}),
+		child: () => createMockLogger(),
 	};
+	return logger;
 }
 
 export function createMockMetrics(): MetricsCollector {

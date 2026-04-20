@@ -158,6 +158,7 @@ export interface Logger {
 	info(message: string, ...args: unknown[]): void;
 	error(message: string, ...args: unknown[]): void;
 	warn(message: string, ...args: unknown[]): void;
+	child(bindings: Record<string, unknown>): Logger;
 }
 
 // ─── Conversation Recorder ───────────────────────────────────────
