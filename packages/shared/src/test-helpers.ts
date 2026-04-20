@@ -8,7 +8,7 @@ export function createMockLogger(): Logger {
 		info: mock(() => {}),
 		error: mock(() => {}),
 		warn: mock(() => {}),
-		child: () => createMockLogger(),
+		child: mock(() => logger),
 	};
 	return logger;
 }

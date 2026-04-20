@@ -38,15 +38,13 @@ function createAdapterWithLoggerSpy(client: OpencodeClient) {
 		info: mock(() => {}),
 		warn: mock(() => {}),
 		error: mock(() => {}),
-		child() {
-			return loggerSpy as Logger;
-		},
+		child: () => loggerSpy as Logger,
 	};
 	const adapter = new OpencodeSessionAdapter({
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
-		logger: loggerSpy,
+		logger: loggerSpy as Logger,
 		clientFactory: mock(() =>
 			Promise.resolve({
 				client,

@@ -2,7 +2,8 @@ import type { Logger } from "@vicissitude/shared/types";
 import pino from "pino";
 
 export class ConsoleLogger implements Logger {
-	private readonly pino: pino.Logger;
+	// oxlint-disable-next-line typescript/no-explicit-any -- pino の child() が返す型パラメータが親と異なるため any で統一
+	private readonly pino: pino.Logger<any>;
 
 	/**
 	 * @param options — 設定オブジェクト。
@@ -14,9 +15,12 @@ export class ConsoleLogger implements Logger {
 		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
 	}
 
-	private static fromPino(instance: pino.Logger): ConsoleLogger {
+	/** @internal 既存の pino インスタンスをラップする */
+	// oxlint-disable-next-line typescript/no-explicit-any
+	private static fromPino(instance: pino.Logger<any>): ConsoleLogger {
 		const logger = Object.create(ConsoleLogger.prototype) as ConsoleLogger;
-		(logger as unknown as { pino: pino.Logger }).pino = instance;
+		// oxlint-disable-next-line typescript/no-explicit-any
+		(logger as any).pino = instance;
 		return logger;
 	}
 

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 
 import { ConsoleLogger } from "@vicissitude/observability/logger";
+import type { Logger } from "@vicissitude/shared/types";
 
 function captureWrite(stream: "stdout" | "stderr") {
 	const original = process[stream].write;

@@ -80,12 +80,10 @@ describe("SqliteEventBuffer (internal: onPollError callback)", () => {
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: mock(() => {}),
-			child() {
-				return logger as Logger;
-			},
+			child: () => logger as Logger,
 		};
 		const callback = mock((_err: unknown) => {});
-		const buffer = new SqliteEventBuffer(db, "agent-1", logger, (err) => {
+		const buffer = new SqliteEventBuffer(db, "agent-1", logger as Logger, (err) => {
 			callback(err);
 		});
 
@@ -118,11 +116,9 @@ describe("SqliteEventBuffer (internal: onPollError callback)", () => {
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: mock(() => {}),
-			child() {
-				return logger as Logger;
-			},
+			child: () => logger as Logger,
 		};
-		const buffer = new SqliteEventBuffer(db, "agent-1", logger);
+		const buffer = new SqliteEventBuffer(db, "agent-1", logger as Logger);
 
 		db.run("DROP TABLE event_buffer");
 
