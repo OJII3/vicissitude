@@ -134,7 +134,7 @@ describe("wrapServerWithMetrics", () => {
 
 			expect(() => call(handlers, "fail_tool", {})).toThrow();
 
-			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			const errorCalls = logger.error.mock.calls;
 			expect(errorCalls.length).toBeGreaterThanOrEqual(1);
 			const logMessage = String(errorCalls[0]);
 			expect(logMessage).toContain("fail_tool");
@@ -195,7 +195,7 @@ describe("wrapServerWithMetrics", () => {
 			// oxlint-disable-next-line await-thenable -- Bun の expect().rejects.toThrow() は実行時 Promise
 			await expect(callAsync(handlers, "async_fail", {})).rejects.toThrow();
 
-			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			const errorCalls = logger.error.mock.calls;
 			expect(errorCalls.length).toBeGreaterThanOrEqual(1);
 			const logMessage = String(errorCalls[0]);
 			expect(logMessage).toContain("async_fail");

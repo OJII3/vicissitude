@@ -159,7 +159,7 @@ describe("WsConnectionManager (unit)", () => {
 			expect(errorMessages).toHaveLength(0);
 
 			// Logger.error が呼ばれる
-			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			const errorCalls = logger.error.mock.calls;
 			expect(errorCalls).toHaveLength(1);
 			expect(errorCalls[0]?.[0]).toBe("[gateway] Message handler threw an exception");
 			const detail = errorCalls[0]?.[1] as Record<string, unknown>;
