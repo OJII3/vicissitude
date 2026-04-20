@@ -122,14 +122,16 @@ describe("redactObject - 内部ロジック", () => {
 			const input = {};
 			const result = redactObject(input);
 			expect(result).toEqual({});
-			expect(result).not.toBe(input); // 別オブジェクトであること
+			// 別オブジェクトであること
+			expect(result).not.toBe(input);
 		});
 
 		test("空配列はコピーされて返る", () => {
 			const input: unknown[] = [];
 			const result = redactObject(input);
 			expect(result).toEqual([]);
-			expect(result).not.toBe(input); // 別配列であること
+			// 別配列であること
+			expect(result).not.toBe(input);
 		});
 	});
 
@@ -143,7 +145,8 @@ describe("redactObject - 内部ロジック", () => {
 		});
 
 		test("undefined を直接渡した場合はそのまま返る", () => {
-			expect(redactObject(undefined)).toBeUndefined();
+			const undef: unknown = void 0;
+			expect(redactObject(undef)).toBeUndefined();
 		});
 	});
 });
