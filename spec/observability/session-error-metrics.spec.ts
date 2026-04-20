@@ -23,6 +23,10 @@ describe("METRIC 定数: セッションエラー関連", () => {
 	it("EVENT_BUFFER_POLL_ERRORS が定義されている", () => {
 		expect(METRIC.EVENT_BUFFER_POLL_ERRORS).toBe("event_buffer_poll_errors_total");
 	});
+
+	it("SESSION_RETRIES が定義されている", () => {
+		expect(METRIC.SESSION_RETRIES).toBe("session_retries_total");
+	});
 });
 
 // ─── カウンタ動作の検証 ──────────────────────────────────────────
@@ -89,5 +93,28 @@ describe("EVENT_BUFFER_POLL_ERRORS カウンタ", () => {
 
 		const output = c.serialize();
 		expect(output).toContain("event_buffer_poll_errors_total 2");
+	});
+});
+
+describe("SESSION_RETRIES カウンタ", () => {
+	it("error_type, attempt ラベル付きでインクリメントできる", () => {
+		const c = new PrometheusCollector();
+		c.registerCounter(METRIC.SESSION_RETRIES, "session retries");
+		c.incrementCounter(METRIC.SESSION_RETRIES, {
+			error_type: "session_error",
+			attempt: "1",
+		});
+		c.incrementCounter(METRIC.SESSION_RETRIES, {
+			error_type: "rate_limit",
+			attempt: "2",
+		});
+		c.incrementCounter(METRIC.SESSION_RETRIES, {
+			error_type: "session_error",
+			attempt: "1",
+		});
+
+		const output = c.serialize();
+		expect(output).toContain('session_retries_total{attempt="1",error_type="session_error"} 2');
+		expect(output).toContain('session_retries_total{attempt="2",error_type="rate_limit"} 1');
 	});
 });
