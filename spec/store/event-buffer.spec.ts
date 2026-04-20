@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import type { Logger } from "@vicissitude/shared/types";
 import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { appendEvent } from "@vicissitude/store/queries";
@@ -7,22 +8,24 @@ import { createTestDb } from "@vicissitude/store/test-helpers";
 
 function createMockLogger() {
 	const calls = { debug: 0, info: 0, warn: 0, error: 0 };
+	const logger: Logger = {
+		debug: (..._args: unknown[]) => {
+			calls.debug++;
+		},
+		info: (..._args: unknown[]) => {
+			calls.info++;
+		},
+		warn: (..._args: unknown[]) => {
+			calls.warn++;
+		},
+		error: (..._args: unknown[]) => {
+			calls.error++;
+		},
+		child: () => logger,
+	};
 	return {
 		calls,
-		logger: {
-			debug: (..._args: unknown[]) => {
-				calls.debug++;
-			},
-			info: (..._args: unknown[]) => {
-				calls.info++;
-			},
-			warn: (..._args: unknown[]) => {
-				calls.warn++;
-			},
-			error: (..._args: unknown[]) => {
-				calls.error++;
-			},
-		},
+		logger,
 	};
 }
 

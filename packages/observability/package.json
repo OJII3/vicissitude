@@ -3,6 +3,7 @@
 	"private": true,
 	"exports": {
 		"./logger": "./src/logger.ts",
-		"./metrics": "./src/metrics.ts"
+		"./metrics": "./src/metrics.ts",
+		"./correlation": "./src/correlation.ts"
 	}
 }

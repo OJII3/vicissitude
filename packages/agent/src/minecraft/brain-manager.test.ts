@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 
-import type { MetricsCollector } from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { clearSessionLock, tryAcquireSessionLock } from "@vicissitude/store/mc-bridge";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
@@ -16,12 +16,16 @@ function createTestDeps(overrides?: Partial<McBrainManagerDeps>): McBrainManager
 		db: createTestDb(),
 		// oxlint-disable-next-line no-explicit-any -- テスト用の最小モック
 		sessionStore: { get: mock(() => null), set: mock(() => {}), count: mock(() => 0) } as any,
-		logger: {
-			debug: mock(() => {}),
-			info: mock(() => {}),
-			warn: mock(() => {}),
-			error: mock(() => {}),
-		},
+		logger: (() => {
+			const l: Logger = {
+				debug: mock(() => {}),
+				info: mock(() => {}),
+				warn: mock(() => {}),
+				error: mock(() => {}),
+				child: () => l,
+			};
+			return l;
+		})(),
 		root: "/tmp/test-mc-sub",
 		opencodePort: 9999,
 		providerId: "test-provider",

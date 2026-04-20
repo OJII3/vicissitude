@@ -810,11 +810,14 @@ describe("pollEvents", () => {
 		db.run("DROP TABLE event_buffer");
 
 		const errorFn = mock(() => {});
-		const logger = {
+		const logger: import("@vicissitude/shared/types").Logger = {
 			debug: mock(() => {}),
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: errorFn,
+			child() {
+				return logger;
+			},
 		};
 
 		const deadline = Date.now() + 200;
