@@ -65,8 +65,7 @@ CREATE TABLE IF NOT EXISTS mood_state (
 
 CREATE TABLE IF NOT EXISTS agent_heartbeat (
 	agent_id TEXT PRIMARY KEY,
-	last_seen_at INTEGER NOT NULL,
-	rotation_requested_at INTEGER NOT NULL DEFAULT 0
+	last_seen_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS mc_session_lock (
@@ -113,7 +112,7 @@ function migrateDb(sqlite: Database): void {
 		}
 	}
 
-	// agent_heartbeat: rotation_requested_at カラム追加
+	// agent_heartbeat: rotation_requested_at カラム削除（#632）
 	const hasHeartbeat = sqlite
 		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_heartbeat'")
 		.get();
@@ -121,10 +120,8 @@ function migrateDb(sqlite: Database): void {
 		const columns = sqlite.prepare("PRAGMA table_info(agent_heartbeat)").all() as {
 			name: string;
 		}[];
-		if (!columns.some((c) => c.name === "rotation_requested_at")) {
-			sqlite.exec(
-				"ALTER TABLE agent_heartbeat ADD COLUMN rotation_requested_at INTEGER NOT NULL DEFAULT 0",
-			);
+		if (columns.some((c) => c.name === "rotation_requested_at")) {
+			sqlite.exec("ALTER TABLE agent_heartbeat DROP COLUMN rotation_requested_at");
 		}
 	}
 
