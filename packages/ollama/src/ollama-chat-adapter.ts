@@ -1,11 +1,18 @@
+/** ollama パッケージは外部 workspace に依存できないため、必要最小限のログインターフェースをローカル定義 */
+interface OllamaLogger {
+	debug(message: string, ...args: unknown[]): void;
+}
+
 /** Ollama HTTP API generate adapter */
 export class OllamaChatAdapter {
 	constructor(
 		private readonly baseUrl: string,
 		private readonly model: string,
+		private readonly logger?: OllamaLogger,
 	) {}
 
 	async prompt(text: string): Promise<string> {
+		this.logger?.debug("[ollama] llm_request", { model: this.model, prompt: text });
 		const url = new URL("/api/generate", this.baseUrl);
 		const response = await fetch(url, {
 			method: "POST",
@@ -22,6 +29,7 @@ export class OllamaChatAdapter {
 		if (typeof data.response !== "string") {
 			throw new TypeError("Ollama generate returned no response field");
 		}
+		this.logger?.debug("[ollama] llm_response", { model: this.model, text: data.response });
 		return data.response;
 	}
 }
