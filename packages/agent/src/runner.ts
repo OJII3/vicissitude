@@ -179,6 +179,7 @@ export class AgentRunner implements AiAgent {
 		this.running = true;
 		this.abortController = new AbortController();
 		this.hasStartedSession = false;
+		this.retryAttempt = 0;
 		const signal = this.abortController.signal;
 
 		let delay = INITIAL_RECONNECT_DELAY_MS;
