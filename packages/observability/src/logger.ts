@@ -24,10 +24,6 @@ export class ConsoleLogger implements Logger {
 		return logger;
 	}
 
-	child(bindings: Record<string, unknown>): Logger {
-		return ConsoleLogger.fromPino(this.pino.child(bindings));
-	}
-
 	debug(message: string, ...args: unknown[]): void {
 		this.log("debug", message, args);
 	}
@@ -42,6 +38,10 @@ export class ConsoleLogger implements Logger {
 
 	warn(message: string, ...args: unknown[]): void {
 		this.log("warn", message, args);
+	}
+
+	child(bindings: Record<string, unknown>): ConsoleLogger {
+		return ConsoleLogger.fromPino(this.pino.child(bindings));
 	}
 
 	private log(level: pino.Level, message: string, args: unknown[]): void {

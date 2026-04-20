@@ -23,10 +23,7 @@ function createMockLogger() {
 		},
 		child: () => logger,
 	};
-	return {
-		calls,
-		logger,
-	};
+	return { calls, logger };
 }
 
 /** テスト用: DB の event_buffer テーブルを DROP してポーリングエラーを発生させる */

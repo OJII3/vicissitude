@@ -122,52 +122,55 @@ describe("ConsoleLogger", () => {
 		});
 	});
 
-	// ─── child logger ───────────────────────────────────────────────
+	// ─── child() によるコンテキスト付きロガー ────────────────────
 
-	describe("child logger", () => {
-		it("bindings を全ログに付与する", () => {
-			const logger = new ConsoleLogger();
-			const child = logger.child({ correlationId: "test-correlation-id" });
-			child.info("child message");
+	describe("child() によるコンテキスト付きロガー", () => {
+		it("child() で新しい Logger インスタンスが返る", () => {
+			const logger = new ConsoleLogger({ level: "info" });
+			const child = logger.child({ trace_id: "abc-123" });
 
-			const out = output();
-			expect(out).toContain("child message");
-			expect(out).toContain("test-correlation-id");
+			expect(child).not.toBe(logger);
 		});
 
-		it("ログレベルを親から引き継ぐ", () => {
+		it("child logger の出力に trace_id フィールドが含まれる", () => {
 			const logger = new ConsoleLogger({ level: "info" });
-			const child = logger.child({ correlationId: "id-1" });
-			child.debug("should not appear");
+			const child = logger.child({ trace_id: "trace-xyz" });
+			child.info("hello from child");
+
+			const out = output();
+			expect(out).toContain("hello from child");
+			expect(out).toContain("trace_id");
+			expect(out).toContain("trace-xyz");
+		});
+
+		it("child logger のログレベルは親から引き継がれる", () => {
+			const logger = new ConsoleLogger({ level: "info" });
+			const child = logger.child({ trace_id: "lvl-test" });
+			child.debug("should be suppressed");
 
 			expect(output()).toBe("");
 		});
 
-		it("Logger interface を満たす", () => {
-			const logger = new ConsoleLogger();
-			const child = logger.child({ correlationId: "id-2" });
-
-			// Logger interface の全メソッドが存在する
-			expect(typeof child.debug).toBe("function");
-			expect(typeof child.info).toBe("function");
-			expect(typeof child.error).toBe("function");
-			expect(typeof child.warn).toBe("function");
-			expect(typeof child.child).toBe("function");
-
-			// 型レベルでも Logger を満たすことを確認
-			const _: Logger = child;
-			expect(_).toBeDefined();
-		});
-
-		it("ネストした child logger が全 bindings をマージする", () => {
-			const logger = new ConsoleLogger();
-			const nested = logger.child({ a: 1 }).child({ b: 2 });
-			nested.info("nested message");
+		it("child() を連鎖できる（両方のフィールドが出力に含まれる）", () => {
+			const logger = new ConsoleLogger({ level: "info" });
+			const child = logger.child({ a: 1 }).child({ b: 2 });
+			child.info("chained");
 
 			const out = output();
-			expect(out).toContain("nested message");
-			expect(out).toContain("1");
-			expect(out).toContain("2");
+			expect(out).toContain("chained");
+			expect(out).toContain('"a":1');
+			expect(out).toContain('"b":2');
+		});
+
+		it("child logger は Logger インターフェースを満たす", () => {
+			const logger = new ConsoleLogger({ level: "debug" });
+			const child = logger.child({ trace_id: "iface-check" });
+
+			expect(typeof child.debug).toBe("function");
+			expect(typeof child.info).toBe("function");
+			expect(typeof child.warn).toBe("function");
+			expect(typeof child.error).toBe("function");
+			expect(typeof child.child).toBe("function");
 		});
 	});
 });
