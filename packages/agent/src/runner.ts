@@ -187,6 +187,12 @@ export class AgentRunner implements AiAgent {
 		// cap 到達後も error が継続した場合にローテーションへエスカレーションするために使用。
 		let prevSleepWasCapped = false;
 
+		const resetBackoffState = () => {
+			delay = INITIAL_RECONNECT_DELAY_MS;
+			prevSleepWasCapped = false;
+			this.retryAttempt = 0;
+		};
+
 		while (this.running && !signal.aborted) {
 			try {
 				// eslint-disable-next-line no-await-in-loop -- startup/restart is sequential
@@ -222,9 +228,7 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					continue;
 				}
 
@@ -233,18 +237,14 @@ export class AgentRunner implements AiAgent {
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
 				if (event.type === "compacted" || event.type === "streamDisconnected") {
 					this.rewatchSession(signal);
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					continue;
 				}
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
 				// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
 				if (event.type === "idle" && (await this.tryProactiveCompact(event, signal))) {
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					continue;
 				}
 
@@ -252,9 +252,7 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
@@ -268,9 +266,7 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
 					await this.forceSessionRotation({ skipSummary: true });
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					continue;
 				}
 
@@ -281,9 +277,7 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
 					await this.forceSessionRotation();
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
-					this.retryAttempt = 0;
+					resetBackoffState();
 					continue;
 				}
 				this.retryAttempt += 1;
