@@ -6,9 +6,9 @@ describe("getModelPricing", () => {
 	it("既知モデル（gpt-4o）の単価が取得できる", () => {
 		const pricing = getModelPricing("gpt-4o");
 		expect(pricing).toBeDefined();
-		expect(pricing!.inputPerMillionTokens).toBeGreaterThan(0);
-		expect(pricing!.outputPerMillionTokens).toBeGreaterThan(0);
-		expect(pricing!.cacheReadPerMillionTokens).toBeGreaterThanOrEqual(0);
+		expect(pricing?.inputPerMillionTokens).toBeGreaterThan(0);
+		expect(pricing?.outputPerMillionTokens).toBeGreaterThan(0);
+		expect(pricing?.cacheReadPerMillionTokens).toBeGreaterThanOrEqual(0);
 	});
 
 	it("未知モデルでは undefined が返る", () => {
