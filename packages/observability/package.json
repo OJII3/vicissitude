@@ -4,6 +4,7 @@
 	"exports": {
 		"./logger": "./src/logger.ts",
 		"./metrics": "./src/metrics.ts",
-		"./correlation": "./src/correlation.ts"
+		"./correlation": "./src/correlation.ts",
+		"./log-redact": "./src/log-redact.ts"
 	}
 }

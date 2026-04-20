@@ -1,6 +1,8 @@
 import type { Logger } from "@vicissitude/shared/types";
 import pino from "pino";
 
+import { maskSecrets, redactObject } from "./log-redact.ts";
+
 export class ConsoleLogger implements Logger {
 	// oxlint-disable-next-line typescript/no-explicit-any -- pino の child() が返す型パラメータが親と異なるため any で統一
 	private readonly pino: pino.Logger<any>;
@@ -45,10 +47,15 @@ export class ConsoleLogger implements Logger {
 	}
 
 	private log(level: pino.Level, message: string, args: unknown[]): void {
+		const maskedMessage = maskSecrets(message);
 		if (args.length > 0) {
-			this.pino[level]({ extra: args.length === 1 ? args[0] : args }, message);
+			const maskedArgs = args.map((a) => redactObject(a));
+			this.pino[level](
+				{ extra: maskedArgs.length === 1 ? maskedArgs[0] : maskedArgs },
+				maskedMessage,
+			);
 		} else {
-			this.pino[level](message);
+			this.pino[level](maskedMessage);
 		}
 	}
 }
