@@ -3,7 +3,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Logger } from "@vicissitude/shared/types";
 import {
 	MAX_POLL_TIMEOUT_SECONDS,
 	classifyActionHint,
@@ -16,6 +15,7 @@ import {
 	registerEventBufferTools,
 } from "@vicissitude/mcp/tools/event-buffer";
 import type { ErrorEvent, ParsedEvent, RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
+import type { Logger } from "@vicissitude/shared/types";
 import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -816,7 +816,9 @@ describe("pollEvents", () => {
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: errorFn,
-			child() { return logger; },
+			child() {
+				return logger;
+			},
 		};
 
 		const deadline = Date.now() + 200;

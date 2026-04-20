@@ -9,7 +9,13 @@ import { DiscordGateway } from "../../apps/discord/src/gateway/discord";
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function createSilentLogger() {
-	const l: Logger = { debug: () => {}, info: () => {}, error: () => {}, warn: () => {}, child: () => l };
+	const l: Logger = {
+		debug: () => {},
+		info: () => {},
+		error: () => {},
+		warn: () => {},
+		child: () => l,
+	};
 	return l;
 }
 

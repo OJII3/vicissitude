@@ -608,7 +608,9 @@ describe("logPartActivity", () => {
 			}),
 			warn: mock(() => {}),
 			debug: mock(() => {}),
-			child() { return logger; },
+			child() {
+				return logger;
+			},
 			infoMessages,
 			errorMessages,
 		};

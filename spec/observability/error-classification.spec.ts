@@ -22,15 +22,13 @@ describe("classifyErrorType: rate_limit", () => {
 	});
 
 	it("status=429 で message が他のパターンに一致する場合でも rate_limit が優先される", () => {
-		expect(
-			classifyErrorType({ status: 429, message: "context_length exceeded" }),
-		).toBe("rate_limit");
-		expect(
-			classifyErrorType({ status: 429, message: "content_filter triggered" }),
-		).toBe("rate_limit");
-		expect(
-			classifyErrorType({ status: 429, message: "request timed out" }),
-		).toBe("rate_limit");
+		expect(classifyErrorType({ status: 429, message: "context_length exceeded" })).toBe(
+			"rate_limit",
+		);
+		expect(classifyErrorType({ status: 429, message: "content_filter triggered" })).toBe(
+			"rate_limit",
+		);
+		expect(classifyErrorType({ status: 429, message: "request timed out" })).toBe("rate_limit");
 	});
 });
 
@@ -38,15 +36,15 @@ describe("classifyErrorType: rate_limit", () => {
 
 describe("classifyErrorType: context_length_exceeded", () => {
 	it("message に 'context_length' を含む場合 context_length_exceeded を返す", () => {
-		expect(
-			classifyErrorType({ status: 400, message: "context_length limit reached" }),
-		).toBe("context_length_exceeded");
+		expect(classifyErrorType({ status: 400, message: "context_length limit reached" })).toBe(
+			"context_length_exceeded",
+		);
 	});
 
 	it("message に 'max_tokens' を含む場合（大文字小文字混在）context_length_exceeded を返す", () => {
-		expect(
-			classifyErrorType({ message: "Max_Tokens exceeded the model limit" }),
-		).toBe("context_length_exceeded");
+		expect(classifyErrorType({ message: "Max_Tokens exceeded the model limit" })).toBe(
+			"context_length_exceeded",
+		);
 	});
 });
 
@@ -54,15 +52,15 @@ describe("classifyErrorType: context_length_exceeded", () => {
 
 describe("classifyErrorType: content_filter", () => {
 	it("message に 'content_filter' を含む場合 content_filter を返す", () => {
-		expect(
-			classifyErrorType({ message: "blocked by content_filter policy" }),
-		).toBe("content_filter");
+		expect(classifyErrorType({ message: "blocked by content_filter policy" })).toBe(
+			"content_filter",
+		);
 	});
 
 	it("message に 'content_management' を含む場合 content_filter を返す", () => {
-		expect(
-			classifyErrorType({ message: "content_management restriction applied" }),
-		).toBe("content_filter");
+		expect(classifyErrorType({ message: "content_management restriction applied" })).toBe(
+			"content_filter",
+		);
 	});
 });
 
@@ -70,15 +68,11 @@ describe("classifyErrorType: content_filter", () => {
 
 describe("classifyErrorType: timeout", () => {
 	it("message に 'timed out' を含む場合 timeout を返す", () => {
-		expect(
-			classifyErrorType({ message: "request timed out after 30s" }),
-		).toBe("timeout");
+		expect(classifyErrorType({ message: "request timed out after 30s" })).toBe("timeout");
 	});
 
 	it("message に 'timeout' を含む場合 timeout を返す", () => {
-		expect(
-			classifyErrorType({ message: "connection timeout" }),
-		).toBe("timeout");
+		expect(classifyErrorType({ message: "connection timeout" })).toBe("timeout");
 	});
 });
 
@@ -86,9 +80,9 @@ describe("classifyErrorType: timeout", () => {
 
 describe("classifyErrorType: session_error（デフォルト）", () => {
 	it("status=500 で message がどのパターンにも一致しない場合 session_error を返す", () => {
-		expect(
-			classifyErrorType({ status: 500, message: "internal server error" }),
-		).toBe("session_error");
+		expect(classifyErrorType({ status: 500, message: "internal server error" })).toBe(
+			"session_error",
+		);
 	});
 
 	it("全フィールドが undefined の場合 session_error を返す", () => {

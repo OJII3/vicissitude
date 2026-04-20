@@ -10,7 +10,15 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 
 	return {
 		callOrder,
-		logger: { info: mock(), error: mock(), warn: mock(), debug: mock(), child() { return this; } },
+		logger: {
+			info: mock(),
+			error: mock(),
+			warn: mock(),
+			debug: mock(),
+			child() {
+				return this;
+			},
+		},
 		sessionGaugeTimer: setInterval(() => {}, 100_000),
 		consolidationScheduler: { stop: mock(track("consolidation")) },
 		heartbeatScheduler: { stop: mock(track("heartbeatScheduler")) },

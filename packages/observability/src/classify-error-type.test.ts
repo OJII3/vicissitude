@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+
 import { classifyErrorType } from "./metrics";
 
 describe("classifyErrorType", () => {
@@ -97,9 +98,9 @@ describe("classifyErrorType", () => {
 		});
 
 		test("errorClass が指定されていても分類に影響しない", () => {
-			expect(
-				classifyErrorType({ errorClass: "RateLimitError", message: "something failed" }),
-			).toBe("session_error");
+			expect(classifyErrorType({ errorClass: "RateLimitError", message: "something failed" })).toBe(
+				"session_error",
+			);
 		});
 
 		test("retryable と errorClass の両方があっても message ベースで分類される", () => {

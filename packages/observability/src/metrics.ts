@@ -81,8 +81,7 @@ export function classifyErrorType(event: {
 	const msg = event.message?.toLowerCase() ?? "";
 	if (msg.includes("context_length") || msg.includes("max_tokens"))
 		return "context_length_exceeded";
-	if (msg.includes("content_filter") || msg.includes("content_management"))
-		return "content_filter";
+	if (msg.includes("content_filter") || msg.includes("content_management")) return "content_filter";
 	if (msg.includes("timed out") || msg.includes("timeout")) return "timeout";
 	return "session_error";
 }
