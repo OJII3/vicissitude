@@ -222,6 +222,8 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.LLM_INPUT_TOKENS, "LLM input tokens total");
 	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "LLM output tokens total");
 	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "LLM cache read tokens total");
+	// Cost metrics
+	collector.registerCounter(METRIC.LLM_COST_DOLLARS, "LLM cost in US dollars");
 	// Session error metrics
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");

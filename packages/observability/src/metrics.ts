@@ -1,4 +1,4 @@
-/* oxlint-disable max-classes-per-file -- metrics module consolidates related classes */
+/* oxlint-disable max-classes-per-file, max-lines -- metrics module consolidates related classes */
 import type {
 	AgentResponse,
 	AiAgent,
@@ -7,6 +7,8 @@ import type {
 	SendOptions,
 	TokenUsage,
 } from "@vicissitude/shared/types";
+
+import { calculateCost, getModelPricing } from "./model-pricing.ts";
 
 // ─── Metric Names ───────────────────────────────────────────────
 
@@ -36,6 +38,8 @@ export const METRIC = {
 	MC_COOLDOWNS: "mc_cooldowns_total",
 	MC_FAILURE_STREAKS: "mc_failure_streaks_total",
 	MC_AUTO_NOTIFICATIONS: "mc_auto_notifications_total",
+	// Cost metrics
+	LLM_COST_DOLLARS: "llm_cost_dollars_total",
 	// Session error metrics
 	SESSION_ERRORS: "session_errors_total",
 	SESSION_RESTARTS: "session_restarts_total",
@@ -62,11 +66,22 @@ export function recordTokenMetrics(
 	metrics: MetricsCollector,
 	tokens: TokenUsage,
 	labels: Record<string, string>,
+	modelId?: string,
 ): void {
 	if (tokens.input > 0) metrics.addCounter(METRIC.LLM_INPUT_TOKENS, tokens.input, labels);
 	if (tokens.output > 0) metrics.addCounter(METRIC.LLM_OUTPUT_TOKENS, tokens.output, labels);
 	if (tokens.cacheRead > 0)
 		metrics.addCounter(METRIC.LLM_CACHE_READ_TOKENS, tokens.cacheRead, labels);
+
+	if (modelId) {
+		const pricing = getModelPricing(modelId);
+		if (pricing) {
+			const cost = calculateCost(tokens, pricing);
+			if (cost > 0) {
+				metrics.addCounter(METRIC.LLM_COST_DOLLARS, cost, { ...labels, model: modelId });
+			}
+		}
+	}
 }
 
 // ─── Error Classification ───────────────────────────────────────
@@ -323,6 +338,7 @@ export class InstrumentedAiAgent implements AiAgent {
 		private readonly inner: AiAgent,
 		private readonly metrics: MetricsCollector,
 		private readonly agentType: AgentType,
+		private readonly modelId?: string,
 	) {}
 
 	async send(options: SendOptions): Promise<AgentResponse> {
@@ -335,7 +351,7 @@ export class InstrumentedAiAgent implements AiAgent {
 			const response = await this.inner.send(options);
 			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "success" });
 			if (response.tokens) {
-				recordTokenMetrics(this.metrics, response.tokens, labels);
+				recordTokenMetrics(this.metrics, response.tokens, labels, this.modelId);
 			}
 			return response;
 		} catch (error) {
