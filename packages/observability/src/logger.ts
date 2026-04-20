@@ -1,17 +1,29 @@
 import type { Logger } from "@vicissitude/shared/types";
 import pino from "pino";
 
+import { maskSecrets, redactObject } from "./log-redact.ts";
+
 export class ConsoleLogger implements Logger {
-	private readonly pino: pino.Logger;
+	// oxlint-disable-next-line typescript/no-explicit-any -- pino の child() が返す型パラメータが親と異なるため any で統一
+	private readonly pino: pino.Logger<any>;
 
 	/**
 	 * @param options — 設定オブジェクト。
 	 *   stdio MCP サーバーでは stdout が MCP 通信に使われるため `{ destination: "stderr" }` を指定する。
 	 */
-	constructor(options?: { level?: string; destination?: "stderr" }) {
-		const opts = options ?? {};
-		const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
-		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
+	constructor(options?: { level?: string; destination?: "stderr" });
+	/** @internal 既存の pino インスタンスをラップする（child() 用） */
+	// oxlint-disable-next-line typescript/no-explicit-any
+	constructor(existingPino: pino.Logger<any>);
+	// oxlint-disable-next-line typescript/no-explicit-any
+	constructor(arg?: { level?: string; destination?: "stderr" } | pino.Logger<any>) {
+		if (arg && "child" in arg && typeof arg.child === "function") {
+			this.pino = arg;
+		} else {
+			const opts = arg ?? {};
+			const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
+			this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
+		}
 	}
 
 	debug(message: string, ...args: unknown[]): void {
@@ -30,11 +42,20 @@ export class ConsoleLogger implements Logger {
 		this.log("warn", message, args);
 	}
 
+	child(bindings: Record<string, unknown>): ConsoleLogger {
+		return new ConsoleLogger(this.pino.child(bindings));
+	}
+
 	private log(level: pino.Level, message: string, args: unknown[]): void {
+		const maskedMessage = maskSecrets(message);
 		if (args.length > 0) {
-			this.pino[level]({ extra: args.length === 1 ? args[0] : args }, message);
+			const maskedArgs = args.map((a) => redactObject(a));
+			this.pino[level](
+				{ extra: maskedArgs.length === 1 ? maskedArgs[0] : maskedArgs },
+				maskedMessage,
+			);
 		} else {
-			this.pino[level](message);
+			this.pino[level](maskedMessage);
 		}
 	}
 }

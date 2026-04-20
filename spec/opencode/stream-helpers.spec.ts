@@ -394,6 +394,104 @@ describe("classifyEvent", () => {
 
 		expect(result).toBeNull();
 	});
+
+	// ─── workspace イベント (#663) ─────────────────────────────────
+
+	test("workspace.failed イベントが error として classify される", () => {
+		const event = {
+			type: "workspace.failed",
+			properties: { message: "workspace init failed" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		expect(result?.type).toBe("error");
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.message).toContain("workspace init failed");
+		expect(result.retryable).toBe(true);
+		expect(result.errorClass).toBe("WorkspaceFailed");
+	});
+
+	test("workspace.status (status='error') が error として classify される", () => {
+		const event = {
+			type: "workspace.status",
+			properties: { workspaceID: "ws-1", status: "error", error: "connection reset" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		expect(result?.type).toBe("error");
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.message).toContain("connection reset");
+		expect(result.retryable).toBe(true);
+		expect(result.errorClass).toBe("WorkspaceError");
+	});
+
+	test("workspace.status (status='error') で error フィールドが未設定の場合はデフォルトメッセージ", () => {
+		const event = {
+			type: "workspace.status",
+			properties: { workspaceID: "ws-1", status: "error" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.message).toContain("workspace error");
+		expect(result.retryable).toBe(true);
+		expect(result.errorClass).toBe("WorkspaceError");
+	});
+
+	test("workspace.status (status='disconnected') が error として classify される", () => {
+		const event = {
+			type: "workspace.status",
+			properties: { workspaceID: "ws-1", status: "disconnected" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).not.toBeNull();
+		expect(result?.type).toBe("error");
+		if (result?.type !== "error") throw new Error("unreachable");
+		expect(result.message).toContain("workspace disconnected");
+		expect(result.retryable).toBe(true);
+		expect(result.errorClass).toBe("WorkspaceDisconnected");
+	});
+
+	test("workspace.ready イベントが null を返す", () => {
+		const event = {
+			type: "workspace.ready",
+			properties: { name: "my-workspace" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toBeNull();
+	});
+
+	test("workspace.status (status='connected') が null を返す", () => {
+		const event = {
+			type: "workspace.status",
+			properties: { workspaceID: "ws-1", status: "connected" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toBeNull();
+	});
+
+	test("workspace.status (status='connecting') が null を返す", () => {
+		const event = {
+			type: "workspace.status",
+			properties: { workspaceID: "ws-1", status: "connecting" },
+		} as unknown as Event;
+
+		const result = classifyEvent(event, sessionId, new Map());
+
+		expect(result).toBeNull();
+	});
 });
 
 // ─── extractText ──────────────────────────────────────────────
@@ -501,7 +599,7 @@ describe("logPartActivity", () => {
 	function makeLogger() {
 		const infoMessages: string[] = [];
 		const errorMessages: string[] = [];
-		return {
+		const logger = {
 			info: mock((msg: string) => {
 				infoMessages.push(msg);
 			}),
@@ -510,9 +608,11 @@ describe("logPartActivity", () => {
 			}),
 			warn: mock(() => {}),
 			debug: mock(() => {}),
+			child: () => logger,
 			infoMessages,
 			errorMessages,
 		};
+		return logger;
 	}
 
 	function makePartEvent(partProps: Record<string, unknown>, sid: string = sessionId): Event {

@@ -11,12 +11,14 @@ import {
 } from "../../apps/discord/src/migrations.ts";
 
 function makeLogger(): Logger {
-	return {
+	const logger: Logger = {
 		info: mock(() => {}),
 		warn: mock(() => {}),
 		error: mock(() => {}),
 		debug: mock(() => {}),
-	} as unknown as Logger;
+		child: mock(() => logger),
+	};
+	return logger;
 }
 
 describe("syncMcCheckReminder", () => {

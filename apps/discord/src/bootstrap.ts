@@ -42,7 +42,7 @@ import type {
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { createDb, closeDb } from "@vicissitude/store/db";
+import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
@@ -58,6 +58,7 @@ import {
 	syncMcCheckReminder,
 } from "./migrations.ts";
 import { createPortLayout } from "./port-allocator.ts";
+import { createShutdown } from "./shutdown.ts";
 
 // ─── Store Layer ────────────────────────────────────────────────
 
@@ -594,34 +595,23 @@ export async function bootstrap(): Promise<void> {
 	}
 
 	// Graceful shutdown
-	let shuttingDown = false;
-	const shutdown = async () => {
-		if (shuttingDown) return;
-		shuttingDown = true;
-		logger.info("[bootstrap] Shutting down...");
-		// Force exit after 5 seconds if graceful shutdown hangs
-		const forceTimer = setTimeout(() => process.exit(1), 5000);
-		try {
-			clearInterval(sessionGaugeTimer);
-			await memoryResources?.consolidationScheduler.stop();
-			heartbeatScheduler.stop();
-			gateway.stop();
-			await gatewayServer.stop();
-			mcBrainManager?.stop();
-			heartbeatRouter.stop();
-			routingAgent.stop();
-			metrics.server.stop();
-			await factReader.close();
-			memoryResources?.chatAdapter.close();
-			await memoryResources?.recorder.close();
-			mcProcess?.kill();
-			closeDb(db);
-		} catch (err) {
-			logger.error("[bootstrap] Error during shutdown:", err);
-		}
-		clearTimeout(forceTimer);
-		process.exit(0);
-	};
+	const shutdown = createShutdown({
+		logger,
+		sessionGaugeTimer,
+		consolidationScheduler: memoryResources?.consolidationScheduler,
+		heartbeatScheduler,
+		gateway,
+		gatewayServer,
+		mcBrainManager,
+		heartbeatRouter,
+		routingAgent,
+		metricsServer: metrics.server,
+		factReader,
+		chatAdapter: memoryResources?.chatAdapter,
+		recorder: memoryResources?.recorder,
+		mcProcess,
+		closeDb: () => closeDb(db),
+	});
 	process.on("SIGINT", () => void shutdown());
 	process.on("SIGTERM", () => void shutdown());
 

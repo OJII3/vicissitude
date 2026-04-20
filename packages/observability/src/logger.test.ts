@@ -102,4 +102,55 @@ describe("ConsoleLogger", () => {
 		const entry = JSON.parse(stdoutCapture.calls[0]!);
 		expect(entry.extra).toEqual(["a", 42]);
 	});
+
+	// ─── child() 内部詳細 ────────────────────────────────────────
+
+	describe("child() 内部詳細", () => {
+		test("child() は ConsoleLogger のインスタンスを返す", () => {
+			setup();
+			const parent = new ConsoleLogger({ level: "info" });
+			const child = parent.child({ trace_id: "abc" });
+
+			expect(child).toBeInstanceOf(ConsoleLogger);
+		});
+
+		test("child() で生成した logger は親とは別の内部 pino インスタンスを持つ", () => {
+			setup();
+			const parent = new ConsoleLogger({ level: "info" });
+			const child = parent.child({ trace_id: "xyz" });
+
+			// Object.create パターンで作られた child は独自の pino フィールドを持つ
+			const parentPino = (parent as unknown as { pino: unknown }).pino;
+			const childPino = (child as unknown as { pino: unknown }).pino;
+
+			expect(childPino).not.toBe(parentPino);
+		});
+
+		test("child() 後も parent の出力に child の bindings が混入しない", () => {
+			setup();
+			const parent = new ConsoleLogger({ level: "info" });
+			parent.child({ trace_id: "child-only" });
+
+			parent.info("parent message");
+
+			const entry = JSON.parse(stdoutCapture.calls[0]!);
+			expect(entry.msg).toBe("parent message");
+			expect(entry.trace_id).toBeUndefined();
+		});
+
+		test("destination: 'stderr' の parent から child() した場合 stdout には出力されない", () => {
+			setup();
+			const parent = new ConsoleLogger({
+				level: "info",
+				destination: "stderr",
+			});
+			const child = parent.child({ trace_id: "stderr-test" });
+
+			child.info("stderr child message");
+
+			// pino.destination(2) は fd 2 に直接書き込むため process.stderr.write は経由しない
+			// stdout に出力されないことで、child が親の destination を引き継いでいることを確認
+			expect(stdoutCapture.calls).toHaveLength(0);
+		});
+	});
 });

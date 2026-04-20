@@ -15,6 +15,7 @@ import {
 	registerEventBufferTools,
 } from "@vicissitude/mcp/tools/event-buffer";
 import type { ErrorEvent, ParsedEvent, RecentMessage } from "@vicissitude/mcp/tools/event-buffer";
+import type { Logger } from "@vicissitude/shared/types";
 import { CREATE_TABLES_SQL } from "@vicissitude/store/db";
 import { appendEvent } from "@vicissitude/store/queries";
 import { createTestDb } from "@vicissitude/store/test-helpers";
@@ -810,11 +811,14 @@ describe("pollEvents", () => {
 		db.run("DROP TABLE event_buffer");
 
 		const errorFn = mock(() => {});
-		const logger = {
+		const logger: Logger = {
 			debug: mock(() => {}),
 			info: mock(() => {}),
 			warn: mock(() => {}),
 			error: errorFn,
+			child() {
+				return logger;
+			},
 		};
 
 		const deadline = Date.now() + 200;

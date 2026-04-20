@@ -70,6 +70,12 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	}
 
 	async prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult> {
+		const modelLabel = `${params.model.providerId}/${params.model.modelId}`;
+		this.logger?.debug("[opencode] llm_request", {
+			model: modelLabel,
+			prompt: params.text,
+			system: params.system,
+		});
 		const oc = await this.getClient();
 		const result = await oc.session.prompt(
 			{
@@ -86,6 +92,11 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 		const text = extractText(result.data.parts);
 		const tokens = extractTokens(result.data.info);
+		this.logger?.debug("[opencode] llm_response", {
+			model: modelLabel,
+			text,
+			tokens,
+		});
 		return { text, tokens };
 	}
 

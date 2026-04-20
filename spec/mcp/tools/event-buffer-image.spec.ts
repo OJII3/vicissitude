@@ -71,6 +71,23 @@ function createStubImageFetcher(response: FetchedImage | null): {
 	};
 }
 
+/** URL ごとに異なるレスポンスを返すスタブ ImageFetcher */
+function createMappedImageFetcher(mapping: Record<string, FetchedImage | null>): {
+	fetcher: ImageFetcher;
+	calls: string[];
+} {
+	const calls: string[] = [];
+	return {
+		fetcher: {
+			fetch: (url: string) => {
+				calls.push(url);
+				return Promise.resolve(mapping[url] ?? null);
+			},
+		},
+		calls,
+	};
+}
+
 function isImagePart(c: ContentPart): c is { type: "image"; data: string; mimeType: string } {
 	return c.type === "image";
 }
@@ -201,7 +218,7 @@ describe("wait_for_events への画像同梱", () => {
 		]);
 	});
 
-	test("image content parts は全ての text content parts の後に配置される", async () => {
+	test("各イベントの image parts はそのイベントの text part の直後に配置される", async () => {
 		const db = createTestDb();
 		const agentId = "agent-img-order";
 		insertEventWithImages(db, agentId, [
@@ -217,17 +234,156 @@ describe("wait_for_events への画像同梱", () => {
 			},
 		]);
 
-		const { fetcher } = createStubImageFetcher({ base64: "DATA", mimeType: "image/png" });
+		const { fetcher } = createMappedImageFetcher({
+			"https://cdn.example.com/order1.png": { base64: "ORDER1", mimeType: "image/png" },
+			"https://cdn.example.com/order2.png": { base64: "ORDER2", mimeType: "image/png" },
+		});
 		const result = await callWaitForEvents({ db, agentId, imageFetcher: fetcher });
 
-		const lastTextIndex = result.content.reduce(
-			(max, part, i) => (part.type === "text" ? i : max),
-			-1,
+		// イベントの text part を特定（order1.png, order2.png を含む text）
+		const eventTextIndex = result.content.findIndex(
+			(c) => c.type === "text" && "text" in c && c.text.includes("order1.png"),
 		);
-		const firstImageIndex = result.content.findIndex(isImagePart);
+		expect(eventTextIndex).toBeGreaterThan(-1);
 
-		expect(firstImageIndex).toBeGreaterThan(-1);
-		expect(lastTextIndex).toBeGreaterThan(-1);
-		expect(lastTextIndex).toBeLessThan(firstImageIndex);
+		// そのイベントの text part の直後に image parts が来る
+		const afterEvent = result.content.slice(eventTextIndex + 1);
+		const firstImage = afterEvent.find((c) => isImagePart(c));
+		expect(firstImage).toBeDefined();
+
+		// image parts はイベント text part と metadata text part の間に存在する
+		const images = result.content.filter(isImagePart);
+		expect(images).toHaveLength(2);
+	});
+
+	test("複数イベントの画像がイベント単位でインターリーブ配置される", async () => {
+		const db = createTestDb();
+		const agentId = "agent-img-interleave";
+		// イベント1: 画像A
+		insertEventWithImages(db, agentId, [
+			{ url: "https://cdn.example.com/a.png", contentType: "image/png", filename: "a.png" },
+		]);
+		// イベント2: 画像B, C
+		insertEventWithImages(db, agentId, [
+			{ url: "https://cdn.example.com/b.png", contentType: "image/png", filename: "b.png" },
+			{ url: "https://cdn.example.com/c.png", contentType: "image/png", filename: "c.png" },
+		]);
+
+		const { fetcher } = createMappedImageFetcher({
+			"https://cdn.example.com/a.png": { base64: "IMG_A", mimeType: "image/png" },
+			"https://cdn.example.com/b.png": { base64: "IMG_B", mimeType: "image/png" },
+			"https://cdn.example.com/c.png": { base64: "IMG_C", mimeType: "image/png" },
+		});
+		const result = await callWaitForEvents({ db, agentId, imageFetcher: fetcher });
+
+		// content 配列から event text / image の並びを検証する
+		// 期待: [...prefix_texts, event1_text, imageA, event2_text, imageB, imageC, metadata_text]
+		const parts = result.content;
+
+		// event1 の text part を特定（a.png を含む）
+		const e1TextIdx = parts.findIndex(
+			(c) =>
+				c.type === "text" && "text" in c && c.text.includes("a.png") && !c.text.includes("b.png"),
+		);
+		expect(e1TextIdx).toBeGreaterThan(-1);
+
+		// event1 text の直後に event1 の image (IMG_A) が来る
+		const afterE1 = parts.at(e1TextIdx + 1);
+		expect(afterE1).toBeDefined();
+		expect(afterE1?.type).toBe("image");
+		expect(afterE1 && isImagePart(afterE1) && afterE1.data).toBe("IMG_A");
+
+		// event2 の text part を特定（b.png を含む）
+		const e2TextIdx = parts.findIndex(
+			(c) => c.type === "text" && "text" in c && c.text.includes("b.png"),
+		);
+		expect(e2TextIdx).toBeGreaterThan(-1);
+		// event2 text は event1 image の後に来る
+		expect(e2TextIdx).toBeGreaterThan(e1TextIdx + 1);
+
+		// event2 text の直後に event2 の images (IMG_B, IMG_C) が来る
+		const afterE2First = parts.at(e2TextIdx + 1);
+		const afterE2Second = parts.at(e2TextIdx + 2);
+		expect(afterE2First).toBeDefined();
+		expect(afterE2Second).toBeDefined();
+		expect(afterE2First?.type).toBe("image");
+		expect(afterE2Second?.type).toBe("image");
+		expect(afterE2First && isImagePart(afterE2First) && afterE2First.data).toBe("IMG_B");
+		expect(afterE2Second && isImagePart(afterE2Second) && afterE2Second.data).toBe("IMG_C");
+
+		// metadata text は最後の text part
+		const lastPart = parts.at(-1);
+		expect(lastPart).toBeDefined();
+		expect(lastPart?.type).toBe("text");
+		expect(lastPart && "text" in lastPart && lastPart.text).toContain("event-metadata");
+	});
+
+	test("画像のないイベントは text part のみで image part が挟まらない", async () => {
+		const db = createTestDb();
+		const agentId = "agent-img-no-img-event";
+		// イベント1: 画像あり
+		insertEventWithImages(db, agentId, [
+			{ url: "https://cdn.example.com/x.png", contentType: "image/png", filename: "x.png" },
+		]);
+		// イベント2: 画像なし
+		appendEvent(
+			db,
+			agentId,
+			JSON.stringify({
+				ts: "2026-04-01T00:01:00.000Z",
+				content: "テキストのみ",
+				authorId: "user-2",
+				authorName: "ユーザー2",
+				messageId: "msg-no-img",
+				attachments: [],
+				metadata: { channelId: "ch-1", channelName: "general", isMentioned: true },
+			}),
+		);
+		// イベント3: 画像あり
+		insertEventWithImages(db, agentId, [
+			{ url: "https://cdn.example.com/y.png", contentType: "image/png", filename: "y.png" },
+		]);
+
+		const { fetcher } = createMappedImageFetcher({
+			"https://cdn.example.com/x.png": { base64: "IMG_X", mimeType: "image/png" },
+			"https://cdn.example.com/y.png": { base64: "IMG_Y", mimeType: "image/png" },
+		});
+		const result = await callWaitForEvents({ db, agentId, imageFetcher: fetcher });
+
+		const parts = result.content;
+
+		// event1 text (x.png を含む) の直後に IMG_X が来る
+		const e1TextIdx = parts.findIndex(
+			(c) =>
+				c.type === "text" &&
+				"text" in c &&
+				c.text.includes("x.png") &&
+				!c.text.includes("テキストのみ"),
+		);
+		expect(e1TextIdx).toBeGreaterThan(-1);
+		const afterE1 = parts.at(e1TextIdx + 1);
+		expect(afterE1).toBeDefined();
+		expect(afterE1?.type).toBe("image");
+		expect(afterE1 && isImagePart(afterE1) && afterE1.data).toBe("IMG_X");
+
+		// event2 text (テキストのみ) の直後は image ではない
+		const e2TextIdx = parts.findIndex(
+			(c) => c.type === "text" && "text" in c && c.text.includes("テキストのみ"),
+		);
+		expect(e2TextIdx).toBeGreaterThan(-1);
+		const afterE2 = parts.at(e2TextIdx + 1);
+		expect(afterE2).toBeDefined();
+		// event2 の直後は image part ではなく、event3 の text part であるべき
+		expect(afterE2?.type).toBe("text");
+
+		// event3 text (y.png を含む) の直後に IMG_Y が来る
+		const e3TextIdx = parts.findIndex(
+			(c, i) => i > e2TextIdx && c.type === "text" && "text" in c && c.text.includes("y.png"),
+		);
+		expect(e3TextIdx).toBeGreaterThan(-1);
+		const afterE3 = parts.at(e3TextIdx + 1);
+		expect(afterE3).toBeDefined();
+		expect(afterE3?.type).toBe("image");
+		expect(afterE3 && isImagePart(afterE3) && afterE3.data).toBe("IMG_Y");
 	});
 });

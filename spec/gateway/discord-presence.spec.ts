@@ -1,14 +1,22 @@
 /* oxlint-disable require-await, no-constructor-return, typescript/no-extraneous-class -- テスト用モック */
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
+import type { Logger } from "@vicissitude/shared/types";
 import { ActivityType, Events } from "discord.js";
 
 import { DiscordGateway } from "../../apps/discord/src/gateway/discord";
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-function createSilentLogger() {
-	return { debug: () => {}, info: () => {}, error: () => {}, warn: () => {} };
+function createSilentLogger(): Logger {
+	const logger: Logger = {
+		debug: () => {},
+		info: () => {},
+		error: () => {},
+		warn: () => {},
+		child: () => logger,
+	};
+	return logger;
 }
 
 function createMockClient() {
