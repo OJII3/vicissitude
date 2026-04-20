@@ -4,7 +4,7 @@ import type { ShutdownDeps } from "../../apps/discord/src/shutdown.ts";
 
 // closeDb をモック
 const closeDbMock = mock(() => {});
-mock.module("@vicissitude/store/db", () => ({
+void mock.module("@vicissitude/store/db", () => ({
 	closeDb: closeDbMock,
 }));
 
