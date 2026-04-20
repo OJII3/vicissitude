@@ -428,10 +428,15 @@ export class AgentRunner implements AiAgent {
 				`[${this.profile.name}:${this.agentId}] long-lived session went idle, will restart`,
 			);
 			if (event.tokens && this.metrics) {
-				recordTokenMetrics(this.metrics, event.tokens, {
-					agent_type: "polling",
-					trigger: "polling",
-				});
+				recordTokenMetrics(
+					this.metrics,
+					event.tokens,
+					{
+						agent_type: "polling",
+						trigger: "polling",
+					},
+					this.profile.model.modelId,
+				);
 			}
 			return;
 		}
@@ -451,10 +456,15 @@ export class AgentRunner implements AiAgent {
 				error_class: "unknown",
 			});
 			if (event.tokens && this.metrics) {
-				recordTokenMetrics(this.metrics, event.tokens, {
-					agent_type: "polling",
-					trigger: "polling",
-				});
+				recordTokenMetrics(
+					this.metrics,
+					event.tokens,
+					{
+						agent_type: "polling",
+						trigger: "polling",
+					},
+					this.profile.model.modelId,
+				);
 			}
 			return;
 		}
