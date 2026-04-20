@@ -14,6 +14,12 @@ export class ConsoleLogger implements Logger {
 		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
 	}
 
+	private static fromPino(instance: pino.Logger): ConsoleLogger {
+		const logger = Object.create(ConsoleLogger.prototype) as ConsoleLogger;
+		(logger as unknown as { pino: pino.Logger }).pino = instance;
+		return logger;
+	}
+
 	debug(message: string, ...args: unknown[]): void {
 		this.log("debug", message, args);
 	}
@@ -28,6 +34,10 @@ export class ConsoleLogger implements Logger {
 
 	warn(message: string, ...args: unknown[]): void {
 		this.log("warn", message, args);
+	}
+
+	child(bindings: Record<string, unknown>): ConsoleLogger {
+		return ConsoleLogger.fromPino(this.pino.child(bindings));
 	}
 
 	private log(level: pino.Level, message: string, args: unknown[]): void {

@@ -1,7 +1,7 @@
 /* oxlint-disable require-await, no-constructor-return, typescript/no-floating-promises -- テスト用モック */
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-import type { IncomingMessage } from "@vicissitude/shared/types";
+import type { IncomingMessage, Logger } from "@vicissitude/shared/types";
 import { Collection, Events } from "discord.js";
 
 import { DiscordGateway } from "../../../apps/discord/src/gateway/discord";
@@ -97,13 +97,15 @@ function createMockThreadChannel(
 	};
 }
 
-function createSilentLogger() {
-	return {
+function createSilentLogger(): Logger {
+	const logger: Logger = {
 		debug: () => {},
 		info: () => {},
 		error: () => {},
 		warn: () => {},
+		child: () => logger,
 	};
+	return logger;
 }
 
 // ─── Client コンストラクタをモックで差し替える ───────────────────

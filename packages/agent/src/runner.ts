@@ -1,5 +1,5 @@
 /* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
-import { METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
+import { classifyErrorType, METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
 import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
@@ -467,7 +467,7 @@ export class AgentRunner implements AiAgent {
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
 		this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
 			source: "session_event",
-			error_type: "session_error",
+			error_type: classifyErrorType(event),
 			http_status: typeof event.status === "number" ? String(event.status) : "unknown",
 			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
 			error_class: event.errorClass ?? "unknown",

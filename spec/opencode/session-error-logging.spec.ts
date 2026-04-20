@@ -9,6 +9,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import type { Logger } from "@vicissitude/shared/types";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 
 // ─── テストヘルパー ──────────────────────────────────────────────
@@ -37,6 +38,7 @@ function createAdapterWithLoggerSpy(client: OpencodeClient) {
 		info: mock(() => {}),
 		warn: mock(() => {}),
 		error: mock(() => {}),
+		child() { return loggerSpy as Logger; },
 	};
 	const adapter = new OpencodeSessionAdapter({
 		port: 4096,
