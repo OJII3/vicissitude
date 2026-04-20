@@ -9,19 +9,19 @@ export class ConsoleLogger implements Logger {
 	 * @param options — 設定オブジェクト。
 	 *   stdio MCP サーバーでは stdout が MCP 通信に使われるため `{ destination: "stderr" }` を指定する。
 	 */
-	constructor(options?: { level?: string; destination?: "stderr" }) {
-		const opts = options ?? {};
-		const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
-		this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
-	}
-
-	/** @internal 既存の pino インスタンスをラップする */
+	constructor(options?: { level?: string; destination?: "stderr" });
+	/** @internal 既存の pino インスタンスをラップする（child() 用） */
 	// oxlint-disable-next-line typescript/no-explicit-any
-	private static fromPino(instance: pino.Logger<any>): ConsoleLogger {
-		const logger = Object.create(ConsoleLogger.prototype) as ConsoleLogger;
-		// oxlint-disable-next-line typescript/no-explicit-any
-		(logger as any).pino = instance;
-		return logger;
+	constructor(existingPino: pino.Logger<any>);
+	// oxlint-disable-next-line typescript/no-explicit-any
+	constructor(arg?: { level?: string; destination?: "stderr" } | pino.Logger<any>) {
+		if (arg && "child" in arg && typeof arg.child === "function") {
+			this.pino = arg;
+		} else {
+			const opts = arg ?? {};
+			const level = opts.level ?? process.env.LOG_LEVEL ?? "info";
+			this.pino = pino({ level }, opts.destination === "stderr" ? pino.destination(2) : undefined);
+		}
 	}
 
 	debug(message: string, ...args: unknown[]): void {
@@ -41,7 +41,7 @@ export class ConsoleLogger implements Logger {
 	}
 
 	child(bindings: Record<string, unknown>): ConsoleLogger {
-		return ConsoleLogger.fromPino(this.pino.child(bindings));
+		return new ConsoleLogger(this.pino.child(bindings));
 	}
 
 	private log(level: pino.Level, message: string, args: unknown[]): void {
