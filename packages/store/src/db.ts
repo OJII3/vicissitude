@@ -84,7 +84,7 @@ function hasTable(sqlite: Database, tableName: string): boolean {
 		.get(tableName);
 }
 
-/** テーブル内に指定カラムが存在するかチェック */
+/** テーブル内に指定カラムが存在するかチェック（PRAGMA はパラメータバインド非対応のため文字列補間を使用。呼び出し元はリテラルのみ） */
 function hasColumn(sqlite: Database, tableName: string, columnName: string): boolean {
 	const columns = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[];
 	return columns.some((c) => c.name === columnName);
