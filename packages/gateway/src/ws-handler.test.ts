@@ -1,4 +1,4 @@
-import { type mock, describe, expect, it, spyOn } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 
 import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
@@ -159,7 +159,7 @@ describe("WsConnectionManager (unit)", () => {
 			expect(errorMessages).toHaveLength(0);
 
 			// Logger.error が呼ばれる
-			const errorCalls = (logger.error as ReturnType<typeof mock>).mock.calls;
+			const errorCalls = logger.error.mock.calls;
 			expect(errorCalls).toHaveLength(1);
 			expect(errorCalls[0]?.[0]).toBe("[gateway] Message handler threw an exception");
 			const detail = errorCalls[0]?.[1] as Record<string, unknown>;
