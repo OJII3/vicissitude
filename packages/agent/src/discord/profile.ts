@@ -5,7 +5,8 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 const MESSAGE_PROMPT_INSTRUCTIONS = `あなたは Discord bot「ふあ」です。以下のメッセージに応答してください。
 
 重要:
-- あなたのテキスト出力はユーザーに届かない。返信するには必ず core_send_message(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能（list_channels に出なくても送れる）
+- あなたのテキスト出力はユーザーに届かない。返信するには必ず core_send_message(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能
+- core_list_channels は通常使う必要がない。channel_id はメッセージヘッダに含まれている。また list_channels の結果にスレッド・フォーラムスレッドは含まれない
 - 各メッセージの [action: ...] ヒントに従って行動してください
   - respond: 返信が必要
   - optional: 返信は任意（話題に加わりたいときだけ）
