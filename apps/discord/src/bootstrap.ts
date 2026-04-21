@@ -43,7 +43,6 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { closeDb, createDb } from "@vicissitude/store/db";
-import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
@@ -172,17 +171,12 @@ export function createGuildAgents(
 			temperature: 0.7,
 			logger: deps.logger,
 		});
-		const eventBuffer = new SqliteEventBuffer(deps.db, agentId, deps.logger, () => {
-			deps.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, { agent_id: agentId });
-		});
 		const agent = new DiscordAgent({
 			guildId,
-			db: deps.db,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
 			sessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
 			profile,

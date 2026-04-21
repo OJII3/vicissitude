@@ -2,18 +2,10 @@
 import { resolve } from "path";
 
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
-import { METRIC } from "@vicissitude/observability/metrics";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import type {
-	EventBuffer,
-	Logger,
-	MetricsCollector,
-	SessionStorePort,
-} from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector, SessionStorePort } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
-import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
-import { appendEvent } from "@vicissitude/store/queries";
 
 import { mcpMinecraftConfigs } from "../mcp-config.ts";
 import { MinecraftContextBuilder } from "./context-builder.ts";
@@ -31,8 +23,6 @@ export interface McBrainManagerDeps {
 	providerId: string;
 	modelId: string;
 	sessionMaxAgeMs: number;
-	/** EventBuffer ファクトリ。省略時は SqliteEventBuffer を生成 */
-	eventBufferFactory?: (agentId: string) => EventBuffer;
 	/** ライフサイクルポーリング間隔（ms）。デフォルト 10_000 */
 	lifecyclePollMs?: number;
 	mcHost?: string;
@@ -121,16 +111,8 @@ export class McBrainManager {
 		const overlayDir: string = resolve(deps.root, "data/context/minecraft");
 		const baseDir: string = resolve(deps.root, "context/minecraft");
 		const contextBuilder = new MinecraftContextBuilder(overlayDir, baseDir);
-		const eventBuffer = deps.eventBufferFactory
-			? deps.eventBufferFactory(MINECRAFT_AGENT_ID)
-			: new SqliteEventBuffer(deps.db, MINECRAFT_AGENT_ID, deps.logger, () => {
-					deps.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, {
-						agent_id: MINECRAFT_AGENT_ID,
-					});
-				});
 
 		this.agent = new MinecraftAgent({
-			eventBuffer,
 			sessionPort,
 			contextBuilder,
 			sessionStore: deps.sessionStore,
@@ -140,16 +122,10 @@ export class McBrainManager {
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
 		});
-		// 初期イベントを挿入してポーリングループの最初の waitForEvents を通過させる
-		const bootstrapEvent = {
-			ts: new Date().toISOString(),
-			content: "Minecraft セッション開始",
-			authorId: "system",
-			authorName: "system",
-			messageId: `mc-bootstrap-${Date.now()}`,
-		};
-		appendEvent(deps.db, MINECRAFT_AGENT_ID, JSON.stringify(bootstrapEvent));
-		this.agent.ensurePolling();
+		void this.agent.send({
+			sessionKey: MINECRAFT_AGENT_ID,
+			message: "Minecraft セッション開始",
+		});
 		deps.logger.info("[mc-brain-manager] minecraft brain started");
 	}
 

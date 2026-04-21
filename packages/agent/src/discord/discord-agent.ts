@@ -1,26 +1,21 @@
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	Logger,
 	MetricsCollector,
 	OpencodeSessionPort,
 	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
-import type { StoreDb } from "@vicissitude/store/db";
-import { getHeartbeat } from "@vicissitude/store/queries";
 
 import type { AgentProfile } from "../profile.ts";
 import { AgentRunner } from "../runner.ts";
 
 export interface DiscordAgentDeps {
 	guildId: string;
-	db: StoreDb;
 	sessionStore: SessionStorePort;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
 	sessionPort: OpencodeSessionPort;
-	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
 	profile: AgentProfile;
@@ -43,16 +38,12 @@ export class DiscordAgent extends AgentRunner {
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
 			sessionPort: deps.sessionPort,
-			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
 			contextGuildId: deps.guildId,
 			summaryWriter: deps.summaryWriter,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
-			heartbeatReader: {
-				getLastSeenAt: (id) => getHeartbeat(deps.db, id),
-			},
 		});
 	}
 }
