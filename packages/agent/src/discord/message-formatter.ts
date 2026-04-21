@@ -19,7 +19,7 @@ export function escapeUserMessageTag(content: string): string {
 export function formatDiscordMessage(msg: IncomingMessage): string {
 	const hint = classifyActionHint(msg);
 	const ts = formatTimestamp(msg.timestamp);
-	const channel = msg.channelName ? `#${msg.channelName}` : `#${msg.channelId}`;
+	const channel = msg.channelName ? `#${msg.channelName}(${msg.channelId})` : `#${msg.channelId}`;
 
 	const isUserMessage = msg.authorId !== "system" && !msg.isBot;
 	const escapedContent = escapeUserMessageTag(msg.content);
