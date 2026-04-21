@@ -98,7 +98,7 @@ describe("escapeUserMessageTag", () => {
 // ─── formatDiscordMessage ───────────────────────────────────────
 
 describe("formatDiscordMessage", () => {
-	test("基本フォーマット: [日時 JST #channel] author: content [action: hint]", () => {
+	test("基本フォーマット: [日時 JST #channel(channelId)] author: content [action: hint]", () => {
 		const msg = createMessage({
 			channelName: "general",
 			authorName: "Alice",
