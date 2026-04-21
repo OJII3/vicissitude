@@ -11,6 +11,9 @@ import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 
+export { AgentRunner };
+export type { ContextBuilderPort, AgentProfile };
+
 /**
  * `AgentRunner` のサブクラス。`sleep` を差し替え可能にすることでテストの待機を制御する。
  */

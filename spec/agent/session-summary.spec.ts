@@ -9,6 +9,7 @@ import type {
 
 import { createMockLogger } from "../test-helpers.ts";
 import {
+	type AgentRunner,
 	TestAgent,
 	createContextBuilder,
 	createProfile as createBaseProfile,

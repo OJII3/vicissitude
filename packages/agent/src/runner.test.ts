@@ -10,6 +10,8 @@ import {
 	createProfile,
 	createSessionStore,
 	deferred,
+	type AgentProfile,
+	type ContextBuilderPort,
 } from "../../../spec/agent/runner-test-helpers.ts";
 import { AgentRunner, type RunnerDeps } from "./runner.ts";
 
