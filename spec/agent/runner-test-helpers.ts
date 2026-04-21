@@ -59,17 +59,24 @@ export function createContextBuilder(): ContextBuilderPort {
 	return { build: mock(() => Promise.resolve("system prompt")) };
 }
 
-export function createSessionStore(existingSessionId?: string) {
+export function createSessionStore(
+	existingSessionId?: string,
+	options?: { createdAtOffset?: number },
+) {
 	let sessionId: string | undefined = existingSessionId;
-	const createdAt: number | undefined = existingSessionId ? Date.now() : undefined;
+	let createdAt: number | undefined = existingSessionId
+		? Date.now() + (options?.createdAtOffset ?? 0)
+		: undefined;
 	return {
 		get: mock(() => sessionId),
 		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
 		save: mock((_profile: string, _key: string, nextSessionId: string) => {
 			sessionId = nextSessionId;
+			createdAt = Date.now();
 		}),
 		delete: mock(() => {
 			sessionId = undefined;
+			createdAt = undefined;
 		}),
 	};
 }

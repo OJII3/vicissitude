@@ -22,78 +22,17 @@
 /* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop, no-non-null-assertion -- テストファイルはケース数に応じて長くなるため許容。non-null は length チェック後のインデックスアクセスに使用 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import { METRIC } from "@vicissitude/observability/metrics";
-import type {
-	ContextBuilderPort,
-	OpencodeSessionEvent,
-	OpencodeSessionPort,
-} from "@vicissitude/shared/types";
+import type { OpencodeSessionEvent, OpencodeSessionPort } from "@vicissitude/shared/types";
 
-import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
-
-// ─── テスト用サブクラス ───────────────────────────────────────────
-
-class TestAgent extends AgentRunner {
-	sleepSpy: ((ms: number) => Promise<void>) | null = null;
-
-	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
-	constructor(deps: RunnerDeps) {
-		super(deps);
-	}
-
-	protected override sleep(ms: number): Promise<void> {
-		if (this.sleepSpy) return this.sleepSpy(ms);
-		return super.sleep(ms);
-	}
-
-	protected override waitForDebounce(_signal: AbortSignal): Promise<void> {
-		return Promise.resolve();
-	}
-}
-
-// ─── ヘルパー ─────────────────────────────────────────────────────
-
-function deferred<T>() {
-	let resolveDeferred!: (value: T) => void;
-	let rejectDeferred!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolve, reject) => {
-		resolveDeferred = resolve;
-		rejectDeferred = reject;
-	});
-	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
-}
-
-function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
-	return {
-		name: "conversation",
-		mcpServers: {},
-		builtinTools: {},
-		pollingPrompt: "loop forever",
-		model: { providerId: "test-provider", modelId: "test-model" },
-		...overrides,
-	};
-}
-
-function createContextBuilder(): ContextBuilderPort {
-	return { build: mock(() => Promise.resolve("system prompt")) };
-}
-
-function createSessionStore(existingSessionId?: string) {
-	let sessionId: string | undefined = existingSessionId;
-	const createdAt: number | undefined = existingSessionId ? Date.now() : undefined;
-	return {
-		get: mock(() => sessionId),
-		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
-		save: mock((_profile: string, _key: string, nextSessionId: string) => {
-			sessionId = nextSessionId;
-		}),
-		delete: mock(() => {
-			sessionId = undefined;
-		}),
-	};
-}
+import {
+	TestAgent,
+	createContextBuilder,
+	createProfile,
+	createSessionStore,
+	deferred,
+} from "./runner-test-helpers.ts";
 
 /**
  * promptAsyncAndWatchSession が毎回 sessions 配列から順番に Promise を返す sessionPort を作成する。

@@ -2,74 +2,16 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
-import type {
-	ContextBuilderPort,
-	OpencodeSessionEvent,
-	OpencodeSessionPort,
-} from "@vicissitude/shared/types";
+import type { OpencodeSessionEvent, OpencodeSessionPort } from "@vicissitude/shared/types";
 
-import type { AgentProfile } from "./profile.ts";
+import {
+	TestAgent,
+	createContextBuilder,
+	createProfile,
+	createSessionStore,
+	deferred,
+} from "../../../spec/agent/runner-test-helpers.ts";
 import { AgentRunner, type RunnerDeps } from "./runner.ts";
-
-/** テスト用サブクラス: protected constructor を公開し、sleep をオーバーライド可能にする */
-class TestAgent extends AgentRunner {
-	sleepSpy: ((ms: number) => Promise<void>) | null = null;
-
-	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
-	constructor(deps: RunnerDeps) {
-		super(deps);
-	}
-
-	protected override sleep(ms: number): Promise<void> {
-		if (this.sleepSpy) return this.sleepSpy(ms);
-		return super.sleep(ms);
-	}
-
-	protected override waitForDebounce(_signal: AbortSignal): Promise<void> {
-		return Promise.resolve();
-	}
-}
-
-function deferred<T>() {
-	let resolveDeferred!: (value: T) => void;
-	let rejectDeferred!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolve, reject) => {
-		resolveDeferred = resolve;
-		rejectDeferred = reject;
-	});
-	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
-}
-
-function createProfile(): AgentProfile {
-	return {
-		name: "conversation",
-		mcpServers: {},
-		builtinTools: {},
-		pollingPrompt: "loop forever",
-		model: { providerId: "test-provider", modelId: "test-model" },
-	};
-}
-
-function createContextBuilder(): ContextBuilderPort {
-	return { build: mock(() => Promise.resolve("system prompt")) };
-}
-
-function createSessionStore() {
-	let sessionId: string | undefined;
-	let createdAt: number | undefined;
-	return {
-		get: mock(() => sessionId),
-		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
-		save: mock((_profile: string, _key: string, nextSessionId: string) => {
-			sessionId = nextSessionId;
-			createdAt = Date.now();
-		}),
-		delete: mock(() => {
-			sessionId = undefined;
-			createdAt = undefined;
-		}),
-	};
-}
 
 function createSessionPort(
 	promptAsyncAndWatchSessionImpl: () => Promise<OpencodeSessionEvent>,
