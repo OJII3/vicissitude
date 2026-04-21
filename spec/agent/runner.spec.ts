@@ -258,6 +258,54 @@ describe("ポーリングループの lifecycle", () => {
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("セッション期限切れ後の新メッセージで contextBuilder.build が再度呼ばれる", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithTwoSessions(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const contextBuilder: ContextBuilderPort = {
+			build: mock(() => Promise.resolve("system prompt")),
+		};
+		let now = 1_000_000;
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			// sessionMaxAgeMs: 0 → idle 後に即ローテーション
+			sessionMaxAgeMs: 0,
+			nowProvider: () => now,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// 1回目のメッセージ → contextBuilder.build 1回目
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(1);
+
+		expect((contextBuilder.build as ReturnType<typeof mock>).mock.calls.length).toBe(1);
+
+		// 時間を進めてセッションを期限切れにする
+		now += 1;
+
+		// idle → rotateSessionIfExpired が発動 → hasStartedSession リセット → sleep → メッセージ待ち
+		firstSessionDone.resolve({ type: "idle" });
+		await Bun.sleep(1);
+
+		// 2回目のメッセージ → ensureSessionStarted → contextBuilder.build 2回目
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(1);
+
+		expect((contextBuilder.build as ReturnType<typeof mock>).mock.calls.length).toBe(2);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("セッションエラー後にメッセージ待ちに戻り再試行する", async () => {
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
@@ -374,6 +422,64 @@ describe("requestSessionRotation()", () => {
 });
 
 describe("forceSessionRotation()", () => {
+	test("ローテーション後の新メッセージで contextBuilder.build が再度呼ばれる", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const sessionStore = createSessionStore();
+		let promptCallCount = 0;
+		const sessionPort = {
+			createSession: mock(() => Promise.resolve("session-1")),
+			sessionExists: mock(() => Promise.resolve(false)),
+			prompt: mock(() => Promise.resolve({ text: "要約テキスト", tokens: undefined })),
+			promptAsync: mock(() => Promise.resolve()),
+			promptAsyncAndWatchSession: mock(() => {
+				promptCallCount += 1;
+				return promptCallCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+			}),
+			waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
+			deleteSession: mock(() => Promise.resolve()),
+			summarizeSession: mock(() => Promise.resolve()),
+			close: mock(() => {}),
+		} as unknown as OpencodeSessionPort;
+		const contextBuilder: ContextBuilderPort = {
+			build: mock(() => Promise.resolve("system prompt")),
+		};
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: sessionStore as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// 1回目のメッセージ → ensureSessionStarted → contextBuilder.build 1回目
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(1);
+
+		expect((contextBuilder.build as ReturnType<typeof mock>).mock.calls.length).toBe(1);
+
+		// idle → ループが rotateSessionIfExpired → sleep → ensureSessionStarted → waitForMessages で待機
+		firstSessionDone.resolve({ type: "idle" });
+		await Bun.sleep(1);
+
+		// forceSessionRotation → hasStartedSession = false
+		sessionStore.save("conversation", "__polling__:agent-1", "session-1");
+		await runner.forceSessionRotation();
+
+		// 2回目のメッセージ → waitForMessages 解除 → build 2回目
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(1);
+
+		expect((contextBuilder.build as ReturnType<typeof mock>).mock.calls.length).toBe(2);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("minRotationIntervalMs 以内でも実行される", async () => {
 		const sessionStore = createSessionStore();
 		const sessionPort = createSimpleSessionPort();
