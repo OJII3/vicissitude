@@ -23,9 +23,7 @@ export function formatDiscordMessage(msg: IncomingMessage): string {
 
 	const isUserMessage = msg.authorId !== "system" && !msg.isBot;
 	const escapedContent = escapeUserMessageTag(msg.content);
-	const content = isUserMessage
-		? `<user_message>${escapedContent}</user_message>`
-		: escapedContent;
+	const content = isUserMessage ? `<user_message>${escapedContent}</user_message>` : escapedContent;
 
 	const attachments = msg.attachments
 		.map((a) => `[添付: ${a.filename} (${a.contentType})]`)

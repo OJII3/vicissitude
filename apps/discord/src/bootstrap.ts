@@ -3,8 +3,8 @@ import { existsSync, mkdirSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
-import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
