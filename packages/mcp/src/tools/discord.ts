@@ -4,7 +4,7 @@ import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
-import type { Client } from "discord.js";
+import type { Client, TextChannel } from "discord.js";
 import { z } from "zod";
 
 const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
@@ -61,12 +61,13 @@ export function registerDiscordTools(
 		})().catch(() => {});
 	}
 
-	async function getTextChannel(channelId: string) {
+	async function getSendableChannel(channelId: string) {
 		const channel = await discordClient.channels.fetch(channelId);
-		if (!channel?.isTextBased() || !("send" in channel)) {
-			throw new Error(`Channel ${channelId} is not a sendable text channel`);
+		if (!channel || !("send" in channel) || typeof channel.send !== "function") {
+			const type = channel?.type;
+			throw new Error(`Channel ${channelId} is not sendable (type=${type ?? "null"})`);
 		}
-		return channel;
+		return channel as TextChannel;
 	}
 
 	server.registerTool(
@@ -81,7 +82,7 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, content, file_path }) => {
-			const channel = await getTextChannel(channel_id);
+			const channel = await getSendableChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
 			}
@@ -111,7 +112,7 @@ export function registerDiscordTools(
 			},
 		},
 		async ({ channel_id, message_id, content, file_path }) => {
-			const channel = await getTextChannel(channel_id);
+			const channel = await getSendableChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
 			}
@@ -136,7 +137,7 @@ export function registerDiscordTools(
 			inputSchema: { channel_id: z.string(), message_id: z.string(), emoji: z.string() },
 		},
 		async ({ channel_id, message_id, emoji }) => {
-			const channel = await getTextChannel(channel_id);
+			const channel = await getSendableChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			await target.react(emoji);
 			return { content: [{ type: "text", text: `Reacted with ${emoji}` }] };
@@ -150,7 +151,7 @@ export function registerDiscordTools(
 			inputSchema: { channel_id: z.string(), limit: z.number().min(1).max(50).default(10) },
 		},
 		async ({ channel_id, limit }) => {
-			const channel = await getTextChannel(channel_id);
+			const channel = await getSendableChannel(channel_id);
 			const messages = await channel.messages.fetch({ limit });
 			const formatted = messages.map((m) => {
 				const imageUrls = filterImageUrls(m.attachments);
