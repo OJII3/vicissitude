@@ -158,11 +158,10 @@ describe("pollingPrompt の注入", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock
-			.calls;
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls;
 		expect(calls.length).toBeGreaterThanOrEqual(1);
 		// promptAsyncAndWatchSession の第1引数の text に pollingPrompt が含まれる
-		const params = calls[0]![0] as { text: string };
+		const params = calls[0]?.[0] as { text: string };
 		expect(params.text).toContain(customPrompt);
 	});
 });
