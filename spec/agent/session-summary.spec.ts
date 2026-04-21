@@ -4,7 +4,6 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SessionSummaryWriter,
@@ -49,7 +48,6 @@ function createProfile(): AgentProfile {
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
-		restartPolicy: "immediate",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		summaryPrompt: TEST_SUMMARY_PROMPT,
 	};
@@ -101,13 +99,6 @@ function createSessionPortWithTwoSessions(
 	} as unknown as OpencodeSessionPort & { prompt: ReturnType<typeof mock> };
 }
 
-function createEventBuffer(waitImpl: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl),
-	};
-}
-
 function createSummaryWriter(): SessionSummaryWriter & { write: ReturnType<typeof mock> } {
 	return {
 		write: mock(() => Promise.resolve()),
@@ -157,7 +148,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -181,7 +171,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -214,7 +203,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -242,7 +230,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -273,7 +260,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -289,7 +275,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 999_999_999,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -318,7 +303,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -336,7 +320,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -365,7 +348,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -384,7 +366,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -414,7 +395,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -430,7 +410,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				summaryWriter,
 			});
@@ -458,7 +437,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -475,7 +453,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -504,7 +481,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortWithTwoSessions(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -519,7 +495,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 0,
 				contextGuildId: "123456789",
 			});
@@ -545,7 +520,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 	describe("空文字列の要約はスキップ", () => {
 		test("prompt が空文字列を返した場合は summaryWriter.write は呼ばれない", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => Promise.resolve({ text: "", tokens: undefined }));
 
@@ -559,7 +533,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -577,7 +550,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("prompt が空白のみを返した場合も summaryWriter.write は呼ばれない", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => Promise.resolve({ text: "   \n  ", tokens: undefined }));
 
@@ -591,7 +563,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -609,7 +580,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 	describe("requestSessionRotation での要約生成", () => {
 		test("requestSessionRotation 時も contextGuildId があれば prompt → write が呼ばれる", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() =>
 				Promise.resolve({ text: "強制ローテーション時の要約", tokens: undefined }),
@@ -625,7 +595,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "987654321",
 				summaryWriter,
@@ -642,7 +611,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("requestSessionRotation で contextGuildId が未設定の場合は prompt(要約) は呼ばれない", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 
 			const summaryWriter = createSummaryWriter();
@@ -655,7 +623,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				summaryWriter,
 			});
@@ -671,7 +638,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("requestSessionRotation で prompt(要約) がエラーをスローしてもローテーションは完了する", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => Promise.reject(new Error("summarize failed")));
 
@@ -686,7 +652,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -704,7 +669,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 	describe("prompt(要約) の呼び出しパラメータ", () => {
 		test("prompt は sessionId・summaryPrompt・model・AbortSignal で呼ばれる", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 
 			const summaryWriter = createSummaryWriter();
@@ -717,7 +681,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,

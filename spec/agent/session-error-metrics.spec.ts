@@ -17,7 +17,6 @@ import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 import {
 	TestAgent,
 	createContextBuilder,
-	createEventBuffer,
 	createProfile,
 	createSessionStore,
 	deferred,
@@ -65,7 +64,6 @@ describe("Runner: session error メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -78,7 +76,6 @@ describe("Runner: session error メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -109,7 +106,6 @@ describe("Runner: session error メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -122,7 +118,6 @@ describe("Runner: session error メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -158,7 +153,6 @@ describe("Runner: session error メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -171,7 +165,6 @@ describe("Runner: session error メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -212,7 +205,6 @@ describe("Runner: session error メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -225,7 +217,6 @@ describe("Runner: session error メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -262,7 +253,6 @@ describe("Runner: session restart メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -275,7 +265,6 @@ describe("Runner: session restart メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -317,7 +306,6 @@ describe("Runner: session restart メトリクス記録", () => {
 		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 		const sessionPort = createSessionPortWithControlledResult(
 			firstSessionDone.promise,
 			secondSessionDone.promise,
@@ -330,7 +318,6 @@ describe("Runner: session restart メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
@@ -365,7 +352,6 @@ describe("Runner: session restart メトリクス記録", () => {
 	});
 
 	test("ハング検知によるセッションローテーション時に SESSION_RESTARTS がインクリメントされる", async () => {
-		const eventBuffer = createEventBuffer(() => new Promise(() => {}));
 		const sessionPort = createSessionPortWithControlledResult(
 			new Promise(() => {}),
 			new Promise(() => {}),
@@ -378,9 +364,7 @@ describe("Runner: session restart メトリクス記録", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
-			hangTimeoutMs: 100,
 			metrics,
 		});
 		activeRunners.add(runner);

@@ -2,7 +2,7 @@
  * セッションエラー検知改善: メトリクス定義の仕様テスト
  *
  * 期待仕様:
- * 1. METRIC オブジェクトに SESSION_ERRORS, SESSION_RESTARTS, EVENT_BUFFER_POLL_ERRORS が定義されている
+ * 1. METRIC オブジェクトに SESSION_ERRORS, SESSION_RESTARTS, SESSION_RETRIES が定義されている
  * 2. 各メトリクスが PrometheusCollector で正しくカウンタとして動作する
  */
 import { describe, expect, it } from "bun:test";
@@ -18,10 +18,6 @@ describe("METRIC 定数: セッションエラー関連", () => {
 
 	it("SESSION_RESTARTS が定義されている", () => {
 		expect(METRIC.SESSION_RESTARTS).toBe("session_restarts_total");
-	});
-
-	it("EVENT_BUFFER_POLL_ERRORS が定義されている", () => {
-		expect(METRIC.EVENT_BUFFER_POLL_ERRORS).toBe("event_buffer_poll_errors_total");
 	});
 
 	it("SESSION_RETRIES が定義されている", () => {
@@ -81,18 +77,6 @@ describe("SESSION_RESTARTS カウンタ", () => {
 		const output = c.serialize();
 		expect(output).toContain('session_restarts_total{reason="error"} 2');
 		expect(output).toContain('session_restarts_total{reason="hang_rotation"} 1');
-	});
-});
-
-describe("EVENT_BUFFER_POLL_ERRORS カウンタ", () => {
-	it("ラベルなしでインクリメントできる", () => {
-		const c = new PrometheusCollector();
-		c.registerCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, "event buffer poll errors");
-		c.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS);
-		c.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS);
-
-		const output = c.serialize();
-		expect(output).toContain("event_buffer_poll_errors_total 2");
 	});
 });
 

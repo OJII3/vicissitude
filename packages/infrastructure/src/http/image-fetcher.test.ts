@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import type { FetchedImage } from "@vicissitude/shared/ports";
-
-import { HttpImageFetcher, DEFAULT_MAX_IMAGE_SIZE_BYTES, type FetchLike } from "./image-fetcher.ts";
+import {
+	HttpImageFetcher,
+	DEFAULT_MAX_IMAGE_SIZE_BYTES,
+	type FetchLike,
+	type FetchedImage,
+} from "./image-fetcher.ts";
 
 /** base64 文字列を復号してバイト長を返す */
 function base64ByteLength(b64: string): number {

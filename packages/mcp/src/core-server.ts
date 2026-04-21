@@ -4,7 +4,6 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
-import { HttpImageFetcher } from "@vicissitude/infrastructure/http/image-fetcher";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import type { MemoryReadServices } from "@vicissitude/memory";
@@ -31,7 +30,6 @@ import { Client } from "discord.js";
 import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
-import { registerEventBufferTools } from "./tools/event-buffer.ts";
 import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
@@ -46,7 +44,6 @@ import { registerSpotifyTools } from "./tools/spotify.ts";
  * エージェントごとに1プロセスが生成されるため、AGENT_ID 環境変数で
  * 自分がどの agentId にバインドされているかを知る。
  *
- * @see {@link ./tools/event-buffer.ts} — ポーリングモデルの詳細
  */
 async function main(): Promise<void> {
 	const logger = new ConsoleLogger({ destination: "stderr" });
@@ -151,30 +148,6 @@ async function main(): Promise<void> {
 		boundGuildId,
 	);
 	registerScheduleTools(server, configRepo, boundGuildId);
-
-	const recentMessagesFetcher = async (channelId: string) => {
-		const ch = await discordClient.channels.fetch(channelId);
-		if (!ch?.isTextBased() || !("messages" in ch)) return [];
-		const msgs = await ch.messages.fetch({ limit: 5 });
-		return [...msgs.values()].map((m) => ({
-			authorName: m.member?.displayName ?? m.author.displayName,
-			content: m.content,
-			timestamp: m.createdAt,
-			reactions: [...m.reactions.cache.values()].map((r) => ({
-				emoji: r.emoji.name ?? r.emoji.toString(),
-				count: r.count,
-			})),
-		}));
-	};
-	registerEventBufferTools(server, {
-		db,
-		agentId: AGENT_ID,
-		moodKey,
-		recentMessagesFetcher,
-		moodReader: moodStore,
-		logger,
-		imageFetcher: new HttpImageFetcher({ logger }),
-	});
 
 	const retrieveCache = new LruCache<{ content: Array<{ type: "text"; text: string }> }>({
 		ttlMs: 30 * 60 * 1_000,
