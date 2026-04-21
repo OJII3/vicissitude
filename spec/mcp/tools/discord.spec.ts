@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
 	captureTools,
+	createCacheOnlyThreadClientStub,
 	createClientStubWithImageAttachments,
 	createClientStubWithMultipleImageAttachments,
 	createClientStubWithReactError,
@@ -146,6 +147,20 @@ describe("send_message (thread/forum)", () => {
 		})) as ToolResult;
 
 		expect(result.content[0]!.text).toBe("Sent message forum-sent-msg-1");
+	});
+});
+
+describe("send_message (cache fallback)", () => {
+	test("channels.fetch() が null を返してもキャッシュからスレッドを解決できる", async () => {
+		const { tools } = captureTools({ discordClient: createCacheOnlyThreadClientStub() });
+		const sendMessage = tools.get("send_message")!;
+
+		const result = (await sendMessage({
+			channel_id: "cache-thread-1",
+			content: "キャッシュ経由で送信",
+		})) as ToolResult;
+
+		expect(result.content[0]!.text).toBe("Sent message cache-thread-msg-1");
 	});
 });
 
