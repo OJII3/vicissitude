@@ -4,6 +4,7 @@ import { resolve } from "path";
 
 import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
@@ -308,7 +309,7 @@ function setupEventHandlers(deps: {
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, message will not be processed`);
 			}
-			agent?.ensurePolling();
+			void agent?.send({ sessionKey: "home", message: formatDiscordMessage(msg) });
 		}
 		return Promise.resolve();
 	});
@@ -323,7 +324,7 @@ function setupEventHandlers(deps: {
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, mention will not be processed`);
 			}
-			agent?.ensurePolling();
+			void agent?.send({ sessionKey: "mention", message: formatDiscordMessage(msg) });
 		}
 		return Promise.resolve();
 	});
