@@ -57,31 +57,33 @@ export function createDiscordClientStub(): DiscordDeps["discordClient"] & {
 		react: () => Promise.resolve(),
 	};
 
+	const channelObj = {
+		isTextBased: () => true,
+		send: () => Promise.resolve(sentMessage),
+		sendTyping: sendTypingMock,
+		messages: {
+			fetch: (idOrOptions: unknown) => {
+				// messages.fetch({ limit }) はコレクションを返す
+				if (typeof idOrOptions === "object" && idOrOptions !== null) {
+					const fakeCollection = [
+						{
+							author: { tag: "user#1234" },
+							content: "hello world",
+							attachments: createFakeAttachments([]),
+						},
+					];
+					return Promise.resolve(fakeCollection);
+				}
+				// messages.fetch(messageId) は単一メッセージを返す
+				return Promise.resolve(sentMessage);
+			},
+		},
+	};
+
 	const client = {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve(sentMessage),
-					sendTyping: sendTypingMock,
-					messages: {
-						fetch: (idOrOptions: unknown) => {
-							// messages.fetch({ limit }) はコレクションを返す
-							if (typeof idOrOptions === "object" && idOrOptions !== null) {
-								const fakeCollection = [
-									{
-										author: { tag: "user#1234" },
-										content: "hello world",
-										attachments: createFakeAttachments([]),
-									},
-								];
-								return Promise.resolve(fakeCollection);
-							}
-							// messages.fetch(messageId) は単一メッセージを返す
-							return Promise.resolve(sentMessage);
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
 		},
 		guilds: {
 			fetch: () =>
@@ -118,52 +120,54 @@ export function createDiscordClientStub(): DiscordDeps["discordClient"] & {
 /** react() が reject するスタブ（無効な絵文字等） */
 export function createClientStubWithReactError(): DiscordDeps["discordClient"] {
 	const error = new Error("Unknown Emoji");
+	const channelObj = {
+		isTextBased: () => true,
+		send: () => Promise.resolve({ id: "msg-1" }),
+		messages: {
+			fetch: (idOrOptions: unknown) => {
+				if (typeof idOrOptions === "object" && idOrOptions !== null) {
+					return Promise.resolve([]);
+				}
+				return Promise.resolve({
+					id: "msg-1",
+					reply: () => Promise.resolve({ id: "reply-msg-1" }),
+					react: () => Promise.reject(error),
+				});
+			},
+		},
+	};
 	return {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve({ id: "msg-1" }),
-					messages: {
-						fetch: (idOrOptions: unknown) => {
-							if (typeof idOrOptions === "object" && idOrOptions !== null) {
-								return Promise.resolve([]);
-							}
-							return Promise.resolve({
-								id: "msg-1",
-								reply: () => Promise.resolve({ id: "reply-msg-1" }),
-								react: () => Promise.reject(error),
-							});
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
 
 /** 画像添付ありのメッセージを返すスタブ（1枚） */
 export function createClientStubWithImageAttachments(): DiscordDeps["discordClient"] {
+	const channelObj = {
+		isTextBased: () => true,
+		send: () => Promise.resolve({ id: "msg-1" }),
+		messages: {
+			fetch: (_opts: unknown) => {
+				const msgs = [
+					{
+						author: { tag: "user#5678" },
+						content: "写真だよ",
+						attachments: createFakeAttachments([
+							{ url: "https://cdn.example.com/img.png", contentType: "image/png" },
+						]),
+					},
+				];
+				return Promise.resolve(msgs);
+			},
+		},
+	};
 	return {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve({ id: "msg-1" }),
-					messages: {
-						fetch: (_opts: unknown) => {
-							const msgs = [
-								{
-									author: { tag: "user#5678" },
-									content: "写真だよ",
-									attachments: createFakeAttachments([
-										{ url: "https://cdn.example.com/img.png", contentType: "image/png" },
-									]),
-								},
-							];
-							return Promise.resolve(msgs);
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
@@ -180,25 +184,26 @@ export function createThreadChannelClientStub(): DiscordDeps["discordClient"] {
 		react: () => Promise.resolve(),
 	};
 
+	const channelObj = {
+		isTextBased: () => true,
+		isThread: () => true,
+		parent: { type: 0, isTextBased: () => true },
+		send: () => Promise.resolve(sentMessage),
+		sendTyping: () => Promise.resolve(),
+		messages: {
+			fetch: (idOrOptions: unknown) => {
+				if (typeof idOrOptions === "object" && idOrOptions !== null) {
+					return Promise.resolve([]);
+				}
+				return Promise.resolve(sentMessage);
+			},
+		},
+	};
+
 	return {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					isThread: () => true,
-					// 通常テキストチャンネル配下のスレッドを模倣
-					parent: { type: 0, isTextBased: () => true },
-					send: () => Promise.resolve(sentMessage),
-					sendTyping: () => Promise.resolve(),
-					messages: {
-						fetch: (idOrOptions: unknown) => {
-							if (typeof idOrOptions === "object" && idOrOptions !== null) {
-								return Promise.resolve([]);
-							}
-							return Promise.resolve(sentMessage);
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
@@ -215,53 +220,90 @@ export function createForumThreadClientStub(): DiscordDeps["discordClient"] {
 		react: () => Promise.resolve(),
 	};
 
+	const channelObj = {
+		isTextBased: () => true,
+		isThread: () => true,
+		parent: { type: 15, isTextBased: () => false },
+		send: () => Promise.resolve(sentMessage),
+		sendTyping: () => Promise.resolve(),
+		messages: {
+			fetch: (idOrOptions: unknown) => {
+				if (typeof idOrOptions === "object" && idOrOptions !== null) {
+					return Promise.resolve([]);
+				}
+				return Promise.resolve(sentMessage);
+			},
+		},
+	};
+
 	return {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					isThread: () => true,
-					// GuildForum (ChannelType.GuildForum = 15) 配下のスレッド
-					parent: { type: 15, isTextBased: () => false },
-					send: () => Promise.resolve(sentMessage),
-					sendTyping: () => Promise.resolve(),
-					messages: {
-						fetch: (idOrOptions: unknown) => {
-							if (typeof idOrOptions === "object" && idOrOptions !== null) {
-								return Promise.resolve([]);
-							}
-							return Promise.resolve(sentMessage);
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }
 
 /** 複数画像添付ありのメッセージを返すスタブ */
 export function createClientStubWithMultipleImageAttachments(): DiscordDeps["discordClient"] {
+	const channelObj = {
+		isTextBased: () => true,
+		send: () => Promise.resolve({ id: "msg-1" }),
+		messages: {
+			fetch: (_opts: unknown) => {
+				const msgs = [
+					{
+						author: { tag: "user#9999" },
+						content: "複数画像だよ",
+						attachments: createFakeAttachments([
+							{ url: "https://cdn.example.com/img1.png", contentType: "image/png" },
+							{ url: "https://cdn.example.com/img2.jpg", contentType: "image/jpeg" },
+						]),
+					},
+				];
+				return Promise.resolve(msgs);
+			},
+		},
+	};
 	return {
 		channels: {
-			fetch: () =>
-				Promise.resolve({
-					isTextBased: () => true,
-					send: () => Promise.resolve({ id: "msg-1" }),
-					messages: {
-						fetch: (_opts: unknown) => {
-							const msgs = [
-								{
-									author: { tag: "user#9999" },
-									content: "複数画像だよ",
-									attachments: createFakeAttachments([
-										{ url: "https://cdn.example.com/img1.png", contentType: "image/png" },
-										{ url: "https://cdn.example.com/img2.jpg", contentType: "image/jpeg" },
-									]),
-								},
-							];
-							return Promise.resolve(msgs);
-						},
-					},
-				}),
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(channelObj),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
+/**
+ * channels.fetch() が null を返すが、cache にはスレッドが存在するスタブ。
+ * Gateway 経由でキャッシュされたスレッドを channels.fetch() で解決できないケースを再現する。
+ */
+export function createCacheOnlyThreadClientStub(): DiscordDeps["discordClient"] {
+	const sentMessage = {
+		id: "cache-thread-msg-1",
+		reply: () => Promise.resolve({ id: "cache-thread-reply-1" }),
+		react: () => Promise.resolve(),
+	};
+
+	const channelObj = {
+		isTextBased: () => true,
+		isThread: () => true,
+		parent: { type: 15, isTextBased: () => false },
+		send: () => Promise.resolve(sentMessage),
+		sendTyping: () => Promise.resolve(),
+		messages: {
+			fetch: (idOrOptions: unknown) => {
+				if (typeof idOrOptions === "object" && idOrOptions !== null) {
+					return Promise.resolve([]);
+				}
+				return Promise.resolve(sentMessage);
+			},
+		},
+	};
+
+	return {
+		channels: {
+			cache: { get: () => channelObj },
+			fetch: () => Promise.resolve(null),
 		},
 	} as unknown as DiscordDeps["discordClient"];
 }

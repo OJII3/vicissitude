@@ -62,7 +62,10 @@ export function registerDiscordTools(
 	}
 
 	async function getSendableChannel(channelId: string) {
-		const channel = await discordClient.channels.fetch(channelId);
+		// Gateway 経由でキャッシュ済みのスレッドを優先（最も確実）
+		let channel =
+			discordClient.channels.cache.get(channelId) ??
+			(await discordClient.channels.fetch(channelId, { allowUnknownGuild: true }));
 		if (!channel || !("send" in channel) || typeof channel.send !== "function") {
 			const type = channel?.type;
 			throw new Error(`Channel ${channelId} is not sendable (type=${type ?? "null"})`);
