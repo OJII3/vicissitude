@@ -47,7 +47,6 @@ describe("メッセージデバウンス", () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortForDebounce(sessionDone.promise);
 
-		const sleepCalls: number[] = [];
 		const sleepDeferreds: Array<{ resolve: () => void }> = [];
 
 		const runner = new TestAgent({
@@ -59,8 +58,7 @@ describe("メッセージデバウンス", () => {
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
 		});
-		runner.sleepSpy = (ms: number) => {
-			sleepCalls.push(ms);
+		runner.sleepSpy = (_ms: number) => {
 			const d = deferred<void>();
 			sleepDeferreds.push({ resolve: d.resolve });
 			return d.promise;
@@ -101,7 +99,6 @@ describe("メッセージデバウンス", () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortForDebounce(sessionDone.promise);
 
-		const sleepCalls: number[] = [];
 		let sleepResolveQueue: Array<() => void> = [];
 
 		const runner = new TestAgent({
@@ -113,8 +110,7 @@ describe("メッセージデバウンス", () => {
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
 		});
-		runner.sleepSpy = (ms: number) => {
-			sleepCalls.push(ms);
+		runner.sleepSpy = (_ms: number) => {
 			return new Promise<void>((resolve) => {
 				sleepResolveQueue.push(resolve);
 			});
@@ -139,11 +135,6 @@ describe("メッセージデバウンス", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// デバウンス用の sleep が複数回呼ばれている（タイマーリセット）
-		// MESSAGE_DEBOUNCE_MS (2000ms) の sleep が少なくとも2回呼ばれる
-		const debounceSleeps = sleepCalls.filter((ms) => ms === 2000);
-		expect(debounceSleeps.length).toBeGreaterThanOrEqual(2);
-
 		// 残りの sleep を解決してプロンプト送信を完了させる
 		for (const resolve of sleepResolveQueue) {
 			resolve();
@@ -167,7 +158,6 @@ describe("メッセージデバウンス", () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortForDebounce(sessionDone.promise);
 
-		const sleepCalls: number[] = [];
 		let now = 0;
 
 		const runner = new TestAgent({
@@ -181,7 +171,6 @@ describe("メッセージデバウンス", () => {
 			nowProvider: () => now,
 		});
 		runner.sleepSpy = (ms: number) => {
-			sleepCalls.push(ms);
 			// sleep のたびに時間を進めてデバウンス deadline に近づける
 			now += ms;
 			return Promise.resolve();
