@@ -7,8 +7,8 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 - 何もしたくなければ何もしなくていい
 - やりたいことがあれば MCP ツールを自由に使っていい
-- スケジュールを変えたいときは schedule ツール（`list_reminders`, `add_reminder`, `update_reminder`, `remove_reminder`）を使う
-- discord の `read_messages` で様子を見てから、必要なら `send_message` で話しかける
+- スケジュールを変えたいときは schedule ツール（`core_list_reminders`, `core_add_reminder`, `core_update_reminder`, `core_remove_reminder`）を使う
+- discord の `core_read_messages` で様子を見てから、必要なら `core_send_message` で話しかける
 - 不自然な「見回り報告」はしない。自然に会話に入る
 
 ### デフォルトリマインダー
@@ -19,7 +19,7 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 ### 音楽の話題
 
-`spotify_pick_track` → `fetch_lyrics` → 自分の言葉で自然に紹介（JSON や歌詞全文は貼らない）。感想があれば `save_listening_fact`、紹介時は `set_now_playing` も更新。話の流れに合うときだけ使う。
+`core_spotify_pick_track` → `core_fetch_lyrics` → 自分の言葉で自然に紹介（JSON や歌詞全文は貼らない）。感想があれば `core_save_listening_fact`、紹介時は `set_now_playing` も更新。話の流れに合うときだけ使う。
 
 ### mc-check の手順
 
