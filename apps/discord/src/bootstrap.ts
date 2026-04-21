@@ -13,7 +13,6 @@ import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
-import { SqliteBufferedEventStore } from "@vicissitude/infrastructure/store/sqlite-buffered-event-store";
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
@@ -43,7 +42,6 @@ import type {
 } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { closeDb, createDb } from "@vicissitude/store/db";
-import { SqliteEventBuffer } from "@vicissitude/store/event-buffer";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
@@ -172,17 +170,12 @@ export function createGuildAgents(
 			temperature: 0.7,
 			logger: deps.logger,
 		});
-		const eventBuffer = new SqliteEventBuffer(deps.db, agentId, deps.logger, () => {
-			deps.metrics?.incrementCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, { agent_id: agentId });
-		});
 		const agent = new DiscordAgent({
 			guildId,
-			db: deps.db,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
 			sessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			metrics: deps.metrics,
 			profile,
@@ -228,7 +221,6 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
 	collector.registerCounter(METRIC.SESSION_RETRIES, "Session retries total");
-	collector.registerCounter(METRIC.EVENT_BUFFER_POLL_ERRORS, "Event buffer poll errors total");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
 }
@@ -310,7 +302,6 @@ function setupEventHandlers(deps: {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
 		ingestionService.handleIncomingMessage(msg, {
 			recordConversation: true,
-			bufferEvent: msg.authorId !== selfUserId,
 		});
 		if (msg.guildId && msg.authorId !== selfUserId) {
 			const agent = agents.get(msg.guildId);
@@ -509,7 +500,6 @@ export async function bootstrap(): Promise<void> {
 		embeddingAdapter: ollamaEmbedding,
 	});
 	const ingestionService = new MessageIngestionService({
-		eventStore: new SqliteBufferedEventStore(db),
 		logger,
 		recorder: memoryResources?.recorder,
 	});

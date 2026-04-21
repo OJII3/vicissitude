@@ -91,7 +91,6 @@ export function createMinecraftProfile(options: {
 		mcpServers: options.mcpServers,
 		builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 		pollingPrompt: POLLING_PROMPT,
-		restartPolicy: "immediate",
 		model: { providerId: options.providerId, modelId: options.modelId },
 	};
 }

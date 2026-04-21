@@ -26,7 +26,6 @@ import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import { METRIC } from "@vicissitude/observability/metrics";
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 } from "@vicissitude/shared/types";
@@ -68,7 +67,6 @@ function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
-		restartPolicy: "wait_for_events",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		...overrides,
 	};
@@ -90,17 +88,6 @@ function createSessionStore(existingSessionId?: string) {
 		delete: mock(() => {
 			sessionId = undefined;
 		}),
-	};
-}
-
-function neverResolve(_signal: AbortSignal): Promise<void> {
-	return new Promise(() => {});
-}
-
-function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl ?? neverResolve),
 	};
 }
 
@@ -158,15 +145,8 @@ afterEach(() => {
 
 describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", () => {
 	test("retryable:true のエラーで SESSION_RETRIES が attempt=1 でインクリメントされる", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 		const metrics = createMockMetrics();
 
@@ -177,15 +157,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -204,19 +182,12 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 	});
 
 	test("連続エラーで attempt が 1, 2, 3 と増加する", async () => {
-		const firstEvent = deferred<void>();
 		const sessions = [
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const metrics = createMockMetrics();
 
@@ -227,15 +198,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -268,15 +237,8 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 	});
 
 	test("retryable:false のエラーでは SESSION_RETRIES はインクリメントされない", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 		const metrics = createMockMetrics();
 
@@ -287,15 +249,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -319,15 +279,8 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 	});
 
 	test("cap 到達後のローテーションでは SESSION_RETRIES はインクリメントされない", async () => {
-		const firstEvent = deferred<void>();
 		// cap 到達（4回のバックオフ）+ cap 後エラー（1回のローテーション）= 計5セッション + guard
 		const sessions = Array.from({ length: 7 }, () => deferred<OpencodeSessionEvent>());
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const metrics = createMockMetrics();
 
@@ -338,15 +291,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -377,15 +328,8 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 	});
 
 	test("ローテーション後は attempt がリセットされる", async () => {
-		const firstEvent = deferred<void>();
 		// cap 到達（4回）+ ローテーション（1回）+ ローテーション後のエラー（1回）+ guard
 		const sessions = Array.from({ length: 8 }, () => deferred<OpencodeSessionEvent>());
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const metrics = createMockMetrics();
 
@@ -396,15 +340,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -439,7 +381,6 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 	});
 
 	test("idle 後は attempt がリセットされる", async () => {
-		const firstEvent = deferred<void>();
 		// [0] error(attempt=1), [1] error(attempt=2), [2] idle(reset),
 		// [3] error(attempt=1 に戻る), [4] guard
 		const sessions = [
@@ -449,12 +390,6 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const metrics = createMockMetrics();
 
@@ -465,15 +400,13 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -500,6 +433,10 @@ describe("SESSION_RETRIES メトリクス: リトライ（backoff）の計測", 
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
+		// idle 後は新しいメッセージが必要（lastPromptText がクリアされるため）
+		await runner.send({ sessionKey: "k", message: "test2" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
 		// idle 後のエラー → attempt は 1 にリセットされている
 		sessions[3]?.resolve({ type: "error", message: "err", retryable: true });
 		await Bun.sleep(0);

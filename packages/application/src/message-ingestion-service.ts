@@ -1,7 +1,5 @@
 import { discordGuildNamespace } from "@vicissitude/shared/namespace";
-import type { BufferedEventStore } from "@vicissitude/shared/ports";
 import type {
-	BufferedEvent,
 	ConversationMessage,
 	ConversationRecorder,
 	IncomingMessage,
@@ -9,14 +7,12 @@ import type {
 } from "@vicissitude/shared/types";
 
 export interface MessageIngestionServiceDeps {
-	eventStore: BufferedEventStore;
 	logger: Logger;
 	recorder?: ConversationRecorder;
 }
 
 export interface MessageIngestionOptions {
 	recordConversation?: boolean;
-	bufferEvent?: boolean;
 }
 
 export class MessageIngestionService {
@@ -32,33 +28,6 @@ export class MessageIngestionService {
 		if (!message.guildId) {
 			this.deps.logger.warn("[message-ingestion] No guildId for message, dropping event");
 			return;
-		}
-
-		// bot メッセージもバッファに含める: 他のエージェント bot との会話を継続するため。
-		// isBot フラグはイベント消費側で「読むだけ / 返信する」の判断に使われる。
-		const event: BufferedEvent = {
-			ts: message.timestamp.toISOString(),
-			authorId: message.authorId,
-			authorName: message.authorName,
-			messageId: message.messageId,
-			content: message.content,
-			attachments: message.attachments.length > 0 ? message.attachments : undefined,
-			metadata: {
-				channelId: message.channelId,
-				channelName: message.channelName,
-				guildId: message.guildId,
-				isBot: message.isBot,
-				isMentioned: message.isMentioned,
-				isThread: message.isThread,
-			},
-		};
-
-		if (options.bufferEvent ?? true) {
-			const agentId = `discord:${message.guildId}`;
-			this.deps.eventStore.append(agentId, event);
-			this.deps.logger.info(
-				`[message-ingestion] buffered: ch=${message.channelId} author=${message.authorName} mentioned=${message.isMentioned}`,
-			);
 		}
 
 		if (options.recordConversation) {

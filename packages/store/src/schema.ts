@@ -18,7 +18,7 @@ export const emojiUsage = sqliteTable(
 	(table) => [primaryKey({ columns: [table.guildId, table.emojiName] })],
 );
 
-/** イベントバッファテーブル */
+/** イベントバッファテーブル（MC ブリッジのエージェント間メッセージキューとして使用） */
 export const eventBuffer = sqliteTable("event_buffer", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	agentId: text("agent_id").notNull(),

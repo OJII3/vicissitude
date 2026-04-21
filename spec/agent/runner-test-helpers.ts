@@ -7,7 +7,7 @@
 import { mock } from "bun:test";
 
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
-import type { ContextBuilderPort, EventBuffer } from "@vicissitude/shared/types";
+import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 
@@ -44,7 +44,6 @@ export function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
-		restartPolicy: "wait_for_events",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		...overrides,
 	};
@@ -71,11 +70,4 @@ export function createSessionStore(existingSessionId?: string) {
 
 export function neverResolve(_signal: AbortSignal): Promise<void> {
 	return new Promise(() => {});
-}
-
-export function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl ?? neverResolve),
-	};
 }

@@ -12,9 +12,7 @@ export interface McpConfigOptions {
  * MCP サーバー設定を返す。
  *
  * core MCP は stdio (local) モードでエージェントごとに子プロセスとして起動される。
- * AGENT_ID 環境変数で wait_for_events のバインド先を指定する。
- *
- * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
+ * AGENT_ID 環境変数でエージェントの識別に使用される。
  */
 export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
 	const { appRoot, coreEnvironment } = opts;

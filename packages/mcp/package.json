@@ -11,7 +11,7 @@
 		"./test-helpers": "./src/test-helpers.ts",
 		"./tool-metrics": "./src/tool-metrics.ts",
 		"./tools/discord": "./src/tools/discord.ts",
-		"./tools/event-buffer": "./src/tools/event-buffer.ts",
+		"./tools/event-helpers": "./src/tools/event-helpers.ts",
 		"./tools/mc-bridge-discord": "./src/tools/mc-bridge-discord.ts",
 		"./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
 		"./tools/mc-memory": "./src/tools/mc-memory.ts",

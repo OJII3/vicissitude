@@ -25,13 +25,8 @@ import {
 	sumTokens,
 } from "./stream-helpers.ts";
 
-/**
- * OpenCode Go バイナリが MCP ツール呼び出しに適用するタイムアウト（3日）。
- * wait_for_events は半無限ポーリング（下記参照）のため、事実上タイムアウトしない値が必要。
- *
- * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
- */
-const MCP_REQUEST_TIMEOUT_MS = 3 * 24 * 60 * 60 * 1000;
+/** OpenCode Go バイナリが MCP ツール呼び出しに適用するタイムアウト（1時間） */
+const MCP_REQUEST_TIMEOUT_MS = 60 * 60 * 1000;
 
 export interface OpencodeSessionAdapterConfig {
 	port: number;
@@ -116,10 +111,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	/**
 	 * promptAsync でプロンプトを送信し、イベントストリームを監視する。
 	 *
-	 * 注意: ポーリングモードでは LLM が wait_for_events ツールを繰り返し呼ぶため、
-	 * セッションは半永続的に active であり続け、session.idle は通常発火しない。
-	 * そのため、この関数はポーリングモードでは事実上返らない。
-	 * セッションの異常検知は AgentRunner 側の hang detection timer が担う。
+	 * LLM がプロンプトの処理を完了すると session.idle イベントが発火し、この関数が返る。
 	 */
 	async promptAsyncAndWatchSession(
 		params: OpencodePromptParams,

@@ -44,7 +44,6 @@ export const METRIC = {
 	SESSION_ERRORS: "session_errors_total",
 	SESSION_RESTARTS: "session_restarts_total",
 	SESSION_RETRIES: "session_retries_total",
-	EVENT_BUFFER_POLL_ERRORS: "event_buffer_poll_errors_total",
 } as const;
 
 // ─── labelsToKey ─────────────────────────────────────────────────
