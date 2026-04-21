@@ -164,7 +164,8 @@ export function registerDiscordTools(
 	server.registerTool(
 		"list_channels",
 		{
-			description: "List text channels in a Discord guild",
+			description:
+				"List text channels in a Discord guild. Threads and forum threads are NOT included. You usually don't need this — the channel_id is already in the message header.",
 			inputSchema: boundGuildId ? {} : { guild_id: z.string() },
 		},
 		async ({ guild_id }: { guild_id?: string }) => {
