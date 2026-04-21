@@ -333,6 +333,10 @@ export class AgentRunner implements AiAgent {
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
+		if (this.profile.pollingPrompt) {
+			text = `${this.profile.pollingPrompt}\n\n${text}`;
+		}
+
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
