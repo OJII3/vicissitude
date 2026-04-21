@@ -35,6 +35,7 @@ import type {
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 import { createMockLogger } from "../test-helpers.ts";
 import {
+	type AgentRunner,
 	TestAgent,
 	createContextBuilder,
 	createProfile as createBaseProfile,

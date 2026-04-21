@@ -27,6 +27,7 @@ import type { OpencodeSessionEvent, OpencodeSessionPort } from "@vicissitude/sha
 
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 import {
+	type AgentRunner,
 	TestAgent,
 	createContextBuilder,
 	createProfile,

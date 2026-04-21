@@ -33,6 +33,7 @@ import type {
 
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
 import {
+	type AgentRunner,
 	TestAgent,
 	createContextBuilder,
 	createProfile,
