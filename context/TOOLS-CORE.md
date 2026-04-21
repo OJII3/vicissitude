@@ -10,7 +10,7 @@
 - `core_reply(channel_id, message_id, content, file_path?)` - メッセージに返信（オプションでファイル添付）
 - `core_add_reaction(channel_id, message_id, emoji)` - リアクション追加
 - `core_read_messages(channel_id, limit?)` - チャンネルの最近のメッセージを読む
-- `core_list_channels` - サーバーのテキストチャンネル一覧
+- `core_list_channels` - サーバーのテキストチャンネル一覧（スレッド・フォーラムスレッドは含まれない。channel_id はメッセージヘッダにあるので通常は不要）
 
 ### schedule
 
