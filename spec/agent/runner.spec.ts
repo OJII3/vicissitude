@@ -138,6 +138,35 @@ describe("send()", () => {
 	});
 });
 
+describe("pollingPrompt の注入", () => {
+	test("ensureSessionStarted で pollingPrompt が promptAsyncAndWatchSession の text に含まれる", async () => {
+		const customPrompt = "CUSTOM_POLLING_PROMPT_FOR_TEST";
+		const sessionPort = createSimpleSessionPort();
+		const runner = new TestAgent({
+			profile: createProfile({ pollingPrompt: customPrompt }),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "hello" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock
+			.calls;
+		expect(calls.length).toBeGreaterThanOrEqual(1);
+		// promptAsyncAndWatchSession の第1引数の text に pollingPrompt が含まれる
+		const params = calls[0]![0] as { text: string };
+		expect(params.text).toContain(customPrompt);
+	});
+});
+
 describe("ensurePolling()", () => {
 	test("ポーリングループが未起動なら起動し、メッセージ待機に入る", async () => {
 		const runner = new TestAgent({
