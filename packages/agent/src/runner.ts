@@ -287,6 +287,7 @@ export class AgentRunner implements AiAgent {
 		}
 		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
+		this.hasStartedSession = false;
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated`);
 	}
 
@@ -541,6 +542,7 @@ export class AgentRunner implements AiAgent {
 
 		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
+		this.hasStartedSession = false;
 
 		const hours = Math.round(age / 3_600_000);
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);
