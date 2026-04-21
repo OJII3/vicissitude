@@ -168,7 +168,7 @@ describe("メッセージデバウンス", () => {
 		const sessionPort = createSessionPortForDebounce(sessionDone.promise);
 
 		const sleepCalls: number[] = [];
-		const sleepResolvers: Array<() => void> = [];
+		let now = 0;
 
 		const runner = new TestAgent({
 			profile: createProfile(),
@@ -178,12 +178,13 @@ describe("メッセージデバウンス", () => {
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
+			nowProvider: () => now,
 		});
 		runner.sleepSpy = (ms: number) => {
 			sleepCalls.push(ms);
-			return new Promise<void>((resolve) => {
-				sleepResolvers.push(resolve);
-			});
+			// sleep のたびに時間を進めてデバウンス deadline に近づける
+			now += ms;
+			return Promise.resolve();
 		};
 		runner.enableDebounce = true;
 		activeRunners.add(runner);
@@ -195,20 +196,13 @@ describe("メッセージデバウンス", () => {
 
 		// デバウンス中に継続的にメッセージを送り続ける（最大待機時間を超過させる）
 		// MAX_DEBOUNCE_MS (10000ms) / MESSAGE_DEBOUNCE_MS (2000ms) = 5回以上のリセットで超過
-		for (let i = 0; i < 6; i++) {
+		// oxlint-disable-next-line no-await-in-loop -- テスト用の逐次送信
+		for (let i = 0; i < 8; i++) {
 			await runner.send({ sessionKey: "k", message: `追い${i}` });
 			await Bun.sleep(0);
-			if (sleepResolvers.length > 0) {
-				sleepResolvers.at(-1)?.();
-				await Bun.sleep(0);
-				await Bun.sleep(0);
-			}
+			await Bun.sleep(0);
 		}
 
-		// 残りの sleep をすべて解決
-		for (const resolve of sleepResolvers) {
-			resolve();
-		}
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 		await Bun.sleep(0);
@@ -219,6 +213,8 @@ describe("メッセージデバウンス", () => {
 		// 最初のメッセージが含まれる
 		const params = calls.at(0)?.[0] as { text: string } | undefined;
 		expect(params?.text).toContain("first");
+		// MAX_DEBOUNCE_MS (10000) の制限により、すべてのメッセージが含まれるとは限らない
+		// （deadline 超過後に送ったメッセージは次のプロンプトに回る）
 
 		runner.stop();
 		sessionDone.resolve({ type: "cancelled" });

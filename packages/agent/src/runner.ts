@@ -411,11 +411,14 @@ export class AgentRunner implements AiAgent {
 		const messagePromise = new Promise<void>((resolve) => {
 			this.pendingDebounceResolve = resolve;
 		});
+		let onAbort: (() => void) | undefined;
 		const abortPromise = new Promise<void>((resolve) => {
-			signal.addEventListener("abort", () => resolve(), { once: true });
+			onAbort = () => resolve();
+			signal.addEventListener("abort", onAbort, { once: true });
 		});
 		await Promise.race([sleepPromise, messagePromise, abortPromise]);
 		this.pendingDebounceResolve = null;
+		if (onAbort) signal.removeEventListener("abort", onAbort);
 	}
 
 	private drainMessages(): string {
