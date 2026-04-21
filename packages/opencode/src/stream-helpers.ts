@@ -241,14 +241,16 @@ export function logPartActivity(event: Event, sessionId: string, logger: Logger 
 		logger.info(`[opencode:activity] text: ${preview}`);
 	} else if (part.type === "tool") {
 		const status = part.state.status;
+		const inputPreview = (JSON.stringify(part.state.input) ?? "").slice(0, TEXT_LOG_MAX);
 		if (status === "running") {
-			logger.info(`[opencode:activity] tool-start: ${part.tool}`);
+			logger.info(`[opencode:activity] tool-start: ${part.tool} ${inputPreview}`);
 		} else if (status === "completed") {
 			const elapsed = part.state.time ? `${part.state.time.end - part.state.time.start}ms` : "?";
-			logger.info(`[opencode:activity] tool-done: ${part.tool} (${elapsed})`);
+			const outPreview = (part.state.output ?? "").slice(0, TEXT_LOG_MAX);
+			logger.info(`[opencode:activity] tool-done: ${part.tool} (${elapsed}) → ${outPreview}`);
 		} else if (status === "error") {
 			const errMsg = "error" in part.state ? part.state.error : "unknown";
-			logger.error(`[opencode:activity] tool-error: ${part.tool}: ${errMsg}`);
+			logger.error(`[opencode:activity] tool-error: ${part.tool}: ${errMsg} input=${inputPreview}`);
 		}
 	} else if (part.type === "step-finish") {
 		const { input: i, output: o, reasoning: r } = part.tokens;
