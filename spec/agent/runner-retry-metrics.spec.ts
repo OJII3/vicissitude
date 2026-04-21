@@ -47,6 +47,10 @@ class TestAgent extends AgentRunner {
 		if (this.sleepSpy) return this.sleepSpy(ms);
 		return super.sleep(ms);
 	}
+
+	protected override waitForDebounce(_signal: AbortSignal): Promise<void> {
+		return Promise.resolve();
+	}
 }
 
 // ─── ヘルパー ─────────────────────────────────────────────────────

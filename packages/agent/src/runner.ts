@@ -21,6 +21,8 @@ const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
+const MESSAGE_DEBOUNCE_MS = 2_000;
+const MAX_DEBOUNCE_MS = 10_000;
 
 export interface RunnerDeps {
 	profile: AgentProfile;
@@ -58,6 +60,7 @@ export class AgentRunner implements AiAgent {
 	private pendingResolve: (() => void) | null = null;
 	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
 	private lastPromptText: string | null = null;
+	private pendingDebounceResolve: (() => void) | null = null;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -102,6 +105,7 @@ export class AgentRunner implements AiAgent {
 			attachments: options.attachments,
 		});
 		this.pendingResolve?.();
+		this.pendingDebounceResolve?.();
 		this.ensurePolling();
 		return Promise.resolve({ text: "", sessionId: "queued" });
 	}
@@ -327,6 +331,8 @@ export class AgentRunner implements AiAgent {
 				this.logger.info(`[${this.profile.name}:${this.agentId}] waitForMessages aborted`);
 				return;
 			}
+			await this.waitForDebounce(signal);
+			if (signal.aborted) return;
 			text = this.drainMessages();
 			if (!text) return;
 		}
@@ -375,6 +381,41 @@ export class AgentRunner implements AiAgent {
 			this.pendingResolve = done;
 			signal.addEventListener("abort", done, { once: true });
 		});
+	}
+
+	// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
+	protected async waitForDebounce(signal: AbortSignal): Promise<void> {
+		const deadline = this.nowProvider() + MAX_DEBOUNCE_MS;
+		let messageCountBefore = this.pendingMessages.length;
+
+		while (!signal.aborted) {
+			const remaining = deadline - this.nowProvider();
+			if (remaining <= 0) break;
+
+			const waitMs = Math.min(MESSAGE_DEBOUNCE_MS, remaining);
+
+			// sleep と新メッセージ到着を race
+			// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
+			await this.raceDebounce(waitMs, signal);
+
+			if (signal.aborted) break;
+
+			// 新メッセージが来ていなければデバウンス完了
+			if (this.pendingMessages.length === messageCountBefore) break;
+			messageCountBefore = this.pendingMessages.length;
+		}
+	}
+
+	private async raceDebounce(waitMs: number, signal: AbortSignal): Promise<void> {
+		const sleepPromise = this.sleep(waitMs);
+		const messagePromise = new Promise<void>((resolve) => {
+			this.pendingDebounceResolve = resolve;
+		});
+		const abortPromise = new Promise<void>((resolve) => {
+			signal.addEventListener("abort", () => resolve(), { once: true });
+		});
+		await Promise.race([sleepPromise, messagePromise, abortPromise]);
+		this.pendingDebounceResolve = null;
 	}
 
 	private drainMessages(): string {
