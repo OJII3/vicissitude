@@ -19,7 +19,7 @@ heartbeat はふあが定期的に自律的に行動するための仕組み。
 
 ### 音楽の話題
 
-`core_spotify_pick_track` → `core_fetch_lyrics` → 自分の言葉で自然に紹介（JSON や歌詞全文は貼らない）。感想があれば `core_save_listening_fact`、紹介時は `set_now_playing` も更新。話の流れに合うときだけ使う。
+`core_spotify_pick_track` → `core_fetch_lyrics` → 自分の言葉で自然に紹介（JSON や歌詞全文は貼らない）。感想があれば `core_save_listening_fact`。話の流れに合うときだけ使う。
 
 ### mc-check の手順
 
