@@ -56,6 +56,8 @@ export class AgentRunner implements AiAgent {
 	private retryAttempt = 0;
 	private pendingMessages: Array<{ message: string; attachments?: Attachment[] }> = [];
 	private pendingResolve: (() => void) | null = null;
+	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
+	private lastPromptText: string | null = null;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -187,6 +189,7 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
+					this.lastPromptText = null;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
@@ -309,29 +312,36 @@ export class AgentRunner implements AiAgent {
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
 
-		this.logger.info(
-			`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
-		);
-		await this.waitForMessages(signal);
-		if (signal.aborted) {
-			this.logger.info(`[${this.profile.name}:${this.agentId}] waitForMessages aborted`);
-			return;
+		let text: string;
+		if (this.lastPromptText) {
+			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
+			const newText = this.drainMessages();
+			text = newText ? `${this.lastPromptText}\n---\n${newText}` : this.lastPromptText;
+		} else {
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
+			);
+			await this.waitForMessages(signal);
+			if (signal.aborted) {
+				this.logger.info(`[${this.profile.name}:${this.agentId}] waitForMessages aborted`);
+				return;
+			}
+			text = this.drainMessages();
+			if (!text) return;
 		}
-
-		const text = this.drainMessages();
-		if (!text) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
-		const system = !this.hasStartedSession
-			? await this.contextBuilder.build(this.contextGuildId)
-			: undefined;
+		const system = this.hasStartedSession
+			? undefined
+			: await this.contextBuilder.build(this.contextGuildId);
 		if (signal.aborted) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
+		this.lastPromptText = text;
 
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{

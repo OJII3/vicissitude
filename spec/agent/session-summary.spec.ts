@@ -145,7 +145,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		test("セッションローテーション時に prompt → summaryWriter.write の順で呼ばれる（summary 成功時のみ）", async () => {
 			const callOrder: string[] = [];
 
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -178,8 +177,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 
 			firstSessionDone.resolve({ type: "idle" });
@@ -200,7 +199,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		test("summaryWriter.write は sessionPort.deleteSession より前に呼ばれる（summary 成功時のみ）", async () => {
 			const callOrder: string[] = [];
 
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -237,8 +235,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -257,7 +255,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("セッション期限未到達時はローテーションせず prompt(要約) も呼ばれない", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -282,8 +279,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -300,7 +297,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 	describe("要約生成失敗時のフォールバック", () => {
 		test("prompt(要約) がエラーをスローしても sessionStore.delete は呼ばれる", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -327,8 +323,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -345,7 +341,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("summaryWriter.write がエラーをスローしても sessionStore.delete は呼ばれる", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -373,8 +368,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -392,7 +387,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 
 	describe("contextGuildId 未設定時のスキップ", () => {
 		test("contextGuildId が未設定の場合は prompt(要約) / summaryWriter.write は呼ばれない", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -416,8 +410,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -434,7 +428,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("summaryPrompt が未設定の場合は prompt(要約) は呼ばれない", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -460,8 +453,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);
@@ -478,7 +471,6 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 
 		test("summaryWriter が未設定の場合は prompt(要約) は呼ばれない", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -501,8 +493,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 			firstSessionDone.resolve({ type: "idle" });
 			await Bun.sleep(0);

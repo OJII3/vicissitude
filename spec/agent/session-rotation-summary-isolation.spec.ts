@@ -5,10 +5,7 @@
  *
  * 実運用で判明した問題: 壊れたセッションに summary prompt (`sessionPort.prompt(...)`)
  * を投げても OpenCode 側が応答を返さず、rotation の後段 (`deleteSession`, `sessionStore.delete`)
- * に到達しなくなる。これは以下 2 経路で発生する:
- *
- *   1. hang detection 経路 (`startHangDetectionTimer`)
- *   2. age 超過経路 (`rotateSessionIfExpired`)
+ * に到達しなくなる。これは age 超過経路 (`rotateSessionIfExpired`) で発生する。
  *
  * ※ session error (retryable:false) 経路は summary 生成自体をスキップするため対象外。
  *
@@ -104,10 +101,6 @@ function createSessionStore(existingSessionId?: string) {
 			createdAt = undefined;
 		}),
 	};
-}
-
-function neverResolve(_signal: AbortSignal): Promise<void> {
-	return new Promise(() => {});
 }
 
 function createSummaryWriter(): SessionSummaryWriter & { write: ReturnType<typeof mock> } {
@@ -217,43 +210,7 @@ describe("セッション要約生成のハング隔離", () => {
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 		});
 
-		test("hang detection 経路: summary prompt が hang しても deleteSession / sessionStore.delete は呼ばれる", async () => {
-			// waitForEvents が永遠に待機（hang 状態）
-			const sessionPort = createSimpleSessionPort();
-			sessionPort.prompt = mock(() => new Promise<PromptResult>(() => {}));
-
-			const summaryWriter = createSummaryWriter();
-			const sessionStore = createSessionStore("existing-session-id");
-
-			const runner = new TestAgent({
-				profile: createProfile(),
-				agentId: "guild-1",
-				sessionStore: sessionStore as never,
-				contextBuilder: createContextBuilder(),
-				logger: createMockLogger(),
-				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
-				summaryWriter,
-				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
-			});
-			runner.sleepSpy = () => Promise.resolve();
-			activeRunners.add(runner);
-
-			runner.ensurePolling();
-
-			// summary prompt hang (永久 pending) でも summaryTimeoutMs (100ms) 後に
-			// rotation が続行される。マージンを取って 400ms 待機。
-			await Bun.sleep(400);
-
-			expect(sessionPort.deleteSession).toHaveBeenCalledWith("existing-session-id");
-			expect(sessionStore.delete).toHaveBeenCalled();
-
-			runner.stop();
-		});
-
 		test("retryable:false エラー経路: summary prompt はスキップされ deleteSession / sessionStore.delete が即座に呼ばれる", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortForPollingLoop(
@@ -281,8 +238,8 @@ describe("セッション要約生成のハング隔離", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 
 			// retryable:false の session error → 即時ローテーション経路

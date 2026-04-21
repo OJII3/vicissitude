@@ -61,7 +61,6 @@ afterEach(() => {
 
 describe("Runner: session error メトリクス記録", () => {
 	test("セッションが error で終了した場合、SESSION_ERRORS カウンタがインクリメントされる", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -82,8 +81,7 @@ describe("Runner: session error メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -103,7 +101,6 @@ describe("Runner: session error メトリクス記録", () => {
 	});
 
 	test("セッションが streamDisconnected で終了した場合、SESSION_ERRORS カウンタがインクリメントされる", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -124,8 +121,7 @@ describe("Runner: session error メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -150,7 +146,6 @@ describe("Runner: session error メトリクス記録", () => {
 	});
 
 	test("error イベントに status/retryable/errorClass が含まれる場合、ラベルとして記録される", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -171,8 +166,7 @@ describe("Runner: session error メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -202,7 +196,6 @@ describe("Runner: session error メトリクス記録", () => {
 	});
 
 	test("error イベントに構造化フィールドが無い場合、ラベルは unknown", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -223,8 +216,7 @@ describe("Runner: session error メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -250,7 +242,6 @@ describe("Runner: session error メトリクス記録", () => {
 
 describe("Runner: session restart メトリクス記録", () => {
 	test("エラー後の再起動時に SESSION_RESTARTS カウンタがインクリメントされる", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -271,8 +262,7 @@ describe("Runner: session restart メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -303,7 +293,6 @@ describe("Runner: session restart メトリクス記録", () => {
 	});
 
 	test("streamDisconnected は SSE 再購読のみなので SESSION_RESTARTS はインクリメントされない", async () => {
-		const firstEvent = deferred<void>();
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithControlledResult(
@@ -324,8 +313,7 @@ describe("Runner: session restart メトリクス記録", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -349,39 +337,5 @@ describe("Runner: session restart メトリクス記録", () => {
 
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
-	});
-
-	test("ハング検知によるセッションローテーション時に SESSION_RESTARTS がインクリメントされる", async () => {
-		const sessionPort = createSessionPortWithControlledResult(
-			new Promise(() => {}),
-			new Promise(() => {}),
-		);
-		const metrics = createMockMetrics();
-		const runner = new TestAgent({
-			profile: createProfile(),
-			agentId: "agent-1",
-			sessionStore: createSessionStore("existing-session-id") as never,
-			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
-			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			sessionMaxAgeMs: 3_600_000,
-			metrics,
-		});
-		activeRunners.add(runner);
-
-		runner.ensurePolling();
-		await Bun.sleep(150);
-
-		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
-		const restartCalls = incrementCalls.filter(
-			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
-		);
-		const hangRestarts = restartCalls.filter(
-			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason === "hang_rotation",
-		);
-		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
-
-		runner.stop();
 	});
 });
