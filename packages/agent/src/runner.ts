@@ -333,9 +333,12 @@ export class AgentRunner implements AiAgent {
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
-		if (this.profile.pollingPrompt) {
-			text = `${this.profile.pollingPrompt}\n\n${text}`;
-		}
+		// lastPromptText にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
+		this.lastPromptText = text;
+
+		const promptText = this.profile.pollingPrompt
+			? `${this.profile.pollingPrompt}\n\n${text}`
+			: text;
 
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
@@ -346,12 +349,11 @@ export class AgentRunner implements AiAgent {
 		if (signal.aborted) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
-		this.lastPromptText = text;
 
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
-				text,
+				text: promptText,
 				model: {
 					providerId: this.profile.model.providerId,
 					modelId: this.profile.model.modelId,
