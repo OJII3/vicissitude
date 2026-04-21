@@ -1,5 +1,17 @@
-import type { FetchedImage, ImageFetcher } from "@vicissitude/shared/ports";
 import type { Logger } from "@vicissitude/shared/types";
+
+/** 取得成功時の画像データ */
+export interface FetchedImage {
+	/** base64 エンコードされた画像バイト列（data URL prefix は含まない） */
+	base64: string;
+	/** Content-Type ヘッダから抽出した MIME type（例: "image/png"） */
+	mimeType: string;
+}
+
+/** URL から画像を取得し base64 化するポート */
+export interface ImageFetcher {
+	fetch(url: string): Promise<FetchedImage | null>;
+}
 
 /** Claude API の画像入力上限に合わせた既定サイズ上限（5 MiB）。 */
 export const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;

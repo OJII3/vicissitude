@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import type { ErrorEvent, ParsedEvent } from "@vicissitude/mcp/tools/event-buffer";
+import type { ErrorEvent, ParsedEvent } from "@vicissitude/mcp/tools/event-helpers";
 import { formatCommands } from "@vicissitude/mcp/tools/mc-bridge-minecraft";
 
 /** デフォルト値付きの ParsedEvent ファクトリ。テストごとに必要なフィールドだけ上書きする */

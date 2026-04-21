@@ -6,8 +6,13 @@ import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
 import { z } from "zod";
 
-import type { EventOrError } from "./event-buffer.ts";
-import { MAX_BATCH_SIZE, escapeUserMessageTag, isErrorEvent, parseEvents } from "./event-buffer.ts";
+import type { EventOrError } from "./event-helpers.ts";
+import {
+	MAX_BATCH_SIZE,
+	escapeUserMessageTag,
+	isErrorEvent,
+	parseEvents,
+} from "./event-helpers.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 

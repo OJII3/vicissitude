@@ -20,7 +20,6 @@
  * | error_retryable_backoff     | retryable:true でバックオフ中の再起動             |
  * | error_retryable_rotation    | retryable:true で cap 到達後のローテーション      |
  * | error_non_retryable_rotation| retryable:false の即時ローテーション              |
- * | hang_rotation               | ハング検知によるローテーション                    |
  */
 /* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
@@ -29,7 +28,6 @@ import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import { METRIC } from "@vicissitude/observability/metrics";
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SessionSummaryWriter,
@@ -72,7 +70,6 @@ function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
-		restartPolicy: "wait_for_events",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		...overrides,
 	};
@@ -94,17 +91,6 @@ function createSessionStore(existingSessionId?: string) {
 		delete: mock(() => {
 			sessionId = undefined;
 		}),
-	};
-}
-
-function neverResolve(_signal: AbortSignal): Promise<void> {
-	return new Promise(() => {});
-}
-
-function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl ?? neverResolve),
 	};
 }
 
@@ -156,7 +142,6 @@ afterEach(() => {
 
 describe("retryable:true のバックオフ戦略", () => {
 	test("retryable:true のエラーで 2s → 4s → 8s → 10s の sleep 列になる", async () => {
-		const firstEvent = deferred<void>();
 		const sessions = [
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
@@ -164,12 +149,6 @@ describe("retryable:true のバックオフ戦略", () => {
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const sleepValues: number[] = [];
 		const runner = new TestAgent({
@@ -179,7 +158,6 @@ describe("retryable:true のバックオフ戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = (ms: number) => {
@@ -188,8 +166,7 @@ describe("retryable:true のバックオフ戦略", () => {
 		};
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -225,7 +202,6 @@ describe("retryable:true のバックオフ戦略", () => {
 	});
 
 	test("retryable:true で cap(10s) 到達後もエラーが継続するとローテーションにエスカレーション", async () => {
-		const firstEvent = deferred<void>();
 		// cap 到達（4回）+ cap 後エラー（1回）= 計5セッション
 		const sessions = [
 			deferred<OpencodeSessionEvent>(),
@@ -235,12 +211,6 @@ describe("retryable:true のバックオフ戦略", () => {
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 
 		const runner = new TestAgent({
@@ -250,14 +220,12 @@ describe("retryable:true のバックオフ戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -284,15 +252,8 @@ describe("retryable:true のバックオフ戦略", () => {
 	});
 
 	test("retryable undefined のエラーは retryable:true として扱われバックオフする", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 
 		const sleepValues: number[] = [];
@@ -303,7 +264,6 @@ describe("retryable:true のバックオフ戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = (ms: number) => {
@@ -312,8 +272,7 @@ describe("retryable:true のバックオフ戦略", () => {
 		};
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -335,15 +294,8 @@ describe("retryable:true のバックオフ戦略", () => {
 
 describe("retryable:false の即時ローテーション戦略", () => {
 	test("retryable:false のエラーで sleep なく即座に rotation が発動する", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 
 		const sleepValues: number[] = [];
@@ -354,7 +306,6 @@ describe("retryable:false の即時ローテーション戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = (ms: number) => {
@@ -363,8 +314,7 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		};
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -386,15 +336,8 @@ describe("retryable:false の即時ローテーション戦略", () => {
 	});
 
 	test("retryable:false のローテーションでは sessionPort.prompt (要約生成) が呼ばれない", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 		const summaryWriter: SessionSummaryWriter = {
 			write: mock(() => Promise.resolve()),
@@ -407,7 +350,6 @@ describe("retryable:false の即時ローテーション戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			contextGuildId: "123456789",
 			summaryWriter,
@@ -416,8 +358,7 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -437,18 +378,11 @@ describe("retryable:false の即時ローテーション戦略", () => {
 	});
 
 	test("retryable:false のローテーション後も再エラーで同じロジックが回る（ランナー停止しない）", async () => {
-		const firstEvent = deferred<void>();
 		const sessions = [
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 
 		const runner = new TestAgent({
@@ -458,14 +392,12 @@ describe("retryable:false の即時ローテーション戦略", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -498,15 +430,8 @@ describe("retryable:false の即時ローテーション戦略", () => {
 
 describe("rotation 後のリセット", () => {
 	test("rotation 後は delay が 2s にリセットされる", async () => {
-		const firstEvent = deferred<void>();
 		// cap 到達（4回）+ cap 後エラー（ローテーション）+ rotation 後の新エラー
 		const sessions = Array.from({ length: 8 }, () => deferred<OpencodeSessionEvent>());
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 
 		const sleepValues: number[] = [];
@@ -517,7 +442,6 @@ describe("rotation 後のリセット", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = (ms: number) => {
@@ -526,8 +450,7 @@ describe("rotation 後のリセット", () => {
 		};
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -565,7 +488,6 @@ describe("rotation 後のリセット", () => {
 
 describe("正常復帰後の delay リセット（既存契約維持）", () => {
 	test("idle 後のエラーでは delay が 2s にリセットされている", async () => {
-		const firstEvent = deferred<void>();
 		// [0] error → sleep 2s, [1] error → sleep 4s, [2] idle → delay reset,
 		// [3] error → sleep 2s (reset確認), [4] pending (runner.stop() 後のガード)
 		const sessions = [
@@ -575,12 +497,6 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 			deferred<OpencodeSessionEvent>(),
 			deferred<OpencodeSessionEvent>(),
 		];
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 
 		const sleepValues: number[] = [];
@@ -591,7 +507,6 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 		});
 		runner.sleepSpy = (ms: number) => {
@@ -600,8 +515,7 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 		};
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -626,6 +540,11 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 
 		const idleSleepCount = sleepValues.length;
 
+		// idle 後は新しいメッセージが必要（lastPromptText がクリアされるため）
+		await runner.send({ sessionKey: "k", message: "test2" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
 		// 再エラー → delay は 2s からリスタート
 		sessions[3]?.resolve({ type: "error", message: "err", retryable: true });
 		await Bun.sleep(0);
@@ -644,15 +563,8 @@ describe("正常復帰後の delay リセット（既存契約維持）", () => 
 
 describe("SESSION_RESTARTS reason ラベルの分類", () => {
 	test("retryable:true でバックオフ中の再起動は reason=error_retryable_backoff", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 		const metrics = createMockMetrics();
 
@@ -663,15 +575,13 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -695,14 +605,7 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 	});
 
 	test("retryable:true で cap 到達後の rotation は reason=error_retryable_rotation", async () => {
-		const firstEvent = deferred<void>();
 		const sessions = Array.from({ length: 7 }, () => deferred<OpencodeSessionEvent>());
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions(sessions.map((d) => d.promise));
 		const metrics = createMockMetrics();
 
@@ -713,15 +616,13 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -755,15 +656,8 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 	});
 
 	test("retryable:false の即時 rotation は reason=error_non_retryable_rotation", async () => {
-		const firstEvent = deferred<void>();
 		const session1 = deferred<OpencodeSessionEvent>();
 		const session2 = deferred<OpencodeSessionEvent>();
-		let waitCallCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCallCount += 1;
-			if (waitCallCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
 		const metrics = createMockMetrics();
 
@@ -774,15 +668,13 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			metrics,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -804,40 +696,5 @@ describe("SESSION_RESTARTS reason ラベルの分類", () => {
 
 		runner.stop();
 		session2.resolve({ type: "cancelled" });
-	});
-
-	test("ハング検知によるローテーションは reason=hang_rotation", async () => {
-		const eventBuffer = createEventBuffer(() => new Promise(() => {}));
-		const sessionPort = createSessionPortWithSessions([new Promise(() => {})]);
-		const metrics = createMockMetrics();
-
-		const runner = new TestAgent({
-			profile: createProfile(),
-			agentId: "agent-1",
-			sessionStore: createSessionStore("existing-session-id") as never,
-			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
-			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
-			sessionMaxAgeMs: 3_600_000,
-			hangTimeoutMs: 100,
-			metrics,
-		});
-		activeRunners.add(runner);
-
-		runner.ensurePolling();
-		await Bun.sleep(150);
-
-		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
-		const restartCalls = incrementCalls.filter(
-			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
-		);
-		const hangRestarts = restartCalls.filter(
-			(call: unknown[]) =>
-				(call[1] as Record<string, string> | undefined)?.reason === "hang_rotation",
-		);
-		expect(hangRestarts.length).toBeGreaterThanOrEqual(1);
-
-		runner.stop();
 	});
 });

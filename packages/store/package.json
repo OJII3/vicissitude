@@ -5,7 +5,6 @@
 		"./db": "./src/db.ts",
 		"./queries": "./src/queries.ts",
 		"./schema": "./src/schema.ts",
-		"./event-buffer": "./src/event-buffer.ts",
 		"./mc-bridge": "./src/mc-bridge.ts",
 		"./mood-store": "./src/mood-store.ts",
 		"./test-helpers": "./src/test-helpers.ts"

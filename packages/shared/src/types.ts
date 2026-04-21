@@ -62,25 +62,6 @@ export interface DueReminder {
 	overdueMinutes: number;
 }
 
-// ─── Event Buffer ───────────────────────────────────────────────
-
-export interface EventBuffer {
-	append(event: BufferedEvent): void;
-	waitForEvents(signal: AbortSignal): Promise<void>;
-}
-
-// ─── Buffered Event ──────────────────────────────────────────────
-
-export interface BufferedEvent {
-	ts: string;
-	content: string;
-	authorId: string;
-	authorName: string;
-	messageId: string;
-	attachments?: Attachment[];
-	metadata?: Record<string, unknown>;
-}
-
 // ─── Incoming Message & Message Channel ──────────────────────────
 
 export interface IncomingMessage {

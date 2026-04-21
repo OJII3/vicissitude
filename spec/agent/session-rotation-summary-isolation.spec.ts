@@ -5,10 +5,7 @@
  *
  * 実運用で判明した問題: 壊れたセッションに summary prompt (`sessionPort.prompt(...)`)
  * を投げても OpenCode 側が応答を返さず、rotation の後段 (`deleteSession`, `sessionStore.delete`)
- * に到達しなくなる。これは以下 2 経路で発生する:
- *
- *   1. hang detection 経路 (`startHangDetectionTimer`)
- *   2. age 超過経路 (`rotateSessionIfExpired`)
+ * に到達しなくなる。これは age 超過経路 (`rotateSessionIfExpired`) で発生する。
  *
  * ※ session error (retryable:false) 経路は summary 生成自体をスキップするため対象外。
  *
@@ -31,7 +28,6 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	PromptResult,
@@ -79,7 +75,6 @@ function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
 		mcpServers: {},
 		builtinTools: {},
 		pollingPrompt: "loop forever",
-		restartPolicy: "wait_for_events",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		summaryPrompt: TEST_SUMMARY_PROMPT,
 		...overrides,
@@ -105,17 +100,6 @@ function createSessionStore(existingSessionId?: string) {
 			sessionId = undefined;
 			createdAt = undefined;
 		}),
-	};
-}
-
-function neverResolve(_signal: AbortSignal): Promise<void> {
-	return new Promise(() => {});
-}
-
-function createEventBuffer(waitImpl?: (signal: AbortSignal) => Promise<void>): EventBuffer {
-	return {
-		append: mock(() => {}),
-		waitForEvents: mock(waitImpl ?? neverResolve),
 	};
 }
 
@@ -193,7 +177,6 @@ afterEach(() => {
 describe("セッション要約生成のハング隔離", () => {
 	describe("summary prompt が永久に pending のまま（hang）でも rotation は完遂する", () => {
 		test("age 超過経路: summary prompt が hang しても deleteSession / sessionStore.delete は呼ばれる", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			// summary 用 prompt が永久に resolve しない状態
 			sessionPort.prompt = mock(() => new Promise<PromptResult>(() => {}));
@@ -208,7 +191,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -228,50 +210,9 @@ describe("セッション要約生成のハング隔離", () => {
 			expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 		});
 
-		test("hang detection 経路: summary prompt が hang しても deleteSession / sessionStore.delete は呼ばれる", async () => {
-			// waitForEvents が永遠に待機（hang 状態）
-			const eventBuffer = createEventBuffer(() => new Promise(() => {}));
-			const sessionPort = createSimpleSessionPort();
-			sessionPort.prompt = mock(() => new Promise<PromptResult>(() => {}));
-
-			const summaryWriter = createSummaryWriter();
-			const sessionStore = createSessionStore("existing-session-id");
-
-			const runner = new TestAgent({
-				profile: createProfile(),
-				agentId: "guild-1",
-				sessionStore: sessionStore as never,
-				contextBuilder: createContextBuilder(),
-				logger: createMockLogger(),
-				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
-				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
-				summaryWriter,
-				hangTimeoutMs: 50,
-				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
-			});
-			runner.sleepSpy = () => Promise.resolve();
-			activeRunners.add(runner);
-
-			runner.ensurePolling();
-
-			// hangTimeoutMs (50ms) 経過で rotation が発動し、
-			// summary prompt hang (永久 pending) でも summaryTimeoutMs (100ms) 後に
-			// rotation が続行される。マージンを取って 400ms 待機。
-			await Bun.sleep(400);
-
-			expect(sessionPort.deleteSession).toHaveBeenCalledWith("existing-session-id");
-			expect(sessionStore.delete).toHaveBeenCalled();
-
-			runner.stop();
-		});
-
 		test("retryable:false エラー経路: summary prompt はスキップされ deleteSession / sessionStore.delete が即座に呼ばれる", async () => {
-			const firstEvent = deferred<void>();
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
-			const eventBuffer = createEventBuffer(() => firstEvent.promise);
 			const sessionPort = createSessionPortForPollingLoop(
 				firstSessionDone.promise,
 				secondSessionDone.promise,
@@ -289,7 +230,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -298,8 +238,8 @@ describe("セッション要約生成のハング隔離", () => {
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
 
-			runner.ensurePolling();
-			firstEvent.resolve();
+			await runner.send({ sessionKey: "k", message: "test" });
+			await Bun.sleep(0);
 			await Bun.sleep(0);
 
 			// retryable:false の session error → 即時ローテーション経路
@@ -327,7 +267,6 @@ describe("セッション要約生成のハング隔離", () => {
 
 	describe("summary prompt が throw しても rotation は完遂する（既存契約の再確認）", () => {
 		test("age 超過経路: prompt が reject しても deleteSession / sessionStore.delete は呼ばれる", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => Promise.reject(new Error("prompt failed")));
 
@@ -341,7 +280,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -362,7 +300,6 @@ describe("セッション要約生成のハング隔離", () => {
 
 	describe("summary prompt が正常 resolve する場合は summaryWriter.write が呼ばれる（回帰防止）", () => {
 		test("age 超過経路: prompt 正常時は write が呼ばれ、rotation も完遂する", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() =>
 				Promise.resolve({ text: "これは会話の要約", tokens: undefined }),
@@ -378,7 +315,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -401,7 +337,6 @@ describe("セッション要約生成のハング隔離", () => {
 	describe("summary abort/timeout 時の callOrder 契約", () => {
 		test("summary prompt が hang (timeout) した場合: callOrder は ['prompt', 'deleteSession'] で write はスキップ", async () => {
 			const callOrder: string[] = [];
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => {
 				callOrder.push("prompt");
@@ -427,7 +362,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -445,7 +379,6 @@ describe("セッション要約生成のハング隔離", () => {
 
 		test("summary prompt が throw (reject) した場合: callOrder は ['prompt', 'deleteSession'] で write はスキップ", async () => {
 			const callOrder: string[] = [];
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => {
 				callOrder.push("prompt");
@@ -471,7 +404,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -490,7 +422,6 @@ describe("セッション要約生成のハング隔離", () => {
 
 	describe("summary signal 伝播契約", () => {
 		test("sessionPort.prompt には AbortSignal が渡され、summary timeout 経過後は aborted となる", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 
 			let capturedSignal: AbortSignal | undefined;
@@ -509,7 +440,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,
@@ -528,7 +458,6 @@ describe("セッション要約生成のハング隔離", () => {
 
 	describe("summary timeout のタイミング契約", () => {
 		test("summary prompt が hang しても rotation 全体は summaryTimeoutMs + α 以内に完了する", async () => {
-			const eventBuffer = createEventBuffer(() => Promise.resolve());
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() => new Promise<PromptResult>(() => {}));
 
@@ -546,7 +475,6 @@ describe("セッション要約生成のハング隔離", () => {
 				contextBuilder: createContextBuilder(),
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
-				eventBuffer,
 				sessionMaxAgeMs: 3_600_000,
 				contextGuildId: "123456789",
 				summaryWriter,

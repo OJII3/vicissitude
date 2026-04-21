@@ -65,8 +65,7 @@ CREATE TABLE IF NOT EXISTS mood_state (
 
 CREATE TABLE IF NOT EXISTS agent_heartbeat (
 	agent_id TEXT PRIMARY KEY,
-	last_seen_at INTEGER NOT NULL,
-	rotation_requested_at INTEGER NOT NULL DEFAULT 0
+	last_seen_at INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS mc_session_lock (
@@ -78,54 +77,45 @@ CREATE TABLE IF NOT EXISTS mc_session_lock (
 );
 `;
 
+/** テーブルが存在するかチェック */
+function hasTable(sqlite: Database, tableName: string): boolean {
+	return !!sqlite
+		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+		.get(tableName);
+}
+
+/** テーブル内に指定カラムが存在するかチェック（PRAGMA はパラメータバインド非対応のため文字列補間を使用。呼び出し元はリテラルのみ） */
+function hasColumn(sqlite: Database, tableName: string, columnName: string): boolean {
+	const columns = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[];
+	return columns.some((c) => c.name === columnName);
+}
+
 /** 既存 DB のマイグレーション（CREATE_TABLES_SQL の前に実行） */
 function migrateDb(sqlite: Database): void {
 	// event_buffer: guild_id → agent_id リネーム + データ移行
-	const hasEventBuffer = sqlite
-		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='event_buffer'")
-		.get();
-	if (hasEventBuffer) {
-		const columns = sqlite.prepare("PRAGMA table_info(event_buffer)").all() as {
-			name: string;
-		}[];
-		const hasGuildId = columns.some((c) => c.name === "guild_id");
-		if (hasGuildId) {
-			sqlite.exec("ALTER TABLE event_buffer RENAME COLUMN guild_id TO agent_id");
-			sqlite.exec("UPDATE event_buffer SET agent_id = 'discord:' || agent_id");
-			sqlite.exec("DROP INDEX IF EXISTS idx_event_buffer_guild");
-			sqlite.exec("CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id)");
-		}
+	if (hasTable(sqlite, "event_buffer") && hasColumn(sqlite, "event_buffer", "guild_id")) {
+		sqlite.exec("ALTER TABLE event_buffer RENAME COLUMN guild_id TO agent_id");
+		sqlite.exec("UPDATE event_buffer SET agent_id = 'discord:' || agent_id");
+		sqlite.exec("DROP INDEX IF EXISTS idx_event_buffer_guild");
+		sqlite.exec("CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id)");
 	}
 
 	// mc_session_lock: connected / connected_at カラム追加
-	const hasLock = sqlite
-		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='mc_session_lock'")
-		.get();
-	if (hasLock) {
-		const columns = sqlite.prepare("PRAGMA table_info(mc_session_lock)").all() as {
-			name: string;
-		}[];
-		if (!columns.some((c) => c.name === "connected")) {
+	if (hasTable(sqlite, "mc_session_lock")) {
+		if (!hasColumn(sqlite, "mc_session_lock", "connected")) {
 			sqlite.exec("ALTER TABLE mc_session_lock ADD COLUMN connected INTEGER NOT NULL DEFAULT 0");
 		}
-		if (!columns.some((c) => c.name === "connected_at")) {
+		if (!hasColumn(sqlite, "mc_session_lock", "connected_at")) {
 			sqlite.exec("ALTER TABLE mc_session_lock ADD COLUMN connected_at INTEGER");
 		}
 	}
 
-	// agent_heartbeat: rotation_requested_at カラム追加
-	const hasHeartbeat = sqlite
-		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='agent_heartbeat'")
-		.get();
-	if (hasHeartbeat) {
-		const columns = sqlite.prepare("PRAGMA table_info(agent_heartbeat)").all() as {
-			name: string;
-		}[];
-		if (!columns.some((c) => c.name === "rotation_requested_at")) {
-			sqlite.exec(
-				"ALTER TABLE agent_heartbeat ADD COLUMN rotation_requested_at INTEGER NOT NULL DEFAULT 0",
-			);
-		}
+	// agent_heartbeat: rotation_requested_at カラム削除（#632）
+	if (
+		hasTable(sqlite, "agent_heartbeat") &&
+		hasColumn(sqlite, "agent_heartbeat", "rotation_requested_at")
+	) {
+		sqlite.exec("ALTER TABLE agent_heartbeat DROP COLUMN rotation_requested_at");
 	}
 
 	// mc_bridge_events テーブルを削除（統合済み）

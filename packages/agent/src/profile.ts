@@ -5,10 +5,8 @@ export interface AgentProfile {
 	mcpServers: Record<string, McpServerConfig>;
 	/** OpenCode 組み込みツール設定 */
 	builtinTools: Record<string, boolean>;
-	/** ポーリングプロンプト */
+	/** メッセージ応答プロンプト */
 	pollingPrompt: string;
-	/** セッション再起動前の待機方針 */
-	restartPolicy: "immediate" | "wait_for_events";
 	/** モデル設定 */
 	model: { providerId: string; modelId: string };
 	/** セッション要約プロンプト。未設定の場合は要約生成をスキップ */

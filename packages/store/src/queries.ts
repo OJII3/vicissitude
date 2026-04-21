@@ -27,25 +27,6 @@ export function consumeEvents(
 	});
 }
 
-/** event_buffer から最古の 1 件を取得して削除する */
-export function consumeNextEvent(
-	db: StoreDb,
-	agentId: string,
-): { id: number; payload: string; createdAt: number } | null {
-	return db.transaction((tx) => {
-		const row = tx
-			.select()
-			.from(eventBuffer)
-			.where(eq(eventBuffer.agentId, agentId))
-			.orderBy(eventBuffer.id)
-			.limit(1)
-			.get();
-		if (!row) return null;
-		tx.delete(eventBuffer).where(eq(eventBuffer.id, row.id)).run();
-		return { id: row.id ?? 0, payload: row.payload, createdAt: row.createdAt };
-	});
-}
-
 /** event_buffer にイベントを追加する */
 export function appendEvent(db: StoreDb, agentId: string, payload: string): void {
 	db.insert(eventBuffer).values({ agentId, payload, createdAt: Date.now() }).run();
@@ -84,17 +65,6 @@ export function incrementEmoji(db: StoreDb, guildId: string, emojiName: string):
 			set: { count: sql`${emojiUsage.count} + 1` },
 		})
 		.run();
-}
-
-/** event_buffer に該当エージェントのイベントが存在するか確認する */
-export function hasEvents(db: StoreDb, agentId: string): boolean {
-	const row = db
-		.select({ id: eventBuffer.id })
-		.from(eventBuffer)
-		.where(eq(eventBuffer.agentId, agentId))
-		.limit(1)
-		.get();
-	return row !== undefined;
 }
 
 /** エージェントハートビートを更新する（UPSERT） */

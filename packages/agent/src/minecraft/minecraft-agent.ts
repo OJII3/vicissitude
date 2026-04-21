@@ -1,7 +1,6 @@
 import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import type {
 	ContextBuilderPort,
-	EventBuffer,
 	Logger,
 	OpencodeSessionPort,
 	SessionStorePort,
@@ -13,7 +12,6 @@ import { AgentRunner } from "../runner.ts";
 export interface MinecraftAgentDeps {
 	sessionStore: SessionStorePort;
 	logger: Logger;
-	eventBuffer: EventBuffer;
 	sessionPort: OpencodeSessionPort;
 	contextBuilder: ContextBuilderPort;
 	sessionMaxAgeMs: number;
@@ -33,7 +31,6 @@ export class MinecraftAgent extends AgentRunner {
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
 			sessionPort: deps.sessionPort,
-			eventBuffer: deps.eventBuffer,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,

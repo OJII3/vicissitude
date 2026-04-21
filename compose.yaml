@@ -14,6 +14,8 @@ volumes:
   ollama-data:
   bot-node-modules:
   bot-dist:
+  prometheus-data:
+  grafana-data:
 
 services:
   # Step 1: bun install (依存が変わったときだけ実質的に仕事をする)
@@ -95,6 +97,59 @@ services:
       ollama:
         condition: service_healthy
     command: ["xvfb-run", "-a", "bun", "run", "dist/index.js"]
+
+  prometheus:
+    container_name: vicissitude-prometheus
+    image: docker.io/prom/prometheus:latest
+    profiles: [monitoring]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - vicissitude-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-prometheus
+    restart: unless-stopped
+
+  grafana:
+    container_name: vicissitude-grafana
+    image: docker.io/grafana/grafana:latest
+    profiles: [monitoring]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana-dashboard.json:/tmp/dashboard-src.json:ro
+      - grafana-data:/var/lib/grafana
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mkdir -p /var/lib/grafana/dashboards
+        sed 's/$${DS_PROMETHEUS}/prometheus/g; s/$${DS_LOKI}/loki/g' /tmp/dashboard-src.json > /var/lib/grafana/dashboards/dashboard.json
+        exec /run.sh
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      - vicissitude-net
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-grafana
+    restart: unless-stopped
 
   ollama:
     container_name: vicissitude-ollama

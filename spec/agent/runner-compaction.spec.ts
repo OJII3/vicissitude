@@ -18,7 +18,6 @@ import { createMockLogger } from "../test-helpers.ts";
 import {
 	TestAgent,
 	createContextBuilder,
-	createEventBuffer,
 	createProfile,
 	createSessionStore,
 	deferred,
@@ -67,8 +66,6 @@ describe("トークン閾値による proactive compaction", () => {
 	test("蓄積トークンが閾値を超えた session.idle イベントで summarizeSession が呼ばれる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const rewatchDone = deferred<OpencodeSessionEvent>();
-		const firstEvent = deferred<void>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => sessionDone.promise),
@@ -82,7 +79,6 @@ describe("トークン閾値による proactive compaction", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			// proactive compaction の閾値を低く設定
 			compactionTokenThreshold: 1000,
@@ -90,8 +86,7 @@ describe("トークン閾値による proactive compaction", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -114,8 +109,6 @@ describe("トークン閾値による proactive compaction", () => {
 	test("蓄積トークンが閾値未満なら summarizeSession は呼ばれない", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const secondDone = deferred<OpencodeSessionEvent>();
-		const firstEvent = deferred<void>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 
 		let callCount = 0;
 		const sessionPort = createSessionPortWithSummarize({
@@ -132,15 +125,13 @@ describe("トークン閾値による proactive compaction", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			compactionTokenThreshold: 100_000,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -166,8 +157,6 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 	test("深夜帯 + セッション経過半分以上 + トークン閾値半分以上なら summarizeSession が呼ばれる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const rewatchDone = deferred<OpencodeSessionEvent>();
-		const firstEvent = deferred<void>();
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => sessionDone.promise),
@@ -188,7 +177,6 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs,
 			compactionTokenThreshold,
 			nowProvider: () => {
@@ -202,8 +190,7 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -229,17 +216,12 @@ describe("proactive compaction のエラー耐性", () => {
 	test("summarizeSession が例外をスローしても polling loop はクラッシュしない", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const secondDone = deferred<OpencodeSessionEvent>();
-		const firstEvent = deferred<void>();
-		let waitCount = 0;
-		const eventBuffer = createEventBuffer(() => {
-			waitCount++;
-			if (waitCount === 1) return firstEvent.promise;
-			return Promise.resolve();
-		});
 
+		let sessionCallCount = 0;
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => {
-				return waitCount <= 1 ? sessionDone.promise : secondDone.promise;
+				sessionCallCount++;
+				return sessionCallCount <= 1 ? sessionDone.promise : secondDone.promise;
 			}),
 		});
 
@@ -255,15 +237,13 @@ describe("proactive compaction のエラー耐性", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			compactionTokenThreshold: 100,
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
@@ -293,9 +273,8 @@ describe("proactive compaction のクールダウン", () => {
 		const firstDone = deferred<OpencodeSessionEvent>();
 		const secondDone = deferred<OpencodeSessionEvent>();
 		const thirdDone = deferred<OpencodeSessionEvent>();
-		const firstEvent = deferred<void>();
+
 		let sessionCallCount = 0;
-		const eventBuffer = createEventBuffer(() => firstEvent.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => {
@@ -314,7 +293,6 @@ describe("proactive compaction のクールダウン", () => {
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
-			eventBuffer,
 			sessionMaxAgeMs: 3_600_000,
 			compactionTokenThreshold: 100,
 			// クールダウンを非常に長くして2回目は発火しないことを確認
@@ -323,8 +301,7 @@ describe("proactive compaction のクールダウン", () => {
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		runner.ensurePolling();
-		firstEvent.resolve();
+		await runner.send({ sessionKey: "k", message: "test" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 

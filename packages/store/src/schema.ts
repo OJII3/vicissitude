@@ -18,7 +18,7 @@ export const emojiUsage = sqliteTable(
 	(table) => [primaryKey({ columns: [table.guildId, table.emojiName] })],
 );
 
-/** イベントバッファテーブル */
+/** イベントバッファテーブル（MC ブリッジのエージェント間メッセージキューとして使用） */
 export const eventBuffer = sqliteTable("event_buffer", {
 	id: integer("id").primaryKey({ autoIncrement: true }),
 	agentId: text("agent_id").notNull(),
@@ -39,8 +39,6 @@ export const moodState = sqliteTable("mood_state", {
 export const agentHeartbeat = sqliteTable("agent_heartbeat", {
 	agentId: text("agent_id").primaryKey(),
 	lastSeenAt: integer("last_seen_at").notNull(),
-	/** MCP 側からセッションローテーションを要求するフラグ（タイムスタンプ、0 = 要求なし） */
-	rotationRequestedAt: integer("rotation_requested_at").notNull().default(0),
 });
 
 /** MC セッション排他ロックテーブル（最大1行） */

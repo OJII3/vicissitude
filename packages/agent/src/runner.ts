@@ -1,11 +1,11 @@
-/* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のポーリングループ・セッション管理が密結合のため分割困難 */
+/* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のメッセージ駆動ループ・セッション管理が密結合のため分割困難 */
 import { classifyErrorType, METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
 import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
+	Attachment,
 	ContextBuilderPort,
-	EventBuffer,
 	Logger,
 	MetricsCollector,
 	OpencodeSessionEvent,
@@ -20,13 +20,7 @@ import type { AgentProfile } from "./profile.ts";
 const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
-const DEFAULT_HANG_TIMEOUT_MS = 600_000;
 const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
-
-/** MCP プロセスが書き込むハートビートを読み取るポート */
-export interface HeartbeatReader {
-	getLastSeenAt(agentId: string): number | undefined;
-}
 
 export interface RunnerDeps {
 	profile: AgentProfile;
@@ -35,17 +29,12 @@ export interface RunnerDeps {
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
 	sessionPort: OpencodeSessionPort;
-	eventBuffer: EventBuffer;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
 	/** ContextBuilder に渡す guildId（Discord エージェント用）。省略時は undefined */
 	contextGuildId?: string;
 	/** セッション要約の書き出しポート。省略時は要約生成をスキップ */
 	summaryWriter?: SessionSummaryWriter;
-	/** waitForEvents が呼ばれない状態が続いた場合にセッションローテーションを行うまでの時間（ms）。デフォルト: 600_000 (10分) */
-	hangTimeoutMs?: number;
-	/** MCP wait_for_events のハートビートリーダー。設定時は SQLite のハートビートも考慮してハング判定する */
-	heartbeatReader?: HeartbeatReader;
 	/** セッション要約生成 (`sessionPort.prompt`) のタイムアウト（ms）。壊れたセッションで summary が永久に返らないときに rotation を止めないため必須。デフォルト: 30_000 */
 	summaryTimeoutMs?: number;
 	/** proactive compaction のトークン閾値（input + output）。省略時は proactive compaction 無効 */
@@ -64,8 +53,11 @@ export class AgentRunner implements AiAgent {
 	private hasStartedSession = false;
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
-	private lastWaitForEventsAt: number = Date.now();
-	private hangTimer: ReturnType<typeof setInterval> | null = null;
+	private retryAttempt = 0;
+	private pendingMessages: Array<{ message: string; attachments?: Attachment[] }> = [];
+	private pendingResolve: (() => void) | null = null;
+	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
+	private lastPromptText: string | null = null;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -73,13 +65,10 @@ export class AgentRunner implements AiAgent {
 	private readonly contextBuilder: ContextBuilderPort;
 	private readonly logger: Logger;
 	private readonly sessionPort: OpencodeSessionPort;
-	private readonly eventBuffer: EventBuffer;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
 	private readonly contextGuildId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
-	private readonly hangTimeoutMs: number;
-	private readonly heartbeatReader?: HeartbeatReader;
 	private readonly summaryTimeoutMs: number;
 	private readonly compactionTokenThreshold?: number;
 	private readonly compactionCooldownMs: number;
@@ -97,13 +86,10 @@ export class AgentRunner implements AiAgent {
 		this.contextBuilder = deps.contextBuilder;
 		this.logger = deps.logger;
 		this.sessionPort = deps.sessionPort;
-		this.eventBuffer = deps.eventBuffer;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 		this.metrics = deps.metrics;
 		this.contextGuildId = deps.contextGuildId;
 		this.summaryWriter = deps.summaryWriter;
-		this.hangTimeoutMs = deps.hangTimeoutMs ?? DEFAULT_HANG_TIMEOUT_MS;
-		this.heartbeatReader = deps.heartbeatReader;
 		this.summaryTimeoutMs = deps.summaryTimeoutMs ?? DEFAULT_SUMMARY_TIMEOUT_MS;
 		this.compactionTokenThreshold = deps.compactionTokenThreshold;
 		this.compactionCooldownMs = deps.compactionCooldownMs ?? 1_800_000;
@@ -111,66 +97,24 @@ export class AgentRunner implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		const { message, attachments } = options;
-		this.eventBuffer.append({
-			ts: new Date().toISOString(),
-			authorId: "system",
-			authorName: "system",
-			messageId: `send-${Date.now()}`,
-			content: message,
-			attachments: attachments && attachments.length > 0 ? attachments : undefined,
+		this.pendingMessages.push({
+			message: options.message,
+			attachments: options.attachments,
 		});
+		this.pendingResolve?.();
 		this.ensurePolling();
-		return Promise.resolve({ text: "", sessionId: "polling" });
+		return Promise.resolve({ text: "", sessionId: "queued" });
 	}
 
-	/**
-	 * ポーリングループが未起動なら起動する。
-	 * 通常は `send()` 経由で自動起動される。
-	 * タイマーベース EventBuffer など `send()` なしで起動が必要な場合のみ直接呼ぶ。
-	 *
-	 * ポーリングモードでは 1回の promptAsync で LLM が wait_for_events MCP ツールを
-	 * 繰り返し呼び出し、セッションを半永続的に維持する（Copilot チケット節約のため）。
-	 * @see {@link ../../mcp/src/tools/event-buffer.ts} — ポーリングモデルの詳細
-	 */
 	ensurePolling(): void {
 		if (this.running) return;
-		this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: starting polling loop`);
-		this.lastWaitForEventsAt = Date.now();
-		this.startHangDetectionTimer();
+		this.logger.info(`[${this.profile.name}:${this.agentId}] ensurePolling: starting message loop`);
 		this.startPollingLoop().catch((err) => {
 			this.logger.error(
-				`[${this.profile.name}:${this.agentId}] polling loop unexpectedly rejected`,
+				`[${this.profile.name}:${this.agentId}] message loop unexpectedly rejected`,
 				err,
 			);
 		});
-	}
-
-	private startHangDetectionTimer(): void {
-		if (this.hangTimer !== null) return;
-		const intervalMs = Math.max(1, Math.floor(this.hangTimeoutMs / 10));
-		this.hangTimer = setInterval(() => {
-			const mcpHeartbeat = this.heartbeatReader?.getLastSeenAt(this.agentId) ?? 0;
-			const lastAlive = Math.max(this.lastWaitForEventsAt, mcpHeartbeat);
-			const elapsed = Date.now() - lastAlive;
-			this.logger.debug(
-				`[${this.profile.name}:${this.agentId}] hang check: elapsed=${elapsed}ms threshold=${this.hangTimeoutMs}ms lastWaitForEvents=${this.lastWaitForEventsAt} mcpHeartbeat=${mcpHeartbeat}`,
-			);
-			if (elapsed >= this.hangTimeoutMs) {
-				this.logger.warn(
-					`[${this.profile.name}:${this.agentId}] hang detected (${elapsed}ms since last waitForEvents), requesting session rotation`,
-				);
-				// ローテーション後に再度すぐ検知されないよう、タイムスタンプをリセット
-				this.lastWaitForEventsAt = Date.now();
-				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, { reason: "hang_rotation" });
-				this.forceSessionRotation().catch((err) => {
-					this.logger.error(
-						`[${this.profile.name}:${this.agentId}] hang recovery rotation failed`,
-						err,
-					);
-				});
-			}
-		}, intervalMs);
 	}
 
 	protected async startPollingLoop(): Promise<void> {
@@ -178,12 +122,17 @@ export class AgentRunner implements AiAgent {
 		this.running = true;
 		this.abortController = new AbortController();
 		this.hasStartedSession = false;
+		this.retryAttempt = 0;
 		const signal = this.abortController.signal;
 
 		let delay = INITIAL_RECONNECT_DELAY_MS;
-		// 直前のループで cap に到達した sleep を行ったかどうかを追跡する。
-		// cap 到達後も error が継続した場合にローテーションへエスカレーションするために使用。
 		let prevSleepWasCapped = false;
+
+		const resetBackoffState = () => {
+			delay = INITIAL_RECONNECT_DELAY_MS;
+			prevSleepWasCapped = false;
+			this.retryAttempt = 0;
+		};
 
 		while (this.running && !signal.aborted) {
 			try {
@@ -197,10 +146,6 @@ export class AgentRunner implements AiAgent {
 					continue;
 				}
 
-				// ポーリングモードでは LLM が wait_for_events を呼び続けるため、
-				// sessionWatch は通常返らない。返るのは session.error / session.compacted /
-				// signal abort / stream タイムアウト（5分間イベントなし）のいずれか。
-				// セッションの異常検知は hang detection timer (startHangDetectionTimer) が担う。
 				this.logger.info(
 					`[${this.profile.name}:${this.agentId}] sessionWatch started, waiting for session end event...`,
 				);
@@ -220,8 +165,7 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					resetBackoffState();
 					continue;
 				}
 
@@ -230,16 +174,14 @@ export class AgentRunner implements AiAgent {
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
 				if (event.type === "compacted" || event.type === "streamDisconnected") {
 					this.rewatchSession(signal);
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					resetBackoffState();
 					continue;
 				}
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
 				// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
 				if (event.type === "idle" && (await this.tryProactiveCompact(event, signal))) {
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					resetBackoffState();
 					continue;
 				}
 
@@ -247,8 +189,8 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					this.lastPromptText = null;
+					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
@@ -262,8 +204,7 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
 					await this.forceSessionRotation({ skipSummary: true });
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					resetBackoffState();
 					continue;
 				}
 
@@ -274,10 +215,14 @@ export class AgentRunner implements AiAgent {
 					});
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
 					await this.forceSessionRotation();
-					delay = INITIAL_RECONNECT_DELAY_MS;
-					prevSleepWasCapped = false;
+					resetBackoffState();
 					continue;
 				}
+				this.retryAttempt += 1;
+				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
+					error_type: classifyErrorType(event),
+					attempt: String(this.retryAttempt),
+				});
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
 					reason: "error_retryable_backoff",
 				});
@@ -289,6 +234,11 @@ export class AgentRunner implements AiAgent {
 				);
 				this.sessionWatch = null;
 				// 例外時は retryable 不明のため retryable:true 扱いのバックオフ
+				this.retryAttempt += 1;
+				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
+					error_type: "session_error",
+					attempt: String(this.retryAttempt),
+				});
 				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
 					reason: "error_retryable_backoff",
 				});
@@ -337,6 +287,7 @@ export class AgentRunner implements AiAgent {
 		}
 		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
+		this.hasStartedSession = false;
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated`);
 	}
 
@@ -345,10 +296,6 @@ export class AgentRunner implements AiAgent {
 		this.abortController?.abort();
 		this.abortController = null;
 		this.sessionWatch = null;
-		if (this.hangTimer !== null) {
-			clearInterval(this.hangTimer);
-			this.hangTimer = null;
-		}
 		this.sessionPort.close();
 	}
 
@@ -363,21 +310,44 @@ export class AgentRunner implements AiAgent {
 		this.sessionWatch = this.sessionPort.waitForSessionIdle(sessionId, signal);
 	}
 
-	private async startLongLivedSession(signal: AbortSignal): Promise<void> {
+	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
+		if (this.sessionWatch) return;
+
+		let text: string;
+		if (this.lastPromptText) {
+			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
+			const newText = this.drainMessages();
+			text = newText ? `${this.lastPromptText}\n---\n${newText}` : this.lastPromptText;
+		} else {
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
+			);
+			await this.waitForMessages(signal);
+			if (signal.aborted) {
+				this.logger.info(`[${this.profile.name}:${this.agentId}] waitForMessages aborted`);
+				return;
+			}
+			text = this.drainMessages();
+			if (!text) return;
+		}
+
+		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
+
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
-		const system = await this.contextBuilder.build(this.contextGuildId);
+		const system = this.hasStartedSession
+			? undefined
+			: await this.contextBuilder.build(this.contextGuildId);
 		if (signal.aborted) return;
 
-		this.logger.info(
-			`[${this.profile.name}:${this.agentId}] starting polling prompt on session ${sessionId}`,
-		);
+		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
+		this.lastPromptText = text;
 
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
-				text: this.profile.pollingPrompt,
+				text,
 				model: {
 					providerId: this.profile.model.providerId,
 					modelId: this.profile.model.modelId,
@@ -386,37 +356,24 @@ export class AgentRunner implements AiAgent {
 			},
 			signal,
 		);
+		this.hasStartedSession = true;
 	}
 
-	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
-		if (this.sessionWatch) return;
-		if (this.hasStartedSession && this.profile.restartPolicy === "immediate") {
-			this.logger.info(
-				`[${this.profile.name}:${this.agentId}] restarting long-lived session (restartPolicy=immediate)`,
-			);
-			await this.startLongLivedSession(signal);
-			return;
-		}
+	private waitForMessages(signal: AbortSignal): Promise<void> {
+		if (this.pendingMessages.length > 0) return Promise.resolve();
+		return new Promise<void>((resolve) => {
+			const done = () => {
+				this.pendingResolve = null;
+				resolve();
+			};
+			this.pendingResolve = done;
+			signal.addEventListener("abort", done, { once: true });
+		});
+	}
 
-		this.logger.info(
-			`[${this.profile.name}:${this.agentId}] waiting for events... (hasStartedSession=${this.hasStartedSession}, restartPolicy=${this.profile.restartPolicy})`,
-		);
-		this.lastWaitForEventsAt = Date.now();
-		await this.eventBuffer.waitForEvents(signal);
-		this.lastWaitForEventsAt = Date.now();
-		if (signal.aborted) {
-			this.logger.info(`[${this.profile.name}:${this.agentId}] waitForEvents aborted`);
-			return;
-		}
-		this.logger.info(`[${this.profile.name}:${this.agentId}] events detected, starting session`);
-		await this.startLongLivedSession(signal);
-		if (signal.aborted || !this.sessionWatch) {
-			this.logger.warn(
-				`[${this.profile.name}:${this.agentId}] startLongLivedSession failed (aborted=${signal.aborted}, sessionWatch=${!!this.sessionWatch})`,
-			);
-			return;
-		}
-		this.hasStartedSession = true;
+	private drainMessages(): string {
+		const msgs = this.pendingMessages.splice(0);
+		return msgs.map((m) => m.message).join("\n---\n");
 	}
 
 	private handleSessionEnd(event: OpencodeSessionEvent): void {
@@ -428,10 +385,15 @@ export class AgentRunner implements AiAgent {
 				`[${this.profile.name}:${this.agentId}] long-lived session went idle, will restart`,
 			);
 			if (event.tokens && this.metrics) {
-				recordTokenMetrics(this.metrics, event.tokens, {
-					agent_type: "polling",
-					trigger: "polling",
-				});
+				recordTokenMetrics(
+					this.metrics,
+					event.tokens,
+					{
+						agent_type: "polling",
+						trigger: "polling",
+					},
+					this.profile.model.modelId,
+				);
 			}
 			return;
 		}
@@ -451,10 +413,15 @@ export class AgentRunner implements AiAgent {
 				error_class: "unknown",
 			});
 			if (event.tokens && this.metrics) {
-				recordTokenMetrics(this.metrics, event.tokens, {
-					agent_type: "polling",
-					trigger: "polling",
-				});
+				recordTokenMetrics(
+					this.metrics,
+					event.tokens,
+					{
+						agent_type: "polling",
+						trigger: "polling",
+					},
+					this.profile.model.modelId,
+				);
 			}
 			return;
 		}
@@ -575,6 +542,7 @@ export class AgentRunner implements AiAgent {
 
 		this.sessionStore.delete(this.profile.name, this.sessionKey);
 		this.sessionCreatedAt = null;
+		this.hasStartedSession = false;
 
 		const hours = Math.round(age / 3_600_000);
 		this.logger.info(`[${this.profile.name}:${this.agentId}] session rotated after ${hours}h`);

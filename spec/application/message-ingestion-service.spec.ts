@@ -2,12 +2,7 @@ import { describe, expect, mock, test } from "bun:test";
 
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { discordGuildNamespace } from "@vicissitude/memory/namespace";
-import type { BufferedEventStore } from "@vicissitude/shared/ports";
-import type {
-	BufferedEvent,
-	ConversationRecorder,
-	IncomingMessage,
-} from "@vicissitude/shared/types";
+import type { ConversationRecorder, IncomingMessage } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../test-helpers.ts";
 
@@ -34,46 +29,20 @@ function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMe
 
 describe("MessageIngestionService", () => {
 	test("guildId がなければ warn を出して何もしない", () => {
-		const eventStore: BufferedEventStore = { append: mock(() => {}) };
 		const logger = createMockLogger();
-		const service = new MessageIngestionService({ eventStore, logger });
+		const service = new MessageIngestionService({ logger });
 
 		service.handleIncomingMessage(createMockMessage({ guildId: undefined }));
 
 		expect(logger.warn).toHaveBeenCalledTimes(1);
-		expect(eventStore.append).not.toHaveBeenCalled();
 	});
 
-	test("イベントをバッファし、添付だけのメッセージも許可する", () => {
-		const buffered: Array<{ agentId: string; event: BufferedEvent }> = [];
-		const eventStore: BufferedEventStore = {
-			append: mock((agentId: string, event: BufferedEvent) => {
-				buffered.push({ agentId, event });
-			}),
-		};
-		const logger = createMockLogger();
-		const service = new MessageIngestionService({ eventStore, logger });
-
-		service.handleIncomingMessage(
-			createMockMessage({
-				content: "",
-				attachments: [{ url: "https://example.com/image.png", filename: "image.png" }],
-			}),
-		);
-
-		expect(buffered).toHaveLength(1);
-		expect(buffered[0]?.agentId).toBe("discord:1111");
-		expect(buffered[0]?.event.attachments?.[0]?.filename).toBe("image.png");
-		expect(buffered[0]?.event.metadata?.channelName).toBe("general");
-	});
-
-	test("recorder があれば会話記録も行う", async () => {
-		const eventStore: BufferedEventStore = { append: mock(() => {}) };
+	test("recorder があれば会話記録を行う", async () => {
 		const recorder: ConversationRecorder = {
 			record: mock(() => Promise.resolve()),
 		};
 		const logger = createMockLogger();
-		const service = new MessageIngestionService({ eventStore, logger, recorder });
+		const service = new MessageIngestionService({ logger, recorder });
 
 		service.handleIncomingMessage(
 			createMockMessage({
@@ -96,39 +65,25 @@ describe("MessageIngestionService", () => {
 		);
 	});
 
-	test("bufferEvent=false なら Memory 記録だけ行い event buffer には積まない", async () => {
-		const eventStore: BufferedEventStore = { append: mock(() => {}) };
-		const recorder: ConversationRecorder = {
-			record: mock(() => Promise.resolve()),
-		};
-		const logger = createMockLogger();
-		const service = new MessageIngestionService({ eventStore, logger, recorder });
-
-		service.handleIncomingMessage(
-			createMockMessage({
-				isBot: true,
-				content: "自分の発言",
-			}),
-			{ recordConversation: true, bufferEvent: false },
-		);
-
-		await Promise.resolve();
-
-		expect(eventStore.append).not.toHaveBeenCalled();
-		expect(recorder.record).toHaveBeenCalledTimes(1);
-	});
-
 	test("recordConversation 未指定なら Memory 記録しない", async () => {
-		const eventStore: BufferedEventStore = { append: mock(() => {}) };
 		const recorder: ConversationRecorder = {
 			record: mock(() => Promise.resolve()),
 		};
 		const logger = createMockLogger();
-		const service = new MessageIngestionService({ eventStore, logger, recorder });
+		const service = new MessageIngestionService({ logger, recorder });
 
 		service.handleIncomingMessage(createMockMessage({ content: "mention only" }));
 		await Promise.resolve();
 
 		expect(recorder.record).not.toHaveBeenCalled();
+	});
+
+	test("content も attachments も空ならドロップする", () => {
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ logger });
+
+		service.handleIncomingMessage(createMockMessage({ content: "", attachments: [] }));
+
+		expect(logger.info).toHaveBeenCalledTimes(1);
 	});
 });
