@@ -11,11 +11,15 @@ import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 
+export { AgentRunner };
+export type { ContextBuilderPort, AgentProfile };
+
 /**
  * `AgentRunner` のサブクラス。`sleep` を差し替え可能にすることでテストの待機を制御する。
  */
 export class TestAgent extends AgentRunner {
 	sleepSpy: ((ms: number) => Promise<void>) | null = null;
+	enableDebounce = false;
 
 	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
 	constructor(deps: RunnerDeps) {
@@ -25,6 +29,11 @@ export class TestAgent extends AgentRunner {
 	protected override sleep(ms: number): Promise<void> {
 		if (this.sleepSpy) return this.sleepSpy(ms);
 		return super.sleep(ms);
+	}
+
+	protected override waitForDebounce(_signal: AbortSignal): Promise<void> {
+		if (this.enableDebounce) return super.waitForDebounce(_signal);
+		return Promise.resolve();
 	}
 }
 
@@ -53,17 +62,24 @@ export function createContextBuilder(): ContextBuilderPort {
 	return { build: mock(() => Promise.resolve("system prompt")) };
 }
 
-export function createSessionStore(existingSessionId?: string) {
+export function createSessionStore(
+	existingSessionId?: string,
+	options?: { createdAtOffset?: number },
+) {
 	let sessionId: string | undefined = existingSessionId;
-	const createdAt: number | undefined = existingSessionId ? Date.now() : undefined;
+	let createdAt: number | undefined = existingSessionId
+		? Date.now() + (options?.createdAtOffset ?? 0)
+		: undefined;
 	return {
 		get: mock(() => sessionId),
 		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
 		save: mock((_profile: string, _key: string, nextSessionId: string) => {
 			sessionId = nextSessionId;
+			createdAt = Date.now();
 		}),
 		delete: mock(() => {
 			sessionId = undefined;
+			createdAt = undefined;
 		}),
 	};
 }

@@ -25,9 +25,7 @@
 /* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
 import type {
-	ContextBuilderPort,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	PromptResult,
@@ -36,22 +34,14 @@ import type {
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
 import { createMockLogger } from "../test-helpers.ts";
-
-// ─── テスト用サブクラス ───────────────────────────────────────────
-
-class TestAgent extends AgentRunner {
-	sleepSpy: ((ms: number) => Promise<void>) | null = null;
-
-	// oxlint-disable-next-line no-useless-constructor -- protected → public に昇格させるために必要
-	constructor(deps: RunnerDeps) {
-		super(deps);
-	}
-
-	protected override sleep(ms: number): Promise<void> {
-		if (this.sleepSpy) return this.sleepSpy(ms);
-		return super.sleep(ms);
-	}
-}
+import {
+	type AgentRunner,
+	TestAgent,
+	createContextBuilder,
+	createProfile as createBaseProfile,
+	createSessionStore as createBaseSessionStore,
+	deferred,
+} from "./runner-test-helpers.ts";
 
 // ─── ヘルパー ─────────────────────────────────────────────────────
 
@@ -59,48 +49,12 @@ const TEST_SUMMARY_PROMPT = "要約してください";
 /** summary prompt がハングしても現実時間内にテストが終わるよう十分短い値 */
 const SHORT_SUMMARY_TIMEOUT_MS = 100;
 
-function deferred<T>() {
-	let resolveDeferred!: (value: T) => void;
-	let rejectDeferred!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolve, reject) => {
-		resolveDeferred = resolve;
-		rejectDeferred = reject;
-	});
-	return { promise, resolve: resolveDeferred, reject: rejectDeferred };
-}
-
-function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfile {
-	return {
-		name: "conversation",
-		mcpServers: {},
-		builtinTools: {},
-		pollingPrompt: "loop forever",
-		model: { providerId: "test-provider", modelId: "test-model" },
-		summaryPrompt: TEST_SUMMARY_PROMPT,
-		...overrides,
-	};
-}
-
-function createContextBuilder(): ContextBuilderPort {
-	return { build: mock(() => Promise.resolve("system prompt")) };
+function createProfile(overrides: Partial<AgentProfile> = {}) {
+	return createBaseProfile({ summaryPrompt: TEST_SUMMARY_PROMPT, ...overrides });
 }
 
 function createSessionStore(existingSessionId?: string) {
-	let sessionId: string | undefined = existingSessionId;
-	// age 超過経路では createdAt を過去に寄せる。ここでは未指定時 undefined のまま。
-	let createdAt: number | undefined = existingSessionId ? Date.now() - 7_200_000 : undefined;
-	return {
-		get: mock(() => sessionId),
-		getRow: mock(() => (sessionId && createdAt ? { key: "k", sessionId, createdAt } : undefined)),
-		save: mock((_profile: string, _key: string, nextSessionId: string) => {
-			sessionId = nextSessionId;
-			createdAt = Date.now();
-		}),
-		delete: mock(() => {
-			sessionId = undefined;
-			createdAt = undefined;
-		}),
-	};
+	return createBaseSessionStore(existingSessionId, { createdAtOffset: -7_200_000 });
 }
 
 function createSummaryWriter(): SessionSummaryWriter & { write: ReturnType<typeof mock> } {

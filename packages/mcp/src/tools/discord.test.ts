@@ -33,10 +33,12 @@ function createDiscordClientStub(): DiscordDeps["discordClient"] {
 	const sentMessage = { id: "sent-msg-1", reply: () => Promise.resolve({ id: "reply-msg-1" }) };
 	return {
 		channels: {
+			cache: new Map(),
 			fetch: () =>
 				Promise.resolve({
 					isTextBased: () => true,
 					send: () => Promise.resolve(sentMessage),
+					sendTyping: () => Promise.resolve(),
 					messages: { fetch: () => Promise.resolve(sentMessage) },
 				}),
 		},
