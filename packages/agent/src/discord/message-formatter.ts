@@ -10,7 +10,7 @@ export function classifyActionHint(msg: IncomingMessage): ActionHint {
 	return "optional";
 }
 
-export { escapeUserMessageTag } from "@vicissitude/shared/functions";
+export { escapeUserMessageTag };
 
 export function formatDiscordMessage(msg: IncomingMessage): string {
 	const hint = classifyActionHint(msg);
