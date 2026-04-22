@@ -169,7 +169,6 @@ export interface SendOptions {
 	sessionKey: string;
 	message: string;
 	guildId?: string;
-	attachments?: Attachment[];
 }
 
 export interface AiAgent {
