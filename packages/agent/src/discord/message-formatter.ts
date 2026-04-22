@@ -1,4 +1,4 @@
-import { formatTimestamp } from "@vicissitude/shared/functions";
+import { escapeUserMessageTag, formatTimestamp } from "@vicissitude/shared/functions";
 import type { IncomingMessage } from "@vicissitude/shared/types";
 
 export type ActionHint = "respond" | "optional" | "read_only" | "internal";
@@ -10,11 +10,7 @@ export function classifyActionHint(msg: IncomingMessage): ActionHint {
 	return "optional";
 }
 
-export function escapeUserMessageTag(content: string): string {
-	return content
-		.replaceAll("<user_message>", "&lt;user_message&gt;")
-		.replaceAll("</user_message>", "&lt;/user_message&gt;");
-}
+export { escapeUserMessageTag };
 
 export function formatDiscordMessage(msg: IncomingMessage): string {
 	const hint = classifyActionHint(msg);
