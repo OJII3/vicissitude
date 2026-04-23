@@ -1548,7 +1548,7 @@ class DebounceTestAgent extends AgentRunner {
 }
 
 describe("AgentRunner デバウンス機構（内部ロジック）", () => {
-	test("新メッセージが来なければ MESSAGE_DEBOUNCE_MS (2000ms) の sleep 後にデバウンス完了する", async () => {
+	test("新メッセージが来なければ MESSAGE_DEBOUNCE_MS (500ms) の sleep 後にデバウンス完了する", async () => {
 		const sleepCalls: number[] = [];
 		const sleepDeferreds: Array<{ resolve: () => void }> = [];
 		const runner = new DebounceTestAgent({
@@ -1575,9 +1575,9 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		const ac = new AbortController();
 		const debouncePromise = runner.callWaitForDebounce(ac.signal);
 
-		// sleep(2000) が呼ばれる
+		// sleep(500) が呼ばれる
 		await Bun.sleep(0);
-		expect(sleepCalls).toEqual([2000]);
+		expect(sleepCalls).toEqual([500]);
 
 		// sleep を resolve → pendingMessages が変わっていないのでデバウンス完了
 		sleepDeferreds.at(0)?.resolve();
@@ -1615,9 +1615,9 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		const debouncePromise = runner.callWaitForDebounce(ac.signal);
 		await Bun.sleep(0);
 
-		// 最初の sleep(2000) が呼ばれている
+		// 最初の sleep(500) が呼ばれている
 		expect(sleepCalls.length).toBe(1);
-		expect(sleepCalls[0]).toBe(2000);
+		expect(sleepCalls[0]).toBe(500);
 
 		// 新メッセージ送信 → pendingDebounceResolve が呼ばれて race が解決する
 		await runner.send({ sessionKey: "k", message: "msg2" });
@@ -1626,7 +1626,7 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 		expect(sleepCalls.length).toBe(2);
-		expect(sleepCalls[1]).toBe(2000); // タイマーリセット: 再び 2000ms
+		expect(sleepCalls[1]).toBe(500); // タイマーリセット: 再び 500ms
 
 		// 2回目の sleep を resolve → メッセージが来ていないのでデバウンス完了
 		sleepDeferreds.at(1)?.resolve();
@@ -1665,10 +1665,10 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		await runner.send({ sessionKey: "k", message: "msg1" });
 
 		// now=0, deadline=10000
-		// ループ内: sleep(2000) → now=2000, メッセージ追加 → ループ継続
-		// sleep(2000) → now=4000, メッセージ追加 → ループ継続
+		// ループ内: sleep(500) → now=500, メッセージ追加 → ループ継続
+		// sleep(500) → now=1000, メッセージ追加 → ループ継続
 		// ...
-		// sleep(2000) → now=10000, メッセージ追加なし → remaining<=0 で break
+		// sleep(500) → now=10000, メッセージ追加なし → remaining<=0 で break
 		await runner.callWaitForDebounce(new AbortController().signal);
 
 		// MAX_DEBOUNCE_MS (10000) の範囲内でループが複数回実行された後に終了
@@ -1735,7 +1735,7 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		runner.sleepSpy = (ms) => {
 			sleepCalls.push(ms);
 			// 毎回 now を大きく進めて remaining を小さくする
-			now += 9000;
+			now += 9800;
 			sendCount += 1;
 			if (sendCount <= 2) {
 				void runner.send({ sessionKey: "k", message: `msg-${sendCount}` });
@@ -1747,14 +1747,222 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		await runner.send({ sessionKey: "k", message: "msg-start" });
 
 		// now=0, deadline=10000
-		// 1回目: remaining=10000, waitMs=min(2000,10000)=2000, now→9000, msg追加
-		// 2回目: remaining=10000-9000=1000, waitMs=min(2000,1000)=1000, now→18000, msg追加
-		// 3回目: remaining=10000-18000<0 → break
+		// 1回目: remaining=10000, waitMs=min(500,10000)=500, now→9800, msg追加
+		// 2回目: remaining=10000-9800=200, waitMs=min(500,200)=200, now→19600, msg追加
+		// 3回目: remaining=10000-19600<0 → break
 		await runner.callWaitForDebounce(new AbortController().signal);
 
-		expect(sleepCalls[0]).toBe(2000);
-		expect(sleepCalls[1]).toBe(1000); // remaining にクランプされた
+		expect(sleepCalls[0]).toBe(500);
+		expect(sleepCalls[1]).toBe(200); // remaining にクランプされた
 		expect(sleepCalls.length).toBe(2); // deadline 超過で 3回目は呼ばれない
+
+		runner.stop();
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 推論中断・bot デバウンス（ホワイトボックス）
+// send() 中断 / hasBotPending / sessionAbortController
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AgentRunner 推論中断・bot デバウンス（内部ロジック）", () => {
+	test("send({ isBot: true }) で hasBotPending が true になり、drainMessages 後に false にリセットされる", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		// isBot: true でメッセージ送信
+		await runner.send({ sessionKey: "k", message: "bot msg", isBot: true });
+		// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+		expect(runner.hasBotPending).toBe(true);
+
+		// ポーリングループが drainMessages を呼ぶまで待つ
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// drainMessages 後に hasBotPending が false にリセットされている
+		// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+		expect(runner.hasBotPending).toBe(false);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("send({ isBot: false }) では hasBotPending が false のまま", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "user msg" });
+		// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+		expect(runner.hasBotPending).toBe(false);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("推論中に send() すると sessionAbortController が abort され、lastPromptText が pendingMessages に保全される", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// 最初のメッセージでセッション開始
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+
+		// sessionWatch が pending 状態（推論中）のまま新メッセージを送信
+		await runner.send({ sessionKey: "k", message: "interrupt" });
+
+		// cancelled イベントで firstSessionDone を解決（abort による）
+		firstSessionDone.resolve({ type: "cancelled" });
+		// ループが回って2回目のプロンプトが送信されるまで待つ
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
+		// 2回目のプロンプトに "first" と "interrupt" の両方が含まれている（保全されたテキスト + 新メッセージ）
+		const secondCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[1] as unknown[];
+		const params = secondCallArgs[0] as { text: string };
+		expect(params.text).toContain("first");
+		expect(params.text).toContain("interrupt");
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("stop() が sessionAbortController を abort する", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+
+		// sessionAbortController が生成されている
+		// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+		const sac = runner.sessionAbortController;
+		expect(sac).not.toBeNull();
+
+		runner.stop();
+
+		// stop 後に sessionAbortController が null になっている
+		// @ts-expect-error -- private フィールド。ホワイトボックステストのため許容
+		expect(runner.sessionAbortController).toBeNull();
+
+		sessionDone.resolve({ type: "cancelled" });
+	});
+});
+
+describe("AgentRunner bot デバウンス: waitForDebounce の BOT_MAX_DEBOUNCE_MS 拡張", () => {
+	test("hasBotPending=true の場合、silence だけではデバウンスが終了しない（deadline まで待機）", async () => {
+		const sleepCalls: number[] = [];
+		let now = 0;
+		const runner = new DebounceTestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: createSessionPort(() => deferred<OpencodeSessionEvent>().promise),
+			sessionMaxAgeMs: 3_600_000,
+			nowProvider: () => now,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			now += ms;
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		// bot メッセージ → hasBotPending = true
+		await runner.send({ sessionKey: "k", message: "bot msg", isBot: true });
+
+		const ac = new AbortController();
+		await runner.callWaitForDebounce(ac.signal);
+
+		// BOT_MAX_DEBOUNCE_MS (30000) の deadline まで sleep が繰り返される
+		const totalSleep = sleepCalls.reduce((a, b) => a + b, 0);
+		expect(totalSleep).toBe(30000);
+		// 500ms 刻みで 60 回
+		expect(sleepCalls.length).toBe(60);
+
+		runner.stop();
+	});
+
+	test("hasBotPending=false の場合、silence で即座にデバウンスが終了する", async () => {
+		const sleepCalls: number[] = [];
+		let now = 0;
+		const runner = new DebounceTestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: createSessionPort(() => deferred<OpencodeSessionEvent>().promise),
+			sessionMaxAgeMs: 3_600_000,
+			nowProvider: () => now,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			now += ms;
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		// 通常メッセージ → hasBotPending = false
+		await runner.send({ sessionKey: "k", message: "user msg" });
+
+		const ac = new AbortController();
+		await runner.callWaitForDebounce(ac.signal);
+
+		// 1回の sleep(500) でデバウンス完了
+		expect(sleepCalls).toEqual([500]);
 
 		runner.stop();
 	});

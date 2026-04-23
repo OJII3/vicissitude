@@ -314,6 +314,7 @@ function setupEventHandlers(deps: {
 				message: formatDiscordMessage(msg),
 				attachments: msg.attachments,
 				channelId: msg.channelId,
+				isBot: msg.isBot,
 			});
 		}
 		return Promise.resolve();
@@ -334,6 +335,7 @@ function setupEventHandlers(deps: {
 				message: formatDiscordMessage(msg),
 				attachments: msg.attachments,
 				channelId: msg.channelId,
+				isBot: msg.isBot,
 			});
 		}
 		return Promise.resolve();
