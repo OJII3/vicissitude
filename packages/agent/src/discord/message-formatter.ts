@@ -30,7 +30,7 @@ export function formatDiscordMessage(msg: IncomingMessage): string {
 	parts.push(`[action: ${hint}]`);
 	if (msg.isBot) {
 		parts.push(
-			"[bot-interaction-hint: このメッセージはbotからです。会話を自然に終結させることを意識してください。相手の発言を繰り返すだけの応答や、新たな質問で会話を引き延ばすことは避けてください。話題が一段落したら、返答せずに会話を終えても構いません。]",
+			"[bot-interaction-hint: このメッセージはbotによるものです。返事をするかどうかはあなた次第です。同じ話の繰り返しや義務的な相槌は要りません。話が一段落したなら、黙っていても構いません。]",
 		);
 	}
 
