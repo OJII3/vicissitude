@@ -179,9 +179,9 @@ export class AgentRunner implements AiAgent {
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") {
-					// runner stop による中断: ループを終了
+					// runner stop による中断
 					if (signal.aborted) return;
-					// セッション中断: 新メッセージと旧メッセージをまとめて再送するためループ継続
+					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
 					this.lastPromptText = null;
 					this.lastPromptAttachments = null;
 					this.sessionAbortController = null;
