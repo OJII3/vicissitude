@@ -88,3 +88,12 @@ export async function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Pr
 		if (onAbort) signal.removeEventListener("abort", onAbort);
 	}
 }
+
+// ─── escapeUserMessageTag ───────────────────────────────────────
+
+/** ユーザーメッセージ内の `<user_message>` / `</user_message>` タグをエスケープし、タグインジェクションを防ぐ */
+export function escapeUserMessageTag(content: string): string {
+	return content
+		.replaceAll("<user_message>", "&lt;user_message&gt;")
+		.replaceAll("</user_message>", "&lt;/user_message&gt;");
+}

@@ -4,7 +4,6 @@ import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
-	Attachment,
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
@@ -56,7 +55,7 @@ export class AgentRunner implements AiAgent {
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
 	private retryAttempt = 0;
-	private pendingMessages: Array<{ message: string; attachments?: Attachment[] }> = [];
+	private pendingMessages: string[] = [];
 	private pendingResolve: (() => void) | null = null;
 	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
 	private lastPromptText: string | null = null;
@@ -100,10 +99,7 @@ export class AgentRunner implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		this.pendingMessages.push({
-			message: options.message,
-			attachments: options.attachments,
-		});
+		this.pendingMessages.push(options.message);
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 		this.ensurePolling();
@@ -422,8 +418,7 @@ export class AgentRunner implements AiAgent {
 	}
 
 	private drainMessages(): string {
-		const msgs = this.pendingMessages.splice(0);
-		return msgs.map((m) => m.message).join("\n---\n");
+		return this.pendingMessages.splice(0).join("\n---\n");
 	}
 
 	private handleSessionEnd(event: OpencodeSessionEvent): void {
