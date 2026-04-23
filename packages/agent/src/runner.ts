@@ -21,8 +21,9 @@ const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
 const IDLE_COOLDOWN_MS = 2_000;
 const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
-const MESSAGE_DEBOUNCE_MS = 2_000;
+const MESSAGE_DEBOUNCE_MS = 500;
 const MAX_DEBOUNCE_MS = 10_000;
+const BOT_MAX_DEBOUNCE_MS = 30_000;
 
 export interface RunnerDeps {
 	profile: AgentProfile;
@@ -49,6 +50,7 @@ export interface RunnerDeps {
 
 export class AgentRunner implements AiAgent {
 	private abortController: AbortController | null = null;
+	private sessionAbortController: AbortController | null = null;
 	private running = false;
 	private sessionCreatedAt: number | null = null;
 	private sessionWatch: Promise<OpencodeSessionEvent> | null = null;
@@ -62,6 +64,7 @@ export class AgentRunner implements AiAgent {
 	private lastPromptText: string | null = null;
 	private lastPromptAttachments: Attachment[] | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
+	private hasBotPending = false;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -76,8 +79,9 @@ export class AgentRunner implements AiAgent {
 	private readonly summaryTimeoutMs: number;
 	private readonly compactionTokenThreshold?: number;
 	private readonly compactionCooldownMs: number;
-	private readonly nowProvider: () => number;
+	protected readonly nowProvider: () => number;
 	private lastCompactionAt: number | null = null;
+	protected pendingCompaction = false;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -102,8 +106,23 @@ export class AgentRunner implements AiAgent {
 
 	send(options: SendOptions): Promise<AgentResponse> {
 		this.pendingMessages.push({ text: options.message, attachments: options.attachments });
+		if (options.isBot) this.hasBotPending = true;
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
+
+		// 推論中（sessionWatch が pending）なら中断して旧メッセージを保全
+		if (this.sessionWatch) {
+			if (this.lastPromptText !== null) {
+				this.pendingMessages.unshift({
+					text: this.lastPromptText,
+					attachments: this.lastPromptAttachments ?? undefined,
+				});
+			}
+			this.lastPromptText = null;
+			this.lastPromptAttachments = null;
+			this.sessionAbortController?.abort();
+		}
+
 		this.ensurePolling();
 		return Promise.resolve({ text: "", sessionId: "queued" });
 	}
@@ -159,7 +178,16 @@ export class AgentRunner implements AiAgent {
 				);
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
-				if (event.type === "cancelled") return;
+				if (event.type === "cancelled") {
+					// runner stop による中断
+					if (signal.aborted) return;
+					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
+					this.lastPromptText = null;
+					this.lastPromptAttachments = null;
+					this.sessionAbortController = null;
+					resetBackoffState();
+					continue;
+				}
 
 				if (event.type === "deleted") {
 					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
@@ -296,6 +324,8 @@ export class AgentRunner implements AiAgent {
 
 	stop(): void {
 		this.running = false;
+		this.sessionAbortController?.abort();
+		this.sessionAbortController = null;
 		this.abortController?.abort();
 		this.abortController = null;
 		this.sessionWatch = null;
@@ -315,6 +345,11 @@ export class AgentRunner implements AiAgent {
 
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
+
+		if (this.pendingCompaction) {
+			this.pendingCompaction = false;
+			if (await this.triggerCompaction(signal)) return;
+		}
 
 		let text: string;
 		let attachments: Attachment[];
@@ -360,6 +395,8 @@ export class AgentRunner implements AiAgent {
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
 
+		this.sessionAbortController = new AbortController();
+		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
@@ -371,7 +408,7 @@ export class AgentRunner implements AiAgent {
 				system,
 				attachments: attachments.length > 0 ? attachments : undefined,
 			},
-			signal,
+			combinedSignal,
 		);
 		this.hasStartedSession = true;
 	}
@@ -390,7 +427,8 @@ export class AgentRunner implements AiAgent {
 
 	// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
 	protected async waitForDebounce(signal: AbortSignal): Promise<void> {
-		const deadline = this.nowProvider() + MAX_DEBOUNCE_MS;
+		const deadline =
+			this.nowProvider() + (this.hasBotPending ? BOT_MAX_DEBOUNCE_MS : MAX_DEBOUNCE_MS);
 		let messageCountBefore = this.pendingMessages.length;
 
 		while (!signal.aborted) {
@@ -401,33 +439,41 @@ export class AgentRunner implements AiAgent {
 
 			// sleep と新メッセージ到着を race
 			// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
-			await this.raceDebounce(waitMs, signal);
+			const arrived = await this.raceDebounce(waitMs, signal);
 
 			if (signal.aborted) break;
 
 			// 新メッセージが来ていなければデバウンス完了
-			if (this.pendingMessages.length === messageCountBefore) break;
+			// bot メッセージが含まれる場合は deadline まで待機し続ける
+			// （bot 応答は連続到着が多いため、短い silence で打ち切らない）
+			if (!arrived && this.pendingMessages.length === messageCountBefore && !this.hasBotPending)
+				break;
 			messageCountBefore = this.pendingMessages.length;
 		}
 	}
 
-	private async raceDebounce(waitMs: number, signal: AbortSignal): Promise<void> {
-		const sleepPromise = this.sleep(waitMs);
-		const messagePromise = new Promise<void>((resolve) => {
-			this.pendingDebounceResolve = resolve;
+	/** デバウンス待機。新メッセージが到着した場合に true を返す */
+	private async raceDebounce(waitMs: number, signal: AbortSignal): Promise<boolean> {
+		const MESSAGE = Symbol("message");
+		const TIMER = Symbol("timer");
+		const sleepPromise = this.sleep(waitMs).then(() => TIMER);
+		const messagePromise = new Promise<typeof MESSAGE>((resolve) => {
+			this.pendingDebounceResolve = () => resolve(MESSAGE);
 		});
 		let onAbort: (() => void) | undefined;
-		const abortPromise = new Promise<void>((resolve) => {
-			onAbort = () => resolve();
+		const abortPromise = new Promise<typeof TIMER>((resolve) => {
+			onAbort = () => resolve(TIMER);
 			signal.addEventListener("abort", onAbort, { once: true });
 		});
-		await Promise.race([sleepPromise, messagePromise, abortPromise]);
+		const winner = await Promise.race([sleepPromise, messagePromise, abortPromise]);
 		this.pendingDebounceResolve = null;
 		if (onAbort) signal.removeEventListener("abort", onAbort);
+		return winner === MESSAGE;
 	}
 
 	private drainMessages(): { text: string; attachments: Attachment[] } {
 		const items = this.pendingMessages.splice(0);
+		this.hasBotPending = false;
 		return {
 			text: items.map((m) => m.text).join("\n---\n"),
 			attachments: items.flatMap((m) => m.attachments ?? []),
@@ -497,6 +543,29 @@ export class AgentRunner implements AiAgent {
 			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
 			error_class: event.errorClass ?? "unknown",
 		});
+	}
+
+	/** 会話ブレイクによる compaction を試行する */
+	protected async triggerCompaction(signal: AbortSignal): Promise<boolean> {
+		const now = this.nowProvider();
+		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
+			return false;
+		}
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
+		if (!sessionId) return false;
+		try {
+			await this.sessionPort.summarizeSession(sessionId);
+			this.lastCompactionAt = now;
+			this.logger.info(`[${this.profile.name}:${this.agentId}] break-triggered compaction`);
+			this.rewatchSession(signal);
+			return true;
+		} catch (err) {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] break-triggered compaction failed`,
+				err,
+			);
+			return false;
+		}
 	}
 
 	/** proactive compaction を試行し、成功して rewatch を開始した場合に true を返す */

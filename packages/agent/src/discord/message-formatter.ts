@@ -28,6 +28,11 @@ export function formatDiscordMessage(msg: IncomingMessage): string {
 	const parts = [`[${ts} JST ${channel}] ${msg.authorName}: ${content}`];
 	if (attachments) parts.push(attachments);
 	parts.push(`[action: ${hint}]`);
+	if (msg.isBot) {
+		parts.push(
+			"[bot-interaction-hint: このメッセージはbotによるものです。返事をするかどうかはあなた次第です。同じ話の繰り返しや義務的な相槌は要りません。話が一段落したなら、黙っていても構いません。]",
+		);
+	}
 
 	return parts.join(" ");
 }

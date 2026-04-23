@@ -41,7 +41,8 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 - OpenCode SDK で推論。
 - メッセージ駆動プロンプト方式。メッセージ受信時にデバウンスで蓄積し、`promptAsyncAndWatchSession()` でプロンプトを送信する。
-  - **デバウンス**: 最後のメッセージ到着から 2 秒（`MESSAGE_DEBOUNCE_MS`）待機し、新着がなければ蓄積を確定。最大 10 秒（`MAX_DEBOUNCE_MS`）で打ち切り。蓄積メッセージは `drainMessages()` で結合してプロンプトに渡す。
+  - **デバウンス**: 最後のメッセージ到着から 500ms（`MESSAGE_DEBOUNCE_MS`）待機し、新着がなければ蓄積を確定。最大 10 秒（`MAX_DEBOUNCE_MS`）で打ち切り。bot メッセージが含まれる場合は最大 30 秒（`BOT_MAX_DEBOUNCE_MS`）に延長。蓄積メッセージは `drainMessages()` で結合してプロンプトに渡す。
+  - **推論中断**: 推論中（`promptAsyncAndWatchSession` が pending）に新メッセージが到着した場合、`sessionAbortController` でセッションを中断し、旧メッセージ + 新メッセージをまとめて再プロンプトする。
 - マルチテナント: テナント（Discord ギルド等）ごとに独立したセッションを持つ。
 - セッション ID は SQLite で永続化する。
 - セッションライフサイクル:

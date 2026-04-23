@@ -180,4 +180,18 @@ describe("formatDiscordMessage", () => {
 		expect(result).toContain("&lt;user_message&gt;");
 		expect(result).toContain("&lt;/user_message&gt;");
 	});
+
+	test("bot メッセージ（isBot: true）には [bot-interaction-hint: を含むヒントが付加される", () => {
+		const msg = createMessage({ isBot: true, content: "bot response" });
+		const result = formatDiscordMessage(msg);
+
+		expect(result).toContain("[bot-interaction-hint:");
+	});
+
+	test("非 bot メッセージ（isBot: false）には [bot-interaction-hint が含まれない", () => {
+		const msg = createMessage({ isBot: false, content: "user message" });
+		const result = formatDiscordMessage(msg);
+
+		expect(result).not.toContain("[bot-interaction-hint");
+	});
 });
