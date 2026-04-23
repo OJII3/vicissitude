@@ -7,13 +7,14 @@ user_invokable: true
 
 ## Phase 0: データ収集
 
-1. `bun scripts/extract-audit-data.ts` を実行してエピソード・ファクト・guild overlay context を取得
-2. 以下のファイルを読み込む:
+1. `bun scripts/extract-audit-data.ts > /tmp/character-audit-data.json` を実行してデータをファイルに保存する（stdout が大きいため直接読むと途切れる）
+2. `/tmp/character-audit-data.json` を Read で読み込む。ファイルが大きい場合は namespace ごとに分割して読む
+3. 以下のファイルを読み込む:
    - `README.md` — プロジェクトコンセプト（目的・要件）
    - `context/SOUL.md` — ペルソナ定義（性格・会話ルール・口調）
    - `context/IDENTITY.md` — 基本情報
    - `context/DISCORD.md` — Discord 応答ルール
-3. エピソードが 0 件なら「評価対象なし」として終了
+4. エピソードが 0 件なら「評価対象なし」として終了
 
 ### 複数エージェントの判別
 
@@ -57,7 +58,7 @@ guild 固有の `LESSONS.md` がある場合、そこに記載された教訓を
 ### 2.1 ファクトの品質
 
 - **冗長・重複**: 同じ内容の fact が複数存在しないか
-- **過度に一般的**: 「おかずは大学生」のような、あまりにも汎用的な fact がないか
+- **過度に一般的**: あまりにも汎用的で行動指針にならない fact がないか
 - **古い/矛盾**: 文脈から明らかに古くなっている fact がないか
 - **カテゴリの適切さ**: fact の category（identity, preference, guideline 等）が内容と合っているか
 
@@ -95,6 +96,11 @@ Phase 1・2 の評価を踏まえ、SOUL.md 自体の改善余地を検出する
 
 単発の些細なブレや、会話の流れで仕方ないものは Issue にしない。
 
+### Issue のスコープ
+
+- 同一の問題が複数 guild で発生している場合は **1つの Issue にまとめる**（guild ID を列挙）
+- guild 固有の問題は guild 単位で Issue を作成する
+
 ### 重複チェック
 
 起票前に `gh issue list --search "[character-audit]" --state open --limit 50 --json number,title` で既存 Issue を確認し、同じ問題の Issue が既にあればスキップする。
@@ -116,7 +122,7 @@ gh issue create \
 
 ### エピソード 1: <title>
 > <user>: <message>
-> <ふあ>: <message>  ← ここが問題
+> <botName>: <message>  ← ここが問題
 
 （必要に応じて複数エピソードを列挙）
 
@@ -174,5 +180,5 @@ BODY
 - コードの修正は行わない。問題の検出と Issue 起票のみ
 - SOUL.md やコンテキストファイルの直接編集は行わない
 - `botName` 以外のエージェントの発話は評価対象外
-- 個人情報や機密情報を Issue 本文に含めない。会話の抜粋は最小限にとどめる
+- 個人情報や機密情報を Issue 本文に含めない。Discord 表示名やハンドルネームは公開情報として引用可。会話の抜粋は問題の証拠として必要最小限にとどめる
 - 1 回の実行で起票する Issue は最大 3 件まで（重要度が高い順に絞る）
