@@ -190,6 +190,269 @@ describe("promptAsyncAndWatchSession: SSE 切断時のトークン保持", () =>
 	});
 });
 
+// ─── マルチモーダル: attachments → FilePartInput 変換 ─────────
+
+describe("promptAsync: attachments の FilePartInput 変換", () => {
+	test("attachments がない場合、parts は text のみ", async () => {
+		const stream = {
+			next: mock(
+				() =>
+					new Promise<IteratorResult<Event, void>>(() => {
+						/* never resolves */
+					}),
+			),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsync({
+			sessionId: "session-1",
+			text: "hello",
+			model: { providerId: "provider", modelId: "model" },
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		expect(params.parts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("画像 attachments がある場合、parts に FilePartInput が含まれる", async () => {
+		const stream = {
+			next: mock(
+				() =>
+					new Promise<IteratorResult<Event, void>>(() => {
+						/* never resolves */
+					}),
+			),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsync({
+			sessionId: "session-1",
+			text: "画像を見て",
+			model: { providerId: "provider", modelId: "model" },
+			attachments: [
+				{
+					url: "https://cdn.example.com/photo.png",
+					contentType: "image/png",
+					filename: "photo.png",
+				},
+			],
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		expect(params.parts).toEqual([
+			{ type: "text", text: "画像を見て" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: "photo.png",
+				url: "https://cdn.example.com/photo.png",
+			},
+		]);
+	});
+
+	test("非画像 attachments は FilePartInput に変換されない（テキスト表現のみ）", async () => {
+		const stream = {
+			next: mock(
+				() =>
+					new Promise<IteratorResult<Event, void>>(() => {
+						/* never resolves */
+					}),
+			),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsync({
+			sessionId: "session-1",
+			text: "ファイルを確認",
+			model: { providerId: "provider", modelId: "model" },
+			attachments: [
+				{
+					url: "https://cdn.example.com/doc.pdf",
+					contentType: "application/pdf",
+					filename: "doc.pdf",
+				},
+			],
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		// 非画像なので parts は text のみ（FilePartInput は含まれない）
+		expect(params.parts).toEqual([{ type: "text", text: "ファイルを確認" }]);
+	});
+
+	test("画像と非画像が混在する場合、画像のみ FilePartInput に変換される", async () => {
+		const stream = {
+			next: mock(
+				() =>
+					new Promise<IteratorResult<Event, void>>(() => {
+						/* never resolves */
+					}),
+			),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsync({
+			sessionId: "session-1",
+			text: "これを見て",
+			model: { providerId: "provider", modelId: "model" },
+			attachments: [
+				{ url: "https://cdn.example.com/img.jpg", contentType: "image/jpeg", filename: "img.jpg" },
+				{ url: "https://cdn.example.com/data.csv", contentType: "text/csv", filename: "data.csv" },
+				{
+					url: "https://cdn.example.com/logo.webp",
+					contentType: "image/webp",
+					filename: "logo.webp",
+				},
+			],
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		expect(params.parts).toEqual([
+			{ type: "text", text: "これを見て" },
+			{
+				type: "file",
+				mime: "image/jpeg",
+				filename: "img.jpg",
+				url: "https://cdn.example.com/img.jpg",
+			},
+			{
+				type: "file",
+				mime: "image/webp",
+				filename: "logo.webp",
+				url: "https://cdn.example.com/logo.webp",
+			},
+		]);
+	});
+});
+
+describe("promptAsyncAndWatchSession: attachments の FilePartInput 変換", () => {
+	test("画像 attachments がある場合、promptAsync の parts に FilePartInput が含まれる", async () => {
+		let callCount = 0;
+		const stream = {
+			next: mock(() => {
+				callCount++;
+				if (callCount === 1) {
+					return Promise.resolve<IteratorResult<Event, void>>({
+						done: false,
+						value: makeMessageUpdatedEvent("session-1", "msg-1", {
+							input: 100,
+							output: 50,
+							cache: { read: 10 },
+						}),
+					});
+				}
+				return new Promise<IteratorResult<Event, void>>((_resolve, reject) => {
+					setTimeout(() => reject(new Error("stream.next() timed out after 5 minutes")), 10);
+				});
+			}),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsyncAndWatchSession({
+			sessionId: "session-1",
+			text: "この画像は何？",
+			model: { providerId: "provider", modelId: "model" },
+			attachments: [
+				{
+					url: "https://cdn.example.com/screen.png",
+					contentType: "image/png",
+					filename: "screen.png",
+				},
+			],
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		expect(params.parts).toEqual([
+			{ type: "text", text: "この画像は何？" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: "screen.png",
+				url: "https://cdn.example.com/screen.png",
+			},
+		]);
+	});
+
+	test("attachments がない場合、parts は text のみ", async () => {
+		let callCount = 0;
+		const stream = {
+			next: mock(() => {
+				callCount++;
+				if (callCount === 1) {
+					return Promise.resolve<IteratorResult<Event, void>>({
+						done: false,
+						value: makeMessageUpdatedEvent("session-1", "msg-1", {
+							input: 100,
+							output: 50,
+							cache: { read: 10 },
+						}),
+					});
+				}
+				return new Promise<IteratorResult<Event, void>>((_resolve, reject) => {
+					setTimeout(() => reject(new Error("stream.next() timed out after 5 minutes")), 10);
+				});
+			}),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+
+		const client = createClient(stream);
+		const adapter = createAdapter(client);
+
+		await adapter.promptAsyncAndWatchSession({
+			sessionId: "session-1",
+			text: "hello",
+			model: { providerId: "provider", modelId: "model" },
+		});
+
+		const calls = (client.session.promptAsync as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(1);
+		const params = calls[0]?.[0] as { parts: unknown[] };
+		expect(params.parts).toEqual([{ type: "text", text: "hello" }]);
+	});
+});
+
 describe("waitForSessionIdle: SSE 切断時のトークン保持", () => {
 	test("stream.next() がタイムアウトで reject した場合に蓄積トークンが streamDisconnected に含まれる", async () => {
 		let callCount = 0;

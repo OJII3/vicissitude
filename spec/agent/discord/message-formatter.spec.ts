@@ -141,7 +141,7 @@ describe("formatDiscordMessage", () => {
 		expect(result).not.toContain("</user_message>");
 	});
 
-	test("添付ファイルがある場合は [添付: filename (mime)] を含む", () => {
+	test("添付ファイルがある場合は [添付: filename (mime) url] を含む", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: "https://example.com/image.png", filename: "image.png", contentType: "image/png" },
@@ -149,10 +149,10 @@ describe("formatDiscordMessage", () => {
 		});
 		const result = formatDiscordMessage(msg);
 
-		expect(result).toContain("[添付: image.png (image/png)]");
+		expect(result).toContain("[添付: image.png (image/png) https://example.com/image.png]");
 	});
 
-	test("複数の添付ファイルがすべて含まれる", () => {
+	test("複数の添付ファイルがすべて含まれる（URL 付き）", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: "https://example.com/a.txt", filename: "a.txt", contentType: "text/plain" },
@@ -161,8 +161,8 @@ describe("formatDiscordMessage", () => {
 		});
 		const result = formatDiscordMessage(msg);
 
-		expect(result).toContain("[添付: a.txt (text/plain)]");
-		expect(result).toContain("[添付: b.jpg (image/jpeg)]");
+		expect(result).toContain("[添付: a.txt (text/plain) https://example.com/a.txt]");
+		expect(result).toContain("[添付: b.jpg (image/jpeg) https://example.com/b.jpg]");
 	});
 
 	test("mentioned メッセージは [action: respond] を含む", () => {

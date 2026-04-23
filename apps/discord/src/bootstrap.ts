@@ -309,7 +309,11 @@ function setupEventHandlers(deps: {
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, message will not be processed`);
 			}
-			void agent?.send({ sessionKey: "home", message: formatDiscordMessage(msg) });
+			void agent?.send({
+				sessionKey: "home",
+				message: formatDiscordMessage(msg),
+				attachments: msg.attachments,
+			});
 		}
 		return Promise.resolve();
 	});
@@ -324,7 +328,11 @@ function setupEventHandlers(deps: {
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, mention will not be processed`);
 			}
-			void agent?.send({ sessionKey: "mention", message: formatDiscordMessage(msg) });
+			void agent?.send({
+				sessionKey: "mention",
+				message: formatDiscordMessage(msg),
+				attachments: msg.attachments,
+			});
 		}
 		return Promise.resolve();
 	});
