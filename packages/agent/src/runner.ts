@@ -335,7 +335,7 @@ export class AgentRunner implements AiAgent {
 			await this.waitForDebounce(signal);
 			if (signal.aborted) return;
 			const drained = this.drainMessages();
-			if (!drained.text) return;
+			if (!drained.text && drained.attachments.length === 0) return;
 			text = drained.text;
 			attachments = drained.attachments;
 		}
