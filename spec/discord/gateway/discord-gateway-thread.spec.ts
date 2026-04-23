@@ -74,7 +74,7 @@ function createMockMessage(overrides: {
 		},
 		guildId: overrides.guildId ?? "guild-1",
 		content: overrides.content ?? "hello",
-		mentions: { has: () => false },
+		mentions: { has: () => false, members: null, users: { get: () => null } },
 		createdAt: new Date(),
 		attachments: new Collection(),
 		react: mock(async () => {}),
