@@ -318,12 +318,7 @@ export class AgentRunner implements AiAgent {
 
 		let text: string;
 		let attachments: Attachment[];
-		if (this.lastPromptText !== null) {
-			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
-			const drained = this.drainMessages();
-			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
-			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
-		} else {
+		if (this.lastPromptText === null) {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
 			);
@@ -338,6 +333,11 @@ export class AgentRunner implements AiAgent {
 			if (!drained.text && drained.attachments.length === 0) return;
 			text = drained.text;
 			attachments = drained.attachments;
+		} else {
+			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
+			const drained = this.drainMessages();
+			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
+			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
 		}
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
