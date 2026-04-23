@@ -1,7 +1,7 @@
 /* oxlint-disable require-await, no-constructor-return, typescript/no-floating-promises -- テスト用モック */
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
-import type { IncomingMessage } from "@vicissitude/shared/types";
+import type { IncomingMessage, Logger } from "@vicissitude/shared/types";
 import { Collection, Events } from "discord.js";
 
 import { DiscordGateway } from "../../../apps/discord/src/gateway/discord";
@@ -47,10 +47,8 @@ function createMockMessageWithMentions(opts: {
 	content: string;
 	members?: Map<string, { displayName: string }>;
 	users?: Map<string, { displayName: string }>;
-	channelId?: string;
-	guildId?: string;
 }) {
-	const members = opts.members ?? new Map();
+	const members = opts.members;
 	const users = opts.users ?? new Map();
 
 	return {
@@ -63,24 +61,23 @@ function createMockMessageWithMentions(opts: {
 		},
 		member: { displayName: "Test User" },
 		channel: {
-			id: opts.channelId ?? "home-channel",
+			id: "home-channel",
 			name: "test-channel",
 			isThread: () => false,
 			parentId: null,
 			sendTyping: mock(async () => {}),
 			send: mock(async () => {}),
 		},
-		guildId: opts.guildId ?? "guild-1",
+		guildId: "guild-1",
 		content: opts.content,
 		mentions: {
 			has: () => false,
-			members:
-				members.size > 0
-					? {
-							get: (id: string): { displayName: string } | null =>
-								(members.get(id) as { displayName: string } | undefined) ?? null,
-						}
-					: null,
+			members: members
+				? {
+						get: (id: string): { displayName: string } | null =>
+							(members.get(id) as { displayName: string } | undefined) ?? null,
+					}
+				: null,
 			users: {
 				get: (id: string): { displayName: string } | null =>
 					(users.get(id) as { displayName: string } | undefined) ?? null,
@@ -93,8 +90,8 @@ function createMockMessageWithMentions(opts: {
 	};
 }
 
-function createSilentLogger() {
-	const logger = {
+function createSilentLogger(): Logger {
+	const logger: Logger = {
 		debug: () => {},
 		info: () => {},
 		error: () => {},
