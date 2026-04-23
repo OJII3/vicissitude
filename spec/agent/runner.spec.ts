@@ -176,6 +176,43 @@ describe("attachments の伝搬", () => {
 		]);
 	});
 
+	test("テキスト空・画像添付のみのメッセージがスキップされず promptAsyncAndWatchSession に渡される", async () => {
+		const sessionPort = createSimpleSessionPort();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		await runner.send({
+			sessionKey: "k",
+			message: "",
+			attachments: [
+				{
+					url: "https://cdn.example.com/photo.png",
+					contentType: "image/png",
+					filename: "photo.png",
+				},
+			],
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBeGreaterThanOrEqual(1);
+		const params = calls[0]?.[0] as { attachments?: unknown[] };
+		expect(params.attachments).toBeDefined();
+		expect(params.attachments).toEqual([
+			{ url: "https://cdn.example.com/photo.png", contentType: "image/png", filename: "photo.png" },
+		]);
+	});
+
 	test("attachments なしの send() では params.attachments が undefined または空", async () => {
 		const sessionPort = createSimpleSessionPort();
 		const runner = new TestAgent({
