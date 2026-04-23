@@ -69,19 +69,23 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	): Array<
 		{ type: "text"; text: string } | { type: "file"; mime: string; filename?: string; url: string }
 	> {
-		return [
-			{ type: "text", text: params.text },
-			...(params.attachments ?? [])
-				.filter(
-					(a): a is typeof a & { contentType: string } => !!a.contentType?.startsWith("image/"),
-				)
-				.map((a) => ({
+		const imageAttachments: Array<{ type: "file"; mime: string; filename?: string; url: string }> =
+			[];
+		for (const a of params.attachments ?? []) {
+			if (a.contentType?.startsWith("image/")) {
+				imageAttachments.push({
 					type: "file" as const,
 					mime: a.contentType,
 					filename: a.filename,
 					url: a.url,
-				})),
-		];
+				});
+			} else {
+				this.logger?.debug(
+					`[opencode] buildParts: skipping non-image attachment (contentType=${a.contentType ?? "undefined"}, filename=${a.filename ?? "undefined"})`,
+				);
+			}
+		}
+		return [{ type: "text", text: params.text }, ...imageAttachments];
 	}
 
 	async prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult> {

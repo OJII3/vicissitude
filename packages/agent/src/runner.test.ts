@@ -1766,60 +1766,8 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("AgentRunner attachments 伝搬（内部ロジック）", () => {
-	test("send() の attachments が promptAsyncAndWatchSession に渡される", async () => {
-		const sessionDone = deferred<OpencodeSessionEvent>();
-		const sessionPort = createSessionPort(() => sessionDone.promise);
-		const runner = new TestAgent({
-			profile: createProfile(),
-			agentId: "guild-1",
-			sessionStore: createSessionStore() as never,
-			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
-			sessionPort,
-			sessionMaxAgeMs: 3_600_000,
-		});
-		activeRunners.add(runner);
-
-		const attachments: Attachment[] = [
-			{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
-		];
-		await runner.send({ sessionKey: "k", message: "test", attachments });
-		await Bun.sleep(0);
-
-		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
-		const callArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
-		const params = callArgs[0] as { attachments?: Attachment[] };
-		expect(params.attachments).toEqual(attachments);
-
-		runner.stop();
-		sessionDone.resolve({ type: "cancelled" });
-	});
-
-	test("attachments なしの send() では attachments が undefined で渡される", async () => {
-		const sessionDone = deferred<OpencodeSessionEvent>();
-		const sessionPort = createSessionPort(() => sessionDone.promise);
-		const runner = new TestAgent({
-			profile: createProfile(),
-			agentId: "guild-1",
-			sessionStore: createSessionStore() as never,
-			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
-			sessionPort,
-			sessionMaxAgeMs: 3_600_000,
-		});
-		activeRunners.add(runner);
-
-		await runner.send({ sessionKey: "k", message: "test" });
-		await Bun.sleep(0);
-
-		const callArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
-		const params = callArgs[0] as { attachments?: Attachment[] };
-		expect(params.attachments).toBeUndefined();
-
-		runner.stop();
-		sessionDone.resolve({ type: "cancelled" });
-	});
-
+	// NOTE: 基本的な伝搬テスト (attachments あり/なし) は spec/agent/runner.spec.ts に存在。
+	// ここでは内部ロジック (マージ・リトライ・クリア) のみをテストする。
 	test("複数メッセージの attachments がマージされる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPort(() => sessionDone.promise);
