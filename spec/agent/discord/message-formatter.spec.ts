@@ -43,9 +43,9 @@ describe("classifyActionHint", () => {
 		expect(result).toBe("internal" satisfies ActionHint);
 	});
 
-	test('isBot === true → "read_only"', () => {
+	test('isBot === true → "optional"', () => {
 		const result = classifyActionHint(createMessage({ isBot: true }));
-		expect(result).toBe("read_only" satisfies ActionHint);
+		expect(result).toBe("optional" satisfies ActionHint);
 	});
 
 	test('isMentioned === true → "respond"', () => {

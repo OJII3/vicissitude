@@ -5,7 +5,7 @@ export type ActionHint = "respond" | "optional" | "read_only" | "internal";
 
 export function classifyActionHint(msg: IncomingMessage): ActionHint {
 	if (msg.authorId === "system") return "internal";
-	if (msg.isBot) return msg.isMentioned ? "optional" : "read_only";
+	if (msg.isBot) return "optional";
 	if (msg.isMentioned) return "respond";
 	return "optional";
 }
