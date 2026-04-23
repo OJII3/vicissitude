@@ -183,6 +183,7 @@ async function main(): Promise<void> {
 
 	for (;;) {
 		try {
+			// eslint-disable-next-line no-await-in-loop -- intentional sequential loop
 			await runOnce();
 		} catch (err) {
 			console.error(
@@ -196,6 +197,7 @@ async function main(): Promise<void> {
 			minute: "2-digit",
 		});
 		console.log(`next run in ${String(INTERVAL_SEC)}s (${next})`);
+		// eslint-disable-next-line no-await-in-loop -- intentional sequential loop
 		await Bun.sleep(INTERVAL_SEC * 1000);
 	}
 }

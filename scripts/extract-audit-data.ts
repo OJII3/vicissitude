@@ -9,8 +9,8 @@
  */
 import { Database } from "bun:sqlite";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { parseArgs } from "node:util";
 import { resolve } from "node:path";
+import { parseArgs } from "node:util";
 
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
 
@@ -21,14 +21,14 @@ const { values: args } = parseArgs({
 	options: {
 		days: { type: "string", default: "7" },
 		"max-episodes": { type: "string", default: "50" },
-		"data-dir": { type: "string", default: resolve(PROJECT_DIR, "data/memory") },
+		"data-dir": { type: "string" },
 	},
 	strict: true,
 });
 
 const DAYS = Number(args.days);
 const MAX_EPISODES = Number(args["max-episodes"]);
-const DATA_DIR = args["data-dir"]!;
+const DATA_DIR = args["data-dir"] ?? resolve(PROJECT_DIR, "data/memory");
 const CONTEXT_DIR = resolve(PROJECT_DIR, "data/context");
 
 // ---------------------------------------------------------------------------
@@ -167,12 +167,12 @@ function extractNamespace(dbPath: string, guildId: string): NamespaceData | null
 				id: e.id,
 				title: e.title,
 				summary: e.summary,
-				messages: (JSON.parse(e.messages) as AuditMessage[]).map((m) => ({
-					role: m.role,
-					content: m.content,
-					...(m.name ? { name: m.name } : {}),
-					...(m.timestamp ? { timestamp: m.timestamp } : {}),
-				})),
+				messages: (JSON.parse(e.messages) as AuditMessage[]).map((m) => {
+					const msg: AuditMessage = { role: m.role, content: m.content };
+					if (m.name) msg.name = m.name;
+					if (m.timestamp) msg.timestamp = m.timestamp;
+					return msg;
+				}),
 				surprise: e.surprise,
 				startAt: toISO(e.start_at),
 				endAt: toISO(e.end_at),
