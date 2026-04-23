@@ -76,8 +76,9 @@ export class AgentRunner implements AiAgent {
 	private readonly summaryTimeoutMs: number;
 	private readonly compactionTokenThreshold?: number;
 	private readonly compactionCooldownMs: number;
-	private readonly nowProvider: () => number;
+	protected readonly nowProvider: () => number;
 	private lastCompactionAt: number | null = null;
+	protected pendingCompaction = false;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -316,6 +317,11 @@ export class AgentRunner implements AiAgent {
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
 		if (this.sessionWatch) return;
 
+		if (this.pendingCompaction) {
+			this.pendingCompaction = false;
+			if (await this.triggerCompaction(signal)) return;
+		}
+
 		let text: string;
 		let attachments: Attachment[];
 		if (this.lastPromptText === null) {
@@ -497,6 +503,29 @@ export class AgentRunner implements AiAgent {
 			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
 			error_class: event.errorClass ?? "unknown",
 		});
+	}
+
+	/** 会話ブレイクによる compaction を試行する */
+	protected async triggerCompaction(signal: AbortSignal): Promise<boolean> {
+		const now = this.nowProvider();
+		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
+			return false;
+		}
+		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
+		if (!sessionId) return false;
+		try {
+			await this.sessionPort.summarizeSession(sessionId);
+			this.lastCompactionAt = now;
+			this.logger.info(`[${this.profile.name}:${this.agentId}] break-triggered compaction`);
+			this.rewatchSession(signal);
+			return true;
+		} catch (err) {
+			this.logger.warn(
+				`[${this.profile.name}:${this.agentId}] break-triggered compaction failed`,
+				err,
+			);
+			return false;
+		}
 	}
 
 	/** proactive compaction を試行し、成功して rewatch を開始した場合に true を返す */
