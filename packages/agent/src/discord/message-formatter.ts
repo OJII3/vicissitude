@@ -22,7 +22,7 @@ export function formatDiscordMessage(msg: IncomingMessage): string {
 	const content = isUserMessage ? `<user_message>${escapedContent}</user_message>` : escapedContent;
 
 	const attachments = msg.attachments
-		.map((a) => `[添付: ${a.filename} (${a.contentType})]`)
+		.map((a) => `[添付: ${a.filename} (${a.contentType}) ${a.url}]`)
 		.join(" ");
 
 	const parts = [`[${ts} JST ${channel}] ${msg.authorName}: ${content}`];

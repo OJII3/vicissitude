@@ -2,7 +2,11 @@
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
-import type { OpencodeSessionEvent, OpencodeSessionPort } from "@vicissitude/shared/types";
+import type {
+	Attachment,
+	OpencodeSessionEvent,
+	OpencodeSessionPort,
+} from "@vicissitude/shared/types";
 
 import {
 	TestAgent,
@@ -1753,5 +1757,176 @@ describe("AgentRunner デバウンス機構（内部ロジック）", () => {
 		expect(sleepCalls.length).toBe(2); // deadline 超過で 3回目は呼ばれない
 
 		runner.stop();
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// マルチモーダル対応: attachments の伝搬（ホワイトボックス）
+// drainMessages / lastPromptAttachments / ensureSessionStarted
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AgentRunner attachments 伝搬（内部ロジック）", () => {
+	// NOTE: 基本的な伝搬テスト (attachments あり/なし) は spec/agent/runner.spec.ts に存在。
+	// ここでは内部ロジック (マージ・リトライ・クリア) のみをテストする。
+	test("複数メッセージの attachments がマージされる", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.enableDebounce = true;
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		const att1: Attachment[] = [
+			{ url: "https://example.com/a.png", contentType: "image/png", filename: "a.png" },
+		];
+		const att2: Attachment[] = [
+			{ url: "https://example.com/b.jpg", contentType: "image/jpeg", filename: "b.jpg" },
+		];
+		// 2つのメッセージをキューに入れる（debounce で一括処理される）
+		await runner.send({ sessionKey: "k", message: "msg1", attachments: att1 });
+		await runner.send({ sessionKey: "k", message: "msg2", attachments: att2 });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+		const callArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
+		const params = callArgs[0] as { attachments?: Attachment[] };
+		expect(params.attachments).toEqual([...att1, ...att2]);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("attachments ありとなしの混在: attachments がある分だけマージされる", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.enableDebounce = true;
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		const att: Attachment[] = [
+			{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+		];
+		await runner.send({ sessionKey: "k", message: "msg-no-att" });
+		await runner.send({ sessionKey: "k", message: "msg-with-att", attachments: att });
+		await runner.send({ sessionKey: "k", message: "msg-no-att-2" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const callArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
+		const params = callArgs[0] as { attachments?: Attachment[] };
+		expect(params.attachments).toEqual(att);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("リトライ時に lastPromptAttachments が再利用される", async () => {
+		const _firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) return Promise.reject(new Error("session error"));
+			return secondSessionDone.promise;
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		const att: Attachment[] = [
+			{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+		];
+		await runner.send({ sessionKey: "k", message: "test", attachments: att });
+
+		// エラー → バックオフ sleep → リトライ
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
+		// リトライ時の呼び出し（2回目）でも attachments が渡されている
+		const retryCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[1] as unknown[];
+		const retryParams = retryCallArgs[0] as { attachments?: Attachment[] };
+		expect(retryParams.attachments).toEqual(att);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("idle 後に lastPromptAttachments がクリアされる", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		const att: Attachment[] = [
+			{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+		];
+		await runner.send({ sessionKey: "k", message: "msg1", attachments: att });
+		await Bun.sleep(0);
+
+		// idle → lastPromptAttachments がクリアされる
+		firstSessionDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// 2回目のメッセージ（attachments なし）
+		await runner.send({ sessionKey: "k", message: "msg2" });
+		await Bun.sleep(0);
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
+		const secondCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[1] as unknown[];
+		const secondParams = secondCallArgs[0] as { attachments?: Attachment[] };
+		// idle 後なので前回の attachments は含まれない
+		expect(secondParams.attachments).toBeUndefined();
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
 	});
 });

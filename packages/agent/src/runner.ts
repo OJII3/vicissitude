@@ -4,6 +4,7 @@ import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
+	Attachment,
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
@@ -55,10 +56,11 @@ export class AgentRunner implements AiAgent {
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
 	private retryAttempt = 0;
-	private pendingMessages: string[] = [];
+	private pendingMessages: Array<{ text: string; attachments?: Attachment[] }> = [];
 	private pendingResolve: (() => void) | null = null;
 	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
 	private lastPromptText: string | null = null;
+	private lastPromptAttachments: Attachment[] | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
 
 	private readonly profile: AgentProfile;
@@ -99,7 +101,7 @@ export class AgentRunner implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		this.pendingMessages.push(options.message);
+		this.pendingMessages.push({ text: options.message, attachments: options.attachments });
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 		this.ensurePolling();
@@ -190,6 +192,7 @@ export class AgentRunner implements AiAgent {
 
 				if (event.type !== "error") {
 					this.lastPromptText = null;
+					this.lastPromptAttachments = null;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
@@ -314,10 +317,12 @@ export class AgentRunner implements AiAgent {
 		if (this.sessionWatch) return;
 
 		let text: string;
+		let attachments: Attachment[];
 		if (this.lastPromptText) {
 			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
-			const newText = this.drainMessages();
-			text = newText ? `${this.lastPromptText}\n---\n${newText}` : this.lastPromptText;
+			const drained = this.drainMessages();
+			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
+			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
 		} else {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
@@ -329,14 +334,17 @@ export class AgentRunner implements AiAgent {
 			}
 			await this.waitForDebounce(signal);
 			if (signal.aborted) return;
-			text = this.drainMessages();
-			if (!text) return;
+			const drained = this.drainMessages();
+			if (!drained.text && drained.attachments.length === 0) return;
+			text = drained.text;
+			attachments = drained.attachments;
 		}
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
-		// lastPromptText にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
+		// lastPromptText / lastPromptAttachments にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
 		this.lastPromptText = text;
+		this.lastPromptAttachments = attachments;
 
 		const promptText = this.profile.pollingPrompt
 			? `${this.profile.pollingPrompt}\n\n${text}`
@@ -361,6 +369,7 @@ export class AgentRunner implements AiAgent {
 					modelId: this.profile.model.modelId,
 				},
 				system,
+				attachments: attachments.length > 0 ? attachments : undefined,
 			},
 			signal,
 		);
@@ -417,8 +426,12 @@ export class AgentRunner implements AiAgent {
 		if (onAbort) signal.removeEventListener("abort", onAbort);
 	}
 
-	private drainMessages(): string {
-		return this.pendingMessages.splice(0).join("\n---\n");
+	private drainMessages(): { text: string; attachments: Attachment[] } {
+		const items = this.pendingMessages.splice(0);
+		return {
+			text: items.map((m) => m.text).join("\n---\n"),
+			attachments: items.flatMap((m) => m.attachments ?? []),
+		};
 	}
 
 	private handleSessionEnd(event: OpencodeSessionEvent): void {
