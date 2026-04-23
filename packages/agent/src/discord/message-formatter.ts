@@ -1,7 +1,7 @@
 import { escapeUserMessageTag, formatTimestamp } from "@vicissitude/shared/functions";
 import type { IncomingMessage } from "@vicissitude/shared/types";
 
-export type ActionHint = "respond" | "optional" | "read_only" | "internal";
+export type ActionHint = "respond" | "optional" | "internal";
 
 export function classifyActionHint(msg: IncomingMessage): ActionHint {
 	if (msg.authorId === "system") return "internal";
