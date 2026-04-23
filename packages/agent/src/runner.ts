@@ -318,7 +318,7 @@ export class AgentRunner implements AiAgent {
 
 		let text: string;
 		let attachments: Attachment[];
-		if (this.lastPromptText) {
+		if (this.lastPromptText !== null) {
 			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
 			const drained = this.drainMessages();
 			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
