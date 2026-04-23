@@ -1883,6 +1883,49 @@ describe("AgentRunner attachments 伝搬（内部ロジック）", () => {
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("テキスト空・画像添付のみの送信でエラー後 lastPromptText/lastPromptAttachments が再利用される", async () => {
+		const _firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) return Promise.reject(new Error("session error"));
+			return secondSessionDone.promise;
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		const att: Attachment[] = [
+			{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+		];
+		await runner.send({ sessionKey: "k", message: "", attachments: att });
+
+		// エラー → バックオフ sleep → リトライ
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
+		// リトライ時の呼び出し（2回目）でも attachments が渡されている
+		const retryCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[1] as unknown[];
+		const retryParams = retryCallArgs[0] as { attachments?: Attachment[] };
+		expect(retryParams.attachments).toEqual(att);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("idle 後に lastPromptAttachments がクリアされる", async () => {
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
