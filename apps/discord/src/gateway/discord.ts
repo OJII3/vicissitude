@@ -225,7 +225,17 @@ export class DiscordGateway {
 			authorName:
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
 			messageId: message.id,
-			content: rewriteTwitterUrls(message.content.replaceAll(/<@!?\d+>/g, "").trim()),
+			content: rewriteTwitterUrls(
+				message.content
+					.replaceAll(/<@!?(\d+)>/g, (_match, id: string) => {
+						const member = message.mentions.members?.get(id);
+						if (member) return `@${member.displayName}`;
+						const user = message.mentions.users.get(id);
+						if (user) return `@${user.displayName}`;
+						return _match;
+					})
+					.trim(),
+			),
 			attachments,
 			timestamp: message.createdAt,
 			isBot: message.author.bot ?? false,
