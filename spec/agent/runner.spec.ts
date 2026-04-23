@@ -213,6 +213,65 @@ describe("attachments の伝搬", () => {
 		]);
 	});
 
+	test("テキスト空・画像添付のみのメッセージがエラー後にリトライされ attachments が含まれる", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithTwoSessions(
+			firstSessionDone.promise,
+			secondSessionDone.promise,
+		);
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// テキスト空・画像添付のみのメッセージを送信
+		await runner.send({
+			sessionKey: "k",
+			message: "",
+			attachments: [
+				{
+					url: "https://cdn.example.com/photo.png",
+					contentType: "image/png",
+					filename: "photo.png",
+				},
+			],
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// 1回目の promptAsyncAndWatchSession が呼ばれたことを確認
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBeGreaterThanOrEqual(1);
+
+		// エラーを発生させる
+		firstSessionDone.resolve({ type: "error", message: "something went wrong" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// エラー後のリトライで promptAsyncAndWatchSession が再度呼ばれることを確認
+		expect(calls.length).toBeGreaterThanOrEqual(2);
+
+		// リトライ時の呼び出しに attachments が含まれていることを確認
+		const retryParams = calls[1]?.[0] as { attachments?: unknown[] };
+		expect(retryParams.attachments).toBeDefined();
+		expect(retryParams.attachments).toEqual([
+			{ url: "https://cdn.example.com/photo.png", contentType: "image/png", filename: "photo.png" },
+		]);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("attachments なしの send() では params.attachments が undefined または空", async () => {
 		const sessionPort = createSimpleSessionPort();
 		const runner = new TestAgent({
