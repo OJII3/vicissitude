@@ -10,19 +10,15 @@
 /* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 
-import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import {
+	DiscordAgent,
+	type ConversationBreakConfig,
+} from "@vicissitude/agent/discord/discord-agent";
 import type { AgentRunner } from "@vicissitude/agent/runner";
 import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../../test-helpers.ts";
 import { createContextBuilder, createProfile, createSessionStore } from "../runner-test-helpers.ts";
-
-// ─── 型定義 ───────────────────────────────────────────────────────
-
-interface ConversationBreakConfig {
-	compactionGapMs?: number;
-	rotationGapMs?: number;
-}
 
 // ─── テスト用 DiscordAgent サブクラス ─────────────────────────────
 

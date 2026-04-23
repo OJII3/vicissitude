@@ -319,7 +319,7 @@ export class AgentRunner implements AiAgent {
 
 		if (this.pendingCompaction) {
 			this.pendingCompaction = false;
-			await this.triggerCompaction(signal);
+			if (await this.triggerCompaction(signal)) return;
 		}
 
 		let text: string;

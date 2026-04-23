@@ -42,9 +42,9 @@ class TestDiscordAgent extends DiscordAgent {
 		return (this as unknown as { rotationGapMs: number }).rotationGapMs;
 	}
 
-	/** getNow への公開アクセス */
-	get currentGetNow(): () => number {
-		return (this as unknown as { getNow: () => number }).getNow;
+	/** nowProvider への公開アクセス */
+	get currentNowProvider(): () => number {
+		return this.nowProvider;
 	}
 
 	readonly requestSessionRotationMock = mock((): Promise<void> => Promise.resolve());
@@ -278,7 +278,7 @@ describe("getNow の使用", () => {
 		const agent = createAgent();
 		activeRunners.add(agent);
 
-		const result = agent.currentGetNow();
+		const result = agent.currentNowProvider();
 		expect(typeof result).toBe("number");
 		// Date.now と近い値（100ms 以内）
 		expect(Math.abs(result - Date.now())).toBeLessThan(100);

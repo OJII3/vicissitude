@@ -44,7 +44,6 @@ export class DiscordAgent extends AgentRunner {
 	private lastChannelId: string | null = null;
 	private readonly compactionGapMs: number;
 	private readonly rotationGapMs: number;
-	private readonly getNow: () => number;
 
 	constructor(deps: DiscordAgentDeps) {
 		const agentId = `${deps.agentIdPrefix ?? "discord"}:${deps.guildId}`;
@@ -65,11 +64,10 @@ export class DiscordAgent extends AgentRunner {
 		});
 		this.compactionGapMs = deps.conversationBreak?.compactionGapMs ?? 1_800_000;
 		this.rotationGapMs = deps.conversationBreak?.rotationGapMs ?? 21_600_000;
-		this.getNow = deps.nowProvider ?? Date.now;
 	}
 
 	override send(options: SendOptions): Promise<AgentResponse> {
-		const now = this.getNow();
+		const now = this.nowProvider();
 		const channelId = options.channelId ?? null;
 
 		if (this.lastActivityAt !== null) {
