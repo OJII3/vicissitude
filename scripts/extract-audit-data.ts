@@ -75,6 +75,7 @@ interface NamespaceData {
 
 interface AuditData {
 	extractedAt: string;
+	botName: string;
 	parameters: { days: number; maxEpisodes: number };
 	namespaces: NamespaceData[];
 }
@@ -115,6 +116,15 @@ function readTextFile(path: string): string | null {
 	} catch {
 		return null;
 	}
+}
+
+/** IDENTITY.md から name フィールドを読み取る（overlay 優先） */
+function resolveBotName(): string {
+	const overlayPath = resolve(CONTEXT_DIR, "IDENTITY.md");
+	const basePath = resolve(PROJECT_DIR, "context", "IDENTITY.md");
+	const content = readTextFile(overlayPath) ?? readTextFile(basePath) ?? "";
+	const match = content.match(/^name:\s*(.+)$/m);
+	return match?.[1]?.trim() ?? "unknown";
 }
 
 function readGuildOverlay(guildId: string): GuildOverlayContext {
@@ -210,6 +220,7 @@ function main(): void {
 
 	const output: AuditData = {
 		extractedAt: new Date().toISOString(),
+		botName: resolveBotName(),
 		parameters: { days: DAYS, maxEpisodes: MAX_EPISODES },
 		namespaces,
 	};
