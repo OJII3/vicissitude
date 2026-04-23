@@ -112,9 +112,7 @@ describe("pendingCompaction フラグ消費による break-triggered compaction"
 	test("triggerCompaction 成功後、promptAsyncAndWatchSession は呼ばれず waitForSessionIdle が呼ばれる", async () => {
 		const rewatchDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(
-			() => Promise.resolve({ type: "idle" as const }) as Promise<OpencodeSessionEvent>,
-		);
+		const promptAsyncAndWatchSessionMock = mock(() => Promise.resolve({ type: "idle" as const }));
 		const waitForSessionIdleMock = mock(() => rewatchDone.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
@@ -163,9 +161,7 @@ describe("クールダウン中の triggerCompaction スキップ", () => {
 		const firstRewatchDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(
-			() => secondSessionDone.promise as Promise<OpencodeSessionEvent>,
-		);
+		const promptAsyncAndWatchSessionMock = mock(() => secondSessionDone.promise);
 		const waitForSessionIdleMock = mock(() => firstRewatchDone.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
@@ -230,9 +226,7 @@ describe("セッション未存在時の triggerCompaction スキップ", () => 
 	test("セッションが存在しないとき triggerCompaction がスキップされ通常のメッセージ処理に進む", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(
-			() => sessionDone.promise as Promise<OpencodeSessionEvent>,
-		);
+		const promptAsyncAndWatchSessionMock = mock(() => sessionDone.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: promptAsyncAndWatchSessionMock,
@@ -274,9 +268,7 @@ describe("triggerCompaction 失敗時の継続", () => {
 	test("summarizeSession が reject しても polling loop はクラッシュせず通常のメッセージ処理に進む", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(
-			() => sessionDone.promise as Promise<OpencodeSessionEvent>,
-		);
+		const promptAsyncAndWatchSessionMock = mock(() => sessionDone.promise);
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: promptAsyncAndWatchSessionMock,
