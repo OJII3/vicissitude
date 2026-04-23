@@ -171,6 +171,7 @@ export interface SendOptions {
 	guildId?: string;
 	attachments?: Attachment[];
 	channelId?: string;
+	isBot?: boolean;
 }
 
 export interface AiAgent {

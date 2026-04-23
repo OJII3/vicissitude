@@ -25,6 +25,26 @@ function createMessage(overrides: Partial<IncomingMessage> = {}): IncomingMessag
 	};
 }
 
+describe("formatDiscordMessage bot-interaction-hint", () => {
+	test("bot メッセージの場合にヒントテキストが含まれる", () => {
+		const msg = createMessage({ isBot: true });
+		const result = formatDiscordMessage(msg);
+		expect(result).toContain("[bot-interaction-hint:");
+	});
+
+	test("非 bot メッセージの場合にヒントテキストが含まれない", () => {
+		const msg = createMessage({ isBot: false });
+		const result = formatDiscordMessage(msg);
+		expect(result).not.toContain("[bot-interaction-hint:");
+	});
+
+	test("system メッセージ（authorId === 'system'）の場合にヒントテキストが含まれない", () => {
+		const msg = createMessage({ authorId: "system", isBot: false });
+		const result = formatDiscordMessage(msg);
+		expect(result).not.toContain("[bot-interaction-hint:");
+	});
+});
+
 describe("formatDiscordMessage 添付フォーマット", () => {
 	test("url が undefined の添付は [添付: filename (contentType) undefined] としてフォーマットされる", () => {
 		const msg = createMessage({
