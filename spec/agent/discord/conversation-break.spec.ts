@@ -8,92 +8,11 @@
  * 4. 初回メッセージではブレイク検出を行わない
  */
 /* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
-import { afterEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
 
-import {
-	DiscordAgent,
-	type ConversationBreakConfig,
-} from "@vicissitude/agent/discord/discord-agent";
 import type { AgentRunner } from "@vicissitude/agent/runner";
-import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
-import { createMockLogger } from "../../test-helpers.ts";
-import { createContextBuilder, createProfile, createSessionStore } from "../runner-test-helpers.ts";
-
-// ─── テスト用 DiscordAgent サブクラス ─────────────────────────────
-
-class TestDiscordAgent extends DiscordAgent {
-	sleepSpy: ((ms: number) => Promise<void>) | null = null;
-
-	/** pendingCompaction フラグへの公開アクセス */
-	get isPendingCompaction(): boolean {
-		return (this as unknown as { pendingCompaction: boolean }).pendingCompaction;
-	}
-
-	/** requestSessionRotation のモック */
-	readonly requestSessionRotationMock = mock(() => Promise.resolve());
-
-	// oxlint-disable-next-line no-useless-constructor -- DiscordAgentDeps に nowProvider/conversationBreak を含めるために必要
-	constructor(
-		deps: ConstructorParameters<typeof DiscordAgent>[0] & {
-			nowProvider?: () => number;
-			conversationBreak?: ConversationBreakConfig;
-		},
-	) {
-		super(deps);
-	}
-
-	override requestSessionRotation(): Promise<void> {
-		return this.requestSessionRotationMock();
-	}
-
-	/** テスト用: polling loop を起動しない（pendingCompaction フラグが消費されるのを防ぐ） */
-	override ensurePolling(): void {}
-
-	protected override sleep(ms: number): Promise<void> {
-		if (this.sleepSpy) return this.sleepSpy(ms);
-		return super.sleep(ms);
-	}
-}
-
-// ─── ヘルパー ─────────────────────────────────────────────────────
-
-function createSessionPort(): OpencodeSessionPort & {
-	summarizeSession: ReturnType<typeof mock>;
-} {
-	return {
-		createSession: mock(() => Promise.resolve("session-1")),
-		sessionExists: mock(() => Promise.resolve(false)),
-		prompt: mock(() => Promise.resolve({ text: "", tokens: undefined })),
-		promptAsync: mock(() => Promise.resolve()),
-		promptAsyncAndWatchSession: mock(() => Promise.resolve({ type: "idle" as const })),
-		waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
-		deleteSession: mock(() => Promise.resolve()),
-		summarizeSession: mock(() => Promise.resolve()),
-		close: mock(() => {}),
-	} as unknown as OpencodeSessionPort & {
-		summarizeSession: ReturnType<typeof mock>;
-	};
-}
-
-function createAgent(opts: {
-	nowProvider?: () => number;
-	conversationBreak?: ConversationBreakConfig;
-}): TestDiscordAgent {
-	const agent = new TestDiscordAgent({
-		guildId: "guild-1",
-		profile: createProfile(),
-		sessionStore: createSessionStore() as never,
-		contextBuilder: createContextBuilder(),
-		logger: createMockLogger(),
-		sessionPort: createSessionPort() as unknown as OpencodeSessionPort,
-		sessionMaxAgeMs: 86_400_000,
-		nowProvider: opts.nowProvider,
-		conversationBreak: opts.conversationBreak,
-	});
-	agent.sleepSpy = () => Promise.resolve();
-	return agent;
-}
+import { createAgent } from "./discord-agent-test-helpers.ts";
 
 const activeRunners = new Set<AgentRunner>();
 
