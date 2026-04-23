@@ -170,6 +170,7 @@ export interface SendOptions {
 	message: string;
 	guildId?: string;
 	attachments?: Attachment[];
+	channelId?: string;
 }
 
 export interface AiAgent {

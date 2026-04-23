@@ -313,6 +313,7 @@ function setupEventHandlers(deps: {
 				sessionKey: "home",
 				message: formatDiscordMessage(msg),
 				attachments: msg.attachments,
+				channelId: msg.channelId,
 			});
 		}
 		return Promise.resolve();
@@ -332,6 +333,7 @@ function setupEventHandlers(deps: {
 				sessionKey: "mention",
 				message: formatDiscordMessage(msg),
 				attachments: msg.attachments,
+				channelId: msg.channelId,
 			});
 		}
 		return Promise.resolve();
