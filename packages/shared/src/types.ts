@@ -169,6 +169,7 @@ export interface SendOptions {
 	sessionKey: string;
 	message: string;
 	guildId?: string;
+	attachments?: Attachment[];
 }
 
 export interface AiAgent {
@@ -214,6 +215,7 @@ export interface OpencodePromptParams {
 	model: { providerId: string; modelId: string };
 	system?: string;
 	tools?: Record<string, boolean>;
+	attachments?: Attachment[];
 }
 
 export type OpencodeSessionEvent =

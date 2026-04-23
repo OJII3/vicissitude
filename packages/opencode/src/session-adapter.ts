@@ -64,6 +64,30 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return !result.error && !!result.data;
 	}
 
+	private buildParts(
+		params: OpencodePromptParams,
+	): Array<
+		{ type: "text"; text: string } | { type: "file"; mime: string; filename?: string; url: string }
+	> {
+		const imageAttachments: Array<{ type: "file"; mime: string; filename?: string; url: string }> =
+			[];
+		for (const a of params.attachments ?? []) {
+			if (a.contentType?.startsWith("image/")) {
+				imageAttachments.push({
+					type: "file" as const,
+					mime: a.contentType,
+					filename: a.filename,
+					url: a.url,
+				});
+			} else {
+				this.logger?.debug(
+					`[opencode] buildParts: skipping non-image attachment (contentType=${a.contentType ?? "undefined"}, filename=${a.filename ?? "undefined"})`,
+				);
+			}
+		}
+		return [{ type: "text", text: params.text }, ...imageAttachments];
+	}
+
 	async prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult> {
 		const modelLabel = `${params.model.providerId}/${params.model.modelId}`;
 		this.logger?.debug("[opencode] llm_request", {
@@ -75,7 +99,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const result = await oc.session.prompt(
 			{
 				sessionID: params.sessionId,
-				parts: [{ type: "text", text: params.text }],
+				parts: this.buildParts(params),
 				model: { providerID: params.model.providerId, modelID: params.model.modelId },
 				system: params.system,
 				tools: params.tools ?? {},
@@ -99,7 +123,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const result = await oc.session.promptAsync({
 			sessionID: params.sessionId,
-			parts: [{ type: "text", text: params.text }],
+			parts: this.buildParts(params),
 			model: { providerID: params.model.providerId, modelID: params.model.modelId },
 			system: params.system,
 		});
@@ -127,7 +151,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		try {
 			const result = await oc.session.promptAsync({
 				sessionID: params.sessionId,
-				parts: [{ type: "text", text: params.text }],
+				parts: this.buildParts(params),
 				model: { providerID: params.model.providerId, modelID: params.model.modelId },
 				system: params.system,
 			});

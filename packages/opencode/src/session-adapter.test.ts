@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines, max-lines-per-function -- テストファイルはケース数に応じて長くなるため許容 */
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
@@ -305,5 +306,215 @@ describe("OpencodeSessionAdapter", () => {
 
 		await expect(watch).rejects.toThrow("transport down");
 		expect(stream.return).toHaveBeenCalledTimes(1);
+	});
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildParts の内部ロジック（ホワイトボックス）
+// prompt / promptAsync 経由で buildParts の画像フィルタリングを検証する
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", () => {
+	function createBuildPartsAdapter() {
+		const promptParts: unknown[] = [];
+		const promptAsyncParts: unknown[] = [];
+		const client = {
+			event: {
+				subscribe: mock(() =>
+					Promise.resolve({
+						stream: {
+							// oxlint-disable-next-line no-return-wrap -- AsyncGenerator の next/return は Promise を返す必要がある
+							next: mock(() => Promise.resolve({ done: true, value: undefined })),
+							// oxlint-disable-next-line no-return-wrap -- AsyncGenerator の next/return は Promise を返す必要がある
+							return: mock(() => Promise.resolve({ done: true, value: undefined })),
+							[Symbol.asyncIterator]() {
+								return this;
+							},
+						},
+					}),
+				),
+			},
+			session: {
+				create: mock(() => Promise.resolve({ data: { id: "session-1" }, error: null })),
+				get: mock(() => Promise.resolve({ data: null, error: { message: "missing" } })),
+				prompt: mock((params: { parts: unknown[] }) => {
+					promptParts.push(...params.parts);
+					return Promise.resolve({ data: { parts: [], info: {} }, error: null });
+				}),
+				promptAsync: mock((params: { parts: unknown[] }) => {
+					promptAsyncParts.push(...params.parts);
+					return Promise.resolve({ data: {}, error: null });
+				}),
+				abort: mock(() => Promise.resolve({ data: {}, error: null })),
+				delete: mock(() => Promise.resolve({ data: {}, error: null })),
+			},
+		};
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: {},
+			clientFactory: mock(() =>
+				Promise.resolve({
+					client: client as unknown as OpencodeClient,
+					server: { url: "http://localhost", close: mock(() => {}) },
+				}),
+			),
+		});
+		return { adapter, promptParts, promptAsyncParts };
+	}
+
+	const baseParams = {
+		sessionId: "session-1",
+		text: "hello",
+		model: { providerId: "provider", modelId: "model" },
+	};
+
+	test("image/png の添付は FilePartInput に変換される（prompt 経由）", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+			],
+		});
+
+		expect(promptParts).toEqual([
+			{ type: "text", text: "hello" },
+			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+		]);
+	});
+
+	test("image/jpeg, image/gif, image/webp もすべて FilePartInput に変換される", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/a.jpg", contentType: "image/jpeg", filename: "a.jpg" },
+				{ url: "https://example.com/b.gif", contentType: "image/gif", filename: "b.gif" },
+				{ url: "https://example.com/c.webp", contentType: "image/webp", filename: "c.webp" },
+			],
+		});
+
+		expect(promptParts).toEqual([
+			{ type: "text", text: "hello" },
+			{ type: "file", mime: "image/jpeg", filename: "a.jpg", url: "https://example.com/a.jpg" },
+			{ type: "file", mime: "image/gif", filename: "b.gif", url: "https://example.com/b.gif" },
+			{ type: "file", mime: "image/webp", filename: "c.webp", url: "https://example.com/c.webp" },
+		]);
+	});
+
+	test("application/pdf は FilePartInput に変換されない（フィルタアウト）", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/doc.pdf", contentType: "application/pdf", filename: "doc.pdf" },
+			],
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("text/plain は FilePartInput に変換されない（フィルタアウト）", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/note.txt", contentType: "text/plain", filename: "note.txt" },
+			],
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("contentType が undefined の添付は FilePartInput に変換されない", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/unknown", contentType: undefined, filename: "unknown" },
+			],
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("filename が undefined でも image 添付は正しく変換される", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/img.png", contentType: "image/png", filename: undefined },
+			],
+		});
+
+		expect(promptParts).toEqual([
+			{ type: "text", text: "hello" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: undefined,
+				url: "https://example.com/img.png",
+			},
+		]);
+	});
+
+	test("attachments が空配列の場合は text のみの parts", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [],
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("attachments が undefined の場合は text のみの parts", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			// attachments フィールドなし
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
+	});
+
+	test("画像と非画像が混在する場合、画像のみ FilePartInput に変換される", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+				{ url: "https://example.com/doc.pdf", contentType: "application/pdf", filename: "doc.pdf" },
+				{ url: "https://example.com/photo.jpg", contentType: "image/jpeg", filename: "photo.jpg" },
+			],
+		});
+
+		expect(promptParts).toEqual([
+			{ type: "text", text: "hello" },
+			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+			{
+				type: "file",
+				mime: "image/jpeg",
+				filename: "photo.jpg",
+				url: "https://example.com/photo.jpg",
+			},
+		]);
+	});
+
+	test("promptAsync 経由でも buildParts が同じフィルタリングを適用する", async () => {
+		const { adapter, promptAsyncParts } = createBuildPartsAdapter();
+		await adapter.promptAsync({
+			...baseParams,
+			attachments: [
+				{ url: "https://example.com/img.png", contentType: "image/png", filename: "img.png" },
+				{ url: "https://example.com/doc.pdf", contentType: "application/pdf", filename: "doc.pdf" },
+			],
+		});
+
+		expect(promptAsyncParts).toEqual([
+			{ type: "text", text: "hello" },
+			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+		]);
 	});
 });
