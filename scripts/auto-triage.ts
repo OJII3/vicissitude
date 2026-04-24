@@ -1,6 +1,8 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { extractAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
+
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
 const LOG_DIR = resolve(PROJECT_DIR, "logs/auto-triage");
 const MAX_BUDGET_USD = 10;
@@ -8,35 +10,6 @@ const MAX_BUDGET_USD = 10;
 const INTERVAL_SEC = 1 * 60 * 60;
 /** 30 minutes — kill claude if no stdout output for this duration */
 const STALL_TIMEOUT_MS = 30 * 60 * 1000;
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-function formatTimestamp(): string {
-	const now = new Date();
-	return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
-}
-
-function tee(msg: string, logFile: string): void {
-	console.log(msg);
-	appendFileSync(logFile, `${msg}\n`);
-}
-
-function extractAssistantText(line: string): string[] {
-	try {
-		const obj = JSON.parse(line);
-		if (obj.type !== "assistant") return [];
-		const contents: unknown[] = obj.message?.content ?? [];
-		return contents
-			.filter(
-				(c): c is { type: "text"; text: string } =>
-					(c as { type: string }).type === "text" &&
-					typeof (c as { text: unknown }).text === "string",
-			)
-			.map((c) => c.text);
-	} catch {
-		return [];
-	}
-}
 
 /** gh issue list から help wanted を除いた issue があるか、または CI が失敗しているかを返す */
 async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> {
