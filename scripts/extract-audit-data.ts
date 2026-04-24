@@ -132,7 +132,7 @@ function readGuildOverlay(guildId: string): GuildOverlayContext {
 	if (!existsSync(dir)) return {};
 	const ctx: GuildOverlayContext = {};
 	for (const file of readdirSync(dir)) {
-		if (!file.endsWith(".md") || file.endsWith(".bak")) continue;
+		if (!file.endsWith(".md")) continue;
 		const content = readTextFile(resolve(dir, file));
 		if (content) ctx[file] = content;
 	}
