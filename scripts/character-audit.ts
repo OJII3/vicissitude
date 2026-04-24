@@ -9,6 +9,8 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { extractAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
+
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
 const LOG_DIR = resolve(PROJECT_DIR, "logs/character-audit");
 const MAX_BUDGET_USD = 5;
@@ -16,35 +18,6 @@ const MAX_BUDGET_USD = 5;
 const INTERVAL_SEC = 12 * 60 * 60;
 /** 30 minutes — kill claude if no stdout output for this duration */
 const STALL_TIMEOUT_MS = 30 * 60 * 1000;
-
-const pad2 = (n: number) => String(n).padStart(2, "0");
-
-function formatTimestamp(): string {
-	const now = new Date();
-	return `${now.getFullYear()}${pad2(now.getMonth() + 1)}${pad2(now.getDate())}-${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}`;
-}
-
-function tee(msg: string, logFile: string): void {
-	console.log(msg);
-	appendFileSync(logFile, `${msg}\n`);
-}
-
-function extractAssistantText(line: string): string[] {
-	try {
-		const obj = JSON.parse(line);
-		if (obj.type !== "assistant") return [];
-		const contents: unknown[] = obj.message?.content ?? [];
-		return contents
-			.filter(
-				(c): c is { type: "text"; text: string } =>
-					(c as { type: string }).type === "text" &&
-					typeof (c as { text: unknown }).text === "string",
-			)
-			.map((c) => c.text);
-	} catch {
-		return [];
-	}
-}
 
 /** extract-audit-data.ts を実行して、評価対象のエピソードがあるか確認する */
 async function hasData(): Promise<boolean> {
