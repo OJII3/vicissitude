@@ -24,6 +24,13 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: true,
 			},
+			{
+				id: "character-reinforce",
+				description: "直近の自分の応答を振り返り、キャラクター設定と記憶から自分らしさを再確認する",
+				schedule: { type: "interval", minutes: 90 },
+				lastExecutedAt: null,
+				enabled: true,
+			},
 			// config.minecraft 未設定時でも含める（heartbeat-config.json に永続化されるため条件付き追加は不整合を招く）。
 			// デフォルト無効。config.minecraft 設定時に有効化される想定。
 			{
