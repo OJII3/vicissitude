@@ -218,6 +218,16 @@ export class MemoryStorage {
 		return rows.map((r) => rowToEpisode(r));
 	}
 
+	async getRecentEpisodes(userId: string, sinceMs: number, limit = 20): Promise<Episode[]> {
+		const lim = clampLimit(limit);
+		const rows = this.db
+			.prepare(
+				"SELECT * FROM episodes WHERE user_id = ? AND end_at >= ? ORDER BY end_at DESC LIMIT ?",
+			)
+			.all(userId, sinceMs, lim) as EpisodeRow[];
+		return rows.map((r) => rowToEpisode(r));
+	}
+
 	async updateEpisodeFSRS(userId: string, episodeId: string, card: FSRSCard): Promise<void> {
 		this.db
 			.prepare(

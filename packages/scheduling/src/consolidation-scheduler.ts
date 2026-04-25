@@ -1,7 +1,12 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
-import { namespaceKey } from "@vicissitude/shared/namespace";
+import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
+
+/** CriticAuditor interface to avoid circular dependency */
+export interface CriticAuditorPort {
+	audit(userId: string): Promise<{ severity: string; summary: string } | null>;
+}
 
 /** 30 minutes */
 const CONSOLIDATION_TICK_INTERVAL_MS = 30 * 60_000;
@@ -20,6 +25,7 @@ export class ConsolidationScheduler {
 		private readonly consolidator: MemoryConsolidator,
 		private readonly logger: Logger,
 		private readonly metrics?: MetricsCollector,
+		private readonly criticAuditor?: CriticAuditorPort,
 	) {}
 
 	start(): void {
@@ -106,9 +112,30 @@ export class ConsolidationScheduler {
 						`[memory-consolidation] ns=${key}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
 					);
 				}
+				/* oxlint-disable-next-line no-await-in-loop -- sequential: critic audit after consolidation */
+				await this.runCriticAudit(namespace, key);
 			} catch (err) {
 				this.logger.error(`[memory-consolidation] ns=${key} failed:`, err);
 			}
+		}
+	}
+
+	private async runCriticAudit(
+		namespace: Parameters<typeof defaultSubject>[0],
+		key: string,
+	): Promise<void> {
+		if (!this.criticAuditor) return;
+		try {
+			const userId = defaultSubject(namespace);
+			const result = await this.criticAuditor.audit(userId);
+			if (result) {
+				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS);
+				if (result.severity === "major") {
+					this.logger.warn(`[critic-audit] ns=${key}: MAJOR drift detected — ${result.summary}`);
+				}
+			}
+		} catch (err) {
+			this.logger.error(`[critic-audit] ns=${key} failed:`, err);
 		}
 	}
 }

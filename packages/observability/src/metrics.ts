@@ -38,6 +38,9 @@ export const METRIC = {
 	MC_COOLDOWNS: "mc_cooldowns_total",
 	MC_FAILURE_STREAKS: "mc_failure_streaks_total",
 	MC_AUTO_NOTIFICATIONS: "mc_auto_notifications_total",
+	// Drift metrics
+	DRIFT_SCORE: "drift_score",
+	DRIFT_AUDITS: "drift_audits_total",
 	// Cost metrics
 	LLM_COST_DOLLARS: "llm_cost_dollars_total",
 	// Session error metrics
