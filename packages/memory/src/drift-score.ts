@@ -278,14 +278,16 @@ export class DriftScoreCalculator {
  */
 function computePeriodRate(text: string, sentences: string[]): number {
 	let periodTerminated = 0;
+	let searchFrom = 0;
 	for (const sentence of sentences) {
 		const trimmed = sentence.trim();
-		const idx = text.indexOf(trimmed);
+		const idx = text.indexOf(trimmed, searchFrom);
 		if (idx === -1) continue;
 		const afterIdx = idx + trimmed.length;
 		if (afterIdx < text.length && text[afterIdx] === "。") {
 			periodTerminated++;
 		}
+		searchFrom = afterIdx;
 	}
 	return periodTerminated / sentences.length;
 }
