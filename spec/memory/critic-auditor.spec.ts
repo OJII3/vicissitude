@@ -54,7 +54,12 @@ describe("CriticAuditor", () => {
 		await storage.saveEpisode(userId, episode);
 
 		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
-		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+		});
 		const result = await auditor.audit(userId);
 
 		expect(result).toBeNull();
@@ -72,7 +77,12 @@ describe("CriticAuditor", () => {
 		await storage.saveEpisode(userId, episode);
 
 		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
-		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+		});
 		const result = await auditor.audit(userId);
 
 		expect(result).toBeNull();
@@ -98,7 +108,12 @@ describe("CriticAuditor", () => {
 			summary: "AI assistant-like response detected",
 		};
 		const { llm, calls } = createSpyLLM(criticResult);
-		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+		});
 		const result = await auditor.audit(userId);
 
 		expect(result).not.toBeNull();
@@ -128,7 +143,12 @@ describe("CriticAuditor", () => {
 			guidelineKeywords: ["tone", "casual"],
 		};
 		const llm = createMockLLM({ structuredResponse: criticResult });
-		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+		});
 		const result = await auditor.audit(userId);
 
 		expect(result).not.toBeNull();
@@ -159,7 +179,12 @@ describe("CriticAuditor", () => {
 			summary: "Character is consistent",
 		};
 		const llm = createMockLLM({ structuredResponse: criticResult });
-		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+		});
 		const result = await auditor.audit(userId);
 
 		expect(result).not.toBeNull();

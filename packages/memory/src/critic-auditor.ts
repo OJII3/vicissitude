@@ -30,17 +30,27 @@ const VALID_SEVERITIES = new Set<string>(["none", "minor", "major"]);
 
 // ─── CriticAuditor ──────────────────────────────────────────────
 
+export interface CriticAuditorDeps {
+	llm: MemoryLlmPort;
+	storage: MemoryStorage;
+	driftCalculator: DriftScoreCalculator;
+	characterDefinition: string;
+	nowProvider?: () => number;
+}
+
 export class CriticAuditor {
+	private readonly llm: MemoryLlmPort;
+	private readonly storage: MemoryStorage;
+	private readonly driftCalculator: DriftScoreCalculator;
+	private readonly characterDefinition: string;
 	private readonly nowProvider: () => number;
 
-	constructor(
-		private readonly llm: MemoryLlmPort,
-		private readonly storage: MemoryStorage,
-		private readonly driftCalculator: DriftScoreCalculator,
-		private readonly characterDefinition: string,
-		nowProvider?: () => number,
-	) {
-		this.nowProvider = nowProvider ?? Date.now;
+	constructor(deps: CriticAuditorDeps) {
+		this.llm = deps.llm;
+		this.storage = deps.storage;
+		this.driftCalculator = deps.driftCalculator;
+		this.characterDefinition = deps.characterDefinition;
+		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
 	/** 直近の応答を監査し、キャラクター一貫性を評価する */
