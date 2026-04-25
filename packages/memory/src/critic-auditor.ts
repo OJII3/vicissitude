@@ -106,7 +106,7 @@ function buildCriticMessages(
 		.map(([k, v]) => `  ${k}: ${String(v)}`)
 		.join("\n");
 
-	const system = `You are a character consistency auditor. You evaluate whether an AI character's responses stay true to their defined persona.
+	const system = `あなたはキャラクター一貫性の監査者です。AIキャラクターの応答が定義されたペルソナに忠実であるかを評価します。
 
 <character_definition>
 ${escapeXmlContent(characterDefinition)}
