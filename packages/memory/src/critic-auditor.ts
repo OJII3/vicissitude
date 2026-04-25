@@ -31,16 +31,21 @@ const VALID_SEVERITIES = new Set<string>(["none", "minor", "major"]);
 // ─── CriticAuditor ──────────────────────────────────────────────
 
 export class CriticAuditor {
+	private readonly nowProvider: () => number;
+
 	constructor(
 		private readonly llm: MemoryLlmPort,
 		private readonly storage: MemoryStorage,
 		private readonly driftCalculator: DriftScoreCalculator,
 		private readonly characterDefinition: string,
-	) {}
+		nowProvider?: () => number,
+	) {
+		this.nowProvider = nowProvider ?? Date.now;
+	}
 
 	/** 直近の応答を監査し、キャラクター一貫性を評価する */
 	async audit(userId: string): Promise<CriticResult | null> {
-		const sinceMs = Date.now() - NINETY_MINUTES_MS;
+		const sinceMs = this.nowProvider() - NINETY_MINUTES_MS;
 		const episodes = await this.storage.getRecentEpisodes(userId, sinceMs, RECENT_EPISODE_LIMIT);
 
 		// assistant メッセージを抽出
