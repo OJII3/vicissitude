@@ -1,12 +1,8 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
 import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
+import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
-
-/** CriticAuditor interface to avoid circular dependency */
-export interface CriticAuditorPort {
-	audit(userId: string): Promise<{ severity: string; summary: string } | null>;
-}
 
 /** 30 minutes */
 const CONSOLIDATION_TICK_INTERVAL_MS = 30 * 60_000;

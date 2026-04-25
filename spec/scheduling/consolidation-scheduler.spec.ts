@@ -1,10 +1,8 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { discordGuildNamespace } from "@vicissitude/memory/namespace";
-import {
-	ConsolidationScheduler,
-	type CriticAuditorPort,
-} from "@vicissitude/scheduling/consolidation-scheduler";
+import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
+import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
 
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
