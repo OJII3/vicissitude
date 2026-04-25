@@ -38,6 +38,12 @@ const ttsSchema = z.object({
 	speakerId: safeInt,
 });
 
+const githubSchema = z.object({
+	token: z.string(),
+	owner: z.string(),
+	repo: z.string(),
+});
+
 const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
 	webPort: safeInt,
@@ -62,6 +68,7 @@ const appConfigSchema = z.object({
 	genius: geniusSchema.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
+	github: githubSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
 });
@@ -131,6 +138,13 @@ export function loadConfig(
 					profilesFolder: env.MC_PROFILES_FOLDER,
 					mcpPort: Number(env.MC_MCP_PORT ?? "3001"),
 					viewerPort: Number(env.MC_VIEWER_PORT ?? "3007"),
+				}
+			: undefined,
+		github: env.GITHUB_TOKEN
+			? {
+					token: env.GITHUB_TOKEN,
+					owner: env.GITHUB_OWNER ?? "",
+					repo: env.GITHUB_REPO ?? "",
 				}
 			: undefined,
 		dataDir: resolve(resolvedRoot, "data"),
