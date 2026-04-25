@@ -393,7 +393,6 @@ export class AgentRunner implements AiAgent {
 
 		const needsSystem = !this.hasStartedSession || this.pendingSystemReinject;
 		const system = needsSystem ? await this.contextBuilder.build(this.contextGuildId) : undefined;
-		this.pendingSystemReinject = false;
 		if (signal.aborted) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
@@ -413,6 +412,7 @@ export class AgentRunner implements AiAgent {
 			},
 			combinedSignal,
 		);
+		this.pendingSystemReinject = false;
 		this.hasStartedSession = true;
 	}
 
