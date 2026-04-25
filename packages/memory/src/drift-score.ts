@@ -1,4 +1,6 @@
+import type { MemoryLlmPort } from "./llm-port.ts";
 import type { ChatMessage } from "./types.ts";
+import { cosineSimilarity } from "./vector-math.ts";
 
 export interface DriftFeatures {
 	periodRate: number;
@@ -12,6 +14,8 @@ export interface DriftFeatures {
 
 export interface DriftScore {
 	score: number;
+	textFeatureScore: number;
+	semanticScore: number;
 	features: DriftFeatures;
 	computedAt: Date;
 }
@@ -98,13 +102,56 @@ function computeScore(features: DriftFeatures): number {
 	);
 }
 
+/**
+ * SOUL.md テキストからセリフ例を抽出する。× 付き（嫌いな口調）は除外。
+ */
+export function parseSoulExamples(soulText: string): string[] {
+	if (!soulText) return [];
+
+	const results: string[] = [];
+	const lines = soulText.split("\n");
+
+	for (const line of lines) {
+		// × で始まる行のセリフは除外
+		if (/^\s*[×✕]/.test(line)) continue;
+
+		// 「...」で囲まれたセリフを抽出
+		const matches = line.matchAll(/「([^」]+)」/g);
+		for (const match of matches) {
+			if (match[1]) {
+				results.push(match[1]);
+			}
+		}
+	}
+
+	return results;
+}
+
 export class DriftScoreCalculator {
-	computeFromMessages(messages: ChatMessage[]): DriftScore {
+	private readonly llm: MemoryLlmPort;
+	private readonly soulText: string;
+	private referenceEmbeddings: number[][] | null = null;
+
+	constructor(llm: MemoryLlmPort, soulText: string) {
+		this.llm = llm;
+		this.soulText = soulText;
+	}
+
+	/** SOUL.md セリフ例の embedding をキャッシュ。computeFromMessages/computeSemanticScore の前に呼ぶ必要あり */
+	async init(): Promise<void> {
+		const examples = parseSoulExamples(this.soulText);
+		this.referenceEmbeddings = await Promise.all(examples.map((ex) => this.llm.embed(ex)));
+	}
+
+	/** 旧 computeFromMessages のリネーム。同期版、テキスト特徴量のみ */
+	computeTextScore(messages: ChatMessage[]): DriftScore {
 		const assistantMessages = messages.filter((m) => m.role === "assistant");
 
 		if (assistantMessages.length === 0) {
 			return {
 				score: 0.0,
+				textFeatureScore: 0.0,
+				semanticScore: 0.0,
 				features: { ...ZERO_FEATURES },
 				computedAt: new Date(),
 			};
@@ -114,10 +161,76 @@ export class DriftScoreCalculator {
 		const features = this.computeTextFeatures(combinedText);
 		features.messageCount = assistantMessages.length;
 
-		const score = clamp(computeScore(features), 0.0, 1.0);
+		const textFeatureScore = clamp(computeScore(features), 0.0, 1.0);
+
+		return {
+			score: textFeatureScore,
+			textFeatureScore,
+			semanticScore: 0.0,
+			features,
+			computedAt: new Date(),
+		};
+	}
+
+	/** セマンティックスコアのみ計算。init() 前に呼ぶとエラー */
+	async computeSemanticScore(messages: ChatMessage[]): Promise<number> {
+		if (this.referenceEmbeddings === null) {
+			throw new Error("init() must be called before computeSemanticScore()");
+		}
+
+		const assistantMessages = messages.filter((m) => m.role === "assistant");
+		if (assistantMessages.length === 0) return 0.0;
+
+		const refs = this.referenceEmbeddings;
+		if (refs.length === 0) return 0.0;
+
+		const embeddings = await Promise.all(
+			assistantMessages.map((msg) => this.llm.embed(msg.content)),
+		);
+		let totalMaxSim = 0;
+		for (const embedding of embeddings) {
+			let maxSim = -Infinity;
+			for (const ref of refs) {
+				const sim = cosineSimilarity(embedding, ref);
+				if (sim > maxSim) maxSim = sim;
+			}
+			totalMaxSim += maxSim;
+		}
+
+		const avgSimilarity = totalMaxSim / assistantMessages.length;
+		return clamp(1.0 - avgSimilarity, 0.0, 1.0);
+	}
+
+	/** 総合スコア（async）。init() 前に呼ぶとエラー */
+	async computeFromMessages(messages: ChatMessage[]): Promise<DriftScore> {
+		if (this.referenceEmbeddings === null) {
+			throw new Error("init() must be called before computeFromMessages()");
+		}
+
+		const assistantMessages = messages.filter((m) => m.role === "assistant");
+
+		if (assistantMessages.length === 0) {
+			return {
+				score: 0.0,
+				textFeatureScore: 0.0,
+				semanticScore: 0.0,
+				features: { ...ZERO_FEATURES },
+				computedAt: new Date(),
+			};
+		}
+
+		const combinedText = assistantMessages.map((m) => m.content).join("\n");
+		const features = this.computeTextFeatures(combinedText);
+		features.messageCount = assistantMessages.length;
+
+		const textFeatureScore = clamp(computeScore(features), 0.0, 1.0);
+		const semanticScore = await this.computeSemanticScore(messages);
+		const score = clamp(0.6 * textFeatureScore + 0.4 * semanticScore, 0.0, 1.0);
 
 		return {
 			score,
+			textFeatureScore,
+			semanticScore,
 			features,
 			computedAt: new Date(),
 		};

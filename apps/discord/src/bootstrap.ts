@@ -294,7 +294,8 @@ export async function setupMemoryRecording(
 		const soulFile = Bun.file(soulPath);
 		if (await soulFile.exists()) {
 			const characterDefinition = await soulFile.text();
-			const driftCalculator = new DriftScoreCalculator();
+			const driftCalculator = new DriftScoreCalculator(llm, characterDefinition);
+			await driftCalculator.init();
 			// Namespace-aware adapter: userId から namespace を解決して per-namespace の MemoryStorage を使う
 			const storageCache = new Map<string, MemoryStorage>();
 			const adapter = {
