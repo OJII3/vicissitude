@@ -330,3 +330,229 @@ describe("proactive compaction のクールダウン", () => {
 		thirdDone.resolve({ type: "cancelled" });
 	});
 });
+
+// ─── compaction 後のシステムプロンプト再注入 (pendingSystemReinject) ──
+
+describe("compaction 後のシステムプロンプト再注入 (pendingSystemReinject)", () => {
+	test("compacted イベント後の次回プロンプトで contextBuilder.build が呼ばれる", async () => {
+		// compacted → rewatch → idle → 新メッセージ送信時に contextBuilder.build が呼ばれること
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+
+		const contextBuilder = createContextBuilder();
+		let buildCallCount = 0;
+		(contextBuilder.build as ReturnType<typeof mock>).mockImplementation(() => {
+			buildCallCount += 1;
+			return Promise.resolve("system prompt");
+		});
+
+		let watchCallCount = 0;
+		const sessionPort = createSessionPortWithSummarize({
+			promptAsyncAndWatchSession: mock(() => {
+				watchCallCount++;
+				return watchCallCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+			}),
+			waitForSessionIdle: mock(() => rewatchDone.promise),
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// ステップ1: 初回メッセージ → contextBuilder.build 1回目（初回セッション開始）
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(buildCallCount).toBe(1);
+
+		// ステップ2: compacted イベント発火 → pendingSystemReinject = true → rewatchSession
+		firstSessionDone.resolve({ type: "compacted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ3: rewatch が idle で解決 → ループが waitForMessages に入る
+		rewatchDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ4: 2回目のメッセージ → ensureSessionStarted → pendingSystemReinject により build が呼ばれる
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// compacted 後の再注入で build が呼ばれた
+		expect(buildCallCount).toBe(2);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("proactive compaction 成功後の次回プロンプトで contextBuilder.build が呼ばれる", async () => {
+		// tryProactiveCompact 成功 → summarizeSession → compacted → rewatch → idle → 新メッセージで build
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+
+		const contextBuilder = createContextBuilder();
+		let buildCallCount = 0;
+		(contextBuilder.build as ReturnType<typeof mock>).mockImplementation(() => {
+			buildCallCount += 1;
+			return Promise.resolve("system prompt");
+		});
+
+		const sessionPort = createSessionPortWithSummarize({
+			promptAsyncAndWatchSession: mock(() => firstSessionDone.promise),
+			waitForSessionIdle: mock(() => rewatchDone.promise),
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+			// 閾値を低くして proactive compaction を発火させる
+			compactionTokenThreshold: 100,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// ステップ1: 初回メッセージ → build 1回目
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(buildCallCount).toBe(1);
+
+		// ステップ2: 閾値超えの idle → summarizeSession 発火 → rewatchSession
+		firstSessionDone.resolve({
+			type: "idle",
+			tokens: { input: 200, output: 100, cacheRead: 50 },
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+
+		// ステップ3: rewatch が idle で解決 → ループが waitForMessages に入る
+		// promptAsyncAndWatchSession を次回用に差し替え
+		(
+			sessionPort as unknown as { promptAsyncAndWatchSession: ReturnType<typeof mock> }
+		).promptAsyncAndWatchSession = mock(() => secondSessionDone.promise);
+		rewatchDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ4: 2回目のメッセージ → pendingSystemReinject により build が呼ばれる
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// proactive compaction 後の再注入で build が呼ばれた
+		expect(buildCallCount).toBe(2);
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
+	test("system 再注入後に pendingSystemReinject がリセットされ、以降の prompt では build が呼ばれない", async () => {
+		// 再注入が1回だけ実行されること: compacted → rewatch → idle → msg(build) → idle → msg(buildなし)
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		const thirdSessionDone = deferred<OpencodeSessionEvent>();
+
+		const contextBuilder = createContextBuilder();
+		let buildCallCount = 0;
+		(contextBuilder.build as ReturnType<typeof mock>).mockImplementation(() => {
+			buildCallCount += 1;
+			return Promise.resolve("system prompt");
+		});
+
+		let watchCallCount = 0;
+		const sessionPort = createSessionPortWithSummarize({
+			promptAsyncAndWatchSession: mock(() => {
+				watchCallCount++;
+				if (watchCallCount === 1) return firstSessionDone.promise;
+				if (watchCallCount === 2) return secondSessionDone.promise;
+				return thirdSessionDone.promise;
+			}),
+			waitForSessionIdle: mock(() => rewatchDone.promise),
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// ステップ1: 初回メッセージ → build 1回目
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(buildCallCount).toBe(1);
+
+		// ステップ2: compacted → rewatch
+		firstSessionDone.resolve({ type: "compacted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ3: rewatch idle → waitForMessages
+		rewatchDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ4: 2回目のメッセージ → pendingSystemReinject により build 2回目
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(buildCallCount).toBe(2);
+
+		// ステップ5: 2回目の応答が idle で返る → waitForMessages
+		secondSessionDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ6: 3回目のメッセージ → pendingSystemReinject はリセット済み → build は呼ばれない
+		await runner.send({ sessionKey: "k", message: "third" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// 再注入は1回だけ。3回目のメッセージで build は呼ばれない
+		expect(buildCallCount).toBe(2);
+
+		runner.stop();
+		thirdSessionDone.resolve({ type: "cancelled" });
+	});
+});
