@@ -25,11 +25,7 @@ const BANNED_PHRASES = [
 	"確認してみますね",
 ] as const;
 
-const EMPATHY_PHRASES = [
-	"つらかったね",
-	"頑張ったね",
-	"無理しなくていい",
-] as const;
+const EMPATHY_PHRASES = ["つらかったね", "頑張ったね", "無理しなくていい"] as const;
 
 const POLITE_PATTERNS = [
 	/です[。！？\n]?$/,
@@ -90,11 +86,7 @@ function computeScore(features: DriftFeatures): number {
 	const normalizedBanned = Math.min(features.bannedPhraseCount / 3, 1.0);
 	const normalizedEmpathy = Math.min(features.empathyPhraseCount / 2, 1.0);
 	const normalizedPronoun = Math.min(features.wrongPronounCount / 3, 1.0);
-	const normalizedSentenceLen = clamp(
-		(features.avgSentenceLength - 30) / 40,
-		0,
-		1,
-	);
+	const normalizedSentenceLen = clamp((features.avgSentenceLength - 30) / 40, 0, 1);
 
 	return (
 		WEIGHTS.periodRate * features.periodRate +
@@ -118,9 +110,7 @@ export class DriftScoreCalculator {
 			};
 		}
 
-		const combinedText = assistantMessages
-			.map((m) => m.content)
-			.join("\n");
+		const combinedText = assistantMessages.map((m) => m.content).join("\n");
 		const features = this.computeTextFeatures(combinedText);
 		features.messageCount = assistantMessages.length;
 
@@ -144,9 +134,7 @@ export class DriftScoreCalculator {
 		const periodRate = computePeriodRate(text, sentences);
 
 		// politeRate: 丁寧語を含む文の割合
-		const politeCount = sentences.filter((s) =>
-			POLITE_PATTERNS.some((p) => p.test(s)),
-		).length;
+		const politeCount = sentences.filter((s) => POLITE_PATTERNS.some((p) => p.test(s))).length;
 		const politeRate = politeCount / sentences.length;
 
 		const bannedPhraseCount = countMatches(text, [...BANNED_PHRASES]);
