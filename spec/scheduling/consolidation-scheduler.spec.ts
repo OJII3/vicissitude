@@ -221,7 +221,10 @@ describe("ConsolidationScheduler", () => {
 			// consolidate は呼ばれるが audit は呼ばれない（そもそも auditor がない）
 			expect(consolidator.consolidate).toHaveBeenCalledTimes(1);
 			// metrics に DRIFT_AUDITS が記録されていないことを確認
-			expect(metrics.incrementCounter).not.toHaveBeenCalledWith("drift_audits_total");
+			expect(metrics.incrementCounter).not.toHaveBeenCalledWith(
+				"drift_audits_total",
+				expect.anything(),
+			);
 		});
 
 		test("criticAuditor 指定 → consolidate 後に audit が呼ばれる", async () => {
@@ -256,7 +259,10 @@ describe("ConsolidationScheduler", () => {
 			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
 			await (scheduler as unknown as TickFn).tick();
 
-			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total");
+			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total", {
+				namespace: "discord-guild:333",
+				severity: "minor",
+			});
 		});
 
 		test('audit が severity "major" を返す → logger.warn が呼ばれる', async () => {
@@ -296,7 +302,10 @@ describe("ConsolidationScheduler", () => {
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
-			expect(metrics.incrementCounter).not.toHaveBeenCalledWith("drift_audits_total");
+			expect(metrics.incrementCounter).not.toHaveBeenCalledWith(
+				"drift_audits_total",
+				expect.anything(),
+			);
 			expect(logger.warn).not.toHaveBeenCalled();
 		});
 
@@ -329,7 +338,29 @@ describe("ConsolidationScheduler", () => {
 			expect(auditor.audit).toHaveBeenCalledTimes(2);
 			expect(auditor.audit).toHaveBeenCalledWith("777");
 			// ns2 の結果がメトリクスに反映される
-			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total");
+			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total", {
+				namespace: "discord-guild:777",
+				severity: "minor",
+			});
+		});
+
+		test("audit result with driftScore triggers setGauge for DRIFT_SCORE", async () => {
+			const logger = createMockLogger();
+			const metrics = createMockMetrics();
+			const auditor = createMockCriticAuditor({
+				audit: mock(() => Promise.resolve({ severity: "minor", summary: "ok", driftScore: 0.42 })),
+			});
+			const consolidator = createMockConsolidator({
+				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
+				consolidate: mock(() => Promise.resolve(successResult)),
+			});
+
+			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			await (scheduler as unknown as TickFn).tick();
+
+			expect(metrics.setGauge).toHaveBeenCalledWith("drift_score", 0.42, {
+				namespace: "discord-guild:333",
+			});
 		});
 
 		test("consolidate がエラーの namespace では audit がスキップされる", async () => {
@@ -360,199 +391,172 @@ describe("ConsolidationScheduler", () => {
 			expect(auditor.audit).not.toHaveBeenCalledWith("888");
 		});
 	});
+});
 
-	describe("GitHub Issue 自動起票 (severity major)", () => {
-		const successResult: ConsolidationResult = {
-			processedEpisodes: 1,
-			newFacts: 0,
-			reinforced: 0,
-			updated: 0,
-			invalidated: 0,
-		};
+describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", () => {
+	const successResult: ConsolidationResult = {
+		processedEpisodes: 1,
+		newFacts: 0,
+		reinforced: 0,
+		updated: 0,
+		invalidated: 0,
+	};
 
-		test("severity 'major' + issueTitle/issueBody + GitHubIssuePort → Issue が作成される", async () => {
-			const logger = createMockLogger();
-			const metrics = createMockMetrics();
-			const issuePort = createMockGitHubIssuePort();
-			const auditor = createMockCriticAuditor({
-				audit: mock(() =>
-					Promise.resolve({
-						severity: "major",
-						summary: "character drift detected",
-						issueTitle: "[character-drift] guild 111: AI assistant-like response",
-						issueBody: "## 概要\nキャラクター逸脱が検出されました。",
-					}),
-				),
-			});
-			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("111")]),
-				consolidate: mock(() => Promise.resolve(successResult)),
-			});
-
-			const scheduler = new ConsolidationScheduler(
-				consolidator,
-				logger,
-				metrics,
-				auditor,
-				issuePort,
-			);
-			await (scheduler as unknown as TickFn).tick();
-
-			// findRecentIssues で重複チェックが行われる
-			expect(issuePort.findRecentIssues).toHaveBeenCalledTimes(1);
-			expect(issuePort.findRecentIssues).toHaveBeenCalledWith(
-				expect.objectContaining({
-					label: "character-drift",
+	test("severity 'major' + issueTitle/issueBody + GitHubIssuePort → Issue が作成される", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const issuePort = createMockGitHubIssuePort();
+		const auditor = createMockCriticAuditor({
+			audit: mock(() =>
+				Promise.resolve({
+					severity: "major",
+					summary: "character drift detected",
+					issueTitle: "[character-drift] guild 111: AI assistant-like response",
+					issueBody: "## 概要\nキャラクター逸脱が検出されました。",
 				}),
-			);
-			// 重複なし → createIssue が呼ばれる
-			expect(issuePort.createIssue).toHaveBeenCalledTimes(1);
-			expect(issuePort.createIssue).toHaveBeenCalledWith(
-				expect.objectContaining({
-					title: "[character-drift] guild 111: AI assistant-like response",
-					body: "## 概要\nキャラクター逸脱が検出されました。",
-					labels: expect.arrayContaining(["character-drift"]),
+			),
+		});
+		const consolidator = createMockConsolidator({
+			getActiveNamespaces: mock(() => [discordGuildNamespace("111")]),
+			consolidate: mock(() => Promise.resolve(successResult)),
+		});
+
+		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		await (scheduler as unknown as TickFn).tick();
+
+		// findRecentIssues で重複チェックが行われる
+		expect(issuePort.findRecentIssues).toHaveBeenCalledTimes(1);
+		expect(issuePort.findRecentIssues).toHaveBeenCalledWith(
+			expect.objectContaining({
+				label: "character-drift",
+			}),
+		);
+		// 重複なし → createIssue が呼ばれる
+		expect(issuePort.createIssue).toHaveBeenCalledTimes(1);
+		expect(issuePort.createIssue).toHaveBeenCalledWith(
+			expect.objectContaining({
+				title: "[character-drift] guild 111: AI assistant-like response",
+				body: "## 概要\nキャラクター逸脱が検出されました。",
+				labels: expect.arrayContaining(["character-drift"]),
+			}),
+		);
+	});
+
+	test("severity 'major' + 直近24h に同タイトル Issue あり → スキップ（createIssue 呼ばれない）", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const duplicateTitle = "[character-drift] guild 222: repeated drift";
+		const issuePort = createMockGitHubIssuePort({
+			findRecentIssues: mock(() => Promise.resolve([{ number: 42, title: duplicateTitle }])),
+		});
+		const auditor = createMockCriticAuditor({
+			audit: mock(() =>
+				Promise.resolve({
+					severity: "major",
+					summary: "repeated drift",
+					issueTitle: duplicateTitle,
+					issueBody: "drift body",
 				}),
-			);
+			),
+		});
+		const consolidator = createMockConsolidator({
+			getActiveNamespaces: mock(() => [discordGuildNamespace("222")]),
+			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		test("severity 'major' + 直近24h に同タイトル Issue あり → スキップ（createIssue 呼ばれない）", async () => {
-			const logger = createMockLogger();
-			const metrics = createMockMetrics();
-			const duplicateTitle = "[character-drift] guild 222: repeated drift";
-			const issuePort = createMockGitHubIssuePort({
-				findRecentIssues: mock(() => Promise.resolve([{ number: 42, title: duplicateTitle }])),
-			});
-			const auditor = createMockCriticAuditor({
-				audit: mock(() =>
-					Promise.resolve({
-						severity: "major",
-						summary: "repeated drift",
-						issueTitle: duplicateTitle,
-						issueBody: "drift body",
-					}),
-				),
-			});
-			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("222")]),
-				consolidate: mock(() => Promise.resolve(successResult)),
-			});
+		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		await (scheduler as unknown as TickFn).tick();
 
-			const scheduler = new ConsolidationScheduler(
-				consolidator,
-				logger,
-				metrics,
-				auditor,
-				issuePort,
-			);
-			await (scheduler as unknown as TickFn).tick();
+		// findRecentIssues は呼ばれるが、同タイトルが見つかるので createIssue はスキップ
+		expect(issuePort.findRecentIssues).toHaveBeenCalledTimes(1);
+		expect(issuePort.createIssue).not.toHaveBeenCalled();
+		// スキップログが出力される
+		expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("skip"));
+	});
 
-			// findRecentIssues は呼ばれるが、同タイトルが見つかるので createIssue はスキップ
-			expect(issuePort.findRecentIssues).toHaveBeenCalledTimes(1);
-			expect(issuePort.createIssue).not.toHaveBeenCalled();
-			// スキップログが出力される
-			expect(logger.info).toHaveBeenCalledWith(expect.stringContaining("skip"));
+	test("severity 'major' + issueTitle なし → Issue 起票しない", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const issuePort = createMockGitHubIssuePort();
+		const auditor = createMockCriticAuditor({
+			audit: mock(() =>
+				Promise.resolve({
+					severity: "major",
+					summary: "drift detected but no issue info",
+					// issueTitle, issueBody を省略
+				}),
+			),
+		});
+		const consolidator = createMockConsolidator({
+			getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
+			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		test("severity 'major' + issueTitle なし → Issue 起票しない", async () => {
-			const logger = createMockLogger();
-			const metrics = createMockMetrics();
-			const issuePort = createMockGitHubIssuePort();
-			const auditor = createMockCriticAuditor({
-				audit: mock(() =>
-					Promise.resolve({
-						severity: "major",
-						summary: "drift detected but no issue info",
-						// issueTitle, issueBody を省略
-					}),
-				),
-			});
-			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
-				consolidate: mock(() => Promise.resolve(successResult)),
-			});
+		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		await (scheduler as unknown as TickFn).tick();
 
-			const scheduler = new ConsolidationScheduler(
-				consolidator,
-				logger,
-				metrics,
-				auditor,
-				issuePort,
-			);
-			await (scheduler as unknown as TickFn).tick();
+		// issueTitle がないので Issue 関連の呼び出しは一切行われない
+		expect(issuePort.findRecentIssues).not.toHaveBeenCalled();
+		expect(issuePort.createIssue).not.toHaveBeenCalled();
+	});
 
-			// issueTitle がないので Issue 関連の呼び出しは一切行われない
-			expect(issuePort.findRecentIssues).not.toHaveBeenCalled();
-			expect(issuePort.createIssue).not.toHaveBeenCalled();
+	test("GitHubIssuePort 未提供 → 既存動作のまま（Issue 起票しない）", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const auditor = createMockCriticAuditor({
+			audit: mock(() =>
+				Promise.resolve({
+					severity: "major",
+					summary: "drift detected",
+					issueTitle: "[character-drift] guild 444: drift",
+					issueBody: "body",
+				}),
+			),
+		});
+		const consolidator = createMockConsolidator({
+			getActiveNamespaces: mock(() => [discordGuildNamespace("444")]),
+			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		test("GitHubIssuePort 未提供 → 既存動作のまま（Issue 起票しない）", async () => {
-			const logger = createMockLogger();
-			const metrics = createMockMetrics();
-			const auditor = createMockCriticAuditor({
-				audit: mock(() =>
-					Promise.resolve({
-						severity: "major",
-						summary: "drift detected",
-						issueTitle: "[character-drift] guild 444: drift",
-						issueBody: "body",
-					}),
-				),
-			});
-			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("444")]),
-				consolidate: mock(() => Promise.resolve(successResult)),
-			});
+		// 第5引数（issueReporter）を省略
+		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+		await (scheduler as unknown as TickFn).tick();
 
-			// 第5引数（issueReporter）を省略
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
-			await (scheduler as unknown as TickFn).tick();
+		// warn ログは出る（既存動作）がクラッシュしない
+		expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("MAJOR drift detected"));
+		// Issue 関連の呼び出しが行われていないことを間接的に確認（エラーなし）
+	});
 
-			// warn ログは出る（既存動作）がクラッシュしない
-			expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("MAJOR drift detected"));
-			// Issue 関連の呼び出しが行われていないことを間接的に確認（エラーなし）
+	test("GitHubIssuePort.createIssue がエラー → エラーログのみ、クラッシュしない", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const createIssueError = new Error("GitHub API rate limit");
+		const issuePort = createMockGitHubIssuePort({
+			createIssue: mock(() => Promise.reject(createIssueError)),
+		});
+		const auditor = createMockCriticAuditor({
+			audit: mock(() =>
+				Promise.resolve({
+					severity: "major",
+					summary: "drift detected",
+					issueTitle: "[character-drift] guild 555: drift",
+					issueBody: "body",
+				}),
+			),
+		});
+		const consolidator = createMockConsolidator({
+			getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
+			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		test("GitHubIssuePort.createIssue がエラー → エラーログのみ、クラッシュしない", async () => {
-			const logger = createMockLogger();
-			const metrics = createMockMetrics();
-			const createIssueError = new Error("GitHub API rate limit");
-			const issuePort = createMockGitHubIssuePort({
-				createIssue: mock(() => Promise.reject(createIssueError)),
-			});
-			const auditor = createMockCriticAuditor({
-				audit: mock(() =>
-					Promise.resolve({
-						severity: "major",
-						summary: "drift detected",
-						issueTitle: "[character-drift] guild 555: drift",
-						issueBody: "body",
-					}),
-				),
-			});
-			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
-				consolidate: mock(() => Promise.resolve(successResult)),
-			});
+		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
 
-			const scheduler = new ConsolidationScheduler(
-				consolidator,
-				logger,
-				metrics,
-				auditor,
-				issuePort,
-			);
+		// クラッシュせずに完了する
+		await (scheduler as unknown as TickFn).tick();
 
-			// クラッシュせずに完了する
-			await (scheduler as unknown as TickFn).tick();
-
-			// createIssue が呼ばれた（試みた）
-			expect(issuePort.createIssue).toHaveBeenCalledTimes(1);
-			// エラーログが出力される
-			expect(logger.error).toHaveBeenCalledWith(
-				expect.stringContaining("issue"),
-				expect.any(Error),
-			);
-		});
+		// createIssue が呼ばれた（試みた）
+		expect(issuePort.createIssue).toHaveBeenCalledTimes(1);
+		// エラーログが出力される
+		expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("issue"), expect.any(Error));
 	});
 });

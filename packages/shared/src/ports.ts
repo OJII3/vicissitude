@@ -143,6 +143,7 @@ export interface CriticAuditorPort {
 	audit(userId: string): Promise<{
 		severity: string;
 		summary: string;
+		driftScore?: number;
 		issueTitle?: string;
 		issueBody?: string;
 	} | null>;

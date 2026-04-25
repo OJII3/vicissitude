@@ -127,7 +127,13 @@ export class ConsolidationScheduler {
 			const userId = defaultSubject(namespace);
 			const result = await this.criticAuditor.audit(userId);
 			if (result) {
-				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS);
+				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS, {
+					namespace: key,
+					severity: result.severity,
+				});
+				if (result.driftScore !== undefined) {
+					this.metrics?.setGauge(METRIC.DRIFT_SCORE, result.driftScore, { namespace: key });
+				}
 				if (result.severity === "major") {
 					this.logger.warn(`[critic-audit] ns=${key}: MAJOR drift detected — ${result.summary}`);
 					await this.reportIssueIfNeeded(result);
