@@ -140,5 +140,29 @@ export interface HeartbeatConfigPort {
 
 /** CriticAuditor ポートインターフェース */
 export interface CriticAuditorPort {
-	audit(userId: string): Promise<{ severity: string; summary: string } | null>;
+	audit(userId: string): Promise<{
+		severity: string;
+		summary: string;
+		issueTitle?: string;
+		issueBody?: string;
+	} | null>;
+}
+
+// ─── GitHubIssuePort ──────────────────────────────────────────
+//
+// GitHub Issue の作成・検索ポート。scheduling パッケージが
+// character-drift 検出時に自動起票するために使用する。
+
+/** GitHub Issue 操作ポートインターフェース */
+export interface GitHubIssuePort {
+	createIssue(params: {
+		title: string;
+		body: string;
+		labels: string[];
+	}): Promise<{ number: number; url: string }>;
+
+	findRecentIssues(params: {
+		label: string;
+		sinceDateISO: string;
+	}): Promise<Array<{ number: number; title: string }>>;
 }

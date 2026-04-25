@@ -14,6 +14,7 @@ import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
+import { GitHubIssueAdapter } from "@vicissitude/infrastructure/http/github-issue-adapter";
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
@@ -313,12 +314,21 @@ export async function setupMemoryRecording(
 			criticAuditor = adapter;
 		}
 
+		const githubIssuePort = config.github
+			? new GitHubIssueAdapter({
+					token: config.github.token,
+					owner: config.github.owner,
+					repo: config.github.repo,
+				})
+			: undefined;
+
 		const recorder = new MemoryConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(
 			recorder,
 			logger,
 			opts.metricsCollector,
 			criticAuditor,
+			githubIssuePort,
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
