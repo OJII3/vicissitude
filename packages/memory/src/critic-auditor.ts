@@ -13,6 +13,7 @@ export type CriticSeverity = "none" | "minor" | "major";
 export interface CriticResult {
 	severity: CriticSeverity;
 	summary: string;
+	driftScore?: number;
 	guidelineFact?: string;
 	guidelineKeywords?: string[];
 	issueTitle?: string;
@@ -95,7 +96,7 @@ export class CriticAuditor {
 			await this.storage.saveFact(userId, fact);
 		}
 
-		return result;
+		return { ...result, driftScore: driftScore.score };
 	}
 }
 

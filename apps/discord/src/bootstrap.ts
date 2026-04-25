@@ -234,6 +234,9 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
 	collector.registerCounter(METRIC.SESSION_RETRIES, "Session retries total");
+	// Drift metrics
+	collector.registerGauge(METRIC.DRIFT_SCORE, "Character drift score per guild");
+	collector.registerCounter(METRIC.DRIFT_AUDITS, "Character drift audit results");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
 }
