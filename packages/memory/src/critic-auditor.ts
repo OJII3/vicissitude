@@ -50,7 +50,7 @@ export class CriticAuditor {
 		if (assistantMessages.length === 0) return null;
 
 		// ドリフトスコア計算
-		const driftScore = this.driftCalculator.computeFromMessages(assistantMessages);
+		const driftScore = await this.driftCalculator.computeFromMessages(assistantMessages);
 
 		// コスト最適化: スコアが低くエピソード数も少ない場合はスキップ
 		if (driftScore.score < DRIFT_SKIP_THRESHOLD && episodes.length < MIN_EPISODES_FOR_CHEAP_SKIP) {
@@ -109,6 +109,8 @@ ${escapeXmlContent(characterDefinition)}
 
 <drift_analysis>
 score: ${String(driftScore.score.toFixed(4))}
+textFeatureScore: ${String(driftScore.textFeatureScore.toFixed(4))}
+semanticScore: ${String(driftScore.semanticScore.toFixed(4))}
 features:
 ${featuresText}
 </drift_analysis>

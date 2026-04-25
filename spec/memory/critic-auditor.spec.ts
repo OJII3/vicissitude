@@ -45,12 +45,29 @@ function createSpyLLM(criticResponse: CriticResult) {
 	return { llm, calls };
 }
 
+/** テスト用の最小 LLM ポート */
+function createDriftLLM(): MemoryLlmPort {
+	return {
+		async chat() {
+			return "";
+		},
+		async chatStructured() {
+			return {} as never;
+		},
+		async embed() {
+			return [0.1, 0.2, 0.3];
+		},
+	};
+}
+
 describe("CriticAuditor", () => {
 	let storage: MemoryStorage;
-	const drift = new DriftScoreCalculator();
+	let drift: DriftScoreCalculator;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		storage = new MemoryStorage(":memory:");
+		drift = new DriftScoreCalculator(createDriftLLM(), "");
+		await drift.init();
 	});
 
 	afterEach(() => {
