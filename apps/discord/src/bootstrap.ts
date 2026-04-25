@@ -37,14 +37,12 @@ import {
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import {
-	ConsolidationScheduler,
-	type CriticAuditorPort,
-} from "@vicissitude/scheduling/consolidation-scheduler";
+import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
 import type { MemoryNamespace } from "@vicissitude/shared/namespace";
+import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type {
 	AiAgent,
 	ContextBuilderPort,

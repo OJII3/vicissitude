@@ -8,26 +8,12 @@ import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import type { ChatMessage } from "@vicissitude/memory/types";
 
-import { makeEpisode } from "./test-helpers.ts";
+import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
 const characterDefinition = "You are hua, a casual and snarky girl.";
 
-function createCriticLLM(criticResponse: CriticResult): MemoryLlmPort {
-	return {
-		async chat(): Promise<string> {
-			return "mock";
-		},
-		async chatStructured<T>(_: ChatMessage[], schema: Schema<T>): Promise<T> {
-			return schema.parse(criticResponse);
-		},
-		async embed(): Promise<number[]> {
-			return [0.1, 0.2, 0.3];
-		},
-	};
-}
-
-/** LLM that records calls for inspection */
+/** LLM that records chatStructured calls for inspection */
 function createSpyLLM(criticResponse: CriticResult) {
 	const calls: { messages: ChatMessage[] }[] = [];
 	const llm: MemoryLlmPort = {
@@ -45,28 +31,13 @@ function createSpyLLM(criticResponse: CriticResult) {
 	return { llm, calls };
 }
 
-/** テスト用の最小 LLM ポート */
-function createDriftLLM(): MemoryLlmPort {
-	return {
-		async chat() {
-			return "";
-		},
-		async chatStructured() {
-			return {} as never;
-		},
-		async embed() {
-			return [0.1, 0.2, 0.3];
-		},
-	};
-}
-
 describe("CriticAuditor", () => {
 	let storage: MemoryStorage;
 	let drift: DriftScoreCalculator;
 
 	beforeEach(async () => {
 		storage = new MemoryStorage(":memory:");
-		drift = new DriftScoreCalculator(createDriftLLM(), "");
+		drift = new DriftScoreCalculator(createMockLLM(), "");
 		await drift.init();
 	});
 
@@ -82,7 +53,7 @@ describe("CriticAuditor", () => {
 		});
 		await storage.saveEpisode(userId, episode);
 
-		const llm = createCriticLLM({ severity: "none", summary: "ok" });
+		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
 		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
 		const result = await auditor.audit(userId);
 
@@ -100,7 +71,7 @@ describe("CriticAuditor", () => {
 		});
 		await storage.saveEpisode(userId, episode);
 
-		const llm = createCriticLLM({ severity: "none", summary: "ok" });
+		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
 		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
 		const result = await auditor.audit(userId);
 
@@ -156,7 +127,7 @@ describe("CriticAuditor", () => {
 			guidelineFact: "ふあは丁寧語を使わない",
 			guidelineKeywords: ["tone", "casual"],
 		};
-		const llm = createCriticLLM(criticResult);
+		const llm = createMockLLM({ structuredResponse: criticResult });
 		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
 		const result = await auditor.audit(userId);
 
@@ -187,7 +158,7 @@ describe("CriticAuditor", () => {
 			severity: "none",
 			summary: "Character is consistent",
 		};
-		const llm = createCriticLLM(criticResult);
+		const llm = createMockLLM({ structuredResponse: criticResult });
 		const auditor = new CriticAuditor(llm, storage, drift, characterDefinition);
 		const result = await auditor.audit(userId);
 

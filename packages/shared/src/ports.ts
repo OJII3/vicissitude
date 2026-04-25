@@ -132,3 +132,13 @@ export interface HeartbeatConfigPort {
 	load(): Promise<HeartbeatConfig>;
 	save(config: HeartbeatConfig): Promise<void>;
 }
+
+// ─── CriticAuditorPort ─────────────────────────────────────────
+//
+// CriticAuditor の抽象ポート。scheduling パッケージが memory パッケージへの
+// 直接依存を避けるために使用する。
+
+/** CriticAuditor ポートインターフェース */
+export interface CriticAuditorPort {
+	audit(userId: string): Promise<{ severity: string; summary: string } | null>;
+}
