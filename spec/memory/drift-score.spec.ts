@@ -280,6 +280,18 @@ describe("DriftScoreCalculator", () => {
 			expect(features.periodRate).toBeGreaterThan(0.0);
 			expect(features.periodRate).toBeLessThanOrEqual(1.0);
 		});
+
+		test("同一文が複数回句点で終わる場合 periodRate は 1.0 (#821)", () => {
+			const features = calc.computeTextFeatures("うん。うん。");
+
+			expect(features.periodRate).toBe(1.0);
+		});
+
+		test("同一文が句点あり・なしで混在する場合 periodRate は 0.5 (#821)", () => {
+			const features = calc.computeTextFeatures("うん！うん。");
+
+			expect(features.periodRate).toBe(0.5);
+		});
 	});
 
 	describe("computeTextFeatures — 丁寧語の検出", () => {
