@@ -118,6 +118,70 @@ describe("MemoryStorage — episodic memory", () => {
 		const ep = makeEpisode({ userId: "user-1" });
 		expect(storage.saveEpisode("user-2", ep)).rejects.toThrow("does not match");
 	});
+
+	test("getRecentEpisodes returns episodes with end_at >= sinceMs", async () => {
+		const old = makeEpisode({ endAt: new Date("2026-01-01T00:00:00Z") });
+		const recent = makeEpisode({ endAt: new Date("2026-03-01T00:00:00Z") });
+		await storage.saveEpisode(userId, old);
+		await storage.saveEpisode(userId, recent);
+
+		const sinceMs = new Date("2026-02-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes(userId, sinceMs);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.id).toBe(recent.id);
+	});
+
+	test("getRecentEpisodes returns results in end_at DESC order", async () => {
+		const ep1 = makeEpisode({ endAt: new Date("2026-01-01T00:00:00Z") });
+		const ep2 = makeEpisode({ endAt: new Date("2026-03-01T00:00:00Z") });
+		const ep3 = makeEpisode({ endAt: new Date("2026-02-01T00:00:00Z") });
+		await storage.saveEpisode(userId, ep1);
+		await storage.saveEpisode(userId, ep2);
+		await storage.saveEpisode(userId, ep3);
+
+		const sinceMs = new Date("2025-01-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes(userId, sinceMs);
+		expect(results).toHaveLength(3);
+		expect(results[0]!.id).toBe(ep2.id);
+		expect(results[1]!.id).toBe(ep3.id);
+		expect(results[2]!.id).toBe(ep1.id);
+	});
+
+	test("getRecentEpisodes respects limit", async () => {
+		await Promise.all(
+			Array.from({ length: 5 }, (_, i) =>
+				storage.saveEpisode(
+					userId,
+					makeEpisode({ endAt: new Date(`2026-01-0${i + 1}T00:00:00Z`) }),
+				),
+			),
+		);
+
+		const sinceMs = new Date("2025-01-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes(userId, sinceMs, 3);
+		expect(results).toHaveLength(3);
+	});
+
+	test("getRecentEpisodes uses default limit of 20", async () => {
+		await Promise.all(
+			Array.from({ length: 25 }, (_, i) =>
+				storage.saveEpisode(userId, makeEpisode({ endAt: new Date(Date.UTC(2026, 0, i + 1)) })),
+			),
+		);
+
+		const sinceMs = new Date("2025-01-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes(userId, sinceMs);
+		expect(results).toHaveLength(20);
+	});
+
+	test("getRecentEpisodes returns empty array when no episodes match", async () => {
+		const ep = makeEpisode({ endAt: new Date("2026-01-01T00:00:00Z") });
+		await storage.saveEpisode(userId, ep);
+
+		const sinceMs = new Date("2027-01-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes(userId, sinceMs);
+		expect(results).toHaveLength(0);
+	});
 });
 
 describe("MemoryStorage — tenant isolation (episodes)", () => {
@@ -156,6 +220,18 @@ describe("MemoryStorage — tenant isolation (episodes)", () => {
 		await storage.markEpisodeConsolidated("user-2", ep.id);
 		const found = await storage.getEpisodeById("user-1", ep.id);
 		expect(found!.consolidatedAt).toBeNull();
+	});
+
+	test("getRecentEpisodes filters by userId", async () => {
+		const ep1 = makeEpisode({ userId: "user-1", endAt: new Date("2026-03-01T00:00:00Z") });
+		const ep2 = makeEpisode({ userId: "user-2", endAt: new Date("2026-03-01T00:00:00Z") });
+		await storage.saveEpisode("user-1", ep1);
+		await storage.saveEpisode("user-2", ep2);
+
+		const sinceMs = new Date("2025-01-01T00:00:00Z").getTime();
+		const results = await storage.getRecentEpisodes("user-1", sinceMs);
+		expect(results).toHaveLength(1);
+		expect(results[0]!.id).toBe(ep1.id);
 	});
 });
 
