@@ -17,7 +17,16 @@ import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
+import { CriticAuditor } from "@vicissitude/memory/critic-auditor";
+import { DriftScoreCalculator } from "@vicissitude/memory/drift-score";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
+import {
+	discordGuildNamespace,
+	HUA_SELF_SUBJECT,
+	INTERNAL_NAMESPACE,
+	resolveMemoryDbPath,
+} from "@vicissitude/memory/namespace";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -28,10 +37,14 @@ import {
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
-import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
+import {
+	ConsolidationScheduler,
+	type CriticAuditorPort,
+} from "@vicissitude/scheduling/consolidation-scheduler";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
+import type { MemoryNamespace } from "@vicissitude/shared/namespace";
 import type {
 	AiAgent,
 	ContextBuilderPort,
@@ -245,15 +258,16 @@ interface MemoryResources {
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-export function setupMemoryRecording(
+export async function setupMemoryRecording(
 	config: AppConfig,
 	logger: Logger,
 	opts: {
 		memoryPort: number;
 		metricsCollector?: PrometheusCollector;
 		embeddingAdapter?: OllamaEmbeddingAdapter;
+		root: string;
 	},
-): MemoryResources | undefined {
+): Promise<MemoryResources | undefined> {
 	const dataDir = resolve(config.dataDir, "memory");
 
 	try {
@@ -273,11 +287,39 @@ export function setupMemoryRecording(
 			opts.embeddingAdapter ??
 			new OllamaEmbeddingAdapter(config.memory.ollamaBaseUrl, config.memory.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
+
+		// SOUL.md の読み込み（graceful degradation: なければ criticAuditor なし）
+		let criticAuditor: CriticAuditorPort | undefined;
+		const soulPath = resolve(opts.root, "context/SOUL.md");
+		const soulFile = Bun.file(soulPath);
+		if (await soulFile.exists()) {
+			const characterDefinition = await soulFile.text();
+			const driftCalculator = new DriftScoreCalculator();
+			// Namespace-aware adapter: userId から namespace を解決して per-namespace の MemoryStorage を使う
+			const storageCache = new Map<string, MemoryStorage>();
+			const adapter = {
+				characterDefinition,
+				audit(userId: string) {
+					let storage = storageCache.get(userId);
+					if (!storage) {
+						const namespace: MemoryNamespace =
+							userId === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : discordGuildNamespace(userId);
+						storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
+						storageCache.set(userId, storage);
+					}
+					const auditor = new CriticAuditor(llm, storage, driftCalculator, characterDefinition);
+					return auditor.audit(userId);
+				},
+			};
+			criticAuditor = adapter;
+		}
+
 		const recorder = new MemoryConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(
 			recorder,
 			logger,
 			opts.metricsCollector,
+			criticAuditor,
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
@@ -507,10 +549,11 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Memory recording
-	const memoryResources = setupMemoryRecording(config, logger, {
+	const memoryResources = await setupMemoryRecording(config, logger, {
 		memoryPort: ports.memory(),
 		metricsCollector: metrics.collector,
 		embeddingAdapter: ollamaEmbedding,
+		root,
 	});
 	const ingestionService = new MessageIngestionService({
 		logger,
