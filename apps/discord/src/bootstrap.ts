@@ -14,10 +14,20 @@ import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
+import { GitHubIssueAdapter } from "@vicissitude/infrastructure/http/github-issue-adapter";
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
 import { CompositeLLMAdapter } from "@vicissitude/memory/composite-llm-adapter";
 import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-recorder";
+import { CriticAuditor } from "@vicissitude/memory/critic-auditor";
+import { DriftScoreCalculator } from "@vicissitude/memory/drift-score";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
+import {
+	discordGuildNamespace,
+	HUA_SELF_SUBJECT,
+	INTERNAL_NAMESPACE,
+	resolveMemoryDbPath,
+} from "@vicissitude/memory/namespace";
+import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import {
 	PrometheusCollector,
@@ -32,6 +42,8 @@ import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-sc
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
+import type { MemoryNamespace } from "@vicissitude/shared/namespace";
+import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type {
 	AiAgent,
 	ContextBuilderPort,
@@ -222,6 +234,9 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
 	collector.registerCounter(METRIC.SESSION_RETRIES, "Session retries total");
+	// Drift metrics
+	collector.registerGauge(METRIC.DRIFT_SCORE, "Character drift score per guild");
+	collector.registerCounter(METRIC.DRIFT_AUDITS, "Character drift audit results");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
 }
@@ -245,15 +260,16 @@ interface MemoryResources {
 	consolidationScheduler: ConsolidationScheduler;
 }
 
-export function setupMemoryRecording(
+export async function setupMemoryRecording(
 	config: AppConfig,
 	logger: Logger,
 	opts: {
 		memoryPort: number;
 		metricsCollector?: PrometheusCollector;
 		embeddingAdapter?: OllamaEmbeddingAdapter;
+		root: string;
 	},
-): MemoryResources | undefined {
+): Promise<MemoryResources | undefined> {
 	const dataDir = resolve(config.dataDir, "memory");
 
 	try {
@@ -273,11 +289,49 @@ export function setupMemoryRecording(
 			opts.embeddingAdapter ??
 			new OllamaEmbeddingAdapter(config.memory.ollamaBaseUrl, config.memory.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
+
+		// SOUL.md の読み込み（graceful degradation: なければ criticAuditor なし）
+		let criticAuditor: CriticAuditorPort | undefined;
+		const soulPath = resolve(opts.root, "context/SOUL.md");
+		const soulFile = Bun.file(soulPath);
+		if (await soulFile.exists()) {
+			const characterDefinition = await soulFile.text();
+			const driftCalculator = new DriftScoreCalculator(llm, characterDefinition);
+			await driftCalculator.init();
+			// Namespace-aware adapter: userId から namespace を解決して per-namespace の MemoryStorage を使う
+			const storageCache = new Map<string, MemoryStorage>();
+			const adapter = {
+				characterDefinition,
+				audit(userId: string) {
+					let storage = storageCache.get(userId);
+					if (!storage) {
+						const namespace: MemoryNamespace =
+							userId === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : discordGuildNamespace(userId);
+						storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
+						storageCache.set(userId, storage);
+					}
+					const auditor = new CriticAuditor({ llm, storage, driftCalculator, characterDefinition });
+					return auditor.audit(userId);
+				},
+			};
+			criticAuditor = adapter;
+		}
+
+		const githubIssuePort = config.github
+			? new GitHubIssueAdapter({
+					token: config.github.token,
+					owner: config.github.owner,
+					repo: config.github.repo,
+				})
+			: undefined;
+
 		const recorder = new MemoryConversationRecorder(llm, dataDir);
 		const consolidationScheduler = new ConsolidationScheduler(
 			recorder,
 			logger,
 			opts.metricsCollector,
+			criticAuditor,
+			githubIssuePort,
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
@@ -507,10 +561,11 @@ export async function bootstrap(): Promise<void> {
 	});
 
 	// Memory recording
-	const memoryResources = setupMemoryRecording(config, logger, {
+	const memoryResources = await setupMemoryRecording(config, logger, {
 		memoryPort: ports.memory(),
 		metricsCollector: metrics.collector,
 		embeddingAdapter: ollamaEmbedding,
+		root,
 	});
 	const ingestionService = new MessageIngestionService({
 		logger,

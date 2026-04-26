@@ -132,3 +132,38 @@ export interface HeartbeatConfigPort {
 	load(): Promise<HeartbeatConfig>;
 	save(config: HeartbeatConfig): Promise<void>;
 }
+
+// ─── CriticAuditorPort ─────────────────────────────────────────
+//
+// CriticAuditor の抽象ポート。scheduling パッケージが memory パッケージへの
+// 直接依存を避けるために使用する。
+
+/** CriticAuditor ポートインターフェース */
+export interface CriticAuditorPort {
+	audit(userId: string): Promise<{
+		severity: string;
+		summary: string;
+		driftScore?: number;
+		issueTitle?: string;
+		issueBody?: string;
+	} | null>;
+}
+
+// ─── GitHubIssuePort ──────────────────────────────────────────
+//
+// GitHub Issue の作成・検索ポート。scheduling パッケージが
+// character-drift 検出時に自動起票するために使用する。
+
+/** GitHub Issue 操作ポートインターフェース */
+export interface GitHubIssuePort {
+	createIssue(params: {
+		title: string;
+		body: string;
+		labels: string[];
+	}): Promise<{ number: number; url: string }>;
+
+	findRecentIssues(params: {
+		label: string;
+		sinceDateISO: string;
+	}): Promise<Array<{ number: number; title: string }>>;
+}

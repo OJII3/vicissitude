@@ -18,6 +18,8 @@
 		"./episode": "./src/episode.ts",
 		"./segmenter": "./src/segmenter.ts",
 		"./consolidation": "./src/consolidation.ts",
-		"./fsrs": "./src/fsrs.ts"
+		"./fsrs": "./src/fsrs.ts",
+		"./drift-score": "./src/drift-score.ts",
+		"./critic-auditor": "./src/critic-auditor.ts"
 	}
 }

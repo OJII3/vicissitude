@@ -82,6 +82,8 @@ export class AgentRunner implements AiAgent {
 	protected readonly nowProvider: () => number;
 	private lastCompactionAt: number | null = null;
 	protected pendingCompaction = false;
+	/** compaction 後にシステムプロンプトを再注入するフラグ */
+	private pendingSystemReinject = false;
 
 	private get sessionKey(): string {
 		return `__polling__:${this.agentId}`;
@@ -203,6 +205,7 @@ export class AgentRunner implements AiAgent {
 				// waitForEvents を挟まず即座にセッション監視を再開する。
 				// rotateSessionIfExpired もスキップする（セッション削除すると rewatch が空振りする）。
 				if (event.type === "compacted" || event.type === "streamDisconnected") {
+					if (event.type === "compacted") this.pendingSystemReinject = true;
 					this.rewatchSession(signal);
 					resetBackoffState();
 					continue;
@@ -388,9 +391,8 @@ export class AgentRunner implements AiAgent {
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;
 
-		const system = this.hasStartedSession
-			? undefined
-			: await this.contextBuilder.build(this.contextGuildId);
+		const needsSystem = !this.hasStartedSession || this.pendingSystemReinject;
+		const system = needsSystem ? await this.contextBuilder.build(this.contextGuildId) : undefined;
 		if (signal.aborted) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
@@ -410,6 +412,7 @@ export class AgentRunner implements AiAgent {
 			},
 			combinedSignal,
 		);
+		this.pendingSystemReinject = false;
 		this.hasStartedSession = true;
 	}
 
@@ -556,6 +559,7 @@ export class AgentRunner implements AiAgent {
 		try {
 			await this.sessionPort.summarizeSession(sessionId);
 			this.lastCompactionAt = now;
+			this.pendingSystemReinject = true;
 			this.logger.info(`[${this.profile.name}:${this.agentId}] break-triggered compaction`);
 			this.rewatchSession(signal);
 			return true;
@@ -579,6 +583,7 @@ export class AgentRunner implements AiAgent {
 		try {
 			await this.sessionPort.summarizeSession(sessionId);
 			this.lastCompactionAt = this.nowProvider();
+			this.pendingSystemReinject = true;
 			this.logger.info(`[${this.profile.name}:${this.agentId}] proactive compaction triggered`);
 			this.rewatchSession(signal);
 			return true;

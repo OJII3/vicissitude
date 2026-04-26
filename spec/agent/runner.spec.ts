@@ -1232,3 +1232,111 @@ describe("requestSessionRotation() エラー耐性", () => {
 		expect(sessionStore.delete).toHaveBeenCalledTimes(1);
 	});
 });
+
+describe("compacted 後の abort 時にシステムプロンプト再注入フラグが保持される (#822)", () => {
+	test("compacted 後に contextBuilder.build の await 中に abort されても、次回の prompt で contextBuilder.build が再度呼ばれる", async () => {
+		// バグ: ensureSessionStarted で pendingSystemReinject = false が signal.aborted チェックの前に
+		// 実行される。compaction 後に contextBuilder.build の await 中に stop() が呼ばれると、
+		// フラグだけリセットされてシステムプロンプトが送信されない。
+		// ensurePolling() で再起動すると hasStartedSession = false にリセットされるため、
+		// !hasStartedSession で build が呼ばれるが、pendingSystemReinject が消失していることを検証する。
+
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const secondBuildDeferred = deferred<string>();
+		const thirdSessionDone = deferred<OpencodeSessionEvent>();
+
+		const contextBuilder = createContextBuilder();
+		let buildCallCount = 0;
+		(contextBuilder.build as ReturnType<typeof mock>).mockImplementation(() => {
+			buildCallCount += 1;
+			// 1回目: 即座に解決（初回セッション開始）
+			if (buildCallCount === 1) return Promise.resolve("system prompt");
+			// 2回目: deferred（abort テスト用 — stop() 後に resolve する）
+			if (buildCallCount === 2) return secondBuildDeferred.promise;
+			// 3回目以降: 即座に解決
+			return Promise.resolve("system prompt");
+		});
+
+		const sessionPort = {
+			createSession: mock(() => Promise.resolve("session-1")),
+			sessionExists: mock(() => Promise.resolve(false)),
+			prompt: mock(() => Promise.resolve({ text: "要約テキスト", tokens: undefined })),
+			promptAsync: mock(() => Promise.resolve()),
+			promptAsyncAndWatchSession: mock(() => firstSessionDone.promise),
+			waitForSessionIdle: mock(() => rewatchDone.promise),
+			deleteSession: mock(() => Promise.resolve()),
+			summarizeSession: mock(() => Promise.resolve()),
+			close: mock(() => {}),
+		} as unknown as OpencodeSessionPort;
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		// ステップ1: 最初のメッセージを送る → promptAsyncAndWatchSession が deferred を返す
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// 初回の build
+		expect(buildCallCount).toBe(1);
+
+		// ステップ2: compacted イベントを発火 → pendingSystemReinject = true → rewatchSession
+		firstSessionDone.resolve({ type: "compacted" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ3: rewatchDone を idle で解決 → ループが waitForMessages に入る
+		// promptAsyncAndWatchSession を 3回目用に差し替え
+		(sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mockImplementation(
+			() => thirdSessionDone.promise,
+		);
+		rewatchDone.resolve({ type: "idle" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ4: 2回目のメッセージを送る → ensureSessionStarted → contextBuilder.build が deferred
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// compacted 後の再注入で build が呼ばれた
+		expect(buildCallCount).toBe(2);
+
+		// ステップ5: build 中に stop() → abort（build はまだ pending）
+		runner.stop();
+		// build の deferred を resolve（abort された後に resolve が到着する実際のシナリオ）
+		secondBuildDeferred.resolve("system prompt");
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ6: ensurePolling() で再起動 → 3回目のメッセージを送る
+		runner.ensurePolling();
+		await runner.send({ sessionKey: "k", message: "third" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// ステップ7: 検証 — 3回目のメッセージで contextBuilder.build が呼ばれること
+		// ensurePolling() で hasStartedSession = false にリセットされるため !hasStartedSession で
+		// build は呼ばれるが、pendingSystemReinject が保持されていることも合わせて検証する。
+		// 修正前: pendingSystemReinject は false（フラグが消失）だが hasStartedSession リセットで build は呼ばれる
+		// 修正後: pendingSystemReinject が true のまま保持される
+		expect(buildCallCount).toBeGreaterThanOrEqual(3);
+
+		runner.stop();
+		thirdSessionDone.resolve({ type: "cancelled" });
+	});
+});

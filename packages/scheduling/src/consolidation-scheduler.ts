@@ -1,6 +1,7 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
-import { namespaceKey } from "@vicissitude/shared/namespace";
+import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
+import type { CriticAuditorPort, GitHubIssuePort } from "@vicissitude/shared/ports";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
 
 /** 30 minutes */
@@ -16,10 +17,13 @@ export class ConsolidationScheduler {
 	private running = false;
 	private executePromise: Promise<void> | null = null;
 
+	/* oxlint-disable-next-line max-params -- DI: all dependencies are required ports */
 	constructor(
 		private readonly consolidator: MemoryConsolidator,
 		private readonly logger: Logger,
 		private readonly metrics?: MetricsCollector,
+		private readonly criticAuditor?: CriticAuditorPort,
+		private readonly issueReporter?: GitHubIssuePort,
 	) {}
 
 	start(): void {
@@ -106,9 +110,71 @@ export class ConsolidationScheduler {
 						`[memory-consolidation] ns=${key}: ${String(result.processedEpisodes)} episodes processed, new=${String(result.newFacts)} reinforce=${String(result.reinforced)} update=${String(result.updated)} invalidate=${String(result.invalidated)}`,
 					);
 				}
+				/* oxlint-disable-next-line no-await-in-loop -- sequential: critic audit after consolidation */
+				await this.runCriticAudit(namespace, key);
 			} catch (err) {
 				this.logger.error(`[memory-consolidation] ns=${key} failed:`, err);
 			}
+		}
+	}
+
+	private async runCriticAudit(
+		namespace: Parameters<typeof defaultSubject>[0],
+		key: string,
+	): Promise<void> {
+		if (!this.criticAuditor) return;
+		try {
+			const userId = defaultSubject(namespace);
+			const result = await this.criticAuditor.audit(userId);
+			if (result) {
+				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS, {
+					namespace: key,
+					severity: result.severity,
+				});
+				if (result.driftScore !== undefined) {
+					this.metrics?.setGauge(METRIC.DRIFT_SCORE, result.driftScore, { namespace: key });
+				}
+				if (result.severity === "major") {
+					this.logger.warn(`[critic-audit] ns=${key}: MAJOR drift detected — ${result.summary}`);
+					await this.reportIssueIfNeeded(result);
+				}
+			}
+		} catch (err) {
+			this.logger.error(`[critic-audit] ns=${key} failed:`, err);
+		}
+	}
+
+	private async reportIssueIfNeeded(result: {
+		severity: string;
+		summary: string;
+		issueTitle?: string;
+		issueBody?: string;
+	}): Promise<void> {
+		if (!result.issueTitle || !result.issueBody) return;
+		if (!this.issueReporter) return;
+
+		try {
+			const sinceDateISO = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+			const recentIssues = await this.issueReporter.findRecentIssues({
+				label: "character-drift",
+				sinceDateISO,
+			});
+
+			if (recentIssues.some((issue: { title: string }) => issue.title === result.issueTitle)) {
+				this.logger.info(
+					`[critic-audit] skip issue creation: duplicate title "${result.issueTitle}"`,
+				);
+				return;
+			}
+
+			const created = await this.issueReporter.createIssue({
+				title: result.issueTitle,
+				body: result.issueBody,
+				labels: ["character-drift"],
+			});
+			this.logger.info(`[critic-audit] issue created: ${created.url}`);
+		} catch (err) {
+			this.logger.error("[critic-audit] failed to create issue:", err);
 		}
 	}
 }
