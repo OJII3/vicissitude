@@ -64,6 +64,7 @@
         "@vicissitude/minecraft": "workspace:*",
         "@vicissitude/observability": "workspace:*",
         "@vicissitude/opencode": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
     },
