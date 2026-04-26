@@ -57,11 +57,13 @@
  *   export function defaultSubject(namespace: MemoryNamespace): string;
  */
 
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it } from "bun:test";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import {
 	discordGuildNamespace,
+	discoverNamespacesFromDisk,
 	INTERNAL_NAMESPACE,
 	HUA_SELF_SUBJECT,
 	defaultSubject,
@@ -73,6 +75,13 @@ import {
 } from "@vicissitude/memory/namespace";
 
 const DATA_DIR = "/data/memory";
+const TEMP_DIR = `/tmp/vicissitude-namespace-spec-${process.pid}`;
+
+afterEach(() => {
+	if (existsSync(TEMP_DIR)) {
+		rmSync(TEMP_DIR, { recursive: true, force: true });
+	}
+});
 
 describe("MemoryNamespace: factory / constant", () => {
 	it("discordGuildNamespace は guildId を持つ discord-guild namespace を返す", () => {
@@ -279,6 +288,64 @@ describe("recorder subject 導出契約（defaultSubject）", () => {
 		// HUA_SELF_SUBJECT は validateUserId の制約を満たす
 		expect(HUA_SELF_SUBJECT.length).toBeGreaterThan(0);
 		expect(HUA_SELF_SUBJECT.length).toBeLessThanOrEqual(256);
+	});
+});
+
+describe("discoverNamespacesFromDisk", () => {
+	it("空ディレクトリ → 空配列を返す", () => {
+		mkdirSync(TEMP_DIR, { recursive: true });
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toEqual([]);
+	});
+
+	it("guilds/{numericId}/memory.db が存在 → discord-guild namespace を返す", () => {
+		const guildDir = resolve(TEMP_DIR, "guilds", "123456789");
+		mkdirSync(guildDir, { recursive: true });
+		writeFileSync(resolve(guildDir, "memory.db"), "");
+
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toEqual([discordGuildNamespace("123456789")]);
+	});
+
+	it("internal/memory.db が存在 → internal namespace を返す", () => {
+		const internalDir = resolve(TEMP_DIR, "internal");
+		mkdirSync(internalDir, { recursive: true });
+		writeFileSync(resolve(internalDir, "memory.db"), "");
+
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toEqual([INTERNAL_NAMESPACE]);
+	});
+
+	it("非数値ディレクトリ名 → スキップする", () => {
+		const badDir = resolve(TEMP_DIR, "guilds", "not-a-number");
+		mkdirSync(badDir, { recursive: true });
+		writeFileSync(resolve(badDir, "memory.db"), "");
+
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toEqual([]);
+	});
+
+	it("memory.db がないディレクトリ → スキップする", () => {
+		const guildDir = resolve(TEMP_DIR, "guilds", "999");
+		mkdirSync(guildDir, { recursive: true });
+
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toEqual([]);
+	});
+
+	it("guilds + internal 両方存在 → 両方返す", () => {
+		const guildDir = resolve(TEMP_DIR, "guilds", "111");
+		mkdirSync(guildDir, { recursive: true });
+		writeFileSync(resolve(guildDir, "memory.db"), "");
+
+		const internalDir = resolve(TEMP_DIR, "internal");
+		mkdirSync(internalDir, { recursive: true });
+		writeFileSync(resolve(internalDir, "memory.db"), "");
+
+		const result = discoverNamespacesFromDisk(TEMP_DIR);
+		expect(result).toHaveLength(2);
+		expect(result.some((ns) => ns.surface === "discord-guild" && ns.guildId === "111")).toBe(true);
+		expect(result.some((ns) => ns.surface === "internal")).toBe(true);
 	});
 });
 

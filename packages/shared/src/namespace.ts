@@ -9,6 +9,7 @@
  * 詳細な仕様契約は spec/memory/namespace.spec.ts を参照。
  */
 
+import { existsSync, readdirSync } from "fs";
 import { resolve } from "path";
 
 /** Memory のパーティショニング単位 */
@@ -119,4 +120,33 @@ export function defaultSubject(namespace: MemoryNamespace): string {
 		case "internal":
 			return HUA_SELF_SUBJECT;
 	}
+}
+
+/**
+ * ディスク上の既存 DB ファイルから namespace を発見する。
+ * consolidation スケジューラが 30 分に 1 回呼ぶ想定なので同期 I/O で問題なし。
+ */
+export function discoverNamespacesFromDisk(dataDir: string): MemoryNamespace[] {
+	const result: MemoryNamespace[] = [];
+
+	// internal/memory.db
+	if (existsSync(resolve(dataDir, "internal", "memory.db"))) {
+		result.push(INTERNAL_NAMESPACE);
+	}
+
+	// guilds/{guildId}/memory.db
+	const guildsDir = resolve(dataDir, "guilds");
+	let entries: string[];
+	try {
+		entries = readdirSync(guildsDir);
+	} catch {
+		return result;
+	}
+	for (const name of entries) {
+		if (GUILD_ID_RE.test(name) && existsSync(resolve(guildsDir, name, "memory.db"))) {
+			result.push(discordGuildNamespace(name));
+		}
+	}
+
+	return result;
 }
