@@ -2,6 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "fs";
 import { join } from "path";
 
+import { hasColumn } from "@vicissitude/shared/sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 
 import * as schema from "./schema.ts";
@@ -82,12 +83,6 @@ function hasTable(sqlite: Database, tableName: string): boolean {
 	return !!sqlite
 		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
 		.get(tableName);
-}
-
-/** テーブル内に指定カラムが存在するかチェック（PRAGMA はパラメータバインド非対応のため文字列補間を使用。呼び出し元はリテラルのみ） */
-function hasColumn(sqlite: Database, tableName: string, columnName: string): boolean {
-	const columns = sqlite.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[];
-	return columns.some((c) => c.name === columnName);
 }
 
 /** 既存 DB のマイグレーション（CREATE_TABLES_SQL の前に実行） */
