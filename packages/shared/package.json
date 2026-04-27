@@ -9,6 +9,7 @@
 		"./ws-protocol": "./src/ws-protocol.ts",
 		"./ports": "./src/ports.ts",
 		"./tts": "./src/tts.ts",
-		"./test-helpers": "./src/test-helpers.ts"
+		"./test-helpers": "./src/test-helpers.ts",
+		"./sqlite": "./src/sqlite.ts"
 	}
 }
