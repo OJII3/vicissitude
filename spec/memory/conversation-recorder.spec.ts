@@ -1,3 +1,4 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { afterEach, describe, expect, mock, test } from "bun:test";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve as resolvePath } from "path";
@@ -14,6 +15,7 @@ import {
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
 } from "@vicissitude/memory/namespace";
+import type { ChatMessage } from "@vicissitude/memory/types";
 
 const TEMP_DIR = `/tmp/vicissitude-memory-test-${process.pid}`;
 
@@ -23,7 +25,9 @@ afterEach(() => {
 	}
 });
 
-const mockAddMessage = mock((): Promise<Episode[]> => Promise.resolve([]));
+const mockAddMessage = mock(
+	(_userId: string, _msg: ChatMessage): Promise<Episode[]> => Promise.resolve([]),
+);
 const mockConsolidate = mock(() =>
 	Promise.resolve({
 		processedEpisodes: 3,
@@ -49,6 +53,7 @@ function createRecorder() {
 const sampleMessage = {
 	role: "user" as const,
 	content: "hello",
+	authorId: "user-id-alice",
 	name: "alice",
 	timestamp: new Date(),
 };
@@ -70,6 +75,7 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 		expect(mockAddMessage).toHaveBeenCalledWith("12345", {
 			role: "user",
 			content: "hello",
+			authorId: "user-id-alice",
 			name: "alice",
 			timestamp: sampleMessage.timestamp,
 		});
@@ -84,6 +90,7 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 		expect(mockAddMessage).toHaveBeenCalledWith(HUA_SELF_SUBJECT, {
 			role: "user",
 			content: "hello",
+			authorId: "user-id-alice",
 			name: "alice",
 			timestamp: sampleMessage.timestamp,
 		});
@@ -217,6 +224,48 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 
 		expect(mockStorageClose).toHaveBeenCalled();
 		expect(recorder.getActiveNamespaces()).toEqual([]);
+	});
+
+	test("record() で authorId が segmenter.addMessage に転送される", async () => {
+		// CriticAuditor が authorId でフィルタするため、ConversationRecorder は authorId を破棄せず転送する責務がある
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+		const ns = discordGuildNamespace("12345");
+		await recorder.record(ns, {
+			role: "assistant",
+			content: "hi",
+			authorId: "1100000000000000001",
+			name: "ふあ",
+			timestamp: sampleMessage.timestamp,
+		});
+
+		expect(mockAddMessage).toHaveBeenCalledWith("12345", {
+			role: "assistant",
+			content: "hi",
+			authorId: "1100000000000000001",
+			name: "ふあ",
+			timestamp: sampleMessage.timestamp,
+		});
+	});
+
+	test("record() で authorId が省略されても segmenter.addMessage は呼ばれる（authorId は optional）", async () => {
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+		const ns = discordGuildNamespace("12345");
+		await recorder.record(ns, {
+			role: "user",
+			content: "no authorId",
+			name: "anon",
+			timestamp: sampleMessage.timestamp,
+		});
+
+		// authorId が無い場合は addMessage に渡るペイロードでも authorId フィールドは含まれない
+		expect(mockAddMessage).toHaveBeenCalledTimes(1);
+		const [, payload] = mockAddMessage.mock.calls[0]!;
+		expect(payload.authorId).toBeUndefined();
+		expect(payload.content).toBe("no authorId");
 	});
 
 	test("getActiveNamespaces() → ディスク上の既存 DB も発見する（record() なし）", () => {

@@ -83,6 +83,15 @@ describe("sqlite-schema", () => {
 	});
 
 	describe("createMessageQueue", () => {
+		interface ColumnInfo {
+			name: string;
+		}
+
+		function getColumnNames(database: Database, table: string): string[] {
+			const cols = database.prepare(`PRAGMA table_info(${table})`).all() as ColumnInfo[];
+			return cols.map((c) => c.name);
+		}
+
 		test("creates message_queue table", () => {
 			createMessageQueue(db);
 			expect(getNames(db, "table")).toContain("message_queue");
@@ -91,6 +100,91 @@ describe("sqlite-schema", () => {
 		test("creates user_id index", () => {
 			createMessageQueue(db);
 			expect(getNames(db, "index", "message_queue")).toContain("idx_mq_user_id");
+		});
+
+		test("includes author_id column on fresh DB", () => {
+			createMessageQueue(db);
+			const columns = getColumnNames(db, "message_queue");
+			expect(columns).toContain("author_id");
+		});
+
+		test("includes all expected columns on fresh DB", () => {
+			createMessageQueue(db);
+			const columns = getColumnNames(db, "message_queue");
+			expect(columns).toEqual(
+				expect.arrayContaining([
+					"id",
+					"user_id",
+					"role",
+					"content",
+					"name",
+					"author_id",
+					"timestamp",
+				]),
+			);
+		});
+
+		test("adds author_id via ALTER when running on legacy schema (without author_id)", () => {
+			// 旧 DB スキーマをシミュレート: author_id カラムなしで CREATE
+			db.exec(`CREATE TABLE message_queue (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
+				role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, timestamp INTEGER)`);
+			expect(getColumnNames(db, "message_queue")).not.toContain("author_id");
+
+			createMessageQueue(db);
+
+			expect(getColumnNames(db, "message_queue")).toContain("author_id");
+		});
+
+		test("preserves existing data when adding author_id via ALTER", () => {
+			// 旧 DB に author_id なしでデータが入っている状態をシミュレート
+			db.exec(`CREATE TABLE message_queue (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
+				role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, timestamp INTEGER)`);
+			db.exec(
+				"INSERT INTO message_queue (user_id, role, content, name, timestamp) VALUES ('u1', 'user', 'hi', 'Alice', 1000)",
+			);
+
+			createMessageQueue(db);
+
+			const row = db
+				.prepare("SELECT user_id, content, author_id FROM message_queue WHERE user_id = 'u1'")
+				.get() as { user_id: string; content: string; author_id: string | null };
+			expect(row.user_id).toBe("u1");
+			expect(row.content).toBe("hi");
+			// 既存行の author_id は NULL（ALTER ADD COLUMN のデフォルト）
+			expect(row.author_id).toBeNull();
+		});
+
+		test("is idempotent: running twice does not throw duplicate column error", () => {
+			expect(() => {
+				createMessageQueue(db);
+				createMessageQueue(db);
+			}).not.toThrow();
+			// author_id は依然として 1 つだけ存在
+			const columns = getColumnNames(db, "message_queue");
+			const authorIdCount = columns.filter((c) => c === "author_id").length;
+			expect(authorIdCount).toBe(1);
+		});
+
+		test("is idempotent: running three times still safe", () => {
+			expect(() => {
+				createMessageQueue(db);
+				createMessageQueue(db);
+				createMessageQueue(db);
+			}).not.toThrow();
+		});
+
+		test("ALTER path is idempotent against legacy schema", () => {
+			// legacy → migrate → re-run all idempotent
+			db.exec(`CREATE TABLE message_queue (
+				id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
+				role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, timestamp INTEGER)`);
+			expect(() => {
+				createMessageQueue(db);
+				createMessageQueue(db);
+			}).not.toThrow();
+			expect(getColumnNames(db, "message_queue")).toContain("author_id");
 		});
 	});
 

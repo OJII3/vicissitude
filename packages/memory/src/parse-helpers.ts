@@ -6,6 +6,7 @@ const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
 
 const MAX_EMBEDDING_DIM = 4096;
 const MAX_NAME_LENGTH = 100;
+const MAX_AUTHOR_ID_LENGTH = 64;
 
 export function parseJson(raw: string, field: string): unknown {
 	try {
@@ -60,6 +61,27 @@ function validateName(value: unknown, index: number): string | undefined {
 	return value.replaceAll(/[\u0000-\u001F\u007F]/g, "");
 }
 
+function validateAuthorId(value: unknown, index: number): string | undefined {
+	if (value === undefined || value === null) {
+		return undefined;
+	}
+	if (typeof value !== "string") {
+		return undefined;
+	}
+	if (value.length === 0) {
+		// Empty string is not a valid identifier; treat as absent rather than throwing
+		return undefined;
+	}
+	if (value.length > MAX_AUTHOR_ID_LENGTH) {
+		throw new RangeError(
+			`messages[${index}].authorId: too long (${value.length}), maximum ${MAX_AUTHOR_ID_LENGTH}`,
+		);
+	}
+	// Strip control characters defensively (authorId should never contain them)
+	// eslint-disable-next-line no-control-regex -- intentional control character stripping
+	return value.replaceAll(/[\u0000-\u001F\u007F]/g, "");
+}
+
 function validateTimestampAsObject(
 	value: unknown,
 	index: number,
@@ -77,10 +99,12 @@ function validateMessage(m: unknown, i: number): ChatMessage {
 		throw new TypeError(`messages[${i}]: expected content string`);
 	}
 	const name = validateName(obj["name"], i);
+	const authorId = validateAuthorId(obj["authorId"], i);
 	return {
 		role: validateRole(obj["role"]),
 		content: obj["content"],
 		...(name === undefined ? {} : { name }),
+		...(authorId === undefined ? {} : { authorId }),
 		...validateTimestampAsObject(obj["timestamp"], i),
 	};
 }

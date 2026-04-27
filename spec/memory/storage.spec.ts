@@ -409,6 +409,27 @@ describe("MemoryStorage — message queue", () => {
 		expect(queue[0]!.name).toBeUndefined();
 	});
 
+	test("preserves message authorId through round-trip", async () => {
+		await storage.pushMessage(userId, {
+			role: "user",
+			content: "hello",
+			authorId: "1100000000000000001",
+			name: "Alice",
+		});
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.authorId).toBe("1100000000000000001");
+	});
+
+	test("message without authorId round-trips correctly", async () => {
+		await storage.pushMessage(userId, { role: "user", content: "hello", name: "Alice" });
+
+		const queue = await storage.getMessageQueue(userId);
+		expect(queue).toHaveLength(1);
+		expect(queue[0]!.authorId).toBeUndefined();
+	});
+
 	test("preserves message name in episode messages JSON", async () => {
 		const messages: ChatMessage[] = [
 			{ role: "user", content: "hello", name: "Alice" },
@@ -420,6 +441,23 @@ describe("MemoryStorage — message queue", () => {
 		const found = await storage.getEpisodeById(userId, ep.id);
 		expect(found!.messages[0]!.name).toBe("Alice");
 		expect(found!.messages[1]!.name).toBeUndefined();
+	});
+
+	test("preserves message authorId in episode messages JSON", async () => {
+		// CriticAuditor が authorId でフィルタするため、エピソード内の messages に authorId が永続化される必要がある
+		const messages: ChatMessage[] = [
+			{ role: "user", content: "hello", authorId: "user-id-1", name: "Alice" },
+			{ role: "assistant", content: "hi", authorId: "1100000000000000001", name: "ふあ" },
+			// authorId が無いメッセージも許容（optional）
+			{ role: "user", content: "no id", name: "anon" },
+		];
+		const ep = makeEpisode({ messages });
+		await storage.saveEpisode(userId, ep);
+
+		const found = await storage.getEpisodeById(userId, ep.id);
+		expect(found!.messages[0]!.authorId).toBe("user-id-1");
+		expect(found!.messages[1]!.authorId).toBe("1100000000000000001");
+		expect(found!.messages[2]!.authorId).toBeUndefined();
 	});
 });
 

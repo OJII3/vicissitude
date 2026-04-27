@@ -333,13 +333,14 @@ export class MemoryStorage {
 	async pushMessage(userId: string, message: ChatMessage): Promise<void> {
 		this.db
 			.prepare(
-				"INSERT INTO message_queue (user_id, role, content, name, timestamp) VALUES (?, ?, ?, ?, ?)",
+				"INSERT INTO message_queue (user_id, role, content, name, author_id, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
 			)
 			.run(
 				userId,
 				message.role,
 				message.content,
 				message.name ?? null,
+				message.authorId ?? null,
 				message.timestamp?.getTime() ?? null,
 			);
 	}
@@ -347,7 +348,7 @@ export class MemoryStorage {
 	async getMessageQueue(userId: string): Promise<ChatMessage[]> {
 		const rows = this.db
 			.prepare(
-				"SELECT role, content, name, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC",
+				"SELECT role, content, name, author_id, timestamp FROM message_queue WHERE user_id = ? ORDER BY id ASC",
 			)
 			.all(userId) as MessageRow[];
 		return rows.map((r) => rowToMessage(r));

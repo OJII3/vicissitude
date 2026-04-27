@@ -10,6 +10,11 @@ export interface ChatMessage {
 	content: string;
 	/** Display name of the speaker (e.g. participant name in multi-person conversations) */
 	name?: string;
+	/**
+	 * Stable platform-level user identifier (e.g. Discord user id).
+	 * Used by CriticAuditor for bot-message filtering. NEVER included in LLM prompts.
+	 */
+	authorId?: string;
 	timestamp?: Date;
 }
 

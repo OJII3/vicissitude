@@ -50,6 +50,7 @@ export class MessageIngestionService {
 			role,
 			content,
 			name: message.authorName,
+			authorId: message.authorId,
 			timestamp: message.timestamp,
 		};
 

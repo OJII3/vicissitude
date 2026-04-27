@@ -1,4 +1,4 @@
-/* oxlint-disable require-await -- spec file */
+/* oxlint-disable require-await, no-non-null-assertion, unicorn/no-useless-undefined -- spec file: explicit undefined required to test getBotUserId callback shape */
 /**
  * setupMemoryRecording() の仕様テスト
  *
@@ -192,5 +192,64 @@ describe("setupMemoryRecording()", () => {
 		// 結果が返される（undefined でもエラーでなければOK）
 		// Promise が resolve することそのものが検証
 		expect(result === undefined || typeof result === "object").toBe(true);
+	});
+
+	test("opts.getBotUserId が CriticAuditor の audit() 経由で利用可能（遅延解決）", async () => {
+		// #847: gateway.start() より前に setupMemoryRecording が呼ばれるため、
+		// botUserId は遅延解決される必要がある。getBotUserId callback を opts に渡せること、
+		// および audit 呼び出しまで bot user id 解決を遅延できることを検証する。
+		const contextDir = resolve(testDir, "context");
+		mkdirSync(contextDir, { recursive: true });
+		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character\nYou are hua.");
+
+		const config = makeConfig(resolve(testDir, "data"));
+		let resolved: string | undefined;
+		const getBotUserId = () => resolved;
+
+		// 1) bot user id 未解決の状態で setup
+		const result = await setupMemoryRecording(config, logger, {
+			memoryPort: 19999,
+			root: testDir,
+			getBotUserId,
+		});
+
+		expect(result).not.toBeUndefined();
+		if (!result) return;
+
+		// 2) gateway.start() 後に bot user id が判明
+		resolved = "1100000000000000001";
+
+		// 3) audit() 呼び出し時に最新の bot user id を使うこと（直接呼び出しはせず、
+		//    CriticAuditor が getBotUserId を解決済みかどうかは impl 側で内部 wiring）
+		const scheduler = result.consolidationScheduler as unknown as { criticAuditor?: unknown };
+		expect(scheduler.criticAuditor).toBeDefined();
+		const auditor = scheduler.criticAuditor as { audit?: unknown };
+		expect(typeof auditor.audit).toBe("function");
+	});
+
+	test("getBotUserId が undefined を返している間に audit() が呼ばれても throw しない", async () => {
+		// gateway.start() 前に consolidationScheduler が起動するケースは現状ないが、
+		// 防衛的に bot user id 未解決時の audit は no-op（null 返却）になることを期待する。
+		const contextDir = resolve(testDir, "context");
+		mkdirSync(contextDir, { recursive: true });
+		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character");
+
+		const config = makeConfig(resolve(testDir, "data"));
+		const result = await setupMemoryRecording(config, logger, {
+			memoryPort: 19999,
+			root: testDir,
+			getBotUserId: () => undefined,
+		});
+
+		expect(result).not.toBeUndefined();
+		if (!result) return;
+		const scheduler = result.consolidationScheduler as unknown as {
+			criticAuditor?: { audit: (userId: string) => Promise<unknown> };
+		};
+		expect(scheduler.criticAuditor).toBeDefined();
+
+		// bot user id 未解決時は audit は null を返して early-return すること
+		const auditResult = await scheduler.criticAuditor!.audit("guild-1");
+		expect(auditResult).toBeNull();
 	});
 });

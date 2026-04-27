@@ -82,6 +82,7 @@ export interface MessageRow {
 	role: string;
 	content: string;
 	name: string | null;
+	author_id: string | null;
 	timestamp: number | null;
 }
 
@@ -90,6 +91,7 @@ export function rowToMessage(row: MessageRow): ChatMessage {
 		role: validateRole(row.role),
 		content: row.content,
 		...(row.name === null ? {} : { name: row.name }),
+		...(row.author_id === null ? {} : { authorId: row.author_id }),
 		...(row.timestamp === null ? {} : { timestamp: new Date(row.timestamp) }),
 	};
 }

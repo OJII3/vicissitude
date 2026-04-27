@@ -66,6 +66,7 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 				role: message.role,
 				content: message.content,
 				name: message.name,
+				authorId: message.authorId,
 				timestamp: message.timestamp,
 			});
 		};
