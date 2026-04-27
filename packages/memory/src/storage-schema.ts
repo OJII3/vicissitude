@@ -2,6 +2,20 @@ import type { Database } from "bun:sqlite";
 
 import { hasColumn } from "@vicissitude/shared/sqlite";
 
+function hasTable(db: Database, tableName: string): boolean {
+	return !!db
+		.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?")
+		.get(tableName);
+}
+
+/** 既存 DB のマイグレーション（CREATE 系より前に実行する） */
+export function migrateMemoryDb(db: Database): void {
+	// message_queue: author_id カラム追加（#847）
+	if (hasTable(db, "message_queue") && !hasColumn(db, "message_queue", "author_id")) {
+		db.exec("ALTER TABLE message_queue ADD COLUMN author_id TEXT");
+	}
+}
+
 export function createEpisodeTables(db: Database): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS episodes (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,
@@ -39,10 +53,6 @@ export function createMessageQueue(db: Database): void {
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
 		role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, author_id TEXT, timestamp INTEGER)`);
 	db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
-	// idempotent migration: 旧 DB に author_id カラムがなければ追加（#847）
-	if (!hasColumn(db, "message_queue", "author_id")) {
-		db.exec("ALTER TABLE message_queue ADD COLUMN author_id TEXT");
-	}
 }
 
 export function createEmbeddingMeta(db: Database): void {
@@ -51,6 +61,7 @@ export function createEmbeddingMeta(db: Database): void {
 }
 
 export function createAllTables(db: Database): void {
+	migrateMemoryDb(db);
 	createEpisodeTables(db);
 	createFactTables(db);
 	createMessageQueue(db);
