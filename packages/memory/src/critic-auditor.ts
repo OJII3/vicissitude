@@ -36,6 +36,7 @@ export interface CriticAuditorDeps {
 	storage: MemoryStorage;
 	driftCalculator: DriftScoreCalculator;
 	characterDefinition: string;
+	botName: string;
 	nowProvider?: () => number;
 }
 
@@ -44,6 +45,7 @@ export class CriticAuditor {
 	private readonly storage: MemoryStorage;
 	private readonly driftCalculator: DriftScoreCalculator;
 	private readonly characterDefinition: string;
+	private readonly botName: string;
 	private readonly nowProvider: () => number;
 
 	constructor(deps: CriticAuditorDeps) {
@@ -51,6 +53,7 @@ export class CriticAuditor {
 		this.storage = deps.storage;
 		this.driftCalculator = deps.driftCalculator;
 		this.characterDefinition = deps.characterDefinition;
+		this.botName = deps.botName;
 		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
@@ -59,9 +62,9 @@ export class CriticAuditor {
 		const sinceMs = this.nowProvider() - NINETY_MINUTES_MS;
 		const episodes = await this.storage.getRecentEpisodes(userId, sinceMs, RECENT_EPISODE_LIMIT);
 
-		// assistant メッセージを抽出
+		// bot の assistant メッセージのみ抽出（name 欠損メッセージはスキップ）
 		const assistantMessages: ChatMessage[] = episodes.flatMap((ep) =>
-			ep.messages.filter((m) => m.role === "assistant"),
+			ep.messages.filter((m) => m.role === "assistant" && m.name === this.botName),
 		);
 		if (assistantMessages.length === 0) return null;
 

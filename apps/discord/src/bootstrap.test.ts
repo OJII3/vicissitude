@@ -7,6 +7,7 @@ import type { AppConfig } from "./config.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 	return {
+		botName: "ふあ",
 		discordToken: "test-token",
 		webPort: 4000,
 		gatewayPort: 4001,

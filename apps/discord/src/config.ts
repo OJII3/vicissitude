@@ -45,6 +45,7 @@ const githubSchema = z.object({
 });
 
 const appConfigSchema = z.object({
+	botName: z.string().min(1, "BOT_NAME is required"),
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
 	webPort: safeInt,
 	gatewayPort: safeInt,
@@ -94,6 +95,7 @@ export function loadConfig(
 	const basePort = Number(env.OPENCODE_BASE_PORT ?? "4096");
 
 	const raw = {
+		botName: env.BOT_NAME ?? "ふあ",
 		discordToken: env.DISCORD_TOKEN ?? "",
 		webPort: Number(env.WEB_PORT ?? "4000"),
 		gatewayPort: Number(env.GATEWAY_PORT ?? "4001"),

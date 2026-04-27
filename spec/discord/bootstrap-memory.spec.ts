@@ -22,6 +22,7 @@ import { createMockLogger } from "../test-helpers.ts";
 
 function makeConfig(dataDir: string): AppConfig {
 	return {
+		botName: "ふあ",
 		discordToken: "test-token",
 		webPort: 3000,
 		gatewayPort: 3001,

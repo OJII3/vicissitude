@@ -11,6 +11,7 @@ import type { ChatMessage } from "@vicissitude/memory/types";
 import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
+const botName = "ふあ";
 const characterDefinition = "You are hua, a casual and snarky girl.";
 
 /** LLM that records chatStructured calls for inspection */
@@ -59,18 +60,19 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
+			botName,
 		});
 		const result = await auditor.audit(userId);
 
 		expect(result).toBeNull();
 	});
 
-	test("ドリフトスコアが低く(< 0.03)エピソード数が少ない(< 3)場合はスキップして null", async () => {
-		// 低ドリフトの assistant メッセージ 1 件のみ
+	test("name が欠損または別 bot の assistant メッセージはスキップされる", async () => {
 		const episode = makeEpisode({
 			messages: [
-				{ role: "user", content: "hello" },
-				{ role: "assistant", content: "うん" },
+				{ role: "user", content: "hello", name: "user-1" },
+				{ role: "assistant", content: "I am another bot" }, // name 欠損
+				{ role: "assistant", content: "I am different", name: "other-bot" }, // 別 bot
 			],
 			endAt: new Date(),
 		});
@@ -82,6 +84,32 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
+			botName,
+		});
+		const result = await auditor.audit(userId);
+
+		// botName にマッチする assistant メッセージがないので null
+		expect(result).toBeNull();
+	});
+
+	test("ドリフトスコアが低く(< 0.03)エピソード数が少ない(< 3)場合はスキップして null", async () => {
+		// 低ドリフトの assistant メッセージ 1 件のみ
+		const episode = makeEpisode({
+			messages: [
+				{ role: "user", content: "hello", name: "user-1" },
+				{ role: "assistant", content: "うん", name: botName },
+			],
+			endAt: new Date(),
+		});
+		await storage.saveEpisode(userId, episode);
+
+		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+			botName,
 		});
 		const result = await auditor.audit(userId);
 
@@ -92,11 +120,12 @@ describe("CriticAuditor", () => {
 		// 高ドリフトの assistant メッセージ
 		const episode = makeEpisode({
 			messages: [
-				{ role: "user", content: "hello" },
+				{ role: "user", content: "hello", name: "user-1" },
 				{
 					role: "assistant",
 					content:
 						"お手伝いします。素晴らしいご質問ですね。了解しました。もちろんです。確認してみますね。",
+					name: botName,
 				},
 			],
 			endAt: new Date(),
@@ -113,6 +142,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
+			botName,
 		});
 		const result = await auditor.audit(userId);
 
@@ -127,8 +157,8 @@ describe("CriticAuditor", () => {
 		for (let i = 0; i < 3; i++) {
 			const ep = makeEpisode({
 				messages: [
-					{ role: "user", content: `question ${i}` },
-					{ role: "assistant", content: `answer ${i}` },
+					{ role: "user", content: `question ${i}`, name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, name: botName },
 				],
 				endAt: new Date(),
 			});
@@ -148,6 +178,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
+			botName,
 		});
 		const result = await auditor.audit(userId);
 
@@ -165,8 +196,8 @@ describe("CriticAuditor", () => {
 		for (let i = 0; i < 3; i++) {
 			const ep = makeEpisode({
 				messages: [
-					{ role: "user", content: `question ${i}` },
-					{ role: "assistant", content: `answer ${i}` },
+					{ role: "user", content: `question ${i}`, name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, name: botName },
 				],
 				endAt: new Date(),
 			});
@@ -184,6 +215,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
+			botName,
 		});
 		const result = await auditor.audit(userId);
 

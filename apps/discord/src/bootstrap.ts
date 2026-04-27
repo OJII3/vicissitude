@@ -310,7 +310,13 @@ export async function setupMemoryRecording(
 						storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
 						storageCache.set(userId, storage);
 					}
-					const auditor = new CriticAuditor({ llm, storage, driftCalculator, characterDefinition });
+					const auditor = new CriticAuditor({
+						llm,
+						storage,
+						driftCalculator,
+						characterDefinition,
+						botName: config.botName,
+					});
 					return auditor.audit(userId);
 				},
 			};
