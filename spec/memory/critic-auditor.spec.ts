@@ -71,8 +71,10 @@ describe("CriticAuditor", () => {
 		const episode = makeEpisode({
 			messages: [
 				{ role: "user", content: "hello", name: "user-1" },
-				{ role: "assistant", content: "I am another bot" }, // name 欠損
-				{ role: "assistant", content: "I am different", name: "other-bot" }, // 別 bot
+				// name 欠損
+				{ role: "assistant", content: "I am another bot" },
+				// 別 bot
+				{ role: "assistant", content: "I am different", name: "other-bot" },
 			],
 			endAt: new Date(),
 		});
