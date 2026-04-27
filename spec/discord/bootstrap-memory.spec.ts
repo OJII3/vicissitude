@@ -1,13 +1,22 @@
-/* oxlint-disable require-await, no-non-null-assertion, unicorn/no-useless-undefined -- spec file: explicit undefined required to test getBotUserId callback shape */
+/* oxlint-disable require-await, no-non-null-assertion, unicorn/no-useless-undefined -- spec file: non-null assertion is used after explicit existence checks; explicit undefined required to test getBotUserId callback shape */
 /**
  * setupMemoryRecording() の仕様テスト
  *
  * Issue #815: CriticAuditor の DI 配線を追加する。
+ * Issue #855: ConsolidationScheduler の private フィールドへのキャストを廃止し、
+ *             MemoryResources.criticAuditor (public) 経由で観測する。
  *
  * 検証する公開契約:
- *   1. SOUL.md が存在する場合 → MemoryResources を返し、ConsolidationScheduler が CriticAuditorPort を保持する
- *   2. SOUL.md が存在しない場合 → エラーにならず MemoryResources を返す（graceful degradation）
+ *   1. SOUL.md が存在する場合 → MemoryResources.criticAuditor に CriticAuditorPort が入る
+ *   2. SOUL.md が存在しない場合 → エラーにならず MemoryResources を返し criticAuditor は undefined（graceful degradation）
  *   3. 戻り値が Promise<MemoryResources | undefined> になっている（async 化）
+ *   4. opts.getBotUserId が CriticAuditor の audit() で利用可能（遅延解決）
+ *
+ * 検証契約から除外している項目（理由付き）:
+ *   - SOUL.md の内容が characterDefinition として CriticAuditor に渡されること
+ *     → bootstrap inline adapter の `characterDefinition` プロパティは CriticAuditorPort
+ *       の契約外（実装詳細）であり、constructor 経由での characterDefinition 伝播は
+ *       `spec/memory/critic-auditor.spec.ts` で別途検証済み。
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
@@ -90,10 +99,11 @@ describe("setupMemoryRecording()", () => {
 			expect(result).toHaveProperty("chatAdapter");
 			expect(result).toHaveProperty("recorder");
 			expect(result).toHaveProperty("consolidationScheduler");
+			expect(result).toHaveProperty("criticAuditor");
 		}
 	});
 
-	test("SOUL.md が存在する場合: consolidationScheduler が CriticAuditorPort を保持する", async () => {
+	test("SOUL.md が存在する場合: MemoryResources.criticAuditor に CriticAuditorPort が入る", async () => {
 		// context/SOUL.md を作成
 		const contextDir = resolve(testDir, "context");
 		mkdirSync(contextDir, { recursive: true });
@@ -112,18 +122,15 @@ describe("setupMemoryRecording()", () => {
 		// consolidationScheduler が存在する
 		expect(result.consolidationScheduler).toBeDefined();
 
-		// criticAuditor が内部に保持されていることを検証
-		// ConsolidationScheduler の private フィールドにアクセスして確認
-		const scheduler = result.consolidationScheduler as unknown as { criticAuditor?: unknown };
-		expect(scheduler.criticAuditor).toBeDefined();
-		expect(scheduler.criticAuditor).not.toBeNull();
+		// criticAuditor が public プロパティとして公開されている
+		expect(result.criticAuditor).toBeDefined();
+		expect(result.criticAuditor).not.toBeNull();
 
-		// CriticAuditorPort の audit メソッドを持つことを確認
-		const auditor = scheduler.criticAuditor as { audit?: unknown };
-		expect(typeof auditor.audit).toBe("function");
+		// CriticAuditorPort の audit メソッドを持つ
+		expect(typeof result.criticAuditor?.audit).toBe("function");
 	});
 
-	test("SOUL.md が存在しない場合: MemoryResources を返すが criticAuditor なしで動作する（graceful degradation）", async () => {
+	test("SOUL.md が存在しない場合: MemoryResources を返すが criticAuditor は undefined（graceful degradation）", async () => {
 		// context/ ディレクトリは存在するが SOUL.md がない
 		mkdirSync(resolve(testDir, "context"), { recursive: true });
 
@@ -140,8 +147,7 @@ describe("setupMemoryRecording()", () => {
 		expect(result.consolidationScheduler).toBeDefined();
 
 		// criticAuditor は undefined（SOUL.md がないため）
-		const scheduler = result.consolidationScheduler as unknown as { criticAuditor?: unknown };
-		expect(scheduler.criticAuditor).toBeUndefined();
+		expect(result.criticAuditor).toBeUndefined();
 	});
 
 	test("SOUL.md が存在しない場合: エラーログを出さずに正常に動作する", async () => {
@@ -155,29 +161,6 @@ describe("setupMemoryRecording()", () => {
 
 		// error ログが呼ばれていないことを確認
 		expect(logger.error).not.toHaveBeenCalled();
-	});
-
-	test("SOUL.md の内容が characterDefinition として CriticAuditor に渡される", async () => {
-		const soulContent = "# ふあ\n自由奔放で砕けた性格のキャラクター。";
-		const contextDir = resolve(testDir, "context");
-		mkdirSync(contextDir, { recursive: true });
-		writeFileSync(resolve(contextDir, "SOUL.md"), soulContent);
-
-		const config = makeConfig(resolve(testDir, "data"));
-		const result = await setupMemoryRecording(config, logger, {
-			memoryPort: 19999,
-			root: testDir,
-		});
-
-		expect(result).not.toBeUndefined();
-		if (!result) return;
-
-		// CriticAuditor の characterDefinition を検証
-		const scheduler = result.consolidationScheduler as unknown as { criticAuditor?: unknown };
-		expect(scheduler.criticAuditor).toBeDefined();
-
-		const auditor = scheduler.criticAuditor as { characterDefinition?: string };
-		expect(auditor.characterDefinition).toBe(soulContent);
 	});
 
 	test("opts.root が必須パラメータとして使用される", async () => {
@@ -219,12 +202,9 @@ describe("setupMemoryRecording()", () => {
 		// 2) gateway.start() 後に bot user id が判明
 		resolved = "1100000000000000001";
 
-		// 3) audit() 呼び出し時に最新の bot user id を使うこと（直接呼び出しはせず、
-		//    CriticAuditor が getBotUserId を解決済みかどうかは impl 側で内部 wiring）
-		const scheduler = result.consolidationScheduler as unknown as { criticAuditor?: unknown };
-		expect(scheduler.criticAuditor).toBeDefined();
-		const auditor = scheduler.criticAuditor as { audit?: unknown };
-		expect(typeof auditor.audit).toBe("function");
+		// 3) criticAuditor が公開されており audit() メソッドを持つこと
+		expect(result.criticAuditor).toBeDefined();
+		expect(typeof result.criticAuditor?.audit).toBe("function");
 	});
 
 	test("getBotUserId が undefined を返している間に audit() が呼ばれても throw しない", async () => {
@@ -243,13 +223,10 @@ describe("setupMemoryRecording()", () => {
 
 		expect(result).not.toBeUndefined();
 		if (!result) return;
-		const scheduler = result.consolidationScheduler as unknown as {
-			criticAuditor?: { audit: (userId: string) => Promise<unknown> };
-		};
-		expect(scheduler.criticAuditor).toBeDefined();
+		expect(result.criticAuditor).toBeDefined();
 
 		// bot user id 未解決時は audit は null を返して early-return すること
-		const auditResult = await scheduler.criticAuditor!.audit("guild-1");
+		const auditResult = await result.criticAuditor!.audit("guild-1");
 		expect(auditResult).toBeNull();
 	});
 });
