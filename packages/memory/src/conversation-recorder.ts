@@ -13,6 +13,7 @@ import { EpisodicMemory } from "./episodic.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
 import {
 	defaultSubject,
+	discoverNamespacesFromDisk,
 	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbDir,
@@ -77,24 +78,24 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 	}
 
 	getActiveNamespaces(): MemoryNamespace[] {
-		return [...this.instances.values()].map((v) => v.ns);
+		const seen = new Map<string, MemoryNamespace>();
+		for (const { ns } of this.instances.values()) {
+			seen.set(namespaceKey(ns), ns);
+		}
+		for (const ns of discoverNamespacesFromDisk(this.dataDir)) {
+			const key = namespaceKey(ns);
+			if (!seen.has(key)) {
+				seen.set(key, ns);
+			}
+		}
+		return [...seen.values()];
 	}
 
 	consolidate(namespace: MemoryNamespace): Promise<ConsolidationResult> {
 		// record() のロックとは独立: SQLite WAL モードで読み書き直列化は DB 側が保証するため、
 		// consolidation が record() をブロックする必要はない
-		const key = namespaceKey(namespace);
-		const entry = this.instances.get(key);
-		if (!entry) {
-			return Promise.resolve({
-				processedEpisodes: 0,
-				newFacts: 0,
-				reinforced: 0,
-				updated: 0,
-				invalidated: 0,
-			});
-		}
-		return entry.inst.consolidation.consolidate(defaultSubject(namespace));
+		const { consolidation } = this.getOrCreate(namespace);
+		return consolidation.consolidate(defaultSubject(namespace));
 	}
 
 	async close(): Promise<void> {
