@@ -79,7 +79,8 @@ function validateAuthorId(value: unknown, index: number): string | undefined {
 	}
 	// Strip control characters defensively (authorId should never contain them)
 	// eslint-disable-next-line no-control-regex -- intentional control character stripping
-	return value.replaceAll(/[\u0000-\u001F\u007F]/g, "");
+	const stripped = value.replaceAll(/[\u0000-\u001F\u007F]/g, "");
+	return stripped.length === 0 ? undefined : stripped;
 }
 
 function validateTimestampAsObject(
