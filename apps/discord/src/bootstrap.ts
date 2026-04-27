@@ -258,6 +258,7 @@ interface MemoryResources {
 	chatAdapter: MemoryChatAdapter;
 	recorder: MemoryConversationRecorder;
 	consolidationScheduler: ConsolidationScheduler;
+	criticAuditor: CriticAuditorPort | undefined;
 }
 
 export async function setupMemoryRecording(
@@ -353,7 +354,7 @@ export async function setupMemoryRecording(
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
-		return { chatAdapter, recorder, consolidationScheduler };
+		return { chatAdapter, recorder, consolidationScheduler, criticAuditor };
 	} catch (err) {
 		logger.error("[bootstrap] Memory auto-recording init failed, continuing without memory", err);
 		return undefined;
