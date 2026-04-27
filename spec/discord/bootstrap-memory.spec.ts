@@ -2,21 +2,11 @@
 /**
  * setupMemoryRecording() の仕様テスト
  *
- * Issue #815: CriticAuditor の DI 配線を追加する。
- * Issue #855: ConsolidationScheduler の private フィールドへのキャストを廃止し、
- *             MemoryResources.criticAuditor (public) 経由で観測する。
- *
  * 検証する公開契約:
  *   1. SOUL.md が存在する場合 → MemoryResources.criticAuditor に CriticAuditorPort が入る
  *   2. SOUL.md が存在しない場合 → エラーにならず MemoryResources を返し criticAuditor は undefined（graceful degradation）
  *   3. 戻り値が Promise<MemoryResources | undefined> になっている（async 化）
  *   4. opts.getBotUserId が CriticAuditor の audit() で利用可能（遅延解決）
- *
- * 検証契約から除外している項目（理由付き）:
- *   - SOUL.md の内容が characterDefinition として CriticAuditor に渡されること
- *     → bootstrap inline adapter の `characterDefinition` プロパティは CriticAuditorPort
- *       の契約外（実装詳細）であり、constructor 経由での characterDefinition 伝播は
- *       `spec/memory/critic-auditor.spec.ts` で別途検証済み。
  */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
