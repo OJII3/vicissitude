@@ -223,6 +223,12 @@ describe("validateMessages", () => {
 			expect(result[0]!.authorId).toBe("user456");
 		});
 
+		test("treats control-only authorId as undefined after stripping", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: "\n\t\r" }]);
+			expect(result[0]!.authorId).toBeUndefined();
+			expect("authorId" in result[0]!).toBe(false);
+		});
+
 		test("authorId length check uses raw length (before strip)", () => {
 			// 65 chars total but all but one are control chars; still rejected because
 			// length check happens before stripping
