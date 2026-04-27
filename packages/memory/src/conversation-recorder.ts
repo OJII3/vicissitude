@@ -65,9 +65,9 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 			await segmenter.addMessage(subject, {
 				role: message.role,
 				content: message.content,
-				...(message.name === undefined ? {} : { name: message.name }),
-				...(message.authorId === undefined ? {} : { authorId: message.authorId }),
-				...(message.timestamp === undefined ? {} : { timestamp: message.timestamp }),
+				name: message.name,
+				authorId: message.authorId,
+				timestamp: message.timestamp,
 			});
 		};
 		const next = doRecord();

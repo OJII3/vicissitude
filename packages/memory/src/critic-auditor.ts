@@ -45,7 +45,7 @@ export class CriticAuditor {
 	private readonly llm: MemoryLlmPort;
 	private readonly storage: MemoryStorage;
 	private readonly driftCalculator: DriftScoreCalculator;
-	readonly characterDefinition: string;
+	private readonly characterDefinition: string;
 	private readonly botUserId: string;
 	private readonly nowProvider: () => number;
 
