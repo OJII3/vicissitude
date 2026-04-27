@@ -36,7 +36,8 @@ export interface CriticAuditorDeps {
 	storage: MemoryStorage;
 	driftCalculator: DriftScoreCalculator;
 	characterDefinition: string;
-	botName: string;
+	/** Discord user id of this bot. Used to filter assistant messages by stable identifier. */
+	botUserId: string;
 	nowProvider?: () => number;
 }
 
@@ -44,8 +45,8 @@ export class CriticAuditor {
 	private readonly llm: MemoryLlmPort;
 	private readonly storage: MemoryStorage;
 	private readonly driftCalculator: DriftScoreCalculator;
-	private readonly characterDefinition: string;
-	private readonly botName: string;
+	readonly characterDefinition: string;
+	private readonly botUserId: string;
 	private readonly nowProvider: () => number;
 
 	constructor(deps: CriticAuditorDeps) {
@@ -53,7 +54,7 @@ export class CriticAuditor {
 		this.storage = deps.storage;
 		this.driftCalculator = deps.driftCalculator;
 		this.characterDefinition = deps.characterDefinition;
-		this.botName = deps.botName;
+		this.botUserId = deps.botUserId;
 		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
@@ -62,9 +63,11 @@ export class CriticAuditor {
 		const sinceMs = this.nowProvider() - NINETY_MINUTES_MS;
 		const episodes = await this.storage.getRecentEpisodes(userId, sinceMs, RECENT_EPISODE_LIMIT);
 
-		// bot の assistant メッセージのみ抽出（name 欠損メッセージはスキップ）
+		// bot の assistant メッセージのみ抽出（authorId が一致しないメッセージはスキップ）
+		// guild ニックネームと無関係な、stable な platform user id でフィルタすることで
+		// ニックネーム衝突や同名の他 bot による誤検知を防ぐ（#847）
 		const assistantMessages: ChatMessage[] = episodes.flatMap((ep) =>
-			ep.messages.filter((m) => m.role === "assistant" && m.name === this.botName),
+			ep.messages.filter((m) => m.role === "assistant" && m.authorId === this.botUserId),
 		);
 		if (assistantMessages.length === 0) return null;
 

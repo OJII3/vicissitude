@@ -11,7 +11,7 @@ import type { ChatMessage } from "@vicissitude/memory/types";
 import { createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
-const botName = "ふあ";
+const botUserId = "1100000000000000001";
 const characterDefinition = "You are hua, a casual and snarky girl.";
 
 /** LLM that records chatStructured calls for inspection */
@@ -49,7 +49,7 @@ describe("CriticAuditor", () => {
 	test("assistant メッセージがない場合は null を返す", async () => {
 		// エピソードはあるが assistant メッセージがない
 		const episode = makeEpisode({
-			messages: [{ role: "user", content: "hello" }],
+			messages: [{ role: "user", content: "hello", authorId: "user-1" }],
 			endAt: new Date(),
 		});
 		await storage.saveEpisode(userId, episode);
@@ -60,21 +60,26 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 
 		expect(result).toBeNull();
 	});
 
-	test("name が欠損または別 bot の assistant メッセージはスキップされる", async () => {
+	test("authorId が欠損または別 bot の assistant メッセージはスキップされる", async () => {
 		const episode = makeEpisode({
 			messages: [
-				{ role: "user", content: "hello", name: "user-1" },
-				// name 欠損
-				{ role: "assistant", content: "I am another bot" },
-				// 別 bot
-				{ role: "assistant", content: "I am different", name: "other-bot" },
+				{ role: "user", content: "hello", authorId: "user-1", name: "user-1" },
+				// authorId 欠損（旧データや他経路で挿入されたデータ）
+				{ role: "assistant", content: "I am another bot", name: "ふあ" },
+				// 別 bot user
+				{
+					role: "assistant",
+					content: "I am different",
+					authorId: "9999999999999999999",
+					name: "ふあ",
+				},
 			],
 			endAt: new Date(),
 		});
@@ -86,11 +91,40 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 
-		// botName にマッチする assistant メッセージがないので null
+		// botUserId にマッチする assistant メッセージがないので null
+		expect(result).toBeNull();
+	});
+
+	test("name が一致しても authorId が一致しなければスキップされる（ニックネーム不一致対策）", async () => {
+		// 同名（ふあ）の別 bot が同一 guild にいるケース。authorId が異なれば除外される。
+		const episode = makeEpisode({
+			messages: [
+				{ role: "user", content: "hello", authorId: "user-1", name: "user-1" },
+				{
+					role: "assistant",
+					content: "別 bot の発話",
+					authorId: "8888888888888888888",
+					name: "ふあ",
+				},
+			],
+			endAt: new Date(),
+		});
+		await storage.saveEpisode(userId, episode);
+
+		const llm = createMockLLM({ structuredResponse: { severity: "none", summary: "ok" } });
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+			botUserId,
+		});
+		const result = await auditor.audit(userId);
+
 		expect(result).toBeNull();
 	});
 
@@ -98,8 +132,8 @@ describe("CriticAuditor", () => {
 		// 低ドリフトの assistant メッセージ 1 件のみ
 		const episode = makeEpisode({
 			messages: [
-				{ role: "user", content: "hello", name: "user-1" },
-				{ role: "assistant", content: "うん", name: botName },
+				{ role: "user", content: "hello", authorId: "user-1", name: "user-1" },
+				{ role: "assistant", content: "うん", authorId: botUserId, name: "ふあ" },
 			],
 			endAt: new Date(),
 		});
@@ -111,23 +145,25 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 
 		expect(result).toBeNull();
 	});
 
-	test("ドリフトスコアが閾値以上の場合は LLM を呼んで CriticResult を返す", async () => {
-		// 高ドリフトの assistant メッセージ
+	test("ドリフトスコアが閾値以上の場合は LLM を呼んで CriticResult を返す（authorId でフィルタ）", async () => {
+		// 高ドリフトの assistant メッセージ。guild ニックネーム（name）は異なっても authorId が一致すれば対象。
 		const episode = makeEpisode({
 			messages: [
-				{ role: "user", content: "hello", name: "user-1" },
+				{ role: "user", content: "hello", authorId: "user-1", name: "user-1" },
 				{
 					role: "assistant",
 					content:
 						"お手伝いします。素晴らしいご質問ですね。了解しました。もちろんです。確認してみますね。",
-					name: botName,
+					// ニックネームが "hua-bot" になっていても authorId が一致すれば対象になる
+					authorId: botUserId,
+					name: "hua-bot",
 				},
 			],
 			endAt: new Date(),
@@ -144,7 +180,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 
@@ -159,8 +195,8 @@ describe("CriticAuditor", () => {
 		for (let i = 0; i < 3; i++) {
 			const ep = makeEpisode({
 				messages: [
-					{ role: "user", content: `question ${i}`, name: "user-1" },
-					{ role: "assistant", content: `answer ${i}`, name: botName },
+					{ role: "user", content: `question ${i}`, authorId: "user-1", name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, authorId: botUserId, name: "ふあ" },
 				],
 				endAt: new Date(),
 			});
@@ -180,7 +216,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 
@@ -198,8 +234,8 @@ describe("CriticAuditor", () => {
 		for (let i = 0; i < 3; i++) {
 			const ep = makeEpisode({
 				messages: [
-					{ role: "user", content: `question ${i}`, name: "user-1" },
-					{ role: "assistant", content: `answer ${i}`, name: botName },
+					{ role: "user", content: `question ${i}`, authorId: "user-1", name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, authorId: botUserId, name: "ふあ" },
 				],
 				endAt: new Date(),
 			});
@@ -217,7 +253,7 @@ describe("CriticAuditor", () => {
 			storage,
 			driftCalculator: drift,
 			characterDefinition,
-			botName,
+			botUserId,
 		});
 		const result = await auditor.audit(userId);
 

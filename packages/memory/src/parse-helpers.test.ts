@@ -152,6 +152,102 @@ describe("validateMessages", () => {
 			"name: too long",
 		);
 	});
+
+	describe("authorId validation", () => {
+		test("preserves a short authorId", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: "user-123" }]);
+			expect(result[0]!.authorId).toBe("user-123");
+		});
+
+		test("preserves a Discord snowflake (18 digits)", () => {
+			const snowflake = "123456789012345678";
+			const result = validateMessages([{ role: "user", content: "hi", authorId: snowflake }]);
+			expect(result[0]!.authorId).toBe(snowflake);
+		});
+
+		test("preserves a Discord snowflake (20 digits)", () => {
+			const snowflake = "12345678901234567890";
+			const result = validateMessages([{ role: "user", content: "hi", authorId: snowflake }]);
+			expect(result[0]!.authorId).toBe(snowflake);
+		});
+
+		test("accepts authorId of exactly 64 characters", () => {
+			const id = "a".repeat(64);
+			const result = validateMessages([{ role: "user", content: "hi", authorId: id }]);
+			expect(result[0]!.authorId).toBe(id);
+		});
+
+		test("throws when authorId exceeds 64 characters", () => {
+			const id = "a".repeat(65);
+			expect(() => validateMessages([{ role: "user", content: "hi", authorId: id }])).toThrow(
+				"authorId: too long",
+			);
+		});
+
+		test("treats empty string authorId as undefined", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: "" }]);
+			expect(result[0]!.authorId).toBeUndefined();
+			expect("authorId" in result[0]!).toBe(false);
+		});
+
+		test("omits authorId when absent", () => {
+			const result = validateMessages([{ role: "user", content: "hi" }]);
+			expect(result[0]!.authorId).toBeUndefined();
+			expect("authorId" in result[0]!).toBe(false);
+		});
+
+		test("omits authorId when null", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: null }]);
+			expect(result[0]!.authorId).toBeUndefined();
+			expect("authorId" in result[0]!).toBe(false);
+		});
+
+		test("omits authorId when not a string (number)", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: 12345 }]);
+			expect(result[0]!.authorId).toBeUndefined();
+			expect("authorId" in result[0]!).toBe(false);
+		});
+
+		test("omits authorId when not a string (boolean)", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: true }]);
+			expect(result[0]!.authorId).toBeUndefined();
+		});
+
+		test("strips control characters from authorId", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: "user\n123\t\r" }]);
+			expect(result[0]!.authorId).toBe("user123");
+		});
+
+		test("strips DEL character (0x7F) from authorId", () => {
+			const result = validateMessages([{ role: "user", content: "hi", authorId: "user\u007F456" }]);
+			expect(result[0]!.authorId).toBe("user456");
+		});
+
+		test("authorId length check uses raw length (before strip)", () => {
+			// 65 chars total but all but one are control chars; still rejected because
+			// length check happens before stripping
+			// 65 chars
+			const id = `${"\n".repeat(64)}a`;
+			expect(() => validateMessages([{ role: "user", content: "hi", authorId: id }])).toThrow(
+				"authorId: too long",
+			);
+		});
+
+		test("preserves authorId alongside name and timestamp", () => {
+			const result = validateMessages([
+				{
+					role: "user",
+					content: "hi",
+					name: "Alice",
+					authorId: "discord-987",
+					timestamp: "2026-01-01T00:00:00Z",
+				},
+			]);
+			expect(result[0]!.name).toBe("Alice");
+			expect(result[0]!.authorId).toBe("discord-987");
+			expect(result[0]!.timestamp).toBeInstanceOf(Date);
+		});
+	});
 });
 
 describe("validateEmbedding", () => {

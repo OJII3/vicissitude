@@ -1,5 +1,11 @@
 import type { Database } from "bun:sqlite";
 
+/** テーブル内に指定カラムが存在するかチェック（PRAGMA はパラメータバインド非対応のため文字列補間を使用。呼び出し元はリテラルのみ） */
+function hasColumn(db: Database, tableName: string, columnName: string): boolean {
+	const columns = db.prepare(`PRAGMA table_info(${tableName})`).all() as { name: string }[];
+	return columns.some((c) => c.name === columnName);
+}
+
 export function createEpisodeTables(db: Database): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS episodes (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, title TEXT NOT NULL, summary TEXT NOT NULL,
@@ -35,8 +41,12 @@ export function createFactTables(db: Database): void {
 export function createMessageQueue(db: Database): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS message_queue (
 		id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL,
-		role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, timestamp INTEGER)`);
+		role TEXT NOT NULL, content TEXT NOT NULL, name TEXT, author_id TEXT, timestamp INTEGER)`);
 	db.exec("CREATE INDEX IF NOT EXISTS idx_mq_user_id ON message_queue(user_id)");
+	// idempotent migration: 旧 DB に author_id カラムがなければ追加（#847）
+	if (!hasColumn(db, "message_queue", "author_id")) {
+		db.exec("ALTER TABLE message_queue ADD COLUMN author_id TEXT");
+	}
 }
 
 export function createEmbeddingMeta(db: Database): void {
