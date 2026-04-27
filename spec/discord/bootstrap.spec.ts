@@ -11,6 +11,7 @@ function makeConfig(
 	} = {},
 ): AppConfig {
 	return {
+		botName: "ふあ",
 		discordToken: "test-discord-token",
 		webPort: 3000,
 		gatewayPort: 3001,
