@@ -1,5 +1,7 @@
+/* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { afterEach, describe, expect, mock, test } from "bun:test";
-import { existsSync, rmSync } from "fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { resolve as resolvePath } from "path";
 
 import type {
 	GuildInstance,
@@ -13,6 +15,7 @@ import {
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
 } from "@vicissitude/memory/namespace";
+import type { ChatMessage } from "@vicissitude/memory/types";
 
 const TEMP_DIR = `/tmp/vicissitude-memory-test-${process.pid}`;
 
@@ -22,7 +25,9 @@ afterEach(() => {
 	}
 });
 
-const mockAddMessage = mock((): Promise<Episode[]> => Promise.resolve([]));
+const mockAddMessage = mock(
+	(_userId: string, _msg: ChatMessage): Promise<Episode[]> => Promise.resolve([]),
+);
 const mockConsolidate = mock(() =>
 	Promise.resolve({
 		processedEpisodes: 3,
@@ -48,6 +53,7 @@ function createRecorder() {
 const sampleMessage = {
 	role: "user" as const,
 	content: "hello",
+	authorId: "user-id-alice",
 	name: "alice",
 	timestamp: new Date(),
 };
@@ -69,6 +75,7 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 		expect(mockAddMessage).toHaveBeenCalledWith("12345", {
 			role: "user",
 			content: "hello",
+			authorId: "user-id-alice",
 			name: "alice",
 			timestamp: sampleMessage.timestamp,
 		});
@@ -83,6 +90,7 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 		expect(mockAddMessage).toHaveBeenCalledWith(HUA_SELF_SUBJECT, {
 			role: "user",
 			content: "hello",
+			authorId: "user-id-alice",
 			name: "alice",
 			timestamp: sampleMessage.timestamp,
 		});
@@ -168,17 +176,14 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 		expect(namespaces[0]).toEqual(INTERNAL_NAMESPACE);
 	});
 
-	test("consolidate() で未初期化 namespace → 0 initialized result", async () => {
+	test("consolidate() で未初期化 namespace → getOrCreate で instance 生成して実行", async () => {
+		mockConsolidate.mockClear();
 		const recorder = createRecorder();
 
 		const result = await recorder.consolidate(discordGuildNamespace("99999"));
-		expect(result).toEqual({
-			processedEpisodes: 0,
-			newFacts: 0,
-			reinforced: 0,
-			updated: 0,
-			invalidated: 0,
-		});
+		// #811: consolidate() は未初期化でも getOrCreate() で instance を生成する
+		expect(mockConsolidate).toHaveBeenCalledWith("99999");
+		expect(result.processedEpisodes).toBe(3);
 	});
 
 	test("consolidate() で初期化済み namespace → pipeline.consolidate 呼び出し（subject 渡し）", async () => {
@@ -219,5 +224,101 @@ describe("MemoryConversationRecorder (namespace API)", () => {
 
 		expect(mockStorageClose).toHaveBeenCalled();
 		expect(recorder.getActiveNamespaces()).toEqual([]);
+	});
+
+	test("record() で authorId が segmenter.addMessage に転送される", async () => {
+		// CriticAuditor が authorId でフィルタするため、ConversationRecorder は authorId を破棄せず転送する責務がある
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+		const ns = discordGuildNamespace("12345");
+		await recorder.record(ns, {
+			role: "assistant",
+			content: "hi",
+			authorId: "1100000000000000001",
+			name: "ふあ",
+			timestamp: sampleMessage.timestamp,
+		});
+
+		expect(mockAddMessage).toHaveBeenCalledWith("12345", {
+			role: "assistant",
+			content: "hi",
+			authorId: "1100000000000000001",
+			name: "ふあ",
+			timestamp: sampleMessage.timestamp,
+		});
+	});
+
+	test("record() で authorId が省略されても segmenter.addMessage は呼ばれる（authorId は optional）", async () => {
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+		const ns = discordGuildNamespace("12345");
+		await recorder.record(ns, {
+			role: "user",
+			content: "no authorId",
+			name: "anon",
+			timestamp: sampleMessage.timestamp,
+		});
+
+		// authorId が無い場合は addMessage に渡るペイロードでも authorId フィールドは含まれない
+		expect(mockAddMessage).toHaveBeenCalledTimes(1);
+		const [, payload] = mockAddMessage.mock.calls[0]!;
+		expect(payload.authorId).toBeUndefined();
+		expect(payload.content).toBe("no authorId");
+	});
+
+	test("getActiveNamespaces() → ディスク上の既存 DB も発見する（record() なし）", () => {
+		// Arrange: TEMP_DIR 配下に guilds/12345/memory.db を事前作成
+		const guildDir = resolvePath(TEMP_DIR, "guilds", "12345");
+		mkdirSync(guildDir, { recursive: true });
+		writeFileSync(resolvePath(guildDir, "memory.db"), "");
+
+		const recorder = createRecorder();
+
+		// Act: record() を呼ばない
+		const namespaces = recorder.getActiveNamespaces();
+
+		// Assert: ディスク上の DB が発見される
+		expect(namespaces).toHaveLength(1);
+		expect(namespaces[0]).toEqual(discordGuildNamespace("12345"));
+	});
+
+	test("getActiveNamespaces() → インメモリとディスクの重複は排除される", async () => {
+		// Arrange: ディスクに guilds/100/memory.db を作成し、同じ namespace で record() も呼ぶ
+		const guildDir = resolvePath(TEMP_DIR, "guilds", "100");
+		mkdirSync(guildDir, { recursive: true });
+		writeFileSync(resolvePath(guildDir, "memory.db"), "");
+
+		mockAddMessage.mockClear();
+		mockAddMessage.mockImplementation(() => Promise.resolve([]));
+		const recorder = createRecorder();
+		await recorder.record(discordGuildNamespace("100"), sampleMessage);
+
+		// Act
+		const namespaces = recorder.getActiveNamespaces();
+
+		// Assert: 重複なしで 1 つだけ返る
+		expect(namespaces).toHaveLength(1);
+		expect(namespaces[0]).toEqual(discordGuildNamespace("100"));
+	});
+
+	test("consolidate() → ディスク上のみの namespace でも動作する", async () => {
+		// Arrange: record() なしでディスク DB のみ存在
+		const guildDir = resolvePath(TEMP_DIR, "guilds", "42");
+		mkdirSync(guildDir, { recursive: true });
+		writeFileSync(resolvePath(guildDir, "memory.db"), "");
+
+		mockConsolidate.mockClear();
+		const recorder = createRecorder();
+
+		// Act: record() を呼ばずに consolidate()
+		const ns = discordGuildNamespace("42");
+		const result = await recorder.consolidate(ns);
+
+		// Assert: getOrCreate() で GuildInstance が生成され、pipeline.consolidate が呼ばれる
+		expect(mockConsolidate).toHaveBeenCalledTimes(1);
+		expect(mockConsolidate).toHaveBeenCalledWith("42");
+		expect(result.processedEpisodes).toBe(3);
 	});
 });

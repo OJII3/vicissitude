@@ -12,6 +12,7 @@
 export {
 	defaultSubject,
 	discordGuildNamespace,
+	discoverNamespacesFromDisk,
 	GUILD_ID_RE,
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,

@@ -258,6 +258,7 @@ interface MemoryResources {
 	chatAdapter: MemoryChatAdapter;
 	recorder: MemoryConversationRecorder;
 	consolidationScheduler: ConsolidationScheduler;
+	criticAuditor: CriticAuditorPort | undefined;
 }
 
 export async function setupMemoryRecording(
@@ -268,6 +269,13 @@ export async function setupMemoryRecording(
 		metricsCollector?: PrometheusCollector;
 		embeddingAdapter?: OllamaEmbeddingAdapter;
 		root: string;
+		/**
+		 * Bot の Discord user id を遅延解決するための callback。
+		 * gateway.start() より前に setupMemoryRecording が呼ばれるため、
+		 * audit 実行時に最新値を取得する必要がある。
+		 * 未解決の間 (undefined を返す) は audit が no-op (null) になる。
+		 */
+		getBotUserId?: () => string | undefined;
 	},
 ): Promise<MemoryResources | undefined> {
 	const dataDir = resolve(config.dataDir, "memory");
@@ -303,6 +311,11 @@ export async function setupMemoryRecording(
 			const adapter = {
 				characterDefinition,
 				audit(userId: string) {
+					// gateway.start() 前に audit が呼ばれた場合、bot user id 未解決のため早期 return
+					// (namespace 解決は GUILD_ID_RE バリデーションを行うため、それより前に判定する)
+					const botUserId = opts.getBotUserId?.();
+					if (!botUserId) return Promise.resolve(null);
+
 					let storage = storageCache.get(userId);
 					if (!storage) {
 						const namespace: MemoryNamespace =
@@ -310,7 +323,13 @@ export async function setupMemoryRecording(
 						storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
 						storageCache.set(userId, storage);
 					}
-					const auditor = new CriticAuditor({ llm, storage, driftCalculator, characterDefinition });
+					const auditor = new CriticAuditor({
+						llm,
+						storage,
+						driftCalculator,
+						characterDefinition,
+						botUserId,
+					});
 					return auditor.audit(userId);
 				},
 			};
@@ -335,7 +354,7 @@ export async function setupMemoryRecording(
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
-		return { chatAdapter, recorder, consolidationScheduler };
+		return { chatAdapter, recorder, consolidationScheduler, criticAuditor };
 	} catch (err) {
 		logger.error("[bootstrap] Memory auto-recording init failed, continuing without memory", err);
 		return undefined;
@@ -566,6 +585,9 @@ export async function bootstrap(): Promise<void> {
 		metricsCollector: metrics.collector,
 		embeddingAdapter: ollamaEmbedding,
 		root,
+		// gateway.start() より前に setupMemoryRecording が呼ばれるため、
+		// CriticAuditor が必要とする bot user id は遅延解決する (#847)
+		getBotUserId: () => gateway.getClient()?.user?.id,
 	});
 	const ingestionService = new MessageIngestionService({
 		logger,

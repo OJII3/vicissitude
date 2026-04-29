@@ -95,6 +95,11 @@ export interface ConversationMessage {
 	role: ConversationRole;
 	content: string;
 	name?: string;
+	/**
+	 * Stable platform-level user identifier (e.g. Discord user id).
+	 * Used downstream by CriticAuditor to filter bot's own messages.
+	 */
+	authorId?: string;
 	timestamp?: Date;
 }
 

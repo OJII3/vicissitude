@@ -65,6 +65,39 @@ describe("MessageIngestionService", () => {
 		);
 	});
 
+	test("ConversationMessage に IncomingMessage.authorId が転送される", async () => {
+		// CriticAuditor が authorId でフィルタするため、IngestionService は authorId を保持して
+		// ConversationRecorder に渡す責務がある（#847）
+		const recordMock = mock(() => Promise.resolve());
+		const recorder: ConversationRecorder = { record: recordMock };
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ logger, recorder });
+
+		service.handleIncomingMessage(
+			createMockMessage({
+				isBot: true,
+				authorId: "1100000000000000001",
+				// guild ニックネーム
+				authorName: "hua-bot",
+				content: "応答",
+			}),
+			{ recordConversation: true },
+		);
+
+		await Promise.resolve();
+
+		expect(recordMock).toHaveBeenCalledTimes(1);
+		expect(recordMock).toHaveBeenCalledWith(
+			discordGuildNamespace("1111"),
+			expect.objectContaining({
+				role: "assistant",
+				content: "応答",
+				authorId: "1100000000000000001",
+				name: "hua-bot",
+			}),
+		);
+	});
+
 	test("recordConversation 未指定なら Memory 記録しない", async () => {
 		const recorder: ConversationRecorder = {
 			record: mock(() => Promise.resolve()),
