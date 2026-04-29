@@ -23,8 +23,10 @@
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"validate": "bun run fmt:check && bun run lint && bun run check",
 		"deploy": "podman-compose down installer builder bot 2>/dev/null; podman-compose up -d && echo 'Deployed: podman-compose logs -f to follow logs'",
-		"auto-triage": "bun scripts/auto-triage.ts",
-		"auto-triage:once": "claude -p /auto-triage --dangerously-skip-permissions --max-budget-usd 10 --no-session-persistence --worktree",
+		"auto-triage:claude": "bun scripts/auto-triage-claude.ts",
+		"auto-triage:claude:once": "bun scripts/auto-triage-claude.ts --once",
+		"auto-triage:codex": "bun scripts/auto-triage-codex.ts",
+		"auto-triage:codex:once": "bun scripts/auto-triage-codex.ts --once",
 		"character-audit": "bun scripts/character-audit.ts",
 		"character-audit:once": "claude -p /character-audit --dangerously-skip-permissions --max-budget-usd 5 --no-session-persistence"
 	},

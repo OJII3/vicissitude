@@ -4,12 +4,12 @@
  * 半日ごとに claude -p /character-audit を実行し、
  * キャラクター一貫性の評価と Issue 起票を行う。
  *
- * auto-triage.ts と同じパターン: ログ出力・watchdog・定期実行。
+ * auto-triage-claude.ts と同じパターン: ログ出力・watchdog・定期実行。
  */
 import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { extractAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
+import { extractClaudeAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
 
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
 const LOG_DIR = resolve(PROJECT_DIR, "logs/character-audit");
@@ -119,7 +119,7 @@ async function runOnce(): Promise<number> {
 
 			appendFileSync(jsonLog, `${line}\n`);
 
-			for (const text of extractAssistantText(line)) {
+			for (const text of extractClaudeAssistantText(line)) {
 				tee(text, logFile);
 			}
 		}
@@ -128,7 +128,7 @@ async function runOnce(): Promise<number> {
 	buffer += decoder.decode();
 	if (buffer) {
 		appendFileSync(jsonLog, `${buffer}\n`);
-		for (const text of extractAssistantText(buffer)) {
+		for (const text of extractClaudeAssistantText(buffer)) {
 			tee(text, logFile);
 		}
 	}

@@ -1,19 +1,24 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { extractAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
+import { extractCodexAssistantText, formatTimestamp, tee } from "./lib/loop-runner";
 
 const PROJECT_DIR = resolve(import.meta.dirname, "..");
-const LOG_DIR = resolve(PROJECT_DIR, "logs/auto-triage");
-const MAX_BUDGET_USD = 10;
+const RUNNER_NAME = "auto-triage-codex";
+const LOG_DIR = resolve(PROJECT_DIR, "logs", RUNNER_NAME);
+const WORKTREE_DIR = resolve(PROJECT_DIR, ".codex/worktrees");
 /** 1 hour */
 const INTERVAL_SEC = 1 * 60 * 60;
-/** 30 minutes — kill claude if no stdout output for this duration */
+/** 30 minutes — kill codex if no stdout output for this duration */
 const STALL_TIMEOUT_MS = 30 * 60 * 1000;
+const PROMPT = [
+	"auto-triage スキルを使用して、GitHub Issue または main の CI 失敗を 1 件だけ処理してください。",
+	"必ず .claude/skills/auto-triage/SKILL.md と AGENTS.md の指示に従ってください。",
+	"このセッションは専用 git worktree 上で起動されています。main に直接コミットしないでください。",
+].join("\n");
 
 /** gh issue list から help wanted を除いた issue があるか、または CI が失敗しているかを返す */
 async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> {
-	// CI 失敗チェック
 	const ciProc = Bun.spawn(
 		["gh", "run", "list", "--branch", "main", "--limit", "5", "--json", "conclusion"],
 		{ cwd: PROJECT_DIR, stdout: "pipe", stderr: "ignore" },
@@ -26,11 +31,10 @@ async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> 
 		const runs = JSON.parse(ciOut) as { conclusion: string }[];
 		hasCiFailure = runs.some((r) => r.conclusion === "failure");
 	} catch {
-		// gh コマンド失敗時は安全側に倒して claude に任せる
+		// gh コマンド失敗時は安全側に倒して Codex に任せる
 		hasCiFailure = true;
 	}
 
-	// help wanted を除いた open issue があるかチェック
 	const issueProc = Bun.spawn(
 		[
 			"gh",
@@ -55,11 +59,52 @@ async function hasWork(): Promise<{ hasCiFailure: boolean; hasIssue: boolean }> 
 		const issues = JSON.parse(issueOut) as { number: number }[];
 		hasIssue = issues.length > 0;
 	} catch {
-		// gh コマンド失敗時は安全側に倒す
 		hasIssue = true;
 	}
 
 	return { hasCiFailure, hasIssue };
+}
+
+async function prepareWorktree(timestamp: string, logFile: string): Promise<string> {
+	mkdirSync(WORKTREE_DIR, { recursive: true });
+
+	const fetchProc = Bun.spawn(["git", "fetch", "origin", "main"], {
+		cwd: PROJECT_DIR,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [fetchStdout, fetchStderr] = await Promise.all([
+		new Response(fetchProc.stdout).text(),
+		new Response(fetchProc.stderr).text(),
+	]);
+	const fetchExitCode = await fetchProc.exited;
+	tee((fetchStdout + fetchStderr).trimEnd(), logFile);
+	if (fetchExitCode !== 0) {
+		tee(
+			`[WARN] git fetch origin main failed (exit: ${String(fetchExitCode)}); using local main`,
+			logFile,
+		);
+	}
+
+	const branch = `auto/codex-triage-${timestamp}`;
+	const worktreePath = resolve(WORKTREE_DIR, timestamp);
+	const baseRef = fetchExitCode === 0 ? "origin/main" : "main";
+	const addProc = Bun.spawn(["git", "worktree", "add", "-B", branch, worktreePath, baseRef], {
+		cwd: PROJECT_DIR,
+		stdout: "pipe",
+		stderr: "pipe",
+	});
+	const [addStdout, addStderr] = await Promise.all([
+		new Response(addProc.stdout).text(),
+		new Response(addProc.stderr).text(),
+	]);
+	const addExitCode = await addProc.exited;
+	tee((addStdout + addStderr).trimEnd(), logFile);
+	if (addExitCode !== 0) {
+		throw new Error(`git worktree add failed (exit: ${String(addExitCode)})`);
+	}
+
+	return worktreePath;
 }
 
 async function runOnce(): Promise<number> {
@@ -67,9 +112,8 @@ async function runOnce(): Promise<number> {
 	const logFile = resolve(LOG_DIR, `${timestamp}.log`);
 	const jsonLog = resolve(LOG_DIR, `${timestamp}.jsonl`);
 
-	tee(`[${timestamp}] auto-triage starting`, logFile);
+	tee(`[${timestamp}] ${RUNNER_NAME} starting`, logFile);
 
-	// 事前チェック: claude を起動する必要があるか判定
 	const { hasCiFailure, hasIssue } = await hasWork();
 	if (!hasCiFailure && !hasIssue) {
 		tee(`[${timestamp}] no work found (CI green, no actionable issues), skipping`, logFile);
@@ -80,62 +124,39 @@ async function runOnce(): Promise<number> {
 		logFile,
 	);
 
-	// main を最新化（worktree のベースになる）
-	const fetchProc = Bun.spawn(["git", "fetch", "origin", "main"], {
-		cwd: PROJECT_DIR,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	const [stdout, stderr] = await Promise.all([
-		new Response(fetchProc.stdout).text(),
-		new Response(fetchProc.stderr).text(),
-	]);
-	const fetchExitCode = await fetchProc.exited;
-	tee((stdout + stderr).trimEnd(), logFile);
-	if (fetchExitCode !== 0) {
-		tee(
-			`[WARN] git fetch origin main failed (exit: ${String(fetchExitCode)}); continuing with local state`,
-			logFile,
-		);
-	}
+	const worktreePath = await prepareWorktree(timestamp, logFile);
+	tee(`[${timestamp}] launching codex in ${worktreePath}`, logFile);
 
-	// --worktree で独立したワーキングツリーで作業（main を汚さない）
 	const proc = Bun.spawn(
 		[
-			"claude",
-			"-p",
-			"/auto-triage",
-			"--dangerously-skip-permissions",
-			"--max-budget-usd",
-			String(MAX_BUDGET_USD),
-			"--no-session-persistence",
-			"--output-format",
-			"stream-json",
-			"--verbose",
-			"--worktree",
+			"codex",
+			"exec",
+			"--dangerously-bypass-approvals-and-sandbox",
+			"--cd",
+			worktreePath,
+			"--ephemeral",
+			"--json",
+			PROMPT,
 		],
 		{
-			cwd: PROJECT_DIR,
+			cwd: worktreePath,
 			stdout: "pipe",
 			stderr: "pipe",
 		},
 	);
 
-	// Watchdog: stdout が一定時間途絶えたらプロセスを強制終了
 	let lastOutputAt = Date.now();
 	let stalled = false;
 	const watchdog = setInterval(() => {
 		if (Date.now() - lastOutputAt > STALL_TIMEOUT_MS) {
 			stalled = true;
 			tee(
-				`[${formatTimestamp()}] watchdog: no output for ${String(STALL_TIMEOUT_MS / 60000)}min, killing claude (pid: ${String(proc.pid)})`,
+				`[${formatTimestamp()}] watchdog: no output for ${String(STALL_TIMEOUT_MS / 60000)}min, killing codex (pid: ${String(proc.pid)})`,
 				logFile,
 			);
 			proc.kill("SIGTERM");
-			// SIGTERM が無視された場合に備え、10 秒後に SIGKILL で強制終了
 			setTimeout(() => {
 				try {
-					// プロセス生存チェック（signal 0 は kill せず存在確認のみ）
 					process.kill(proc.pid, 0);
 					tee(`[${formatTimestamp()}] watchdog: SIGTERM ignored, sending SIGKILL`, logFile);
 					proc.kill("SIGKILL");
@@ -147,14 +168,12 @@ async function runOnce(): Promise<number> {
 		}
 	}, 60_000);
 
-	// stderr → logFile に追記（バックグラウンド）
 	const stderrDone = (async () => {
 		for await (const chunk of proc.stderr as AsyncIterable<Uint8Array>) {
 			appendFileSync(logFile, new TextDecoder().decode(chunk));
 		}
 	})();
 
-	// stdout をストリーミング処理（jq パイプ相当）
 	const decoder = new TextDecoder();
 	let buffer = "";
 	for await (const chunk of proc.stdout as AsyncIterable<Uint8Array>) {
@@ -166,20 +185,18 @@ async function runOnce(): Promise<number> {
 			buffer = buffer.slice(newlineIdx + 1);
 			if (!line) continue;
 
-			// jsonl ログにそのまま書き込み
 			appendFileSync(jsonLog, `${line}\n`);
 
-			// assistant テキストを抽出して表示
-			for (const text of extractAssistantText(line)) {
+			for (const text of extractCodexAssistantText(line)) {
 				tee(text, logFile);
 			}
 		}
 	}
-	// TextDecoder の内部バッファをフラッシュし、残余データを処理
+
 	buffer += decoder.decode();
 	if (buffer) {
 		appendFileSync(jsonLog, `${buffer}\n`);
-		for (const text of extractAssistantText(buffer)) {
+		for (const text of extractCodexAssistantText(buffer)) {
 			tee(text, logFile);
 		}
 	}
@@ -188,7 +205,10 @@ async function runOnce(): Promise<number> {
 	await stderrDone;
 	const exitCode = await proc.exited;
 	const suffix = stalled ? " (killed by watchdog)" : "";
-	tee(`[${formatTimestamp()}] auto-triage finished (exit: ${String(exitCode)})${suffix}`, logFile);
+	tee(
+		`[${formatTimestamp()}] ${RUNNER_NAME} finished (exit: ${String(exitCode)})${suffix}`,
+		logFile,
+	);
 
 	await cleanupWorktrees(logFile);
 
@@ -205,7 +225,6 @@ async function cleanupWorktrees(logFile: string): Promise<void> {
 	const listOut = await new Response(listProc.stdout).text();
 	await listProc.exited;
 
-	// porcelain 形式: "worktree <path>\nHEAD <sha>\nbranch <ref>\n\n" のブロック
 	const worktrees: { path: string; branch: string }[] = [];
 	for (const block of listOut.split("\n\n")) {
 		const pathMatch = block.match(/^worktree (.+)$/m);
@@ -215,9 +234,7 @@ async function cleanupWorktrees(logFile: string): Promise<void> {
 		}
 	}
 
-	// メインリポジトリは除外、.claude/worktrees/ 配下のみ対象
-	const worktreeDir = resolve(PROJECT_DIR, ".claude/worktrees");
-	const targets = worktrees.filter((w) => w.path.startsWith(worktreeDir));
+	const targets = worktrees.filter((w) => w.path.startsWith(WORKTREE_DIR));
 
 	let cleaned = 0;
 	for (const wt of targets) {
@@ -232,7 +249,6 @@ async function cleanupWorktrees(logFile: string): Promise<void> {
 		const removeExit = await removeProc.exited;
 		if (removeExit === 0) {
 			cleaned++;
-			// worktree 用に作られたローカルブランチも削除
 			const shortBranch = wt.branch.replace("refs/heads/", "");
 			Bun.spawn(["git", "branch", "-D", shortBranch], {
 				cwd: PROJECT_DIR,
@@ -253,10 +269,15 @@ async function main(): Promise<void> {
 	mkdirSync(LOG_DIR, { recursive: true });
 
 	const hours = INTERVAL_SEC / 3600;
-	console.log(`auto-triage loop: every ${String(INTERVAL_SEC)}s (${String(hours)}h)`);
+	console.log(`${RUNNER_NAME} loop: every ${String(INTERVAL_SEC)}s (${String(hours)}h)`);
 	console.log(`logs: ${LOG_DIR}/`);
 	console.log(`pid: ${String(process.pid)}`);
 	console.log("---");
+
+	if (process.argv.includes("--once")) {
+		process.exitCode = await runOnce();
+		return;
+	}
 
 	for (;;) {
 		try {
