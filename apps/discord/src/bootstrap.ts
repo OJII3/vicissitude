@@ -180,7 +180,7 @@ export function createGuildAgents(
 			port: config.opencode.basePort + portOffset + index,
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
-			temperature: 0.7,
+			temperature: config.opencode.temperature,
 			logger: deps.logger,
 		});
 		const agent = new DiscordAgent({

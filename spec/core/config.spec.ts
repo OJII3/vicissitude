@@ -20,6 +20,7 @@ describe("loadConfig", () => {
 		expect(config.opencode.modelId).toBe("big-pickle");
 		expect(config.opencode.basePort).toBe(4096);
 		expect(config.opencode.sessionMaxAgeHours).toBe(48);
+		expect(config.opencode.temperature).toBe(1.0);
 		expect(config.memory.providerId).toBe("github-copilot");
 		expect(config.memory.modelId).toBe("gpt-4o");
 		expect(config.memory.ollamaBaseUrl).toBe("http://ollama:11434");
@@ -44,6 +45,7 @@ describe("loadConfig", () => {
 				OPENCODE_MODEL_ID: "custom-model",
 				OPENCODE_BASE_PORT: "5000",
 				SESSION_MAX_AGE_HOURS: "24",
+				OPENCODE_TEMPERATURE: "0.5",
 				MEMORY_PROVIDER_ID: "memory-provider",
 				MEMORY_MODEL_ID: "memory-model",
 				OLLAMA_BASE_URL: "http://localhost:11434",
@@ -56,6 +58,7 @@ describe("loadConfig", () => {
 		expect(config.opencode.modelId).toBe("custom-model");
 		expect(config.opencode.basePort).toBe(5000);
 		expect(config.opencode.sessionMaxAgeHours).toBe(24);
+		expect(config.opencode.temperature).toBe(0.5);
 		expect(config.memory.providerId).toBe("memory-provider");
 		expect(config.memory.modelId).toBe("memory-model");
 		expect(config.memory.ollamaBaseUrl).toBe("http://localhost:11434");
