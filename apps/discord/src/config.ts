@@ -53,6 +53,7 @@ const appConfigSchema = z.object({
 		modelId: z.string(),
 		basePort: safeInt,
 		sessionMaxAgeHours: safeNumber,
+		temperature: safeNumber.min(0).max(2),
 	}),
 	memory: z.object({
 		providerId: z.string(),
@@ -102,6 +103,7 @@ export function loadConfig(
 			modelId: env.OPENCODE_MODEL_ID ?? "big-pickle",
 			basePort,
 			sessionMaxAgeHours: Number(env.SESSION_MAX_AGE_HOURS ?? "48"),
+			temperature: Number(env.OPENCODE_TEMPERATURE ?? "1.0"),
 		},
 		memory: {
 			providerId: env.MEMORY_PROVIDER_ID ?? openCodeProviderId,

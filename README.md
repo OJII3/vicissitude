@@ -166,6 +166,7 @@ OpenCode SDK 組み込み: `webfetch`
 
 - `DISCORD_TOKEN`: 必須（`.env` から読込）
 - `OPENCODE_MODEL_ID`: AI モデル ID（デフォルト: `big-pickle`）
+- `OPENCODE_TEMPERATURE`: Discord エージェント（通常 + heartbeat）の生成温度（デフォルト: `1.0`、範囲: `0`〜`2`）
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 - `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）

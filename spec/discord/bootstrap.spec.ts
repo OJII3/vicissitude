@@ -19,6 +19,7 @@ function makeConfig(
 			modelId: "test-model",
 			basePort: 5000,
 			sessionMaxAgeHours: 1,
+			temperature: 1.0,
 		},
 		memory: {
 			providerId: "memory-provider",

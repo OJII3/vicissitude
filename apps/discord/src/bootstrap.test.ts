@@ -15,6 +15,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			modelId: "test-model",
 			basePort: 4096,
 			sessionMaxAgeHours: 48,
+			temperature: 1.0,
 		},
 		memory: {
 			providerId: "test-provider",
