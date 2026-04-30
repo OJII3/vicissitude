@@ -644,7 +644,9 @@ export class AgentRunner implements AiAgent {
 			this.sessionCreatedAt = row?.createdAt ?? this.nowProvider();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] reusing existing session ${realId}`);
 		} else {
-			realId = await this.sessionPort.createSession(`ふあ:${this.profile.name}:${this.agentId}`);
+			realId = await this.sessionPort.createSession(
+				`vicissitude:${this.profile.name}:${this.agentId}`,
+			);
 			this.sessionStore.save(this.profile.name, this.sessionKey, realId);
 			this.sessionCreatedAt = this.nowProvider();
 			this.logger.info(`[${this.profile.name}:${this.agentId}] created new session ${realId}`);

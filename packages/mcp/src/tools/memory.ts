@@ -103,7 +103,7 @@ export function registerMemoryTools(
 
 				if (internalResult) {
 					if (internalResult.episodes.length > 0) {
-						parts.push("## Hua's Own Memory (Episodes)");
+						parts.push("## Internal Self Memory (Episodes)");
 						for (const ep of internalResult.episodes) {
 							parts.push(`### ${ep.episode.title} (score: ${ep.score.toFixed(3)})`);
 							parts.push(ep.episode.summary);
@@ -112,7 +112,7 @@ export function registerMemoryTools(
 					}
 
 					if (internalResult.facts.length > 0) {
-						parts.push("## Hua's Own Memory (Facts)");
+						parts.push("## Internal Self Memory (Facts)");
 						for (const f of internalResult.facts) {
 							parts.push(`- [${f.fact.category}] ${f.fact.fact} (score: ${f.score.toFixed(3)})`);
 						}
@@ -212,7 +212,7 @@ export function registerMemoryTools(
 					parts.push(...formatFacts(facts));
 				}
 				if (internalFacts && internalFacts.length > 0) {
-					parts.push(`\nHua's own memory (${internalFacts.length} facts):`);
+					parts.push(`\nInternal self memory (${internalFacts.length} facts):`);
 					parts.push(...formatFacts(internalFacts));
 				}
 

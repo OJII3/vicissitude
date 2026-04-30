@@ -252,8 +252,8 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 
 		// セクションヘッダーが含まれる
 		expect(text).toContain("## Episodic Memory");
-		expect(text).toContain("## Hua's Own Memory (Episodes)");
-		expect(text).toContain("## Hua's Own Memory (Facts)");
+		expect(text).toContain("## Internal Self Memory (Episodes)");
+		expect(text).toContain("## Internal Self Memory (Facts)");
 	});
 
 	test("boundNamespace が internal の場合、結果が重複しない（二重検索しない）", async () => {

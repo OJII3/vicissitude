@@ -44,10 +44,10 @@ export function registerListeningTools(server: McpServer, deps: ListeningToolDep
 		"save_listening_fact",
 		{
 			description:
-				"ふあが楽曲を聴いた感想を Memory (internal namespace, category=experience) に保存する。listenedAt は現在時刻が自動で付与される。",
+				"この存在が楽曲を聴いた感想を Memory (internal namespace, category=experience) に保存する。listenedAt は現在時刻が自動で付与される。",
 			inputSchema: {
 				track: spotifyTrackSchema.describe("Spotify Track オブジェクト"),
-				impression: z.string().describe("ふあの感想"),
+				impression: z.string().describe("この存在の感想"),
 			},
 		},
 		async ({ track, impression }) => {
