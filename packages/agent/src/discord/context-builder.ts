@@ -32,6 +32,7 @@ const GUILD_CONTEXT_AFTER: ContextFileName = "HEARTBEAT.md";
 
 const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
+const IDENTITY_NAME_ENV = "VICISSITUDE_IDENTITY_NAME";
 
 export class ContextBuilder implements ContextBuilderPort {
 	constructor(
@@ -84,6 +85,12 @@ export class ContextBuilder implements ContextBuilderPort {
 		}
 
 		return sections.join("\n\n");
+	}
+
+	async buildTurnPromptPrefix(): Promise<string | null> {
+		const name = await this.resolveIdentityName();
+		if (!name) return null;
+		return `あなたは${name}です。`;
 	}
 
 	/** Maximum facts to inject into system prompt */
@@ -145,6 +152,18 @@ export class ContextBuilder implements ContextBuilderPort {
 		return this.readContextFile(basePath);
 	}
 
+	private async resolveIdentityName(): Promise<string | null> {
+		const envName = process.env[IDENTITY_NAME_ENV];
+		if (typeof envName === "string") {
+			const trimmed = envName.trim();
+			if (trimmed) return trimmed;
+		}
+
+		const identity = await this.readOverlaid("IDENTITY.md");
+		if (!identity) return null;
+		return extractIdentityName(identity);
+	}
+
 	private async readContextFile(filepath: string): Promise<string | null> {
 		try {
 			const content = await Bun.file(filepath).text();
@@ -159,4 +178,25 @@ export class ContextBuilder implements ContextBuilderPort {
 			return null;
 		}
 	}
+}
+
+export function extractIdentityName(identity: string): string | null {
+	const lines = identity.split(/\r?\n/);
+	for (const key of ["name", "full_name"]) {
+		const prefix = `${key}:`;
+		const line = lines.find((candidate) => candidate.trimStart().startsWith(prefix));
+		const value = line?.slice(line.indexOf(":") + 1).trim();
+		if (value) return stripYamlScalarQuotes(value);
+	}
+	return null;
+}
+
+function stripYamlScalarQuotes(value: string): string {
+	if (value.length < 2) return value;
+	const first = value.at(0);
+	const last = value.at(-1);
+	if ((first === `"` && last === `"`) || (first === `'` && last === `'`)) {
+		return value.slice(1, -1).trim();
+	}
+	return value;
 }

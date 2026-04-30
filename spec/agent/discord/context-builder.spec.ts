@@ -1,9 +1,14 @@
-import { describe, expect, it } from "bun:test";
+/* oxlint-disable max-lines-per-function -- ContextBuilder の既存網羅 spec に回帰テストを追加するため許容 */
+import { afterEach, describe, expect, it } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
-import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
+import {
+	ContextBuilder,
+	extractIdentityName,
+	type ContextFileName,
+} from "@vicissitude/agent/discord/context-builder";
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
@@ -32,6 +37,16 @@ function createMockFactReader(facts: MemoryFact[]): MemoryFactReader {
 // ─── ContextBuilder ──────────────────────────────────────────────
 
 describe("ContextBuilder", () => {
+	const savedIdentityName = process.env.VICISSITUDE_IDENTITY_NAME;
+
+	afterEach(() => {
+		if (savedIdentityName === undefined) {
+			delete process.env.VICISSITUDE_IDENTITY_NAME;
+		} else {
+			process.env.VICISSITUDE_IDENTITY_NAME = savedIdentityName;
+		}
+	});
+
 	describe("base/overlay のファイル優先順位", () => {
 		it("overlay が base を上書きする", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
@@ -53,6 +68,59 @@ describe("ContextBuilder", () => {
 			const result = await builder.build();
 
 			expect(result).toContain("base identity");
+		});
+	});
+
+	describe("毎ターン自己認識補助", () => {
+		it("環境変数の名前を最優先で使う", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			process.env.VICISSITUDE_IDENTITY_NAME = "環境名";
+			writeFile(overlayDir, "IDENTITY.md", "name: overlay name");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.buildTurnPromptPrefix();
+
+			expect(result).toBe("あなたは環境名です。");
+		});
+
+		it("環境変数がなければ overlay の IDENTITY.md から name を抽出する", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			delete process.env.VICISSITUDE_IDENTITY_NAME;
+			writeFile(baseDir, "IDENTITY.md", "name: base name");
+			writeFile(overlayDir, "IDENTITY.md", "name: overlay name");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.buildTurnPromptPrefix();
+
+			expect(result).toBe("あなたはoverlay nameです。");
+		});
+
+		it("overlay がなければ base の IDENTITY.md から full_name を抽出する", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			delete process.env.VICISSITUDE_IDENTITY_NAME;
+			writeFile(baseDir, "IDENTITY.md", 'full_name: "base full name"');
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.buildTurnPromptPrefix();
+
+			expect(result).toBe("あなたはbase full nameです。");
+		});
+
+		it("名前を抽出できない場合は null を返す", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			delete process.env.VICISSITUDE_IDENTITY_NAME;
+			writeFile(baseDir, "IDENTITY.md", "role: no name");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.buildTurnPromptPrefix();
+
+			expect(result).toBeNull();
+		});
+
+		it("extractIdentityName は name を full_name より優先する", () => {
+			const result = extractIdentityName("full_name: フル\nname: 名前");
+
+			expect(result).toBe("名前");
 		});
 	});
 
