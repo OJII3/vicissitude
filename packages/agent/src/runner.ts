@@ -384,9 +384,11 @@ export class AgentRunner implements AiAgent {
 		this.lastPromptText = text;
 		this.lastPromptAttachments = attachments;
 
-		const promptText = this.profile.pollingPrompt
-			? `${this.profile.pollingPrompt}\n\n${text}`
-			: text;
+		const turnPromptPrefix = await this.contextBuilder.buildTurnPromptPrefix?.();
+		if (signal.aborted) return;
+		const promptText = [turnPromptPrefix, this.profile.pollingPrompt, text]
+			.filter((part): part is string => typeof part === "string" && part.trim().length > 0)
+			.join("\n\n");
 
 		const sessionId = await this.resolveSessionId();
 		if (signal.aborted) return;

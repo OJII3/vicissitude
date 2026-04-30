@@ -75,6 +75,35 @@ describe("AgentRunner", () => {
 		sessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("毎ターンのプロンプト先頭に自己認識接頭辞を注入する", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const contextBuilder: ContextBuilderPort = {
+			build: mock(() => Promise.resolve("system prompt")),
+			buildTurnPromptPrefix: mock(() => Promise.resolve("あなたはふあです。")),
+		};
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder,
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+
+		const params = sessionPort.promptAsyncAndWatchSession.mock.calls[0]?.[0];
+		expect(params?.text.startsWith("あなたはふあです。\n\nloop forever\n\ntest")).toBe(true);
+		expect(contextBuilder.buildTurnPromptPrefix).toHaveBeenCalledTimes(1);
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("session が idle になったら新規メッセージ待ちで再起動する", async () => {
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();

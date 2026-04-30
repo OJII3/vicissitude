@@ -91,6 +91,7 @@ OpenCode SDK 組み込み: `webfetch`
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md`
+- 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
