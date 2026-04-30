@@ -200,6 +200,7 @@ export interface SessionStorePort {
 
 export interface ContextBuilderPort {
 	build(guildId?: string): Promise<string>;
+	buildTurnPromptPrefix?(): Promise<string | null>;
 }
 
 // ─── Memory Fact Reader ──────────────────────────────────────────
