@@ -2,7 +2,9 @@ import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
-const MESSAGE_PROMPT_INSTRUCTIONS = `あなたは Discord bot「ふあ」です。以下のメッセージに応答してください。
+const MESSAGE_PROMPT_INSTRUCTIONS = `あなたはこの会話空間にいる存在です。
+名前・自己認識・人格・口調・会話規則は、このセッション冒頭に埋め込まれたシステム文脈の定義に従ってください。
+以下のメッセージに応答してください。
 
 重要:
 - あなたのテキスト出力はユーザーに届かない。返信するには必ず core_send_message(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能。リアクションには core_add_reaction を使う

@@ -120,6 +120,28 @@ describe("setupMemoryRecording()", () => {
 		expect(typeof result.criticAuditor?.audit).toBe("function");
 	});
 
+	test("data/context/SOUL.md が存在する場合: criticAuditor は overlay 側の定義を使う", async () => {
+		const contextDir = resolve(testDir, "context");
+		const overlayContextDir = resolve(testDir, "data/context");
+		mkdirSync(contextDir, { recursive: true });
+		mkdirSync(overlayContextDir, { recursive: true });
+		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character\nbase persona");
+		writeFileSync(resolve(overlayContextDir, "SOUL.md"), "# Character\noverlay persona");
+
+		const config = makeConfig(resolve(testDir, "data"));
+		const result = await setupMemoryRecording(config, logger, {
+			memoryPort: 19999,
+			root: testDir,
+		});
+
+		expect(result).not.toBeUndefined();
+		if (!result) return;
+		expect(result.criticAuditor).toBeDefined();
+		expect(
+			(result.criticAuditor as { characterDefinition?: string }).characterDefinition,
+		).toContain("overlay persona");
+	});
+
 	test("SOUL.md が存在しない場合: MemoryResources を返すが criticAuditor は undefined（graceful degradation）", async () => {
 		// context/ ディレクトリは存在するが SOUL.md がない
 		mkdirSync(resolve(testDir, "context"), { recursive: true });

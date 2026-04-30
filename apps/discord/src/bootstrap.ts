@@ -300,7 +300,9 @@ export async function setupMemoryRecording(
 
 		// SOUL.md の読み込み（graceful degradation: なければ criticAuditor なし）
 		let criticAuditor: CriticAuditorPort | undefined;
-		const soulPath = resolve(opts.root, "context/SOUL.md");
+		const overlaySoulPath = resolve(opts.root, "data/context/SOUL.md");
+		const baseSoulPath = resolve(opts.root, "context/SOUL.md");
+		const soulPath = existsSync(overlaySoulPath) ? overlaySoulPath : baseSoulPath;
 		const soulFile = Bun.file(soulPath);
 		if (await soulFile.exists()) {
 			const characterDefinition = await soulFile.text();
