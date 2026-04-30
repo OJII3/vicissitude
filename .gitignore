@@ -4,6 +4,7 @@
 /.claude/agent-memory
 /.claude/IDEA.md
 /.claude/scheduled_tasks.lock
+/.codex/worktrees
 /tmp/
 node_modules/
 .env
