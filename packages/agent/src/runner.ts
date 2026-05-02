@@ -25,6 +25,16 @@ const MESSAGE_DEBOUNCE_MS = 500;
 const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
 
+function formatErrorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string") return error;
+	try {
+		return JSON.stringify(error) ?? String(error);
+	} catch {
+		return String(error);
+	}
+}
+
 export interface RunnerDeps {
 	profile: AgentProfile;
 	agentId: string;
@@ -559,7 +569,7 @@ export class AgentRunner implements AiAgent {
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return false;
 		try {
-			await this.sessionPort.summarizeSession(sessionId);
+			await this.sessionPort.summarizeSession(sessionId, this.profile.model);
 			this.lastCompactionAt = now;
 			this.pendingSystemReinject = true;
 			this.logger.info(`[${this.profile.name}:${this.agentId}] break-triggered compaction`);
@@ -567,8 +577,7 @@ export class AgentRunner implements AiAgent {
 			return true;
 		} catch (err) {
 			this.logger.warn(
-				`[${this.profile.name}:${this.agentId}] break-triggered compaction failed`,
-				err,
+				`[${this.profile.name}:${this.agentId}] break-triggered compaction failed: ${formatErrorMessage(err)}`,
 			);
 			return false;
 		}
@@ -583,7 +592,7 @@ export class AgentRunner implements AiAgent {
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return false;
 		try {
-			await this.sessionPort.summarizeSession(sessionId);
+			await this.sessionPort.summarizeSession(sessionId, this.profile.model);
 			this.lastCompactionAt = this.nowProvider();
 			this.pendingSystemReinject = true;
 			this.logger.info(`[${this.profile.name}:${this.agentId}] proactive compaction triggered`);
@@ -591,8 +600,7 @@ export class AgentRunner implements AiAgent {
 			return true;
 		} catch (err) {
 			this.logger.warn(
-				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally`,
-				err,
+				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally: ${formatErrorMessage(err)}`,
 			);
 			return false;
 		}
