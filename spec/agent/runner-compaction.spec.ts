@@ -100,7 +100,10 @@ describe("トークン閾値による proactive compaction", () => {
 		await Bun.sleep(0);
 
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
-		expect(sessionPort.summarizeSession).toHaveBeenCalledWith("session-1");
+		expect(sessionPort.summarizeSession).toHaveBeenCalledWith("session-1", {
+			providerId: "test-provider",
+			modelId: "test-model",
+		});
 
 		runner.stop();
 		rewatchDone.resolve({ type: "cancelled" });
@@ -230,12 +233,13 @@ describe("proactive compaction のエラー耐性", () => {
 			Promise.reject(new Error("summarize failed")),
 		);
 
+		const logger = createMockLogger();
 		const runner = new TestAgent({
 			profile: createProfile(),
 			agentId: "agent-1",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
+			logger,
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
 			compactionTokenThreshold: 100,
@@ -259,6 +263,9 @@ describe("proactive compaction のエラー耐性", () => {
 
 		// summarizeSession が呼ばれたが例外がスローされた
 		expect(sessionPort.summarizeSession).toHaveBeenCalled();
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.stringContaining("proactive compaction failed, continuing normally: summarize failed"),
+		);
 		// polling loop は継続している（クラッシュしない）
 
 		runner.stop();

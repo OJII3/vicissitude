@@ -9,6 +9,7 @@ import type {
 	Logger,
 	OpencodePromptParams,
 	OpencodeSessionEvent,
+	OpencodeModel,
 	OpencodeSessionPort,
 	PromptResult,
 	TokenUsage,
@@ -272,10 +273,14 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 		return { type: "idle" };
 	}
-	async summarizeSession(sessionId: string): Promise<void> {
+	async summarizeSession(sessionId: string, model: OpencodeModel): Promise<void> {
 		this.logger?.info(`[opencode] summarizing session: ${sessionId}`);
 		const oc = await this.getClient();
-		const result = await oc.session.summarize({ sessionID: sessionId });
+		const result = await oc.session.summarize({
+			sessionID: sessionId,
+			providerID: model.providerId,
+			modelID: model.modelId,
+		});
 		if (result.error) {
 			throw new Error(`summarizeSession failed: ${JSON.stringify(result.error)}`);
 		}

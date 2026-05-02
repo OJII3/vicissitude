@@ -103,7 +103,10 @@ describe("pendingCompaction フラグ消費による break-triggered compaction"
 		await Bun.sleep(0);
 
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
-		expect(sessionPort.summarizeSession).toHaveBeenCalledWith("session-1");
+		expect(sessionPort.summarizeSession).toHaveBeenCalledWith("session-1", {
+			providerId: "test-provider",
+			modelId: "test-model",
+		});
 
 		runner.stop();
 		rewatchDone.resolve({ type: "cancelled" });
@@ -282,12 +285,13 @@ describe("triggerCompaction 失敗時の継続", () => {
 			Promise.reject(new Error("summarize failed")),
 		);
 
+		const logger = createMockLogger();
 		const runner = new BreakTestAgent({
 			profile: createProfile(),
 			agentId: "agent-1",
 			sessionStore: createSessionStore("session-1") as never,
 			contextBuilder: createContextBuilder(),
-			logger: createMockLogger(),
+			logger,
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
 		});
@@ -303,6 +307,9 @@ describe("triggerCompaction 失敗時の継続", () => {
 
 		// summarizeSession は呼ばれたが失敗した
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.stringContaining("break-triggered compaction failed: summarize failed"),
+		);
 		// 失敗後、通常のメッセージ処理に fall through する
 		expect(promptAsyncAndWatchSessionMock).toHaveBeenCalled();
 

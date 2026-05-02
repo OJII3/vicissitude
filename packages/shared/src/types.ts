@@ -217,10 +217,15 @@ export interface MemoryFactReader {
 
 // ─── OpenCode Session Port ──────────────────────────────────────
 
+export interface OpencodeModel {
+	providerId: string;
+	modelId: string;
+}
+
 export interface OpencodePromptParams {
 	sessionId: string;
 	text: string;
-	model: { providerId: string; modelId: string };
+	model: OpencodeModel;
 	system?: string;
 	tools?: Record<string, boolean>;
 	attachments?: Attachment[];
@@ -253,7 +258,7 @@ export interface OpencodeSessionPort {
 		signal?: AbortSignal,
 	): Promise<OpencodeSessionEvent>;
 	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
-	summarizeSession(sessionId: string): Promise<void>;
+	summarizeSession(sessionId: string, model: OpencodeModel): Promise<void>;
 	deleteSession(sessionId: string): Promise<void>;
 	close(): void;
 }
