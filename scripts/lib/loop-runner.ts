@@ -1,7 +1,7 @@
 /**
  * loop-runner.ts — ループラッパースクリプト共通ユーティリティ。
  *
- * auto-triage-*.ts / character-audit.ts 等で共有される関数群。
+ * auto-triage-*.ts で共有される関数群。
  */
 import { appendFileSync } from "node:fs";
 
