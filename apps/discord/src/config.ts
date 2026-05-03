@@ -64,6 +64,7 @@ const appConfigSchema = z.object({
 	mcBrain: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
+		temperature: safeNumber.min(0).max(2),
 	}),
 	spotify: spotifySchema.optional(),
 	genius: geniusSchema.optional(),
@@ -114,6 +115,7 @@ export function loadConfig(
 		mcBrain: {
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
+			temperature: Number(env.MC_TEMPERATURE ?? "0.7"),
 		},
 		spotify: env.SPOTIFY_CLIENT_ID
 			? {

@@ -22,6 +22,7 @@ function createTestDeps(overrides?: Partial<McBrainManagerDeps>): McBrainManager
 		opencodePort: 9999,
 		providerId: "test-provider",
 		modelId: "test-model",
+		temperature: 0.7,
 		sessionMaxAgeMs: 3_600_000,
 		lifecyclePollMs: TEST_POLL_MS,
 		...overrides,
