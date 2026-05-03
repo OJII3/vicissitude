@@ -27,9 +27,7 @@
 		"auto-triage:claude": "bun scripts/auto-triage-claude.ts",
 		"auto-triage:claude:once": "bun scripts/auto-triage-claude.ts --once",
 		"auto-triage:codex": "bun scripts/auto-triage-codex.ts",
-		"auto-triage:codex:once": "bun scripts/auto-triage-codex.ts --once",
-		"character-audit": "bun scripts/character-audit.ts",
-		"character-audit:once": "claude -p /character-audit --dangerously-skip-permissions --max-budget-usd 5 --no-session-persistence"
+		"auto-triage:codex:once": "bun scripts/auto-triage-codex.ts --once"
 	},
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.27.1",
