@@ -21,10 +21,12 @@ import { MemoryConversationRecorder } from "@vicissitude/memory/conversation-rec
 import { CriticAuditor } from "@vicissitude/memory/critic-auditor";
 import { DriftScoreCalculator } from "@vicissitude/memory/drift-score";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
+import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	discordGuildNamespace,
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
+	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 } from "@vicissitude/memory/namespace";
 import { MemoryStorage } from "@vicissitude/memory/storage";
@@ -258,7 +260,47 @@ interface MemoryResources {
 	chatAdapter: MemoryChatAdapter;
 	recorder: MemoryConversationRecorder;
 	consolidationScheduler: ConsolidationScheduler;
-	criticAuditor: CriticAuditorPort | undefined;
+}
+
+export async function buildCriticAuditorAdapter(
+	soulPath: string,
+	llm: MemoryLlmPort,
+	dataDir: string,
+	getBotUserId: () => string | undefined,
+): Promise<CriticAuditorPort | undefined> {
+	const soulFile = Bun.file(soulPath);
+	if (!(await soulFile.exists())) return undefined;
+
+	const characterDefinition = await soulFile.text();
+	const driftCalculator = new DriftScoreCalculator(llm, characterDefinition);
+	await driftCalculator.init();
+
+	const storageCache = new Map<string, MemoryStorage>();
+	return {
+		audit(userId: string) {
+			// gateway.start() 前に audit が呼ばれた場合、bot user id 未解決のため早期 return
+			// (namespace 解決は GUILD_ID_RE バリデーションを行うため、それより前に判定する)
+			const botUserId = getBotUserId();
+			if (!botUserId) return Promise.resolve(null);
+
+			let storage = storageCache.get(userId);
+			if (!storage) {
+				const namespace: MemoryNamespace =
+					userId === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : discordGuildNamespace(userId);
+				mkdirSync(resolveMemoryDbDir(dataDir, namespace), { recursive: true });
+				storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
+				storageCache.set(userId, storage);
+			}
+			const auditor = new CriticAuditor({
+				llm,
+				storage,
+				driftCalculator,
+				characterDefinition,
+				botUserId,
+			});
+			return auditor.audit(userId);
+		},
+	};
 }
 
 export async function setupMemoryRecording(
@@ -298,45 +340,12 @@ export async function setupMemoryRecording(
 			new OllamaEmbeddingAdapter(config.memory.ollamaBaseUrl, config.memory.embeddingModel);
 		const llm = new CompositeLLMAdapter(chatAdapter, ollama);
 
-		// SOUL.md の読み込み（graceful degradation: なければ criticAuditor なし）
-		let criticAuditor: CriticAuditorPort | undefined;
 		const overlaySoulPath = resolve(opts.root, "data/context/SOUL.md");
 		const baseSoulPath = resolve(opts.root, "context/SOUL.md");
 		const soulPath = existsSync(overlaySoulPath) ? overlaySoulPath : baseSoulPath;
-		const soulFile = Bun.file(soulPath);
-		if (await soulFile.exists()) {
-			const characterDefinition = await soulFile.text();
-			const driftCalculator = new DriftScoreCalculator(llm, characterDefinition);
-			await driftCalculator.init();
-			// Namespace-aware adapter: userId から namespace を解決して per-namespace の MemoryStorage を使う
-			const storageCache = new Map<string, MemoryStorage>();
-			const adapter = {
-				characterDefinition,
-				audit(userId: string) {
-					// gateway.start() 前に audit が呼ばれた場合、bot user id 未解決のため早期 return
-					// (namespace 解決は GUILD_ID_RE バリデーションを行うため、それより前に判定する)
-					const botUserId = opts.getBotUserId?.();
-					if (!botUserId) return Promise.resolve(null);
-
-					let storage = storageCache.get(userId);
-					if (!storage) {
-						const namespace: MemoryNamespace =
-							userId === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : discordGuildNamespace(userId);
-						storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
-						storageCache.set(userId, storage);
-					}
-					const auditor = new CriticAuditor({
-						llm,
-						storage,
-						driftCalculator,
-						characterDefinition,
-						botUserId,
-					});
-					return auditor.audit(userId);
-				},
-			};
-			criticAuditor = adapter;
-		}
+		const criticAuditor = await buildCriticAuditorAdapter(soulPath, llm, dataDir, () =>
+			opts.getBotUserId?.(),
+		);
 
 		const githubIssuePort = config.github
 			? new GitHubIssueAdapter({
@@ -356,7 +365,7 @@ export async function setupMemoryRecording(
 		);
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
-		return { chatAdapter, recorder, consolidationScheduler, criticAuditor };
+		return { chatAdapter, recorder, consolidationScheduler };
 	} catch (err) {
 		logger.error("[bootstrap] Memory auto-recording init failed, continuing without memory", err);
 		return undefined;
