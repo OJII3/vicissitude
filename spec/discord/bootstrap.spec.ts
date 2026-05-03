@@ -30,6 +30,7 @@ function makeConfig(
 		mcBrain: {
 			providerId: "mc-provider",
 			modelId: "mc-model",
+			temperature: 0.7,
 		},
 		dataDir: "/tmp/test-data",
 		contextDir: "/tmp/test-context",

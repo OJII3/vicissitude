@@ -170,6 +170,7 @@ OpenCode SDK 組み込み: `webfetch`
 - `OPENCODE_TEMPERATURE`: Discord エージェント（通常 + heartbeat）の生成温度（デフォルト: `1.0`、範囲: `0`〜`2`）
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
+- `MC_TEMPERATURE`: Minecraft エージェント用生成温度（デフォルト: `0.7`、範囲: `0`〜`2`）
 - `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）
 
 ## 6. 受け入れ条件

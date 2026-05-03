@@ -26,6 +26,7 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 		mcBrain: {
 			providerId: "test-provider",
 			modelId: "test-model",
+			temperature: 0.7,
 		},
 		dataDir: "/tmp/vicissitude-bootstrap-test",
 		contextDir: "/tmp/test-context",

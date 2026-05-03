@@ -22,6 +22,7 @@ export interface McBrainManagerDeps {
 	opencodePort: number;
 	providerId: string;
 	modelId: string;
+	temperature: number;
 	sessionMaxAgeMs: number;
 	/** ライフサイクルポーリング間隔（ms）。デフォルト 10_000 */
 	lifecyclePollMs?: number;
@@ -105,7 +106,7 @@ export class McBrainManager {
 			port: deps.opencodePort,
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
-			temperature: 0.7,
+			temperature: deps.temperature,
 			logger: deps.logger,
 		});
 		const overlayDir: string = resolve(deps.root, "data/context/minecraft");

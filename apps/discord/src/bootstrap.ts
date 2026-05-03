@@ -681,6 +681,7 @@ export async function bootstrap(): Promise<void> {
 			opencodePort: ports.minecraft(),
 			providerId: config.mcBrain.providerId,
 			modelId: config.mcBrain.modelId,
+			temperature: config.mcBrain.temperature,
 			sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
 			mcHost: config.minecraft.host,
 			mcMcpPort: String(config.minecraft.mcpPort),
