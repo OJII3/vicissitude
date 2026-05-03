@@ -23,7 +23,7 @@
 		"test:quality": "bun scripts/test-quality.ts",
 		"test:quality:flake": "bun scripts/test-quality-flake.ts",
 		"validate": "bun run fmt:check && bun run lint && bun run check",
-		"deploy": "podman-compose down installer builder bot 2>/dev/null; podman-compose up -d && echo 'Deployed: podman-compose logs -f to follow logs'",
+		"deploy": "bun scripts/check-deploy-source.ts && (podman-compose down installer builder bot 2>/dev/null || true) && podman-compose up -d && echo 'Deployed: podman-compose logs -f to follow logs'",
 		"auto-triage:claude": "bun scripts/auto-triage-claude.ts",
 		"auto-triage:claude:once": "bun scripts/auto-triage-claude.ts --once",
 		"auto-triage:codex": "bun scripts/auto-triage-codex.ts",

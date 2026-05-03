@@ -4,6 +4,10 @@ AIキャラクター「ふあ」
 
 TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用する。
 
+## デプロイ
+
+`nr deploy` は本番 checkout の stale deploy を防ぐため、実行前に `git fetch origin main` を行い、現在のブランチが `main` で、`HEAD` が `origin/main` と一致していることを検証する。一致しない場合は deploy を中止する。
+
 ## コンセプト
 
 そこで生きているかような自然な存在、AITuber もどきを作る。ただし、特段バーチャルにこだわらない。当面はDiscordが本拠地。
