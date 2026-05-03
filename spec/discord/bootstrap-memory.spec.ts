@@ -3,8 +3,8 @@
  * setupMemoryRecording() の仕様テスト
  *
  * 検証する公開契約:
- *   1. SOUL.md が存在する場合 → MemoryResources.criticAuditor に CriticAuditorPort が入る
- *   2. SOUL.md が存在しない場合 → エラーにならず MemoryResources を返し criticAuditor は undefined（graceful degradation）
+ *   1. SOUL.md が存在しない場合 → エラーにならず MemoryResources を返す
+ *   2. CriticAuditor adapter 構築は buildCriticAuditorAdapter() で直接検証する
  *   3. 戻り値が Promise<MemoryResources | undefined> になっている（async 化）
  *   4. opts.getBotUserId が CriticAuditor の audit() で利用可能（遅延解決）
  */
@@ -13,8 +13,22 @@ import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { resolve } from "path";
 
-import { setupMemoryRecording } from "../../apps/discord/src/bootstrap.ts";
+import type { CriticResult } from "@vicissitude/memory/critic-auditor";
+import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
+import {
+	discordGuildNamespace,
+	resolveMemoryDbDir,
+	resolveMemoryDbPath,
+} from "@vicissitude/memory/namespace";
+import { MemoryStorage } from "@vicissitude/memory/storage";
+import type { ChatMessage } from "@vicissitude/memory/types";
+
+import {
+	buildCriticAuditorAdapter,
+	setupMemoryRecording,
+} from "../../apps/discord/src/bootstrap.ts";
 import type { AppConfig } from "../../apps/discord/src/config.ts";
+import { makeEpisode } from "../memory/test-helpers.ts";
 import { createMockLogger } from "../test-helpers.ts";
 
 // ─── Test fixtures ──────────────────────────────────────────────
@@ -44,6 +58,23 @@ function makeConfig(dataDir: string): AppConfig {
 		dataDir,
 		contextDir: "/tmp/test-context",
 	} as AppConfig;
+}
+
+function createSpyLLM(criticResponse: CriticResult) {
+	const calls: { messages: ChatMessage[] }[] = [];
+	const llm: MemoryLlmPort = {
+		async chat(): Promise<string> {
+			return "mock";
+		},
+		async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
+			calls.push({ messages });
+			return schema.parse(criticResponse);
+		},
+		async embed(): Promise<number[]> {
+			return [0.1, 0.2, 0.3];
+		},
+	};
+	return { llm, calls };
 }
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -89,60 +120,80 @@ describe("setupMemoryRecording()", () => {
 			expect(result).toHaveProperty("chatAdapter");
 			expect(result).toHaveProperty("recorder");
 			expect(result).toHaveProperty("consolidationScheduler");
-			expect(result).toHaveProperty("criticAuditor");
+			expect(result).not.toHaveProperty("criticAuditor");
 		}
 	});
 
-	test("SOUL.md が存在する場合: MemoryResources.criticAuditor に CriticAuditorPort が入る", async () => {
-		// context/SOUL.md を作成
+	test("buildCriticAuditorAdapter(): SOUL.md が存在する場合は audit メソッドを持つ adapter を返す", async () => {
 		const contextDir = resolve(testDir, "context");
 		mkdirSync(contextDir, { recursive: true });
-		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character\nYou are hua, a casual girl.");
+		const soulPath = resolve(contextDir, "SOUL.md");
+		writeFileSync(soulPath, "# Character\nYou are hua, a casual girl.");
 
-		const config = makeConfig(resolve(testDir, "data"));
-		const result = await setupMemoryRecording(config, logger, {
-			memoryPort: 19999,
-			root: testDir,
-		});
+		const { llm } = createSpyLLM({ severity: "none", summary: "ok" });
+		const adapter = await buildCriticAuditorAdapter(
+			soulPath,
+			llm,
+			resolve(testDir, "data/memory"),
+			() => "1100000000000000001",
+		);
 
-		// MemoryResources が返される
-		expect(result).not.toBeUndefined();
-		if (!result) return;
-
-		// consolidationScheduler が存在する
-		expect(result.consolidationScheduler).toBeDefined();
-
-		// criticAuditor が public プロパティとして公開されている
-		expect(result.criticAuditor).toBeDefined();
-		expect(result.criticAuditor).not.toBeNull();
-
-		// CriticAuditorPort の audit メソッドを持つ
-		expect(typeof result.criticAuditor?.audit).toBe("function");
+		expect(adapter).toBeDefined();
+		expect(typeof adapter?.audit).toBe("function");
 	});
 
-	test("data/context/SOUL.md が存在する場合: criticAuditor は overlay 側の定義を使う", async () => {
+	test("buildCriticAuditorAdapter(): audit() は SOUL.md 内容を CriticAuditor の system prompt に渡す", async () => {
 		const contextDir = resolve(testDir, "context");
-		const overlayContextDir = resolve(testDir, "data/context");
 		mkdirSync(contextDir, { recursive: true });
-		mkdirSync(overlayContextDir, { recursive: true });
-		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character\nbase persona");
-		writeFileSync(resolve(overlayContextDir, "SOUL.md"), "# Character\noverlay persona");
+		const soulPath = resolve(contextDir, "SOUL.md");
+		writeFileSync(soulPath, "# Character\nUnique persona marker\n「ふーん」");
 
-		const config = makeConfig(resolve(testDir, "data"));
-		const result = await setupMemoryRecording(config, logger, {
-			memoryPort: 19999,
-			root: testDir,
-		});
+		const guildId = "1100000000000000002";
+		const botUserId = "1100000000000000001";
+		const memoryDataDir = resolve(testDir, "data/memory");
+		const namespace = discordGuildNamespace(guildId);
+		mkdirSync(resolveMemoryDbDir(memoryDataDir, namespace), { recursive: true });
+		const storage = new MemoryStorage(resolveMemoryDbPath(memoryDataDir, namespace));
+		try {
+			await Promise.all(
+				Array.from({ length: 3 }, (_, i) =>
+					storage.saveEpisode(
+						guildId,
+						makeEpisode({
+							userId: guildId,
+							messages: [
+								{ role: "user", content: `hello ${i}`, authorId: "user-1" },
+								{
+									role: "assistant",
+									content: "お手伝いします。素晴らしいご質問ですね。了解しました。もちろんです。",
+									authorId: botUserId,
+									name: "ふあ",
+								},
+							],
+							startAt: new Date(Date.now() - 60_000),
+							endAt: new Date(),
+						}),
+					),
+				),
+			);
+		} finally {
+			storage.close();
+		}
 
-		expect(result).not.toBeUndefined();
-		if (!result) return;
-		expect(result.criticAuditor).toBeDefined();
-		expect(
-			(result.criticAuditor as { characterDefinition?: string }).characterDefinition,
-		).toContain("overlay persona");
+		const { llm, calls } = createSpyLLM({ severity: "none", summary: "ok" });
+		const adapter = await buildCriticAuditorAdapter(soulPath, llm, memoryDataDir, () => botUserId);
+
+		expect(adapter).toBeDefined();
+		if (!adapter) return;
+		const result = await adapter.audit(guildId);
+
+		expect(result).not.toBeNull();
+		expect(calls).toHaveLength(1);
+		const systemPrompt = calls[0]?.messages.find((m) => m.role === "system")?.content ?? "";
+		expect(systemPrompt).toContain("Unique persona marker");
 	});
 
-	test("SOUL.md が存在しない場合: MemoryResources を返すが criticAuditor は undefined（graceful degradation）", async () => {
+	test("SOUL.md が存在しない場合: MemoryResources を返す", async () => {
 		// context/ ディレクトリは存在するが SOUL.md がない
 		mkdirSync(resolve(testDir, "context"), { recursive: true });
 
@@ -157,9 +208,6 @@ describe("setupMemoryRecording()", () => {
 		if (!result) return;
 
 		expect(result.consolidationScheduler).toBeDefined();
-
-		// criticAuditor は undefined（SOUL.md がないため）
-		expect(result.criticAuditor).toBeUndefined();
 	});
 
 	test("SOUL.md が存在しない場合: エラーログを出さずに正常に動作する", async () => {
@@ -189,56 +237,57 @@ describe("setupMemoryRecording()", () => {
 		expect(result === undefined || typeof result === "object").toBe(true);
 	});
 
-	test("opts.getBotUserId が CriticAuditor の audit() 経由で利用可能（遅延解決）", async () => {
+	test("buildCriticAuditorAdapter(): getBotUserId は audit() まで遅延解決される", async () => {
 		// #847: gateway.start() より前に setupMemoryRecording が呼ばれるため、
 		// botUserId は遅延解決される必要がある。getBotUserId callback を opts に渡せること、
 		// および audit 呼び出しまで bot user id 解決を遅延できることを検証する。
 		const contextDir = resolve(testDir, "context");
 		mkdirSync(contextDir, { recursive: true });
-		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character\nYou are hua.");
+		const soulPath = resolve(contextDir, "SOUL.md");
+		writeFileSync(soulPath, "# Character\nYou are hua.");
 
-		const config = makeConfig(resolve(testDir, "data"));
 		let resolved: string | undefined;
 		const getBotUserId = () => resolved;
 
 		// 1) bot user id 未解決の状態で setup
-		const result = await setupMemoryRecording(config, logger, {
-			memoryPort: 19999,
-			root: testDir,
+		const { llm } = createSpyLLM({ severity: "none", summary: "ok" });
+		const adapter = await buildCriticAuditorAdapter(
+			soulPath,
+			llm,
+			resolve(testDir, "data/memory"),
 			getBotUserId,
-		});
+		);
 
-		expect(result).not.toBeUndefined();
-		if (!result) return;
+		expect(adapter).toBeDefined();
 
 		// 2) gateway.start() 後に bot user id が判明
 		resolved = "1100000000000000001";
 
-		// 3) criticAuditor が公開されており audit() メソッドを持つこと
-		expect(result.criticAuditor).toBeDefined();
-		expect(typeof result.criticAuditor?.audit).toBe("function");
+		// 3) adapter 構築後でも audit() 時点の bot user id を参照する
+		expect(typeof adapter?.audit).toBe("function");
 	});
 
-	test("getBotUserId が undefined を返している間に audit() が呼ばれても throw しない", async () => {
+	test("buildCriticAuditorAdapter(): getBotUserId が undefined の間は audit() が null を返す", async () => {
 		// gateway.start() 前に consolidationScheduler が起動するケースは現状ないが、
 		// 防衛的に bot user id 未解決時の audit は no-op（null 返却）になることを期待する。
 		const contextDir = resolve(testDir, "context");
 		mkdirSync(contextDir, { recursive: true });
-		writeFileSync(resolve(contextDir, "SOUL.md"), "# Character");
+		const soulPath = resolve(contextDir, "SOUL.md");
+		writeFileSync(soulPath, "# Character");
 
-		const config = makeConfig(resolve(testDir, "data"));
-		const result = await setupMemoryRecording(config, logger, {
-			memoryPort: 19999,
-			root: testDir,
-			getBotUserId: () => undefined,
-		});
+		const { llm } = createSpyLLM({ severity: "none", summary: "ok" });
+		const adapter = await buildCriticAuditorAdapter(
+			soulPath,
+			llm,
+			resolve(testDir, "data/memory"),
+			() => undefined,
+		);
 
-		expect(result).not.toBeUndefined();
-		if (!result) return;
-		expect(result.criticAuditor).toBeDefined();
+		expect(adapter).toBeDefined();
+		if (!adapter) return;
 
 		// bot user id 未解決時は audit は null を返して early-return すること
-		const auditResult = await result.criticAuditor!.audit("guild-1");
+		const auditResult = await adapter.audit("guild-1");
 		expect(auditResult).toBeNull();
 	});
 });
