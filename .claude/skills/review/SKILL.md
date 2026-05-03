@@ -33,7 +33,7 @@ user_invokable: true
 
 - Agent ツールの `name` に各エージェント名を設定し、4つ並列で呼び出す
 - `prompt` に `.claude/agents/{name}.md` の内容全文と diff 内容を含める
-- `model: sonnet` を指定する
+- `model: opus` を指定する
 
 ## Phase 3: 結果統合と振り分け
 
