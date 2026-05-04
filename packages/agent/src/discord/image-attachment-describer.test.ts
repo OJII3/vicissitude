@@ -49,13 +49,16 @@ describe("ImageAttachmentDescriber", () => {
 		expect(result.text).toContain("猫が写っている");
 		expect(result.attachments).toEqual([textFile]);
 		expect(sessionPort.createSession).toHaveBeenCalledWith("discord-image-recognition");
-		expect(sessionPort.prompt).toHaveBeenCalledWith({
-			sessionId: "vision-session",
-			text: expect.stringContaining('filename="photo.png"'),
-			model: { providerId: "vision-provider", modelId: "vision-model" },
-			tools: {},
-			attachments: [image],
-		});
+		expect(sessionPort.prompt).toHaveBeenCalledWith(
+			{
+				sessionId: "vision-session",
+				text: expect.stringContaining('filename="photo.png"'),
+				model: { providerId: "vision-provider", modelId: "vision-model" },
+				tools: {},
+				attachments: [image],
+			},
+			expect.any(AbortSignal),
+		);
 		expect(sessionPort.deleteSession).toHaveBeenCalledWith("vision-session");
 	});
 
@@ -76,5 +79,33 @@ describe("ImageAttachmentDescriber", () => {
 		expect(result).toEqual({ text: "hello", attachments: [attachment] });
 		expect(sessionPort.createSession).not.toHaveBeenCalled();
 		expect(sessionPort.prompt).not.toHaveBeenCalled();
+	});
+
+	test("画像認識がタイムアウトしても本文を返し、画像を通常プロンプトへ渡さない", async () => {
+		const sessionPort = createSessionPort();
+		sessionPort.prompt.mockImplementation((_params: unknown, signal?: AbortSignal) => {
+			expect(signal).toBeDefined();
+			return new Promise(() => {});
+		});
+		const logger = createMockLogger();
+		const describer = new ImageAttachmentDescriber({
+			sessionPort,
+			model: { providerId: "vision-provider", modelId: "vision-model" },
+			logger,
+			timeoutMs: 1,
+		});
+
+		const image = {
+			url: "https://example.com/photo.png",
+			contentType: "image/png",
+			filename: "photo.png",
+		};
+		const result = await describer.process("hello", [image]);
+
+		expect(result.text).toContain("hello");
+		expect(result.text).toContain("画像認識はタイムアウトしました");
+		expect(result.attachments).toEqual([]);
+		expect(sessionPort.deleteSession).toHaveBeenCalledWith("vision-session");
+		expect(logger.warn).toHaveBeenCalled();
 	});
 });
