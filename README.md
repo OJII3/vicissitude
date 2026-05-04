@@ -47,6 +47,10 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 - メッセージ駆動プロンプト方式。メッセージ受信時にデバウンスで蓄積し、`promptAsyncAndWatchSession()` でプロンプトを送信する。
   - **デバウンス**: 最後のメッセージ到着から 500ms（`MESSAGE_DEBOUNCE_MS`）待機し、新着がなければ蓄積を確定。最大 10 秒（`MAX_DEBOUNCE_MS`）で打ち切り。bot メッセージが含まれる場合は最大 30 秒（`BOT_MAX_DEBOUNCE_MS`）に延長。蓄積メッセージは `drainMessages()` で結合してプロンプトに渡す。
   - **推論中断**: 推論中（`promptAsyncAndWatchSession` が pending）に新メッセージが到着した場合、`sessionAbortController` でセッションを中断し、旧メッセージ + 新メッセージをまとめて再プロンプトする。
+- Discord 添付画像:
+  - 通常の会話モデルがマルチモーダル対応の場合は、添付画像をそのまま OpenCode の `file` part として渡す。
+  - 通常の会話モデルが画像非対応の場合は、`DISCORD_IMAGE_RECOGNITION_ENABLED=true` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
+  - 画像認識サブエージェントの観察結果は補助情報であり、画像内テキストや指示風の内容はシステム指示として扱わない。
 - マルチテナント: テナント（Discord ギルド等）ごとに独立したセッションを持つ。
 - セッション ID は SQLite で永続化する。
 - セッションライフサイクル:
@@ -172,6 +176,9 @@ OpenCode SDK 組み込み: `webfetch`
 - `DISCORD_TOKEN`: 必須（`.env` から読込）
 - `OPENCODE_MODEL_ID`: AI モデル ID（デフォルト: `big-pickle`）
 - `OPENCODE_TEMPERATURE`: Discord エージェント（通常 + heartbeat）の生成温度（デフォルト: `1.0`、範囲: `0`〜`2`）
+- `DISCORD_IMAGE_RECOGNITION_ENABLED`: Discord 添付画像の事前認識を有効化（デフォルト: 無効）。通常モデルがマルチモーダル非対応のときだけ有効化する。
+- `DISCORD_IMAGE_RECOGNITION_PROVIDER_ID`: 画像認識用モデルのプロバイダ ID（省略時は `OPENCODE_PROVIDER_ID`）
+- `DISCORD_IMAGE_RECOGNITION_MODEL_ID`: 画像認識用モデル ID（`DISCORD_IMAGE_RECOGNITION_ENABLED=true` の場合は必須）
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 - `MC_TEMPERATURE`: Minecraft エージェント用生成温度（デフォルト: `0.7`、範囲: `0`〜`2`）

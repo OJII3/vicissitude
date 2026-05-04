@@ -15,7 +15,8 @@
 		"./minecraft/context-builder": "./src/minecraft/context-builder.ts",
 		"./minecraft/profile": "./src/minecraft/profile.ts",
 		"./emotion/estimator": "./src/emotion/estimator.ts",
-		"./discord/message-formatter": "./src/discord/message-formatter.ts"
+		"./discord/message-formatter": "./src/discord/message-formatter.ts",
+		"./discord/image-attachment-describer": "./src/discord/image-attachment-describer.ts"
 	},
 	"dependencies": {
 		"@vicissitude/minecraft": "workspace:*",

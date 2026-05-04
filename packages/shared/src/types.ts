@@ -126,6 +126,17 @@ export interface PromptResult {
 	tokens?: TokenUsage;
 }
 
+// ─── Attachment Processing ──────────────────────────────────────
+
+export interface ProcessedPromptAttachments {
+	text: string;
+	attachments: Attachment[];
+}
+
+export interface AttachmentProcessor {
+	process(text: string, attachments: Attachment[]): Promise<ProcessedPromptAttachments>;
+}
+
 // ─── Metrics Collector ───────────────────────────────────────────
 
 export interface MetricsCollector {
