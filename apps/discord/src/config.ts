@@ -44,6 +44,12 @@ const githubSchema = z.object({
 	repo: z.string(),
 });
 
+const imageRecognitionSchema = z.object({
+	enabled: z.boolean(),
+	providerId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_PROVIDER_ID is required"),
+	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
+});
+
 const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
 	webPort: safeInt,
@@ -71,6 +77,7 @@ const appConfigSchema = z.object({
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
+	imageRecognition: imageRecognitionSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
 });
@@ -85,6 +92,12 @@ export type AppConfig = z.infer<typeof appConfigSchema>;
 
 // ─── Loader ──────────────────────────────────────────────────────
 
+function parseBooleanEnv(value: string | undefined): boolean {
+	if (!value) return false;
+	const normalized = value.trim().toLowerCase();
+	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+}
+
 export function loadConfig(
 	env: Record<string, string | undefined> = process.env,
 	root?: string,
@@ -94,6 +107,7 @@ export function loadConfig(
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
 
 	const basePort = Number(env.OPENCODE_BASE_PORT ?? "4096");
+	const imageRecognitionEnabled = parseBooleanEnv(env.DISCORD_IMAGE_RECOGNITION_ENABLED);
 
 	const raw = {
 		discordToken: env.DISCORD_TOKEN ?? "",
@@ -149,6 +163,13 @@ export function loadConfig(
 					token: env.GITHUB_TOKEN,
 					owner: env.GITHUB_OWNER ?? "",
 					repo: env.GITHUB_REPO ?? "",
+				}
+			: undefined,
+		imageRecognition: imageRecognitionEnabled
+			? {
+					enabled: true,
+					providerId: env.DISCORD_IMAGE_RECOGNITION_PROVIDER_ID ?? openCodeProviderId,
+					modelId: env.DISCORD_IMAGE_RECOGNITION_MODEL_ID ?? "",
 				}
 			: undefined,
 		dataDir: resolve(resolvedRoot, "data"),

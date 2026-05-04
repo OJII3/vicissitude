@@ -5,6 +5,7 @@ import type {
 	AgentResponse,
 	AiAgent,
 	Attachment,
+	AttachmentProcessor,
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
@@ -56,6 +57,8 @@ export interface RunnerDeps {
 	compactionCooldownMs?: number;
 	/** テスト用時刻プロバイダー。デフォルト: Date.now */
 	nowProvider?: () => number;
+	/** 添付を通常プロンプト投入前に処理する。Discord の画像認識補助などで使用 */
+	attachmentProcessor?: AttachmentProcessor;
 }
 
 export class AgentRunner implements AiAgent {
@@ -89,6 +92,7 @@ export class AgentRunner implements AiAgent {
 	private readonly summaryTimeoutMs: number;
 	private readonly compactionTokenThreshold?: number;
 	private readonly compactionCooldownMs: number;
+	private readonly attachmentProcessor?: AttachmentProcessor;
 	protected readonly nowProvider: () => number;
 	private lastCompactionAt: number | null = null;
 	protected pendingCompaction = false;
@@ -113,6 +117,7 @@ export class AgentRunner implements AiAgent {
 		this.summaryTimeoutMs = deps.summaryTimeoutMs ?? DEFAULT_SUMMARY_TIMEOUT_MS;
 		this.compactionTokenThreshold = deps.compactionTokenThreshold;
 		this.compactionCooldownMs = deps.compactionCooldownMs ?? 1_800_000;
+		this.attachmentProcessor = deps.attachmentProcessor;
 		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
@@ -389,6 +394,13 @@ export class AgentRunner implements AiAgent {
 		}
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
+
+		if (this.attachmentProcessor) {
+			const processed = await this.attachmentProcessor.process(text, attachments);
+			if (signal.aborted) return;
+			text = processed.text;
+			attachments = processed.attachments;
+		}
 
 		// lastPromptText / lastPromptAttachments にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
 		this.lastPromptText = text;

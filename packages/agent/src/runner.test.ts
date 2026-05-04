@@ -2043,6 +2043,47 @@ describe("AgentRunner attachments 伝搬（内部ロジック）", () => {
 		sessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("attachmentProcessor がある場合は処理後の本文と attachments をプロンプトへ渡す", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPort(() => sessionDone.promise);
+		const attachment: Attachment = {
+			url: "https://example.com/a.png",
+			contentType: "image/png",
+			filename: "a.png",
+		};
+		const attachmentProcessor = {
+			process: mock(() =>
+				Promise.resolve({
+					text: "msg\n\n<attachment_descriptions>画像説明</attachment_descriptions>",
+					attachments: [],
+				}),
+			),
+		};
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+			attachmentProcessor,
+		});
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "msg", attachments: [attachment] });
+		await Bun.sleep(0);
+
+		expect(attachmentProcessor.process).toHaveBeenCalledWith("msg", [attachment]);
+		const callArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
+		const params = callArgs[0] as { text: string; attachments?: Attachment[] };
+		expect(params.text).toContain("<attachment_descriptions>画像説明</attachment_descriptions>");
+		expect(params.attachments).toBeUndefined();
+
+		runner.stop();
+		sessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("attachments ありとなしの混在: attachments がある分だけマージされる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPort(() => sessionDone.promise);

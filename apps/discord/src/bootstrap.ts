@@ -4,6 +4,7 @@ import { resolve } from "path";
 
 import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
+import { ImageAttachmentDescriber } from "@vicissitude/agent/discord/image-attachment-describer";
 import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
@@ -177,6 +178,7 @@ export function createGuildAgents(
 				coreEnvironment: deps.coreEnvironment,
 			}),
 			minecraftEnabled: !!config.minecraft,
+			imageRecognitionEnabled: !!config.imageRecognition,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: config.opencode.basePort + portOffset + index,
@@ -185,6 +187,16 @@ export function createGuildAgents(
 			temperature: config.opencode.temperature,
 			logger: deps.logger,
 		});
+		const attachmentProcessor = config.imageRecognition
+			? new ImageAttachmentDescriber({
+					sessionPort,
+					model: {
+						providerId: config.imageRecognition.providerId,
+						modelId: config.imageRecognition.modelId,
+					},
+					logger: deps.logger,
+				})
+			: undefined;
 		const agent = new DiscordAgent({
 			guildId,
 			sessionStore: deps.sessionStore,
@@ -198,6 +210,7 @@ export function createGuildAgents(
 			agentIdPrefix: deps.agentIdPrefix,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
+			attachmentProcessor,
 		});
 		agents.set(guildId, agent);
 	}

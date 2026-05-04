@@ -1,5 +1,6 @@
 import type {
 	AgentResponse,
+	AttachmentProcessor,
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
@@ -37,6 +38,8 @@ export interface DiscordAgentDeps {
 	nowProvider?: () => number;
 	/** 会話ブレイク検出設定 */
 	conversationBreak?: ConversationBreakConfig;
+	/** Discord 添付画像を通常モデル向けのテキスト観察へ変換する補助 */
+	attachmentProcessor?: AttachmentProcessor;
 }
 
 export class DiscordAgent extends AgentRunner {
@@ -61,6 +64,7 @@ export class DiscordAgent extends AgentRunner {
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
 			nowProvider: deps.nowProvider,
+			attachmentProcessor: deps.attachmentProcessor,
 		});
 		this.compactionGapMs = deps.conversationBreak?.compactionGapMs ?? 1_800_000;
 		this.rotationGapMs = deps.conversationBreak?.rotationGapMs ?? 21_600_000;
