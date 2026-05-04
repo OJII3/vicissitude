@@ -12,10 +12,12 @@ export interface DeploySourceStatus {
 	branch: string;
 	head: string;
 	remoteHead: string;
+	worktreeStatus: string;
 }
 
 const DEPLOY_BRANCH = "main";
 const DEPLOY_REMOTE_REF = "origin/main";
+const DEPLOY_FETCH_REFSPEC = "refs/heads/main:refs/remotes/origin/main";
 
 export function runCommand(command: string, args: string[]): CommandResult {
 	const result = spawnSync(command, args, { encoding: "utf8" });
@@ -27,12 +29,13 @@ export function runCommand(command: string, args: string[]): CommandResult {
 }
 
 export function getDeploySourceStatus(runner: CommandRunner = runCommand): DeploySourceStatus {
-	requireCommand(runner, "git", ["fetch", "origin", DEPLOY_BRANCH]);
+	requireCommand(runner, "git", ["fetch", "origin", DEPLOY_FETCH_REFSPEC]);
 
 	return {
 		branch: requireCommand(runner, "git", ["branch", "--show-current"]),
 		head: requireCommand(runner, "git", ["rev-parse", "HEAD"]),
 		remoteHead: requireCommand(runner, "git", ["rev-parse", DEPLOY_REMOTE_REF]),
+		worktreeStatus: requireCommand(runner, "git", ["status", "--porcelain"]),
 	};
 }
 
@@ -49,6 +52,10 @@ export function validateDeploySource(status: DeploySourceStatus): string[] {
 		problems.push(
 			`deploy 元が ${DEPLOY_REMOTE_REF} と一致していません: HEAD=${shortSha(status.head)} ${DEPLOY_REMOTE_REF}=${shortSha(status.remoteHead)}`,
 		);
+	}
+
+	if (status.worktreeStatus !== "") {
+		problems.push("deploy 元に未コミット変更があります。作業ツリーを clean にしてください。");
 	}
 
 	return problems;
