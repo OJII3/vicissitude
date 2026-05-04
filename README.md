@@ -180,6 +180,7 @@ OpenCode SDK 組み込み: `webfetch`
 - `DISCORD_IMAGE_RECOGNITION_ENABLED`: Discord 添付画像の事前認識を有効化（デフォルト: 無効）。通常モデルがマルチモーダル非対応のときだけ有効化する。
 - `DISCORD_IMAGE_RECOGNITION_PROVIDER_ID`: 画像認識用モデルのプロバイダ ID（省略時は `OPENCODE_PROVIDER_ID`）
 - `DISCORD_IMAGE_RECOGNITION_MODEL_ID`: 画像認識用モデル ID（`DISCORD_IMAGE_RECOGNITION_ENABLED=true` の場合は必須）
+  - 動作確認済み: `DISCORD_IMAGE_RECOGNITION_PROVIDER_ID=opencode-go`, `DISCORD_IMAGE_RECOGNITION_MODEL_ID=kimi-k2.5`
 - `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
 - `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
 - `MC_TEMPERATURE`: Minecraft エージェント用生成温度（デフォルト: `0.7`、範囲: `0`〜`2`）
