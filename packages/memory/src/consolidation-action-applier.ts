@@ -14,7 +14,7 @@ export interface FactApplicationContext {
 }
 
 interface ResolvedFactApplicationContext extends FactApplicationContext {
-	existingFactsById: ReadonlyMap<string, SemanticFact>;
+	activeFactsById: Map<string, SemanticFact>;
 }
 
 export interface FactApplicationResult {
@@ -53,7 +53,7 @@ export class ConsolidationFactApplier {
 	): Promise<FactApplicationResult> {
 		const resolvedCtx = {
 			...ctx,
-			existingFactsById: new Map(ctx.existingFacts.map((fact) => [fact.id, fact])),
+			activeFactsById: new Map(ctx.existingFacts.map((fact) => [fact.id, fact])),
 		};
 		const result = emptyFactApplicationResult();
 		for (const extracted of output.facts) {
@@ -94,9 +94,12 @@ export class ConsolidationFactApplier {
 		const embedding = await this.llm.embed(extracted.fact);
 		const duplicate = await this.findDuplicate(ctx.userId, embedding);
 		if (duplicate) {
-			await this.storage.updateFact(ctx.userId, duplicate.id, {
+			const reinforced = {
+				...duplicate,
 				sourceEpisodicIds: appendSourceEpisode(duplicate, ctx.episodeId),
-			});
+			};
+			await this.storage.updateFact(ctx.userId, duplicate.id, reinforced);
+			ctx.activeFactsById.set(duplicate.id, reinforced);
 			return "reinforce";
 		}
 		const fact = createFact({
@@ -109,6 +112,7 @@ export class ConsolidationFactApplier {
 			now: ctx.now,
 		});
 		await this.storage.saveFact(ctx.userId, fact);
+		ctx.activeFactsById.set(fact.id, fact);
 		return "new";
 	}
 
@@ -131,9 +135,12 @@ export class ConsolidationFactApplier {
 		extracted: ExtractedFact & { action: "reinforce" },
 	): Promise<void> {
 		const existing = this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
-		await this.storage.updateFact(ctx.userId, extracted.existingFactId, {
+		const reinforced = {
+			...existing,
 			sourceEpisodicIds: appendSourceEpisode(existing, ctx.episodeId),
-		});
+		};
+		await this.storage.updateFact(ctx.userId, extracted.existingFactId, reinforced);
+		ctx.activeFactsById.set(extracted.existingFactId, reinforced);
 	}
 
 	private async applyUpdate(
@@ -142,6 +149,7 @@ export class ConsolidationFactApplier {
 	): Promise<void> {
 		this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
 		await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
+		ctx.activeFactsById.delete(extracted.existingFactId);
 		await this.applyNew(ctx, extracted);
 	}
 
@@ -151,6 +159,7 @@ export class ConsolidationFactApplier {
 	): Promise<void> {
 		this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
 		await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
+		ctx.activeFactsById.delete(extracted.existingFactId);
 	}
 
 	private requireExistingFact(
@@ -158,9 +167,11 @@ export class ConsolidationFactApplier {
 		factId: string,
 		action: ConsolidationAction,
 	): SemanticFact {
-		const existing = ctx.existingFactsById.get(factId);
+		const existing = ctx.activeFactsById.get(factId);
 		if (!existing) {
-			throw new Error(`consolidation action "${action}" references unknown fact: ${factId}`);
+			throw new Error(
+				`consolidation action "${action}" references inactive or unknown fact: ${factId}`,
+			);
 		}
 		return existing;
 	}

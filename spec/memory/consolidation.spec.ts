@@ -230,6 +230,53 @@ describe("ConsolidationPipeline — reinforce", () => {
 		const facts = await storage.getFacts(userId);
 		expect(facts).toHaveLength(0);
 	});
+
+	test("rejects reinforce after the same output invalidates that fact", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "invalidate",
+					category: "preference",
+					fact: "User no longer likes TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+				{
+					action: "reinforce",
+					category: "preference",
+					fact: "User likes TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("unknown fact");
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(0);
+	});
 });
 
 describe("ConsolidationPipeline — update", () => {
@@ -278,6 +325,54 @@ describe("ConsolidationPipeline — update", () => {
 		expect(facts).toHaveLength(1);
 		expect(facts[0]!.fact).toBe("User now prefers TypeScript over JavaScript");
 		expect(facts[0]!.sourceEpisodicIds).toEqual([episode.id]);
+	});
+
+	test("rejects reinforce after the same output updates that fact", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "update",
+					category: "preference",
+					fact: "User now prefers TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+				{
+					action: "reinforce",
+					category: "preference",
+					fact: "User likes JavaScript",
+					keywords: ["javascript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("unknown fact");
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.fact).toBe("User now prefers TypeScript");
 	});
 });
 
