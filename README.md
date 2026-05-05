@@ -68,9 +68,10 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
   - 発火条件: idle 遷移時に以下のいずれかを満たす場合（クールダウン 30 分）。
     - トークン蓄積量（input + output）が閾値以上。
     - 深夜帯（2:00–5:00 JST）かつセッション経過がセッション寿命の半分以上かつトークン蓄積が閾値の半分以上。
-  - フロー: `summarizeSession` → compacted イベント → rewatch（イベントストリーム再購読）。セッションは維持される。
+  - 明示的に `summarizeSession` を呼ぶ経路では、API の正常終了を compaction 完了として扱う。OpenCode は `session.compacted` / `session.idle` を HTTP 応答前に発火しうるため、応答後に rewatch してそれらのイベントを待たない。
+  - compaction 成功後はセッションを維持し、次回プロンプトで system prompt を再注入する。
   - 失敗時はスキップし、通常のメッセージ待機ループを継続する。
-- リカバリ（ローテーション不要）: compacted（proactive compaction 含む）/ streamDisconnected はセッション存続中のため、イベントストリームの再購読のみ行う。
+- リカバリ（ローテーション不要）: 監視中イベントストリームから受け取った compacted / streamDisconnected はセッション存続中のため、イベントストリームの再購読のみ行う。
 
 ### 3.4 ツール構成
 

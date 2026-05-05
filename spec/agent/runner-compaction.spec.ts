@@ -4,7 +4,7 @@
  * 期待仕様:
  * 1. トークン蓄積量が閾値を超えた場合に summarizeSession が呼ばれる
  * 2. 深夜帯（2:00-5:00 JST）にセッションが一定時間アクティブだった場合に summarizeSession が呼ばれる
- * 3. summarizeSession 呼び出し後、compacted イベントで既存の rewatch ロジックがそのまま動く
+ * 3. summarizeSession 呼び出しの正常終了を compaction 完了として扱い、rewatch で compacted イベントを待たない
  * 4. summarizeSession が失敗しても polling loop はクラッシュしない
  * 5. compaction は同一セッション内で連続発火しない（クールダウンあり）
  */
@@ -65,11 +65,11 @@ afterEach(() => {
 describe("トークン閾値による proactive compaction", () => {
 	test("蓄積トークンが閾値を超えた session.idle イベントで summarizeSession が呼ばれる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
-		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const waitForSessionIdleMock = mock(() => Promise.resolve({ type: "idle" as const }));
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => sessionDone.promise),
-			waitForSessionIdle: mock(() => rewatchDone.promise),
+			waitForSessionIdle: waitForSessionIdleMock,
 		});
 
 		const runner = new TestAgent({
@@ -104,9 +104,9 @@ describe("トークン閾値による proactive compaction", () => {
 			providerId: "test-provider",
 			modelId: "test-model",
 		});
+		expect(waitForSessionIdleMock).not.toHaveBeenCalled();
 
 		runner.stop();
-		rewatchDone.resolve({ type: "cancelled" });
 	});
 
 	test("蓄積トークンが閾値未満なら summarizeSession は呼ばれない", async () => {
@@ -159,11 +159,11 @@ describe("トークン閾値による proactive compaction", () => {
 describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 	test("深夜帯 + セッション経過半分以上 + トークン閾値半分以上なら summarizeSession が呼ばれる", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
-		const rewatchDone = deferred<OpencodeSessionEvent>();
+		const waitForSessionIdleMock = mock(() => Promise.resolve({ type: "idle" as const }));
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: mock(() => sessionDone.promise),
-			waitForSessionIdle: mock(() => rewatchDone.promise),
+			waitForSessionIdle: waitForSessionIdleMock,
 		});
 
 		const sessionMaxAgeMs = 3_600_000;
@@ -207,9 +207,9 @@ describe("深夜帯（2:00-5:00 JST）proactive compaction", () => {
 		await Bun.sleep(0);
 
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+		expect(waitForSessionIdleMock).not.toHaveBeenCalled();
 
 		runner.stop();
-		rewatchDone.resolve({ type: "cancelled" });
 	});
 });
 
@@ -279,7 +279,6 @@ describe("proactive compaction のクールダウン", () => {
 	test("直前に compaction を実行した場合、クールダウン中は再発火しない", async () => {
 		const firstDone = deferred<OpencodeSessionEvent>();
 		const secondDone = deferred<OpencodeSessionEvent>();
-		const thirdDone = deferred<OpencodeSessionEvent>();
 
 		let sessionCallCount = 0;
 
@@ -287,10 +286,8 @@ describe("proactive compaction のクールダウン", () => {
 			promptAsyncAndWatchSession: mock(() => {
 				sessionCallCount++;
 				if (sessionCallCount === 1) return firstDone.promise;
-				if (sessionCallCount === 2) return secondDone.promise;
-				return thirdDone.promise;
+				return secondDone.promise;
 			}),
-			waitForSessionIdle: mock(() => secondDone.promise),
 		});
 
 		const runner = new TestAgent({
@@ -321,7 +318,11 @@ describe("proactive compaction のクールダウン", () => {
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// compacted イベントで rewatch → 再度 idle（再度閾値超え）
+		// 2回目の通常プロンプトで再度閾値超え
+		await runner.send({ sessionKey: "k", message: "second" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
 		secondDone.resolve({
 			type: "idle",
 			tokens: { input: 200, output: 100, cacheRead: 50 },
@@ -334,7 +335,6 @@ describe("proactive compaction のクールダウン", () => {
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
 
 		runner.stop();
-		thirdDone.resolve({ type: "cancelled" });
 	});
 });
 
@@ -408,9 +408,8 @@ describe("compaction 後のシステムプロンプト再注入 (pendingSystemRe
 	});
 
 	test("proactive compaction 成功後の次回プロンプトで contextBuilder.build が呼ばれる", async () => {
-		// tryProactiveCompact 成功 → summarizeSession → compacted → rewatch → idle → 新メッセージで build
+		// tryProactiveCompact 成功 → summarizeSession 正常終了 → 新メッセージで build
 		const firstSessionDone = deferred<OpencodeSessionEvent>();
-		const rewatchDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 
 		const contextBuilder = createContextBuilder();
@@ -420,9 +419,12 @@ describe("compaction 後のシステムプロンプト再注入 (pendingSystemRe
 			return Promise.resolve("system prompt");
 		});
 
+		let watchCallCount = 0;
 		const sessionPort = createSessionPortWithSummarize({
-			promptAsyncAndWatchSession: mock(() => firstSessionDone.promise),
-			waitForSessionIdle: mock(() => rewatchDone.promise),
+			promptAsyncAndWatchSession: mock(() => {
+				watchCallCount++;
+				return watchCallCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+			}),
 		});
 
 		const runner = new TestAgent({
@@ -446,7 +448,7 @@ describe("compaction 後のシステムプロンプト再注入 (pendingSystemRe
 
 		expect(buildCallCount).toBe(1);
 
-		// ステップ2: 閾値超えの idle → summarizeSession 発火 → rewatchSession
+		// ステップ2: 閾値超えの idle → summarizeSession 発火。rewatch はしない
 		firstSessionDone.resolve({
 			type: "idle",
 			tokens: { input: 200, output: 100, cacheRead: 50 },
@@ -457,17 +459,7 @@ describe("compaction 後のシステムプロンプト再注入 (pendingSystemRe
 
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
 
-		// ステップ3: rewatch が idle で解決 → ループが waitForMessages に入る
-		// promptAsyncAndWatchSession を次回用に差し替え
-		(
-			sessionPort as unknown as { promptAsyncAndWatchSession: ReturnType<typeof mock> }
-		).promptAsyncAndWatchSession = mock(() => secondSessionDone.promise);
-		rewatchDone.resolve({ type: "idle" });
-		await Bun.sleep(0);
-		await Bun.sleep(0);
-		await Bun.sleep(0);
-
-		// ステップ4: 2回目のメッセージ → pendingSystemReinject により build が呼ばれる
+		// ステップ3: 2回目のメッセージ → pendingSystemReinject により build が呼ばれる
 		await runner.send({ sessionKey: "k", message: "second" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);

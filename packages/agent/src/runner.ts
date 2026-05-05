@@ -228,10 +228,7 @@ export class AgentRunner implements AiAgent {
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
 				// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
-				if (event.type === "idle" && (await this.tryProactiveCompact(event, signal))) {
-					resetBackoffState();
-					continue;
-				}
+				if (event.type === "idle") await this.tryProactiveCompact(event);
 
 				// eslint-disable-next-line no-await-in-loop -- rotation only happens after session end
 				await this.rotateSessionIfExpired();
@@ -366,7 +363,8 @@ export class AgentRunner implements AiAgent {
 
 		if (this.pendingCompaction) {
 			this.pendingCompaction = false;
-			if (await this.triggerCompaction(signal)) return;
+			await this.triggerCompaction();
+			if (signal.aborted) return;
 		}
 
 		let text: string;
@@ -573,48 +571,41 @@ export class AgentRunner implements AiAgent {
 	}
 
 	/** 会話ブレイクによる compaction を試行する */
-	protected async triggerCompaction(signal: AbortSignal): Promise<boolean> {
+	protected async triggerCompaction(): Promise<void> {
 		const now = this.nowProvider();
 		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
-			return false;
+			return;
 		}
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
-		if (!sessionId) return false;
+		if (!sessionId) return;
 		try {
 			await this.sessionPort.summarizeSession(sessionId, this.profile.model);
 			this.lastCompactionAt = now;
 			this.pendingSystemReinject = true;
-			this.logger.info(`[${this.profile.name}:${this.agentId}] break-triggered compaction`);
-			this.rewatchSession(signal);
-			return true;
+			this.logger.info(
+				`[${this.profile.name}:${this.agentId}] break-triggered compaction completed`,
+			);
 		} catch (err) {
 			this.logger.warn(
 				`[${this.profile.name}:${this.agentId}] break-triggered compaction failed: ${formatErrorMessage(err)}`,
 			);
-			return false;
 		}
 	}
 
-	/** proactive compaction を試行し、成功して rewatch を開始した場合に true を返す */
-	private async tryProactiveCompact(
-		event: OpencodeSessionEvent & { type: "idle" },
-		signal: AbortSignal,
-	): Promise<boolean> {
-		if (!this.shouldProactiveCompact(event)) return false;
+	/** proactive compaction を試行し、成功した場合は次回プロンプトで system prompt を再注入する */
+	private async tryProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): Promise<void> {
+		if (!this.shouldProactiveCompact(event)) return;
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
-		if (!sessionId) return false;
+		if (!sessionId) return;
 		try {
 			await this.sessionPort.summarizeSession(sessionId, this.profile.model);
 			this.lastCompactionAt = this.nowProvider();
 			this.pendingSystemReinject = true;
-			this.logger.info(`[${this.profile.name}:${this.agentId}] proactive compaction triggered`);
-			this.rewatchSession(signal);
-			return true;
+			this.logger.info(`[${this.profile.name}:${this.agentId}] proactive compaction completed`);
 		} catch (err) {
 			this.logger.warn(
 				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally: ${formatErrorMessage(err)}`,
 			);
-			return false;
 		}
 	}
 
