@@ -3,7 +3,7 @@
  *
  * 期待仕様:
  * 1. pendingCompaction = true のとき ensureSessionStarted が triggerCompaction を呼び summarizeSession が実行される
- * 2. triggerCompaction 成功後、promptAsyncAndWatchSession は呼ばれず waitForSessionIdle（rewatchSession 経由）が呼ばれる
+ * 2. triggerCompaction 成功後、waitForSessionIdle は呼ばず、保留中メッセージの通常プロンプト処理に進む
  * 3. クールダウン期間中は triggerCompaction がスキップされ通常のメッセージ処理に進む
  * 4. セッション未存在時は triggerCompaction がスキップされ通常のメッセージ処理に進む
  * 5. summarizeSession が reject しても polling loop はクラッシュせず通常のメッセージ処理に進む
@@ -72,10 +72,9 @@ afterEach(() => {
 
 describe("pendingCompaction フラグ消費による break-triggered compaction", () => {
 	test("pendingCompaction = true のとき ensureSessionStarted が summarizeSession を実行する", async () => {
-		const rewatchDone = deferred<OpencodeSessionEvent>();
-
+		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPortWithSummarize({
-			waitForSessionIdle: mock(() => rewatchDone.promise),
+			promptAsyncAndWatchSession: mock(() => sessionDone.promise),
 		});
 		// 既存セッションが存在する状態にする
 		(sessionPort.sessionExists as ReturnType<typeof mock>).mockImplementation(() =>
@@ -109,14 +108,14 @@ describe("pendingCompaction フラグ消費による break-triggered compaction"
 		});
 
 		runner.stop();
-		rewatchDone.resolve({ type: "cancelled" });
+		sessionDone.resolve({ type: "cancelled" });
 	});
 
-	test("triggerCompaction 成功後、promptAsyncAndWatchSession は呼ばれず waitForSessionIdle が呼ばれる", async () => {
-		const rewatchDone = deferred<OpencodeSessionEvent>();
+	test("triggerCompaction 成功後、waitForSessionIdle は呼ばず通常プロンプト処理に進む", async () => {
+		const sessionDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(() => Promise.resolve({ type: "idle" as const }));
-		const waitForSessionIdleMock = mock(() => rewatchDone.promise);
+		const promptAsyncAndWatchSessionMock = mock(() => sessionDone.promise);
+		const waitForSessionIdleMock = mock(() => Promise.resolve({ type: "idle" as const }));
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: promptAsyncAndWatchSessionMock,
@@ -145,14 +144,13 @@ describe("pendingCompaction フラグ消費による break-triggered compaction"
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 
-		// compaction 成功 → rewatchSession 経由で waitForSessionIdle が呼ばれる
+		// compaction 成功 → SSE rewatch ではなく、保留中メッセージの prompt へ進む
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
-		expect(waitForSessionIdleMock).toHaveBeenCalled();
-		// promptAsyncAndWatchSession は呼ばれない（ensureSessionStarted が早期 return）
-		expect(promptAsyncAndWatchSessionMock).not.toHaveBeenCalled();
+		expect(waitForSessionIdleMock).not.toHaveBeenCalled();
+		expect(promptAsyncAndWatchSessionMock).toHaveBeenCalled();
 
 		runner.stop();
-		rewatchDone.resolve({ type: "cancelled" });
+		sessionDone.resolve({ type: "cancelled" });
 	});
 });
 
@@ -161,11 +159,15 @@ describe("pendingCompaction フラグ消費による break-triggered compaction"
 describe("クールダウン中の triggerCompaction スキップ", () => {
 	test("クールダウン期間中は triggerCompaction がスキップされ通常のメッセージ処理に進む", async () => {
 		// まず1回 compaction を成功させてクールダウンに入る
-		const firstRewatchDone = deferred<OpencodeSessionEvent>();
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
 		const secondSessionDone = deferred<OpencodeSessionEvent>();
 
-		const promptAsyncAndWatchSessionMock = mock(() => secondSessionDone.promise);
-		const waitForSessionIdleMock = mock(() => firstRewatchDone.promise);
+		let promptCallCount = 0;
+		const promptAsyncAndWatchSessionMock = mock(() => {
+			promptCallCount++;
+			return promptCallCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+		const waitForSessionIdleMock = mock(() => Promise.resolve({ type: "idle" as const }));
 
 		const sessionPort = createSessionPortWithSummarize({
 			promptAsyncAndWatchSession: promptAsyncAndWatchSessionMock,
@@ -198,9 +200,10 @@ describe("クールダウン中の triggerCompaction スキップ", () => {
 		await Bun.sleep(0);
 
 		expect(sessionPort.summarizeSession).toHaveBeenCalledTimes(1);
+		expect(waitForSessionIdleMock).not.toHaveBeenCalled();
 
-		// rewatch 完了 → polling loop が次のイテレーションへ
-		firstRewatchDone.resolve({ type: "idle" });
+		// 1回目の通常プロンプト完了 → polling loop が次のイテレーションへ
+		firstSessionDone.resolve({ type: "idle" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 		await Bun.sleep(0);
