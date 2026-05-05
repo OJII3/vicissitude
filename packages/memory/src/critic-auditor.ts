@@ -98,6 +98,7 @@ export class CriticAuditor {
 				keywords: result.guidelineKeywords ?? [],
 				sourceEpisodicIds: [],
 				embedding,
+				now: new Date(this.nowProvider()),
 			});
 			await this.storage.saveFact(userId, fact);
 		}

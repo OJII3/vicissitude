@@ -29,6 +29,7 @@ export function makeFact(overrides: Partial<Parameters<typeof createFact>[0]> = 
 		keywords: ["typescript"],
 		sourceEpisodicIds: ["ep-1"],
 		embedding: [0.1, 0.2, 0.3],
+		now: new Date("2026-01-01T00:00:00Z"),
 		...overrides,
 	});
 }
