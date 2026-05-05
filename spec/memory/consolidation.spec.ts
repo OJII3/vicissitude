@@ -5,13 +5,17 @@ import type { ConsolidationOutput } from "@vicissitude/memory/consolidation";
 import { ConsolidationPipeline } from "@vicissitude/memory/consolidation";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
-import { createFact } from "@vicissitude/memory/semantic-fact";
+import { createFact as createSemanticFact } from "@vicissitude/memory/semantic-fact";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import type { ChatMessage } from "@vicissitude/memory/types";
 
 import { createInvalidLLM, createMockLLM, makeEpisode } from "./test-helpers.ts";
 
 const userId = "user-1";
+
+function createFact(params: Omit<Parameters<typeof createSemanticFact>[0], "now">) {
+	return createSemanticFact({ ...params, now: new Date("2026-01-01T00:00:00Z") });
+}
 
 function createConsolidationLLM(consolidationResponse?: ConsolidationOutput): MemoryLlmPort {
 	return createMockLLM({ structuredResponse: consolidationResponse ?? { facts: [] } });

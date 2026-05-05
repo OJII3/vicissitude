@@ -22,14 +22,15 @@ export interface CreateFactParams {
 	keywords: string[];
 	sourceEpisodicIds: string[];
 	embedding: number[];
+	now: Date;
 }
 
 /** Create a new SemanticFact */
 export function createFact(params: CreateFactParams): SemanticFact {
-	const now = new Date();
+	const { now, ...factParams } = params;
 	return {
 		id: crypto.randomUUID(),
-		...params,
+		...factParams,
 		validAt: now,
 		invalidAt: null,
 		createdAt: now,

@@ -10,6 +10,7 @@ const baseParams = () => ({
 	keywords: ["typescript", "language"],
 	sourceEpisodicIds: ["ep-1", "ep-2"],
 	embedding: [0.1, 0.2, 0.3],
+	now: new Date("2026-01-01T00:00:00Z"),
 });
 
 describe("createFact", () => {
@@ -36,12 +37,9 @@ describe("createFact", () => {
 		expect(f1.id).not.toBe(f2.id);
 	});
 
-	test("validAt is set to approximately now", () => {
-		const before = new Date();
+	test("validAt is set to the contracted timestamp", () => {
 		const fact = createFact(baseParams());
-		const after = new Date();
-		expect(fact.validAt.getTime()).toBeGreaterThanOrEqual(before.getTime());
-		expect(fact.validAt.getTime()).toBeLessThanOrEqual(after.getTime());
+		expect(fact.validAt).toEqual(new Date("2026-01-01T00:00:00Z"));
 	});
 
 	test("createdAt equals validAt (same timestamp)", () => {
