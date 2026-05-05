@@ -2,7 +2,40 @@ import type { Schema } from "./llm-port.ts";
 import type { ConsolidationAction, FactCategory } from "./types.ts";
 import { CONSOLIDATION_ACTIONS, FACT_CATEGORIES } from "./types.ts";
 
-export interface ExtractedFact {
+export interface BaseExtractedFact {
+	category: FactCategory;
+	fact: string;
+	keywords: string[];
+}
+
+export interface NewExtractedFact extends BaseExtractedFact {
+	action: "new";
+	existingFactId?: never;
+}
+
+export interface ReinforceExtractedFact extends BaseExtractedFact {
+	action: "reinforce";
+	existingFactId: string;
+}
+
+export interface UpdateExtractedFact extends BaseExtractedFact {
+	action: "update";
+	existingFactId: string;
+}
+
+export interface InvalidateExtractedFact extends BaseExtractedFact {
+	action: "invalidate";
+	existingFactId: string;
+}
+
+export type ExistingExtractedFact =
+	| ReinforceExtractedFact
+	| UpdateExtractedFact
+	| InvalidateExtractedFact;
+
+export type ExtractedFact = NewExtractedFact | ExistingExtractedFact;
+
+export interface RawExtractedFact {
 	action: ConsolidationAction;
 	category: FactCategory;
 	fact: string;
@@ -20,6 +53,11 @@ const MAX_FACT_LENGTH = 1000;
 const MAX_KEYWORD_LENGTH = 100;
 const VALID_ACTIONS = new Set<string>(CONSOLIDATION_ACTIONS);
 const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
+const ACTIONS_REQUIRING_EXISTING_FACT_ID: ReadonlySet<ConsolidationAction> = new Set([
+	"reinforce",
+	"update",
+	"invalidate",
+]);
 
 function validateFactFields(obj: Record<string, unknown>, i: number): void {
 	if (typeof obj["action"] !== "string" || !VALID_ACTIONS.has(obj["action"])) {
@@ -62,8 +100,10 @@ function validateKeywords(obj: Record<string, unknown>, i: number): void {
 
 function validateExistingFactId(obj: Record<string, unknown>, i: number): void {
 	const action = obj["action"] as ConsolidationAction;
-	const needsExistingId = action === "reinforce" || action === "update" || action === "invalidate";
-	if (needsExistingId && typeof obj["existingFactId"] !== "string") {
+	if (action === "new" && obj["existingFactId"] !== undefined) {
+		throw new TypeError(`facts[${i}].existingFactId: not allowed for action "new"`);
+	}
+	if (ACTIONS_REQUIRING_EXISTING_FACT_ID.has(action) && typeof obj["existingFactId"] !== "string") {
 		throw new TypeError(`facts[${i}].existingFactId: required for action "${action}"`);
 	}
 }
@@ -76,13 +116,37 @@ function validateExtractedFact(f: unknown, i: number): ExtractedFact {
 	validateFactFields(obj, i);
 	validateKeywords(obj, i);
 	validateExistingFactId(obj, i);
-	return {
+	return toExtractedFact({
 		action: obj["action"] as ConsolidationAction,
 		category: obj["category"] as FactCategory,
 		fact: obj["fact"] as string,
 		keywords: obj["keywords"] as string[],
 		existingFactId: typeof obj["existingFactId"] === "string" ? obj["existingFactId"] : undefined,
-	};
+	});
+}
+
+function toExtractedFact(fact: RawExtractedFact): ExtractedFact {
+	switch (fact.action) {
+		case "new": {
+			return {
+				action: fact.action,
+				category: fact.category,
+				fact: fact.fact,
+				keywords: fact.keywords,
+			};
+		}
+		case "reinforce":
+		case "update":
+		case "invalidate": {
+			return {
+				action: fact.action,
+				category: fact.category,
+				fact: fact.fact,
+				keywords: fact.keywords,
+				existingFactId: fact.existingFactId as string,
+			};
+		}
+	}
 }
 
 export const consolidationSchema: Schema<ConsolidationOutput> = {

@@ -68,9 +68,9 @@ export class EpisodicMemory {
 	}
 
 	/** Mark an episode as consolidated into semantic memory */
-	async markConsolidated(userId: string, episodeId: string): Promise<void> {
+	async markConsolidated(userId: string, episodeId: string, consolidatedAt: Date): Promise<void> {
 		validateUserId(userId);
-		return this.storage.markEpisodeConsolidated(userId, episodeId);
+		return this.storage.markEpisodeConsolidated(userId, episodeId, consolidatedAt);
 	}
 
 	/** Calculate the current retrievability of an episode */

@@ -242,10 +242,14 @@ export class MemoryStorage {
 			);
 	}
 
-	async markEpisodeConsolidated(userId: string, episodeId: string): Promise<void> {
+	async markEpisodeConsolidated(
+		userId: string,
+		episodeId: string,
+		consolidatedAt: Date,
+	): Promise<void> {
 		this.db
 			.prepare("UPDATE episodes SET consolidated_at = ? WHERE id = ? AND user_id = ?")
-			.run(Date.now(), episodeId, userId);
+			.run(consolidatedAt.getTime(), episodeId, userId);
 	}
 
 	async saveFact(userId: string, fact: SemanticFact): Promise<void> {

@@ -13,6 +13,10 @@ export interface FactApplicationContext {
 	now: Date;
 }
 
+interface ResolvedFactApplicationContext extends FactApplicationContext {
+	existingFactsById: ReadonlyMap<string, SemanticFact>;
+}
+
 export interface FactApplicationResult {
 	newFacts: number;
 	reinforced: number;
@@ -47,46 +51,51 @@ export class ConsolidationFactApplier {
 		ctx: FactApplicationContext,
 		output: ConsolidationOutput,
 	): Promise<FactApplicationResult> {
+		const resolvedCtx = {
+			...ctx,
+			existingFactsById: new Map(ctx.existingFacts.map((fact) => [fact.id, fact])),
+		};
 		const result = emptyFactApplicationResult();
 		for (const extracted of output.facts) {
 			// eslint-disable-next-line no-await-in-loop -- sequential writes preserve action order
-			const actualAction = await this.dispatchAction(ctx, extracted);
-			if (actualAction) {
-				incrementResult(result, actualAction);
-			}
+			const actualAction = await this.dispatchAction(resolvedCtx, extracted);
+			incrementResult(result, actualAction);
 		}
 		return result;
 	}
 
 	private async dispatchAction(
-		ctx: FactApplicationContext,
+		ctx: ResolvedFactApplicationContext,
 		extracted: ExtractedFact,
-	): Promise<ConsolidationAction | null> {
+	): Promise<ConsolidationAction> {
 		switch (extracted.action) {
 			case "new": {
 				return this.applyNew(ctx, extracted);
 			}
 			case "reinforce": {
-				return (await this.applyReinforce(ctx, extracted)) ? "reinforce" : null;
+				await this.applyReinforce(ctx, extracted);
+				return "reinforce";
 			}
 			case "update": {
-				return (await this.applyUpdate(ctx, extracted)) ? "update" : null;
+				await this.applyUpdate(ctx, extracted);
+				return "update";
 			}
 			case "invalidate": {
-				return (await this.applyInvalidate(ctx, extracted)) ? "invalidate" : null;
+				await this.applyInvalidate(ctx, extracted);
+				return "invalidate";
 			}
 		}
 	}
 
 	private async applyNew(
-		ctx: FactApplicationContext,
+		ctx: ResolvedFactApplicationContext,
 		extracted: ExtractedFact,
 	): Promise<ConsolidationAction> {
 		const embedding = await this.llm.embed(extracted.fact);
 		const duplicate = await this.findDuplicate(ctx.userId, embedding);
 		if (duplicate) {
 			await this.storage.updateFact(ctx.userId, duplicate.id, {
-				sourceEpisodicIds: [...duplicate.sourceEpisodicIds, ctx.episodeId],
+				sourceEpisodicIds: appendSourceEpisode(duplicate, ctx.episodeId),
 			});
 			return "reinforce";
 		}
@@ -118,50 +127,42 @@ export class ConsolidationFactApplier {
 	}
 
 	private async applyReinforce(
-		ctx: FactApplicationContext,
-		extracted: ExtractedFact,
-	): Promise<boolean> {
-		if (!extracted.existingFactId) {
-			return false;
-		}
-		const existing = ctx.existingFacts.find((f) => f.id === extracted.existingFactId);
-		if (!existing) {
-			return false;
-		}
+		ctx: ResolvedFactApplicationContext,
+		extracted: ExtractedFact & { action: "reinforce" },
+	): Promise<void> {
+		const existing = this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
 		await this.storage.updateFact(ctx.userId, extracted.existingFactId, {
-			sourceEpisodicIds: [...existing.sourceEpisodicIds, ctx.episodeId],
+			sourceEpisodicIds: appendSourceEpisode(existing, ctx.episodeId),
 		});
-		return true;
 	}
 
 	private async applyUpdate(
-		ctx: FactApplicationContext,
-		extracted: ExtractedFact,
-	): Promise<boolean> {
-		if (extracted.existingFactId) {
-			const existing = ctx.existingFacts.find((f) => f.id === extracted.existingFactId);
-			if (!existing) {
-				return false;
-			}
-			await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
-		}
+		ctx: ResolvedFactApplicationContext,
+		extracted: ExtractedFact & { action: "update" },
+	): Promise<void> {
+		this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
+		await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
 		await this.applyNew(ctx, extracted);
-		return true;
 	}
 
 	private async applyInvalidate(
-		ctx: FactApplicationContext,
-		extracted: ExtractedFact,
-	): Promise<boolean> {
-		if (!extracted.existingFactId) {
-			return false;
-		}
-		const existing = ctx.existingFacts.find((f) => f.id === extracted.existingFactId);
-		if (!existing) {
-			return false;
-		}
+		ctx: ResolvedFactApplicationContext,
+		extracted: ExtractedFact & { action: "invalidate" },
+	): Promise<void> {
+		this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
 		await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
-		return true;
+	}
+
+	private requireExistingFact(
+		ctx: ResolvedFactApplicationContext,
+		factId: string,
+		action: ConsolidationAction,
+	): SemanticFact {
+		const existing = ctx.existingFactsById.get(factId);
+		if (!existing) {
+			throw new Error(`consolidation action "${action}" references unknown fact: ${factId}`);
+		}
+		return existing;
 	}
 }
 
@@ -174,4 +175,10 @@ const ACTION_TO_RESULT_KEY: Record<ConsolidationAction, keyof FactApplicationRes
 
 function incrementResult(result: FactApplicationResult, action: ConsolidationAction): void {
 	result[ACTION_TO_RESULT_KEY[action]]++;
+}
+
+function appendSourceEpisode(fact: SemanticFact, episodeId: string): string[] {
+	return fact.sourceEpisodicIds.includes(episodeId)
+		? fact.sourceEpisodicIds
+		: [...fact.sourceEpisodicIds, episodeId];
 }

@@ -134,23 +134,25 @@ describe("ConsolidationPipeline PCL", () => {
 		});
 	});
 
-	describe("predictCalibrate fallback", () => {
-		test("predict failure -> falls back to extractFacts", async () => {
+	describe("predictCalibrate contract", () => {
+		test("predict failure rejects without direct extraction fallback", async () => {
 			const llm = createSpyLLM({ chatThrows: true, structuredResponse: validOutput() });
 			const pipeline = new ConsolidationPipeline(llm, storage);
 
 			await makeFact(storage);
 			await makeEpisode(storage);
 
-			// Should not throw
-			const result = await pipeline.consolidate(userId);
+			let error: unknown;
+			try {
+				await pipeline.consolidate(userId);
+			} catch (err) {
+				error = err;
+			}
+			expect(error).toBeInstanceOf(Error);
+			expect((error as Error).message).toContain("predict failed");
 
-			// predict threw -> extractFacts called via chatStructured
-			// predict was attempted
 			expect(llm.chatCalls).toHaveLength(1);
-			// extractFacts fallback
-			expect(llm.chatStructuredCalls).toHaveLength(1);
-			expect(result.processedEpisodes).toBe(1);
+			expect(llm.chatStructuredCalls).toHaveLength(0);
 		});
 
 		test("predict success -> calibrate is called", async () => {
