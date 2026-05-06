@@ -56,7 +56,7 @@ describe("MemoryStorage — episodic memory", () => {
 		const ep2 = makeEpisode();
 		await storage.saveEpisode(userId, ep1);
 		await storage.saveEpisode(userId, ep2);
-		await storage.markEpisodeConsolidated(userId, ep1.id);
+		await storage.markEpisodeConsolidated(userId, ep1.id, new Date("2026-01-01T00:00:00Z"));
 
 		const unconsolidated = await storage.getUnconsolidatedEpisodes(userId);
 		expect(unconsolidated).toHaveLength(1);
@@ -85,10 +85,12 @@ describe("MemoryStorage — episodic memory", () => {
 		await storage.saveEpisode(userId, ep);
 		expect(ep.consolidatedAt).toBeNull();
 
-		await storage.markEpisodeConsolidated(userId, ep.id);
+		const consolidatedAt = new Date("2026-01-02T00:00:00Z");
+		await storage.markEpisodeConsolidated(userId, ep.id, consolidatedAt);
 		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.consolidatedAt).not.toBeNull();
 		expect(updated!.consolidatedAt).toBeInstanceOf(Date);
+		expect(updated!.consolidatedAt!.getTime()).toBe(consolidatedAt.getTime());
 	});
 
 	test("preserves messages JSON", async () => {
@@ -217,7 +219,7 @@ describe("MemoryStorage — tenant isolation (episodes)", () => {
 	test("markEpisodeConsolidated does not affect other user's episode", async () => {
 		const ep = makeEpisode({ userId: "user-1" });
 		await storage.saveEpisode("user-1", ep);
-		await storage.markEpisodeConsolidated("user-2", ep.id);
+		await storage.markEpisodeConsolidated("user-2", ep.id, new Date("2026-01-01T00:00:00Z"));
 		const found = await storage.getEpisodeById("user-1", ep.id);
 		expect(found!.consolidatedAt).toBeNull();
 	});

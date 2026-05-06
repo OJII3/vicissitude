@@ -218,7 +218,7 @@ describe("Integration: Segmenter + MemoryStorage + EpisodicMemory", () => {
 		await addMessagesSequentially(segmenter, 5);
 
 		const episodes = await episodic.getEpisodes(userId);
-		await episodic.markConsolidated(userId, episodes[0]!.id);
+		await episodic.markConsolidated(userId, episodes[0]!.id, new Date("2026-01-01T00:00:00Z"));
 
 		const unconsolidated = await episodic.getUnconsolidated(userId);
 		expect(unconsolidated).toHaveLength(0);

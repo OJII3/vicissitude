@@ -51,7 +51,7 @@ describe("EpisodicMemory — retrieval", () => {
 		const ep2 = makeEpisode();
 		await storage.saveEpisode(userId, ep1);
 		await storage.saveEpisode(userId, ep2);
-		await storage.markEpisodeConsolidated(userId, ep1.id);
+		await storage.markEpisodeConsolidated(userId, ep1.id, new Date("2026-01-01T00:00:00Z"));
 
 		const unconsolidated = await episodic.getUnconsolidated(userId);
 		expect(unconsolidated).toHaveLength(1);
@@ -194,10 +194,12 @@ describe("EpisodicMemory — consolidation", () => {
 		const ep = makeEpisode();
 		await storage.saveEpisode(userId, ep);
 
-		await episodic.markConsolidated(userId, ep.id);
+		const consolidatedAt = new Date("2026-01-02T00:00:00Z");
+		await episodic.markConsolidated(userId, ep.id, consolidatedAt);
 
 		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.consolidatedAt).not.toBeNull();
+		expect(updated!.consolidatedAt!.getTime()).toBe(consolidatedAt.getTime());
 		expect(updated!.consolidatedAt).toBeInstanceOf(Date);
 	});
 });

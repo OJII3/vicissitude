@@ -63,7 +63,7 @@ describe("ConsolidationPipeline — no episodes", () => {
 	test("skips already consolidated episodes", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
-		await storage.markEpisodeConsolidated(userId, episode.id);
+		await storage.markEpisodeConsolidated(userId, episode.id, new Date("2026-01-01T00:00:00Z"));
 
 		const pipeline = new ConsolidationPipeline(createConsolidationLLM(), storage);
 		const result = await pipeline.consolidate(userId);
@@ -201,7 +201,7 @@ describe("ConsolidationPipeline — reinforce", () => {
 		expect(facts[0]!.sourceEpisodicIds).toHaveLength(2);
 	});
 
-	test("skips reinforce when existingFactId not found", async () => {
+	test("rejects reinforce when existingFactId is not active", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
@@ -218,9 +218,62 @@ describe("ConsolidationPipeline — reinforce", () => {
 		};
 
 		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
-		const result = await pipeline.consolidate(userId);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("unknown fact");
 
-		expect(result.reinforced).toBe(0);
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(0);
+	});
+
+	test("rejects reinforce after the same output invalidates that fact", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes TypeScript",
+			keywords: ["typescript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "invalidate",
+					category: "preference",
+					fact: "User no longer likes TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+				{
+					action: "reinforce",
+					category: "preference",
+					fact: "User likes TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("unknown fact");
+
 		const facts = await storage.getFacts(userId);
 		expect(facts).toHaveLength(0);
 	});
@@ -273,6 +326,54 @@ describe("ConsolidationPipeline — update", () => {
 		expect(facts[0]!.fact).toBe("User now prefers TypeScript over JavaScript");
 		expect(facts[0]!.sourceEpisodicIds).toEqual([episode.id]);
 	});
+
+	test("rejects reinforce after the same output updates that fact", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "update",
+					category: "preference",
+					fact: "User now prefers TypeScript",
+					keywords: ["typescript"],
+					existingFactId: existingFact.id,
+				},
+				{
+					action: "reinforce",
+					category: "preference",
+					fact: "User likes JavaScript",
+					keywords: ["javascript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+
+		const pipeline = new ConsolidationPipeline(createConsolidationLLM(llmResponse), storage);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("unknown fact");
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.fact).toBe("User now prefers TypeScript");
+	});
 });
 
 describe("ConsolidationPipeline — invalidate", () => {
@@ -321,7 +422,7 @@ describe("ConsolidationPipeline — invalidate", () => {
 		expect(facts).toHaveLength(0);
 	});
 
-	test("skips invalidate when existingFactId is missing", async () => {
+	test("does not invalidate when no facts are extracted", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
@@ -714,6 +815,27 @@ describe("ConsolidationPipeline — schema validation", () => {
 		expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
 	});
 
+	test("rejects new action with existingFactId", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const pipeline = new ConsolidationPipeline(
+			createInvalidLLM({
+				facts: [
+					{
+						action: "new",
+						category: "preference",
+						fact: "Some fact",
+						keywords: ["test"],
+						existingFactId: "fact-1",
+					},
+				],
+			}),
+			storage,
+		);
+		expect(pipeline.consolidate(userId)).rejects.toThrow("not allowed");
+	});
+
 	test("rejects fact with non-array keywords", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
@@ -1004,7 +1126,7 @@ describe("ConsolidationPipeline — Predict-Calibrate Learning", () => {
 		expect(systemMsg!.content).toContain(predictionText);
 	});
 
-	test("falls back to direct extraction when chat() throws", async () => {
+	test("rejects when predict step throws", async () => {
 		const existingFact = createFact({
 			userId,
 			category: "preference",
@@ -1018,31 +1140,22 @@ describe("ConsolidationPipeline — Predict-Calibrate Learning", () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
-		const calibrateResponse: ConsolidationOutput = {
-			facts: [
-				{
-					action: "new",
-					category: "interest",
-					fact: "User is exploring Deno",
-					keywords: ["deno"],
-				},
-			],
-		};
 		const { llm, calls } = createPCLMockLLM({
 			predictError: new Error("LLM predict failed"),
-			calibrateResponse,
 		});
 
 		const pipeline = new ConsolidationPipeline(llm, storage);
-		const result = await pipeline.consolidate(userId);
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("LLM predict failed");
 
-		// chat() was attempted, then chatStructured() ran as fallback
 		expect(calls.some((c) => c.method === "chat")).toBe(true);
-		expect(calls.some((c) => c.method === "chatStructured")).toBe(true);
-
-		// Result is valid despite predict failure
-		expect(result.processedEpisodes).toBe(1);
-		expect(result.newFacts).toBe(1);
+		expect(calls.some((c) => c.method === "chatStructured")).toBe(false);
 	});
 
 	test("PCL mode produces correct ConsolidationResult counts", async () => {

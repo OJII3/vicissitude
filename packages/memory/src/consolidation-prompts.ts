@@ -79,7 +79,7 @@ Each fact must have:
   - "guideline": How the assistant should behave — rules, tone preferences, conditional instructions given by the user. NOT general advice or knowledge shared in conversation.
 - fact: A concise statement of the fact
 - keywords: 1-5 relevant keywords
-- existingFactId: Required for "reinforce", "update", "invalidate" actions`;
+- existingFactId: Required for "reinforce", "update", "invalidate" actions; omit for "new"`;
 }
 
 function buildExistingFactsSection(existingFacts: SemanticFact[]): string {
