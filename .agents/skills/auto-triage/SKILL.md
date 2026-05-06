@@ -1,6 +1,6 @@
 ---
+name: auto-triage
 description: "GitHub Issue を自動で選んで取り組み、レビュー・マージまで行う自律ワークフロー"
-user_invokable: true
 ---
 
 GitHub Issue の自動トリアージ・実装・マージを一連で行うスキル。
@@ -52,26 +52,23 @@ Phase 3 に進む。
 
 ## Phase 3: 実装
 
-CLAUDE.md のワークフローに従って実装する。
+AGENTS.md のワークフローに従って実装する。
 
-1. `--worktree` モードで起動されている場合、worktree のブランチをそのまま使う。手動実行の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
-2. Plan サブエージェントでタスク分解・スコープ特定
-3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、役割サブエージェント（`spec-agent` / `impl-agent` / `test-agent` / `verify-agent`）を順次呼び出して実装:
-   - 新機能: `spec-agent` → `verify-agent` → `impl-agent` → `test-agent` → `verify-agent`
-   - バグ修正: `spec-agent` → `impl-agent` → `verify-agent`
-   - リファクタ: `verify-agent` → `impl-agent` → `verify-agent`
+1. 専用 worktree または作業ブランチで実行されている場合は、そのブランチをそのまま使う。main の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
+2. 関連する仕様・ドキュメント・既存実装を確認し、作業計画を立てる
+3. AGENTS.md と Codex の委譲ルールに従って実装する:
+   - 新機能: 仕様確認・必要な仕様更新 → 実装 → テスト追加 → 検証
+   - バグ修正: 根本原因調査 → 再現テストまたは確認手順作成 → 修正 → 検証
+   - リファクタ: 既存挙動確認 → リファクタ → 仕様・テスト検証
+4. 作業ブランチではこまめにコミット
 
-   各呼び出しは `Agent(subagent_type: "...-agent", ...)` のブロッキング形式で行う。
+### サブエージェント利用時の情報境界
 
-4. こまめにコミット
-
-### サブエージェント呼び出し時の情報境界
-
-CLAUDE.md の「サブエージェントの情報境界」に従い、各サブエージェントのプロンプトに含める情報を制限する。
+Codex のサブエージェントを使う場合は、担当範囲・読み取り対象・編集対象を明確にし、不要な実装詳細を渡しすぎない。
 
 ### コミット責務
 
-サブエージェントはコミットしない。コミットは auto-triage エージェント自身が行う。各サブエージェントの作業完了後にまとめてコミットすること。
+サブエージェントはコミットしない。コミットは auto-triage を実行している Codex エージェント自身が行う。各作業単位の完了後にまとめてコミットすること。
 
 ## Phase 4: レビューとマージ
 
