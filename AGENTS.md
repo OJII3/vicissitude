@@ -17,12 +17,12 @@
   - 例: `fix(agents): コミット規約を明確化する`
 - 変更後は検証を実行し、成功したら必ずコミットする。
 - コミット後は必ず push し、プルリクエストを作成する。
-- PR 作成後は、指示されたワークフローでマージまで行う。auto-triage では `.claude/skills/auto-triage/SKILL.md` に従い、スカッシュマージしてリモートブランチを削除する。
+- PR 作成後は、指示されたワークフローでマージまで行う。auto-triage では `.agents/skills/auto-triage/SKILL.md` に従い、スカッシュマージしてリモートブランチを削除する。
 - コミット・push・PR 作成・マージの前に、追加の確認待ちで停止しない。
 
 ## auto-triage
 
-- `auto-triage` 実行時は `.claude/skills/auto-triage/SKILL.md` を必ず読む。
+- `auto-triage` 実行時は `.agents/skills/auto-triage/SKILL.md` を必ず読む。
 - 1 回の実行で処理する GitHub Issue または main CI 失敗は 1 件だけにする。
 - main CI 失敗がある場合は Issue より先に処理する。
 - `help wanted` ラベル付き Issue は対象から除外する。
