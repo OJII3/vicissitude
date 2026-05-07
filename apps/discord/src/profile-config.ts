@@ -52,7 +52,11 @@ export const profileConfigSchema = z.strictObject({
 			.optional(),
 		minecraft: minecraftSchema.optional(),
 		tts: ttsSchema.optional(),
-		spotify: z.strictObject({}).optional(),
+		spotify: z
+			.strictObject({
+				recommendPlaylistId: z.string().min(1).optional(),
+			})
+			.optional(),
 		genius: z.strictObject({}).optional(),
 		githubIssues: z.strictObject({}).optional(),
 	}),
@@ -129,6 +133,8 @@ export function loadConfigFromProfile(
 					clientId: requireSecret(env, "SPOTIFY_CLIENT_ID", "features.spotify"),
 					clientSecret: requireSecret(env, "SPOTIFY_CLIENT_SECRET", "features.spotify"),
 					refreshToken: requireSecret(env, "SPOTIFY_REFRESH_TOKEN", "features.spotify"),
+					recommendPlaylistId:
+						profile.features.spotify.recommendPlaylistId ?? env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
 				}
 			: undefined,
 		genius: profile.features.genius

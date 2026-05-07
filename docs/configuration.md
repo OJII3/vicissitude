@@ -72,6 +72,8 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 feature section が存在する場合だけ、その feature の secret env を必須にする。
 
+Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書ける。移行中の環境では既存の `SPOTIFY_RECOMMEND_PLAYLIST_ID` も引き続き読み込む。
+
 ## パースと検証
 
 profile は `apps/discord/src/profile-config.ts` の Zod schema で検証する。エディタ補完やデプロイ前検証で参照できる JSON Schema は `config/profile.schema.json` に置く。未知の key は拒否する。これにより typo を無視せず、設定ファイルと実行時 config の対応を明確にする。

@@ -221,7 +221,12 @@
 				},
 				"spotify": {
 					"type": "object",
-					"properties": {},
+					"properties": {
+						"recommendPlaylistId": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
 					"additionalProperties": false
 				},
 				"genius": {

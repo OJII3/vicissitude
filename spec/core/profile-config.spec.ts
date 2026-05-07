@@ -173,6 +173,47 @@ describe("JSON profile config", () => {
 		).toThrow("SPOTIFY_CLIENT_ID is required");
 	});
 
+	it("Spotify 推薦プレイリスト設定を profile から AppConfig に反映する", () => {
+		const config = loadConfigFromProfile(
+			{
+				...baseProfile,
+				features: {
+					spotify: {
+						recommendPlaylistId: "profile-playlist",
+					},
+				},
+			},
+			baseEnv({
+				SPOTIFY_CLIENT_ID: "spotify-client-id",
+				SPOTIFY_CLIENT_SECRET: "spotify-client-secret",
+				SPOTIFY_REFRESH_TOKEN: "spotify-refresh-token",
+			}),
+			root,
+		);
+
+		expect(config.spotify?.recommendPlaylistId).toBe("profile-playlist");
+	});
+
+	it("profile 未指定時は既存 env の Spotify 推薦プレイリスト設定を維持する", () => {
+		const config = loadConfigFromProfile(
+			{
+				...baseProfile,
+				features: {
+					spotify: {},
+				},
+			},
+			baseEnv({
+				SPOTIFY_CLIENT_ID: "spotify-client-id",
+				SPOTIFY_CLIENT_SECRET: "spotify-client-secret",
+				SPOTIFY_REFRESH_TOKEN: "spotify-refresh-token",
+				SPOTIFY_RECOMMEND_PLAYLIST_ID: "env-playlist",
+			}),
+			root,
+		);
+
+		expect(config.spotify?.recommendPlaylistId).toBe("env-playlist");
+	});
+
 	it("JSON ファイルをパースして profile を読み込む", () => {
 		const filepath = writeProfileFile(baseProfile);
 		const profile = loadProfileConfigFile(filepath);
