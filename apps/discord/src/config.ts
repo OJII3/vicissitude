@@ -1,117 +1,16 @@
 import { resolve } from "path";
 
-import { z } from "zod";
+import {
+	appConfigSchema,
+	type AppConfig,
+	type GeniusConfig,
+	type MinecraftConfig,
+	type SpotifyConfig,
+	type TtsConfig,
+} from "./config-schema.ts";
+import { loadConfigFromProfile, loadProfileConfigFile } from "./profile-config.ts";
 
-// ─── Schemas ─────────────────────────────────────────────────────
-
-/** NaN を拒否する整数バリデーション */
-const safeInt = z
-	.number()
-	.int()
-	.refine((n) => !Number.isNaN(n), "must be a valid integer");
-const safeNumber = z.number().refine((n) => !Number.isNaN(n), "must be a valid number");
-
-const minecraftSchema = z.object({
-	host: z.string(),
-	port: safeInt,
-	username: z.string(),
-	version: z.string().optional(),
-	authMode: z.enum(["offline", "microsoft"]),
-	profilesFolder: z.string().optional(),
-	mcpPort: safeInt,
-	viewerPort: safeInt,
-});
-
-const spotifySchema = z.object({
-	clientId: z.string(),
-	clientSecret: z.string(),
-	refreshToken: z.string(),
-	recommendPlaylistId: z.string().optional(),
-});
-
-const geniusSchema = z.object({
-	accessToken: z.string(),
-});
-
-const ttsSchema = z.object({
-	baseUrl: z.string(),
-	speakerId: safeInt,
-});
-
-const githubSchema = z.object({
-	token: z.string(),
-	owner: z.string(),
-	repo: z.string(),
-});
-
-const imageRecognitionSchema = z.object({
-	enabled: z.boolean(),
-	providerId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_PROVIDER_ID is required"),
-	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
-});
-
-const shellWorkspaceSchema = z
-	.object({
-		enabled: z.literal(true),
-		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
-		dataDir: z.string(),
-		auditLogPath: z.string(),
-		defaultTtlMinutes: safeInt.min(1),
-		maxTtlMinutes: safeInt.min(1),
-		defaultTimeoutSeconds: safeInt.min(1),
-		maxTimeoutSeconds: safeInt.min(1),
-		maxOutputChars: safeInt.min(1),
-	})
-	.refine((v) => v.defaultTtlMinutes <= v.maxTtlMinutes, {
-		message: "SHELL_WORKSPACE_DEFAULT_TTL_MINUTES must be <= SHELL_WORKSPACE_MAX_TTL_MINUTES",
-		path: ["defaultTtlMinutes"],
-	})
-	.refine((v) => v.defaultTimeoutSeconds <= v.maxTimeoutSeconds, {
-		message:
-			"SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS must be <= SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS",
-		path: ["defaultTimeoutSeconds"],
-	});
-
-const appConfigSchema = z.object({
-	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
-	webPort: safeInt,
-	gatewayPort: safeInt,
-	opencode: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		basePort: safeInt,
-		sessionMaxAgeHours: safeNumber,
-		temperature: safeNumber.min(0).max(2),
-	}),
-	memory: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		ollamaBaseUrl: z.string(),
-		embeddingModel: z.string(),
-	}),
-	mcBrain: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		temperature: safeNumber.min(0).max(2),
-	}),
-	spotify: spotifySchema.optional(),
-	genius: geniusSchema.optional(),
-	tts: ttsSchema.optional(),
-	minecraft: minecraftSchema.optional(),
-	github: githubSchema.optional(),
-	imageRecognition: imageRecognitionSchema.optional(),
-	shellWorkspace: shellWorkspaceSchema.optional(),
-	dataDir: z.string(),
-	contextDir: z.string(),
-});
-
-// ─── Types ───────────────────────────────────────────────────────
-
-export type SpotifyConfig = z.infer<typeof spotifySchema>;
-export type GeniusConfig = z.infer<typeof geniusSchema>;
-export type TtsConfig = z.infer<typeof ttsSchema>;
-export type MinecraftConfig = z.infer<typeof minecraftSchema>;
-export type AppConfig = z.infer<typeof appConfigSchema>;
+export type { AppConfig, GeniusConfig, MinecraftConfig, SpotifyConfig, TtsConfig };
 
 // ─── Loader ──────────────────────────────────────────────────────
 
@@ -136,11 +35,23 @@ function buildShellWorkspaceConfig(env: Record<string, string | undefined>, data
 	};
 }
 
+export { loadConfigFromProfile, loadProfileConfigFile };
+
 export function loadConfig(
 	env: Record<string, string | undefined> = process.env,
 	root?: string,
 ): AppConfig {
-	const resolvedRoot = root ?? process.env.APP_ROOT ?? resolve(process.cwd());
+	if (env.VICISSITUDE_CONFIG_PATH) {
+		return loadConfigFromProfile(loadProfileConfigFile(env.VICISSITUDE_CONFIG_PATH), env, root);
+	}
+	return loadConfigFromEnv(env, root);
+}
+
+function loadConfigFromEnv(
+	env: Record<string, string | undefined>,
+	root: string | undefined,
+): AppConfig {
+	const resolvedRoot = root ?? env.APP_ROOT ?? resolve(process.cwd());
 	const dataDir = resolve(resolvedRoot, "data");
 
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
