@@ -11,11 +11,11 @@ import {
 import { dirname, resolve, sep } from "path";
 
 const PODMAN_TIMEOUT_EXIT = 255;
-const DEFAULT_NETWORK_PROFILE = "none";
+const DEFAULT_NETWORK_PROFILE = "open";
 const SHELL_WORKSPACE_CONTAINER_WORKDIR = "/workspace";
 
 export const SHELL_WORKSPACE_DEFAULT_IMAGE = "vicissitude-code-exec";
-export const SHELL_WORKSPACE_NETWORK_PROFILES = [DEFAULT_NETWORK_PROFILE] as const;
+export const SHELL_WORKSPACE_NETWORK_PROFILES = ["open", "none"] as const;
 
 export type ShellWorkspaceNetworkProfile = (typeof SHELL_WORKSPACE_NETWORK_PROFILES)[number];
 
@@ -30,6 +30,7 @@ export interface ShellWorkspaceConfig {
 	defaultTimeoutSeconds: number;
 	maxTimeoutSeconds: number;
 	maxOutputChars: number;
+	networkProfile: ShellWorkspaceNetworkProfile;
 	now?: () => number;
 	runProcess?: ProcessRunner;
 }
@@ -119,9 +120,6 @@ export function buildShellPodmanCmd(options: {
 	networkProfile?: ShellWorkspaceNetworkProfile;
 }): string[] {
 	const networkProfile = options.networkProfile ?? DEFAULT_NETWORK_PROFILE;
-	if (networkProfile !== "none") {
-		throw new Error("unsupported network profile");
-	}
 	const workdir =
 		options.cwd === "."
 			? SHELL_WORKSPACE_CONTAINER_WORKDIR
@@ -130,10 +128,18 @@ export function buildShellPodmanCmd(options: {
 		"podman",
 		"run",
 		"--rm",
-		"--network=none",
+		`--network=${networkProfile === "open" ? "slirp4netns" : "none"}`,
 		"--read-only",
 		"--tmpfs",
 		"/tmp:size=64M",
+		"--env",
+		`HOME=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.home`,
+		"--env",
+		`XDG_CACHE_HOME=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.cache`,
+		"--env",
+		`XDG_CONFIG_HOME=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.config`,
+		"--env",
+		`TMPDIR=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.tmp`,
 		"--memory=512m",
 		"--cpus=1",
 		"--pids-limit=128",
@@ -177,6 +183,11 @@ export class ShellWorkspaceManager {
 		const hostDir = this.config.hostDataDir ? resolve(this.config.hostDataDir, id) : dir;
 		mkdirSync(dir, { recursive: false });
 		chmodSync(dir, 0o777);
+		for (const name of [".home", ".cache", ".config", ".tmp"]) {
+			const sandboxDir = resolve(dir, name);
+			mkdirSync(sandboxDir, { recursive: false });
+			chmodSync(sandboxDir, 0o777);
+		}
 
 		const session: ShellSession = {
 			id,
@@ -211,6 +222,7 @@ export class ShellWorkspaceManager {
 			cwd,
 			command: input.command,
 			timeoutSeconds,
+			networkProfile: this.config.networkProfile,
 		});
 
 		const startedAt = this.now();

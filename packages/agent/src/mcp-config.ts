@@ -17,6 +17,7 @@ export interface ShellWorkspaceMcpConfigOptions {
 	dataDir: string;
 	hostDataDir?: string;
 	auditLogPath: string;
+	networkProfile: "open" | "none";
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
 	defaultTimeoutSeconds: number;
@@ -70,6 +71,7 @@ function buildShellWorkspaceEnvironment(
 		SHELL_WORKSPACE_IMAGE: config.image,
 		SHELL_WORKSPACE_DATA_DIR: config.dataDir,
 		SHELL_WORKSPACE_AUDIT_LOG: config.auditLogPath,
+		SHELL_WORKSPACE_NETWORK_PROFILE: config.networkProfile,
 		SHELL_WORKSPACE_DEFAULT_TTL_MINUTES: String(config.defaultTtlMinutes),
 		SHELL_WORKSPACE_MAX_TTL_MINUTES: String(config.maxTtlMinutes),
 		SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS: String(config.defaultTimeoutSeconds),

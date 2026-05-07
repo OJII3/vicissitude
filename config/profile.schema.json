@@ -134,6 +134,10 @@
 							"type": "string",
 							"minLength": 1
 						},
+						"networkProfile": {
+							"type": "string",
+							"enum": ["open", "none"]
+						},
 						"defaultTtlMinutes": {
 							"type": "integer",
 							"minimum": 1,

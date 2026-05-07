@@ -8,6 +8,7 @@ import {
 	minecraftSchema,
 	safeInt,
 	safeNumber,
+	shellWorkspaceNetworkProfileSchema,
 	ttsSchema,
 	type AppConfig,
 } from "./config-schema.ts";
@@ -44,6 +45,7 @@ export const profileConfigSchema = z.strictObject({
 		shellWorkspace: z
 			.strictObject({
 				image: z.string().min(1),
+				networkProfile: shellWorkspaceNetworkProfileSchema.optional(),
 				defaultTtlMinutes: safeInt.min(1),
 				maxTtlMinutes: safeInt.min(1),
 				defaultTimeoutSeconds: safeInt.min(1),
@@ -80,6 +82,7 @@ function buildProfileShellWorkspaceConfig(
 			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
 			: {}),
 		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
+		networkProfile: shellWorkspace.networkProfile ?? "open",
 		defaultTtlMinutes: shellWorkspace.defaultTtlMinutes,
 		maxTtlMinutes: shellWorkspace.maxTtlMinutes,
 		defaultTimeoutSeconds: shellWorkspace.defaultTimeoutSeconds,

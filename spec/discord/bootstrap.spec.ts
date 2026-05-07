@@ -185,6 +185,7 @@ describe("buildCoreEnvironment", () => {
 					image: "sandbox",
 					dataDir: "/tmp/shell-workspaces",
 					auditLogPath: "/tmp/shell-audit.jsonl",
+					networkProfile: "open",
 					defaultTtlMinutes: 60,
 					maxTtlMinutes: 120,
 					defaultTimeoutSeconds: 30,

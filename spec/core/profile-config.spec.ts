@@ -160,6 +160,7 @@ describe("JSON profile config", () => {
 			image: "shell-image",
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
 			auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
+			networkProfile: "open",
 			defaultTtlMinutes: 15,
 			maxTtlMinutes: 30,
 			defaultTimeoutSeconds: 5,

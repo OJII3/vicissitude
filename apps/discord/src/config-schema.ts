@@ -46,6 +46,8 @@ export const imageRecognitionSchema = z.object({
 	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
 });
 
+export const shellWorkspaceNetworkProfileSchema = z.enum(["open", "none"]);
+
 export const shellWorkspaceSchema = z
 	.object({
 		enabled: z.literal(true),
@@ -53,6 +55,7 @@ export const shellWorkspaceSchema = z
 		dataDir: z.string(),
 		hostDataDir: z.string().optional(),
 		auditLogPath: z.string(),
+		networkProfile: shellWorkspaceNetworkProfileSchema,
 		defaultTtlMinutes: safeInt.min(1),
 		maxTtlMinutes: safeInt.min(1),
 		defaultTimeoutSeconds: safeInt.min(1),

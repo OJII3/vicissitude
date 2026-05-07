@@ -5,8 +5,10 @@ import { z } from "zod";
 
 import {
 	SHELL_WORKSPACE_DEFAULT_IMAGE,
+	SHELL_WORKSPACE_NETWORK_PROFILES,
 	ShellWorkspaceManager,
 	type ShellWorkspaceConfig,
+	type ShellWorkspaceNetworkProfile,
 } from "./shell-workspace.ts";
 
 const DEFAULT_DATA_DIR = "data/shell-workspaces";
@@ -24,6 +26,17 @@ function readIntEnv(name: string, fallback: number): number {
 		throw new Error(`${name} must be a positive integer`);
 	}
 	return parsed;
+}
+
+function readNetworkProfileEnv(value: string | undefined): ShellWorkspaceNetworkProfile {
+	const trimmed = value?.trim() ?? "";
+	const raw = trimmed === "" ? "open" : trimmed;
+	if (SHELL_WORKSPACE_NETWORK_PROFILES.includes(raw as ShellWorkspaceNetworkProfile)) {
+		return raw as ShellWorkspaceNetworkProfile;
+	}
+	throw new Error(
+		`SHELL_WORKSPACE_NETWORK_PROFILE must be one of: ${SHELL_WORKSPACE_NETWORK_PROFILES.join(", ")}`,
+	);
 }
 
 function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
@@ -54,6 +67,7 @@ function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
 		defaultTimeoutSeconds,
 		maxTimeoutSeconds,
 		maxOutputChars: readIntEnv("SHELL_WORKSPACE_MAX_OUTPUT_CHARS", 50_000),
+		networkProfile: readNetworkProfileEnv(process.env.SHELL_WORKSPACE_NETWORK_PROFILE),
 	};
 }
 

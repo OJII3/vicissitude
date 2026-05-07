@@ -19,6 +19,7 @@ function createConfig(
 		image: "sandbox-image",
 		dataDir: join(root, "workspaces"),
 		auditLogPath: join(root, "audit.jsonl"),
+		networkProfile: "open" as const,
 		defaultTtlMinutes: 60,
 		maxTtlMinutes: 120,
 		defaultTimeoutSeconds: 30,
@@ -45,7 +46,7 @@ describe("normalizeWorkspaceRelativePath", () => {
 });
 
 describe("buildShellPodmanCmd", () => {
-	it("network none と sandbox 制約を含む Podman command を組み立てる", () => {
+	it("open network と sandbox 制約を含む Podman command を組み立てる", () => {
 		const cmd = buildShellPodmanCmd({
 			image: "sandbox-image",
 			workspaceDir: "/tmp/workspace",
@@ -54,13 +55,30 @@ describe("buildShellPodmanCmd", () => {
 			timeoutSeconds: 10,
 		});
 
-		expect(cmd).toContain("--network=none");
+		expect(cmd).toContain("--network=slirp4netns");
 		expect(cmd).toContain("--read-only");
+		expect(cmd).toContain("HOME=/workspace/.home");
+		expect(cmd).toContain("XDG_CACHE_HOME=/workspace/.cache");
+		expect(cmd).toContain("XDG_CONFIG_HOME=/workspace/.config");
+		expect(cmd).toContain("TMPDIR=/workspace/.tmp");
 		expect(cmd).toContain("--cap-drop=ALL");
 		expect(cmd).toContain("--security-opt=no-new-privileges");
 		expect(cmd).toContain("/tmp/workspace:/workspace:rw");
 		expect(cmd).toContain("/workspace/project");
 		expect(cmd.slice(-3)).toEqual(["bash", "-lc", "pwd"]);
+	});
+
+	it("network profile none ではネットワークを無効化する", () => {
+		const cmd = buildShellPodmanCmd({
+			image: "sandbox-image",
+			workspaceDir: "/tmp/workspace",
+			cwd: ".",
+			command: "true",
+			timeoutSeconds: 10,
+			networkProfile: "none",
+		});
+
+		expect(cmd).toContain("--network=none");
 	});
 });
 
@@ -83,6 +101,10 @@ describe("ShellWorkspaceManager", () => {
 		const session = manager.startSession({ label: "test", ttlMinutes: 10 });
 
 		expect(statSync(session.workspaceDir).mode & 0o777).toBe(0o777);
+		expect(existsSync(join(session.workspaceDir, ".home"))).toBe(true);
+		expect(existsSync(join(session.workspaceDir, ".cache"))).toBe(true);
+		expect(existsSync(join(session.workspaceDir, ".config"))).toBe(true);
+		expect(existsSync(join(session.workspaceDir, ".tmp"))).toBe(true);
 
 		const result = await manager.exec({
 			sessionId: session.sessionId,

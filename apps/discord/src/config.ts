@@ -30,6 +30,7 @@ function buildShellWorkspaceConfig(env: Record<string, string | undefined>, data
 			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
 			: {}),
 		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
+		networkProfile: env.SHELL_WORKSPACE_NETWORK_PROFILE ?? "open",
 		defaultTtlMinutes: Number(env.SHELL_WORKSPACE_DEFAULT_TTL_MINUTES ?? "60"),
 		maxTtlMinutes: Number(env.SHELL_WORKSPACE_MAX_TTL_MINUTES ?? "120"),
 		defaultTimeoutSeconds: Number(env.SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS ?? "30"),
