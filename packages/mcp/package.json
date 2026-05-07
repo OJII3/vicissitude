@@ -4,6 +4,8 @@
 	"exports": {
 		"./core-server": "./src/core-server.ts",
 		"./code-exec-server": "./src/code-exec-server.ts",
+		"./shell-workspace": "./src/shell-workspace.ts",
+		"./shell-workspace-server": "./src/shell-workspace-server.ts",
 		"./http-server": "./src/http-server.ts",
 		"./memory-cache": "./src/memory-cache.ts",
 		"./lru-cache": "./src/lru-cache.ts",
