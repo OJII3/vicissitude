@@ -128,7 +128,7 @@ export function buildShellPodmanCmd(options: {
 		"podman",
 		"run",
 		"--rm",
-		`--network=${networkProfile === "open" ? "slirp4netns" : "none"}`,
+		`--network=${networkProfile === "open" ? "pasta" : "none"}`,
 		"--read-only",
 		"--tmpfs",
 		"/tmp:size=64M",

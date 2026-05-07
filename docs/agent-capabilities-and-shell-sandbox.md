@@ -36,7 +36,7 @@ OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace`
 既定 policy:
 
 - rootless Podman で prebuilt image を実行する。
-- network は `open` を既定にし、rootless Podman の `slirp4netns` でインターネットアクセスを許可する。必要なら `SHELL_WORKSPACE_NETWORK_PROFILE=none` で無効化できる。
+- network は `open` を既定にし、rootless Podman の `pasta` でインターネットアクセスを許可する。必要なら `SHELL_WORKSPACE_NETWORK_PROFILE=none` で無効化できる。
 - root filesystem は read-only。
 - session workspace だけを `/workspace` に read-write mount する。
 - sandbox 内の `HOME`、XDG cache/config、`TMPDIR` は `/workspace` 配下に向け、session ごとに作成する。
