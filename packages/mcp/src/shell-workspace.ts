@@ -1,5 +1,13 @@
 /* oxlint-disable max-lines -- shell workspace policy, session lifecycle, and audit helpers stay together */
-import { appendFileSync, existsSync, mkdirSync, realpathSync, rmSync, statSync } from "fs";
+import {
+	appendFileSync,
+	chmodSync,
+	existsSync,
+	mkdirSync,
+	realpathSync,
+	rmSync,
+	statSync,
+} from "fs";
 import { dirname, resolve, sep } from "path";
 
 const PODMAN_TIMEOUT_EXIT = 255;
@@ -168,6 +176,7 @@ export class ShellWorkspaceManager {
 		const dir = resolve(this.config.dataDir, id);
 		const hostDir = this.config.hostDataDir ? resolve(this.config.hostDataDir, id) : dir;
 		mkdirSync(dir, { recursive: false });
+		chmodSync(dir, 0o777);
 
 		const session: ShellSession = {
 			id,

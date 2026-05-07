@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "fs";
+import { existsSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
@@ -81,6 +81,8 @@ describe("ShellWorkspaceManager", () => {
 		const config = createConfig({ now: () => now, runProcess: runner });
 		const manager = new ShellWorkspaceManager(config);
 		const session = manager.startSession({ label: "test", ttlMinutes: 10 });
+
+		expect(statSync(session.workspaceDir).mode & 0o777).toBe(0o777);
 
 		const result = await manager.exec({
 			sessionId: session.sessionId,
