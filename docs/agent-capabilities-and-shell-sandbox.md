@@ -37,13 +37,12 @@ OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace`
 
 - rootless Podman で prebuilt image を実行する。
 - network は `open` を既定にし、rootless Podman の `pasta` でインターネットアクセスを許可する。必要なら `SHELL_WORKSPACE_NETWORK_PROFILE=none` で無効化できる。
-- root filesystem は read-only。
+- root filesystem は writable にし、`apt-get update` や package install など sandbox 内の管理操作を許可する。container root は rootless Podman の user namespace 内に閉じる。
 - session workspace だけを `/workspace` に read-write mount する。
 - sandbox 内の `HOME`、XDG cache/config、`TMPDIR` は `/workspace` 配下に向け、session ごとに作成する。
 - host HOME、OpenCode auth、`.env`、SSH/Git credential、Podman socket は sandbox に渡さない。
 - 環境変数は shell MCP プロセス、sandbox 実行の両方で allowlist 方式にする。
-- non-root user で実行する。
-- `--cap-drop=ALL` と `--security-opt=no-new-privileges` を設定する。
+- sandbox 内では root user で実行する。
 - CPU、memory、PID、timeout、output size を制限する。
 - session TTL と明示停止で workspace を削除する。
 
