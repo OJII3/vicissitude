@@ -1,0 +1,243 @@
+{
+	"$id": "https://github.com/OJII3/vicissitude/config/profile.schema.json",
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"properties": {
+		"ports": {
+			"type": "object",
+			"properties": {
+				"web": {
+					"type": "integer",
+					"minimum": -9007199254740991,
+					"maximum": 9007199254740991
+				},
+				"gateway": {
+					"type": "integer",
+					"minimum": -9007199254740991,
+					"maximum": 9007199254740991
+				},
+				"opencodeBase": {
+					"type": "integer",
+					"minimum": -9007199254740991,
+					"maximum": 9007199254740991
+				}
+			},
+			"required": ["web", "gateway", "opencodeBase"],
+			"additionalProperties": false
+		},
+		"session": {
+			"type": "object",
+			"properties": {
+				"maxAgeHours": {
+					"type": "number"
+				}
+			},
+			"required": ["maxAgeHours"],
+			"additionalProperties": false
+		},
+		"models": {
+			"type": "object",
+			"properties": {
+				"conversation": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"temperature": {
+							"type": "number",
+							"minimum": 0,
+							"maximum": 2
+						}
+					},
+					"required": ["providerId", "modelId", "temperature"],
+					"additionalProperties": false
+				},
+				"memory": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"ollamaBaseUrl": {
+							"type": "string",
+							"minLength": 1
+						},
+						"embeddingModel": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"required": ["providerId", "modelId", "ollamaBaseUrl", "embeddingModel"],
+					"additionalProperties": false
+				},
+				"minecraft": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"temperature": {
+							"type": "number",
+							"minimum": 0,
+							"maximum": 2
+						}
+					},
+					"required": ["providerId", "modelId", "temperature"],
+					"additionalProperties": false
+				}
+			},
+			"required": ["conversation", "memory", "minecraft"],
+			"additionalProperties": false
+		},
+		"features": {
+			"type": "object",
+			"properties": {
+				"imageRecognition": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"required": ["providerId", "modelId"],
+					"additionalProperties": false
+				},
+				"shellWorkspace": {
+					"type": "object",
+					"properties": {
+						"image": {
+							"type": "string",
+							"minLength": 1
+						},
+						"defaultTtlMinutes": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						},
+						"maxTtlMinutes": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						},
+						"defaultTimeoutSeconds": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						},
+						"maxTimeoutSeconds": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						},
+						"maxOutputChars": {
+							"type": "integer",
+							"minimum": 1,
+							"maximum": 9007199254740991
+						}
+					},
+					"required": [
+						"image",
+						"defaultTtlMinutes",
+						"maxTtlMinutes",
+						"defaultTimeoutSeconds",
+						"maxTimeoutSeconds",
+						"maxOutputChars"
+					],
+					"additionalProperties": false
+				},
+				"minecraft": {
+					"type": "object",
+					"properties": {
+						"host": {
+							"type": "string"
+						},
+						"port": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"username": {
+							"type": "string"
+						},
+						"version": {
+							"type": "string"
+						},
+						"authMode": {
+							"type": "string",
+							"enum": ["offline", "microsoft"]
+						},
+						"profilesFolder": {
+							"type": "string"
+						},
+						"mcpPort": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						},
+						"viewerPort": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					},
+					"required": ["host", "port", "username", "authMode", "mcpPort", "viewerPort"],
+					"additionalProperties": false
+				},
+				"tts": {
+					"type": "object",
+					"properties": {
+						"baseUrl": {
+							"type": "string"
+						},
+						"speakerId": {
+							"type": "integer",
+							"minimum": -9007199254740991,
+							"maximum": 9007199254740991
+						}
+					},
+					"required": ["baseUrl", "speakerId"],
+					"additionalProperties": false
+				},
+				"spotify": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": false
+				},
+				"genius": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": false
+				},
+				"githubIssues": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": false
+				}
+			},
+			"additionalProperties": false
+		}
+	},
+	"required": ["ports", "session", "models", "features"],
+	"additionalProperties": false
+}

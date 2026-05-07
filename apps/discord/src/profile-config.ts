@@ -12,12 +12,12 @@ import {
 	type AppConfig,
 } from "./config-schema.ts";
 
-const modelSelectionSchema = z.object({
+const modelSelectionSchema = z.strictObject({
 	providerId: z.string().min(1),
 	modelId: z.string().min(1),
 });
 
-const profileConfigSchema = z.strictObject({
+export const profileConfigSchema = z.strictObject({
 	ports: z.strictObject({
 		web: safeInt,
 		gateway: safeInt,
@@ -38,30 +38,24 @@ const profileConfigSchema = z.strictObject({
 			temperature: safeNumber.min(0).max(2),
 		}),
 	}),
-	features: z
-		.strictObject({
-			imageRecognition: modelSelectionSchema.optional(),
-			shellWorkspace: z
-				.strictObject({
-					image: z.string().min(1),
-					defaultTtlMinutes: safeInt.min(1),
-					maxTtlMinutes: safeInt.min(1),
-					defaultTimeoutSeconds: safeInt.min(1),
-					maxTimeoutSeconds: safeInt.min(1),
-					maxOutputChars: safeInt.min(1),
-				})
-				.optional(),
-			minecraft: minecraftSchema.optional(),
-			tts: ttsSchema.optional(),
-			spotify: z
-				.strictObject({
-					recommendPlaylistId: z.string().min(1).optional(),
-				})
-				.optional(),
-			genius: z.strictObject({}).optional(),
-			githubIssues: z.strictObject({}).optional(),
-		})
-		.default({}),
+	features: z.strictObject({
+		imageRecognition: modelSelectionSchema.optional(),
+		shellWorkspace: z
+			.strictObject({
+				image: z.string().min(1),
+				defaultTtlMinutes: safeInt.min(1),
+				maxTtlMinutes: safeInt.min(1),
+				defaultTimeoutSeconds: safeInt.min(1),
+				maxTimeoutSeconds: safeInt.min(1),
+				maxOutputChars: safeInt.min(1),
+			})
+			.optional(),
+		minecraft: minecraftSchema.optional(),
+		tts: ttsSchema.optional(),
+		spotify: z.strictObject({}).optional(),
+		genius: z.strictObject({}).optional(),
+		githubIssues: z.strictObject({}).optional(),
+	}),
 });
 
 export type ProfileConfig = z.infer<typeof profileConfigSchema>;
@@ -135,7 +129,6 @@ export function loadConfigFromProfile(
 					clientId: requireSecret(env, "SPOTIFY_CLIENT_ID", "features.spotify"),
 					clientSecret: requireSecret(env, "SPOTIFY_CLIENT_SECRET", "features.spotify"),
 					refreshToken: requireSecret(env, "SPOTIFY_REFRESH_TOKEN", "features.spotify"),
-					recommendPlaylistId: profile.features.spotify.recommendPlaylistId,
 				}
 			: undefined,
 		genius: profile.features.genius

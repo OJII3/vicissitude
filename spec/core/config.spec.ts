@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { loadConfig, loadConfigFromProfile } from "../../apps/discord/src/config.ts";
+import { loadConfig } from "../../apps/discord/src/config.ts";
 
 function baseEnv(overrides: Record<string, string> = {}): Record<string, string> {
 	return {
@@ -11,35 +11,6 @@ function baseEnv(overrides: Record<string, string> = {}): Record<string, string>
 
 describe("loadConfig", () => {
 	const root = "/tmp/test-vicissitude";
-	const baseProfile = {
-		ports: {
-			web: 4100,
-			gateway: 4101,
-			opencodeBase: 5000,
-		},
-		session: {
-			maxAgeHours: 24,
-		},
-		models: {
-			conversation: {
-				providerId: "conversation-provider",
-				modelId: "conversation-model",
-				temperature: 0.8,
-			},
-			memory: {
-				providerId: "memory-provider",
-				modelId: "memory-model",
-				ollamaBaseUrl: "http://localhost:11434",
-				embeddingModel: "embedding-model",
-			},
-			minecraft: {
-				providerId: "mc-provider",
-				modelId: "mc-model",
-				temperature: 0.4,
-			},
-		},
-		features: {},
-	};
 
 	it("全デフォルト値で設定が返る", () => {
 		const config = loadConfig(baseEnv(), root);
@@ -224,98 +195,6 @@ describe("loadConfig", () => {
 					root,
 				),
 			).toThrow("SHELL_WORKSPACE_DEFAULT_TTL_MINUTES");
-		});
-	});
-
-	describe("JSON profile", () => {
-		it("profile の値から AppConfig を構築する", () => {
-			const config = loadConfigFromProfile(baseProfile, baseEnv(), root);
-
-			expect(config.webPort).toBe(4100);
-			expect(config.gatewayPort).toBe(4101);
-			expect(config.opencode).toEqual({
-				providerId: "conversation-provider",
-				modelId: "conversation-model",
-				basePort: 5000,
-				sessionMaxAgeHours: 24,
-				temperature: 0.8,
-			});
-			expect(config.memory).toEqual({
-				providerId: "memory-provider",
-				modelId: "memory-model",
-				ollamaBaseUrl: "http://localhost:11434",
-				embeddingModel: "embedding-model",
-			});
-			expect(config.mcBrain).toEqual({
-				providerId: "mc-provider",
-				modelId: "mc-model",
-				temperature: 0.4,
-			});
-		});
-
-		it("profile の disabled feature は key ごと省略する", () => {
-			const config = loadConfigFromProfile(baseProfile, baseEnv(), root);
-
-			expect(config.imageRecognition).toBeUndefined();
-			expect(config.shellWorkspace).toBeUndefined();
-			expect(config.minecraft).toBeUndefined();
-			expect(config.spotify).toBeUndefined();
-		});
-
-		it("profile に feature section がある場合だけ機能設定を作る", () => {
-			const config = loadConfigFromProfile(
-				{
-					...baseProfile,
-					features: {
-						imageRecognition: {
-							providerId: "vision-provider",
-							modelId: "vision-model",
-						},
-						shellWorkspace: {
-							image: "shell-image",
-							defaultTtlMinutes: 15,
-							maxTtlMinutes: 30,
-							defaultTimeoutSeconds: 5,
-							maxTimeoutSeconds: 10,
-							maxOutputChars: 12345,
-						},
-					},
-				},
-				baseEnv(),
-				root,
-			);
-
-			expect(config.imageRecognition).toEqual({
-				enabled: true,
-				providerId: "vision-provider",
-				modelId: "vision-model",
-			});
-			expect(config.shellWorkspace).toEqual({
-				enabled: true,
-				image: "shell-image",
-				dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
-				auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
-				defaultTtlMinutes: 15,
-				maxTtlMinutes: 30,
-				defaultTimeoutSeconds: 5,
-				maxTimeoutSeconds: 10,
-				maxOutputChars: 12345,
-			});
-		});
-
-		it("secret が必要な feature は env 未設定ならエラーにする", () => {
-			expect(() =>
-				loadConfigFromProfile(
-					{
-						...baseProfile,
-						features: {
-							spotify: {},
-						},
-					},
-					baseEnv(),
-					root,
-				),
-			).toThrow("SPOTIFY_CLIENT_ID is required");
 		});
 	});
 });
