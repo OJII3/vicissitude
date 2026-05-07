@@ -1,30 +1,30 @@
 {
-  "$schema": "./profile.schema.json",
-  "ports": {
-    "web": 4000,
-    "gateway": 4001,
-    "opencodeBase": 4096
-  },
-  "session": {
-    "maxAgeHours": 48
-  },
-  "models": {
-    "conversation": {
-      "providerId": "opencode-go",
-      "modelId": "glm-5.1",
-      "temperature": 1
-    },
-    "memory": {
-      "providerId": "opencode-go",
-      "modelId": "kimi-k2.6",
-      "ollamaBaseUrl": "http://ollama:11434",
-      "embeddingModel": "embeddinggemma"
-    },
-    "minecraft": {
-      "providerId": "github-copilot",
-      "modelId": "gpt5-mini",
-      "temperature": 0
-    }
-  },
-  "features": {}
+	"$schema": "./profile.schema.json",
+	"ports": {
+		"web": 4000,
+		"gateway": 4001,
+		"opencodeBase": 4096
+	},
+	"session": {
+		"maxAgeHours": 48
+	},
+	"models": {
+		"conversation": {
+			"providerId": "opencode-go",
+			"modelId": "glm-5.1",
+			"temperature": 1
+		},
+		"memory": {
+			"providerId": "opencode-go",
+			"modelId": "kimi-k2.6",
+			"ollamaBaseUrl": "http://ollama:11434",
+			"embeddingModel": "embeddinggemma"
+		},
+		"minecraft": {
+			"providerId": "github-copilot",
+			"modelId": "gpt5-mini",
+			"temperature": 0
+		}
+	},
+	"features": {}
 }
