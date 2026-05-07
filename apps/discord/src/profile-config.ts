@@ -18,6 +18,7 @@ const modelSelectionSchema = z.strictObject({
 });
 
 export const profileConfigSchema = z.strictObject({
+	$schema: z.string().min(1).optional(),
 	ports: z.strictObject({
 		web: safeInt,
 		gateway: safeInt,

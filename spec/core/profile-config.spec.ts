@@ -73,6 +73,16 @@ describe("JSON profile config", () => {
 		expect(parsed.ports.web).toBe(4100);
 	});
 
+	it("$schema metadata を含む profile も読み込める", () => {
+		const parsed = profileConfigSchema.parse({
+			$schema: "./profile.schema.json",
+			...baseProfile,
+		});
+
+		expect(parsed.$schema).toBe("./profile.schema.json");
+		expect(parsed.models.conversation.modelId).toBe("conversation-model");
+	});
+
 	it("JSON Schema ファイルは Zod schema から生成される内容と一致する", () => {
 		const schemaFile = JSON.parse(readFileSync(resolve("config/profile.schema.json"), "utf8"));
 		const generatedSchema = {
