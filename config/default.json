@@ -1,0 +1,29 @@
+{
+	"ports": {
+		"web": 4000,
+		"gateway": 4001,
+		"opencodeBase": 4096
+	},
+	"session": {
+		"maxAgeHours": 48
+	},
+	"models": {
+		"conversation": {
+			"providerId": "github-copilot",
+			"modelId": "big-pickle",
+			"temperature": 1
+		},
+		"memory": {
+			"providerId": "github-copilot",
+			"modelId": "gpt-4o",
+			"ollamaBaseUrl": "http://ollama:11434",
+			"embeddingModel": "embeddinggemma"
+		},
+		"minecraft": {
+			"providerId": "github-copilot",
+			"modelId": "big-pickle",
+			"temperature": 0.7
+		}
+	},
+	"features": {}
+}
