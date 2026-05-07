@@ -56,13 +56,14 @@ describe("buildShellPodmanCmd", () => {
 		});
 
 		expect(cmd).toContain("--network=pasta");
-		expect(cmd).toContain("--read-only");
+		expect(cmd).not.toContain("--read-only");
 		expect(cmd).toContain("HOME=/workspace/.home");
 		expect(cmd).toContain("XDG_CACHE_HOME=/workspace/.cache");
 		expect(cmd).toContain("XDG_CONFIG_HOME=/workspace/.config");
 		expect(cmd).toContain("TMPDIR=/workspace/.tmp");
-		expect(cmd).toContain("--cap-drop=ALL");
-		expect(cmd).toContain("--security-opt=no-new-privileges");
+		expect(cmd).toContain("--user=root");
+		expect(cmd).not.toContain("--cap-drop=ALL");
+		expect(cmd).not.toContain("--security-opt=no-new-privileges");
 		expect(cmd).toContain("/tmp/workspace:/workspace:rw");
 		expect(cmd).toContain("/workspace/project");
 		expect(cmd.slice(-3)).toEqual(["bash", "-lc", "pwd"]);
