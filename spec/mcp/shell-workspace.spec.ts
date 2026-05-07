@@ -55,7 +55,7 @@ describe("buildShellPodmanCmd", () => {
 			timeoutSeconds: 10,
 		});
 
-		expect(cmd).toContain("--network=slirp4netns");
+		expect(cmd).toContain("--network=pasta");
 		expect(cmd).toContain("--read-only");
 		expect(cmd).toContain("HOME=/workspace/.home");
 		expect(cmd).toContain("XDG_CACHE_HOME=/workspace/.cache");
