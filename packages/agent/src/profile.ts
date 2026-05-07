@@ -1,3 +1,5 @@
+import type { OpencodeAgentConfig } from "@vicissitude/opencode/session-adapter";
+
 export interface AgentProfile {
 	/** プロファイル名（例: "conversation"） */
 	name: string;
@@ -5,6 +7,12 @@ export interface AgentProfile {
 	mcpServers: Record<string, McpServerConfig>;
 	/** OpenCode 組み込みツール設定 */
 	builtinTools: Record<string, boolean>;
+	/** OpenCode agent 設定 */
+	opencodeAgents?: Record<string, OpencodeAgentConfig>;
+	/** OpenCode primary agent 専用ツール */
+	primaryTools?: string[];
+	/** 既定の OpenCode primary agent */
+	defaultAgent?: string;
 	/** メッセージ応答プロンプト */
 	pollingPrompt: string;
 	/** モデル設定 */

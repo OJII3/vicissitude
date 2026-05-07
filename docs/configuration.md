@@ -55,6 +55,12 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 		},
 		"shellWorkspace": {
 			"image": "vicissitude-code-exec",
+			"agent": {
+				"providerId": "github-copilot",
+				"modelId": "gpt5-mini",
+				"temperature": 0.4,
+				"steps": 24
+			},
 			"networkProfile": "open",
 			"defaultTtlMinutes": 60,
 			"maxTtlMinutes": 120,

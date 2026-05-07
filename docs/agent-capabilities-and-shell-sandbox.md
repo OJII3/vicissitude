@@ -17,7 +17,7 @@ OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace`
 | `minecraft-bridge` | Discord から Minecraft エージェントへの委譲          | `MC_HOST` 設定時のみ                    |
 | `shell-workspace`  | Podman sandbox 内の shell workspace                  | `SHELL_WORKSPACE_ENABLED=true` の時のみ |
 
-`shell-workspace` が無効な profile では、MCP サーバーもツール説明コンテキストも注入しない。
+`shell-workspace` が無効な profile では、MCP サーバーもツール説明コンテキストも注入しない。有効な profile では、メイン会話 agent は OpenCode `task` ツールだけを使って `shell-worker` サブエージェントへ shell 作業を委譲する。`shell-worker` だけが `shell_*` MCP ツールを使う。
 
 ## Shell Workspace
 
@@ -58,6 +58,10 @@ OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace`
 | `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | `shell_exec` の既定 timeout                                           |
 | `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | `shell_exec` timeout 上限                                             |
 | `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | stdout + stderr の返却上限                                            |
+| `SHELL_WORKSPACE_AGENT_PROVIDER_ID`       | `OPENCODE_PROVIDER_ID`  | `shell-worker` サブエージェントの provider                            |
+| `SHELL_WORKSPACE_AGENT_MODEL_ID`          | `OPENCODE_MODEL_ID`     | `shell-worker` サブエージェントの model                               |
+| `SHELL_WORKSPACE_AGENT_TEMPERATURE`       | `0.7`                   | `shell-worker` サブエージェントの temperature                         |
+| `SHELL_WORKSPACE_AGENT_STEPS`             | `24`                    | `shell-worker` サブエージェントの最大 agentic step 数                 |
 | `SHELL_WORKSPACE_HOST_DATA_DIR`           | unset                   | ホスト Podman socket 経由で実行する場合のホスト側 workspace directory |
 
 `shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として shell workspace directory を渡す。これにより `shell_export_file` が返したパスを `core_send_message(..., file_path)` で添付できる。

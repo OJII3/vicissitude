@@ -95,6 +95,51 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 }
 
 describe("OpencodeSessionAdapter", () => {
+	test("OpenCode 起動時に agent config と primary_tools を渡す", async () => {
+		const streamState = createStream();
+		const client = createClient(streamState.stream);
+		const clientFactory = mock(() =>
+			Promise.resolve({
+				client,
+				server: { url: "http://localhost", close: mock(() => {}) },
+			}),
+		);
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: { task: true },
+			agents: {
+				build: { mode: "primary", tools: { shell_exec: false } },
+				"shell-worker": {
+					mode: "subagent",
+					model: "provider/worker-model",
+					tools: { shell_exec: true },
+				},
+			},
+			defaultAgent: "build",
+			primaryTools: ["task"],
+			temperature: 0.9,
+			clientFactory,
+		});
+
+		await adapter.createSession("test session");
+
+		expect(clientFactory).toHaveBeenCalledTimes(1);
+		const calls = clientFactory.mock.calls as unknown as Array<[unknown]>;
+		const options = calls[0]?.[0] as {
+			config: {
+				default_agent?: string;
+				agent?: Record<string, { temperature?: number; mode?: string }>;
+				experimental?: { primary_tools?: string[] };
+			};
+		};
+		expect(options.config.default_agent).toBe("build");
+		expect(options.config.experimental?.primary_tools).toEqual(["task"]);
+		expect(options.config.agent?.build?.mode).toBe("primary");
+		expect(options.config.agent?.build?.temperature).toBe(0.9);
+		expect(options.config.agent?.["shell-worker"]?.mode).toBe("subagent");
+	});
+
 	test("promptAsyncAndWatchSession は abort 時に次イベントを待たず cancelled を返す", async () => {
 		const streamState = createStream();
 		const client = createClient(streamState.stream);

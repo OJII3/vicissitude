@@ -1,5 +1,8 @@
+/* oxlint-disable max-lines -- OpenCode SDK adapter keeps session operations and stream handling in one cohesive boundary */
 import {
 	createOpencode,
+	type AgentConfig,
+	type Config as OpencodeConfig,
 	type Event,
 	type McpLocalConfig,
 	type McpRemoteConfig,
@@ -34,10 +37,15 @@ export interface OpencodeSessionAdapterConfig {
 	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
 	mcpServers: Record<string, McpLocalConfig | McpRemoteConfig | { enabled: boolean }>;
 	builtinTools: Record<string, boolean>;
+	agents?: Record<string, AgentConfig>;
+	defaultAgent?: string;
+	primaryTools?: string[];
 	temperature?: number;
 	clientFactory?: typeof createOpencode;
 	logger?: Logger;
 }
+
+export type OpencodeAgentConfig = AgentConfig;
 
 export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	private client: OpencodeClient | null = null;
@@ -298,20 +306,31 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		this.closeServer = null;
 	}
 
+	private buildAgentConfig(): OpencodeConfig["agent"] {
+		const agent = this.config.agents ? { ...this.config.agents } : {};
+		if (this.config.temperature !== null && this.config.temperature !== undefined) {
+			agent.build = {
+				...agent.build,
+				temperature: this.config.temperature,
+			};
+		}
+		return Object.keys(agent).length > 0 ? agent : undefined;
+	}
+
 	private async getClient(): Promise<OpencodeClient> {
 		if (this.client) return this.client;
 		this.logger?.info(`[opencode] initializing client (port=${this.config.port})`);
+		const agent = this.buildAgentConfig();
 		const result = await (this.config.clientFactory ?? createOpencode)({
 			port: this.config.port,
 			config: {
 				mcp: this.config.mcpServers,
 				tools: this.config.builtinTools,
-				agent:
-					this.config.temperature === null || this.config.temperature === undefined
-						? undefined
-						: { build: { temperature: this.config.temperature } },
+				default_agent: this.config.defaultAgent,
+				agent,
 				experimental: {
 					mcp_timeout: MCP_REQUEST_TIMEOUT_MS,
+					primary_tools: this.config.primaryTools,
 				},
 			},
 		});
