@@ -8,6 +8,12 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 `.env` は secret とデプロイ環境の入口だけに薄く保つ。
 
+## Deploy 時の OpenCode 設定
+
+`nr deploy` は `~/.config/opencode/opencode.json` が regular file として存在する場合だけ、生成 compose override 経由で `/app/.config/opencode/opencode.json` に read-only bind mount する。存在しないホストでは mount を追加しない。
+
+`opencode.json` の位置に directory など regular file 以外がある場合は、誤った bind mount を避けるため deploy を中止する。
+
 ## 形式
 
 profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。

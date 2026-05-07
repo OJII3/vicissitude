@@ -13,6 +13,7 @@ node_modules/
 /config/local.json
 /PLAN.md
 /artifacts/
+/.generated/
 data/
 .direnv/
 .pre-commit-config.yaml
