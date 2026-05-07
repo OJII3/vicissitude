@@ -25,6 +25,7 @@
               podman
               python311
               podman-compose
+              slirp4netns
             ];
           };
         };
