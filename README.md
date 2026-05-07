@@ -77,37 +77,38 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツールに `{サーバー名}_{ツール名}` のプレフィックスを付けるため、実際の呼び出し名は下表の通り。
 
-| カテゴリ     | MCP サーバー | 主要ツール                                                                                                                                                        |
-| ------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| チャット     | core         | core_send_message, core_reply, core_add_reaction, core_read_messages, core_list_channels                                                                          |
-| コード実行   | code-exec    | code-exec_execute_code                                                                                                                                            |
-| スケジュール | core         | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                |
-| 記憶         | core         | core_memory_retrieve, core_memory_get_facts                                                                                                                       |
-| ゲーム委譲   | core         | core_minecraft_delegate, core_minecraft_status, core_minecraft_start_session, core_minecraft_stop_session                                                         |
-| ゲーム操作   | minecraft    | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                      |
-| ゲーム通信   | mc-bridge    | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                     |
-| ゲーム記憶   | mc-bridge    | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill |
-| 選曲         | core         | core_spotify_pick_track                                                                                                                                           |
-| 楽曲検索     | core         | core_spotify_search                                                                                                                                               |
-| お気に入り   | core         | core_spotify_saved_tracks                                                                                                                                         |
-| 楽曲詳細     | core         | core_spotify_track_detail                                                                                                                                         |
-| 歌詞取得     | core         | core_fetch_lyrics                                                                                                                                                 |
-| 聴取記録     | core         | core_save_listening_fact                                                                                                                                          |
-| メタ         | core         | core_list_tools                                                                                                                                                   |
+| カテゴリ     | MCP サーバー    | 主要ツール                                                                                                                                                           |
+| ------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| チャット     | core            | core_send_message, core_reply, core_add_reaction, core_read_messages, core_list_channels                                                                             |
+| Shell 作業   | shell-workspace | shell-workspace_shell_start_session, shell-workspace_shell_exec, shell-workspace_shell_status, shell-workspace_shell_export_file, shell-workspace_shell_stop_session |
+| スケジュール | core            | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                   |
+| 記憶         | core            | core_memory_retrieve, core_memory_get_facts                                                                                                                          |
+| ゲーム委譲   | core            | core_minecraft_delegate, core_minecraft_status, core_minecraft_start_session, core_minecraft_stop_session                                                            |
+| ゲーム操作   | minecraft       | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                         |
+| ゲーム通信   | mc-bridge       | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                        |
+| ゲーム記憶   | mc-bridge       | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill    |
+| 選曲         | core            | core_spotify_pick_track                                                                                                                                              |
+| 楽曲検索     | core            | core_spotify_search                                                                                                                                                  |
+| お気に入り   | core            | core_spotify_saved_tracks                                                                                                                                            |
+| 楽曲詳細     | core            | core_spotify_track_detail                                                                                                                                            |
+| 歌詞取得     | core            | core_fetch_lyrics                                                                                                                                                    |
+| 聴取記録     | core            | core_save_listening_fact                                                                                                                                             |
+| メタ         | core            | core_list_tools                                                                                                                                                      |
 
 OpenCode SDK 組み込み: `webfetch`
 
 ### 3.5 コンテキスト管理
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
-- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md`
+- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`
+- capability 連動ファイル: `TOOLS-CODE.md` は `SHELL_WORKSPACE_ENABLED=true` 時のみ、`TOOLS-MINECRAFT.md` は `MC_HOST` 設定時のみ注入する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
 ### 3.6 マルチテナント分離
 
-- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`, `TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は全テナントで共有。
+- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md` は全テナントで共有。`TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は capability 有効時のみ共有コンテキストとして注入する。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
 - Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
   - `discord-guild`: Discord ギルドごとの記憶。DB パス: `guilds/{guildId}/memory.db`
@@ -193,7 +194,7 @@ OpenCode SDK 組み込み: `webfetch`
 2. Bot 自身のメッセージには反応しない。
 3. セッション管理が永続化され、再起動後も継続できる。
 4. ブートストラップコンテキストが毎回 system prompt として注入される。
-5. MCP サーバー経由で Discord 操作・コード実行が可能。
+5. MCP サーバー経由で Discord 操作が可能。`SHELL_WORKSPACE_ENABLED=true` のインスタンスでは隔離 shell workspace 操作も可能。
 6. AI がメッセージ駆動プロンプトにより、自律的に応答を判断・送信する。
 7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
 8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。

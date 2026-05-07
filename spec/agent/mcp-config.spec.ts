@@ -9,10 +9,20 @@ describe("mcpServerConfigs", () => {
 		appRoot: "/test/root",
 		coreEnvironment: { DISCORD_TOKEN: "test", DATA_DIR: "/data" },
 	};
+	const shellWorkspace = {
+		image: "sandbox-image",
+		dataDir: "/data/shell-workspaces",
+		auditLogPath: "/data/shell-workspace-audit.jsonl",
+		defaultTtlMinutes: 60,
+		maxTtlMinutes: 120,
+		defaultTimeoutSeconds: 30,
+		maxTimeoutSeconds: 120,
+		maxOutputChars: 50_000,
+	};
 
-	it("core と code-exec のみ返す", () => {
+	it("デフォルトでは core のみ返す", () => {
 		const configs = mcpServerConfigs("discord:123", defaultOpts);
-		expect(Object.keys(configs).toSorted()).toEqual(["code-exec", "core"]);
+		expect(Object.keys(configs).toSorted()).toEqual(["core"]);
 	});
 
 	it("core は local 型", () => {
@@ -36,6 +46,42 @@ describe("mcpServerConfigs", () => {
 			expect(core.environment?.DISCORD_TOKEN).toBe("test");
 			expect(core.environment?.DATA_DIR).toBe("/data");
 		}
+	});
+
+	it("shell-workspace capability が有効な場合だけ shell-workspace を返す", () => {
+		const configs = mcpServerConfigs("discord:123", {
+			...defaultOpts,
+			capabilities: ["shell-workspace"],
+			shellWorkspace,
+		});
+
+		expect(Object.keys(configs).toSorted()).toEqual(["core", "shell-workspace"]);
+	});
+
+	it("shell-workspace の environment は専用設定のみを含む", () => {
+		const configs = mcpServerConfigs("discord:123", {
+			...defaultOpts,
+			capabilities: ["shell-workspace"],
+			shellWorkspace,
+		});
+		const shell = configs["shell-workspace"];
+
+		expect(shell?.type).toBe("local");
+		if (shell?.type === "local") {
+			expect(shell.environment?.SHELL_WORKSPACE_AGENT_ID).toBe("discord:123");
+			expect(shell.environment?.SHELL_WORKSPACE_IMAGE).toBe("sandbox-image");
+			expect(shell.environment?.SHELL_WORKSPACE_DATA_DIR).toBe("/data/shell-workspaces");
+			expect(shell.environment?.DISCORD_TOKEN).toBeUndefined();
+		}
+	});
+
+	it("shell-workspace capability 有効時に設定がなければエラーにする", () => {
+		expect(() =>
+			mcpServerConfigs("discord:123", {
+				...defaultOpts,
+				capabilities: ["shell-workspace"],
+			}),
+		).toThrow("shellWorkspace config is required");
 	});
 });
 

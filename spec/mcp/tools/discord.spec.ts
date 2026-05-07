@@ -1,5 +1,8 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "fs";
+import os from "os";
+import { join } from "path";
 
 import {
 	captureTools,
@@ -78,6 +81,32 @@ describe("send_message", () => {
 			threw = true;
 		}
 		expect(threw).toBe(true);
+	});
+
+	test("DISCORD_ATTACHMENT_ALLOWED_DIRS 配下の file_path を送信できる", async () => {
+		const saved = process.env.DISCORD_ATTACHMENT_ALLOWED_DIRS;
+		const dir = mkdtempSync(join(os.tmpdir(), "discord-attachment-"));
+		const filePath = join(dir, "result.txt");
+		writeFileSync(filePath, "result");
+		process.env.DISCORD_ATTACHMENT_ALLOWED_DIRS = dir;
+		try {
+			const { tools } = captureTools({ discordClient: createDiscordClientStub() });
+			const sendMessage = tools.get("send_message")!;
+
+			const result = (await sendMessage({
+				channel_id: "ch-1",
+				content: "テスト",
+				file_path: filePath,
+			})) as ToolResult;
+
+			expect(result.content[0]!.text).toBe("Sent message sent-msg-1");
+		} finally {
+			if (saved === undefined) {
+				delete process.env.DISCORD_ATTACHMENT_ALLOWED_DIRS;
+			} else {
+				process.env.DISCORD_ATTACHMENT_ALLOWED_DIRS = saved;
+			}
+		}
 	});
 });
 

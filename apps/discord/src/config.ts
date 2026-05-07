@@ -50,6 +50,28 @@ const imageRecognitionSchema = z.object({
 	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
 });
 
+const shellWorkspaceSchema = z
+	.object({
+		enabled: z.literal(true),
+		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
+		dataDir: z.string(),
+		auditLogPath: z.string(),
+		defaultTtlMinutes: safeInt.min(1),
+		maxTtlMinutes: safeInt.min(1),
+		defaultTimeoutSeconds: safeInt.min(1),
+		maxTimeoutSeconds: safeInt.min(1),
+		maxOutputChars: safeInt.min(1),
+	})
+	.refine((v) => v.defaultTtlMinutes <= v.maxTtlMinutes, {
+		message: "SHELL_WORKSPACE_DEFAULT_TTL_MINUTES must be <= SHELL_WORKSPACE_MAX_TTL_MINUTES",
+		path: ["defaultTtlMinutes"],
+	})
+	.refine((v) => v.defaultTimeoutSeconds <= v.maxTimeoutSeconds, {
+		message:
+			"SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS must be <= SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS",
+		path: ["defaultTimeoutSeconds"],
+	});
+
 const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
 	webPort: safeInt,
@@ -78,6 +100,7 @@ const appConfigSchema = z.object({
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
 	imageRecognition: imageRecognitionSchema.optional(),
+	shellWorkspace: shellWorkspaceSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
 });
@@ -98,11 +121,27 @@ function parseBooleanEnv(value: string | undefined): boolean {
 	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
+function buildShellWorkspaceConfig(env: Record<string, string | undefined>, dataDir: string) {
+	if (!parseBooleanEnv(env.SHELL_WORKSPACE_ENABLED)) return;
+	return {
+		enabled: true,
+		image: env.SHELL_WORKSPACE_IMAGE ?? "vicissitude-code-exec",
+		dataDir: resolve(dataDir, "shell-workspaces"),
+		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
+		defaultTtlMinutes: Number(env.SHELL_WORKSPACE_DEFAULT_TTL_MINUTES ?? "60"),
+		maxTtlMinutes: Number(env.SHELL_WORKSPACE_MAX_TTL_MINUTES ?? "120"),
+		defaultTimeoutSeconds: Number(env.SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS ?? "30"),
+		maxTimeoutSeconds: Number(env.SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS ?? "120"),
+		maxOutputChars: Number(env.SHELL_WORKSPACE_MAX_OUTPUT_CHARS ?? "50000"),
+	};
+}
+
 export function loadConfig(
 	env: Record<string, string | undefined> = process.env,
 	root?: string,
 ): AppConfig {
 	const resolvedRoot = root ?? process.env.APP_ROOT ?? resolve(process.cwd());
+	const dataDir = resolve(resolvedRoot, "data");
 
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
 
@@ -172,7 +211,8 @@ export function loadConfig(
 					modelId: env.DISCORD_IMAGE_RECOGNITION_MODEL_ID ?? "",
 				}
 			: undefined,
-		dataDir: resolve(resolvedRoot, "data"),
+		shellWorkspace: buildShellWorkspaceConfig(env, dataDir),
+		dataDir,
 		contextDir: resolve(resolvedRoot, "context"),
 	};
 

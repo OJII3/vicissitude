@@ -55,6 +55,7 @@ services:
         bun build apps/discord/src/index.ts --outdir dist --target bun --packages external &&
         bun build packages/mcp/src/core-server.ts --outfile dist/core-server.js --target bun --packages external &&
         bun build packages/mcp/src/code-exec-server.ts --outfile dist/code-exec-server.js --target bun --packages external &&
+        bun build packages/mcp/src/shell-workspace-server.ts --outfile dist/shell-workspace-server.js --target bun --packages external &&
         bun build packages/minecraft/src/server.ts --outfile dist/minecraft-server.js --target bun --packages external &&
         bun build packages/minecraft/src/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external
     depends_on:

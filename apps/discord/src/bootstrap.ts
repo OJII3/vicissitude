@@ -8,7 +8,7 @@ import { ImageAttachmentDescriber } from "@vicissitude/agent/discord/image-attac
 import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
-import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
+import { type AgentCapability, mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
@@ -85,14 +85,14 @@ export function createStoreLayer(config: AppConfig) {
 // ─── Context Layer ──────────────────────────────────────────────
 
 export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
-	const excludeFiles: ReadonlySet<ContextFileName> | undefined = config.minecraft
-		? undefined
-		: new Set<ContextFileName>(["TOOLS-MINECRAFT.md"]);
+	const excludeFiles = new Set<ContextFileName>();
+	if (!config.minecraft) excludeFiles.add("TOOLS-MINECRAFT.md");
+	if (!config.shellWorkspace) excludeFiles.add("TOOLS-CODE.md");
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 		factReader,
-		excludeFiles,
+		excludeFiles.size > 0 ? excludeFiles : undefined,
 	);
 	return { contextBuilder };
 }
@@ -140,6 +140,10 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 		env.MC_HOST = config.minecraft.host;
 	}
 
+	if (config.shellWorkspace) {
+		env.DISCORD_ATTACHMENT_ALLOWED_DIRS = config.shellWorkspace.dataDir;
+	}
+
 	return env;
 }
 
@@ -171,11 +175,14 @@ export function createGuildAgents(
 	for (const [index, guildId] of guildIds.entries()) {
 		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
 		const agentId = `${agentIdPrefix}:${guildId}`;
+		const capabilities: AgentCapability[] = config.shellWorkspace ? ["shell-workspace"] : [];
 		const profile = createConversationProfile({
 			...config.opencode,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
 				coreEnvironment: deps.coreEnvironment,
+				capabilities,
+				shellWorkspace: config.shellWorkspace,
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,

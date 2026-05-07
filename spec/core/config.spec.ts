@@ -29,6 +29,7 @@ describe("loadConfig", () => {
 		expect(config.memory.ollamaBaseUrl).toBe("http://ollama:11434");
 		expect(config.memory.embeddingModel).toBe("embeddinggemma");
 		expect(config.minecraft).toBeUndefined();
+		expect(config.shellWorkspace).toBeUndefined();
 		expect(config.dataDir).toBe("/tmp/test-vicissitude/data");
 		expect(config.contextDir).toBe("/tmp/test-vicissitude/context");
 	});
@@ -136,6 +137,64 @@ describe("loadConfig", () => {
 			expect(config.minecraft?.profilesFolder).toBe("/tmp/mc-profiles");
 			expect(config.minecraft?.mcpPort).toBe(4000);
 			expect(config.minecraft?.viewerPort).toBe(5000);
+		});
+	});
+
+	describe("Shell workspace", () => {
+		it("SHELL_WORKSPACE_ENABLED が設定されていれば shellWorkspace がセットされる", () => {
+			const config = loadConfig(
+				baseEnv({
+					SHELL_WORKSPACE_ENABLED: "true",
+				}),
+				root,
+			);
+
+			expect(config.shellWorkspace).toEqual({
+				enabled: true,
+				image: "vicissitude-code-exec",
+				dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
+				auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			});
+		});
+
+		it("Shell workspace のカスタム値が反映される", () => {
+			const config = loadConfig(
+				baseEnv({
+					SHELL_WORKSPACE_ENABLED: "1",
+					SHELL_WORKSPACE_IMAGE: "custom-shell-image",
+					SHELL_WORKSPACE_DEFAULT_TTL_MINUTES: "10",
+					SHELL_WORKSPACE_MAX_TTL_MINUTES: "20",
+					SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS: "5",
+					SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS: "9",
+					SHELL_WORKSPACE_MAX_OUTPUT_CHARS: "12345",
+				}),
+				root,
+			);
+
+			expect(config.shellWorkspace?.image).toBe("custom-shell-image");
+			expect(config.shellWorkspace?.defaultTtlMinutes).toBe(10);
+			expect(config.shellWorkspace?.maxTtlMinutes).toBe(20);
+			expect(config.shellWorkspace?.defaultTimeoutSeconds).toBe(5);
+			expect(config.shellWorkspace?.maxTimeoutSeconds).toBe(9);
+			expect(config.shellWorkspace?.maxOutputChars).toBe(12_345);
+		});
+
+		it("Shell workspace の既定 TTL が上限を超える場合はエラーにする", () => {
+			expect(() =>
+				loadConfig(
+					baseEnv({
+						SHELL_WORKSPACE_ENABLED: "true",
+						SHELL_WORKSPACE_DEFAULT_TTL_MINUTES: "30",
+						SHELL_WORKSPACE_MAX_TTL_MINUTES: "10",
+					}),
+					root,
+				),
+			).toThrow("SHELL_WORKSPACE_DEFAULT_TTL_MINUTES");
 		});
 	});
 });

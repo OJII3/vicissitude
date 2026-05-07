@@ -8,6 +8,7 @@ function makeConfig(
 	overrides: {
 		spotify?: AppConfig["spotify"];
 		genius?: AppConfig["genius"];
+		shellWorkspace?: AppConfig["shellWorkspace"];
 	} = {},
 ): AppConfig {
 	return {
@@ -173,6 +174,33 @@ describe("buildCoreEnvironment", () => {
 		it("config.genius が存在しない場合は GENIUS_ACCESS_TOKEN を含まない", () => {
 			const result = buildCoreEnvironment(makeConfig(), ROOT);
 			expect(result).not.toHaveProperty("GENIUS_ACCESS_TOKEN");
+		});
+	});
+
+	describe("Shell workspace 環境変数", () => {
+		it("config.shellWorkspace が存在する場合は添付許可ディレクトリを含む", () => {
+			const config = makeConfig({
+				shellWorkspace: {
+					enabled: true,
+					image: "sandbox",
+					dataDir: "/tmp/shell-workspaces",
+					auditLogPath: "/tmp/shell-audit.jsonl",
+					defaultTtlMinutes: 60,
+					maxTtlMinutes: 120,
+					defaultTimeoutSeconds: 30,
+					maxTimeoutSeconds: 120,
+					maxOutputChars: 50_000,
+				},
+			});
+			const result = buildCoreEnvironment(config, ROOT);
+
+			expect(result.DISCORD_ATTACHMENT_ALLOWED_DIRS).toBe("/tmp/shell-workspaces");
+		});
+
+		it("config.shellWorkspace が存在しない場合は添付許可ディレクトリを追加しない", () => {
+			const result = buildCoreEnvironment(makeConfig(), ROOT);
+
+			expect(result).not.toHaveProperty("DISCORD_ATTACHMENT_ALLOWED_DIRS");
 		});
 	});
 });

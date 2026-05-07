@@ -7,7 +7,16 @@ import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Client, TextChannel } from "discord.js";
 import { z } from "zod";
 
-const ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
+const DEFAULT_ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
+const ATTACHMENT_ALLOWED_DIRS_ENV = "DISCORD_ATTACHMENT_ALLOWED_DIRS";
+
+function allowedFileDirs(): string[] {
+	const extra = (process.env[ATTACHMENT_ALLOWED_DIRS_ENV] ?? "")
+		.split(path.delimiter)
+		.map((dir) => dir.trim())
+		.filter((dir) => dir.length > 0);
+	return [...DEFAULT_ALLOWED_FILE_DIRS, ...extra].map((dir) => path.resolve(dir));
+}
 
 function validateFilePath(filePath: string): void {
 	const absolute = path.resolve(filePath);
@@ -15,7 +24,9 @@ function validateFilePath(filePath: string): void {
 		throw new Error(`File not found: ${filePath}`);
 	}
 	const resolved = realpathSync(absolute);
-	const allowed = ALLOWED_FILE_DIRS.some((dir) => resolved.startsWith(dir + "/"));
+	const allowed = allowedFileDirs().some(
+		(dir) => resolved === dir || resolved.startsWith(dir + path.sep),
+	);
 	if (!allowed) {
 		throw new Error(`File path not allowed: ${filePath}`);
 	}

@@ -1,8 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
+import os from "os";
+import { join } from "path";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
-import { createStoreLayer, createMetrics } from "./bootstrap.ts";
+import { createContextLayer, createStoreLayer, createMetrics } from "./bootstrap.ts";
 import type { AppConfig } from "./config.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
@@ -34,6 +37,16 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 	};
 }
 
+function createContextRoot(): string {
+	const root = mkdtempSync(join(os.tmpdir(), "vicissitude-context-root-"));
+	const contextDir = join(root, "context");
+	mkdirSync(contextDir, { recursive: true });
+	writeFileSync(join(contextDir, "TOOLS-CORE.md"), "core tools");
+	writeFileSync(join(contextDir, "TOOLS-CODE.md"), "shell tools");
+	writeFileSync(join(contextDir, "TOOLS-MINECRAFT.md"), "minecraft tools");
+	return root;
+}
+
 describe("createStoreLayer", () => {
 	test("DB と SessionStore を返す", () => {
 		const config = createTestConfig();
@@ -51,5 +64,42 @@ describe("createMetrics", () => {
 
 		expect(collector).toBeDefined();
 		expect(server).toBeDefined();
+	});
+});
+
+describe("createContextLayer", () => {
+	test("デフォルトでは capability 連動ツール説明を除外する", async () => {
+		const root = createContextRoot();
+		const { contextBuilder } = createContextLayer(createTestConfig(), root);
+		const context = await contextBuilder.build();
+
+		expect(context).toContain("core tools");
+		expect(context).not.toContain("shell tools");
+		expect(context).not.toContain("minecraft tools");
+	});
+
+	test("shellWorkspace 有効時は TOOLS-CODE を注入する", async () => {
+		const root = createContextRoot();
+		const { contextBuilder } = createContextLayer(
+			createTestConfig({
+				shellWorkspace: {
+					enabled: true,
+					image: "sandbox",
+					dataDir: "/tmp/shell-workspaces",
+					auditLogPath: "/tmp/shell-audit.jsonl",
+					defaultTtlMinutes: 60,
+					maxTtlMinutes: 120,
+					defaultTimeoutSeconds: 30,
+					maxTimeoutSeconds: 120,
+					maxOutputChars: 50_000,
+				},
+			}),
+			root,
+		);
+		const context = await contextBuilder.build();
+
+		expect(context).toContain("core tools");
+		expect(context).toContain("shell tools");
+		expect(context).not.toContain("minecraft tools");
 	});
 });
