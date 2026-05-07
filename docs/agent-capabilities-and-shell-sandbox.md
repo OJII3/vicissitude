@@ -4,7 +4,7 @@
 
 Vicissitude の会話エージェントを、必要な能力だけを持つ profile として組み立てる。Discord で会話するだけのインスタンスには shell 権限を渡さず、作業用インスタンスだけに隔離された shell workspace を MCP 経由で接続する。
 
-OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace` MCP サーバーに集約し、timeout、cwd、ネットワーク、quota、監査ログ、TTL をアプリケーション側で強制する。
+OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace` MCP サーバーに集約し、timeout、cwd、ネットワーク profile、quota、監査ログ、TTL をアプリケーション側で強制する。
 
 ## Capability
 
@@ -33,12 +33,13 @@ OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace`
 
 ## Sandbox Policy
 
-MVP の既定 policy:
+既定 policy:
 
 - rootless Podman で prebuilt image を実行する。
-- network は `none` のみ。
+- network は `open` を既定にし、rootless Podman の `slirp4netns` でインターネットアクセスを許可する。必要なら `SHELL_WORKSPACE_NETWORK_PROFILE=none` で無効化できる。
 - root filesystem は read-only。
 - session workspace だけを `/workspace` に read-write mount する。
+- sandbox 内の `HOME`、XDG cache/config、`TMPDIR` は `/workspace` 配下に向け、session ごとに作成する。
 - host HOME、OpenCode auth、`.env`、SSH/Git credential、Podman socket は sandbox に渡さない。
 - 環境変数は shell MCP プロセス、sandbox 実行の両方で allowlist 方式にする。
 - non-root user で実行する。
@@ -52,6 +53,7 @@ MVP の既定 policy:
 | ----------------------------------------- | ----------------------- | --------------------------------------------------------------------- |
 | `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化                                        |
 | `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | Podman で起動する sandbox image                                       |
+| `SHELL_WORKSPACE_NETWORK_PROFILE`         | `open`                  | `open` はインターネット許可、`none` はネットワーク無効                |
 | `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | session の既定 TTL                                                    |
 | `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | session TTL 上限                                                      |
 | `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | `shell_exec` の既定 timeout                                           |
@@ -84,4 +86,4 @@ bot コンテナからホスト Podman socket を使う deploy では、sandbox 
 - OpenCode 組み込み `bash` の有効化。
 - host checkout や host HOME の直接編集。
 - ユーザー本人の認証情報を使った GitHub、Spotify、SSH 操作。
-- network enabled profile。必要になった時点で、宛先制限と別途 policy を設計する。
+- host network、privileged container、Podman socket の sandbox への直接 mount。

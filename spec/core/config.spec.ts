@@ -154,6 +154,7 @@ describe("loadConfig", () => {
 				image: "vicissitude-code-exec",
 				dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
 				auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
+				networkProfile: "open",
 				defaultTtlMinutes: 60,
 				maxTtlMinutes: 120,
 				defaultTimeoutSeconds: 30,
@@ -172,11 +173,13 @@ describe("loadConfig", () => {
 					SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS: "5",
 					SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS: "9",
 					SHELL_WORKSPACE_MAX_OUTPUT_CHARS: "12345",
+					SHELL_WORKSPACE_NETWORK_PROFILE: "none",
 				}),
 				root,
 			);
 
 			expect(config.shellWorkspace?.image).toBe("custom-shell-image");
+			expect(config.shellWorkspace?.networkProfile).toBe("none");
 			expect(config.shellWorkspace?.defaultTtlMinutes).toBe(10);
 			expect(config.shellWorkspace?.maxTtlMinutes).toBe(20);
 			expect(config.shellWorkspace?.defaultTimeoutSeconds).toBe(5);

@@ -13,6 +13,7 @@ describe("mcpServerConfigs", () => {
 		image: "sandbox-image",
 		dataDir: "/data/shell-workspaces",
 		auditLogPath: "/data/shell-workspace-audit.jsonl",
+		networkProfile: "open" as const,
 		defaultTtlMinutes: 60,
 		maxTtlMinutes: 120,
 		defaultTimeoutSeconds: 30,
@@ -75,6 +76,7 @@ describe("mcpServerConfigs", () => {
 			expect(shell.environment?.SHELL_WORKSPACE_IMAGE).toBe("sandbox-image");
 			expect(shell.environment?.SHELL_WORKSPACE_DATA_DIR).toBe("/data/shell-workspaces");
 			expect(shell.environment?.SHELL_WORKSPACE_HOST_DATA_DIR).toBe("/host/data/shell-workspaces");
+			expect(shell.environment?.SHELL_WORKSPACE_NETWORK_PROFILE).toBe("open");
 			expect(shell.environment?.DISCORD_TOKEN).toBeUndefined();
 		}
 	});

@@ -55,6 +55,7 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 		},
 		"shellWorkspace": {
 			"image": "vicissitude-code-exec",
+			"networkProfile": "open",
 			"defaultTtlMinutes": 60,
 			"maxTtlMinutes": 120,
 			"defaultTimeoutSeconds": 30,
