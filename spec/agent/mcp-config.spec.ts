@@ -62,7 +62,10 @@ describe("mcpServerConfigs", () => {
 		const configs = mcpServerConfigs("discord:123", {
 			...defaultOpts,
 			capabilities: ["shell-workspace"],
-			shellWorkspace,
+			shellWorkspace: {
+				...shellWorkspace,
+				hostDataDir: "/host/data/shell-workspaces",
+			},
 		});
 		const shell = configs["shell-workspace"];
 
@@ -71,6 +74,7 @@ describe("mcpServerConfigs", () => {
 			expect(shell.environment?.SHELL_WORKSPACE_AGENT_ID).toBe("discord:123");
 			expect(shell.environment?.SHELL_WORKSPACE_IMAGE).toBe("sandbox-image");
 			expect(shell.environment?.SHELL_WORKSPACE_DATA_DIR).toBe("/data/shell-workspaces");
+			expect(shell.environment?.SHELL_WORKSPACE_HOST_DATA_DIR).toBe("/host/data/shell-workspaces");
 			expect(shell.environment?.DISCORD_TOKEN).toBeUndefined();
 		}
 	});

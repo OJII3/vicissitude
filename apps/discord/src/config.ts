@@ -26,6 +26,9 @@ function buildShellWorkspaceConfig(env: Record<string, string | undefined>, data
 		enabled: true,
 		image: env.SHELL_WORKSPACE_IMAGE ?? "vicissitude-code-exec",
 		dataDir: resolve(dataDir, "shell-workspaces"),
+		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
+			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
+			: {}),
 		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
 		defaultTtlMinutes: Number(env.SHELL_WORKSPACE_DEFAULT_TTL_MINUTES ?? "60"),
 		maxTtlMinutes: Number(env.SHELL_WORKSPACE_MAX_TTL_MINUTES ?? "120"),

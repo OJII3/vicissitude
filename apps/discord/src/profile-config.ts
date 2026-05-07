@@ -67,6 +67,7 @@ export type ProfileConfig = z.infer<typeof profileConfigSchema>;
 
 function buildProfileShellWorkspaceConfig(
 	profile: ProfileConfig,
+	env: Record<string, string | undefined>,
 	dataDir: string,
 ): AppConfig["shellWorkspace"] {
 	const shellWorkspace = profile.features.shellWorkspace;
@@ -75,6 +76,9 @@ function buildProfileShellWorkspaceConfig(
 		enabled: true,
 		image: shellWorkspace.image,
 		dataDir: resolve(dataDir, "shell-workspaces"),
+		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
+			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
+			: {}),
 		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
 		defaultTtlMinutes: shellWorkspace.defaultTtlMinutes,
 		maxTtlMinutes: shellWorkspace.maxTtlMinutes,
@@ -157,7 +161,7 @@ export function loadConfigFromProfile(
 					modelId: profile.features.imageRecognition.modelId,
 				}
 			: undefined,
-		shellWorkspace: buildProfileShellWorkspaceConfig(profile, dataDir),
+		shellWorkspace: buildProfileShellWorkspaceConfig(profile, env, dataDir),
 		dataDir,
 		contextDir: resolve(resolvedRoot, "context"),
 	};

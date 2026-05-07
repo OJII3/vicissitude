@@ -15,6 +15,7 @@ export type AgentCapability = "shell-workspace";
 export interface ShellWorkspaceMcpConfigOptions {
 	image: string;
 	dataDir: string;
+	hostDataDir?: string;
 	auditLogPath: string;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
@@ -75,6 +76,7 @@ function buildShellWorkspaceEnvironment(
 		SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS: String(config.maxTimeoutSeconds),
 		SHELL_WORKSPACE_MAX_OUTPUT_CHARS: String(config.maxOutputChars),
 	};
+	if (config.hostDataDir) env.SHELL_WORKSPACE_HOST_DATA_DIR = config.hostDataDir;
 	if (process.env.XDG_RUNTIME_DIR) env.XDG_RUNTIME_DIR = process.env.XDG_RUNTIME_DIR;
 	if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
 	return env;
