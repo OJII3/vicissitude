@@ -1,4 +1,6 @@
 /* oxlint-disable max-lines -- OpenCode SDK adapter keeps session operations and stream handling in one cohesive boundary */
+import { mkdirSync } from "fs";
+
 import {
 	createOpencode,
 	type AgentConfig,
@@ -41,6 +43,8 @@ export interface OpencodeSessionAdapterConfig {
 	defaultAgent?: string;
 	primaryTools?: string[];
 	temperature?: number;
+	/** OpenCode の session / tool 実行に使う project directory */
+	directory?: string;
 	clientFactory?: typeof createOpencode;
 	logger?: Logger;
 }
@@ -57,7 +61,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	async createSession(title: string): Promise<string> {
 		this.logger?.info(`[opencode] creating session: ${title}`);
 		const oc = await this.getClient();
-		const result = await oc.session.create({ title });
+		const result = await oc.session.create({ title, ...this.directoryQuery() });
 		if (result.error || !result.data) {
 			throw new Error(
 				`Failed to create session: ${result.error ? JSON.stringify(result.error) : "no data returned"}`,
@@ -69,7 +73,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 	async sessionExists(sessionId: string): Promise<boolean> {
 		const oc = await this.getClient();
-		const result = await oc.session.get({ sessionID: sessionId });
+		const result = await oc.session.get({ sessionID: sessionId, ...this.directoryQuery() });
 		return !result.error && !!result.data;
 	}
 
@@ -108,6 +112,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const result = await oc.session.prompt(
 			{
 				sessionID: params.sessionId,
+				...this.directoryQuery(),
 				parts: this.buildParts(params),
 				model: { providerID: params.model.providerId, modelID: params.model.modelId },
 				system: params.system,
@@ -132,6 +137,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const result = await oc.session.promptAsync({
 			sessionID: params.sessionId,
+			...this.directoryQuery(),
 			parts: this.buildParts(params),
 			model: { providerID: params.model.providerId, modelID: params.model.modelId },
 			system: params.system,
@@ -160,6 +166,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		try {
 			const result = await oc.session.promptAsync({
 				sessionID: params.sessionId,
+				...this.directoryQuery(),
 				parts: this.buildParts(params),
 				model: { providerID: params.model.providerId, modelID: params.model.modelId },
 				system: params.system,
@@ -173,7 +180,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			while (true) {
 				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
 				const event = await nextStreamEvent(stream, signal, () =>
-					abortSession(oc, params.sessionId),
+					abortSession(oc, params.sessionId, this.config.directory),
 				);
 				if (event.type === "aborted") {
 					this.logger?.info("[opencode] event stream aborted");
@@ -236,7 +243,9 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		try {
 			while (true) {
 				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
-				const event = await nextStreamEvent(stream, signal, () => abortSession(oc, sessionId));
+				const event = await nextStreamEvent(stream, signal, () =>
+					abortSession(oc, sessionId, this.config.directory),
+				);
 				if (event.type === "aborted") return { type: "cancelled" };
 				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
 				if (event.type === "streamTimeout") {
@@ -286,6 +295,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const result = await oc.session.summarize({
 			sessionID: sessionId,
+			...this.directoryQuery(),
 			providerID: model.providerId,
 			modelID: model.modelId,
 		});
@@ -297,7 +307,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 	async deleteSession(sessionId: string): Promise<void> {
 		const oc = await this.getClient();
-		await oc.session.delete({ sessionID: sessionId });
+		await oc.session.delete({ sessionID: sessionId, ...this.directoryQuery() });
 	}
 
 	close(): void {
@@ -317,9 +327,16 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return Object.keys(agent).length > 0 ? agent : undefined;
 	}
 
+	private directoryQuery(): { directory?: string } {
+		return this.config.directory ? { directory: this.config.directory } : {};
+	}
+
 	private async getClient(): Promise<OpencodeClient> {
 		if (this.client) return this.client;
 		this.logger?.info(`[opencode] initializing client (port=${this.config.port})`);
+		if (this.config.directory) {
+			mkdirSync(this.config.directory, { recursive: true });
+		}
 		const agent = this.buildAgentConfig();
 		const result = await (this.config.clientFactory ?? createOpencode)({
 			port: this.config.port,

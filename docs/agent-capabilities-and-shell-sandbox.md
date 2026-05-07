@@ -1,92 +1,69 @@
-# Agent Capabilities and Shell Sandbox
+# Agent Capabilities and Shell Workspace
 
 ## 目的
 
-Vicissitude の会話エージェントを、必要な能力だけを持つ profile として組み立てる。Discord で会話するだけのインスタンスには shell 権限を渡さず、作業用インスタンスだけに隔離された shell workspace を MCP 経由で接続する。
+Vicissitude の会話エージェントを、必要な能力だけを持つ profile として組み立てる。Discord で会話するだけのインスタンスには shell 権限を渡さず、作業用インスタンスだけに OpenCode の shell 実行能力を持つサブエージェントを追加する。
 
-OpenCode 組み込み `bash` は使わない。shell 実行は `shell-workspace` MCP サーバーに集約し、timeout、cwd、ネットワーク profile、quota、監査ログ、TTL をアプリケーション側で強制する。
+shell 実行はメイン会話 agent に直接渡さない。メイン会話 agent は OpenCode `task` ツールだけを使って `shell-worker` サブエージェントへ委譲し、`shell-worker` だけが OpenCode 組み込み `bash` を使う。
 
 ## Capability
-
-初期実装の capability は次の通り。
 
 | Capability         | 内容                                                 | 既定                                    |
 | ------------------ | ---------------------------------------------------- | --------------------------------------- |
 | `core`             | Discord 送信、返信、リアクション、記憶、リマインダー | 有効                                    |
 | `webfetch`         | OpenCode 組み込み `webfetch`                         | 有効                                    |
 | `minecraft-bridge` | Discord から Minecraft エージェントへの委譲          | `MC_HOST` 設定時のみ                    |
-| `shell-workspace`  | Podman sandbox 内の shell workspace                  | `SHELL_WORKSPACE_ENABLED=true` の時のみ |
+| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent       | `SHELL_WORKSPACE_ENABLED=true` の時のみ |
 
-`shell-workspace` が無効な profile では、MCP サーバーもツール説明コンテキストも注入しない。有効な profile では、メイン会話 agent は OpenCode `task` ツールだけを使って `shell-worker` サブエージェントへ shell 作業を委譲する。`shell-worker` だけが `shell_*` MCP ツールを使う。
+`shell-workspace` が無効な profile では、`task`、`bash`、ツール説明コンテキストを注入しない。有効な profile では、メイン会話 agent は `task` のみを primary tool として持ち、`build` primary agent の permission は `bash: deny` にする。
 
 ## Shell Workspace
 
-`shell-workspace` は、短いコード片実行ではなく、TTL 付きの workspace session を提供する。MVP では exec ごとに sandbox コンテナを起動し、session ごとの workspace directory を bind mount して状態を保持する。
+`shell-worker` は OpenCode builtin `bash` で作業する。OpenCode session operation には専用 `directory` を渡し、作業ディレクトリを `data/shell-workspaces/opencode/<agent-id>/` に固定する。
 
-提供ツール:
+作業ディレクトリは永続化対象の `data/shell-workspaces` 配下なので、bot restart 後もファイルは残る。作成ファイルを Discord に添付する場合は、`shell-worker` が workspace 配下に保存した絶対 path を返し、メイン会話 agent が `core_send_message(..., file_path)` に指定する。
 
-- `shell_start_session(label?, ttl_minutes?)`
-- `shell_exec(session_id, command, cwd?, timeout_seconds?)`
-- `shell_status(session_id?)`
-- `shell_export_file(session_id, path)`
-- `shell_stop_session(session_id)`
-
-## Sandbox Policy
+## Permission Policy
 
 既定 policy:
 
-- rootless Podman で prebuilt image を実行する。
-- network は `open` を既定にし、rootless Podman の `pasta` でインターネットアクセスを許可する。必要なら `SHELL_WORKSPACE_NETWORK_PROFILE=none` で無効化できる。
-- root filesystem は writable にし、`apt-get update` や package install など sandbox 内の管理操作を許可する。container root は rootless Podman の user namespace 内に閉じる。
-- session workspace だけを `/workspace` に read-write mount する。
-- sandbox 内の `HOME`、XDG cache/config、`TMPDIR` は `/workspace` 配下に向け、session ごとに作成する。
-- host HOME、OpenCode auth、`.env`、SSH/Git credential、Podman socket は sandbox に渡さない。
-- 環境変数は shell MCP プロセス、sandbox 実行の両方で allowlist 方式にする。
-- sandbox 内では root user で実行する。
-- CPU、memory、PID、timeout、output size を制限する。
-- session TTL と明示停止で workspace を削除する。
+- メイン会話 agent:
+  - `task: allow`
+  - `bash: deny`
+  - `external_directory: deny`
+- `shell-worker` subagent:
+  - `bash: allow`
+  - `task: deny`
+  - `external_directory: deny`
+- OpenCode の global builtin tool は `webfetch`、`task`、shell workspace 有効時の `bash` だけを開く。
+- `primary_tools` は `["task"]` にし、メイン会話 agent の入口を委譲に限定する。
+- `shell-worker` prompt では workspace 外の読み書き、host secrets、auth files、環境変数 dump、権限昇格を禁止する。
+
+これは OpenCode permission と作業ディレクトリによる制御であり、Podman sandbox のような OS-level isolation ではない。OpenCode `bash` を使う以上、実行プロセスは bot コンテナのユーザー権限と network の範囲で動く。
 
 ## 設定
 
-| 環境変数                                  | 既定                    | 説明                                                                  |
-| ----------------------------------------- | ----------------------- | --------------------------------------------------------------------- |
-| `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化                                        |
-| `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | Podman で起動する sandbox image                                       |
-| `SHELL_WORKSPACE_NETWORK_PROFILE`         | `open`                  | `open` はインターネット許可、`none` はネットワーク無効                |
-| `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | session の既定 TTL                                                    |
-| `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | session TTL 上限                                                      |
-| `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | `shell_exec` の既定 timeout                                           |
-| `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | `shell_exec` timeout 上限                                             |
-| `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | stdout + stderr の返却上限                                            |
-| `SHELL_WORKSPACE_AGENT_PROVIDER_ID`       | `OPENCODE_PROVIDER_ID`  | `shell-worker` サブエージェントの provider                            |
-| `SHELL_WORKSPACE_AGENT_MODEL_ID`          | `OPENCODE_MODEL_ID`     | `shell-worker` サブエージェントの model                               |
-| `SHELL_WORKSPACE_AGENT_TEMPERATURE`       | `0.7`                   | `shell-worker` サブエージェントの temperature                         |
-| `SHELL_WORKSPACE_AGENT_STEPS`             | `24`                    | `shell-worker` サブエージェントの最大 agentic step 数                 |
-| `SHELL_WORKSPACE_HOST_DATA_DIR`           | unset                   | ホスト Podman socket 経由で実行する場合のホスト側 workspace directory |
+| 環境変数                                  | 既定                    | 説明                                                            |
+| ----------------------------------------- | ----------------------- | --------------------------------------------------------------- |
+| `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化                                  |
+| `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_NETWORK_PROFILE`         | `open`                  | 互換設定。OpenCode shell 経路では bot コンテナ側 network に従う |
+| `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | 互換設定。OpenCode shell 経路では使用しない                     |
+| `SHELL_WORKSPACE_AGENT_PROVIDER_ID`       | `OPENCODE_PROVIDER_ID`  | `shell-worker` サブエージェントの provider                      |
+| `SHELL_WORKSPACE_AGENT_MODEL_ID`          | `OPENCODE_MODEL_ID`     | `shell-worker` サブエージェントの model                         |
+| `SHELL_WORKSPACE_AGENT_TEMPERATURE`       | `0.7`                   | `shell-worker` サブエージェントの temperature                   |
+| `SHELL_WORKSPACE_AGENT_STEPS`             | `24`                    | `shell-worker` サブエージェントの最大 agentic step 数           |
+| `SHELL_WORKSPACE_HOST_DATA_DIR`           | unset                   | 互換設定。OpenCode shell 経路では使用しない                     |
 
-`shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として shell workspace directory を渡す。これにより `shell_export_file` が返したパスを `core_send_message(..., file_path)` で添付できる。
-
-bot コンテナからホスト Podman socket を使う deploy では、sandbox の bind mount source はホスト側 path である必要がある。この場合は `SHELL_WORKSPACE_HOST_DATA_DIR` にホスト側の `data/shell-workspaces` を指定し、MCP プロセスが管理・添付に使う `SHELL_WORKSPACE_DATA_DIR` とは分ける。
-
-## 監査ログ
-
-`shell_exec` ごとに JSON Lines で監査ログを保存する。
-
-記録項目:
-
-- `timestamp`
-- `agent_id`
-- `session_id`
-- `command`
-- `cwd`
-- `exit_code`
-- `duration_ms`
-- `timed_out`
-- `output_truncated`
+`shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
 
 ## 非目標
 
-- OpenCode 組み込み `bash` の有効化。
-- host checkout や host HOME の直接編集。
+- メイン会話 agent への builtin `bash` 直接許可。
+- host HOME や auth files の調査、編集、添付。
 - ユーザー本人の認証情報を使った GitHub、Spotify、SSH 操作。
-- host network、privileged container、Podman socket の sandbox への直接 mount。
+- OpenCode `bash` を Podman sandbox 相当の隔離境界として扱うこと。

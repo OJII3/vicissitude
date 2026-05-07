@@ -8,7 +8,7 @@ import { ImageAttachmentDescriber } from "@vicissitude/agent/discord/image-attac
 import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
-import { type AgentCapability, mcpServerConfigs } from "@vicissitude/agent/mcp-config";
+import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
@@ -147,6 +147,15 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 	return env;
 }
 
+function buildOpencodeShellWorkspaceDirectory(
+	config: AppConfig,
+	agentId: string,
+): string | undefined {
+	if (!config.shellWorkspace) return;
+	const safeAgentId = agentId.replaceAll(/[^A-Za-z0-9._-]/g, "_");
+	return resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
+}
+
 export function createGuildAgents(
 	config: AppConfig,
 	guildIds: string[],
@@ -175,14 +184,11 @@ export function createGuildAgents(
 	for (const [index, guildId] of guildIds.entries()) {
 		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
 		const agentId = `${agentIdPrefix}:${guildId}`;
-		const capabilities: AgentCapability[] = config.shellWorkspace ? ["shell-workspace"] : [];
 		const profile = createConversationProfile({
 			...config.opencode,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
 				coreEnvironment: deps.coreEnvironment,
-				capabilities,
-				shellWorkspace: config.shellWorkspace,
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
@@ -196,6 +202,7 @@ export function createGuildAgents(
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
 			temperature: config.opencode.temperature,
+			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition

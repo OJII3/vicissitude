@@ -56,8 +56,8 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 		"shellWorkspace": {
 			"image": "vicissitude-code-exec",
 			"agent": {
-				"providerId": "github-copilot",
-				"modelId": "gpt5-mini",
+				"providerId": "openai",
+				"modelId": "gpt-5.4",
 				"temperature": 0.4,
 				"steps": 24
 			},

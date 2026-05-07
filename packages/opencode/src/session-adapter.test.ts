@@ -140,6 +140,63 @@ describe("OpencodeSessionAdapter", () => {
 		expect(options.config.agent?.["shell-worker"]?.mode).toBe("subagent");
 	});
 
+	test("session 操作に OpenCode directory を渡す", async () => {
+		const streamState = createStream();
+		const client = createClient(streamState.stream);
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: {},
+			directory: "/tmp/vicissitude-opencode-workspace",
+			clientFactory: mock(() =>
+				Promise.resolve({
+					client,
+					server: { url: "http://localhost", close: mock(() => {}) },
+				}),
+			),
+		});
+
+		await adapter.createSession("test session");
+		await adapter.sessionExists("session-1");
+		await adapter.prompt({
+			sessionId: "session-1",
+			text: "prompt",
+			model: { providerId: "provider", modelId: "model" },
+		});
+		await adapter.promptAsync({
+			sessionId: "session-1",
+			text: "prompt async",
+			model: { providerId: "provider", modelId: "model" },
+		});
+		await adapter.deleteSession("session-1");
+
+		expect(client.session.create).toHaveBeenCalledWith({
+			title: "test session",
+			directory: "/tmp/vicissitude-opencode-workspace",
+		});
+		expect(client.session.get).toHaveBeenCalledWith({
+			sessionID: "session-1",
+			directory: "/tmp/vicissitude-opencode-workspace",
+		});
+		expect(client.session.prompt).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sessionID: "session-1",
+				directory: "/tmp/vicissitude-opencode-workspace",
+			}),
+			expect.anything(),
+		);
+		expect(client.session.promptAsync).toHaveBeenCalledWith(
+			expect.objectContaining({
+				sessionID: "session-1",
+				directory: "/tmp/vicissitude-opencode-workspace",
+			}),
+		);
+		expect(client.session.delete).toHaveBeenCalledWith({
+			sessionID: "session-1",
+			directory: "/tmp/vicissitude-opencode-workspace",
+		});
+	});
+
 	test("promptAsyncAndWatchSession は abort 時に次イベントを待たず cancelled を返す", async () => {
 		const streamState = createStream();
 		const client = createClient(streamState.stream);

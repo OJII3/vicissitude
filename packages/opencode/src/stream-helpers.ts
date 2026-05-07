@@ -96,9 +96,15 @@ export function returnStreamOnce(stream: AbortableAsyncStream<unknown>): Promise
 	managed[STREAM_RETURN_PROMISE] = managed.return ? managed.return() : Promise.resolve();
 	return managed[STREAM_RETURN_PROMISE] as Promise<void>;
 }
-export async function abortSession(oc: OpencodeClient, sessionId: string): Promise<void> {
+export async function abortSession(
+	oc: OpencodeClient,
+	sessionId: string,
+	directory?: string,
+): Promise<void> {
 	try {
-		await oc.session.abort({ sessionID: sessionId });
+		await oc.session.abort(
+			directory ? { sessionID: sessionId, directory } : { sessionID: sessionId },
+		);
 	} catch {
 		// 停止経路ではベストエフォート。unhandled rejection にはしない。
 	}
