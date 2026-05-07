@@ -51,6 +51,7 @@ export const shellWorkspaceSchema = z
 		enabled: z.literal(true),
 		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
 		dataDir: z.string(),
+		hostDataDir: z.string().optional(),
 		auditLogPath: z.string(),
 		defaultTtlMinutes: safeInt.min(1),
 		maxTtlMinutes: safeInt.min(1),

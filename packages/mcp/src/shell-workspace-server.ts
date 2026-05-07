@@ -47,6 +47,7 @@ function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
 		agentId: process.env.SHELL_WORKSPACE_AGENT_ID ?? "unknown",
 		image: process.env.SHELL_WORKSPACE_IMAGE ?? SHELL_WORKSPACE_DEFAULT_IMAGE,
 		dataDir: process.env.SHELL_WORKSPACE_DATA_DIR ?? DEFAULT_DATA_DIR,
+		hostDataDir: process.env.SHELL_WORKSPACE_HOST_DATA_DIR,
 		auditLogPath: process.env.SHELL_WORKSPACE_AUDIT_LOG ?? DEFAULT_AUDIT_LOG,
 		defaultTtlMinutes,
 		maxTtlMinutes,

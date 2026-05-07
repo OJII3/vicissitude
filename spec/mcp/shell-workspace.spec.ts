@@ -100,6 +100,35 @@ describe("ShellWorkspaceManager", () => {
 		manager.close();
 	});
 
+	it("hostDataDir 指定時は Podman mount source だけホスト側 path を使う", async () => {
+		const seenCommands: string[][] = [];
+		const runner: ProcessRunner = (cmd) => {
+			seenCommands.push([...cmd]);
+			return Promise.resolve({
+				exitCode: 0,
+				output: "ok",
+				timedOut: false,
+				outputTruncated: false,
+			});
+		};
+		const root = mkdtempSync(join(os.tmpdir(), "shell-workspace-paths-"));
+		const dataDir = join(root, "container", "shell-workspaces");
+		const hostDataDir = "/host/project/data/shell-workspaces";
+		const config = createConfig({
+			dataDir,
+			hostDataDir,
+			runProcess: runner,
+		});
+		const manager = new ShellWorkspaceManager(config);
+		const session = manager.startSession({});
+
+		await manager.exec({ sessionId: session.sessionId, command: "pwd" });
+
+		expect(session.workspaceDir).toBe(join(dataDir, session.sessionId));
+		expect(seenCommands[0]).toContain(`${hostDataDir}/${session.sessionId}:/workspace:rw`);
+		manager.close();
+	});
+
 	it("期限切れ session を削除する", () => {
 		let now = Date.parse("2026-05-07T00:00:00.000Z");
 		const config = createConfig({ now: () => now });

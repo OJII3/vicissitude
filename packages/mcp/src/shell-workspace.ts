@@ -15,6 +15,7 @@ export interface ShellWorkspaceConfig {
 	agentId: string;
 	image: string;
 	dataDir: string;
+	hostDataDir?: string;
 	auditLogPath: string;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
@@ -38,6 +39,7 @@ interface ShellSession {
 	id: string;
 	label: string | null;
 	dir: string;
+	hostDir: string;
 	createdAt: number;
 	expiresAt: number;
 	lastUsedAt: number;
@@ -164,12 +166,14 @@ export class ShellWorkspaceManager {
 
 		const id = crypto.randomUUID();
 		const dir = resolve(this.config.dataDir, id);
+		const hostDir = this.config.hostDataDir ? resolve(this.config.hostDataDir, id) : dir;
 		mkdirSync(dir, { recursive: false });
 
 		const session: ShellSession = {
 			id,
 			label: normalizeLabel(input.label),
 			dir,
+			hostDir,
 			createdAt: now,
 			expiresAt: now + ttlMinutes * 60_000,
 			lastUsedAt: now,
@@ -194,7 +198,7 @@ export class ShellWorkspaceManager {
 		session.lastUsedAt = this.now();
 		const cmd = buildShellPodmanCmd({
 			image: this.config.image,
-			workspaceDir: session.dir,
+			workspaceDir: session.hostDir,
 			cwd,
 			command: input.command,
 			timeoutSeconds,

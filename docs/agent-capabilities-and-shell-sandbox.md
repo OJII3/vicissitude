@@ -48,17 +48,20 @@ MVP の既定 policy:
 
 ## 設定
 
-| 環境変数                                  | 既定                    | 説明                            |
-| ----------------------------------------- | ----------------------- | ------------------------------- |
-| `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化  |
-| `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | Podman で起動する sandbox image |
-| `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | session の既定 TTL              |
-| `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | session TTL 上限                |
-| `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | `shell_exec` の既定 timeout     |
-| `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | `shell_exec` timeout 上限       |
-| `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | stdout + stderr の返却上限      |
+| 環境変数                                  | 既定                    | 説明                                                                  |
+| ----------------------------------------- | ----------------------- | --------------------------------------------------------------------- |
+| `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化                                        |
+| `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | Podman で起動する sandbox image                                       |
+| `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | session の既定 TTL                                                    |
+| `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | session TTL 上限                                                      |
+| `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | `shell_exec` の既定 timeout                                           |
+| `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | `shell_exec` timeout 上限                                             |
+| `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | stdout + stderr の返却上限                                            |
+| `SHELL_WORKSPACE_HOST_DATA_DIR`           | unset                   | ホスト Podman socket 経由で実行する場合のホスト側 workspace directory |
 
 `shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として shell workspace directory を渡す。これにより `shell_export_file` が返したパスを `core_send_message(..., file_path)` で添付できる。
+
+bot コンテナからホスト Podman socket を使う deploy では、sandbox の bind mount source はホスト側 path である必要がある。この場合は `SHELL_WORKSPACE_HOST_DATA_DIR` にホスト側の `data/shell-workspaces` を指定し、MCP プロセスが管理・添付に使う `SHELL_WORKSPACE_DATA_DIR` とは分ける。
 
 ## 監査ログ
 
