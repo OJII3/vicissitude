@@ -41,9 +41,11 @@ describe("createConversationProfile shell workspace subagent", () => {
 		});
 
 		expect(profile.builtinTools.task).toBe(true);
+		expect(profile.builtinTools.bash).toBe(true);
 		expect(profile.defaultAgent).toBe("build");
 		expect(profile.primaryTools).toEqual(["task"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
+		expect(profile.pollingPrompt).toContain("OpenCode 組み込み bash");
 
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
@@ -51,8 +53,13 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(worker?.temperature).toBe(0.4);
 		expect(worker?.steps).toBe(12);
 		const workerTools = (worker as { tools?: Record<string, boolean> } | undefined)?.tools;
-		expect(workerTools?.shell_exec).toBe(true);
-		expect(workerTools?.bash).toBe(false);
+		expect(workerTools?.bash).toBe(true);
+		expect(workerTools?.task).toBe(false);
+		const workerPermission = (worker as { permission?: Record<string, string> } | undefined)
+			?.permission;
+		expect(workerPermission?.bash).toBe("allow");
+		expect(workerPermission?.task).toBe("deny");
+		expect(workerPermission?.external_directory).toBe("deny");
 	});
 
 	test("shell workspace 無効時は task と subagent 設定を追加しない", () => {
@@ -63,6 +70,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		});
 
 		expect(profile.builtinTools.task).toBe(false);
+		expect(profile.builtinTools.bash).toBe(false);
 		expect(profile.opencodeAgents).toBeUndefined();
 		expect(profile.defaultAgent).toBeUndefined();
 		expect(profile.primaryTools).toBeUndefined();
