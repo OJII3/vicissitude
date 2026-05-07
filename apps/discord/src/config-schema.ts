@@ -48,10 +48,18 @@ export const imageRecognitionSchema = z.object({
 
 export const shellWorkspaceNetworkProfileSchema = z.enum(["open", "none"]);
 
+export const shellWorkspaceAgentSchema = z.object({
+	providerId: z.string().min(1, "SHELL_WORKSPACE_AGENT_PROVIDER_ID is required"),
+	modelId: z.string().min(1, "SHELL_WORKSPACE_AGENT_MODEL_ID is required"),
+	temperature: safeNumber.min(0).max(2),
+	steps: safeInt.min(1),
+});
+
 export const shellWorkspaceSchema = z
 	.object({
 		enabled: z.literal(true),
 		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
+		agent: shellWorkspaceAgentSchema,
 		dataDir: z.string(),
 		hostDataDir: z.string().optional(),
 		auditLogPath: z.string(),

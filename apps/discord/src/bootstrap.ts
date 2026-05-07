@@ -186,11 +186,15 @@ export function createGuildAgents(
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
+			shellWorkspaceSubagent: config.shellWorkspace?.agent,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: config.opencode.basePort + portOffset + index,
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
+			agents: profile.opencodeAgents,
+			defaultAgent: profile.defaultAgent,
+			primaryTools: profile.primaryTools,
 			temperature: config.opencode.temperature,
 			logger: deps.logger,
 		});

@@ -152,6 +152,12 @@ describe("loadConfig", () => {
 			expect(config.shellWorkspace).toEqual({
 				enabled: true,
 				image: "vicissitude-code-exec",
+				agent: {
+					providerId: "github-copilot",
+					modelId: "big-pickle",
+					temperature: 0.7,
+					steps: 24,
+				},
 				dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
 				auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
 				networkProfile: "open",
@@ -174,6 +180,10 @@ describe("loadConfig", () => {
 					SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS: "9",
 					SHELL_WORKSPACE_MAX_OUTPUT_CHARS: "12345",
 					SHELL_WORKSPACE_NETWORK_PROFILE: "none",
+					SHELL_WORKSPACE_AGENT_PROVIDER_ID: "shell-provider",
+					SHELL_WORKSPACE_AGENT_MODEL_ID: "shell-model",
+					SHELL_WORKSPACE_AGENT_TEMPERATURE: "0.2",
+					SHELL_WORKSPACE_AGENT_STEPS: "8",
 				}),
 				root,
 			);
@@ -185,6 +195,12 @@ describe("loadConfig", () => {
 			expect(config.shellWorkspace?.defaultTimeoutSeconds).toBe(5);
 			expect(config.shellWorkspace?.maxTimeoutSeconds).toBe(9);
 			expect(config.shellWorkspace?.maxOutputChars).toBe(12_345);
+			expect(config.shellWorkspace?.agent).toEqual({
+				providerId: "shell-provider",
+				modelId: "shell-model",
+				temperature: 0.2,
+				steps: 8,
+			});
 		});
 
 		it("Shell workspace の既定 TTL が上限を超える場合はエラーにする", () => {

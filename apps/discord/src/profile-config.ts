@@ -45,6 +45,10 @@ export const profileConfigSchema = z.strictObject({
 		shellWorkspace: z
 			.strictObject({
 				image: z.string().min(1),
+				agent: modelSelectionSchema.extend({
+					temperature: safeNumber.min(0).max(2),
+					steps: safeInt.min(1),
+				}),
 				networkProfile: shellWorkspaceNetworkProfileSchema.optional(),
 				defaultTtlMinutes: safeInt.min(1),
 				maxTtlMinutes: safeInt.min(1),
@@ -77,6 +81,7 @@ function buildProfileShellWorkspaceConfig(
 	return {
 		enabled: true,
 		image: shellWorkspace.image,
+		agent: shellWorkspace.agent,
 		dataDir: resolve(dataDir, "shell-workspaces"),
 		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
 			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }

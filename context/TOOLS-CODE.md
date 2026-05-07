@@ -1,6 +1,6 @@
 ## MCP ツール一覧（shell workspace）
 
-> `SHELL_WORKSPACE_ENABLED=true` のインスタンスでのみ利用可能。OpenCode 組み込み `bash` ではなく、隔離された Podman sandbox 内で実行する。
+> `SHELL_WORKSPACE_ENABLED=true` のインスタンスでのみ利用可能。メイン会話 agent は `task` で `shell-worker` サブエージェントに委譲し、OpenCode 組み込み `bash` ではなく、隔離された Podman sandbox 内で実行する。
 
 ### shell-workspace サーバー
 
@@ -12,7 +12,7 @@
 
 制約:
 
-- ネットワークアクセス不可
-- workspace 以外のファイルシステムは読み取り専用
+- network profile が `open` の場合はインターネットアクセス可能
+- root filesystem は writable で、sandbox 内の package install を許可する
 - host HOME、OpenCode auth、`.env`、SSH/Git 認証情報、Podman socket は sandbox に渡されない
 - CPU、メモリ、PID、timeout、出力サイズに上限あり

@@ -138,6 +138,12 @@ describe("JSON profile config", () => {
 					},
 					shellWorkspace: {
 						image: "shell-image",
+						agent: {
+							providerId: "shell-provider",
+							modelId: "shell-model",
+							temperature: 0.3,
+							steps: 16,
+						},
 						defaultTtlMinutes: 15,
 						maxTtlMinutes: 30,
 						defaultTimeoutSeconds: 5,
@@ -158,6 +164,12 @@ describe("JSON profile config", () => {
 		expect(config.shellWorkspace).toEqual({
 			enabled: true,
 			image: "shell-image",
+			agent: {
+				providerId: "shell-provider",
+				modelId: "shell-model",
+				temperature: 0.3,
+				steps: 16,
+			},
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
 			auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
 			networkProfile: "open",

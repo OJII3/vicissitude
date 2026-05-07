@@ -183,6 +183,12 @@ describe("buildCoreEnvironment", () => {
 				shellWorkspace: {
 					enabled: true,
 					image: "sandbox",
+					agent: {
+						providerId: "shell-provider",
+						modelId: "shell-model",
+						temperature: 0.4,
+						steps: 16,
+					},
 					dataDir: "/tmp/shell-workspaces",
 					auditLogPath: "/tmp/shell-audit.jsonl",
 					networkProfile: "open",

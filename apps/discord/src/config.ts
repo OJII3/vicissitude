@@ -20,11 +20,22 @@ function parseBooleanEnv(value: string | undefined): boolean {
 	return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
 }
 
-function buildShellWorkspaceConfig(env: Record<string, string | undefined>, dataDir: string) {
+function buildShellWorkspaceConfig(
+	env: Record<string, string | undefined>,
+	dataDir: string,
+	defaultProviderId: string,
+	defaultModelId: string,
+) {
 	if (!parseBooleanEnv(env.SHELL_WORKSPACE_ENABLED)) return;
 	return {
 		enabled: true,
 		image: env.SHELL_WORKSPACE_IMAGE ?? "vicissitude-code-exec",
+		agent: {
+			providerId: env.SHELL_WORKSPACE_AGENT_PROVIDER_ID ?? defaultProviderId,
+			modelId: env.SHELL_WORKSPACE_AGENT_MODEL_ID ?? defaultModelId,
+			temperature: Number(env.SHELL_WORKSPACE_AGENT_TEMPERATURE ?? "0.7"),
+			steps: Number(env.SHELL_WORKSPACE_AGENT_STEPS ?? "24"),
+		},
 		dataDir: resolve(dataDir, "shell-workspaces"),
 		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
 			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
@@ -59,6 +70,7 @@ function loadConfigFromEnv(
 	const dataDir = resolve(resolvedRoot, "data");
 
 	const openCodeProviderId = env.OPENCODE_PROVIDER_ID ?? "github-copilot";
+	const openCodeModelId = env.OPENCODE_MODEL_ID ?? "big-pickle";
 
 	const basePort = Number(env.OPENCODE_BASE_PORT ?? "4096");
 	const imageRecognitionEnabled = parseBooleanEnv(env.DISCORD_IMAGE_RECOGNITION_ENABLED);
@@ -69,7 +81,7 @@ function loadConfigFromEnv(
 		gatewayPort: Number(env.GATEWAY_PORT ?? "4001"),
 		opencode: {
 			providerId: openCodeProviderId,
-			modelId: env.OPENCODE_MODEL_ID ?? "big-pickle",
+			modelId: openCodeModelId,
 			basePort,
 			sessionMaxAgeHours: Number(env.SESSION_MAX_AGE_HOURS ?? "48"),
 			temperature: Number(env.OPENCODE_TEMPERATURE ?? "1.0"),
@@ -126,7 +138,7 @@ function loadConfigFromEnv(
 					modelId: env.DISCORD_IMAGE_RECOGNITION_MODEL_ID ?? "",
 				}
 			: undefined,
-		shellWorkspace: buildShellWorkspaceConfig(env, dataDir),
+		shellWorkspace: buildShellWorkspaceConfig(env, dataDir, openCodeProviderId, openCodeModelId),
 		dataDir,
 		contextDir: resolve(resolvedRoot, "context"),
 	};
