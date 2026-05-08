@@ -13,6 +13,7 @@ import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
+import { ResumeContextService } from "@vicissitude/application/resume-context-service";
 import { createGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { GitHubIssueAdapter } from "@vicissitude/infrastructure/http/github-issue-adapter";
@@ -99,13 +100,16 @@ export function createContextLayer(config: AppConfig, root: string, factReader?:
 
 // ─── Guild Agents ───────────────────────────────────────────────
 
-function createFileSessionSummaryWriter(overlayDir: string): SessionSummaryWriter {
+function createFileSessionSummaryWriter(
+	overlayDir: string,
+	onWrite?: (guildId: string) => Promise<void>,
+): SessionSummaryWriter {
 	return {
-		write(guildId: string, content: string): Promise<void> {
+		async write(guildId: string, content: string): Promise<void> {
 			const dir = resolve(overlayDir, `guilds/${guildId}`);
 			mkdirSync(dir, { recursive: true });
 			writeFileSync(resolve(dir, "SESSION-SUMMARY.md"), content);
-			return Promise.resolve();
+			await onWrite?.(guildId);
 		},
 	};
 }
@@ -609,7 +613,16 @@ export async function bootstrap(): Promise<void> {
 	const ports = createPortLayout(config.opencode.basePort, guildIds.length);
 
 	// Guild agents
-	const summaryWriter = createFileSessionSummaryWriter(resolve(root, "data/context"));
+	const contextOverlayDir = resolve(root, "data/context");
+	const resumeContextService = new ResumeContextService({
+		memoryDataDir,
+		overlayDir: contextOverlayDir,
+		logger,
+	});
+	await resumeContextService.updateGuilds(guildIds);
+	const summaryWriter = createFileSessionSummaryWriter(contextOverlayDir, (guildId) =>
+		resumeContextService.updateGuild(guildId),
+	);
 	const agents = createGuildAgents(config, guildIds, {
 		db,
 		sessionStore,
@@ -737,6 +750,7 @@ export async function bootstrap(): Promise<void> {
 		chatAdapter: memoryResources?.chatAdapter,
 		recorder: memoryResources?.recorder,
 		mcProcess,
+		resumeContextService,
 		closeDb: () => closeDb(db),
 	});
 	process.on("SIGINT", () => void shutdown());

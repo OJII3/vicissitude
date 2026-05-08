@@ -14,6 +14,7 @@ export interface ShutdownDeps {
 	factReader: { close(): void };
 	chatAdapter?: { close(): void };
 	recorder?: { close(): void };
+	resumeContextService?: { close(): void };
 	mcProcess?: { kill(): void } | null;
 	closeDb: () => void;
 }
@@ -51,6 +52,7 @@ export function createShutdown(deps: ShutdownDeps): () => Promise<void> {
 		// chatAdapter.close() -> MemoryChatAdapter.close() -> memorySessionPort.close()
 		await safe("chatAdapter", () => deps.chatAdapter?.close());
 		await safe("recorder", () => deps.recorder?.close());
+		await safe("resumeContextService", () => deps.resumeContextService?.close());
 		await safe("mcProcess", () => deps.mcProcess?.kill());
 		await safe("db", () => deps.closeDb());
 

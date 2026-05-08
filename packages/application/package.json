@@ -4,6 +4,7 @@
 	"exports": {
 		"./heartbeat-service": "./src/heartbeat-service.ts",
 		"./message-ingestion-service": "./src/message-ingestion-service.ts",
+		"./resume-context-service": "./src/resume-context-service.ts",
 		"./split-message": "./src/split-message.ts"
 	}
 }
