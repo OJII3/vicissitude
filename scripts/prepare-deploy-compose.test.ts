@@ -7,6 +7,7 @@ import {
 	buildDeployComposeOverride,
 	prepareDeployCompose,
 	resolveOptionalOpencodeConfigPath,
+	resolveWorkspaceNodeModulesMounts,
 } from "./prepare-deploy-compose.ts";
 
 describe("prepare-deploy-compose", () => {
@@ -23,6 +24,40 @@ describe("prepare-deploy-compose", () => {
 		expect(compose).toContain('source: "/home/example/.config/opencode/opencode.json"');
 		expect(compose).toContain('target: "/app/.config/opencode/opencode.json"');
 		expect(compose).toContain("read_only: true");
+	});
+
+	test("workspace node_modules volume を installer/builder/bot に追加する", () => {
+		const compose = buildDeployComposeOverride(null, [
+			{
+				volumeName: "deploy-packages-mcp-node-modules",
+				targetPath: "/app/packages/mcp/node_modules",
+			},
+		]);
+
+		expect(compose).toContain("volumes:\n  deploy-packages-mcp-node-modules:\n");
+		expect(compose).toContain(
+			"  installer:\n    volumes:\n      - deploy-packages-mcp-node-modules:/app/packages/mcp/node_modules\n",
+		);
+		expect(compose).toContain(
+			"  builder:\n    volumes:\n      - deploy-packages-mcp-node-modules:/app/packages/mcp/node_modules:ro\n",
+		);
+		expect(compose).toContain(
+			"  bot:\n    volumes:\n      - deploy-packages-mcp-node-modules:/app/packages/mcp/node_modules:ro\n",
+		);
+	});
+
+	test("workspace node_modules volume と opencode mount を bot に併記する", () => {
+		const compose = buildDeployComposeOverride("/home/example/.config/opencode/opencode.json", [
+			{
+				volumeName: "deploy-apps-discord-node-modules",
+				targetPath: "/app/apps/discord/node_modules",
+			},
+		]);
+
+		expect(compose).toContain(
+			"      - deploy-apps-discord-node-modules:/app/apps/discord/node_modules:ro\n      - type: bind\n",
+		);
+		expect(compose).toContain('source: "/home/example/.config/opencode/opencode.json"');
 	});
 
 	test("ホーム配下に opencode.json がない場合は null を返す", () => {
@@ -60,15 +95,59 @@ describe("prepare-deploy-compose", () => {
 
 	test("prepareDeployCompose は生成先に override を書く", async () => {
 		const homeDir = makeTempDir();
+		const rootDir = makeTempDir();
 		const outputPath = join(homeDir, "generated", "compose.deploy.yaml");
 		try {
-			const result = prepareDeployCompose({ homeDir, outputPath });
+			writeFileSync(
+				join(rootDir, "package.json"),
+				JSON.stringify({ workspaces: ["packages/*", "apps/*"] }),
+			);
+			mkdirSync(join(rootDir, "packages", "shared"), { recursive: true });
+			mkdirSync(join(rootDir, "apps", "discord"), { recursive: true });
+			writeFileSync(join(rootDir, "packages", "shared", "package.json"), "{}\n");
+			writeFileSync(join(rootDir, "apps", "discord", "package.json"), "{}\n");
+
+			const result = prepareDeployCompose({ homeDir, outputPath, rootDir });
 			const text = await Bun.file(outputPath).text();
 
-			expect(result).toEqual({ outputPath, opencodeConfigPath: null });
-			expect(text).toContain("services: {}");
+			expect(result).toEqual({
+				outputPath,
+				opencodeConfigPath: null,
+				workspaceNodeModulesMounts: [
+					{
+						volumeName: "deploy-packages-shared-node-modules",
+						targetPath: "/app/packages/shared/node_modules",
+					},
+					{
+						volumeName: "deploy-apps-discord-node-modules",
+						targetPath: "/app/apps/discord/node_modules",
+					},
+				],
+			});
+			expect(text).toContain("deploy-packages-shared-node-modules");
+			expect(text).toContain("deploy-apps-discord-node-modules");
 		} finally {
 			rmSync(homeDir, { recursive: true, force: true });
+			rmSync(rootDir, { recursive: true, force: true });
+		}
+	});
+
+	test("workspace 定義から node_modules mount を解決する", () => {
+		const rootDir = makeTempDir();
+		try {
+			writeFileSync(join(rootDir, "package.json"), JSON.stringify({ workspaces: ["packages/*"] }));
+			mkdirSync(join(rootDir, "packages", "shared"), { recursive: true });
+			mkdirSync(join(rootDir, "packages", "ignored"), { recursive: true });
+			writeFileSync(join(rootDir, "packages", "shared", "package.json"), "{}\n");
+
+			expect(resolveWorkspaceNodeModulesMounts(rootDir)).toEqual([
+				{
+					volumeName: "deploy-packages-shared-node-modules",
+					targetPath: "/app/packages/shared/node_modules",
+				},
+			]);
+		} finally {
+			rmSync(rootDir, { recursive: true, force: true });
 		}
 	});
 });
