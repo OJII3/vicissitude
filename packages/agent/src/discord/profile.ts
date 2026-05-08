@@ -37,7 +37,7 @@ const SHELL_WORKSPACE_PROMPT_SECTION = `
 
 Shell workspace:
 - コード実行、ビルド、コンパイル、package install、ファイル生成、長めの調査が必要な依頼は、直接実行せず task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
-- ${SHELL_WORKSPACE_AGENT_NAME} は OpenCode 組み込み bash を専用 workspace directory 内で使う
+- ${SHELL_WORKSPACE_AGENT_NAME} は OpenCode 組み込み bash / Read / Write を専用 workspace directory 内で使う
 - ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを core_send_message で Discord に送る
 - shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を core_send_message の file_path に指定する`;
 
@@ -55,9 +55,15 @@ function buildShellWorkspaceAgents(
 	return {
 		build: {
 			mode: "primary" as const,
+			tools: {
+				read: false,
+				write: false,
+			},
 			permission: {
 				task: "allow" as const,
 				bash: "deny" as const,
+				read: "deny" as const,
+				edit: "deny" as const,
 				external_directory: "deny" as const,
 			},
 		},
@@ -71,14 +77,18 @@ function buildShellWorkspaceAgents(
 			tools: {
 				task: false,
 				bash: true,
+				read: true,
+				write: true,
 			},
 			permission: {
 				task: "deny" as const,
 				bash: "allow" as const,
+				read: "allow" as const,
+				edit: "allow" as const,
 				external_directory: "deny" as const,
 			},
 			prompt: `You are ${SHELL_WORKSPACE_AGENT_NAME}, a subagent dedicated to shell workspace work.
-Use the OpenCode builtin bash tool for command execution.
+Use the OpenCode builtin bash, Read, and Write tools for command execution and workspace file access.
 Keep all work inside the current workspace directory. Do not read or write outside the workspace, do not inspect host secrets, auth files, or environment dumps, and do not attempt privilege escalation.
 Network access is allowed when needed for package install, builds, and research.
 When a generated file must be sent to Discord, save it under the workspace directory and include its absolute path in your final response.
@@ -110,6 +120,8 @@ export function createConversationProfile(options: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
 			bash: !!options.shellWorkspaceSubagent,
+			read: !!options.shellWorkspaceSubagent,
+			write: !!options.shellWorkspaceSubagent,
 			task: !!options.shellWorkspaceSubagent,
 		},
 		opencodeAgents,
