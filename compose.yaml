@@ -70,6 +70,7 @@ services:
     init: true
     environment:
       APP_ROOT: /app
+      GH_TOKEN: ${HUA_GITHUB_TOKEN:-}
       SHELL_WORKSPACE_HOST_DATA_DIR: ${PWD}/data/shell-workspaces
     env_file:
       - .env
