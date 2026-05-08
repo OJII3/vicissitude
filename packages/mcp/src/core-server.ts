@@ -3,7 +3,6 @@ import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { GeniusClient } from "@vicissitude/listening/genius-client";
 import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import type { MemoryReadServices } from "@vicissitude/memory";
@@ -21,12 +20,12 @@ import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
-import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client } from "discord.js";
 
+import { createEmotionAnalyzer, readEmotionEstimationConfigFromEnv } from "./emotion.ts";
 import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
@@ -58,11 +57,8 @@ async function main(): Promise<void> {
 
 	const MEMORY_OLLAMA_BASE_URL =
 		process.env.MEMORY_OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
-	const EMOTION_OLLAMA_BASE_URL =
-		process.env.EMOTION_OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 	const MEMORY_EMBEDDING_MODEL = process.env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma";
 	const MEMORY_DATA_DIR = process.env.MEMORY_DATA_DIR ?? "data/memory";
-	const EMOTION_CHAT_MODEL = process.env.EMOTION_CHAT_MODEL ?? "gemma3";
 	const DATA_DIR = process.env.DATA_DIR ?? "data";
 	const configRepo = new JsonHeartbeatConfigRepository(resolve(DATA_DIR, "heartbeat-config.json"));
 
@@ -87,8 +83,10 @@ async function main(): Promise<void> {
 	// --- Memory (embed-only — consolidation runs in the main process) ---
 
 	const ollama = new OllamaEmbeddingAdapter(MEMORY_OLLAMA_BASE_URL, MEMORY_EMBEDDING_MODEL);
-	const ollamaChat = new OllamaChatAdapter(EMOTION_OLLAMA_BASE_URL, EMOTION_CHAT_MODEL);
-	const emotionEstimator = new EmotionEstimator(ollamaChat);
+	const emotionAnalyzer = createEmotionAnalyzer(
+		readEmotionEstimationConfigFromEnv(process.env),
+		logger,
+	);
 
 	/** MemoryLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
 	const embedOnlyLlm: MemoryLlmPort = {
@@ -143,10 +141,11 @@ async function main(): Promise<void> {
 		server,
 		{
 			discordClient,
-			emotionAnalyzer: emotionEstimator,
+			emotionAnalyzer: emotionAnalyzer?.analyzer,
 			moodWriter: moodStore,
 			agentId: AGENT_ID,
 			moodKey,
+			logger,
 		},
 		boundGuildId,
 	);
@@ -206,6 +205,7 @@ async function main(): Promise<void> {
 	async function shutdown() {
 		await server.close();
 		void discordClient.destroy();
+		emotionAnalyzer?.close();
 		retrieveCache.dispose();
 		memoryCache.closeAll();
 		closeDb(db);

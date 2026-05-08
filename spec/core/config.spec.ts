@@ -28,9 +28,7 @@ describe("loadConfig", () => {
 		expect(config.memory.modelId).toBe("gpt-4o");
 		expect(config.memory.ollamaBaseUrl).toBe("http://ollama:11434");
 		expect(config.memory.embeddingModel).toBe("embeddinggemma");
-		expect(config.emotion.providerId).toBe("ollama");
-		expect(config.emotion.modelId).toBe("gemma3");
-		expect(config.emotion.ollamaBaseUrl).toBe("http://ollama:11434");
+		expect(config.emotionEstimation).toBeUndefined();
 		expect(config.minecraft).toBeUndefined();
 		expect(config.shellWorkspace).toBeUndefined();
 		expect(config.dataDir).toBe("/tmp/test-vicissitude/data");
@@ -60,7 +58,9 @@ describe("loadConfig", () => {
 				MEMORY_MODEL_ID: "memory-model",
 				OLLAMA_BASE_URL: "http://localhost:11434",
 				MEMORY_EMBEDDING_MODEL: "custom-embedding",
-				EMOTION_CHAT_MODEL: "emotion-model",
+				EMOTION_ESTIMATION_ENABLED: "true",
+				EMOTION_PROVIDER_ID: "ollama",
+				EMOTION_MODEL_ID: "emotion-model",
 				EMOTION_OLLAMA_BASE_URL: "http://emotion.local:11434",
 			}),
 			root,
@@ -78,8 +78,12 @@ describe("loadConfig", () => {
 		expect(config.memory.modelId).toBe("memory-model");
 		expect(config.memory.ollamaBaseUrl).toBe("http://localhost:11434");
 		expect(config.memory.embeddingModel).toBe("custom-embedding");
-		expect(config.emotion.modelId).toBe("emotion-model");
-		expect(config.emotion.ollamaBaseUrl).toBe("http://emotion.local:11434");
+		expect(config.emotionEstimation).toEqual({
+			enabled: true,
+			providerId: "ollama",
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://emotion.local:11434",
+		});
 	});
 
 	it("MEMORY_PROVIDER_ID 未指定時は OPENCODE_PROVIDER_ID にフォールバック", () => {

@@ -122,12 +122,19 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 		DISCORD_TOKEN: config.discordToken,
 		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
 		MEMORY_OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
-		EMOTION_OLLAMA_BASE_URL: config.emotion.ollamaBaseUrl,
 		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
 		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
-		EMOTION_CHAT_MODEL: config.emotion.modelId,
 	};
+
+	if (config.emotionEstimation) {
+		env.EMOTION_ESTIMATION_ENABLED = "true";
+		env.EMOTION_PROVIDER_ID = config.emotionEstimation.providerId;
+		env.EMOTION_MODEL_ID = config.emotionEstimation.modelId;
+		if (config.emotionEstimation.ollamaBaseUrl) {
+			env.EMOTION_OLLAMA_BASE_URL = config.emotionEstimation.ollamaBaseUrl;
+		}
+	}
 
 	if (config.spotify) {
 		env.SPOTIFY_CLIENT_ID = config.spotify.clientId;
@@ -162,6 +169,22 @@ function buildOpencodeShellWorkspaceDirectory(
 	return resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
 }
 
+const EMOTION_OPENCODE_PORT_OFFSET = 1000;
+
+export function buildAgentCoreEnvironment(
+	config: AppConfig,
+	baseEnvironment: Record<string, string>,
+	agentPort: number,
+): Record<string, string> {
+	if (!config.emotionEstimation || config.emotionEstimation.providerId === "ollama") {
+		return baseEnvironment;
+	}
+	return {
+		...baseEnvironment,
+		EMOTION_OPENCODE_PORT: String(agentPort + EMOTION_OPENCODE_PORT_OFFSET),
+	};
+}
+
 export function createGuildAgents(
 	config: AppConfig,
 	guildIds: string[],
@@ -190,18 +213,19 @@ export function createGuildAgents(
 	for (const [index, guildId] of guildIds.entries()) {
 		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
 		const agentId = `${agentIdPrefix}:${guildId}`;
+		const agentPort = config.opencode.basePort + portOffset + index;
 		const profile = createConversationProfile({
 			...config.opencode,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
-				coreEnvironment: deps.coreEnvironment,
+				coreEnvironment: buildAgentCoreEnvironment(config, deps.coreEnvironment, agentPort),
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
 			shellWorkspaceSubagent: config.shellWorkspace?.agent,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
-			port: config.opencode.basePort + portOffset + index,
+			port: agentPort,
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
 			agents: profile.opencodeAgents,

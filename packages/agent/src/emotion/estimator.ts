@@ -5,6 +5,7 @@ import type {
 	EmotionAnalyzer,
 	LlmPromptPort,
 } from "@vicissitude/shared/ports";
+import type { Logger } from "@vicissitude/shared/types";
 import { z } from "zod";
 
 const ANALYSIS_PROMPT = `Analyze the emotional tone of the following text and return a JSON object with these fields:
@@ -31,7 +32,10 @@ const NEUTRAL_RESULT: EmotionAnalysisResult = {
 };
 
 export class EmotionEstimator implements EmotionAnalyzer {
-	constructor(private readonly llm: LlmPromptPort) {}
+	constructor(
+		private readonly llm: LlmPromptPort,
+		private readonly logger?: Logger,
+	) {}
 
 	async analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult> {
 		try {
@@ -49,7 +53,8 @@ export class EmotionEstimator implements EmotionAnalyzer {
 			});
 
 			return { emotion, confidence: parsed.confidence };
-		} catch {
+		} catch (error) {
+			this.logger?.warn("[emotion] estimation failed:", error);
 			return NEUTRAL_RESULT;
 		}
 	}

@@ -42,11 +42,6 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 			"ollamaBaseUrl": "http://ollama:11434",
 			"embeddingModel": "embeddinggemma"
 		},
-		"emotion": {
-			"providerId": "ollama",
-			"modelId": "gemma3",
-			"ollamaBaseUrl": "http://ollama:11434"
-		},
 		"minecraft": {
 			"providerId": "github-copilot",
 			"modelId": "big-pickle",
@@ -57,6 +52,10 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 		"imageRecognition": {
 			"providerId": "opencode-go",
 			"modelId": "kimi-k2.5"
+		},
+		"emotionEstimation": {
+			"providerId": "opencode-go",
+			"modelId": "kimi-k2.6"
 		},
 		"shellWorkspace": {
 			"image": "vicissitude-code-exec",
@@ -105,6 +104,6 @@ compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に�
 
 profile は `apps/discord/src/profile-config.ts` の Zod schema で検証する。エディタ補完やデプロイ前検証で参照できる JSON Schema は `config/profile.schema.json` に置く。未知の key は拒否する。これにより typo を無視せず、設定ファイルと実行時 config の対応を明確にする。
 
-感情推定は `models.emotion` で設定する。現行実装は Ollama chat API を使うため、`providerId` は `"ollama"` のみ受け付ける。`modelId` は `EMOTION_CHAT_MODEL` として core MCP に渡され、`ollamaBaseUrl` は感情推定用の `EMOTION_OLLAMA_BASE_URL` として渡される。
+感情推定は `features.emotionEstimation` が存在する場合だけ有効になる。通常の OpenCode provider を使う場合は `providerId` と `modelId` を指定する。Ollama chat API を使う場合だけ `providerId: "ollama"` とし、同じ section に `ollamaBaseUrl` を指定する。
 
 既存の env loader は移行期間の入口として残すが、新規設定は JSON profile に追加する。次の段階では bootstrap と MCP サーバーの機能出し分けを profile 由来の capability module へ寄せる。
