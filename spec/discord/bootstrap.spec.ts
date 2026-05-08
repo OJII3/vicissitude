@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { resolve } from "path";
 
 import { buildCoreEnvironment } from "../../apps/discord/src/bootstrap.ts";
@@ -28,6 +28,11 @@ function makeConfig(
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "nomic-embed-text",
 		},
+		emotion: {
+			providerId: "ollama",
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://emotion-ollama:11434",
+		},
 		mcBrain: {
 			providerId: "mc-provider",
 			modelId: "mc-model",
@@ -42,21 +47,6 @@ function makeConfig(
 const ROOT = "/tmp/test-root";
 
 describe("buildCoreEnvironment", () => {
-	let savedEmotionChatModel: string | undefined;
-
-	beforeEach(() => {
-		savedEmotionChatModel = process.env.EMOTION_CHAT_MODEL;
-		delete process.env.EMOTION_CHAT_MODEL;
-	});
-
-	afterEach(() => {
-		if (savedEmotionChatModel === undefined) {
-			delete process.env.EMOTION_CHAT_MODEL;
-		} else {
-			process.env.EMOTION_CHAT_MODEL = savedEmotionChatModel;
-		}
-	});
-
 	it("常に必須の環境変数を含む", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
 		const requiredKeys = [
@@ -64,6 +54,8 @@ describe("buildCoreEnvironment", () => {
 			"HOME",
 			"DISCORD_TOKEN",
 			"OLLAMA_BASE_URL",
+			"MEMORY_OLLAMA_BASE_URL",
+			"EMOTION_OLLAMA_BASE_URL",
 			"MEMORY_EMBEDDING_MODEL",
 			"MEMORY_DATA_DIR",
 			"DATA_DIR",
@@ -84,6 +76,16 @@ describe("buildCoreEnvironment", () => {
 		expect(result.OLLAMA_BASE_URL).toBe("http://localhost:11434");
 	});
 
+	it("MEMORY_OLLAMA_BASE_URL は config.memory.ollamaBaseUrl の値", () => {
+		const result = buildCoreEnvironment(makeConfig(), ROOT);
+		expect(result.MEMORY_OLLAMA_BASE_URL).toBe("http://localhost:11434");
+	});
+
+	it("EMOTION_OLLAMA_BASE_URL は config.emotion.ollamaBaseUrl の値", () => {
+		const result = buildCoreEnvironment(makeConfig(), ROOT);
+		expect(result.EMOTION_OLLAMA_BASE_URL).toBe("http://emotion-ollama:11434");
+	});
+
 	it("MEMORY_EMBEDDING_MODEL は config.memory.embeddingModel の値", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
 		expect(result.MEMORY_EMBEDDING_MODEL).toBe("nomic-embed-text");
@@ -100,16 +102,9 @@ describe("buildCoreEnvironment", () => {
 	});
 
 	describe("EMOTION_CHAT_MODEL", () => {
-		it("環境変数が設定されている場合はその値を使用する", () => {
-			process.env.EMOTION_CHAT_MODEL = "custom-model";
+		it("config.emotion.modelId の値を使用する", () => {
 			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result.EMOTION_CHAT_MODEL).toBe("custom-model");
-		});
-
-		it("環境変数が未設定の場合は 'gemma3' をデフォルトにする", () => {
-			delete process.env.EMOTION_CHAT_MODEL;
-			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result.EMOTION_CHAT_MODEL).toBe("gemma3");
+			expect(result.EMOTION_CHAT_MODEL).toBe("emotion-model");
 		});
 	});
 

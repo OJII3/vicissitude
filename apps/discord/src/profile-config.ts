@@ -19,6 +19,12 @@ const modelSelectionSchema = z.strictObject({
 	modelId: z.string().min(1),
 });
 
+const emotionModelSchema = z.strictObject({
+	providerId: z.literal("ollama"),
+	modelId: z.string().min(1),
+	ollamaBaseUrl: z.string().min(1),
+});
+
 const environmentSourceSchema = z.strictObject({
 	fromEnv: z.string().min(1),
 });
@@ -43,6 +49,7 @@ export const profileConfigSchema = z.strictObject({
 			ollamaBaseUrl: z.string().min(1),
 			embeddingModel: z.string().min(1),
 		}),
+		emotion: emotionModelSchema,
 		minecraft: modelSelectionSchema.extend({
 			temperature: safeNumber.min(0).max(2),
 		}),
@@ -158,6 +165,11 @@ export function loadConfigFromProfile(
 			modelId: profile.models.memory.modelId,
 			ollamaBaseUrl: profile.models.memory.ollamaBaseUrl,
 			embeddingModel: profile.models.memory.embeddingModel,
+		},
+		emotion: {
+			providerId: profile.models.emotion.providerId,
+			modelId: profile.models.emotion.modelId,
+			ollamaBaseUrl: profile.models.emotion.ollamaBaseUrl,
 		},
 		mcBrain: {
 			providerId: profile.models.minecraft.providerId,

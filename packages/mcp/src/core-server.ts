@@ -56,7 +56,10 @@ async function main(): Promise<void> {
 		process.exit(1);
 	}
 
-	const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
+	const MEMORY_OLLAMA_BASE_URL =
+		process.env.MEMORY_OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
+	const EMOTION_OLLAMA_BASE_URL =
+		process.env.EMOTION_OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
 	const MEMORY_EMBEDDING_MODEL = process.env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma";
 	const MEMORY_DATA_DIR = process.env.MEMORY_DATA_DIR ?? "data/memory";
 	const EMOTION_CHAT_MODEL = process.env.EMOTION_CHAT_MODEL ?? "gemma3";
@@ -83,8 +86,8 @@ async function main(): Promise<void> {
 
 	// --- Memory (embed-only — consolidation runs in the main process) ---
 
-	const ollama = new OllamaEmbeddingAdapter(OLLAMA_BASE_URL, MEMORY_EMBEDDING_MODEL);
-	const ollamaChat = new OllamaChatAdapter(OLLAMA_BASE_URL, EMOTION_CHAT_MODEL);
+	const ollama = new OllamaEmbeddingAdapter(MEMORY_OLLAMA_BASE_URL, MEMORY_EMBEDDING_MODEL);
+	const ollamaChat = new OllamaChatAdapter(EMOTION_OLLAMA_BASE_URL, EMOTION_CHAT_MODEL);
 	const emotionEstimator = new EmotionEstimator(ollamaChat);
 
 	/** MemoryLlmPort that only supports embed — chat/chatStructured throw since they are unused here */

@@ -7,6 +7,35 @@ const BASE_ENV = {
 };
 
 describe("loadConfig imageRecognition", () => {
+	test("感情推定モデルは env から読み込む", () => {
+		const config = loadConfig(
+			{
+				...BASE_ENV,
+				EMOTION_CHAT_MODEL: "emotion-model",
+				EMOTION_OLLAMA_BASE_URL: "http://emotion-ollama:11434",
+			},
+			"/app",
+		);
+
+		expect(config.emotion).toEqual({
+			providerId: "ollama",
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://emotion-ollama:11434",
+		});
+	});
+
+	test("感情推定モデルの base URL は OLLAMA_BASE_URL を既定値にする", () => {
+		const config = loadConfig(
+			{
+				...BASE_ENV,
+				OLLAMA_BASE_URL: "http://shared-ollama:11434",
+			},
+			"/app",
+		);
+
+		expect(config.emotion.ollamaBaseUrl).toBe("http://shared-ollama:11434");
+	});
+
 	test("デフォルトでは画像認識補助を無効にする", () => {
 		const config = loadConfig(BASE_ENV, "/app");
 

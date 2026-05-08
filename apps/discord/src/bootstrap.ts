@@ -121,10 +121,12 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 		HOME: process.env.HOME ?? "",
 		DISCORD_TOKEN: config.discordToken,
 		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
+		MEMORY_OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
+		EMOTION_OLLAMA_BASE_URL: config.emotion.ollamaBaseUrl,
 		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
 		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
-		EMOTION_CHAT_MODEL: process.env.EMOTION_CHAT_MODEL ?? "gemma3",
+		EMOTION_CHAT_MODEL: config.emotion.modelId,
 	};
 
 	if (config.spotify) {

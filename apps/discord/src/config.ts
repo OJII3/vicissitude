@@ -50,6 +50,14 @@ function buildShellWorkspaceConfig(
 	};
 }
 
+function buildEmotionConfig(env: Record<string, string | undefined>) {
+	return {
+		providerId: "ollama" as const,
+		modelId: env.EMOTION_CHAT_MODEL ?? "gemma3",
+		ollamaBaseUrl: env.EMOTION_OLLAMA_BASE_URL ?? env.OLLAMA_BASE_URL ?? "http://ollama:11434",
+	};
+}
+
 export { loadConfigFromProfile, loadProfileConfigFile };
 
 export function loadConfig(
@@ -92,6 +100,7 @@ function loadConfigFromEnv(
 			ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://ollama:11434",
 			embeddingModel: env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma",
 		},
+		emotion: buildEmotionConfig(env),
 		mcBrain: {
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
