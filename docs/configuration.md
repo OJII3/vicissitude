@@ -86,12 +86,15 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 | Spotify       | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` |
 | Genius        | `GENIUS_ACCESS_TOKEN`                                                 |
 | GitHub Issues | `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`                         |
+| shell-worker  | `HUA_GITHUB_TOKEN`                                                    |
 
 feature section が存在する場合だけ、その feature の secret env を必須にする。
 
 Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書ける。移行中の環境では既存の `SPOTIFY_RECOMMEND_PLAYLIST_ID` も引き続き読み込む。
 
 `features.shellWorkspace.environment` は shell-worker の OpenCode server process に渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
+
+compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。
 
 ## パースと検証
 
