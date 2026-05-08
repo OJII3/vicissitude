@@ -55,11 +55,14 @@ export const shellWorkspaceAgentSchema = z.object({
 	steps: safeInt.min(1),
 });
 
+export const shellWorkspaceEnvironmentSchema = z.record(z.string().min(1), z.string().min(1));
+
 export const shellWorkspaceSchema = z
 	.object({
 		enabled: z.literal(true),
 		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
 		agent: shellWorkspaceAgentSchema,
+		environment: shellWorkspaceEnvironmentSchema.optional(),
 		dataDir: z.string(),
 		hostDataDir: z.string().optional(),
 		auditLogPath: z.string(),

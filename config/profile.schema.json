@@ -159,6 +159,24 @@
 							"required": ["providerId", "modelId", "temperature", "steps"],
 							"additionalProperties": false
 						},
+						"environment": {
+							"type": "object",
+							"propertyNames": {
+								"type": "string",
+								"minLength": 1
+							},
+							"additionalProperties": {
+								"type": "object",
+								"properties": {
+									"fromEnv": {
+										"type": "string",
+										"minLength": 1
+									}
+								},
+								"required": ["fromEnv"],
+								"additionalProperties": false
+							}
+						},
 						"networkProfile": {
 							"type": "string",
 							"enum": ["open", "none"]

@@ -203,6 +203,7 @@ export function createGuildAgents(
 			primaryTools: profile.primaryTools,
 			temperature: config.opencode.temperature,
 			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
+			environment: config.shellWorkspace?.environment,
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition
