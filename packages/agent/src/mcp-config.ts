@@ -18,6 +18,7 @@ export interface ShellWorkspaceMcpConfigOptions {
 	hostDataDir?: string;
 	auditLogPath: string;
 	networkProfile: "open" | "none";
+	environment?: Record<string, string>;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
 	defaultTimeoutSeconds: number;
@@ -65,6 +66,7 @@ function buildShellWorkspaceEnvironment(
 	config: ShellWorkspaceMcpConfigOptions,
 ): Record<string, string> {
 	const env: Record<string, string> = {
+		...config.environment,
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
 		SHELL_WORKSPACE_AGENT_ID: agentId,

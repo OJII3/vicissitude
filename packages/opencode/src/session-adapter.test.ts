@@ -197,6 +197,43 @@ describe("OpencodeSessionAdapter", () => {
 		});
 	});
 
+	test("OpenCode 起動時だけ追加 environment を process env に反映する", async () => {
+		const saved = process.env.VICISSITUDE_OPENCODE_TEST_TOKEN;
+		delete process.env.VICISSITUDE_OPENCODE_TEST_TOKEN;
+		let valueDuringLaunch: string | undefined;
+		const streamState = createStream();
+		const client = createClient(streamState.stream);
+		const clientFactory = mock(() => {
+			valueDuringLaunch = process.env.VICISSITUDE_OPENCODE_TEST_TOKEN;
+			return Promise.resolve({
+				client,
+				server: { url: "http://localhost", close: mock(() => {}) },
+			});
+		});
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: {},
+			environment: {
+				VICISSITUDE_OPENCODE_TEST_TOKEN: "secret-value",
+			},
+			clientFactory,
+		});
+
+		try {
+			await adapter.createSession("test session");
+
+			expect(valueDuringLaunch).toBe("secret-value");
+			expect(process.env.VICISSITUDE_OPENCODE_TEST_TOKEN).toBeUndefined();
+		} finally {
+			if (saved === undefined) {
+				delete process.env.VICISSITUDE_OPENCODE_TEST_TOKEN;
+			} else {
+				process.env.VICISSITUDE_OPENCODE_TEST_TOKEN = saved;
+			}
+		}
+	});
+
 	test("promptAsyncAndWatchSession は abort 時に次イベントを待たず cancelled を返す", async () => {
 		const streamState = createStream();
 		const client = createClient(streamState.stream);

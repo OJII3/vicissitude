@@ -61,6 +61,8 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 `shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
 
+JSON profile の `features.shellWorkspace.environment` には shell-worker へ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。
+
 ## 非目標
 
 - メイン会話 agent への builtin `bash` 直接許可。

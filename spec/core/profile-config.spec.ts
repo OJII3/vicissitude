@@ -144,6 +144,10 @@ describe("JSON profile config", () => {
 							temperature: 0.3,
 							steps: 16,
 						},
+						environment: {
+							GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
+							GITHUB_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
+						},
 						defaultTtlMinutes: 15,
 						maxTtlMinutes: 30,
 						defaultTimeoutSeconds: 5,
@@ -152,7 +156,7 @@ describe("JSON profile config", () => {
 					},
 				},
 			},
-			baseEnv(),
+			baseEnv({ HUA_GITHUB_TOKEN: "test-github-token" }),
 			root,
 		);
 
@@ -170,6 +174,10 @@ describe("JSON profile config", () => {
 				temperature: 0.3,
 				steps: 16,
 			},
+			environment: {
+				GH_TOKEN: "test-github-token",
+				GITHUB_TOKEN: "test-github-token",
+			},
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
 			auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
 			networkProfile: "open",
@@ -179,6 +187,37 @@ describe("JSON profile config", () => {
 			maxTimeoutSeconds: 10,
 			maxOutputChars: 12345,
 		});
+	});
+
+	it("shellWorkspace.environment の参照元 env が未設定ならエラーにする", () => {
+		expect(() =>
+			loadConfigFromProfile(
+				{
+					...baseProfile,
+					features: {
+						shellWorkspace: {
+							image: "shell-image",
+							agent: {
+								providerId: "shell-provider",
+								modelId: "shell-model",
+								temperature: 0.3,
+								steps: 16,
+							},
+							environment: {
+								GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
+							},
+							defaultTtlMinutes: 15,
+							maxTtlMinutes: 30,
+							defaultTimeoutSeconds: 5,
+							maxTimeoutSeconds: 10,
+							maxOutputChars: 12345,
+						},
+					},
+				},
+				baseEnv(),
+				root,
+			),
+		).toThrow("HUA_GITHUB_TOKEN is required");
 	});
 
 	it("secret が必要な feature は env 未設定ならエラーにする", () => {

@@ -8,6 +8,7 @@ import {
 	minecraftSchema,
 	safeInt,
 	safeNumber,
+	shellWorkspaceEnvironmentSchema,
 	shellWorkspaceNetworkProfileSchema,
 	ttsSchema,
 	type AppConfig,
@@ -17,6 +18,12 @@ const modelSelectionSchema = z.strictObject({
 	providerId: z.string().min(1),
 	modelId: z.string().min(1),
 });
+
+const environmentSourceSchema = z.strictObject({
+	fromEnv: z.string().min(1),
+});
+
+const shellWorkspaceProfileEnvironmentSchema = z.record(z.string().min(1), environmentSourceSchema);
 
 export const profileConfigSchema = z.strictObject({
 	$schema: z.string().min(1).optional(),
@@ -49,6 +56,7 @@ export const profileConfigSchema = z.strictObject({
 					temperature: safeNumber.min(0).max(2),
 					steps: safeInt.min(1),
 				}),
+				environment: shellWorkspaceProfileEnvironmentSchema.optional(),
 				networkProfile: shellWorkspaceNetworkProfileSchema.optional(),
 				defaultTtlMinutes: safeInt.min(1),
 				maxTtlMinutes: safeInt.min(1),
@@ -82,6 +90,7 @@ function buildProfileShellWorkspaceConfig(
 		enabled: true,
 		image: shellWorkspace.image,
 		agent: shellWorkspace.agent,
+		environment: resolveShellWorkspaceEnvironment(shellWorkspace.environment, env),
 		dataDir: resolve(dataDir, "shell-workspaces"),
 		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
 			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
@@ -94,6 +103,20 @@ function buildProfileShellWorkspaceConfig(
 		maxTimeoutSeconds: shellWorkspace.maxTimeoutSeconds,
 		maxOutputChars: shellWorkspace.maxOutputChars,
 	};
+}
+
+function resolveShellWorkspaceEnvironment(
+	sources: Record<string, { fromEnv: string }> | undefined,
+	env: Record<string, string | undefined>,
+): Record<string, string> | undefined {
+	if (!sources) return;
+	const resolved = Object.fromEntries(
+		Object.entries(sources).map(([name, source]) => [
+			name,
+			requireSecret(env, source.fromEnv, `features.shellWorkspace.environment.${name}`),
+		]),
+	);
+	return shellWorkspaceEnvironmentSchema.parse(resolved);
 }
 
 function requireSecret(

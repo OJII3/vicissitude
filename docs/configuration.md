@@ -61,6 +61,10 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 				"temperature": 0.4,
 				"steps": 24
 			},
+			"environment": {
+				"GH_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" },
+				"GITHUB_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" }
+			},
 			"networkProfile": "open",
 			"defaultTtlMinutes": 60,
 			"maxTtlMinutes": 120,
@@ -86,6 +90,8 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 feature section が存在する場合だけ、その feature の secret env を必須にする。
 
 Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書ける。移行中の環境では既存の `SPOTIFY_RECOMMEND_PLAYLIST_ID` も引き続き読み込む。
+
+`features.shellWorkspace.environment` は shell-worker の OpenCode server process に渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
 
 ## パースと検証
 

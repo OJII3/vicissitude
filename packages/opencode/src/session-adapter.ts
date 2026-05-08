@@ -45,6 +45,8 @@ export interface OpencodeSessionAdapterConfig {
 	temperature?: number;
 	/** OpenCode の session / tool 実行に使う project directory */
 	directory?: string;
+	/** OpenCode server process に追加で渡す環境変数 */
+	environment?: Record<string, string>;
 	clientFactory?: typeof createOpencode;
 	logger?: Logger;
 }
@@ -338,22 +340,48 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			mkdirSync(this.config.directory, { recursive: true });
 		}
 		const agent = this.buildAgentConfig();
-		const result = await (this.config.clientFactory ?? createOpencode)({
-			port: this.config.port,
-			config: {
-				mcp: this.config.mcpServers,
-				tools: this.config.builtinTools,
-				default_agent: this.config.defaultAgent,
-				agent,
-				experimental: {
-					mcp_timeout: MCP_REQUEST_TIMEOUT_MS,
-					primary_tools: this.config.primaryTools,
+		const result = await withProcessEnvironment(this.config.environment, () =>
+			(this.config.clientFactory ?? createOpencode)({
+				port: this.config.port,
+				config: {
+					mcp: this.config.mcpServers,
+					tools: this.config.builtinTools,
+					default_agent: this.config.defaultAgent,
+					agent,
+					experimental: {
+						mcp_timeout: MCP_REQUEST_TIMEOUT_MS,
+						primary_tools: this.config.primaryTools,
+					},
 				},
-			},
-		});
+			}),
+		);
 		this.client = result.client;
 		this.closeServer = result.server.close.bind(result.server);
 		this.logger?.info(`[opencode] client initialized (port=${this.config.port})`);
 		return this.client;
+	}
+}
+
+function withProcessEnvironment<T>(
+	environment: Record<string, string> | undefined,
+	run: () => T,
+): T {
+	if (!environment || Object.keys(environment).length === 0) return run();
+	const previous = new Map<string, string | undefined>();
+	for (const [name, value] of Object.entries(environment)) {
+		const previousValue = process.env[name] as string | undefined;
+		previous.set(name, previousValue);
+		process.env[name] = value;
+	}
+	try {
+		return run();
+	} finally {
+		for (const [name, value] of previous) {
+			if (value === undefined) {
+				delete process.env[name];
+			} else {
+				process.env[name] = value;
+			}
+		}
 	}
 }
