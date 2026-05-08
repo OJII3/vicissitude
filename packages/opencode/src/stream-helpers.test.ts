@@ -29,22 +29,8 @@ describe("classifyEvent — workspace イベント", () => {
 		});
 	});
 
-	// 3. workspace.status status="error" + error="custom msg"
-	test("workspace.status (status='error', error='custom msg') で message が 'custom msg'", () => {
-		const event = {
-			type: "workspace.status",
-			properties: { status: "error", error: "custom msg" },
-		} as unknown as Event;
-
-		const result = classifyEvent(event, SESSION_ID, new Map());
-
-		expect(result).not.toBeNull();
-		if (result?.type !== "error") throw new Error("unreachable");
-		expect(result.message).toBe("custom msg");
-	});
-
-	// 4. workspace.status status="error" + error undefined → フォールバック
-	test("workspace.status (status='error') で error が undefined の場合、'workspace error' にフォールバック", () => {
+	// 3. workspace.status status="error" → 固定メッセージ
+	test("workspace.status (status='error') は 'workspace error' を返す", () => {
 		const event = {
 			type: "workspace.status",
 			properties: { status: "error" },
@@ -60,7 +46,7 @@ describe("classifyEvent — workspace イベント", () => {
 		});
 	});
 
-	// 5. workspace.status status="disconnected" 戻り値厳密一致
+	// 4. workspace.status status="disconnected" 戻り値厳密一致
 	test("workspace.status (status='disconnected') の戻り値が厳密に一致する", () => {
 		const event = {
 			type: "workspace.status",
@@ -77,7 +63,7 @@ describe("classifyEvent — workspace イベント", () => {
 		});
 	});
 
-	// 6. workspace.status status="connected" → null
+	// 5. workspace.status status="connected" → null
 	test("workspace.status (status='connected') は null を返す", () => {
 		const event = {
 			type: "workspace.status",
@@ -89,7 +75,7 @@ describe("classifyEvent — workspace イベント", () => {
 		expect(result).toBeNull();
 	});
 
-	// 7. workspace.status status="connecting" → null
+	// 6. workspace.status status="connecting" → null
 	test("workspace.status (status='connecting') は null を返す", () => {
 		const event = {
 			type: "workspace.status",
@@ -101,7 +87,7 @@ describe("classifyEvent — workspace イベント", () => {
 		expect(result).toBeNull();
 	});
 
-	// 8. workspace.ready → null
+	// 7. workspace.ready → null
 	test("workspace.ready は null を返す", () => {
 		const event = {
 			type: "workspace.ready",
@@ -122,7 +108,7 @@ describe("classifyEvent — workspace イベント", () => {
 
 		const events = [
 			{ type: "workspace.failed", properties: { message: "fail" } },
-			{ type: "workspace.status", properties: { status: "error", error: "err" } },
+			{ type: "workspace.status", properties: { status: "error" } },
 			{ type: "workspace.status", properties: { status: "disconnected" } },
 			{ type: "workspace.status", properties: { status: "connected" } },
 			{ type: "workspace.ready", properties: {} },
