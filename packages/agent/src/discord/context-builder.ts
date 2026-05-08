@@ -16,6 +16,7 @@ const CONTEXT_FILES = [
 	{ name: "LESSONS.md", scope: "guild" },
 	{ name: "MEMORY.md", scope: "guild" },
 	{ name: "SESSION-SUMMARY.md", scope: "guild" },
+	{ name: "RESUME-CONTEXT.md", scope: "guild" },
 	// Phase 2: Behavior
 	{ name: "DISCORD.md", scope: "shared" },
 	{ name: "HEARTBEAT.md", scope: "shared" },
