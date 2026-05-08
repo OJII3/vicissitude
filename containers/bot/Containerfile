@@ -5,13 +5,26 @@ RUN mise use -g bun@1 node@24 python@3.11
 
 # システム依存パッケージ
 RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
+    chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+        > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends \
+    bash wget git gh openssh-client \
+    jq ripgrep fd-find less file tree vim-tiny \
+    unzip zip tar gzip xz-utils zstd rsync sqlite3 \
+    procps psmisc lsof iproute2 iputils-ping dnsutils netcat-openbsd \
     podman \
     slirp4netns \
     # canvas v3 (N-API) native build deps
     build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev \
     # headless-gl (Mesa + Xvfb + ANGLE build) deps
     xvfb xauth libgl1-mesa-dri libgl1-mesa-dev libglapi-mesa libosmesa6 libxi-dev \
+    && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
