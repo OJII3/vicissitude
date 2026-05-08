@@ -85,25 +85,6 @@
 					"required": ["providerId", "modelId", "ollamaBaseUrl", "embeddingModel"],
 					"additionalProperties": false
 				},
-				"emotion": {
-					"type": "object",
-					"properties": {
-						"providerId": {
-							"type": "string",
-							"const": "ollama"
-						},
-						"modelId": {
-							"type": "string",
-							"minLength": 1
-						},
-						"ollamaBaseUrl": {
-							"type": "string",
-							"minLength": 1
-						}
-					},
-					"required": ["providerId", "modelId", "ollamaBaseUrl"],
-					"additionalProperties": false
-				},
 				"minecraft": {
 					"type": "object",
 					"properties": {
@@ -125,7 +106,7 @@
 					"additionalProperties": false
 				}
 			},
-			"required": ["conversation", "memory", "emotion", "minecraft"],
+			"required": ["conversation", "memory", "minecraft"],
 			"additionalProperties": false
 		},
 		"features": {
@@ -139,6 +120,25 @@
 							"minLength": 1
 						},
 						"modelId": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"required": ["providerId", "modelId"],
+					"additionalProperties": false
+				},
+				"emotionEstimation": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"ollamaBaseUrl": {
 							"type": "string",
 							"minLength": 1
 						}

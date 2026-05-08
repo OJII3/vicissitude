@@ -10,6 +10,7 @@ import type {
 	EmotionAnalyzer,
 	MoodWriter,
 } from "@vicissitude/shared/ports";
+import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
 import { registerDiscordTools } from "./discord.ts";
 import type { DiscordDeps } from "./discord.ts";
@@ -96,12 +97,14 @@ describe("triggerEmotionEstimation のエラーハンドリング", () => {
 			},
 		};
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
+		const logger = createMockLogger();
 
 		const tools = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: failingAnalyzer,
 			moodWriter: writer,
 			agentId: "agent-1",
+			logger,
 		});
 
 		const sendMessage = tools.get("send_message")!;
@@ -115,6 +118,10 @@ describe("triggerEmotionEstimation のエラーハンドリング", () => {
 		await tick();
 		// analyze() でエラーになるため setMood は呼ばれない
 		expect(writerCalls).toHaveLength(0);
+		expect(logger.warn).toHaveBeenCalledWith(
+			"[discord] emotion estimation failed:",
+			expect.any(Error),
+		);
 	});
 
 	test("moodWriter.setMood() がエラーを投げてもハンドラは正常に完了する", async () => {
@@ -124,12 +131,14 @@ describe("triggerEmotionEstimation のエラーハンドリング", () => {
 				throw new Error("Store write failed");
 			},
 		};
+		const logger = createMockLogger();
 
 		const tools = captureTools({
 			discordClient: createDiscordClientStub(),
 			emotionAnalyzer: analyzer,
 			moodWriter: throwingWriter,
 			agentId: "agent-1",
+			logger,
 		});
 
 		const sendMessage = tools.get("send_message")!;
@@ -141,6 +150,10 @@ describe("triggerEmotionEstimation のエラーハンドリング", () => {
 
 		// エラーが伝播せず、プロセスがクラッシュしないことを確認
 		await tick();
+		expect(logger.warn).toHaveBeenCalledWith(
+			"[discord] emotion estimation failed:",
+			expect.any(Error),
+		);
 	});
 
 	test("reply ハンドラでも analyze() エラーが握り潰される", async () => {

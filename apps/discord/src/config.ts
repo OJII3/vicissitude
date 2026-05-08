@@ -50,11 +50,17 @@ function buildShellWorkspaceConfig(
 	};
 }
 
-function buildEmotionConfig(env: Record<string, string | undefined>) {
+function buildEmotionEstimationConfig(env: Record<string, string | undefined>) {
+	if (!parseBooleanEnv(env.EMOTION_ESTIMATION_ENABLED)) return;
+	const providerId = env.EMOTION_PROVIDER_ID ?? "";
 	return {
-		providerId: "ollama" as const,
-		modelId: env.EMOTION_CHAT_MODEL ?? "gemma3",
-		ollamaBaseUrl: env.EMOTION_OLLAMA_BASE_URL ?? env.OLLAMA_BASE_URL ?? "http://ollama:11434",
+		enabled: true,
+		providerId,
+		modelId: env.EMOTION_MODEL_ID ?? "",
+		ollamaBaseUrl:
+			providerId === "ollama"
+				? (env.EMOTION_OLLAMA_BASE_URL ?? env.OLLAMA_BASE_URL)
+				: env.EMOTION_OLLAMA_BASE_URL,
 	};
 }
 
@@ -100,7 +106,6 @@ function loadConfigFromEnv(
 			ollamaBaseUrl: env.OLLAMA_BASE_URL ?? "http://ollama:11434",
 			embeddingModel: env.MEMORY_EMBEDDING_MODEL ?? "embeddinggemma",
 		},
-		emotion: buildEmotionConfig(env),
 		mcBrain: {
 			providerId: env.MC_PROVIDER_ID ?? openCodeProviderId,
 			modelId: env.MC_MODEL_ID ?? env.OPENCODE_MODEL_ID ?? "big-pickle",
@@ -147,6 +152,7 @@ function loadConfigFromEnv(
 					modelId: env.DISCORD_IMAGE_RECOGNITION_MODEL_ID ?? "",
 				}
 			: undefined,
+		emotionEstimation: buildEmotionEstimationConfig(env),
 		shellWorkspace: buildShellWorkspaceConfig(env, dataDir, openCodeProviderId, openCodeModelId),
 		dataDir,
 		contextDir: resolve(resolvedRoot, "context"),

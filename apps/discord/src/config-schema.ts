@@ -46,6 +46,23 @@ export const imageRecognitionSchema = z.object({
 	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
 });
 
+export const emotionEstimationSchema = z
+	.object({
+		enabled: z.literal(true),
+		providerId: z.string().min(1, "EMOTION_PROVIDER_ID is required"),
+		modelId: z.string().min(1, "EMOTION_MODEL_ID is required"),
+		ollamaBaseUrl: z.string().min(1, "EMOTION_OLLAMA_BASE_URL is required").optional(),
+	})
+	.superRefine((value, ctx) => {
+		if (value.providerId === "ollama" && !value.ollamaBaseUrl) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["ollamaBaseUrl"],
+				message: "EMOTION_OLLAMA_BASE_URL is required when EMOTION_PROVIDER_ID=ollama",
+			});
+		}
+	});
+
 export const shellWorkspaceNetworkProfileSchema = z.enum(["open", "none"]);
 
 export const shellWorkspaceAgentSchema = z.object({
@@ -100,11 +117,6 @@ export const appConfigSchema = z.object({
 		ollamaBaseUrl: z.string(),
 		embeddingModel: z.string(),
 	}),
-	emotion: z.object({
-		providerId: z.literal("ollama"),
-		modelId: z.string().min(1, "EMOTION_CHAT_MODEL is required"),
-		ollamaBaseUrl: z.string().min(1, "EMOTION_OLLAMA_BASE_URL is required"),
-	}),
 	mcBrain: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
@@ -116,6 +128,7 @@ export const appConfigSchema = z.object({
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
 	imageRecognition: imageRecognitionSchema.optional(),
+	emotionEstimation: emotionEstimationSchema.optional(),
 	shellWorkspace: shellWorkspaceSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),

@@ -4,6 +4,7 @@ import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
+import type { Logger } from "@vicissitude/shared/types";
 import type { Client, TextChannel } from "discord.js";
 import { z } from "zod";
 
@@ -38,6 +39,7 @@ export interface DiscordDeps {
 	moodWriter?: MoodWriter;
 	agentId?: string;
 	moodKey?: string;
+	logger?: Logger;
 }
 
 function sleep(ms: number): Promise<void> {
@@ -69,7 +71,9 @@ export function registerDiscordTools(
 			if (result.confidence > 0) {
 				moodWriter.setMood(moodKey, result.emotion);
 			}
-		})().catch(() => {});
+		})().catch((error) => {
+			deps.logger?.warn("[discord] emotion estimation failed:", error);
+		});
 	}
 
 	async function getSendableChannel(channelId: string) {

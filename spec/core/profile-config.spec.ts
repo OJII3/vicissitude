@@ -41,11 +41,6 @@ const baseProfile = {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "embedding-model",
 		},
-		emotion: {
-			providerId: "ollama" as const,
-			modelId: "emotion-model",
-			ollamaBaseUrl: "http://emotion-ollama:11434",
-		},
 		minecraft: {
 			providerId: "mc-provider",
 			modelId: "mc-model",
@@ -116,11 +111,6 @@ describe("JSON profile config", () => {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "embedding-model",
 		});
-		expect(config.emotion).toEqual({
-			providerId: "ollama",
-			modelId: "emotion-model",
-			ollamaBaseUrl: "http://emotion-ollama:11434",
-		});
 		expect(config.mcBrain).toEqual({
 			providerId: "mc-provider",
 			modelId: "mc-model",
@@ -132,6 +122,7 @@ describe("JSON profile config", () => {
 		const config = loadConfigFromProfile(baseProfile, baseEnv(), root);
 
 		expect(config.imageRecognition).toBeUndefined();
+		expect(config.emotionEstimation).toBeUndefined();
 		expect(config.shellWorkspace).toBeUndefined();
 		expect(config.minecraft).toBeUndefined();
 		expect(config.spotify).toBeUndefined();
@@ -145,6 +136,10 @@ describe("JSON profile config", () => {
 					imageRecognition: {
 						providerId: "vision-provider",
 						modelId: "vision-model",
+					},
+					emotionEstimation: {
+						providerId: "openai",
+						modelId: "gpt-5.4",
 					},
 					shellWorkspace: {
 						image: "shell-image",
@@ -174,6 +169,12 @@ describe("JSON profile config", () => {
 			enabled: true,
 			providerId: "vision-provider",
 			modelId: "vision-model",
+		});
+		expect(config.emotionEstimation).toEqual({
+			enabled: true,
+			providerId: "openai",
+			modelId: "gpt-5.4",
+			ollamaBaseUrl: undefined,
 		});
 		expect(config.shellWorkspace).toEqual({
 			enabled: true,

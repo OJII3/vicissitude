@@ -1,7 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { resolve } from "path";
 
-import { buildCoreEnvironment } from "../../apps/discord/src/bootstrap.ts";
+import {
+	buildAgentCoreEnvironment,
+	buildCoreEnvironment,
+} from "../../apps/discord/src/bootstrap.ts";
 import type { AppConfig } from "../../apps/discord/src/config.ts";
 
 function makeConfig(
@@ -9,6 +12,7 @@ function makeConfig(
 		spotify?: AppConfig["spotify"];
 		genius?: AppConfig["genius"];
 		shellWorkspace?: AppConfig["shellWorkspace"];
+		emotionEstimation?: AppConfig["emotionEstimation"];
 	} = {},
 ): AppConfig {
 	return {
@@ -27,11 +31,6 @@ function makeConfig(
 			modelId: "memory-model",
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "nomic-embed-text",
-		},
-		emotion: {
-			providerId: "ollama",
-			modelId: "emotion-model",
-			ollamaBaseUrl: "http://emotion-ollama:11434",
 		},
 		mcBrain: {
 			providerId: "mc-provider",
@@ -55,11 +54,9 @@ describe("buildCoreEnvironment", () => {
 			"DISCORD_TOKEN",
 			"OLLAMA_BASE_URL",
 			"MEMORY_OLLAMA_BASE_URL",
-			"EMOTION_OLLAMA_BASE_URL",
 			"MEMORY_EMBEDDING_MODEL",
 			"MEMORY_DATA_DIR",
 			"DATA_DIR",
-			"EMOTION_CHAT_MODEL",
 		];
 		for (const key of requiredKeys) {
 			expect(result).toHaveProperty(key);
@@ -81,11 +78,6 @@ describe("buildCoreEnvironment", () => {
 		expect(result.MEMORY_OLLAMA_BASE_URL).toBe("http://localhost:11434");
 	});
 
-	it("EMOTION_OLLAMA_BASE_URL は config.emotion.ollamaBaseUrl の値", () => {
-		const result = buildCoreEnvironment(makeConfig(), ROOT);
-		expect(result.EMOTION_OLLAMA_BASE_URL).toBe("http://emotion-ollama:11434");
-	});
-
 	it("MEMORY_EMBEDDING_MODEL は config.memory.embeddingModel の値", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
 		expect(result.MEMORY_EMBEDDING_MODEL).toBe("nomic-embed-text");
@@ -101,10 +93,94 @@ describe("buildCoreEnvironment", () => {
 		expect(result.DATA_DIR).toBe(resolve(ROOT, "data"));
 	});
 
-	describe("EMOTION_CHAT_MODEL", () => {
-		it("config.emotion.modelId の値を使用する", () => {
+	describe("感情推定環境変数", () => {
+		it("デフォルトでは感情推定の環境変数を含まない", () => {
 			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result.EMOTION_CHAT_MODEL).toBe("emotion-model");
+			expect(result).not.toHaveProperty("EMOTION_ESTIMATION_ENABLED");
+			expect(result).not.toHaveProperty("EMOTION_PROVIDER_ID");
+			expect(result).not.toHaveProperty("EMOTION_MODEL_ID");
+			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
+		});
+
+		it("有効な場合は provider と model を渡す", () => {
+			const result = buildCoreEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				ROOT,
+			);
+
+			expect(result.EMOTION_ESTIMATION_ENABLED).toBe("true");
+			expect(result.EMOTION_PROVIDER_ID).toBe("openai");
+			expect(result.EMOTION_MODEL_ID).toBe("gpt-5.4");
+			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
+		});
+
+		it("ollama の場合は ollamaBaseUrl を渡す", () => {
+			const result = buildCoreEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "ollama",
+						modelId: "emotion-model",
+						ollamaBaseUrl: "http://emotion-ollama:11434",
+					},
+				}),
+				ROOT,
+			);
+
+			expect(result.EMOTION_PROVIDER_ID).toBe("ollama");
+			expect(result.EMOTION_MODEL_ID).toBe("emotion-model");
+			expect(result.EMOTION_OLLAMA_BASE_URL).toBe("http://emotion-ollama:11434");
+		});
+	});
+
+	describe("agent core 環境変数", () => {
+		it("ollama 以外の感情推定 provider には専用 OpenCode port を渡す", () => {
+			const baseEnvironment = buildCoreEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				ROOT,
+			);
+			const result = buildAgentCoreEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				baseEnvironment,
+				5000,
+			);
+
+			expect(result.EMOTION_OPENCODE_PORT).toBe("6000");
+			expect(baseEnvironment).not.toHaveProperty("EMOTION_OPENCODE_PORT");
+		});
+
+		it("感情推定が無効、または ollama の場合は baseEnvironment をそのまま使う", () => {
+			const disabledBase = buildCoreEnvironment(makeConfig(), ROOT);
+			expect(buildAgentCoreEnvironment(makeConfig(), disabledBase, 5000)).toBe(disabledBase);
+
+			const ollamaConfig = makeConfig({
+				emotionEstimation: {
+					enabled: true,
+					providerId: "ollama",
+					modelId: "emotion-model",
+					ollamaBaseUrl: "http://emotion-ollama:11434",
+				},
+			});
+			const ollamaBase = buildCoreEnvironment(ollamaConfig, ROOT);
+			expect(buildAgentCoreEnvironment(ollamaConfig, ollamaBase, 5000)).toBe(ollamaBase);
 		});
 	});
 

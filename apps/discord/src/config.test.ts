@@ -6,34 +6,65 @@ const BASE_ENV = {
 	DISCORD_TOKEN: "token",
 };
 
-describe("loadConfig imageRecognition", () => {
-	test("感情推定モデルは env から読み込む", () => {
+describe("loadConfig feature settings", () => {
+	test("デフォルトでは感情推定を無効にする", () => {
+		const config = loadConfig(BASE_ENV, "/app");
+
+		expect(config.emotionEstimation).toBeUndefined();
+	});
+
+	test("感情推定は有効化時だけ env から読み込む", () => {
 		const config = loadConfig(
 			{
 				...BASE_ENV,
-				EMOTION_CHAT_MODEL: "emotion-model",
+				EMOTION_ESTIMATION_ENABLED: "true",
+				EMOTION_PROVIDER_ID: "ollama",
+				EMOTION_MODEL_ID: "emotion-model",
 				EMOTION_OLLAMA_BASE_URL: "http://emotion-ollama:11434",
 			},
 			"/app",
 		);
 
-		expect(config.emotion).toEqual({
+		expect(config.emotionEstimation).toEqual({
+			enabled: true,
 			providerId: "ollama",
 			modelId: "emotion-model",
 			ollamaBaseUrl: "http://emotion-ollama:11434",
 		});
 	});
 
-	test("感情推定モデルの base URL は OLLAMA_BASE_URL を既定値にする", () => {
+	test("感情推定が ollama の場合は OLLAMA_BASE_URL を既定値にする", () => {
 		const config = loadConfig(
 			{
 				...BASE_ENV,
+				EMOTION_ESTIMATION_ENABLED: "true",
+				EMOTION_PROVIDER_ID: "ollama",
+				EMOTION_MODEL_ID: "emotion-model",
 				OLLAMA_BASE_URL: "http://shared-ollama:11434",
 			},
 			"/app",
 		);
 
-		expect(config.emotion.ollamaBaseUrl).toBe("http://shared-ollama:11434");
+		expect(config.emotionEstimation?.ollamaBaseUrl).toBe("http://shared-ollama:11434");
+	});
+
+	test("感情推定で ollama 以外の provider を指定できる", () => {
+		const config = loadConfig(
+			{
+				...BASE_ENV,
+				EMOTION_ESTIMATION_ENABLED: "1",
+				EMOTION_PROVIDER_ID: "openai",
+				EMOTION_MODEL_ID: "gpt-5.4",
+			},
+			"/app",
+		);
+
+		expect(config.emotionEstimation).toEqual({
+			enabled: true,
+			providerId: "openai",
+			modelId: "gpt-5.4",
+			ollamaBaseUrl: undefined,
+		});
 	});
 
 	test("デフォルトでは画像認識補助を無効にする", () => {

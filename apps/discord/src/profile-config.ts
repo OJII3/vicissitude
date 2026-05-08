@@ -19,17 +19,27 @@ const modelSelectionSchema = z.strictObject({
 	modelId: z.string().min(1),
 });
 
-const emotionModelSchema = z.strictObject({
-	providerId: z.literal("ollama"),
-	modelId: z.string().min(1),
-	ollamaBaseUrl: z.string().min(1),
-});
-
 const environmentSourceSchema = z.strictObject({
 	fromEnv: z.string().min(1),
 });
 
 const shellWorkspaceProfileEnvironmentSchema = z.record(z.string().min(1), environmentSourceSchema);
+
+const emotionEstimationProfileSchema = z
+	.strictObject({
+		providerId: z.string().min(1),
+		modelId: z.string().min(1),
+		ollamaBaseUrl: z.string().min(1).optional(),
+	})
+	.superRefine((value, ctx) => {
+		if (value.providerId === "ollama" && !value.ollamaBaseUrl) {
+			ctx.addIssue({
+				code: "custom",
+				path: ["ollamaBaseUrl"],
+				message: "features.emotionEstimation.ollamaBaseUrl is required when providerId is ollama",
+			});
+		}
+	});
 
 export const profileConfigSchema = z.strictObject({
 	$schema: z.string().min(1).optional(),
@@ -49,13 +59,13 @@ export const profileConfigSchema = z.strictObject({
 			ollamaBaseUrl: z.string().min(1),
 			embeddingModel: z.string().min(1),
 		}),
-		emotion: emotionModelSchema,
 		minecraft: modelSelectionSchema.extend({
 			temperature: safeNumber.min(0).max(2),
 		}),
 	}),
 	features: z.strictObject({
 		imageRecognition: modelSelectionSchema.optional(),
+		emotionEstimation: emotionEstimationProfileSchema.optional(),
 		shellWorkspace: z
 			.strictObject({
 				image: z.string().min(1),
@@ -166,11 +176,6 @@ export function loadConfigFromProfile(
 			ollamaBaseUrl: profile.models.memory.ollamaBaseUrl,
 			embeddingModel: profile.models.memory.embeddingModel,
 		},
-		emotion: {
-			providerId: profile.models.emotion.providerId,
-			modelId: profile.models.emotion.modelId,
-			ollamaBaseUrl: profile.models.emotion.ollamaBaseUrl,
-		},
 		mcBrain: {
 			providerId: profile.models.minecraft.providerId,
 			modelId: profile.models.minecraft.modelId,
@@ -202,6 +207,14 @@ export function loadConfigFromProfile(
 					enabled: true,
 					providerId: profile.features.imageRecognition.providerId,
 					modelId: profile.features.imageRecognition.modelId,
+				}
+			: undefined,
+		emotionEstimation: profile.features.emotionEstimation
+			? {
+					enabled: true,
+					providerId: profile.features.emotionEstimation.providerId,
+					modelId: profile.features.emotionEstimation.modelId,
+					ollamaBaseUrl: profile.features.emotionEstimation.ollamaBaseUrl,
 				}
 			: undefined,
 		shellWorkspace: buildProfileShellWorkspaceConfig(profile, env, dataDir),

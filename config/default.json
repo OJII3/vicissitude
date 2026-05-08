@@ -20,11 +20,6 @@
 			"ollamaBaseUrl": "http://ollama:11434",
 			"embeddingModel": "embeddinggemma"
 		},
-		"emotion": {
-			"providerId": "ollama",
-			"modelId": "gemma3",
-			"ollamaBaseUrl": "http://ollama:11434"
-		},
 		"minecraft": {
 			"providerId": "github-copilot",
 			"modelId": "gpt5-mini",
