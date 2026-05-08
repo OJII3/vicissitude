@@ -14,6 +14,8 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 `opencode.json` の位置に directory など regular file 以外がある場合は、誤った bind mount を避けるため deploy を中止する。
 
+生成 compose override は root `package.json` の workspaces から各 workspace の `node_modules` volume も生成する。`installer` が isolated linker 用 symlink を書き込み、`builder` と `bot` は同じ volume を read-only で読む。これにより `packages` / `apps` の source bind mount は read-only のまま維持し、deploy 時にホストの workspace 配下を更新しない。
+
 ## 形式
 
 profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。
