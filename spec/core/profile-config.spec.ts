@@ -41,6 +41,11 @@ const baseProfile = {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "embedding-model",
 		},
+		emotion: {
+			providerId: "ollama" as const,
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://emotion-ollama:11434",
+		},
 		minecraft: {
 			providerId: "mc-provider",
 			modelId: "mc-model",
@@ -110,6 +115,11 @@ describe("JSON profile config", () => {
 			modelId: "memory-model",
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "embedding-model",
+		});
+		expect(config.emotion).toEqual({
+			providerId: "ollama",
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://emotion-ollama:11434",
 		});
 		expect(config.mcBrain).toEqual({
 			providerId: "mc-provider",

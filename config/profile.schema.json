@@ -85,6 +85,25 @@
 					"required": ["providerId", "modelId", "ollamaBaseUrl", "embeddingModel"],
 					"additionalProperties": false
 				},
+				"emotion": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"const": "ollama"
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"ollamaBaseUrl": {
+							"type": "string",
+							"minLength": 1
+						}
+					},
+					"required": ["providerId", "modelId", "ollamaBaseUrl"],
+					"additionalProperties": false
+				},
 				"minecraft": {
 					"type": "object",
 					"properties": {
@@ -106,7 +125,7 @@
 					"additionalProperties": false
 				}
 			},
-			"required": ["conversation", "memory", "minecraft"],
+			"required": ["conversation", "memory", "emotion", "minecraft"],
 			"additionalProperties": false
 		},
 		"features": {

@@ -51,6 +51,11 @@ function makeConfig(dataDir: string): AppConfig {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "nomic-embed-text",
 		},
+		emotion: {
+			providerId: "ollama",
+			modelId: "emotion-model",
+			ollamaBaseUrl: "http://localhost:11434",
+		},
 		mcBrain: {
 			providerId: "mc-provider",
 			modelId: "mc-model",

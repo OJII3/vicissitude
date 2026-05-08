@@ -100,6 +100,11 @@ export const appConfigSchema = z.object({
 		ollamaBaseUrl: z.string(),
 		embeddingModel: z.string(),
 	}),
+	emotion: z.object({
+		providerId: z.literal("ollama"),
+		modelId: z.string().min(1, "EMOTION_CHAT_MODEL is required"),
+		ollamaBaseUrl: z.string().min(1, "EMOTION_OLLAMA_BASE_URL is required"),
+	}),
 	mcBrain: z.object({
 		providerId: z.string(),
 		modelId: z.string(),
