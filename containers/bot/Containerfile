@@ -28,7 +28,7 @@ RUN apt-get update && \
     && apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN bun install -g opencode-ai@1.4.3 && \
+RUN bun install -g opencode-ai@1.14.41 && \
     cp /root/.bun/install/global/node_modules/opencode-ai/bin/.opencode /usr/local/bin/opencode && \
     chmod 755 /usr/local/bin/opencode && \
     rm -rf /root/.bun && \

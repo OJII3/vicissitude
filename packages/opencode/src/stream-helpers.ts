@@ -157,7 +157,7 @@ export function classifyEvent(
 		if (typed.properties.status === "error") {
 			return {
 				type: "error",
-				message: typed.properties.error ?? "workspace error",
+				message: "workspace error",
 				retryable: true,
 				errorClass: "WorkspaceError",
 			};

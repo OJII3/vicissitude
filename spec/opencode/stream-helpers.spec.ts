@@ -408,28 +408,13 @@ describe("classifyEvent", () => {
 	test("workspace.status (status='error') が error として classify される", () => {
 		const event = {
 			type: "workspace.status",
-			properties: { workspaceID: "ws-1", status: "error", error: "connection reset" },
-		} as unknown as Event;
-
-		const result = classifyEvent(event, sessionId, new Map());
-
-		expect(result).not.toBeNull();
-		expect(result?.type).toBe("error");
-		if (result?.type !== "error") throw new Error("unreachable");
-		expect(result.message).toContain("connection reset");
-		expect(result.retryable).toBe(true);
-		expect(result.errorClass).toBe("WorkspaceError");
-	});
-
-	test("workspace.status (status='error') で error フィールドが未設定の場合はデフォルトメッセージ", () => {
-		const event = {
-			type: "workspace.status",
 			properties: { workspaceID: "ws-1", status: "error" },
 		} as unknown as Event;
 
 		const result = classifyEvent(event, sessionId, new Map());
 
 		expect(result).not.toBeNull();
+		expect(result?.type).toBe("error");
 		if (result?.type !== "error") throw new Error("unreachable");
 		expect(result.message).toContain("workspace error");
 		expect(result.retryable).toBe(true);
