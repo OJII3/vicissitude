@@ -126,7 +126,20 @@ export class ConsolidationScheduler {
 		try {
 			const userId = defaultSubject(namespace);
 			const result = await this.criticAuditor.audit(userId);
-			if (result) {
+			if (result.status === "skipped") {
+				this.metrics?.incrementCounter(METRIC.CRITIC_AUDITOR_SKIP_TOTAL, {
+					namespace: key,
+					reason: result.reason,
+				});
+				if (result.driftScore !== undefined) {
+					this.metrics?.setGauge(METRIC.DRIFT_SCORE, result.driftScore, { namespace: key });
+				}
+				if (result.reason === "low_drift") return;
+				this.logger.warn(`[critic-audit] ns=${key}: skipped (${result.reason})`);
+				return;
+			}
+
+			if (result.status === "completed") {
 				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS, {
 					namespace: key,
 					severity: result.severity,

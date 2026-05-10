@@ -41,6 +41,7 @@ export const METRIC = {
 	// Drift metrics
 	DRIFT_SCORE: "drift_score",
 	DRIFT_AUDITS: "drift_audits_total",
+	CRITIC_AUDITOR_SKIP_TOTAL: "critic_auditor_skip_total",
 	// Cost metrics
 	LLM_COST_DOLLARS: "llm_cost_dollars_total",
 	// Session error metrics

@@ -2,7 +2,11 @@ import { describe, expect, mock, test } from "bun:test";
 
 import { discordGuildNamespace } from "@vicissitude/memory/namespace";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
-import type { CriticAuditorPort, GitHubIssuePort } from "@vicissitude/shared/ports";
+import type {
+	CriticAuditCompleted,
+	CriticAuditorPort,
+	GitHubIssuePort,
+} from "@vicissitude/shared/ports";
 import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
 
 import { createMockLogger, createMockMetrics } from "../test-helpers.ts";
@@ -27,9 +31,13 @@ function createMockCriticAuditor(
 	overrides: Partial<CriticAuditorPort> = {},
 ): CriticAuditorPort & { audit: ReturnType<typeof mock> } {
 	return {
-		audit: mock(() => Promise.resolve(null)),
+		audit: mock(() => Promise.resolve({ status: "skipped", reason: "low_drift" } as const)),
 		...overrides,
 	} as CriticAuditorPort & { audit: ReturnType<typeof mock> };
+}
+
+function completed(params: Omit<CriticAuditCompleted, "status">): CriticAuditCompleted {
+	return { status: "completed", ...params };
 }
 
 function createMockGitHubIssuePort(overrides: Partial<GitHubIssuePort> = {}): GitHubIssuePort & {
@@ -249,7 +257,9 @@ describe("ConsolidationScheduler", () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor({
-				audit: mock(() => Promise.resolve({ severity: "minor", summary: "slightly off" })),
+				audit: mock(() =>
+					Promise.resolve(completed({ severity: "minor", summary: "slightly off" })),
+				),
 			});
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
@@ -270,7 +280,7 @@ describe("ConsolidationScheduler", () => {
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor({
 				audit: mock(() =>
-					Promise.resolve({ severity: "major", summary: "AI assistant-like response" }),
+					Promise.resolve(completed({ severity: "major", summary: "AI assistant-like response" })),
 				),
 			});
 			const consolidator = createMockConsolidator({
@@ -287,11 +297,11 @@ describe("ConsolidationScheduler", () => {
 			);
 		});
 
-		test("audit が null を返す → メトリクス・warn ともに呼ばれない", async () => {
+		test("audit が low_drift skip を返す → skip メトリクスが記録され warn は呼ばれない", async () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor({
-				audit: mock(() => Promise.resolve(null)),
+				audit: mock(() => Promise.resolve({ status: "skipped", reason: "low_drift" } as const)),
 			});
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
@@ -302,6 +312,10 @@ describe("ConsolidationScheduler", () => {
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
+			expect(metrics.incrementCounter).toHaveBeenCalledWith("critic_auditor_skip_total", {
+				namespace: "discord-guild:555",
+				reason: "low_drift",
+			});
 			expect(metrics.incrementCounter).not.toHaveBeenCalledWith(
 				"drift_audits_total",
 				expect.anything(),
@@ -316,7 +330,7 @@ describe("ConsolidationScheduler", () => {
 			const auditor = createMockCriticAuditor({
 				audit: mock((userId: string) => {
 					if (userId === "666") return Promise.reject(auditError);
-					return Promise.resolve({ severity: "minor", summary: "ok" });
+					return Promise.resolve(completed({ severity: "minor", summary: "ok" }));
 				}),
 			});
 			const ns1 = discordGuildNamespace("666");
@@ -348,7 +362,9 @@ describe("ConsolidationScheduler", () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor({
-				audit: mock(() => Promise.resolve({ severity: "minor", summary: "ok", driftScore: 0.42 })),
+				audit: mock(() =>
+					Promise.resolve(completed({ severity: "minor", summary: "ok", driftScore: 0.42 })),
+				),
 			});
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
@@ -367,7 +383,7 @@ describe("ConsolidationScheduler", () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor({
-				audit: mock(() => Promise.resolve({ severity: "none", summary: "ok" })),
+				audit: mock(() => Promise.resolve(completed({ severity: "none", summary: "ok" }))),
 			});
 			const ns1 = discordGuildNamespace("888");
 			const ns2 = discordGuildNamespace("999");
@@ -408,12 +424,14 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		const issuePort = createMockGitHubIssuePort();
 		const auditor = createMockCriticAuditor({
 			audit: mock(() =>
-				Promise.resolve({
-					severity: "major",
-					summary: "character drift detected",
-					issueTitle: "[character-drift] guild 111: AI assistant-like response",
-					issueBody: "## 概要\nキャラクター逸脱が検出されました。",
-				}),
+				Promise.resolve(
+					completed({
+						severity: "major",
+						summary: "character drift detected",
+						issueTitle: "[character-drift] guild 111: AI assistant-like response",
+						issueBody: "## 概要\nキャラクター逸脱が検出されました。",
+					}),
+				),
 			),
 		});
 		const consolidator = createMockConsolidator({
@@ -451,12 +469,14 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		});
 		const auditor = createMockCriticAuditor({
 			audit: mock(() =>
-				Promise.resolve({
-					severity: "major",
-					summary: "repeated drift",
-					issueTitle: duplicateTitle,
-					issueBody: "drift body",
-				}),
+				Promise.resolve(
+					completed({
+						severity: "major",
+						summary: "repeated drift",
+						issueTitle: duplicateTitle,
+						issueBody: "drift body",
+					}),
+				),
 			),
 		});
 		const consolidator = createMockConsolidator({
@@ -480,11 +500,13 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		const issuePort = createMockGitHubIssuePort();
 		const auditor = createMockCriticAuditor({
 			audit: mock(() =>
-				Promise.resolve({
-					severity: "major",
-					summary: "drift detected but no issue info",
-					// issueTitle, issueBody を省略
-				}),
+				Promise.resolve(
+					completed({
+						severity: "major",
+						summary: "drift detected but no issue info",
+						// issueTitle, issueBody を省略
+					}),
+				),
 			),
 		});
 		const consolidator = createMockConsolidator({
@@ -505,12 +527,14 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		const metrics = createMockMetrics();
 		const auditor = createMockCriticAuditor({
 			audit: mock(() =>
-				Promise.resolve({
-					severity: "major",
-					summary: "drift detected",
-					issueTitle: "[character-drift] guild 444: drift",
-					issueBody: "body",
-				}),
+				Promise.resolve(
+					completed({
+						severity: "major",
+						summary: "drift detected",
+						issueTitle: "[character-drift] guild 444: drift",
+						issueBody: "body",
+					}),
+				),
 			),
 		});
 		const consolidator = createMockConsolidator({
@@ -536,12 +560,14 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		});
 		const auditor = createMockCriticAuditor({
 			audit: mock(() =>
-				Promise.resolve({
-					severity: "major",
-					summary: "drift detected",
-					issueTitle: "[character-drift] guild 555: drift",
-					issueBody: "body",
-				}),
+				Promise.resolve(
+					completed({
+						severity: "major",
+						summary: "drift detected",
+						issueTitle: "[character-drift] guild 555: drift",
+						issueBody: "body",
+					}),
+				),
 			),
 		});
 		const consolidator = createMockConsolidator({

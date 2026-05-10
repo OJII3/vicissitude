@@ -131,6 +131,8 @@ OpenCode SDK 組み込み: `webfetch`
 | SemanticMemory        | 意味記憶（ファクト）の保存・検索・無効化                            |
 | Retrieval             | テキスト + ベクトル + FSRS のハイブリッド検索（RRF でマージ）       |
 
+CriticAuditor は直近 90 分の Bot 応答を監査し、キャラクタードリフトを検出する。監査を実行しなかった場合も silent stop と区別できるよう、スキップ理由（`no_bot_id` / `no_messages` / `low_drift`）を返し、`critic_auditor_skip_total{reason=...}` で観測できるようにする。`no_bot_id` / `no_messages` は警告ログにも出力する。
+
 #### ストレージ (`packages/store`)
 
 | コンポーネント  | 役割                                   |

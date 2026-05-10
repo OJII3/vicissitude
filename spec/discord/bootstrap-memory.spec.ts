@@ -188,7 +188,7 @@ describe("setupMemoryRecording()", () => {
 		if (!adapter) return;
 		const result = await adapter.audit(guildId);
 
-		expect(result).not.toBeNull();
+		expect(result.status).toBe("completed");
 		expect(calls).toHaveLength(1);
 		const systemPrompt = calls[0]?.messages.find((m) => m.role === "system")?.content ?? "";
 		expect(systemPrompt).toContain("Unique persona marker");
@@ -268,9 +268,9 @@ describe("setupMemoryRecording()", () => {
 		expect(typeof adapter?.audit).toBe("function");
 	});
 
-	test("buildCriticAuditorAdapter(): getBotUserId が undefined の間は audit() が null を返す", async () => {
+	test("buildCriticAuditorAdapter(): getBotUserId が undefined の間は no_bot_id skip を返す", async () => {
 		// gateway.start() 前に consolidationScheduler が起動するケースは現状ないが、
-		// 防衛的に bot user id 未解決時の audit は no-op（null 返却）になることを期待する。
+		// 防衛的に bot user id 未解決時の audit は no_bot_id skip になることを期待する。
 		const contextDir = resolve(testDir, "context");
 		mkdirSync(contextDir, { recursive: true });
 		const soulPath = resolve(contextDir, "SOUL.md");
@@ -287,8 +287,8 @@ describe("setupMemoryRecording()", () => {
 		expect(adapter).toBeDefined();
 		if (!adapter) return;
 
-		// bot user id 未解決時は audit は null を返して early-return すること
+		// bot user id 未解決時は namespace validation 前に no_bot_id skip すること
 		const auditResult = await adapter.audit("guild-1");
-		expect(auditResult).toBeNull();
+		expect(auditResult).toEqual({ status: "skipped", reason: "no_bot_id" });
 	});
 });

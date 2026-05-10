@@ -301,6 +301,7 @@ export function createMetrics(logger: Logger, port: number) {
 	// Drift metrics
 	collector.registerGauge(METRIC.DRIFT_SCORE, "Character drift score per guild");
 	collector.registerCounter(METRIC.DRIFT_AUDITS, "Character drift audit results");
+	collector.registerCounter(METRIC.CRITIC_AUDITOR_SKIP_TOTAL, "Critic auditor skipped audits");
 	collector.setGauge(METRIC.BOT_INFO, 1, { bot_name: "hua" });
 	return { collector, server: new PrometheusServer(collector, logger, port) };
 }
@@ -343,7 +344,7 @@ export async function buildCriticAuditorAdapter(
 			// gateway.start() 前に audit が呼ばれた場合、bot user id 未解決のため早期 return
 			// (namespace 解決は GUILD_ID_RE バリデーションを行うため、それより前に判定する)
 			const botUserId = getBotUserId();
-			if (!botUserId) return Promise.resolve(null);
+			if (!botUserId) return Promise.resolve({ status: "skipped", reason: "no_bot_id" });
 
 			let storage = storageCache.get(userId);
 			if (!storage) {

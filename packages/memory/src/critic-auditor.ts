@@ -9,6 +9,7 @@ import { escapeXmlContent } from "./utils.ts";
 // ─── Public types ───────────────────────────────────────────────
 
 export type CriticSeverity = "none" | "minor" | "major";
+export type CriticSkipReason = "no_messages" | "low_drift";
 
 export interface CriticResult {
 	severity: CriticSeverity;
@@ -19,6 +20,14 @@ export interface CriticResult {
 	issueTitle?: string;
 	issueBody?: string;
 }
+
+export interface CriticSkipped {
+	status: "skipped";
+	reason: CriticSkipReason;
+	driftScore?: number;
+}
+
+export type CriticAuditOutcome = (CriticResult & { status: "completed" }) | CriticSkipped;
 
 // ─── Constants ──────────────────────────────────────────────────
 
@@ -59,7 +68,7 @@ export class CriticAuditor {
 	}
 
 	/** 直近の応答を監査し、キャラクター一貫性を評価する */
-	async audit(userId: string): Promise<CriticResult | null> {
+	async audit(userId: string): Promise<CriticAuditOutcome> {
 		const sinceMs = this.nowProvider() - NINETY_MINUTES_MS;
 		const episodes = await this.storage.getRecentEpisodes(userId, sinceMs, RECENT_EPISODE_LIMIT);
 
@@ -69,14 +78,14 @@ export class CriticAuditor {
 		const assistantMessages: ChatMessage[] = episodes.flatMap((ep) =>
 			ep.messages.filter((m) => m.role === "assistant" && m.authorId === this.botUserId),
 		);
-		if (assistantMessages.length === 0) return null;
+		if (assistantMessages.length === 0) return { status: "skipped", reason: "no_messages" };
 
 		// ドリフトスコア計算
 		const driftScore = await this.driftCalculator.computeFromMessages(assistantMessages);
 
 		// コスト最適化: スコアが低くエピソード数も少ない場合はスキップ
 		if (driftScore.score < DRIFT_SKIP_THRESHOLD && episodes.length < MIN_EPISODES_FOR_CHEAP_SKIP) {
-			return null;
+			return { status: "skipped", reason: "low_drift", driftScore: driftScore.score };
 		}
 
 		// 既存ガイドラインを取得
@@ -103,7 +112,7 @@ export class CriticAuditor {
 			await this.storage.saveFact(userId, fact);
 		}
 
-		return { ...result, driftScore: driftScore.score };
+		return { ...result, status: "completed", driftScore: driftScore.score };
 	}
 }
 

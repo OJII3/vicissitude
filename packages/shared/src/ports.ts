@@ -138,15 +138,28 @@ export interface HeartbeatConfigPort {
 // CriticAuditor の抽象ポート。scheduling パッケージが memory パッケージへの
 // 直接依存を避けるために使用する。
 
+export type CriticAuditSkipReason = "no_bot_id" | "no_messages" | "low_drift";
+
+export interface CriticAuditSkipped {
+	status: "skipped";
+	reason: CriticAuditSkipReason;
+	driftScore?: number;
+}
+
+export interface CriticAuditCompleted {
+	status: "completed";
+	severity: string;
+	summary: string;
+	driftScore?: number;
+	issueTitle?: string;
+	issueBody?: string;
+}
+
+export type CriticAuditOutcome = CriticAuditCompleted | CriticAuditSkipped;
+
 /** CriticAuditor ポートインターフェース */
 export interface CriticAuditorPort {
-	audit(userId: string): Promise<{
-		severity: string;
-		summary: string;
-		driftScore?: number;
-		issueTitle?: string;
-		issueBody?: string;
-	} | null>;
+	audit(userId: string): Promise<CriticAuditOutcome>;
 }
 
 // ─── GitHubIssuePort ──────────────────────────────────────────
