@@ -46,7 +46,7 @@ describe("CriticAuditor", () => {
 		storage.close();
 	});
 
-	test("assistant メッセージがない場合は null を返す", async () => {
+	test("assistant メッセージがない場合は no_messages skip を返す", async () => {
 		// エピソードはあるが assistant メッセージがない
 		const episode = makeEpisode({
 			messages: [{ role: "user", content: "hello", authorId: "user-1" }],
@@ -64,7 +64,7 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).toBeNull();
+		expect(result).toEqual({ status: "skipped", reason: "no_messages" });
 	});
 
 	test("authorId が欠損または別 bot の assistant メッセージはスキップされる", async () => {
@@ -95,8 +95,8 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		// botUserId にマッチする assistant メッセージがないので null
-		expect(result).toBeNull();
+		// botUserId にマッチする assistant メッセージがないので no_messages
+		expect(result).toEqual({ status: "skipped", reason: "no_messages" });
 	});
 
 	test("name が一致しても authorId が一致しなければスキップされる（ニックネーム不一致対策）", async () => {
@@ -125,10 +125,10 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).toBeNull();
+		expect(result).toEqual({ status: "skipped", reason: "no_messages" });
 	});
 
-	test("ドリフトスコアが低く(< 0.03)エピソード数が少ない(< 3)場合はスキップして null", async () => {
+	test("ドリフトスコアが低く(< 0.03)エピソード数が少ない(< 3)場合は low_drift skip を返す", async () => {
 		// 低ドリフトの assistant メッセージ 1 件のみ
 		const episode = makeEpisode({
 			messages: [
@@ -149,7 +149,7 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).toBeNull();
+		expect(result).toEqual({ status: "skipped", reason: "low_drift", driftScore: 0 });
 	});
 
 	test("ドリフトスコアが閾値以上の場合は LLM を呼んで CriticResult を返す（authorId でフィルタ）", async () => {
@@ -184,9 +184,10 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).not.toBeNull();
-		expect(result!.severity).toBe("major");
-		expect(result!.summary).toBe("AI assistant-like response detected");
+		expect(result.status).toBe("completed");
+		if (result.status !== "completed") throw new Error("expected completed audit");
+		expect(result.severity).toBe("major");
+		expect(result.summary).toBe("AI assistant-like response detected");
 		expect(calls).toHaveLength(1);
 	});
 
@@ -220,8 +221,9 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).not.toBeNull();
-		expect(result!.severity).toBe("minor");
+		expect(result.status).toBe("completed");
+		if (result.status !== "completed") throw new Error("expected completed audit");
+		expect(result.severity).toBe("minor");
 
 		const guidelines = await storage.getFactsByCategory(userId, "guideline");
 		expect(guidelines).toHaveLength(1);
@@ -257,8 +259,9 @@ describe("CriticAuditor", () => {
 		});
 		const result = await auditor.audit(userId);
 
-		expect(result).not.toBeNull();
-		expect(result!.severity).toBe("none");
+		expect(result.status).toBe("completed");
+		if (result.status !== "completed") throw new Error("expected completed audit");
+		expect(result.severity).toBe("none");
 
 		const guidelines = await storage.getFactsByCategory(userId, "guideline");
 		expect(guidelines).toHaveLength(0);
