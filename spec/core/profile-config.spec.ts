@@ -153,6 +153,7 @@ describe("JSON profile config", () => {
 							GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
 							GITHUB_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
 						},
+						hostDataDir: "/host/project/data/shell-workspaces",
 						defaultTtlMinutes: 15,
 						maxTtlMinutes: 30,
 						defaultTimeoutSeconds: 5,
@@ -190,6 +191,7 @@ describe("JSON profile config", () => {
 				GITHUB_TOKEN: "test-github-token",
 			},
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
+			hostDataDir: "/host/project/data/shell-workspaces",
 			auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
 			networkProfile: "open",
 			defaultTtlMinutes: 15,
@@ -267,7 +269,7 @@ describe("JSON profile config", () => {
 		expect(config.spotify?.recommendPlaylistId).toBe("profile-playlist");
 	});
 
-	it("profile 未指定時は既存 env の Spotify 推薦プレイリスト設定を維持する", () => {
+	it("Spotify 推薦プレイリストは env からフォールバックしない", () => {
 		const config = loadConfigFromProfile(
 			{
 				...baseProfile,
@@ -284,7 +286,7 @@ describe("JSON profile config", () => {
 			root,
 		);
 
-		expect(config.spotify?.recommendPlaylistId).toBe("env-playlist");
+		expect(config.spotify?.recommendPlaylistId).toBeUndefined();
 	});
 
 	it("JSON ファイルをパースして profile を読み込む", () => {

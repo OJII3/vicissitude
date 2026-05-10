@@ -9,8 +9,8 @@
 	"module": "apps/discord/src/index.ts",
 	"scripts": {
 		"postinstall": "bun scripts/link-workspaces.ts",
-		"start": "bun run apps/discord/src/index.ts",
-		"dev": "bun --watch run apps/discord/src/index.ts",
+		"start": "VICISSITUDE_CONFIG_PATH=${VICISSITUDE_CONFIG_PATH:-config/default.json} bun run apps/discord/src/index.ts",
+		"dev": "VICISSITUDE_CONFIG_PATH=${VICISSITUDE_CONFIG_PATH:-config/default.json} bun --watch run apps/discord/src/index.ts",
 		"generate:routes": "cd apps/web && bunx @tanstack/router-cli generate",
 		"check": "bun run generate:routes && tsgo --noEmit",
 		"lint": "oxlint --type-aware",

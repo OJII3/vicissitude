@@ -94,7 +94,7 @@ export interface McpMinecraftConfigOptions {
 
 /**
  * Minecraft エージェント用 MCP サーバー設定を返す。
- * mc-bridge-server.ts（ブリッジ）+ minecraft MCP（MC_HOST 設定時のみ）。
+ * mc-bridge-server.ts（ブリッジ）+ minecraft MCP（profile の minecraft 設定時のみ）。
  */
 export function mcpMinecraftConfigs(
 	opts: McpMinecraftConfigOptions,

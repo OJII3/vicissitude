@@ -1,6 +1,6 @@
 ## Shell workspace
 
-> `SHELL_WORKSPACE_ENABLED=true` のインスタンスでのみ利用可能。メイン会話 agent は `task` で `shell-worker` サブエージェントに委譲し、`shell-worker` だけが OpenCode 組み込み `bash` を使う。
+> JSON profile の `features.shellWorkspace` を持つインスタンスでのみ利用可能。メイン会話 agent は `task` で `shell-worker` サブエージェントに委譲し、`shell-worker` だけが OpenCode 組み込み `bash` を使う。
 
 ### 実行方針
 

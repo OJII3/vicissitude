@@ -196,6 +196,10 @@
 								"additionalProperties": false
 							}
 						},
+						"hostDataDir": {
+							"type": "string",
+							"minLength": 1
+						},
 						"networkProfile": {
 							"type": "string",
 							"enum": ["open", "none"]

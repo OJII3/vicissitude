@@ -1,86 +1,107 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { tmpdir } from "os";
+import { resolve } from "path";
 
 import { loadConfig } from "./config.ts";
 
-const BASE_ENV = {
-	DISCORD_TOKEN: "token",
+const BASE_PROFILE = {
+	ports: {
+		web: 4100,
+		gateway: 4101,
+		opencodeBase: 5000,
+	},
+	session: {
+		maxAgeHours: 24,
+	},
+	models: {
+		conversation: {
+			providerId: "conversation-provider",
+			modelId: "conversation-model",
+			temperature: 0.8,
+		},
+		memory: {
+			providerId: "memory-provider",
+			modelId: "memory-model",
+			ollamaBaseUrl: "http://localhost:11434",
+			embeddingModel: "embedding-model",
+		},
+		minecraft: {
+			providerId: "mc-provider",
+			modelId: "mc-model",
+			temperature: 0.4,
+		},
+	},
+	features: {},
 };
 
-describe("loadConfig feature settings", () => {
-	test("デフォルトでは感情推定を無効にする", () => {
-		const config = loadConfig(BASE_ENV, "/app");
+describe("loadConfig", () => {
+	const tempDirs: string[] = [];
 
-		expect(config.emotionEstimation).toBeUndefined();
+	afterEach(() => {
+		for (const dir of tempDirs.splice(0)) {
+			rmSync(dir, { recursive: true, force: true });
+		}
 	});
 
-	test("感情推定は有効化時だけ env から読み込む", () => {
+	function writeProfileFile(profile: unknown): string {
+		const dir = mkdtempSync(resolve(tmpdir(), "vicissitude-config-test-"));
+		tempDirs.push(dir);
+		const filepath = resolve(dir, "profile.json");
+		writeFileSync(filepath, JSON.stringify(profile));
+		return filepath;
+	}
+
+	test("VICISSITUDE_CONFIG_PATH の JSON profile から設定を読み込む", () => {
+		const filepath = writeProfileFile(BASE_PROFILE);
 		const config = loadConfig(
 			{
-				...BASE_ENV,
-				EMOTION_ESTIMATION_ENABLED: "true",
-				EMOTION_PROVIDER_ID: "ollama",
-				EMOTION_MODEL_ID: "emotion-model",
-				EMOTION_OLLAMA_BASE_URL: "http://emotion-ollama:11434",
+				VICISSITUDE_CONFIG_PATH: filepath,
+				DISCORD_TOKEN: "test-token",
 			},
 			"/app",
 		);
 
-		expect(config.emotionEstimation).toEqual({
-			enabled: true,
-			providerId: "ollama",
-			modelId: "emotion-model",
-			ollamaBaseUrl: "http://emotion-ollama:11434",
+		expect(config.discordToken).toBe("test-token");
+		expect(config.webPort).toBe(4100);
+		expect(config.gatewayPort).toBe(4101);
+		expect(config.opencode).toEqual({
+			providerId: "conversation-provider",
+			modelId: "conversation-model",
+			basePort: 5000,
+			sessionMaxAgeHours: 24,
+			temperature: 0.8,
 		});
-	});
-
-	test("感情推定が ollama の場合は OLLAMA_BASE_URL を既定値にする", () => {
-		const config = loadConfig(
-			{
-				...BASE_ENV,
-				EMOTION_ESTIMATION_ENABLED: "true",
-				EMOTION_PROVIDER_ID: "ollama",
-				EMOTION_MODEL_ID: "emotion-model",
-				OLLAMA_BASE_URL: "http://shared-ollama:11434",
-			},
-			"/app",
-		);
-
-		expect(config.emotionEstimation?.ollamaBaseUrl).toBe("http://shared-ollama:11434");
-	});
-
-	test("感情推定で ollama 以外の provider を指定できる", () => {
-		const config = loadConfig(
-			{
-				...BASE_ENV,
-				EMOTION_ESTIMATION_ENABLED: "1",
-				EMOTION_PROVIDER_ID: "openai",
-				EMOTION_MODEL_ID: "gpt-5.4",
-			},
-			"/app",
-		);
-
-		expect(config.emotionEstimation).toEqual({
-			enabled: true,
-			providerId: "openai",
-			modelId: "gpt-5.4",
-			ollamaBaseUrl: undefined,
-		});
-	});
-
-	test("デフォルトでは画像認識補助を無効にする", () => {
-		const config = loadConfig(BASE_ENV, "/app");
-
 		expect(config.imageRecognition).toBeUndefined();
+		expect(config.emotionEstimation).toBeUndefined();
+		expect(config.dataDir).toBe("/app/data");
+		expect(config.contextDir).toBe("/app/context");
 	});
 
-	test("有効化時は provider と model を読み込む", () => {
+	test("VICISSITUDE_CONFIG_PATH 未指定ならエラーにする", () => {
+		expect(() => loadConfig({ DISCORD_TOKEN: "test-token" }, "/app")).toThrow(
+			"VICISSITUDE_CONFIG_PATH is required",
+		);
+	});
+
+	test("profile の feature section だけを有効化する", () => {
+		const filepath = writeProfileFile({
+			...BASE_PROFILE,
+			features: {
+				imageRecognition: {
+					providerId: "vision-provider",
+					modelId: "vision-model",
+				},
+				emotionEstimation: {
+					providerId: "openai",
+					modelId: "gpt-5.4",
+				},
+			},
+		});
 		const config = loadConfig(
 			{
-				...BASE_ENV,
-				OPENCODE_PROVIDER_ID: "main-provider",
-				DISCORD_IMAGE_RECOGNITION_ENABLED: "true",
-				DISCORD_IMAGE_RECOGNITION_PROVIDER_ID: "vision-provider",
-				DISCORD_IMAGE_RECOGNITION_MODEL_ID: "vision-model",
+				VICISSITUDE_CONFIG_PATH: filepath,
+				DISCORD_TOKEN: "test-token",
 			},
 			"/app",
 		);
@@ -90,31 +111,11 @@ describe("loadConfig feature settings", () => {
 			providerId: "vision-provider",
 			modelId: "vision-model",
 		});
-	});
-
-	test("有効化時に provider 未指定なら OPENCODE_PROVIDER_ID を使う", () => {
-		const config = loadConfig(
-			{
-				...BASE_ENV,
-				OPENCODE_PROVIDER_ID: "main-provider",
-				DISCORD_IMAGE_RECOGNITION_ENABLED: "1",
-				DISCORD_IMAGE_RECOGNITION_MODEL_ID: "vision-model",
-			},
-			"/app",
-		);
-
-		expect(config.imageRecognition?.providerId).toBe("main-provider");
-	});
-
-	test("有効化時に model 未指定なら設定エラーにする", () => {
-		expect(() =>
-			loadConfig(
-				{
-					...BASE_ENV,
-					DISCORD_IMAGE_RECOGNITION_ENABLED: "true",
-				},
-				"/app",
-			),
-		).toThrow("DISCORD_IMAGE_RECOGNITION_MODEL_ID is required");
+		expect(config.emotionEstimation).toEqual({
+			enabled: true,
+			providerId: "openai",
+			modelId: "gpt-5.4",
+			ollamaBaseUrl: undefined,
+		});
 	});
 });
