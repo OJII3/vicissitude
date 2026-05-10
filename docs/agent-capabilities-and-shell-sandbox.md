@@ -8,12 +8,12 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## Capability
 
-| Capability         | 内容                                                 | 既定                                    |
-| ------------------ | ---------------------------------------------------- | --------------------------------------- |
-| `core`             | Discord 送信、返信、リアクション、記憶、リマインダー | 有効                                    |
-| `webfetch`         | OpenCode 組み込み `webfetch`                         | 有効                                    |
-| `minecraft-bridge` | Discord から Minecraft エージェントへの委譲          | `MC_HOST` 設定時のみ                    |
-| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent       | `SHELL_WORKSPACE_ENABLED=true` の時のみ |
+| Capability         | 内容                                                 | 既定                                 |
+| ------------------ | ---------------------------------------------------- | ------------------------------------ |
+| `core`             | Discord 送信、返信、リアクション、記憶、リマインダー | 有効                                 |
+| `webfetch`         | OpenCode 組み込み `webfetch`                         | 有効                                 |
+| `minecraft-bridge` | Discord から Minecraft エージェントへの委譲          | `features.minecraft` 設定時のみ      |
+| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent       | `features.shellWorkspace` 設定時のみ |
 
 `shell-workspace` が無効な profile では、`task`、`bash`、ツール説明コンテキストを注入しない。有効な profile では、メイン会話 agent は `task` のみを primary tool として持ち、`build` primary agent の permission は `bash: deny` にする。
 
@@ -43,25 +43,13 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## 設定
 
-| 環境変数                                  | 既定                    | 説明                                                            |
-| ----------------------------------------- | ----------------------- | --------------------------------------------------------------- |
-| `SHELL_WORKSPACE_ENABLED`                 | `false`                 | `true`/`1`/`yes`/`on` で有効化                                  |
-| `SHELL_WORKSPACE_IMAGE`                   | `vicissitude-code-exec` | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_NETWORK_PROFILE`         | `open`                  | 互換設定。OpenCode shell 経路では bot コンテナ側 network に従う |
-| `SHELL_WORKSPACE_DEFAULT_TTL_MINUTES`     | `60`                    | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_MAX_TTL_MINUTES`         | `120`                   | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS` | `30`                    | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS`     | `120`                   | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_MAX_OUTPUT_CHARS`        | `50000`                 | 互換設定。OpenCode shell 経路では使用しない                     |
-| `SHELL_WORKSPACE_AGENT_PROVIDER_ID`       | `OPENCODE_PROVIDER_ID`  | `shell-worker` サブエージェントの provider                      |
-| `SHELL_WORKSPACE_AGENT_MODEL_ID`          | `OPENCODE_MODEL_ID`     | `shell-worker` サブエージェントの model                         |
-| `SHELL_WORKSPACE_AGENT_TEMPERATURE`       | `0.7`                   | `shell-worker` サブエージェントの temperature                   |
-| `SHELL_WORKSPACE_AGENT_STEPS`             | `24`                    | `shell-worker` サブエージェントの最大 agentic step 数           |
-| `SHELL_WORKSPACE_HOST_DATA_DIR`           | unset                   | 互換設定。OpenCode shell 経路では使用しない                     |
+shell workspace は JSON profile の `features.shellWorkspace` が存在する場合だけ有効になる。モデル、image、TTL、timeout、network profile は同じ section に書く。disabled profile では section ごと省略する。
 
 `shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
 
 JSON profile の `features.shellWorkspace.environment` には shell-worker へ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。
+
+Podman mount source としてホスト側 path が必要な profile では `features.shellWorkspace.hostDataDir` に書く。OpenCode shell subagent 経路だけなら省略する。
 
 ## 非目標
 

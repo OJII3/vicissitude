@@ -6,7 +6,7 @@
 
 YAML は採用しない。人間には短く書けるが、暗黙の型変換、重複キー、コメント、パーサごとの差が運用上の曖昧さになるため。
 
-`.env` は secret とデプロイ環境の入口だけに薄く保つ。
+`.env` は secret とデプロイ環境の入口だけに薄く保つ。非 secret の機能設定、モデル選択、ポート、タイムアウト、feature の有効化は profile に置く。
 
 ## Deploy 時の OpenCode 設定
 
@@ -18,7 +18,7 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 ## 形式
 
-profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。
+profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。`loadConfig` は profile を必須とし、旧 env 由来の非 secret 設定は読み込まない。
 
 disabled feature は key ごと省略する。`enabled: false`、`null`、空文字の placeholder は書かない。enabled feature は必要な値をすべて同じ section に置き、profile 内に「書いても書かなくてもよい」任意値は増やさない。
 
@@ -71,6 +71,7 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 				"GH_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" },
 				"GITHUB_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" }
 			},
+			"hostDataDir": "/home/hua/vicissitude/data/shell-workspaces",
 			"networkProfile": "open",
 			"defaultTtlMinutes": 60,
 			"maxTtlMinutes": 120,
@@ -96,9 +97,11 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 feature section が存在する場合だけ、その feature の secret env を必須にする。
 
-Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書ける。移行中の環境では既存の `SPOTIFY_RECOMMEND_PLAYLIST_ID` も引き続き読み込む。
+Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書く。`SPOTIFY_RECOMMEND_PLAYLIST_ID` は profile 正本化に伴い読み込まない。
 
 `features.shellWorkspace.environment` は shell-worker の OpenCode server process に渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
+
+`features.shellWorkspace.hostDataDir` は shell workspace 用 MCP server が Podman mount source として使うホスト側 path を必要とする場合だけ profile に書く。OpenCode shell subagent 経路だけを使う profile では省略する。
 
 compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。
 
@@ -108,4 +111,4 @@ profile は `apps/discord/src/profile-config.ts` の Zod schema で検証する�
 
 感情推定は `features.emotionEstimation` が存在する場合だけ有効になる。通常の OpenCode provider を使う場合は `providerId` と `modelId` を指定する。Ollama chat API を使う場合だけ `providerId: "ollama"` とし、同じ section に `ollamaBaseUrl` を指定する。
 
-既存の env loader は移行期間の入口として残すが、新規設定は JSON profile に追加する。次の段階では bootstrap と MCP サーバーの機能出し分けを profile 由来の capability module へ寄せる。
+新規設定は JSON profile に追加する。bootstrap と MCP サーバー間で渡す env はプロセス境界の内部プロトコルとして扱い、ユーザーが設定する正本にはしない。

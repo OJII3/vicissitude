@@ -42,23 +42,23 @@ export const githubSchema = z.object({
 
 export const imageRecognitionSchema = z.object({
 	enabled: z.boolean(),
-	providerId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_PROVIDER_ID is required"),
-	modelId: z.string().min(1, "DISCORD_IMAGE_RECOGNITION_MODEL_ID is required"),
+	providerId: z.string().min(1, "imageRecognition.providerId is required"),
+	modelId: z.string().min(1, "imageRecognition.modelId is required"),
 });
 
 export const emotionEstimationSchema = z
 	.object({
 		enabled: z.literal(true),
-		providerId: z.string().min(1, "EMOTION_PROVIDER_ID is required"),
-		modelId: z.string().min(1, "EMOTION_MODEL_ID is required"),
-		ollamaBaseUrl: z.string().min(1, "EMOTION_OLLAMA_BASE_URL is required").optional(),
+		providerId: z.string().min(1, "emotionEstimation.providerId is required"),
+		modelId: z.string().min(1, "emotionEstimation.modelId is required"),
+		ollamaBaseUrl: z.string().min(1, "emotionEstimation.ollamaBaseUrl is required").optional(),
 	})
 	.superRefine((value, ctx) => {
 		if (value.providerId === "ollama" && !value.ollamaBaseUrl) {
 			ctx.addIssue({
 				code: "custom",
 				path: ["ollamaBaseUrl"],
-				message: "EMOTION_OLLAMA_BASE_URL is required when EMOTION_PROVIDER_ID=ollama",
+				message: "emotionEstimation.ollamaBaseUrl is required when providerId is ollama",
 			});
 		}
 	});
@@ -66,8 +66,8 @@ export const emotionEstimationSchema = z
 export const shellWorkspaceNetworkProfileSchema = z.enum(["open", "none"]);
 
 export const shellWorkspaceAgentSchema = z.object({
-	providerId: z.string().min(1, "SHELL_WORKSPACE_AGENT_PROVIDER_ID is required"),
-	modelId: z.string().min(1, "SHELL_WORKSPACE_AGENT_MODEL_ID is required"),
+	providerId: z.string().min(1, "shellWorkspace.agent.providerId is required"),
+	modelId: z.string().min(1, "shellWorkspace.agent.modelId is required"),
 	temperature: safeNumber.min(0).max(2),
 	steps: safeInt.min(1),
 });
@@ -77,7 +77,7 @@ export const shellWorkspaceEnvironmentSchema = z.record(z.string().min(1), z.str
 export const shellWorkspaceSchema = z
 	.object({
 		enabled: z.literal(true),
-		image: z.string().min(1, "SHELL_WORKSPACE_IMAGE is required"),
+		image: z.string().min(1, "shellWorkspace.image is required"),
 		agent: shellWorkspaceAgentSchema,
 		environment: shellWorkspaceEnvironmentSchema.optional(),
 		dataDir: z.string(),
@@ -91,12 +91,11 @@ export const shellWorkspaceSchema = z
 		maxOutputChars: safeInt.min(1),
 	})
 	.refine((v) => v.defaultTtlMinutes <= v.maxTtlMinutes, {
-		message: "SHELL_WORKSPACE_DEFAULT_TTL_MINUTES must be <= SHELL_WORKSPACE_MAX_TTL_MINUTES",
+		message: "shellWorkspace.defaultTtlMinutes must be <= shellWorkspace.maxTtlMinutes",
 		path: ["defaultTtlMinutes"],
 	})
 	.refine((v) => v.defaultTimeoutSeconds <= v.maxTimeoutSeconds, {
-		message:
-			"SHELL_WORKSPACE_DEFAULT_TIMEOUT_SECONDS must be <= SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS",
+		message: "shellWorkspace.defaultTimeoutSeconds must be <= shellWorkspace.maxTimeoutSeconds",
 		path: ["defaultTimeoutSeconds"],
 	});
 

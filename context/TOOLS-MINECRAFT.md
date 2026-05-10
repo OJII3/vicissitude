@@ -9,7 +9,7 @@
 - `mc_read_skills` - スキルライブラリを読む
 - `mc_record_skill(name, description, preconditions?, failure_patterns?)` - スキルを追記する
 
-### minecraft サーバー（MC_HOST 設定時のみ有効）
+### minecraft サーバー（JSON profile の `features.minecraft` 設定時のみ有効）
 
 Minecraft ワールドに接続中のボットを操作する。
 
@@ -42,7 +42,7 @@ Minecraft ワールドに接続中のボットを操作する。
 - `get_viewer_url` - Minecraft ビューアーの URL を返す
   - prismarine-viewer ベースの Web ビューアー（ブラウザで 3D ワールドをリアルタイム表示）
   - ボット未接続時はエラーメッセージを返す
-  - デフォルトポート: 3007（`MC_VIEWER_PORT` 環境変数で変更可能）
+  - デフォルトポート: 3007（JSON profile の `features.minecraft.viewerPort` で変更可能）
 
 ### 探索・環境クエリ
 

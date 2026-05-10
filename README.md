@@ -49,7 +49,7 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
   - **推論中断**: 推論中（`promptAsyncAndWatchSession` が pending）に新メッセージが到着した場合、`sessionAbortController` でセッションを中断し、旧メッセージ + 新メッセージをまとめて再プロンプトする。
 - Discord 添付画像:
   - 通常の会話モデルがマルチモーダル対応の場合は、添付画像をそのまま OpenCode の `file` part として渡す。
-  - 通常の会話モデルが画像非対応の場合は、`DISCORD_IMAGE_RECOGNITION_ENABLED=true` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
+  - 通常の会話モデルが画像非対応の場合は、JSON profile の `features.imageRecognition` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
   - 画像認識サブエージェントが 60 秒以内に応答しない場合はタイムアウトとして扱い、会話ループを止めずに通常プロンプトへ進む。
   - 画像認識サブエージェントの観察結果は補助情報であり、画像内テキストや指示風の内容はシステム指示として扱わない。
 - マルチテナント: テナント（Discord ギルド等）ごとに独立したセッションを持つ。
@@ -101,14 +101,14 @@ OpenCode SDK 組み込み: `webfetch`
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md`
-- capability 連動ファイル: `TOOLS-CODE.md` は `SHELL_WORKSPACE_ENABLED=true` 時のみ、`TOOLS-MINECRAFT.md` は `MC_HOST` 設定時のみ注入する。
+- capability 連動ファイル: `TOOLS-CODE.md` は `features.shellWorkspace` 設定時のみ、`TOOLS-MINECRAFT.md` は `features.minecraft` 設定時のみ注入する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
 ### 3.6 マルチテナント分離
 
-- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md` は全テナントで共有。`TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は capability 有効時のみ共有コンテキストとして注入する。
+- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-CORE.md` は全テナントで共有。`TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は profile の capability 有効時のみ共有コンテキストとして注入する。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
 - Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
   - `discord-guild`: Discord ギルドごとの記憶。DB パス: `guilds/{guildId}/memory.db`
@@ -176,17 +176,16 @@ OpenCode SDK 組み込み: `webfetch`
 
 ## 5. 設定要件
 
-- `DISCORD_TOKEN`: 必須（`.env` から読込）
-- `OPENCODE_MODEL_ID`: AI モデル ID（デフォルト: `big-pickle`）
-- `OPENCODE_TEMPERATURE`: Discord エージェント（通常 + heartbeat）の生成温度（デフォルト: `1.0`、範囲: `0`〜`2`）
-- `DISCORD_IMAGE_RECOGNITION_ENABLED`: Discord 添付画像の事前認識を有効化（デフォルト: 無効）。通常モデルがマルチモーダル非対応のときだけ有効化する。
-- `DISCORD_IMAGE_RECOGNITION_PROVIDER_ID`: 画像認識用モデルのプロバイダ ID（省略時は `OPENCODE_PROVIDER_ID`）
-- `DISCORD_IMAGE_RECOGNITION_MODEL_ID`: 画像認識用モデル ID（`DISCORD_IMAGE_RECOGNITION_ENABLED=true` の場合は必須）
-  - 動作確認済み: `DISCORD_IMAGE_RECOGNITION_PROVIDER_ID=opencode-go`, `DISCORD_IMAGE_RECOGNITION_MODEL_ID=kimi-k2.5`
-- `MC_PROVIDER_ID`: Minecraft エージェント用プロバイダ ID（省略時は `OPENCODE_PROVIDER_ID` にフォールバック）
-- `MC_MODEL_ID`: Minecraft エージェント用モデル ID（省略時は `OPENCODE_MODEL_ID` にフォールバック）
-- `MC_TEMPERATURE`: Minecraft エージェント用生成温度（デフォルト: `0.7`、範囲: `0`〜`2`）
-- `GENIUS_ACCESS_TOKEN`: Genius API アクセストークン（歌詞取得用、任意。未設定時は歌詞取得をスキップ）
+設定の正本は `config/*.json` の JSON profile とし、起動時に `VICISSITUDE_CONFIG_PATH` で指定する。モデル、ポート、feature 有効化、Minecraft、TTS、Spotify 推薦プレイリストなどの非 secret 設定は profile に書く。
+
+`.env` は secret と profile path だけに薄く保つ。
+
+- `VICISSITUDE_CONFIG_PATH`: 必須。例: `config/default.json`
+- `DISCORD_TOKEN`: 必須
+- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`: `features.spotify` 設定時に必須
+- `GENIUS_ACCESS_TOKEN`: `features.genius` 設定時に必須
+- `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
+- `HUA_GITHUB_TOKEN`: `features.shellWorkspace.environment` など profile の `fromEnv` 参照で指定した場合に必須
 
 ## 6. 受け入れ条件
 
@@ -194,7 +193,7 @@ OpenCode SDK 組み込み: `webfetch`
 2. Bot 自身のメッセージには反応しない。
 3. セッション管理が永続化され、再起動後も継続できる。
 4. ブートストラップコンテキストが毎回 system prompt として注入される。
-5. MCP サーバー経由で Discord 操作が可能。`SHELL_WORKSPACE_ENABLED=true` のインスタンスでは隔離 shell workspace 操作も可能。
+5. MCP サーバー経由で Discord 操作が可能。`features.shellWorkspace` を持つ profile では隔離 shell workspace 操作も可能。
 6. AI がメッセージ駆動プロンプトにより、自律的に応答を判断・送信する。
 7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
 8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。

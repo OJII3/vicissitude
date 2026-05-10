@@ -74,6 +74,7 @@ export const profileConfigSchema = z.strictObject({
 					steps: safeInt.min(1),
 				}),
 				environment: shellWorkspaceProfileEnvironmentSchema.optional(),
+				hostDataDir: z.string().min(1).optional(),
 				networkProfile: shellWorkspaceNetworkProfileSchema.optional(),
 				defaultTtlMinutes: safeInt.min(1),
 				maxTtlMinutes: safeInt.min(1),
@@ -109,9 +110,7 @@ function buildProfileShellWorkspaceConfig(
 		agent: shellWorkspace.agent,
 		environment: resolveShellWorkspaceEnvironment(shellWorkspace.environment, env),
 		dataDir: resolve(dataDir, "shell-workspaces"),
-		...(env.SHELL_WORKSPACE_HOST_DATA_DIR
-			? { hostDataDir: env.SHELL_WORKSPACE_HOST_DATA_DIR }
-			: {}),
+		...(shellWorkspace.hostDataDir ? { hostDataDir: shellWorkspace.hostDataDir } : {}),
 		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
 		networkProfile: shellWorkspace.networkProfile ?? "open",
 		defaultTtlMinutes: shellWorkspace.defaultTtlMinutes,
@@ -186,8 +185,7 @@ export function loadConfigFromProfile(
 					clientId: requireSecret(env, "SPOTIFY_CLIENT_ID", "features.spotify"),
 					clientSecret: requireSecret(env, "SPOTIFY_CLIENT_SECRET", "features.spotify"),
 					refreshToken: requireSecret(env, "SPOTIFY_REFRESH_TOKEN", "features.spotify"),
-					recommendPlaylistId:
-						profile.features.spotify.recommendPlaylistId ?? env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
+					recommendPlaylistId: profile.features.spotify.recommendPlaylistId,
 				}
 			: undefined,
 		genius: profile.features.genius
