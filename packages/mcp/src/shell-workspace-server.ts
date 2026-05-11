@@ -1,6 +1,7 @@
 /* oxlint-disable max-lines-per-function -- MCP tool registration is declarative and easier to audit in one entry point */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
 import { z } from "zod";
 
 import {
@@ -18,8 +19,6 @@ const MAX_COMMAND_LENGTH = 8_000;
 const MAX_LABEL_LENGTH = 80;
 const MAX_CWD_LENGTH = 240;
 const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const GITHUB_GIT_CREDENTIAL_HELPER =
-	"!f() { echo username=x-access-token; echo password=${GH_TOKEN:-$GITHUB_TOKEN}; }; f";
 
 function readIntEnv(name: string, fallback: number): number {
 	const value = process.env[name];
@@ -57,13 +56,9 @@ function readForwardedEnvironment(env: NodeJS.ProcessEnv): Record<string, string
 		if (value !== undefined) forwarded[name] = value;
 	}
 
-	if (forwarded.GH_TOKEN || forwarded.GITHUB_TOKEN) {
-		forwarded.GIT_CONFIG_COUNT = "1";
-		forwarded.GIT_CONFIG_KEY_0 = "credential.https://github.com.helper";
-		forwarded.GIT_CONFIG_VALUE_0 = GITHUB_GIT_CREDENTIAL_HELPER;
-	}
-
-	return Object.keys(forwarded).length > 0 ? forwarded : undefined;
+	return addGitHubCredentialHelperEnvironment(
+		Object.keys(forwarded).length > 0 ? forwarded : undefined,
+	);
 }
 
 function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
