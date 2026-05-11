@@ -1,10 +1,11 @@
-/* oxlint-disable require-await, no-non-null-assertion -- test assertions */
+/* oxlint-disable require-await, no-non-null-assertion, max-lines-per-function -- test assertions */
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import type { CriticResult } from "@vicissitude/memory/critic-auditor";
+import type { CriticResult, GuidelineResolution } from "@vicissitude/memory/critic-auditor";
 import { CriticAuditor } from "@vicissitude/memory/critic-auditor";
 import { DriftScoreCalculator } from "@vicissitude/memory/drift-score";
 import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
+import { createFact } from "@vicissitude/memory/semantic-fact";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import type { ChatMessage } from "@vicissitude/memory/types";
 
@@ -30,6 +31,54 @@ function createSpyLLM(criticResponse: CriticResult) {
 		},
 	};
 	return { llm, calls };
+}
+
+function createSequentialStructuredLLM(responses: unknown[]) {
+	const calls: { messages: ChatMessage[] }[] = [];
+	const llm: MemoryLlmPort = {
+		async chat(): Promise<string> {
+			return "mock";
+		},
+		async chatStructured<T>(messages: ChatMessage[], schema: Schema<T>): Promise<T> {
+			calls.push({ messages });
+			const response = responses.shift();
+			if (response === undefined) throw new Error("unexpected chatStructured call");
+			return schema.parse(response);
+		},
+		async embed(): Promise<number[]> {
+			return [0.1, 0.2, 0.3];
+		},
+	};
+	return { llm, calls };
+}
+
+async function saveExistingGuideline(storage: MemoryStorage, fact: string) {
+	const guideline = createFact({
+		userId,
+		category: "guideline",
+		fact,
+		keywords: ["tone"],
+		sourceEpisodicIds: ["ep-1"],
+		embedding: [0.1, 0.2, 0.3],
+		now: new Date("2026-01-01T00:00:00Z"),
+	});
+	await storage.saveFact(userId, guideline);
+	return guideline;
+}
+
+async function saveAuditCandidateGuideline(storage: MemoryStorage, fact: string) {
+	const guideline = createFact({
+		userId,
+		category: "guideline",
+		fact,
+		keywords: ["tone"],
+		sourceEpisodicIds: [],
+		embedding: [0.1, 0.2, 0.3],
+		now: new Date("2026-01-01T00:00:00Z"),
+		metadata: { source: "critic-auditor", guidelineAuthority: "audit-candidate" },
+	});
+	await storage.saveFact(userId, guideline);
+	return guideline;
 }
 
 describe("CriticAuditor", () => {
@@ -191,7 +240,7 @@ describe("CriticAuditor", () => {
 		expect(calls).toHaveLength(1);
 	});
 
-	test('severity "minor" の場合、guideline fact が storage に保存される', async () => {
+	test('severity "minor" の場合、解決結果が save なら audit-candidate guideline が保存される', async () => {
 		// 十分なエピソード数(3件)を用意してコスト最適化スキップを回避
 		for (let i = 0; i < 3; i++) {
 			const ep = makeEpisode({
@@ -211,7 +260,11 @@ describe("CriticAuditor", () => {
 			guidelineFact: "ふあは丁寧語を使わない",
 			guidelineKeywords: ["tone", "casual"],
 		};
-		const llm = createMockLLM({ structuredResponse: criticResult });
+		const resolution: GuidelineResolution = {
+			action: "save",
+			reason: "新しく具体的な候補",
+		};
+		const { llm } = createSequentialStructuredLLM([criticResult, resolution]);
 		const auditor = new CriticAuditor({
 			llm,
 			storage,
@@ -229,6 +282,138 @@ describe("CriticAuditor", () => {
 		expect(guidelines).toHaveLength(1);
 		expect(guidelines[0]!.fact).toBe("ふあは丁寧語を使わない");
 		expect(guidelines[0]!.keywords).toEqual(["tone", "casual"]);
+		expect(guidelines[0]!.metadata).toEqual({
+			source: "critic-auditor",
+			guidelineAuthority: "audit-candidate",
+		});
+		expect(result.guidelineResolution).toEqual(resolution);
+	});
+
+	test('severity "minor" の場合、解決結果が discard なら guideline は保存されない', async () => {
+		for (let i = 0; i < 3; i++) {
+			const ep = makeEpisode({
+				messages: [
+					{ role: "user", content: `question ${i}`, authorId: "user-1", name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, authorId: botUserId, name: "ふあ" },
+				],
+				endAt: new Date(),
+			});
+			/* oxlint-disable-next-line no-await-in-loop -- test setup */
+			await storage.saveEpisode(userId, ep);
+		}
+
+		const existing = await saveExistingGuideline(storage, "ふあは丁寧語を使わない");
+		const criticResult: CriticResult = {
+			severity: "minor",
+			summary: "Slightly too polite",
+			guidelineFact: "ふあは丁寧語を使わない",
+			guidelineKeywords: ["tone", "casual"],
+		};
+		const resolution: GuidelineResolution = {
+			action: "discard",
+			reason: "既存 guideline と重複している",
+		};
+		const { llm } = createSequentialStructuredLLM([criticResult, resolution]);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+			botUserId,
+		});
+		const result = await auditor.audit(userId);
+
+		expect(result.status).toBe("completed");
+		if (result.status !== "completed") throw new Error("expected completed audit");
+		expect(result.guidelineResolution).toEqual(resolution);
+
+		const guidelines = await storage.getFactsByCategory(userId, "guideline");
+		expect(guidelines).toHaveLength(1);
+		expect(guidelines[0]!.id).toBe(existing.id);
+	});
+
+	test("guideline 解決プロンプトには既存 guideline の metadata が含まれる", async () => {
+		for (let i = 0; i < 3; i++) {
+			const ep = makeEpisode({
+				messages: [
+					{ role: "user", content: `question ${i}`, authorId: "user-1", name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, authorId: botUserId, name: "ふあ" },
+				],
+				endAt: new Date(),
+			});
+			/* oxlint-disable-next-line no-await-in-loop -- test setup */
+			await storage.saveEpisode(userId, ep);
+		}
+
+		await saveAuditCandidateGuideline(storage, "ふあは丁寧語を使わない");
+		const criticResult: CriticResult = {
+			severity: "minor",
+			summary: "Slightly too polite",
+			guidelineFact: "ふあはチャットボット的な丁寧語を避ける",
+		};
+		const resolution: GuidelineResolution = {
+			action: "discard",
+			reason: "既存候補と重複している",
+		};
+		const { llm, calls } = createSequentialStructuredLLM([criticResult, resolution]);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+			botUserId,
+		});
+		await auditor.audit(userId);
+
+		expect(calls).toHaveLength(2);
+		const resolutionPrompt = calls[1]?.messages[0]?.content ?? "";
+		expect(resolutionPrompt).toContain('source="critic-auditor"');
+		expect(resolutionPrompt).toContain('authority="audit-candidate"');
+	});
+
+	test('severity "minor" の場合、解決結果が replace なら対象 guideline を無効化して候補を保存する', async () => {
+		for (let i = 0; i < 3; i++) {
+			const ep = makeEpisode({
+				messages: [
+					{ role: "user", content: `question ${i}`, authorId: "user-1", name: "user-1" },
+					{ role: "assistant", content: `answer ${i}`, authorId: botUserId, name: "ふあ" },
+				],
+				endAt: new Date(),
+			});
+			/* oxlint-disable-next-line no-await-in-loop -- test setup */
+			await storage.saveEpisode(userId, ep);
+		}
+
+		const existing = await saveExistingGuideline(storage, "ふあは少し丁寧に話す");
+		const criticResult: CriticResult = {
+			severity: "minor",
+			summary: "Slightly too polite",
+			guidelineFact: "ふあはチャットボット的な丁寧語を避ける",
+			guidelineKeywords: ["tone", "casual"],
+		};
+		const resolution: GuidelineResolution = {
+			action: "replace",
+			reason: "既存 guideline をより正確にする",
+			targetGuidelineIds: [existing.id],
+		};
+		const { llm } = createSequentialStructuredLLM([criticResult, resolution]);
+		const auditor = new CriticAuditor({
+			llm,
+			storage,
+			driftCalculator: drift,
+			characterDefinition,
+			botUserId,
+		});
+		const result = await auditor.audit(userId);
+
+		expect(result.status).toBe("completed");
+		if (result.status !== "completed") throw new Error("expected completed audit");
+		expect(result.guidelineResolution).toEqual(resolution);
+
+		const activeGuidelines = await storage.getFactsByCategory(userId, "guideline");
+		expect(activeGuidelines).toHaveLength(1);
+		expect(activeGuidelines[0]!.id).not.toBe(existing.id);
+		expect(activeGuidelines[0]!.fact).toBe("ふあはチャットボット的な丁寧語を避ける");
 	});
 
 	test('severity "none" の場合、fact は保存されない', async () => {

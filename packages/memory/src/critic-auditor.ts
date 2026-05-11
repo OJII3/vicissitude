@@ -17,8 +17,25 @@ export interface CriticResult {
 	driftScore?: number;
 	guidelineFact?: string;
 	guidelineKeywords?: string[];
+	guidelineResolution?: GuidelineResolution;
 	issueTitle?: string;
 	issueBody?: string;
+}
+
+export type GuidelineResolutionAction = "save" | "discard" | "replace";
+
+export interface GuidelineResolution {
+	action: GuidelineResolutionAction;
+	reason: string;
+	targetGuidelineIds?: string[];
+}
+
+interface GuidelineApplicationInput {
+	userId: string;
+	guidelineFact: string;
+	guidelineKeywords: string[];
+	resolution: GuidelineResolution;
+	existingGuidelines: SemanticFact[];
 }
 
 export interface CriticSkipped {
@@ -97,22 +114,62 @@ export class CriticAuditor {
 			criticResultSchema,
 		);
 
-		// minor の場合、guideline fact を保存
+		let guidelineResolution: GuidelineResolution | undefined;
+
+		// minor の場合、保存前に既存 guideline / character definition との関係を解決する
 		if (result.severity === "minor" && result.guidelineFact) {
-			const embedding = await this.llm.embed(result.guidelineFact);
-			const fact = createFact({
+			guidelineResolution = await this.resolveGuideline(result.guidelineFact, guidelines);
+			await this.applyGuidelineResolution({
 				userId,
-				category: "guideline",
-				fact: result.guidelineFact,
-				keywords: result.guidelineKeywords ?? [],
-				sourceEpisodicIds: [],
-				embedding,
-				now: new Date(this.nowProvider()),
+				guidelineFact: result.guidelineFact,
+				guidelineKeywords: result.guidelineKeywords ?? [],
+				resolution: guidelineResolution,
+				existingGuidelines: guidelines,
 			});
-			await this.storage.saveFact(userId, fact);
 		}
 
-		return { ...result, status: "completed", driftScore: driftScore.score };
+		return { ...result, guidelineResolution, status: "completed", driftScore: driftScore.score };
+	}
+
+	private resolveGuideline(
+		proposedGuideline: string,
+		existingGuidelines: SemanticFact[],
+	): Promise<GuidelineResolution> {
+		return this.llm.chatStructured<GuidelineResolution>(
+			buildGuidelineResolutionMessages(
+				this.characterDefinition,
+				existingGuidelines,
+				proposedGuideline,
+			),
+			guidelineResolutionSchema,
+		);
+	}
+
+	private async applyGuidelineResolution(input: GuidelineApplicationInput): Promise<void> {
+		const { userId, guidelineFact, guidelineKeywords, resolution, existingGuidelines } = input;
+		if (resolution.action === "discard") return;
+		const embedding = await this.llm.embed(guidelineFact);
+		const now = new Date(this.nowProvider());
+		const fact = createFact({
+			userId,
+			category: "guideline",
+			fact: guidelineFact,
+			keywords: guidelineKeywords,
+			sourceEpisodicIds: [],
+			embedding,
+			now,
+			metadata: { source: "critic-auditor", guidelineAuthority: "audit-candidate" },
+		});
+
+		if (resolution.action === "replace") {
+			const existingIds = new Set(existingGuidelines.map((g) => g.id));
+			const targets = (resolution.targetGuidelineIds ?? []).filter((id) => existingIds.has(id));
+			if (targets.length === 0) return;
+			await this.storage.replaceFacts(userId, targets, fact, now);
+			return;
+		}
+
+		await this.storage.saveFact(userId, fact);
 	}
 }
 
@@ -126,7 +183,9 @@ function buildCriticMessages(
 ): ChatMessage[] {
 	const guidelineSection =
 		guidelines.length > 0
-			? guidelines.map((g) => `- ${escapeXmlContent(g.fact)}`).join("\n")
+			? guidelines
+					.map((g) => `- id=${escapeXmlContent(g.id)}: ${escapeXmlContent(g.fact)}`)
+					.join("\n")
 			: "(なし)";
 
 	const featuresText = Object.entries(driftScore.features)
@@ -161,7 +220,7 @@ ${guidelineSection}
 JSON で以下のフィールドを含めてください:
 - severity: "none" | "minor" | "major"
 - summary: 評価結果の要約（日本語）
-- guidelineFact: severity が "minor" の場合、保存すべきガイドライン（日本語、省略可）
+- guidelineFact: severity が "minor" の場合、保存候補のガイドライン（日本語、省略可）
 - guidelineKeywords: ガイドラインのキーワード配列（省略可）
 - issueTitle: severity が "major" の場合の Issue タイトル（省略可）
 - issueBody: severity が "major" の場合の Issue 本文（省略可）
@@ -173,6 +232,54 @@ JSON で以下のフィールドを含めてください:
 	return [
 		{ role: "system", content: system },
 		{ role: "user", content: userContent },
+	];
+}
+
+function buildGuidelineResolutionMessages(
+	characterDefinition: string,
+	guidelines: SemanticFact[],
+	proposedGuideline: string,
+): ChatMessage[] {
+	const guidelineSection =
+		guidelines.length > 0
+			? guidelines
+					.map(
+						(g) =>
+							`<guideline id="${escapeXmlContent(g.id)}" source="${escapeXmlContent(g.metadata.source ?? "unknown")}" authority="${escapeXmlContent(g.metadata.guidelineAuthority ?? "unknown")}">${escapeXmlContent(g.fact)}</guideline>`,
+					)
+					.join("\n")
+			: "(なし)";
+
+	const system = `あなたはキャラクター行動ガイドラインの整合性監査者です。
+
+優先順位:
+1. character_definition
+2. source が unknown または consolidation の既存 guideline
+3. source が critic-auditor かつ authority が audit-candidate の既存 guideline
+4. 監査から生成された新しい候補 guideline
+
+提案 guideline を保存してよいか判定してください。
+- character_definition と矛盾する候補は discard
+- 既存 guideline と重複する候補は discard
+- 既存 guideline をより正確に置き換える候補だけ replace
+- 新しく、具体的で、矛盾しない候補だけ save
+
+<character_definition>
+${escapeXmlContent(characterDefinition)}
+</character_definition>
+
+<existing_guidelines>
+${guidelineSection}
+</existing_guidelines>
+
+JSON で以下を返してください:
+- action: "save" | "discard" | "replace"
+- reason: 日本語の短い理由
+- targetGuidelineIds: action が "replace" の場合に置換対象の既存 guideline id 配列`;
+
+	return [
+		{ role: "system", content: system },
+		{ role: "user", content: escapeXmlContent(proposedGuideline) },
 	];
 }
 
@@ -197,10 +304,37 @@ const criticResultSchema: Schema<CriticResult> = {
 			summary: obj["summary"],
 			guidelineFact: typeof obj["guidelineFact"] === "string" ? obj["guidelineFact"] : undefined,
 			guidelineKeywords: Array.isArray(obj["guidelineKeywords"])
-				? (obj["guidelineKeywords"] as string[])
+				? obj["guidelineKeywords"].filter((value): value is string => typeof value === "string")
 				: undefined,
 			issueTitle: typeof obj["issueTitle"] === "string" ? obj["issueTitle"] : undefined,
 			issueBody: typeof obj["issueBody"] === "string" ? obj["issueBody"] : undefined,
+		};
+	},
+};
+
+const VALID_GUIDELINE_RESOLUTION_ACTIONS = new Set<string>(["save", "discard", "replace"]);
+
+const guidelineResolutionSchema: Schema<GuidelineResolution> = {
+	parse(data: unknown): GuidelineResolution {
+		if (typeof data !== "object" || data === null) {
+			throw new TypeError("Expected object");
+		}
+		const obj = data as Record<string, unknown>;
+		if (
+			typeof obj["action"] !== "string" ||
+			!VALID_GUIDELINE_RESOLUTION_ACTIONS.has(obj["action"])
+		) {
+			throw new TypeError(`action: expected one of save, discard, replace`);
+		}
+		if (typeof obj["reason"] !== "string" || obj["reason"] === "") {
+			throw new TypeError("reason: expected non-empty string");
+		}
+		return {
+			action: obj["action"] as GuidelineResolutionAction,
+			reason: obj["reason"],
+			targetGuidelineIds: Array.isArray(obj["targetGuidelineIds"])
+				? obj["targetGuidelineIds"].filter((value): value is string => typeof value === "string")
+				: undefined,
 		};
 	},
 };

@@ -144,6 +144,33 @@ export class MemoryStorage {
 		}
 	}
 
+	private insertFactRow(fact: SemanticFact): void {
+		this.db
+			.prepare(
+				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at, metadata)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			)
+			.run(
+				fact.id,
+				fact.userId,
+				fact.category,
+				fact.fact,
+				JSON.stringify(fact.keywords),
+				JSON.stringify(fact.sourceEpisodicIds),
+				JSON.stringify(fact.embedding),
+				fact.validAt.getTime(),
+				fact.invalidAt?.getTime() ?? null,
+				fact.createdAt.getTime(),
+				JSON.stringify(fact.metadata),
+			);
+	}
+
+	private invalidateFactRow(userId: string, factId: string, invalidAt: Date): void {
+		this.db
+			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ? AND user_id = ?")
+			.run(invalidAt.getTime(), factId, userId);
+	}
+
 	/**
 	 * Check embedding dimension for read operations (search).
 	 * Only validates if dimension is already known; never creates embedding_meta.
@@ -257,23 +284,7 @@ export class MemoryStorage {
 			throw new Error("fact.userId does not match userId");
 		}
 		this.validateEmbeddingDimensionForWrite(fact.embedding);
-		this.db
-			.prepare(
-				`INSERT INTO semantic_facts (id, user_id, category, fact, keywords, source_episodic_ids, embedding, valid_at, invalid_at, created_at)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			)
-			.run(
-				fact.id,
-				fact.userId,
-				fact.category,
-				fact.fact,
-				JSON.stringify(fact.keywords),
-				JSON.stringify(fact.sourceEpisodicIds),
-				JSON.stringify(fact.embedding),
-				fact.validAt.getTime(),
-				fact.invalidAt?.getTime() ?? null,
-				fact.createdAt.getTime(),
-			);
+		this.insertFactRow(fact);
 	}
 
 	async getFacts(userId: string): Promise<SemanticFact[]> {
@@ -293,9 +304,26 @@ export class MemoryStorage {
 	}
 
 	async invalidateFact(userId: string, factId: string, invalidAt: Date): Promise<void> {
-		this.db
-			.prepare("UPDATE semantic_facts SET invalid_at = ? WHERE id = ? AND user_id = ?")
-			.run(invalidAt.getTime(), factId, userId);
+		this.invalidateFactRow(userId, factId, invalidAt);
+	}
+
+	async replaceFacts(
+		userId: string,
+		factIdsToInvalidate: string[],
+		replacement: SemanticFact,
+		invalidAt: Date,
+	): Promise<void> {
+		if (replacement.userId !== userId) {
+			throw new Error("fact.userId does not match userId");
+		}
+		this.validateEmbeddingDimensionForWrite(replacement.embedding);
+		const replace = this.db.transaction(() => {
+			for (const factId of factIdsToInvalidate) {
+				this.invalidateFactRow(userId, factId, invalidAt);
+			}
+			this.insertFactRow(replacement);
+		});
+		replace();
 	}
 
 	async updateFact(
@@ -317,7 +345,7 @@ export class MemoryStorage {
 		const merged = { ...original, ...updates, id: original.id, userId: original.userId };
 		this.db
 			.prepare(
-				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ? WHERE id = ? AND user_id = ?`,
+				`UPDATE semantic_facts SET user_id = ?, category = ?, fact = ?, keywords = ?, source_episodic_ids = ?, embedding = ?, valid_at = ?, invalid_at = ?, created_at = ?, metadata = ? WHERE id = ? AND user_id = ?`,
 			)
 			.run(
 				merged.userId,
@@ -329,6 +357,7 @@ export class MemoryStorage {
 				merged.validAt.getTime(),
 				merged.invalidAt?.getTime() ?? null,
 				merged.createdAt.getTime(),
+				JSON.stringify(merged.metadata),
 				factId,
 				userId,
 			);

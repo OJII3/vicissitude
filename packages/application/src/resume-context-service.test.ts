@@ -42,6 +42,7 @@ function createFact(overrides: Partial<SemanticFact> = {}): SemanticFact {
 		validAt: overrides.validAt ?? now,
 		invalidAt: overrides.invalidAt ?? null,
 		createdAt: overrides.createdAt ?? now,
+		metadata: overrides.metadata ?? {},
 	};
 }
 

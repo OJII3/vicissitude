@@ -134,6 +134,13 @@ OpenCode SDK 組み込み: `webfetch`
 
 CriticAuditor は直近 90 分の Bot 応答を監査し、キャラクタードリフトを検出する。監査を実行しなかった場合も silent stop と区別できるよう、スキップ理由（`no_bot_id` / `no_messages` / `low_drift`）を返し、`critic_auditor_skip_total{reason=...}` で観測できるようにする。`no_bot_id` / `no_messages` は警告ログにも出力する。
 
+キャラクター一貫性の経路は責務を分ける。
+
+- `character-reinforce` heartbeat: ふあ本人の自己点検・再アンカー。`SOUL.md` と既存 guideline を読み、必要なければ何もしない。新しい guideline を直接増やす主体ではない。
+- `CriticAuditor`: 外部監査。minor drift の guideline 候補は、保存前に既存 guideline と `SOUL.md` との整合性解決を通す。重複・矛盾する候補は破棄し、既存 guideline をより正確に置換する場合のみ対象を無効化してから保存する。
+
+guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が明示した guideline → review 済み guideline → `CriticAuditor` の audit-candidate とする。低優先度の guideline は高優先度の人格定義を上書きしてはいけない。
+
 #### ストレージ (`packages/store`)
 
 | コンポーネント  | 役割                                   |

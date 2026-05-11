@@ -28,6 +28,7 @@ function makeFact(overrides: Partial<SemanticFact> & { id: string; fact: string 
 		validAt: NOW,
 		invalidAt: null,
 		createdAt: NOW,
+		metadata: {},
 		...overrides,
 	};
 }

@@ -24,6 +24,24 @@
 - ファクト適用
   - SemanticFact の作成、重複判定、保存、更新、無効化を担当する。
   - LLM embedding と storage write はこの境界に閉じ込める。
+- `CriticAuditor`
+  - character drift の外部監査を担当する。
+  - minor drift で生成した guideline は保存候補であり、既存 guideline と character definition との整合性解決を通してから保存する。
+  - 重複候補は保存しない。置換候補は対象 guideline を invalidate してから `metadata.source = "critic-auditor"` / `metadata.guidelineAuthority = "audit-candidate"` で保存する。
+- `character-reinforce` heartbeat
+  - ふあ本人の自己点検と再アンカーを担当する。
+  - guideline の自動生成・矛盾解決・優先順位決定は担当しない。
+
+## Guideline 優先順位
+
+guideline は通常の記憶よりプロンプト上の影響が強いため、同カテゴリ内に優先順位を持つ。
+
+1. `SOUL.md` / 静的コンテキスト
+2. 人間が明示した guideline
+3. review 済み guideline
+4. `CriticAuditor` が作成した `audit-candidate`
+
+下位の guideline は上位の人格定義や guideline を上書きしてはいけない。矛盾がある場合は下位候補を破棄し、既存 guideline をより正確にする場合だけ置換として扱う。
 
 ## 契約
 
@@ -34,6 +52,7 @@
 - fact は空文字を禁止し、最大 1000 文字とする。
 - keywords は配列で、最大 10 件、各 keyword は最大 100 文字とする。
 - ファクト重複は embedding 類似度 0.95 以上を同一内容として扱う。
+- `SemanticFact.metadata` はファクトの由来などの補助情報を保持する。既存 DB は `{}` として扱う。
 
 ## 副作用
 

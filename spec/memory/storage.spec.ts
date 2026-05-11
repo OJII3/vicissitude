@@ -256,6 +256,18 @@ describe("MemoryStorage — semantic memory", () => {
 		expect(facts[0]!.id).toBe(fact.id);
 	});
 
+	test("saveFact and getFacts preserve metadata", async () => {
+		const fact = makeFact({
+			metadata: { source: "critic-auditor", guidelineAuthority: "audit-candidate" },
+		});
+		await storage.saveFact(userId, fact);
+		const facts = await storage.getFacts(userId);
+		expect(facts[0]!.metadata).toEqual({
+			source: "critic-auditor",
+			guidelineAuthority: "audit-candidate",
+		});
+	});
+
 	test("getFacts excludes invalidated facts", async () => {
 		const fact = makeFact();
 		await storage.saveFact(userId, fact);
@@ -285,6 +297,45 @@ describe("MemoryStorage — semantic memory", () => {
 
 		const facts = await storage.getFacts(userId);
 		expect(facts).toHaveLength(0);
+	});
+
+	test("replaceFacts invalidates targets and saves replacement", async () => {
+		const original = makeFact({ category: "guideline", fact: "Use a formal tone" });
+		const replacement = makeFact({
+			category: "guideline",
+			fact: "Use a warm tone",
+			keywords: ["tone"],
+		});
+		await storage.saveFact(userId, original);
+
+		await storage.replaceFacts(
+			userId,
+			[original.id],
+			replacement,
+			new Date("2026-06-01T00:00:00Z"),
+		);
+
+		const facts = await storage.getFactsByCategory(userId, "guideline");
+		expect(facts.map((fact) => fact.id)).toEqual([replacement.id]);
+	});
+
+	test("replaceFacts preserves targets when replacement cannot be saved", async () => {
+		const original = makeFact({ category: "guideline", fact: "Use a formal tone" });
+		await storage.saveFact(userId, original);
+		const duplicateReplacement = { ...original, fact: "Use a warm tone" };
+
+		expect(
+			storage.replaceFacts(
+				userId,
+				[original.id],
+				duplicateReplacement,
+				new Date("2026-06-01T00:00:00Z"),
+			),
+		).rejects.toThrow();
+
+		const facts = await storage.getFactsByCategory(userId, "guideline");
+		expect(facts.map((fact) => fact.id)).toEqual([original.id]);
+		expect(facts[0]!.fact).toBe("Use a formal tone");
 	});
 
 	test("updateFact applies partial updates", async () => {

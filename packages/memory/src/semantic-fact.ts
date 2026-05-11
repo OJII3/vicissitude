@@ -1,5 +1,12 @@
 import type { FactCategory } from "./types.ts";
 
+export type SemanticFactSource = "consolidation" | "critic-auditor" | "listening";
+
+export interface SemanticFactMetadata {
+	source?: SemanticFactSource;
+	guidelineAuthority?: "audit-candidate";
+}
+
 /** A semantic memory — a persistent fact extracted from episodes */
 export interface SemanticFact {
 	id: string;
@@ -12,6 +19,7 @@ export interface SemanticFact {
 	validAt: Date;
 	invalidAt: Date | null;
 	createdAt: Date;
+	metadata: SemanticFactMetadata;
 }
 
 /** Parameters for creating a new semantic fact */
@@ -23,16 +31,18 @@ export interface CreateFactParams {
 	sourceEpisodicIds: string[];
 	embedding: number[];
 	now: Date;
+	metadata?: SemanticFactMetadata;
 }
 
 /** Create a new SemanticFact */
 export function createFact(params: CreateFactParams): SemanticFact {
-	const { now, ...factParams } = params;
+	const { now, metadata = {}, ...factParams } = params;
 	return {
 		id: crypto.randomUUID(),
 		...factParams,
 		validAt: now,
 		invalidAt: null,
 		createdAt: now,
+		metadata,
 	};
 }

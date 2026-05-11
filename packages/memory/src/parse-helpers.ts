@@ -151,3 +151,10 @@ export function validateStringArray(data: unknown, field: string, maxLength?: nu
 	}
 	return data as string[];
 }
+
+export function validateRecord(data: unknown, field: string): Record<string, unknown> {
+	if (typeof data !== "object" || data === null || Array.isArray(data)) {
+		throw new TypeError(`${field}: expected object`);
+	}
+	return data as Record<string, unknown>;
+}

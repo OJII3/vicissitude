@@ -50,6 +50,7 @@ async function makeFact(storage: MemoryStorage, overrides: { id?: string; fact?:
 		validAt: new Date(),
 		invalidAt: null,
 		createdAt: new Date(),
+		metadata: {},
 	};
 	await storage.saveFact(userId, fact);
 	return fact;
