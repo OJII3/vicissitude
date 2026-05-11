@@ -46,17 +46,18 @@ describe("formatDiscordMessage bot-interaction-hint", () => {
 });
 
 describe("formatDiscordMessage 添付フォーマット", () => {
-	test("url が undefined の添付は [添付: filename (contentType) undefined] としてフォーマットされる", () => {
+	test("画像添付は URL を含めず [添付: filename (contentType)] としてフォーマットされる", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: undefined as unknown as string, contentType: "image/png", filename: "photo.png" },
 			],
 		});
 		const result = formatDiscordMessage(msg);
-		expect(result).toContain("[添付: photo.png (image/png) undefined]");
+		expect(result).toContain("[添付: photo.png (image/png)]");
+		expect(result).not.toContain("undefined]");
 	});
 
-	test("contentType が undefined の添付は (undefined) としてフォーマットされる", () => {
+	test("contentType が undefined の添付は URL を含めてフォーマットされる", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: "https://example.com/file.bin", contentType: undefined, filename: "file.bin" },
@@ -66,14 +67,15 @@ describe("formatDiscordMessage 添付フォーマット", () => {
 		expect(result).toContain("[添付: file.bin (undefined) https://example.com/file.bin]");
 	});
 
-	test("filename が undefined の添付は undefined としてフォーマットされる", () => {
+	test("filename が undefined でも画像添付は URL を含めない", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: "https://example.com/img.png", contentType: "image/png", filename: undefined },
 			],
 		});
 		const result = formatDiscordMessage(msg);
-		expect(result).toContain("[添付: undefined (image/png) https://example.com/img.png]");
+		expect(result).toContain("[添付: undefined (image/png)]");
+		expect(result).not.toContain("https://example.com/img.png");
 	});
 
 	test("attachments が空配列の場合、添付テキストは出力に含まれない", () => {
@@ -86,11 +88,12 @@ describe("formatDiscordMessage 添付フォーマット", () => {
 		const msg = createMessage({
 			attachments: [
 				{ url: "https://example.com/a.png", contentType: "image/png", filename: "a.png" },
-				{ url: "https://example.com/b.jpg", contentType: "image/jpeg", filename: "b.jpg" },
+				{ url: "https://example.com/b.txt", contentType: "text/plain", filename: "b.txt" },
 			],
 		});
 		const result = formatDiscordMessage(msg);
-		expect(result).toContain("[添付: a.png (image/png) https://example.com/a.png]");
-		expect(result).toContain("[添付: b.jpg (image/jpeg) https://example.com/b.jpg]");
+		expect(result).toContain("[添付: a.png (image/png)]");
+		expect(result).not.toContain("https://example.com/a.png");
+		expect(result).toContain("[添付: b.txt (text/plain) https://example.com/b.txt]");
 	});
 });
