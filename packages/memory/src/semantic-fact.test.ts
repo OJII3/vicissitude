@@ -51,4 +51,20 @@ describe("createFact", () => {
 		const fact = createFact(baseParams());
 		expect(fact.invalidAt).toBeNull();
 	});
+
+	test("metadata defaults to an empty object", () => {
+		const fact = createFact(baseParams());
+		expect(fact.metadata).toEqual({});
+	});
+
+	test("metadata is preserved", () => {
+		const fact = createFact({
+			...baseParams(),
+			metadata: { source: "critic-auditor", guidelineAuthority: "audit-candidate" },
+		});
+		expect(fact.metadata).toEqual({
+			source: "critic-auditor",
+			guidelineAuthority: "audit-candidate",
+		});
+	});
 });

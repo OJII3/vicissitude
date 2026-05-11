@@ -110,6 +110,7 @@ export class ConsolidationFactApplier {
 			sourceEpisodicIds: [ctx.episodeId],
 			embedding,
 			now: ctx.now,
+			metadata: { source: "consolidation" },
 		});
 		await this.storage.saveFact(ctx.userId, fact);
 		ctx.activeFactsById.set(fact.id, fact);

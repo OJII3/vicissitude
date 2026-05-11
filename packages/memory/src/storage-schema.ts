@@ -14,6 +14,9 @@ export function migrateMemoryDb(db: Database): void {
 	if (hasTable(db, "message_queue") && !hasColumn(db, "message_queue", "author_id")) {
 		db.exec("ALTER TABLE message_queue ADD COLUMN author_id TEXT");
 	}
+	if (hasTable(db, "semantic_facts") && !hasColumn(db, "semantic_facts", "metadata")) {
+		db.exec("ALTER TABLE semantic_facts ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}'");
+	}
 }
 
 export function createEpisodeTables(db: Database): void {
@@ -37,7 +40,8 @@ export function createFactTables(db: Database): void {
 	db.exec(`CREATE TABLE IF NOT EXISTS semantic_facts (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
 		keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
-		valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL)`);
+		valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL,
+		metadata TEXT NOT NULL DEFAULT '{}')`);
 	db.exec("CREATE INDEX IF NOT EXISTS idx_facts_user_id ON semantic_facts(user_id)");
 	db.exec(
 		"CREATE VIRTUAL TABLE IF NOT EXISTS semantic_facts_fts USING fts5(id UNINDEXED, fact, keywords)",

@@ -28,6 +28,7 @@ export class ListeningMemory implements ListeningMemoryPort {
 			validAt: record.listenedAt,
 			invalidAt: null,
 			createdAt: record.listenedAt,
+			metadata: { source: "listening" },
 		};
 		await this.storage.saveFact(HUA_SELF_SUBJECT, fact);
 		return fact;

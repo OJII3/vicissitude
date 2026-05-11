@@ -4,10 +4,11 @@ import {
 	validateCategory,
 	validateEmbedding,
 	validateMessages,
+	validateRecord,
 	validateRole,
 	validateStringArray,
 } from "./parse-helpers.ts";
-import type { SemanticFact } from "./semantic-fact.ts";
+import type { SemanticFact, SemanticFactMetadata } from "./semantic-fact.ts";
 import type { ChatMessage } from "./types.ts";
 
 export interface EpisodeRow {
@@ -57,6 +58,7 @@ export interface FactRow {
 	valid_at: number;
 	invalid_at: number | null;
 	created_at: number;
+	metadata: string;
 }
 
 export function rowToFact(row: FactRow): SemanticFact {
@@ -75,7 +77,24 @@ export function rowToFact(row: FactRow): SemanticFact {
 		validAt: new Date(row.valid_at),
 		invalidAt: row.invalid_at === null ? null : new Date(row.invalid_at),
 		createdAt: new Date(row.created_at),
+		metadata: validateMetadata(parseJson(row.metadata, "metadata")),
 	};
+}
+
+function validateMetadata(data: unknown): SemanticFactMetadata {
+	const record = validateRecord(data, "metadata");
+	const metadata: SemanticFactMetadata = {};
+	if (
+		record["source"] === "consolidation" ||
+		record["source"] === "critic-auditor" ||
+		record["source"] === "listening"
+	) {
+		metadata.source = record["source"];
+	}
+	if (record["guidelineAuthority"] === "audit-candidate") {
+		metadata.guidelineAuthority = record["guidelineAuthority"];
+	}
+	return metadata;
 }
 
 export interface MessageRow {
