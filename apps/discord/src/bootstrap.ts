@@ -205,17 +205,21 @@ export function createGuildAgents(
 		compactionTokenThreshold?: number;
 		/** compaction 間のクールダウン（ms） */
 		compactionCooldownMs?: number;
+		/** この agent 群が使う OpenCode モデル設定。省略時は通常会話設定を使う */
+		opencode?: Pick<AppConfig["opencode"], "providerId" | "modelId" | "temperature">;
 	},
 ): Map<string, DiscordAgent> {
 	const agents = new Map<string, DiscordAgent>();
 	const portOffset = deps.portOffset ?? 0;
+	const opencode = deps.opencode ?? config.opencode;
 
 	for (const [index, guildId] of guildIds.entries()) {
 		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
 		const agentId = `${agentIdPrefix}:${guildId}`;
 		const agentPort = config.opencode.basePort + portOffset + index;
 		const profile = createConversationProfile({
-			...config.opencode,
+			providerId: opencode.providerId,
+			modelId: opencode.modelId,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
 				coreEnvironment: buildAgentCoreEnvironment(config, deps.coreEnvironment, agentPort),
@@ -231,7 +235,7 @@ export function createGuildAgents(
 			agents: profile.opencodeAgents,
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
-			temperature: config.opencode.temperature,
+			temperature: opencode.temperature,
 			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
 			environment: config.shellWorkspace?.environment,
 			logger: deps.logger,
@@ -712,6 +716,7 @@ export async function bootstrap(): Promise<void> {
 		appRoot: root,
 		coreEnvironment,
 		compactionTokenThreshold: 20_000,
+		opencode: config.heartbeatOpencode,
 	});
 	const firstHeartbeatAgent = heartbeatAgents.values().next().value as AiAgent | undefined;
 	if (!firstHeartbeatAgent) {

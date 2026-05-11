@@ -110,6 +110,11 @@ export const appConfigSchema = z.object({
 		sessionMaxAgeHours: safeNumber,
 		temperature: safeNumber.min(0).max(2),
 	}),
+	heartbeatOpencode: z.object({
+		providerId: z.string(),
+		modelId: z.string(),
+		temperature: safeNumber.min(0).max(2),
+	}),
 	memory: z.object({
 		providerId: z.string(),
 		modelId: z.string(),

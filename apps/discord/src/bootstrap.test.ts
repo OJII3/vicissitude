@@ -5,7 +5,12 @@ import { join } from "path";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
-import { createContextLayer, createStoreLayer, createMetrics } from "./bootstrap.ts";
+import {
+	createContextLayer,
+	createGuildAgents,
+	createStoreLayer,
+	createMetrics,
+} from "./bootstrap.ts";
 import type { AppConfig } from "./config.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
@@ -19,6 +24,11 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 			basePort: 4096,
 			sessionMaxAgeHours: 48,
 			temperature: 1.0,
+		},
+		heartbeatOpencode: {
+			providerId: "test-heartbeat-provider",
+			modelId: "test-heartbeat-model",
+			temperature: 0.3,
 		},
 		memory: {
 			providerId: "test-provider",
@@ -108,5 +118,35 @@ describe("createContextLayer", () => {
 		expect(context).toContain("core tools");
 		expect(context).toContain("shell tools");
 		expect(context).not.toContain("minecraft tools");
+	});
+});
+
+describe("createGuildAgents", () => {
+	test("deps の OpenCode 設定でモデルと temperature を上書きする", () => {
+		const config = createTestConfig();
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createGuildAgents(config, ["guild-1"], {
+			db,
+			sessionStore,
+			contextBuilder: { build: () => Promise.resolve("context") },
+			logger: createMockLogger(),
+			appRoot: "/app",
+			coreEnvironment: {},
+			opencode: {
+				providerId: "heartbeat-provider",
+				modelId: "heartbeat-model",
+				temperature: 0.2,
+			},
+		});
+		const agent = agents.get("guild-1") as unknown as {
+			profile: { model: { providerId: string; modelId: string } };
+			sessionPort: { config: { temperature?: number } };
+		};
+
+		expect(agent.profile.model).toEqual({
+			providerId: "heartbeat-provider",
+			modelId: "heartbeat-model",
+		});
+		expect(agent.sessionPort.config.temperature).toBe(0.2);
 	});
 });
