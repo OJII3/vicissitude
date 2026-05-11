@@ -55,6 +55,9 @@ export const profileConfigSchema = z.strictObject({
 		conversation: modelSelectionSchema.extend({
 			temperature: safeNumber.min(0).max(2),
 		}),
+		heartbeat: modelSelectionSchema.extend({
+			temperature: safeNumber.min(0).max(2),
+		}),
 		memory: modelSelectionSchema.extend({
 			ollamaBaseUrl: z.string().min(1),
 			embeddingModel: z.string().min(1),
@@ -168,6 +171,11 @@ export function loadConfigFromProfile(
 			basePort: profile.ports.opencodeBase,
 			sessionMaxAgeHours: profile.session.maxAgeHours,
 			temperature: profile.models.conversation.temperature,
+		},
+		heartbeatOpencode: {
+			providerId: profile.models.heartbeat.providerId,
+			modelId: profile.models.heartbeat.modelId,
+			temperature: profile.models.heartbeat.temperature,
 		},
 		memory: {
 			providerId: profile.models.memory.providerId,

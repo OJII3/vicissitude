@@ -35,6 +35,11 @@ const baseProfile = {
 			modelId: "conversation-model",
 			temperature: 0.8,
 		},
+		heartbeat: {
+			providerId: "heartbeat-provider",
+			modelId: "heartbeat-model",
+			temperature: 0.3,
+		},
 		memory: {
 			providerId: "memory-provider",
 			modelId: "memory-model",
@@ -104,6 +109,11 @@ describe("JSON profile config", () => {
 			basePort: 5000,
 			sessionMaxAgeHours: 24,
 			temperature: 0.8,
+		});
+		expect(config.heartbeatOpencode).toEqual({
+			providerId: "heartbeat-provider",
+			modelId: "heartbeat-model",
+			temperature: 0.3,
 		});
 		expect(config.memory).toEqual({
 			providerId: "memory-provider",

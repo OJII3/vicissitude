@@ -38,6 +38,11 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 			"modelId": "big-pickle",
 			"temperature": 1
 		},
+		"heartbeat": {
+			"providerId": "github-copilot",
+			"modelId": "big-pickle",
+			"temperature": 0.7
+		},
 		"memory": {
 			"providerId": "github-copilot",
 			"modelId": "gpt-4o",
@@ -112,3 +117,5 @@ profile は `apps/discord/src/profile-config.ts` の Zod schema で検証する�
 感情推定は `features.emotionEstimation` が存在する場合だけ有効になる。通常の OpenCode provider を使う場合は `providerId` と `modelId` を指定する。Ollama chat API を使う場合だけ `providerId: "ollama"` とし、同じ section に `ollamaBaseUrl` を指定する。
 
 新規設定は JSON profile に追加する。bootstrap と MCP サーバー間で渡す env はプロセス境界の内部プロトコルとして扱い、ユーザーが設定する正本にはしない。
+
+heartbeat 専用エージェントの OpenCode 設定は `models.heartbeat` に置く。通常の guild 応答は `models.conversation` を使い、heartbeat は自律行動の抑制を効かせやすいように別 temperature を指定できる。

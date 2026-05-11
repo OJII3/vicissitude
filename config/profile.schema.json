@@ -62,6 +62,26 @@
 					"required": ["providerId", "modelId", "temperature"],
 					"additionalProperties": false
 				},
+				"heartbeat": {
+					"type": "object",
+					"properties": {
+						"providerId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"modelId": {
+							"type": "string",
+							"minLength": 1
+						},
+						"temperature": {
+							"type": "number",
+							"minimum": 0,
+							"maximum": 2
+						}
+					},
+					"required": ["providerId", "modelId", "temperature"],
+					"additionalProperties": false
+				},
 				"memory": {
 					"type": "object",
 					"properties": {
@@ -106,7 +126,7 @@
 					"additionalProperties": false
 				}
 			},
-			"required": ["conversation", "memory", "minecraft"],
+			"required": ["conversation", "heartbeat", "memory", "minecraft"],
 			"additionalProperties": false
 		},
 		"features": {
