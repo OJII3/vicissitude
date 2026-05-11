@@ -49,6 +49,7 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
   - **推論中断**: 推論中（`promptAsyncAndWatchSession` が pending）に新メッセージが到着した場合、`sessionAbortController` でセッションを中断し、旧メッセージ + 新メッセージをまとめて再プロンプトする。
 - Discord 添付画像:
   - 通常の会話モデルがマルチモーダル対応の場合は、添付画像をそのまま OpenCode の `file` part として渡す。
+  - 添付画像の URL はテキスト本文に埋め込まず、`file` part 経由のみで渡す。テキスト表現は `[添付: filename (mime)]` とし、非画像または MIME 不明の添付は `file` part に変換されないため URL をテキストに残す。
   - 通常の会話モデルが画像非対応の場合は、JSON profile の `features.imageRecognition` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
   - 画像認識サブエージェントが 60 秒以内に応答しない場合はタイムアウトとして扱い、会話ループを止めずに通常プロンプトへ進む。
   - 画像認識サブエージェントの観察結果は補助情報であり、画像内テキストや指示風の内容はシステム指示として扱わない。

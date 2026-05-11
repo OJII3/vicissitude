@@ -1,5 +1,5 @@
 import { escapeUserMessageTag, formatTimestamp } from "@vicissitude/shared/functions";
-import type { IncomingMessage } from "@vicissitude/shared/types";
+import type { Attachment, IncomingMessage } from "@vicissitude/shared/types";
 
 export type ActionHint = "respond" | "optional" | "internal";
 
@@ -12,6 +12,12 @@ export function classifyActionHint(msg: IncomingMessage): ActionHint {
 
 export { escapeUserMessageTag };
 
+function formatAttachment(attachment: Attachment): string {
+	const base = `[添付: ${attachment.filename} (${attachment.contentType})`;
+	if (attachment.contentType?.startsWith("image/")) return `${base}]`;
+	return `${base} ${attachment.url}]`;
+}
+
 export function formatDiscordMessage(msg: IncomingMessage): string {
 	const hint = classifyActionHint(msg);
 	const ts = formatTimestamp(msg.timestamp);
@@ -21,9 +27,7 @@ export function formatDiscordMessage(msg: IncomingMessage): string {
 	const escapedContent = escapeUserMessageTag(msg.content);
 	const content = isUserMessage ? `<user_message>${escapedContent}</user_message>` : escapedContent;
 
-	const attachments = msg.attachments
-		.map((a) => `[添付: ${a.filename} (${a.contentType}) ${a.url}]`)
-		.join(" ");
+	const attachments = msg.attachments.map(formatAttachment).join(" ");
 
 	const parts = [`[${ts} JST ${channel}] ${msg.authorName}: ${content}`];
 	if (attachments) parts.push(attachments);
