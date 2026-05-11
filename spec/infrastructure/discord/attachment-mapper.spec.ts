@@ -31,21 +31,27 @@ function collectionOf(
 }
 
 describe("mapAttachments", () => {
-	test("許可 MIME (png, jpeg, gif, webp) → 変換して返す", () => {
+	test("許可 MIME (png, jpeg, gif, webp, avif) → 変換して返す", () => {
 		const col = collectionOf(
 			{ id: "1", url: "https://a/1.png", contentType: "image/png", name: "1.png" },
 			{ id: "2", url: "https://a/2.jpg", contentType: "image/jpeg", name: "2.jpg" },
 			{ id: "3", url: "https://a/3.gif", contentType: "image/gif", name: "3.gif" },
 			{ id: "4", url: "https://a/4.webp", contentType: "image/webp", name: "4.webp" },
+			{ id: "5", url: "https://a/5.avif", contentType: "image/avif", name: "5.avif" },
 		);
 
 		const result = mapAttachments(col);
 
-		expect(result).toHaveLength(4);
+		expect(result).toHaveLength(5);
 		expect(result[0]).toEqual({
 			url: "https://a/1.png",
 			contentType: "image/png",
 			filename: "1.png",
+		});
+		expect(result[4]).toEqual({
+			url: "https://a/5.avif",
+			contentType: "image/avif",
+			filename: "5.avif",
 		});
 	});
 
@@ -76,10 +82,11 @@ describe("filterImageUrls", () => {
 			{ id: "1", url: "https://a/img.png", contentType: "image/png" },
 			{ id: "2", url: "https://a/doc.pdf", contentType: "application/pdf" },
 			{ id: "3", url: "https://a/img2.jpeg", contentType: "image/jpeg" },
+			{ id: "4", url: "https://a/img3.avif", contentType: "image/avif" },
 		);
 
 		const urls = filterImageUrls(col);
-		expect(urls).toEqual(["https://a/img.png", "https://a/img2.jpeg"]);
+		expect(urls).toEqual(["https://a/img.png", "https://a/img2.jpeg", "https://a/img3.avif"]);
 	});
 
 	test("非画像はフィルタ除外", () => {
