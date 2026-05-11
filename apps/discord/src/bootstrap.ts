@@ -46,6 +46,7 @@ import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-sc
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
+import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
 import type { MemoryNamespace } from "@vicissitude/shared/namespace";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type {
@@ -237,7 +238,7 @@ export function createGuildAgents(
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
 			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
-			environment: config.shellWorkspace?.environment,
+			environment: addGitHubCredentialHelperEnvironment(config.shellWorkspace?.environment),
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition

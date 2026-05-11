@@ -149,4 +149,51 @@ describe("createGuildAgents", () => {
 		});
 		expect(agent.sessionPort.config.temperature).toBe(0.2);
 	});
+
+	test("shellWorkspace の GitHub token は Git credential helper 付きで OpenCode に渡す", () => {
+		const config = createTestConfig({
+			shellWorkspace: {
+				enabled: true,
+				image: "sandbox",
+				agent: {
+					providerId: "shell-provider",
+					modelId: "shell-model",
+					temperature: 0.4,
+					steps: 16,
+				},
+				environment: {
+					GH_TOKEN: "github-token",
+					GITHUB_TOKEN: "github-token",
+				},
+				dataDir: "/tmp/shell-workspaces",
+				auditLogPath: "/tmp/shell-audit.jsonl",
+				networkProfile: "open",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createGuildAgents(config, ["guild-1"], {
+			db,
+			sessionStore,
+			contextBuilder: { build: () => Promise.resolve("context") },
+			logger: createMockLogger(),
+			appRoot: "/app",
+			coreEnvironment: {},
+		});
+		const agent = agents.get("guild-1") as unknown as {
+			sessionPort: { config: { environment?: Record<string, string> } };
+		};
+
+		expect(agent.sessionPort.config.environment?.GH_TOKEN).toBe("github-token");
+		expect(agent.sessionPort.config.environment?.GIT_CONFIG_COUNT).toBe("1");
+		expect(agent.sessionPort.config.environment?.GIT_CONFIG_KEY_0).toBe(
+			"credential.https://github.com.helper",
+		);
+		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).toContain("GH_TOKEN");
+		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).not.toContain("github-token");
+	});
 });
