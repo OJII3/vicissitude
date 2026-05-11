@@ -81,6 +81,7 @@ describe("mcpServerConfigs", () => {
 			expect(shell.environment?.SHELL_WORKSPACE_DATA_DIR).toBe("/data/shell-workspaces");
 			expect(shell.environment?.SHELL_WORKSPACE_HOST_DATA_DIR).toBe("/host/data/shell-workspaces");
 			expect(shell.environment?.SHELL_WORKSPACE_NETWORK_PROFILE).toBe("open");
+			expect(shell.environment?.SHELL_WORKSPACE_FORWARD_ENV).toBe("GH_TOKEN,GITHUB_TOKEN");
 			expect(shell.environment?.GH_TOKEN).toBe("github-token");
 			expect(shell.environment?.GITHUB_TOKEN).toBe("github-token");
 			expect(shell.environment?.DISCORD_TOKEN).toBeUndefined();

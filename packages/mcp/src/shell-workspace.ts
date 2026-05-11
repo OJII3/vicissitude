@@ -25,6 +25,7 @@ export interface ShellWorkspaceConfig {
 	dataDir: string;
 	hostDataDir?: string;
 	auditLogPath: string;
+	environment?: Record<string, string>;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
 	defaultTimeoutSeconds: number;
@@ -72,7 +73,7 @@ export interface ProcessResult {
 
 export type ProcessRunner = (
 	cmd: readonly string[],
-	options: { timeoutMs: number; maxOutputChars: number },
+	options: { timeoutMs: number; maxOutputChars: number; environment?: Record<string, string> },
 ) => Promise<ProcessResult>;
 
 export interface ShellAuditRecord {
@@ -118,12 +119,14 @@ export function buildShellPodmanCmd(options: {
 	command: string;
 	timeoutSeconds: number;
 	networkProfile?: ShellWorkspaceNetworkProfile;
+	environment?: Record<string, string>;
 }): string[] {
 	const networkProfile = options.networkProfile ?? DEFAULT_NETWORK_PROFILE;
 	const workdir =
 		options.cwd === "."
 			? SHELL_WORKSPACE_CONTAINER_WORKDIR
 			: `${SHELL_WORKSPACE_CONTAINER_WORKDIR}/${options.cwd}`;
+	const environmentArgs = Object.keys(options.environment ?? {}).flatMap((name) => ["--env", name]);
 	return [
 		"podman",
 		"run",
@@ -139,6 +142,7 @@ export function buildShellPodmanCmd(options: {
 		`XDG_CONFIG_HOME=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.config`,
 		"--env",
 		`TMPDIR=${SHELL_WORKSPACE_CONTAINER_WORKDIR}/.tmp`,
+		...environmentArgs,
 		"--memory=2g",
 		"--cpus=2",
 		"--pids-limit=512",
@@ -220,12 +224,14 @@ export class ShellWorkspaceManager {
 			command: input.command,
 			timeoutSeconds,
 			networkProfile: this.config.networkProfile,
+			environment: this.config.environment,
 		});
 
 		const startedAt = this.now();
 		const result = await this.runProcess(cmd, {
 			timeoutMs: (timeoutSeconds + 5) * 1_000,
 			maxOutputChars: this.config.maxOutputChars,
+			environment: this.config.environment,
 		});
 		const durationMs = this.now() - startedAt;
 		const execResult: ShellExecResult = {
@@ -322,9 +328,13 @@ export class ShellWorkspaceManager {
 
 async function runLimitedProcess(
 	cmd: readonly string[],
-	options: { timeoutMs: number; maxOutputChars: number },
+	options: { timeoutMs: number; maxOutputChars: number; environment?: Record<string, string> },
 ): Promise<ProcessResult> {
-	const proc = Bun.spawn([...cmd], { stdout: "pipe", stderr: "pipe" });
+	const proc = Bun.spawn([...cmd], {
+		env: { ...process.env, ...options.environment },
+		stdout: "pipe",
+		stderr: "pipe",
+	});
 
 	let timedOut = false;
 	const timeoutId = setTimeout(() => {

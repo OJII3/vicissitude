@@ -81,6 +81,30 @@ describe("buildShellPodmanCmd", () => {
 
 		expect(cmd).toContain("--network=none");
 	});
+
+	it("指定された environment は値を露出せず名前だけ子コンテナへ渡す", () => {
+		const cmd = buildShellPodmanCmd({
+			image: "sandbox-image",
+			workspaceDir: "/tmp/workspace",
+			cwd: ".",
+			command: "git push",
+			timeoutSeconds: 10,
+			environment: {
+				GH_TOKEN: "secret-token",
+				GIT_CONFIG_COUNT: "1",
+				GIT_CONFIG_KEY_0: "credential.https://github.com.helper",
+				GIT_CONFIG_VALUE_0: "!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f",
+			},
+		});
+
+		expect(cmd).toContain("GH_TOKEN");
+		expect(cmd).toContain("GIT_CONFIG_COUNT");
+		expect(cmd).not.toContain("GH_TOKEN=secret-token");
+		expect(cmd).not.toContain("secret-token");
+		expect(cmd).not.toContain(
+			"GIT_CONFIG_VALUE_0=!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f",
+		);
+	});
 });
 
 describe("ShellWorkspaceManager", () => {
@@ -122,6 +146,44 @@ describe("ShellWorkspaceManager", () => {
 		expect(audit.session_id).toBe(session.sessionId);
 		expect(audit.command).toBe("echo ok");
 		expect(audit.exit_code).toBe(0);
+		manager.close();
+	});
+
+	it("exec 時に GitHub 認証用 environment を Podman process へ渡す", async () => {
+		const seenOptions: Array<{
+			timeoutMs: number;
+			maxOutputChars: number;
+			environment?: Record<string, string>;
+		}> = [];
+		const runner: ProcessRunner = (_cmd, options) => {
+			seenOptions.push(options);
+			return Promise.resolve({
+				exitCode: 0,
+				output: "ok",
+				timedOut: false,
+				outputTruncated: false,
+			});
+		};
+		const config = createConfig({
+			environment: {
+				GH_TOKEN: "secret-token",
+				GIT_CONFIG_COUNT: "1",
+				GIT_CONFIG_KEY_0: "credential.https://github.com.helper",
+				GIT_CONFIG_VALUE_0: "!f() { echo username=x-access-token; echo password=$GH_TOKEN; }; f",
+			},
+			runProcess: runner,
+		});
+		const manager = new ShellWorkspaceManager(config);
+		const session = manager.startSession({});
+
+		await manager.exec({ sessionId: session.sessionId, command: "git push" });
+
+		const options = seenOptions[0];
+		expect(options).toBeDefined();
+		if (!options) throw new Error("runner options were not captured");
+		expect(options.environment?.GH_TOKEN).toBe("secret-token");
+		expect(options.environment?.GIT_CONFIG_KEY_0).toBe("credential.https://github.com.helper");
+		expect(options.environment?.GIT_CONFIG_VALUE_0).toContain("password=$GH_TOKEN");
 		manager.close();
 	});
 

@@ -104,11 +104,11 @@ feature section が存在する場合だけ、その feature の secret env を�
 
 Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書く。`SPOTIFY_RECOMMEND_PLAYLIST_ID` は profile 正本化に伴い読み込まない。
 
-`features.shellWorkspace.environment` は shell-worker の OpenCode server process に渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
+`features.shellWorkspace.environment` は shell-worker の OpenCode server process と shell workspace 子コンテナへ渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
 
 `features.shellWorkspace.hostDataDir` は shell workspace 用 MCP server が Podman mount source として使うホスト側 path を必要とする場合だけ profile に書く。OpenCode shell subagent 経路だけを使う profile では省略する。
 
-compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。
+compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。shell workspace 子コンテナでは `GH_TOKEN` / `GITHUB_TOKEN` がある場合だけ Git HTTPS credential helper を env 経由で追加し、`git push` も同じ token を使う。
 
 ## パースと検証
 

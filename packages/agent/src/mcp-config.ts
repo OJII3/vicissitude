@@ -65,8 +65,10 @@ function buildShellWorkspaceEnvironment(
 	agentId: string,
 	config: ShellWorkspaceMcpConfigOptions,
 ): Record<string, string> {
+	const forwardedEnvironment = config.environment ?? {};
+	const forwardedEnvironmentNames = Object.keys(forwardedEnvironment);
 	const env: Record<string, string> = {
-		...config.environment,
+		...forwardedEnvironment,
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
 		SHELL_WORKSPACE_AGENT_ID: agentId,
@@ -80,6 +82,9 @@ function buildShellWorkspaceEnvironment(
 		SHELL_WORKSPACE_MAX_TIMEOUT_SECONDS: String(config.maxTimeoutSeconds),
 		SHELL_WORKSPACE_MAX_OUTPUT_CHARS: String(config.maxOutputChars),
 	};
+	if (forwardedEnvironmentNames.length > 0) {
+		env.SHELL_WORKSPACE_FORWARD_ENV = forwardedEnvironmentNames.join(",");
+	}
 	if (config.hostDataDir) env.SHELL_WORKSPACE_HOST_DATA_DIR = config.hostDataDir;
 	if (process.env.XDG_RUNTIME_DIR) env.XDG_RUNTIME_DIR = process.env.XDG_RUNTIME_DIR;
 	if (process.env.TMPDIR) env.TMPDIR = process.env.TMPDIR;
