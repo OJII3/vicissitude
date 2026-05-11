@@ -17,6 +17,9 @@ const CLEANUP_INTERVAL_MS = 5 * 60_000;
 const MAX_COMMAND_LENGTH = 8_000;
 const MAX_LABEL_LENGTH = 80;
 const MAX_CWD_LENGTH = 240;
+const ENV_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const GITHUB_GIT_CREDENTIAL_HELPER =
+	"!f() { echo username=x-access-token; echo password=${GH_TOKEN:-$GITHUB_TOKEN}; }; f";
 
 function readIntEnv(name: string, fallback: number): number {
 	const value = process.env[name];
@@ -37,6 +40,30 @@ function readNetworkProfileEnv(value: string | undefined): ShellWorkspaceNetwork
 	throw new Error(
 		`SHELL_WORKSPACE_NETWORK_PROFILE must be one of: ${SHELL_WORKSPACE_NETWORK_PROFILES.join(", ")}`,
 	);
+}
+
+function readForwardedEnvironment(env: NodeJS.ProcessEnv): Record<string, string> | undefined {
+	const names = (env.SHELL_WORKSPACE_FORWARD_ENV ?? "")
+		.split(",")
+		.map((name) => name.trim())
+		.filter((name) => name.length > 0);
+	const forwarded: Record<string, string> = {};
+
+	for (const name of names) {
+		if (!ENV_NAME_PATTERN.test(name)) {
+			throw new Error(`SHELL_WORKSPACE_FORWARD_ENV contains invalid env name: ${name}`);
+		}
+		const value = env[name];
+		if (value !== undefined) forwarded[name] = value;
+	}
+
+	if (forwarded.GH_TOKEN || forwarded.GITHUB_TOKEN) {
+		forwarded.GIT_CONFIG_COUNT = "1";
+		forwarded.GIT_CONFIG_KEY_0 = "credential.https://github.com.helper";
+		forwarded.GIT_CONFIG_VALUE_0 = GITHUB_GIT_CREDENTIAL_HELPER;
+	}
+
+	return Object.keys(forwarded).length > 0 ? forwarded : undefined;
 }
 
 function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
@@ -62,6 +89,7 @@ function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
 		dataDir: process.env.SHELL_WORKSPACE_DATA_DIR ?? DEFAULT_DATA_DIR,
 		hostDataDir: process.env.SHELL_WORKSPACE_HOST_DATA_DIR,
 		auditLogPath: process.env.SHELL_WORKSPACE_AUDIT_LOG ?? DEFAULT_AUDIT_LOG,
+		environment: readForwardedEnvironment(process.env),
 		defaultTtlMinutes,
 		maxTtlMinutes,
 		defaultTimeoutSeconds,

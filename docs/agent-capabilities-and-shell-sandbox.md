@@ -47,7 +47,7 @@ shell workspace は JSON profile の `features.shellWorkspace` が存在する�
 
 `shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
 
-JSON profile の `features.shellWorkspace.environment` には shell-worker へ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。
+JSON profile の `features.shellWorkspace.environment` には shell-worker と shell workspace 子コンテナへ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。`GH_TOKEN` / `GITHUB_TOKEN` を渡すと、子コンテナ内の `gh` と Git HTTPS credential helper が同じ token を使う。
 
 Podman mount source としてホスト側 path が必要な profile では `features.shellWorkspace.hostDataDir` に書く。OpenCode shell subagent 経路だけなら省略する。
 
