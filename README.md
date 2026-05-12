@@ -193,6 +193,7 @@ AI エージェントとチャットボットのメトリクスは、複数ギ�
   - `provider`, `model`: 使用した LLM provider/model。
 - セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どのギルド・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
+- アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（現状は NixOS の Alloy）が `container_tag=vicissitude` の journald ログを `job=vicissitude` として収集し、standalone の monitoring profile では Promtail が同じ `job=vicissitude` へ揃えて転送する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 
 ## 4. 非機能要件
 
