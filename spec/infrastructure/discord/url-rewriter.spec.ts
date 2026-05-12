@@ -3,21 +3,22 @@ import { describe, expect, test } from "bun:test";
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
 
 describe("rewriteTwitterUrls", () => {
-	test("x.com URL を fxtwitter.com に置換する", () => {
+	test("x.com の status URL を FxEmbed API URL に置換する", () => {
 		expect(rewriteTwitterUrls("https://x.com/user/status/123")).toBe(
-			"https://fxtwitter.com/user/status/123",
+			"https://api.fxtwitter.com/2/status/123",
 		);
 	});
 
-	test("twitter.com URL を fxtwitter.com に置換する", () => {
+	test("twitter.com の status URL を FxEmbed API URL に置換する", () => {
 		expect(rewriteTwitterUrls("https://twitter.com/user/status/456")).toBe(
-			"https://fxtwitter.com/user/status/456",
+			"https://api.fxtwitter.com/2/status/456",
 		);
 	});
 
-	test("複数の URL を一括置換する", () => {
+	test("複数の status URL を一括置換する", () => {
 		const input = "見て https://x.com/a/status/1 と https://twitter.com/b/status/2";
-		const expected = "見て https://fxtwitter.com/a/status/1 と https://fxtwitter.com/b/status/2";
+		const expected =
+			"見て https://api.fxtwitter.com/2/status/1 と https://api.fxtwitter.com/2/status/2";
 		expect(rewriteTwitterUrls(input)).toBe(expected);
 	});
 
@@ -34,15 +35,15 @@ describe("rewriteTwitterUrls", () => {
 		expect(rewriteTwitterUrls("")).toBe("");
 	});
 
-	test("mobile.x.com URL を fxtwitter.com に置換する", () => {
+	test("mobile.x.com の status URL を FxEmbed API URL に置換する", () => {
 		expect(rewriteTwitterUrls("https://mobile.x.com/user/status/789")).toBe(
-			"https://fxtwitter.com/user/status/789",
+			"https://api.fxtwitter.com/2/status/789",
 		);
 	});
 
-	test("mobile.twitter.com URL を fxtwitter.com に置換する", () => {
+	test("mobile.twitter.com の status URL を FxEmbed API URL に置換する", () => {
 		expect(rewriteTwitterUrls("https://mobile.twitter.com/user/status/101")).toBe(
-			"https://fxtwitter.com/user/status/101",
+			"https://api.fxtwitter.com/2/status/101",
 		);
 	});
 
