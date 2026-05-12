@@ -1,7 +1,11 @@
 import { METRIC } from "@vicissitude/observability/metrics";
 import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
 import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
-import type { CriticAuditorPort, GitHubIssuePort } from "@vicissitude/shared/ports";
+import type {
+	CriticAuditSkipReason,
+	CriticAuditorPort,
+	GitHubIssuePort,
+} from "@vicissitude/shared/ports";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
 
 /** 30 minutes */
@@ -16,6 +20,7 @@ export class ConsolidationScheduler {
 	private initialTimer: ReturnType<typeof setTimeout> | null = null;
 	private running = false;
 	private executePromise: Promise<void> | null = null;
+	private readonly lastCriticAuditSkipReasons = new Map<string, CriticAuditSkipReason>();
 
 	/* oxlint-disable-next-line max-params -- DI: all dependencies are required ports */
 	constructor(
@@ -134,12 +139,15 @@ export class ConsolidationScheduler {
 				if (result.driftScore !== undefined) {
 					this.metrics?.setGauge(METRIC.DRIFT_SCORE, result.driftScore, { namespace: key });
 				}
-				if (result.reason === "low_drift") return;
+				const previousReason = this.lastCriticAuditSkipReasons.get(key);
+				this.lastCriticAuditSkipReasons.set(key, result.reason);
+				if (result.reason === "low_drift" || previousReason === result.reason) return;
 				this.logger.warn(`[critic-audit] ns=${key}: skipped (${result.reason})`);
 				return;
 			}
 
 			if (result.status === "completed") {
+				this.lastCriticAuditSkipReasons.delete(key);
 				this.metrics?.incrementCounter(METRIC.DRIFT_AUDITS, {
 					namespace: key,
 					severity: result.severity,

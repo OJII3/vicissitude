@@ -82,4 +82,27 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		});
 		expect(logger.warn).not.toHaveBeenCalled();
 	});
+
+	test("同じ skip reason の warn ログは繰り返さない", async () => {
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const criticAuditor: CriticAuditorPort = {
+			audit: mock(() => Promise.resolve({ status: "skipped", reason: "no_messages" } as const)),
+		};
+		const scheduler = new ConsolidationScheduler(
+			createConsolidator(),
+			logger,
+			metrics,
+			criticAuditor,
+		);
+
+		await executeConsolidation(scheduler);
+		await executeConsolidation(scheduler);
+
+		expect(metrics.incrementCounter).toHaveBeenCalledTimes(2);
+		expect(logger.warn).toHaveBeenCalledTimes(1);
+		expect(logger.warn).toHaveBeenCalledWith(
+			"[critic-audit] ns=discord-guild:1234567890: skipped (no_messages)",
+		);
+	});
 });
