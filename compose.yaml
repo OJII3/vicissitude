@@ -15,6 +15,8 @@ volumes:
   bot-node-modules:
   bot-dist:
   prometheus-data:
+  loki-data:
+  promtail-positions:
   grafana-data:
 
 services:
@@ -123,6 +125,45 @@ services:
         tag: vicissitude-prometheus
     restart: unless-stopped
 
+  loki:
+    container_name: vicissitude-loki
+    image: docker.io/grafana/loki:latest
+    profiles: [monitoring]
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./monitoring/loki-config.yml:/etc/loki/config.yml:ro
+      - loki-data:/loki
+    networks:
+      - vicissitude-net
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-loki
+    restart: unless-stopped
+
+  promtail:
+    container_name: vicissitude-promtail
+    image: docker.io/grafana/promtail:latest
+    profiles: [monitoring]
+    user: "0:0"
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - promtail-positions:/positions
+      - /var/log/journal:/var/log/journal:ro
+      - /run/log/journal:/run/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
+    networks:
+      - vicissitude-net
+    depends_on:
+      loki:
+        condition: service_started
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-promtail
+    restart: unless-stopped
+
   grafana:
     container_name: vicissitude-grafana
     image: docker.io/grafana/grafana:latest
@@ -149,6 +190,8 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+      loki:
+        condition: service_started
     logging:
       driver: journald
       options:
