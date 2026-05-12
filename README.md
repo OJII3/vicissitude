@@ -179,6 +179,21 @@ guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が�
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
 
+### 3.10 オブザーバビリティ
+
+AI エージェントとチャットボットのメトリクスは、複数ギルドと複数種類のエージェントを同じ Prometheus/Grafana 上で比較・分解できるようにする。
+
+- Discord 受信メッセージは `discord_messages_received_total` で記録する。ラベルは `guild_id`, `channel_type`, `author_type`, `is_thread`, `has_attachments` とし、ギルド別、ホーム/メンション別、人間/Bot 別に分解できるようにする。
+- LLM 実行メトリクス（`ai_requests_total`, `ai_request_duration_seconds`, `llm_*_tokens_total`, `llm_cost_dollars_total`, `llm_busy_sessions`）は、実際に OpenCode セッションへ prompt を送ってから idle/error/cancelled/deleted の終端イベントを受け取るまでを対象にする。エージェントへの enqueue 成否やラッパー呼び出し時間を AI request として扱わない。
+- LLM 実行メトリクスには共通ラベル `agent_kind`, `agent_id`, `guild_id`, `trigger`, `provider`, `model` を付与する。
+  - `agent_kind`: `discord`, `discord_heartbeat`, `minecraft` などのエージェント種別。
+  - `agent_id`: `discord:{guildId}`, `discord:heartbeat:{guildId}`, `minecraft:brain` などの実行主体。
+  - `guild_id`: Discord ギルド ID。ギルドに属さない実行は `none`、グローバル heartbeat は `_autonomous`。
+  - `trigger`: `home`, `mention`, `heartbeat`, `minecraft`, `mixed`, `unknown`。
+  - `provider`, `model`: 使用した LLM provider/model。
+- セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どのギルド・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
+- `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
+
 ## 4. 非機能要件
 
 - 実行環境はローカル常駐（Bun ランタイム）。

@@ -33,12 +33,7 @@ import {
 } from "@vicissitude/memory/namespace";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
-import {
-	PrometheusCollector,
-	PrometheusServer,
-	METRIC,
-	InstrumentedAiAgent,
-} from "@vicissitude/observability/metrics";
+import { PrometheusCollector, PrometheusServer, METRIC } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
@@ -277,14 +272,14 @@ export function createGuildAgents(
 export function createMetrics(logger: Logger, port: number) {
 	const collector = new PrometheusCollector();
 	collector.registerCounter(METRIC.DISCORD_MESSAGES_RECEIVED, "Discord messages received");
-	collector.registerCounter(METRIC.AI_REQUESTS, "AI agent requests");
+	collector.registerCounter(METRIC.AI_REQUESTS, "Completed AI prompt requests");
 	collector.registerCounter(METRIC.HEARTBEAT_TICKS, "Heartbeat scheduler ticks");
 	collector.registerCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED, "Heartbeat reminders executed");
 	collector.registerGauge(METRIC.BOT_INFO, "Bot information");
-	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI request duration in seconds");
+	collector.registerHistogram(METRIC.AI_REQUEST_DURATION, "AI prompt duration in seconds");
 	collector.registerHistogram(METRIC.HEARTBEAT_TICK_DURATION, "Heartbeat tick duration in seconds");
 	collector.registerGauge(METRIC.LLM_ACTIVE_SESSIONS, "Registered LLM sessions");
-	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM sessions currently processing");
+	collector.registerGauge(METRIC.LLM_BUSY_SESSIONS, "LLM prompts currently processing");
 	collector.registerCounter(
 		METRIC.MEMORY_CONSOLIDATION_TICKS,
 		"Memory consolidation scheduler ticks",
@@ -452,7 +447,13 @@ function setupEventHandlers(deps: {
 	const { gateway, ingestionService, metricsCollector, agents, logger } = deps;
 	gateway.onHomeChannelMessage((msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
-		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, { channel_type: "home" });
+		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
+			guild_id: msg.guildId ?? "none",
+			channel_type: "home",
+			author_type: msg.isBot ? "bot" : "user",
+			is_thread: String(msg.isThread),
+			has_attachments: String(msg.attachments.length > 0),
+		});
 		ingestionService.handleIncomingMessage(msg, {
 			recordConversation: true,
 		});
@@ -464,6 +465,7 @@ function setupEventHandlers(deps: {
 			void agent?.send({
 				sessionKey: "home",
 				message: formatDiscordMessage(msg),
+				guildId: msg.guildId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
@@ -474,7 +476,11 @@ function setupEventHandlers(deps: {
 
 	gateway.onMessage((msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
+			guild_id: msg.guildId ?? "none",
 			channel_type: "mention",
+			author_type: msg.isBot ? "bot" : "user",
+			is_thread: String(msg.isThread),
+			has_attachments: String(msg.attachments.length > 0),
 		});
 		ingestionService.handleIncomingMessage(msg);
 		if (msg.guildId) {
@@ -485,6 +491,7 @@ function setupEventHandlers(deps: {
 			void agent?.send({
 				sessionKey: "mention",
 				message: formatDiscordMessage(msg),
+				guildId: msg.guildId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
@@ -699,11 +706,7 @@ export async function bootstrap(): Promise<void> {
 	if (!firstAgent) {
 		throw new Error("No guild agents available; cannot create defaultAgent for GuildRouter");
 	}
-	const routingAgent = new InstrumentedAiAgent(
-		new GuildRouter(agents, firstAgent),
-		metrics.collector,
-		"polling",
-	);
+	const routingAgent = new GuildRouter(agents, firstAgent);
 
 	// Heartbeat 専用エージェント（ユーザーメッセージとセッションを分離し、遅延を防ぐ）
 	const heartbeatAgents = createGuildAgents(config, guildIds, {
@@ -725,11 +728,7 @@ export async function bootstrap(): Promise<void> {
 			"No heartbeat agents available; cannot create defaultAgent for heartbeat GuildRouter",
 		);
 	}
-	const heartbeatRouter = new InstrumentedAiAgent(
-		new GuildRouter(heartbeatAgents, firstHeartbeatAgent),
-		metrics.collector,
-		"heartbeat",
-	);
+	const heartbeatRouter = new GuildRouter(heartbeatAgents, firstHeartbeatAgent);
 
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
@@ -764,6 +763,7 @@ export async function bootstrap(): Promise<void> {
 			mcHost: config.minecraft.host,
 			mcMcpPort: String(config.minecraft.mcpPort),
 			compactionTokenThreshold: 20_000,
+			metrics: metrics.collector,
 		});
 	}
 

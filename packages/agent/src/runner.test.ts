@@ -626,8 +626,12 @@ describe("AgentRunner", () => {
 		await Bun.sleep(0);
 
 		// session_restarts_total メトリクスが reason=session_deleted_rotation で呼ばれている
-		expect(metrics.incrementCounter).toHaveBeenCalledWith("session_restarts_total", {
+		const incrementCalls: unknown[][] = metrics.incrementCounter.mock.calls;
+		const restartCall = incrementCalls.find((call) => call[0] === "session_restarts_total");
+		expect(restartCall?.[1]).toMatchObject({
 			reason: "session_deleted_rotation",
+			agent_id: "guild-1",
+			trigger: "unknown",
 		});
 
 		runner.stop();
