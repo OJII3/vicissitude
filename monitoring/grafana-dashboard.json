@@ -7,14 +7,6 @@
 			"type": "datasource",
 			"pluginId": "prometheus",
 			"pluginName": "Prometheus"
-		},
-		{
-			"name": "DS_LOKI",
-			"label": "Loki",
-			"description": "",
-			"type": "datasource",
-			"pluginId": "loki",
-			"pluginName": "Loki"
 		}
 	],
 	"annotations": {
@@ -33,7 +25,7 @@
 				"x": 0,
 				"y": 0
 			},
-			"id": 100,
+			"id": 1,
 			"title": "Overview",
 			"type": "row"
 		},
@@ -45,162 +37,51 @@
 			"fieldConfig": {
 				"defaults": {
 					"color": {
-						"mode": "palette-classic"
+						"mode": "thresholds"
 					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							}
+						]
 					},
 					"unit": "short"
 				},
 				"overrides": []
 			},
 			"gridPos": {
-				"h": 8,
-				"w": 8,
+				"h": 5,
+				"w": 6,
 				"x": 0,
-				"y": 1
-			},
-			"id": 1,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (channel_type) (increase(discord_messages_received_total[1h]))",
-					"legendFormat": "{{channel_type}}"
-				}
-			],
-			"title": "Messages (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
 				"y": 1
 			},
 			"id": 2,
 			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (outcome) (increase(ai_requests_total[1h]))",
-					"legendFormat": "{{outcome}}"
-				}
-			],
-			"title": "AI Requests (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"mappings": [
-						{
-							"options": {
-								"1": {
-									"text": "UP"
-								}
-							},
-							"type": "value"
-						}
-					],
-					"thresholds": {
-						"steps": [
-							{
-								"color": "red",
-								"value": null
-							},
-							{
-								"color": "green",
-								"value": 1
-							}
-						]
-					}
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 1
-			},
-			"id": 3,
-			"options": {
-				"colorMode": "background",
-				"graphMode": "none",
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
 				"reduceOptions": {
-					"calcs": ["lastNotNull"]
-				}
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"textMode": "auto"
 			},
 			"targets": [
 				{
-					"expr": "bot_info",
-					"legendFormat": "{{bot_name}}"
+					"refId": "A",
+					"expr": "sum(increase(discord_messages_received_total{guild_id=~\"$guild_id\"}[1h]))",
+					"legendFormat": "messages/h"
 				}
 			],
-			"title": "Bot Info",
+			"title": "Messages / h",
 			"type": "stat"
 		},
 		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 9
-			},
-			"id": 200,
-			"title": "AI Performance",
-			"type": "row"
-		},
-		{
 			"datasource": {
 				"type": "prometheus",
 				"uid": "${DS_PROMETHEUS}"
@@ -208,101 +89,49 @@
 			"fieldConfig": {
 				"defaults": {
 					"color": {
-						"mode": "palette-classic"
+						"mode": "thresholds"
 					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "s"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 10
-			},
-			"id": 4,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "histogram_quantile(0.50, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
-					"legendFormat": "p50"
-				},
-				{
-					"expr": "histogram_quantile(0.90, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
-					"legendFormat": "p90"
-				},
-				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(ai_request_duration_seconds_bucket[5m])))",
-					"legendFormat": "p99"
-				}
-			],
-			"title": "AI Request Latency",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							}
+						]
 					},
 					"unit": "short"
 				},
 				"overrides": []
 			},
 			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 10
+				"h": 5,
+				"w": 6,
+				"x": 6,
+				"y": 1
 			},
-			"id": 5,
+			"id": 3,
 			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
 				},
-				"tooltip": {
-					"mode": "multi"
-				}
+				"textMode": "auto"
 			},
 			"targets": [
 				{
-					"expr": "sum(increase(ai_requests_total[1h]))",
-					"legendFormat": "requests/h"
+					"refId": "A",
+					"expr": "sum(increase(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[1h]))",
+					"legendFormat": "prompts/h"
 				}
 			],
-			"title": "AI Requests (1h total)",
-			"type": "timeseries"
+			"title": "AI Prompts / h",
+			"type": "stat"
 		},
 		{
 			"datasource": {
@@ -312,57 +141,101 @@
 			"fieldConfig": {
 				"defaults": {
 					"color": {
-						"mode": "palette-classic"
+						"mode": "thresholds"
 					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							}
+						]
 					},
 					"unit": "percentunit"
 				},
 				"overrides": []
 			},
 			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 10
+				"h": 5,
+				"w": 6,
+				"x": 12,
+				"y": 1
 			},
-			"id": 6,
+			"id": 4,
 			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
 				},
-				"tooltip": {
-					"mode": "multi"
-				}
+				"textMode": "auto"
 			},
 			"targets": [
 				{
-					"expr": "sum(increase(ai_requests_total{outcome=\"error\"}[5m])) / clamp_min(sum(increase(ai_requests_total[5m])), 1)",
-					"legendFormat": "error rate"
+					"refId": "A",
+					"expr": "sum(rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\",outcome=\"success\"}[$__rate_interval])) / clamp_min(sum(rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])), 1e-9)",
+					"legendFormat": "success"
 				}
 			],
-			"title": "AI Error Rate",
-			"type": "timeseries"
+			"title": "Success Rate",
+			"type": "stat"
 		},
 		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 18
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
 			},
-			"id": 300,
-			"title": "Memory",
-			"type": "row"
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "thresholds"
+					},
+					"thresholds": {
+						"mode": "absolute",
+						"steps": [
+							{
+								"color": "green",
+								"value": null
+							}
+						]
+					},
+					"unit": "currencyUSD"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 5,
+				"w": 6,
+				"x": 18,
+				"y": 1
+			},
+			"id": 5,
+			"options": {
+				"colorMode": "value",
+				"graphMode": "area",
+				"justifyMode": "auto",
+				"orientation": "auto",
+				"reduceOptions": {
+					"calcs": ["lastNotNull"],
+					"fields": "",
+					"values": false
+				},
+				"textMode": "auto"
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(increase(llm_cost_dollars_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "usd"
+				}
+			],
+			"title": "Cost / Range",
+			"type": "stat"
 		},
 		{
 			"datasource": {
@@ -377,15 +250,11 @@
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
+						"fillOpacity": 10,
+						"lineWidth": 2,
 						"pointSize": 5,
 						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
+						"spanNulls": false
 					},
 					"unit": "short"
 				},
@@ -395,25 +264,28 @@
 				"h": 8,
 				"w": 12,
 				"x": 0,
-				"y": 19
+				"y": 6
 			},
-			"id": 7,
+			"id": 6,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "sum by (outcome) (increase(memory_consolidation_ticks_total[1h]))",
-					"legendFormat": "{{outcome}}"
+					"refId": "A",
+					"expr": "sum by (agent_kind, outcome) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{agent_kind}} {{outcome}}"
 				}
 			],
-			"title": "Memory Consolidation Ticks (1h)",
+			"title": "Prompt Rate by Agent / Outcome",
 			"type": "timeseries"
 		},
 		{
@@ -443,33 +315,38 @@
 				"h": 8,
 				"w": 12,
 				"x": 12,
-				"y": 19
+				"y": 6
 			},
-			"id": 18,
+			"id": 7,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.50, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
+					"refId": "A",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p50"
 				},
 				{
-					"expr": "histogram_quantile(0.90, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
+					"refId": "B",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p90"
 				},
 				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[5m])))",
+					"refId": "C",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p99"
 				}
 			],
-			"title": "Memory Consolidation Latency",
+			"title": "Prompt Latency p50/p90/p99",
 			"type": "timeseries"
 		},
 		{
@@ -478,10 +355,226 @@
 				"h": 1,
 				"w": 24,
 				"x": 0,
-				"y": 27
+				"y": 14
 			},
-			"id": 400,
-			"title": "Heartbeat",
+			"id": 8,
+			"title": "Discord Traffic",
+			"type": "row"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 15
+			},
+			"id": 9,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (guild_id, channel_type) (rate(discord_messages_received_total{guild_id=~\"$guild_id\"}[$__rate_interval]))",
+					"legendFormat": "{{guild_id}} {{channel_type}}"
+				}
+			],
+			"title": "Messages by Guild / Channel",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 15
+			},
+			"id": 10,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (author_type, is_thread, has_attachments) (rate(discord_messages_received_total{guild_id=~\"$guild_id\"}[$__rate_interval]))",
+					"legendFormat": "{{author_type}} thread={{is_thread}} attach={{has_attachments}}"
+				}
+			],
+			"title": "Messages by Author / Shape",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 23
+			},
+			"id": 11,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "topk(20, sum by (guild_id) (increase(discord_messages_received_total{guild_id=~\"$guild_id\"}[$__range])))",
+					"legendFormat": "{{guild_id}}"
+				}
+			],
+			"title": "Messages by Guild in Range",
+			"type": "barchart"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 23
+			},
+			"id": 12,
+			"options": {
+				"legend": {
+					"displayMode": "list",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (channel_type) (increase(discord_messages_received_total{guild_id=~\"$guild_id\"}[$__range]))",
+					"legendFormat": "{{channel_type}}"
+				}
+			],
+			"title": "Messages by Channel Type in Range",
+			"type": "barchart"
+		},
+		{
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 31
+			},
+			"id": 13,
+			"title": "LLM Workload",
 			"type": "row"
 		},
 		{
@@ -511,25 +604,730 @@
 				"h": 8,
 				"w": 8,
 				"x": 0,
-				"y": 28
+				"y": 32
 			},
-			"id": 8,
+			"id": 14,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "sum by (outcome) (increase(heartbeat_ticks_total[1h]))",
+					"refId": "A",
+					"expr": "sum by (agent_kind, guild_id) (llm_busy_sessions{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"})",
+					"legendFormat": "{{agent_kind}} {{guild_id}}"
+				}
+			],
+			"title": "Busy LLM Prompts",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 32
+			},
+			"id": 15,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (trigger, outcome) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{trigger}} {{outcome}}"
+				}
+			],
+			"title": "Prompt Rate by Trigger",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 32
+			},
+			"id": 16,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (provider, model) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{provider}}/{{model}}"
+				}
+			],
+			"title": "Prompt Rate by Model",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 40
+			},
+			"id": 17,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, model) (rate(llm_input_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{agent_kind}} {{model}}"
+				}
+			],
+			"title": "Input Tokens / sec",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 40
+			},
+			"id": 18,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, model) (rate(llm_output_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{agent_kind}} {{model}}"
+				}
+			],
+			"title": "Output Tokens / sec",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 40
+			},
+			"id": 19,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, model) (rate(llm_cache_read_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"legendFormat": "{{agent_kind}} {{model}}"
+				}
+			],
+			"title": "Cache Read Tokens / sec",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "currencyUSD"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 48
+			},
+			"id": 20,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, model) (increase(llm_cost_dollars_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "{{agent_kind}} {{model}}"
+				}
+			],
+			"title": "Cost by Agent / Model",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 48
+			},
+			"id": 21,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (trigger) (increase(llm_input_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "input {{trigger}}"
+				},
+				{
+					"refId": "B",
+					"expr": "sum by (trigger) (increase(llm_output_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "output {{trigger}}"
+				},
+				{
+					"refId": "C",
+					"expr": "sum by (trigger) (increase(llm_cache_read_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "cache {{trigger}}"
+				}
+			],
+			"title": "Token Mix by Trigger",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 56
+			},
+			"id": 22,
+			"title": "Reliability",
+			"type": "row"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 57
+			},
+			"id": 23,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, error_type) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "{{agent_kind}} {{error_type}}"
+				}
+			],
+			"title": "Session Errors by Type",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 57
+			},
+			"id": 24,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, error_type) (increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "{{agent_kind}} {{error_type}}"
+				}
+			],
+			"title": "Session Retries by Type",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 57
+			},
+			"id": 25,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (agent_kind, reason) (increase(session_restarts_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "{{agent_kind}} {{reason}}"
+				}
+			],
+			"title": "Session Restarts by Reason",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 65
+			},
+			"id": 26,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (http_status) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "http {{http_status}}"
+				},
+				{
+					"refId": "B",
+					"expr": "sum by (retryable) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"legendFormat": "retryable {{retryable}}"
+				}
+			],
+			"title": "Session Error HTTP / Retryability",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "percentunit"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 65
+			},
+			"id": 27,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) / clamp_min(sum(increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) + sum(increase(session_restarts_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])), 1)",
+					"legendFormat": "retry ratio"
+				}
+			],
+			"title": "Retry to Restart Ratio",
+			"type": "timeseries"
+		},
+		{
+			"collapsed": false,
+			"gridPos": {
+				"h": 1,
+				"w": 24,
+				"x": 0,
+				"y": 73
+			},
+			"id": 28,
+			"title": "Schedulers / Memory",
+			"type": "row"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 0,
+				"y": 74
+			},
+			"id": 29,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (outcome) (rate(heartbeat_ticks_total[$__rate_interval]))",
 					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "Heartbeat Ticks (1h)",
+			"title": "Heartbeat Ticks",
 			"type": "timeseries"
 		},
 		{
@@ -559,33 +1357,38 @@
 				"h": 8,
 				"w": 8,
 				"x": 8,
-				"y": 28
+				"y": 74
 			},
-			"id": 9,
+			"id": 30,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "histogram_quantile(0.50, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
+					"refId": "A",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[$__rate_interval])))",
 					"legendFormat": "p50"
 				},
 				{
-					"expr": "histogram_quantile(0.90, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
+					"refId": "B",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[$__rate_interval])))",
 					"legendFormat": "p90"
 				},
 				{
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[5m])))",
+					"refId": "C",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(heartbeat_tick_duration_seconds_bucket[$__rate_interval])))",
 					"legendFormat": "p99"
 				}
 			],
-			"title": "Heartbeat Tick Latency",
+			"title": "Heartbeat Latency p50/p90/p99",
 			"type": "timeseries"
 		},
 		{
@@ -615,25 +1418,140 @@
 				"h": 8,
 				"w": 8,
 				"x": 16,
-				"y": 28
+				"y": 74
 			},
-			"id": 10,
+			"id": 31,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "increase(heartbeat_reminders_executed_total[1h])",
-					"legendFormat": "reminders/h"
+					"refId": "A",
+					"expr": "sum by (outcome) (rate(memory_consolidation_ticks_total[$__rate_interval]))",
+					"legendFormat": "{{outcome}}"
 				}
 			],
-			"title": "Reminders Executed (1h)",
+			"title": "Memory Consolidation",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "s"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 82
+			},
+			"id": 32,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[$__rate_interval])))",
+					"legendFormat": "p50"
+				},
+				{
+					"refId": "B",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[$__rate_interval])))",
+					"legendFormat": "p90"
+				},
+				{
+					"refId": "C",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(memory_consolidation_tick_duration_seconds_bucket[$__rate_interval])))",
+					"legendFormat": "p99"
+				}
+			],
+			"title": "Memory Consolidation Latency p50/p90/p99",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 82
+			},
+			"id": 33,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (reason) (increase(critic_auditor_skip_total[$__range]))",
+					"legendFormat": "{{reason}}"
+				}
+			],
+			"title": "Critic Auditor Skips",
 			"type": "timeseries"
 		},
 		{
@@ -642,329 +1560,9 @@
 				"h": 1,
 				"w": 24,
 				"x": 0,
-				"y": 36
+				"y": 90
 			},
-			"id": 500,
-			"title": "LLM Sessions",
-			"type": "row"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 37
-			},
-			"id": 11,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "llm_active_sessions",
-					"legendFormat": "registered sessions"
-				},
-				{
-					"expr": "llm_busy_sessions",
-					"legendFormat": "busy sessions"
-				}
-			],
-			"title": "LLM Sessions",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 37
-			},
-			"id": 12,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (agent_type) (increase(ai_requests_total[1h]))",
-					"legendFormat": "{{agent_type}}"
-				}
-			],
-			"title": "AI Requests by Agent Type (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 37
-			},
-			"id": 13,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (trigger) (increase(ai_requests_total[1h]))",
-					"legendFormat": "{{trigger}}"
-				}
-			],
-			"title": "AI Requests by Trigger (1h)",
-			"type": "timeseries"
-		},
-		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 45
-			},
-			"id": 700,
-			"title": "Token Usage",
-			"type": "row"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 46
-			},
-			"id": 19,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (trigger) (increase(llm_input_tokens_total[1h]))",
-					"legendFormat": "{{trigger}}"
-				}
-			],
-			"title": "LLM Input Tokens (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 46
-			},
-			"id": 20,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (trigger) (increase(llm_output_tokens_total[1h]))",
-					"legendFormat": "{{trigger}}"
-				}
-			],
-			"title": "LLM Output Tokens (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 46
-			},
-			"id": 21,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (trigger) (increase(llm_cache_read_tokens_total[1h]))",
-					"legendFormat": "{{trigger}}"
-				}
-			],
-			"title": "LLM Cache Read Tokens (1h)",
-			"type": "timeseries"
-		},
-		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 54
-			},
-			"id": 800,
+			"id": 34,
 			"title": "Minecraft",
 			"type": "row"
 		},
@@ -995,823 +1593,242 @@
 				"h": 8,
 				"w": 8,
 				"x": 0,
-				"y": 55
-			},
-			"id": 22,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (status) (increase(mc_jobs_total[1h]))",
-					"legendFormat": "{{status}}"
-				}
-			],
-			"title": "MC Jobs (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 55
-			},
-			"id": 23,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (kind) (increase(mc_bot_events_total[1h]))",
-					"legendFormat": "{{kind}}"
-				}
-			],
-			"title": "MC Bot Events (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 55
-			},
-			"id": 24,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "topk(10, sum by (tool) (increase(mc_mcp_tool_calls_total[1h])))",
-					"legendFormat": "{{tool}}"
-				}
-			],
-			"title": "MC MCP Tool Calls (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "loki",
-				"uid": "${DS_LOKI}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "bars",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 63
-			},
-			"id": 25,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "{job=\"vicissitude\"} |= `mcp_tool_calls_total` | regexp `mcp_tool_calls_total: (?P<json>.+)$` | json tools=\"json\" | unpack",
-					"legendFormat": "core MCP tool calls"
-				}
-			],
-			"title": "Core MCP Tool Calls (log-based)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 63
-			},
-			"id": 26,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum(increase(mc_stuck_total[1h]))",
-					"legendFormat": "stuck"
-				},
-				{
-					"expr": "sum(increase(mc_failure_streaks_total[1h]))",
-					"legendFormat": "failure streaks"
-				}
-			],
-			"title": "MC Stuck & Failure Streaks (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 63
-			},
-			"id": 27,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum(increase(mc_cooldowns_total[1h]))",
-					"legendFormat": "cooldowns"
-				},
-				{
-					"expr": "sum(increase(mc_auto_notifications_total[1h]))",
-					"legendFormat": "auto notifications"
-				}
-			],
-			"title": "MC Cooldowns & Notifications (1h)",
-			"type": "timeseries"
-		},
-		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 71
-			},
-			"id": 600,
-			"title": "Logs",
-			"type": "row"
-		},
-		{
-			"datasource": {
-				"type": "loki",
-				"uid": "${DS_LOKI}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "bars",
-						"fillOpacity": 80,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "error"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "warn"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "orange",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "info"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "green",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
-			},
-			"gridPos": {
-				"h": 6,
-				"w": 12,
-				"x": 0,
-				"y": 72
-			},
-			"id": 14,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (level) (count_over_time({job=\"vicissitude\"} | json | label_format level=`{{if eq .level \"60\"}}fatal{{else if eq .level \"50\"}}error{{else if eq .level \"40\"}}warn{{else if eq .level \"30\"}}info{{else if eq .level \"20\"}}debug{{else if eq .level \"10\"}}trace{{else}}{{.level}}{{end}}` [1m]))",
-					"legendFormat": "{{level}}"
-				}
-			],
-			"title": "Log Volume by Level",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "loki",
-				"uid": "${DS_LOKI}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "bars",
-						"fillOpacity": 80,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 6,
-				"w": 12,
-				"x": 12,
-				"y": 72
-			},
-			"id": 15,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (component) (count_over_time({job=\"vicissitude\"} | json [1m]))",
-					"legendFormat": "{{component}}"
-				}
-			],
-			"title": "Log Volume by Component",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "loki",
-				"uid": "${DS_LOKI}"
-			},
-			"gridPos": {
-				"h": 10,
-				"w": 24,
-				"x": 0,
-				"y": 78
-			},
-			"id": 16,
-			"maxDataPoints": 200,
-			"options": {
-				"dedupStrategy": "none",
-				"enableLogDetails": true,
-				"prettifyLogMessage": false,
-				"showCommonLabels": false,
-				"showLabels": false,
-				"showTime": true,
-				"sortOrder": "Descending",
-				"wrapLogMessage": true
-			},
-			"targets": [
-				{
-					"expr": "{job=\"vicissitude\"} | json | label_format level=`{{if eq .level \"60\"}}fatal{{else if eq .level \"50\"}}error{{else if eq .level \"40\"}}warn{{else if eq .level \"30\"}}info{{else if eq .level \"20\"}}debug{{else if eq .level \"10\"}}trace{{else}}{{.level}}{{end}}` | level=~\"error|warn|fatal\"",
-					"legendFormat": ""
-				}
-			],
-			"title": "Errors & Warnings",
-			"type": "logs"
-		},
-		{
-			"datasource": {
-				"type": "loki",
-				"uid": "${DS_LOKI}"
-			},
-			"gridPos": {
-				"h": 12,
-				"w": 24,
-				"x": 0,
-				"y": 88
-			},
-			"id": 17,
-			"maxDataPoints": 500,
-			"options": {
-				"dedupStrategy": "none",
-				"enableLogDetails": true,
-				"prettifyLogMessage": false,
-				"showCommonLabels": false,
-				"showLabels": false,
-				"showTime": true,
-				"sortOrder": "Descending",
-				"wrapLogMessage": true
-			},
-			"targets": [
-				{
-					"expr": "{job=\"vicissitude\"} | json",
-					"legendFormat": ""
-				}
-			],
-			"title": "All Logs",
-			"type": "logs"
-		},
-		{
-			"collapsed": false,
-			"gridPos": {
-				"h": 1,
-				"w": 24,
-				"x": 0,
-				"y": 100
-			},
-			"id": 900,
-			"title": "Reliability",
-			"type": "row"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 101
-			},
-			"id": 30,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (http_status) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
-					"legendFormat": "{{http_status}}"
-				}
-			],
-			"title": "Session Errors by http_status (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 101
-			},
-			"id": 31,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (retryable) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
-					"legendFormat": "retryable={{retryable}}"
-				}
-			],
-			"title": "Session Errors by retryable (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 101
-			},
-			"id": 32,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (error_class) (increase(session_errors_total{error_type=\"session_error\"}[1h]))",
-					"legendFormat": "{{error_class}}"
-				}
-			],
-			"title": "Session Errors by error_class (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 109
-			},
-			"id": 33,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (error_type) (increase(session_retries_total[1h]))",
-					"legendFormat": "{{error_type}}"
-				}
-			],
-			"title": "Session Retries by error_type (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 8,
-				"y": 109
-			},
-			"id": 34,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (reason) (increase(session_restarts_total[1h]))",
-					"legendFormat": "{{reason}}"
-				}
-			],
-			"title": "Session Restarts by reason (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"lineWidth": 2,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false
-					},
-					"unit": "percentunit"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 16,
-				"y": 109
+				"y": 91
 			},
 			"id": 35,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "increase(session_retries_total[1h]) / clamp_min(increase(session_retries_total[1h]) + increase(session_restarts_total[1h]), 1)",
-					"legendFormat": "retry ratio"
+					"refId": "A",
+					"expr": "sum by (type, status) (rate(mc_jobs_total[$__rate_interval]))",
+					"legendFormat": "{{type}} {{status}}"
 				}
 			],
-			"title": "Retry to Rotation Ratio (1h)",
+			"title": "Minecraft Jobs",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 8,
+				"y": 91
+			},
+			"id": 36,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (kind) (rate(mc_bot_events_total[$__rate_interval]))",
+					"legendFormat": "{{kind}}"
+				}
+			],
+			"title": "Minecraft Bot Events",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 8,
+				"x": 16,
+				"y": 91
+			},
+			"id": 37,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "topk(15, sum by (tool) (rate(mc_mcp_tool_calls_total[$__rate_interval])))",
+					"legendFormat": "{{tool}}"
+				}
+			],
+			"title": "Minecraft MCP Tool Calls",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 0,
+				"y": 99
+			},
+			"id": 38,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum(rate(mc_stuck_total[$__rate_interval]))",
+					"legendFormat": "stuck"
+				},
+				{
+					"refId": "B",
+					"expr": "sum(rate(mc_failure_streaks_total[$__rate_interval]))",
+					"legendFormat": "failure streaks"
+				},
+				{
+					"refId": "C",
+					"expr": "sum(rate(mc_cooldowns_total[$__rate_interval]))",
+					"legendFormat": "cooldowns"
+				}
+			],
+			"title": "Minecraft Recovery Signals",
+			"type": "timeseries"
+		},
+		{
+			"datasource": {
+				"type": "prometheus",
+				"uid": "${DS_PROMETHEUS}"
+			},
+			"fieldConfig": {
+				"defaults": {
+					"color": {
+						"mode": "palette-classic"
+					},
+					"custom": {
+						"axisBorderShow": false,
+						"drawStyle": "line",
+						"fillOpacity": 10,
+						"lineWidth": 2,
+						"pointSize": 5,
+						"showPoints": "never",
+						"spanNulls": false
+					},
+					"unit": "short"
+				},
+				"overrides": []
+			},
+			"gridPos": {
+				"h": 8,
+				"w": 12,
+				"x": 12,
+				"y": 99
+			},
+			"id": 39,
+			"options": {
+				"legend": {
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
+				},
+				"tooltip": {
+					"mode": "multi",
+					"sort": "desc"
+				}
+			},
+			"targets": [
+				{
+					"refId": "A",
+					"expr": "sum by (kind) (rate(mc_auto_notifications_total[$__rate_interval]))",
+					"legendFormat": "{{kind}}"
+				}
+			],
+			"title": "Minecraft Notifications",
 			"type": "timeseries"
 		},
 		{
@@ -1820,9 +1837,9 @@
 				"h": 1,
 				"w": 24,
 				"x": 0,
-				"y": 118
+				"y": 107
 			},
-			"id": 1000,
+			"id": 40,
 			"title": "Character Drift",
 			"type": "row"
 		},
@@ -1845,25 +1862,6 @@
 						"showPoints": "never",
 						"spanNulls": false
 					},
-					"max": 1,
-					"min": 0,
-					"thresholds": {
-						"mode": "absolute",
-						"steps": [
-							{
-								"color": "green",
-								"value": null
-							},
-							{
-								"color": "yellow",
-								"value": 0.3
-							},
-							{
-								"color": "red",
-								"value": 0.5
-							}
-						]
-					},
 					"unit": "short"
 				},
 				"overrides": []
@@ -1872,25 +1870,28 @@
 				"h": 8,
 				"w": 8,
 				"x": 0,
-				"y": 119
+				"y": 108
 			},
-			"id": 36,
+			"id": 41,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
+					"refId": "A",
 					"expr": "drift_score",
 					"legendFormat": "{{namespace}}"
 				}
 			],
-			"title": "Drift Score Trend",
+			"title": "Drift Score",
 			"type": "timeseries"
 		},
 		{
@@ -1906,89 +1907,42 @@
 					"custom": {
 						"axisBorderShow": false,
 						"drawStyle": "line",
-						"fillOpacity": 30,
-						"lineWidth": 1,
+						"fillOpacity": 10,
+						"lineWidth": 2,
 						"pointSize": 5,
 						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
+						"spanNulls": false
 					},
 					"unit": "short"
 				},
-				"overrides": [
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "none"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "green",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "minor"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "yellow",
-									"mode": "fixed"
-								}
-							}
-						]
-					},
-					{
-						"matcher": {
-							"id": "byName",
-							"options": "major"
-						},
-						"properties": [
-							{
-								"id": "color",
-								"value": {
-									"fixedColor": "red",
-									"mode": "fixed"
-								}
-							}
-						]
-					}
-				]
+				"overrides": []
 			},
 			"gridPos": {
 				"h": 8,
 				"w": 8,
 				"x": 8,
-				"y": 119
+				"y": 108
 			},
-			"id": 37,
+			"id": 42,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "sum by (severity) (increase(drift_audits_total[1h]))",
+					"refId": "A",
+					"expr": "sum by (severity) (increase(drift_audits_total[$__range]))",
 					"legendFormat": "{{severity}}"
 				}
 			],
-			"title": "Drift Audits by Severity (1h)",
+			"title": "Drift Audits by Severity",
 			"type": "timeseries"
 		},
 		{
@@ -2018,84 +1972,134 @@
 				"h": 8,
 				"w": 8,
 				"x": 16,
-				"y": 119
+				"y": 108
 			},
-			"id": 38,
+			"id": 43,
 			"options": {
 				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
+					"displayMode": "table",
+					"placement": "bottom",
+					"showLegend": true
 				},
 				"tooltip": {
-					"mode": "multi"
+					"mode": "multi",
+					"sort": "desc"
 				}
 			},
 			"targets": [
 				{
-					"expr": "sum by (namespace) (increase(drift_audits_total[1h]))",
+					"refId": "A",
+					"expr": "sum by (namespace) (increase(drift_audits_total[$__range]))",
 					"legendFormat": "{{namespace}}"
 				}
 			],
-			"title": "Drift Audits by Namespace (1h)",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${DS_PROMETHEUS}"
-			},
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"drawStyle": "line",
-						"fillOpacity": 20,
-						"lineWidth": 1,
-						"pointSize": 5,
-						"showPoints": "never",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						}
-					},
-					"unit": "short"
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 8,
-				"w": 8,
-				"x": 0,
-				"y": 127
-			},
-			"id": 39,
-			"options": {
-				"legend": {
-					"displayMode": "list",
-					"placement": "bottom"
-				},
-				"tooltip": {
-					"mode": "multi"
-				}
-			},
-			"targets": [
-				{
-					"expr": "sum by (reason) (increase(critic_auditor_skip_total[1h]))",
-					"legendFormat": "{{reason}}"
-				}
-			],
-			"title": "Critic Auditor Skips by Reason (1h)",
+			"title": "Drift Audits by Namespace",
 			"type": "timeseries"
 		}
 	],
+	"refresh": "30s",
 	"schemaVersion": 39,
-	"tags": ["vicissitude", "discord-bot"],
+	"style": "dark",
+	"tags": ["vicissitude", "discord-bot", "ai-agent", "prometheus"],
 	"templating": {
-		"list": []
+		"list": [
+			{
+				"allValue": ".*",
+				"current": {
+					"selected": false,
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "${DS_PROMETHEUS}"
+				},
+				"definition": "label_values(discord_messages_received_total, guild_id)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Guild",
+				"multi": true,
+				"name": "guild_id",
+				"options": [],
+				"query": "label_values(discord_messages_received_total, guild_id)",
+				"refresh": 2,
+				"regex": "",
+				"sort": 1,
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"selected": false,
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "${DS_PROMETHEUS}"
+				},
+				"definition": "label_values(ai_requests_total, agent_kind)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Agent Kind",
+				"multi": true,
+				"name": "agent_kind",
+				"options": [],
+				"query": "label_values(ai_requests_total, agent_kind)",
+				"refresh": 2,
+				"regex": "",
+				"sort": 1,
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"selected": false,
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "${DS_PROMETHEUS}"
+				},
+				"definition": "label_values(ai_requests_total, model)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Model",
+				"multi": true,
+				"name": "model",
+				"options": [],
+				"query": "label_values(ai_requests_total, model)",
+				"refresh": 2,
+				"regex": "",
+				"sort": 1,
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"selected": false,
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "${DS_PROMETHEUS}"
+				},
+				"definition": "label_values(ai_requests_total, trigger)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Trigger",
+				"multi": true,
+				"name": "trigger",
+				"options": [],
+				"query": "label_values(ai_requests_total, trigger)",
+				"refresh": 2,
+				"regex": "",
+				"sort": 1,
+				"type": "query"
+			}
+		]
 	},
 	"time": {
 		"from": "now-6h",
@@ -2103,7 +2107,7 @@
 	},
 	"timepicker": {},
 	"timezone": "browser",
-	"title": "Vicissitude - Discord Bot ふあ",
-	"uid": "vicissitude-bot",
+	"title": "Vicissitude AI Agent Metrics",
+	"uid": "vicissitude-ai-agent-metrics",
 	"version": 1
 }

@@ -120,6 +120,7 @@ export class McBrainManager {
 			logger: deps.logger,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			profile,
+			metrics: deps.metrics,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
 		});

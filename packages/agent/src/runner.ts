@@ -1,5 +1,12 @@
 /* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のメッセージ駆動ループ・セッション管理が密結合のため分割困難 */
-import { classifyErrorType, METRIC, recordTokenMetrics } from "@vicissitude/observability/metrics";
+import {
+	buildAgentMetricLabels,
+	classifyErrorType,
+	inferGuildId,
+	inferTrigger,
+	METRIC,
+	recordTokenMetrics,
+} from "@vicissitude/observability/metrics";
 import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
@@ -25,6 +32,27 @@ const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
 const MESSAGE_DEBOUNCE_MS = 500;
 const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
+
+interface PendingMessage {
+	text: string;
+	attachments?: Attachment[];
+	trigger: string;
+	guildId?: string;
+}
+
+interface ActivePromptMetrics {
+	labels: Record<string, string>;
+	startedAt: number;
+}
+
+type PromptOutcome = "success" | "error" | "cancelled" | "deleted";
+
+function mergeMetricLabel(values: Array<string | undefined>, fallback: string): string {
+	const unique = [...new Set(values.filter((value): value is string => !!value))];
+	if (unique.length === 0) return fallback;
+	if (unique.length === 1) return unique[0] ?? fallback;
+	return "mixed";
+}
 
 function formatErrorMessage(error: unknown): string {
 	if (error instanceof Error) return error.message;
@@ -71,13 +99,17 @@ export class AgentRunner implements AiAgent {
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
 	private retryAttempt = 0;
-	private pendingMessages: Array<{ text: string; attachments?: Attachment[] }> = [];
+	private pendingMessages: PendingMessage[] = [];
 	private pendingResolve: (() => void) | null = null;
 	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
 	private lastPromptText: string | null = null;
 	private lastPromptAttachments: Attachment[] | null = null;
+	private lastPromptTrigger: string | null = null;
+	private lastPromptGuildId: string | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
 	private hasBotPending = false;
+	private activePromptMetrics: ActivePromptMetrics | null = null;
+	private lastPromptMetricLabels: Record<string, string> | null = null;
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -122,7 +154,12 @@ export class AgentRunner implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		this.pendingMessages.push({ text: options.message, attachments: options.attachments });
+		this.pendingMessages.push({
+			text: options.message,
+			attachments: options.attachments,
+			trigger: inferTrigger(options.sessionKey),
+			guildId: options.guildId ?? inferGuildId(options.sessionKey) ?? this.contextGuildId,
+		});
 		if (options.isBot) this.hasBotPending = true;
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
@@ -133,10 +170,14 @@ export class AgentRunner implements AiAgent {
 				this.pendingMessages.unshift({
 					text: this.lastPromptText,
 					attachments: this.lastPromptAttachments ?? undefined,
+					trigger: this.lastPromptTrigger ?? "unknown",
+					guildId: this.lastPromptGuildId ?? undefined,
 				});
 			}
 			this.lastPromptText = null;
 			this.lastPromptAttachments = null;
+			this.lastPromptTrigger = null;
+			this.lastPromptGuildId = null;
 			this.sessionAbortController?.abort();
 		}
 
@@ -153,6 +194,49 @@ export class AgentRunner implements AiAgent {
 				err,
 			);
 		});
+	}
+
+	private buildMetricLabels(
+		options: { trigger?: string; guildId?: string } = {},
+	): Record<string, string> {
+		return buildAgentMetricLabels({
+			agentId: this.agentId,
+			guildId: options.guildId ?? this.contextGuildId,
+			trigger: options.trigger ?? "session",
+			providerId: this.profile.model.providerId,
+			modelId: this.profile.model.modelId,
+		});
+	}
+
+	private metricLabels(extra: Record<string, string> = {}): Record<string, string> {
+		return {
+			...(this.activePromptMetrics?.labels ??
+				this.lastPromptMetricLabels ??
+				this.buildMetricLabels()),
+			...extra,
+		};
+	}
+
+	private startPromptMetrics(trigger: string, guildId: string | undefined): void {
+		const labels = this.buildMetricLabels({ trigger, guildId });
+		this.activePromptMetrics = { labels, startedAt: performance.now() };
+		this.lastPromptMetricLabels = null;
+		this.metrics?.incrementGauge(METRIC.LLM_BUSY_SESSIONS, labels);
+	}
+
+	private finalizePromptMetrics(outcome: PromptOutcome): void {
+		const active = this.activePromptMetrics;
+		if (!active) return;
+
+		this.lastPromptMetricLabels = active.labels;
+		if (this.metrics) {
+			const labels = { ...active.labels, outcome };
+			const duration = (performance.now() - active.startedAt) / 1000;
+			this.metrics.incrementCounter(METRIC.AI_REQUESTS, labels);
+			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration, labels);
+			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS, active.labels);
+		}
+		this.activePromptMetrics = null;
 	}
 
 	protected async startPollingLoop(): Promise<void> {
@@ -196,20 +280,27 @@ export class AgentRunner implements AiAgent {
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") {
+					this.finalizePromptMetrics("cancelled");
 					// runner stop による中断
 					if (signal.aborted) return;
 					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
 					this.lastPromptText = null;
 					this.lastPromptAttachments = null;
+					this.lastPromptTrigger = null;
+					this.lastPromptGuildId = null;
 					this.sessionAbortController = null;
 					resetBackoffState();
 					continue;
 				}
 
 				if (event.type === "deleted") {
-					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-						reason: "session_deleted_rotation",
-					});
+					this.metrics?.incrementCounter(
+						METRIC.SESSION_RESTARTS,
+						this.metricLabels({
+							reason: "session_deleted_rotation",
+						}),
+					);
+					this.finalizePromptMetrics("deleted");
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
 					resetBackoffState();
@@ -227,8 +318,11 @@ export class AgentRunner implements AiAgent {
 				}
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
-				// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
-				if (event.type === "idle") await this.tryProactiveCompact(event);
+				if (event.type === "idle") {
+					this.finalizePromptMetrics("success");
+					// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
+					await this.tryProactiveCompact(event);
+				}
 
 				// eslint-disable-next-line no-await-in-loop -- rotation only happens after session end
 				await this.rotateSessionIfExpired();
@@ -236,6 +330,8 @@ export class AgentRunner implements AiAgent {
 				if (event.type !== "error") {
 					this.lastPromptText = null;
 					this.lastPromptAttachments = null;
+					this.lastPromptTrigger = null;
+					this.lastPromptGuildId = null;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
@@ -245,9 +341,13 @@ export class AgentRunner implements AiAgent {
 				// --- error イベントのエラー戦略 ---
 				if (event.retryable === false) {
 					// retryable:false: 即時ローテーション（バックオフなし）
-					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-						reason: "error_non_retryable_rotation",
-					});
+					this.metrics?.incrementCounter(
+						METRIC.SESSION_RESTARTS,
+						this.metricLabels({
+							reason: "error_non_retryable_rotation",
+						}),
+					);
+					this.finalizePromptMetrics("error");
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
 					await this.forceSessionRotation({ skipSummary: true });
 					resetBackoffState();
@@ -256,22 +356,33 @@ export class AgentRunner implements AiAgent {
 
 				// retryable:true / undefined: exp backoff。直前 sleep が cap かつ今回も error ならローテーション
 				if (prevSleepWasCapped) {
-					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-						reason: "error_retryable_rotation",
-					});
+					this.metrics?.incrementCounter(
+						METRIC.SESSION_RESTARTS,
+						this.metricLabels({
+							reason: "error_retryable_rotation",
+						}),
+					);
+					this.finalizePromptMetrics("error");
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
 					await this.forceSessionRotation();
 					resetBackoffState();
 					continue;
 				}
 				this.retryAttempt += 1;
-				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
-					error_type: classifyErrorType(event),
-					attempt: String(this.retryAttempt),
-				});
-				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-					reason: "error_retryable_backoff",
-				});
+				this.metrics?.incrementCounter(
+					METRIC.SESSION_RETRIES,
+					this.metricLabels({
+						error_type: classifyErrorType(event),
+						attempt: String(this.retryAttempt),
+					}),
+				);
+				this.metrics?.incrementCounter(
+					METRIC.SESSION_RESTARTS,
+					this.metricLabels({
+						reason: "error_retryable_backoff",
+					}),
+				);
+				this.finalizePromptMetrics("error");
 			} catch (err) {
 				if (signal.aborted) return;
 				this.logger.error(
@@ -279,15 +390,32 @@ export class AgentRunner implements AiAgent {
 					err,
 				);
 				this.sessionWatch = null;
+				this.metrics?.incrementCounter(
+					METRIC.SESSION_ERRORS,
+					this.metricLabels({
+						source: "runner_exception",
+						error_type: "session_error",
+						http_status: "unknown",
+						retryable: "unknown",
+						error_class: err instanceof Error ? err.name : "unknown",
+					}),
+				);
+				this.finalizePromptMetrics("error");
 				// 例外時は retryable 不明のため retryable:true 扱いのバックオフ
 				this.retryAttempt += 1;
-				this.metrics?.incrementCounter(METRIC.SESSION_RETRIES, {
-					error_type: "session_error",
-					attempt: String(this.retryAttempt),
-				});
-				this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, {
-					reason: "error_retryable_backoff",
-				});
+				this.metrics?.incrementCounter(
+					METRIC.SESSION_RETRIES,
+					this.metricLabels({
+						error_type: "session_error",
+						attempt: String(this.retryAttempt),
+					}),
+				);
+				this.metrics?.incrementCounter(
+					METRIC.SESSION_RESTARTS,
+					this.metricLabels({
+						reason: "error_retryable_backoff",
+					}),
+				);
 			}
 
 			if (signal.aborted) return;
@@ -339,6 +467,7 @@ export class AgentRunner implements AiAgent {
 
 	stop(): void {
 		this.running = false;
+		this.finalizePromptMetrics("cancelled");
 		this.sessionAbortController?.abort();
 		this.sessionAbortController = null;
 		this.abortController?.abort();
@@ -369,6 +498,8 @@ export class AgentRunner implements AiAgent {
 
 		let text: string;
 		let attachments: Attachment[];
+		let trigger: string;
+		let guildId: string | undefined;
 		if (this.lastPromptText === null) {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
@@ -384,13 +515,25 @@ export class AgentRunner implements AiAgent {
 			if (!drained.text && drained.attachments.length === 0) return;
 			text = drained.text;
 			attachments = drained.attachments;
+			trigger = drained.trigger;
+			guildId = drained.guildId;
 		} else {
 			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
 			const drained = this.drainMessages();
 			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
 			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
+			const hasDrainedMessage = drained.text.length > 0 || drained.attachments.length > 0;
+			trigger = mergeMetricLabel(
+				[this.lastPromptTrigger ?? undefined, hasDrainedMessage ? drained.trigger : undefined],
+				"unknown",
+			);
+			guildId = mergeMetricLabel(
+				[this.lastPromptGuildId ?? undefined, hasDrainedMessage ? drained.guildId : undefined],
+				this.contextGuildId ?? "none",
+			);
 		}
 
+		this.lastPromptMetricLabels = this.buildMetricLabels({ trigger, guildId });
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
 		if (this.attachmentProcessor) {
@@ -403,6 +546,8 @@ export class AgentRunner implements AiAgent {
 		// lastPromptText / lastPromptAttachments にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
 		this.lastPromptText = text;
 		this.lastPromptAttachments = attachments;
+		this.lastPromptTrigger = trigger;
+		this.lastPromptGuildId = guildId ?? null;
 
 		const turnPromptPrefix = await this.contextBuilder.buildTurnPromptPrefix?.();
 		if (signal.aborted) return;
@@ -421,6 +566,7 @@ export class AgentRunner implements AiAgent {
 
 		this.sessionAbortController = new AbortController();
 		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
+		this.startPromptMetrics(trigger, guildId);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
@@ -496,12 +642,25 @@ export class AgentRunner implements AiAgent {
 		return winner === MESSAGE;
 	}
 
-	private drainMessages(): { text: string; attachments: Attachment[] } {
+	private drainMessages(): {
+		text: string;
+		attachments: Attachment[];
+		trigger: string;
+		guildId?: string;
+	} {
 		const items = this.pendingMessages.splice(0);
 		this.hasBotPending = false;
 		return {
 			text: items.map((m) => m.text).join("\n---\n"),
 			attachments: items.flatMap((m) => m.attachments ?? []),
+			trigger: mergeMetricLabel(
+				items.map((m) => m.trigger),
+				"unknown",
+			),
+			guildId: mergeMetricLabel(
+				items.map((m) => m.guildId),
+				this.contextGuildId ?? "none",
+			),
 		};
 	}
 
@@ -517,10 +676,7 @@ export class AgentRunner implements AiAgent {
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					{
-						agent_type: "polling",
-						trigger: "polling",
-					},
+					this.metricLabels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -534,21 +690,21 @@ export class AgentRunner implements AiAgent {
 			this.logger.warn(
 				`[${this.profile.name}:${this.agentId}] SSE stream disconnected, will re-subscribe`,
 			);
-			this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
-				source: "session_event",
-				error_type: "stream_disconnected",
-				http_status: "unknown",
-				retryable: "unknown",
-				error_class: "unknown",
-			});
+			this.metrics?.incrementCounter(
+				METRIC.SESSION_ERRORS,
+				this.metricLabels({
+					source: "session_event",
+					error_type: "stream_disconnected",
+					http_status: "unknown",
+					retryable: "unknown",
+					error_class: "unknown",
+				}),
+			);
 			if (event.tokens && this.metrics) {
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					{
-						agent_type: "polling",
-						trigger: "polling",
-					},
+					this.metricLabels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -561,13 +717,16 @@ export class AgentRunner implements AiAgent {
 			return;
 		}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
-		this.metrics?.incrementCounter(METRIC.SESSION_ERRORS, {
-			source: "session_event",
-			error_type: classifyErrorType(event),
-			http_status: typeof event.status === "number" ? String(event.status) : "unknown",
-			retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
-			error_class: event.errorClass ?? "unknown",
-		});
+		this.metrics?.incrementCounter(
+			METRIC.SESSION_ERRORS,
+			this.metricLabels({
+				source: "session_event",
+				error_type: classifyErrorType(event),
+				http_status: typeof event.status === "number" ? String(event.status) : "unknown",
+				retryable: typeof event.retryable === "boolean" ? String(event.retryable) : "unknown",
+				error_class: event.errorClass ?? "unknown",
+			}),
+		);
 	}
 
 	/** 会話ブレイクによる compaction を試行する */

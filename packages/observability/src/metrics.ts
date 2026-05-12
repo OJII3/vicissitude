@@ -1,12 +1,5 @@
 /* oxlint-disable max-classes-per-file, max-lines -- metrics module consolidates related classes */
-import type {
-	AgentResponse,
-	AiAgent,
-	Logger,
-	MetricsCollector,
-	SendOptions,
-	TokenUsage,
-} from "@vicissitude/shared/types";
+import type { Logger, MetricsCollector, TokenUsage } from "@vicissitude/shared/types";
 
 import { calculateCost, getModelPricing } from "./model-pricing.ts";
 
@@ -86,6 +79,71 @@ export function recordTokenMetrics(
 			}
 		}
 	}
+}
+
+// ─── Agent Metric Labels ────────────────────────────────────────
+
+const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
+
+export interface AgentMetricLabelOptions {
+	agentId: string;
+	guildId?: string;
+	sessionKey?: string;
+	trigger?: string;
+	providerId: string;
+	modelId: string;
+}
+
+export function inferAgentKind(agentId: string): string {
+	if (agentId.startsWith("discord:heartbeat:")) return "discord_heartbeat";
+	if (agentId.startsWith("discord:")) return "discord";
+	if (agentId.startsWith("minecraft:")) return "minecraft";
+	return "unknown";
+}
+
+export function inferTrigger(sessionKey: string): string {
+	if (sessionKey === "home" || sessionKey.endsWith(":_channel")) return "home";
+	if (sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) return "heartbeat";
+	if (sessionKey.startsWith("discord:heartbeat:")) return "heartbeat";
+	if (sessionKey === "mention" || sessionKey.startsWith("discord:")) return "mention";
+	if (sessionKey.startsWith("minecraft:")) return "minecraft";
+	return "unknown";
+}
+
+export function inferGuildId(sessionKey: string): string | undefined {
+	if (sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) {
+		return sessionKey.slice(HEARTBEAT_SESSION_PREFIX.length);
+	}
+
+	if (sessionKey.startsWith("discord:")) {
+		const [, first, second] = sessionKey.split(":");
+		return first === "heartbeat" ? second : first;
+	}
+
+	return undefined;
+}
+
+function inferGuildIdFromAgentId(agentId: string): string | undefined {
+	if (agentId.startsWith("discord:heartbeat:")) return agentId.slice("discord:heartbeat:".length);
+	if (agentId.startsWith("discord:")) return agentId.slice("discord:".length);
+	return undefined;
+}
+
+export function buildAgentMetricLabels(options: AgentMetricLabelOptions): Record<string, string> {
+	const sessionGuildId = options.sessionKey ? inferGuildId(options.sessionKey) : undefined;
+	const guildId =
+		options.guildId ?? sessionGuildId ?? inferGuildIdFromAgentId(options.agentId) ?? "none";
+	const trigger =
+		options.trigger ?? (options.sessionKey ? inferTrigger(options.sessionKey) : "unknown");
+
+	return {
+		agent_kind: inferAgentKind(options.agentId),
+		agent_id: options.agentId,
+		guild_id: guildId,
+		trigger,
+		provider: options.providerId,
+		model: options.modelId,
+	};
 }
 
 // ─── Error Classification ───────────────────────────────────────
@@ -324,51 +382,5 @@ export class PrometheusServer {
 		}
 
 		return new Response("Not Found", { status: 404 });
-	}
-}
-
-// ─── Instrumented AI Agent ──────────────────────────────────────
-
-export type AgentType = "polling" | "heartbeat";
-
-export function inferTrigger(sessionKey: string): "heartbeat" | "home" | "mention" {
-	if (sessionKey.startsWith("system:heartbeat:")) return "heartbeat";
-	if (sessionKey.endsWith(":_channel")) return "home";
-	return "mention";
-}
-
-export class InstrumentedAiAgent implements AiAgent {
-	constructor(
-		private readonly inner: AiAgent,
-		private readonly metrics: MetricsCollector,
-		private readonly agentType: AgentType,
-		private readonly modelId?: string,
-	) {}
-
-	async send(options: SendOptions): Promise<AgentResponse> {
-		const trigger = inferTrigger(options.sessionKey);
-		const labels = { agent_type: this.agentType, trigger };
-		const start = performance.now();
-		const agentLabel = { agent_type: this.agentType };
-		this.metrics.incrementGauge(METRIC.LLM_BUSY_SESSIONS, agentLabel);
-		try {
-			const response = await this.inner.send(options);
-			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "success" });
-			if (response.tokens) {
-				recordTokenMetrics(this.metrics, response.tokens, labels, this.modelId);
-			}
-			return response;
-		} catch (error) {
-			this.metrics.incrementCounter(METRIC.AI_REQUESTS, { ...labels, outcome: "error" });
-			throw error;
-		} finally {
-			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS, agentLabel);
-			const duration = (performance.now() - start) / 1000;
-			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration);
-		}
-	}
-
-	stop(): void {
-		this.inner.stop();
 	}
 }

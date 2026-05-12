@@ -2,6 +2,7 @@ import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import type {
 	ContextBuilderPort,
 	Logger,
+	MetricsCollector,
 	OpencodeSessionPort,
 	SessionStorePort,
 } from "@vicissitude/shared/types";
@@ -20,6 +21,8 @@ export interface MinecraftAgentDeps {
 	compactionTokenThreshold?: number;
 	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
 	compactionCooldownMs?: number;
+	/** MetricsCollector。省略時はメトリクス記録なし */
+	metrics?: MetricsCollector;
 }
 
 export class MinecraftAgent extends AgentRunner {
@@ -32,6 +35,7 @@ export class MinecraftAgent extends AgentRunner {
 			logger: deps.logger,
 			sessionPort: deps.sessionPort,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
+			metrics: deps.metrics,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
 		});
