@@ -124,9 +124,11 @@ export function parseTwitterUrl(url: string): ParsedTwitterUrl | null {
 	TWITTER_URL_RE.lastIndex = 0;
 	const match = TWITTER_URL_RE.exec(url);
 	if (!match) return null;
+	const [, handle, statusId] = match;
+	if (handle === undefined) return null;
 	return {
-		handle: match[1],
-		statusId: match[2] || undefined,
+		handle,
+		statusId: statusId ?? undefined,
 	};
 }
 

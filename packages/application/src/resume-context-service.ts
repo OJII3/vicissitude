@@ -70,8 +70,8 @@ export class ResumeContextService {
 		const namespace = discordGuildNamespace(guildId);
 		const key = namespaceKey(namespace);
 		const dbPath = resolveMemoryDbPath(this.deps.memoryDataDir, namespace);
-		const outputDir = resolve(this.deps.overlayDir, "guilds", guildId);
-		const outputPath = resolve(outputDir, "RESUME-CONTEXT.md");
+		const outputDir: string = resolve(this.deps.overlayDir, "guilds", guildId);
+		const outputPath: string = resolve(outputDir, "RESUME-CONTEXT.md");
 
 		if (!existsSync(dbPath)) {
 			this.removeFile(outputPath);
@@ -187,11 +187,11 @@ function formatDate(date: Date): string {
 }
 
 function trimParagraph(text: string, maxLength: number): string {
-	return trimLine(text.replace(/\s+/g, " "), maxLength);
+	return trimLine(text.replaceAll(/\s+/g, " "), maxLength);
 }
 
 function normalizeInline(text: string): string {
-	return text.replace(/\s+/g, " ").trim();
+	return text.replaceAll(/\s+/g, " ").trim();
 }
 
 function trimLine(text: string, maxLength: number): string {

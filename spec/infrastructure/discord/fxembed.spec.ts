@@ -1,9 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	HttpFxEmbedClient,
-	parseTwitterUrl,
-} from "@vicissitude/infrastructure/discord/fxembed";
+import { HttpFxEmbedClient, parseTwitterUrl } from "@vicissitude/infrastructure/discord/fxembed";
 
 describe("parseTwitterUrl (integration)", () => {
 	test("x.com URL を正しくパースする", () => {

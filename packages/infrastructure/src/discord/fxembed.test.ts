@@ -1,19 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
-import {
-	HttpFxEmbedClient,
-	parseTwitterUrl,
-} from "./fxembed.ts";
+import { HttpFxEmbedClient, parseTwitterUrl } from "./fxembed.ts";
 
 function createMockFetch(responses: Record<string, unknown>): (url: string) => Promise<Response> {
-	return async (url: string) => {
+	return (url: string) => {
 		const key = Object.keys(responses).find((k) => url.endsWith(k));
 		if (key) {
-			return new Response(JSON.stringify(responses[key]), {
-				headers: { "content-type": "application/json" },
-			});
+			return Promise.resolve(
+				new Response(JSON.stringify(responses[key]), {
+					headers: { "content-type": "application/json" },
+				}),
+			);
 		}
-		return new Response("not found", { status: 404 });
+		return Promise.resolve(new Response("not found", { status: 404 }));
 	};
 }
 
@@ -90,9 +89,10 @@ describe("HttpFxEmbedClient", () => {
 		});
 		const result = await client.getStatus("123");
 		expect(result).not.toBeNull();
-		expect(result!.id).toBe("123");
-		expect(result!.text).toBe("Hello");
-		expect(result!.author.screen_name).toBe("test");
+		if (result === null) throw new Error("expected status result");
+		expect(result.id).toBe("123");
+		expect(result.text).toBe("Hello");
+		expect(result.author.screen_name).toBe("test");
 	});
 
 	test("getStatus は HTTP エラーで null を返す", async () => {
@@ -136,8 +136,9 @@ describe("HttpFxEmbedClient", () => {
 		});
 		const result = await client.getProfile("testuser");
 		expect(result).not.toBeNull();
-		expect(result!.screen_name).toBe("testuser");
-		expect(result!.avatar_url).toBe("https://pbs.twimg.com/avatar.jpg");
+		if (result === null) throw new Error("expected profile result");
+		expect(result.screen_name).toBe("testuser");
+		expect(result.avatar_url).toBe("https://pbs.twimg.com/avatar.jpg");
 	});
 
 	test("getProfile は HTTP エラーで null を返す", async () => {
