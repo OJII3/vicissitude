@@ -162,7 +162,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			`[opencode] promptAsyncAndWatch: session=${params.sessionId} model=${params.model.providerId}/${params.model.modelId}`,
 		);
 		const oc = await this.getClient();
-		const { stream } = await oc.event.subscribe();
+		const { stream } = await oc.event.subscribe(this.directoryQuery());
 		this.logger?.info("[opencode] event stream subscribed");
 		const tokensByMessage = new Map<string, TokenUsage>();
 		try {
@@ -239,7 +239,7 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	}
 	async waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent> {
 		const oc = await this.getClient();
-		const { stream } = await oc.event.subscribe();
+		const { stream } = await oc.event.subscribe(this.directoryQuery());
 		const tokensByMessage = new Map<string, TokenUsage>();
 		let unclassifiedCount = 0;
 		try {

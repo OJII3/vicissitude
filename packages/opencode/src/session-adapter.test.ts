@@ -74,6 +74,9 @@ function createClient(stream: AsyncGenerator<Event, void, unknown>) {
 		},
 	};
 	return client as unknown as OpencodeClient & {
+		event: {
+			subscribe: ReturnType<typeof mock>;
+		};
 		session: {
 			abort: ReturnType<typeof mock>;
 		};
@@ -265,6 +268,66 @@ describe("OpencodeSessionAdapter", () => {
 		await expect(watch).resolves.toEqual({ type: "cancelled" });
 		expect(client.session.abort).toHaveBeenCalledWith({ sessionID: "session-1" });
 		expect(streamState.returnMock).toHaveBeenCalled();
+	});
+
+	test("promptAsyncAndWatchSession は session と同じ directory のイベントを購読する", async () => {
+		const stream = {
+			next: mock(() => Promise.resolve({ done: true, value: undefined })),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+		const client = createClient(stream);
+		const directory = "/tmp/vicissitude-opencode-session-adapter-test";
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: {},
+			directory,
+			clientFactory: mock(() =>
+				Promise.resolve({
+					client: client as unknown as OpencodeClient,
+					server: { url: "http://localhost", close: mock(() => {}) },
+				}),
+			),
+		});
+
+		await adapter.promptAsyncAndWatchSession({
+			sessionId: "session-1",
+			text: "watch",
+			model: { providerId: "provider", modelId: "model" },
+		});
+
+		expect(client.event.subscribe).toHaveBeenCalledWith({ directory });
+	});
+
+	test("waitForSessionIdle は session と同じ directory のイベントを購読する", async () => {
+		const stream = {
+			next: mock(() => Promise.resolve({ done: true, value: undefined })),
+			return: mock(() => Promise.resolve({ done: true, value: undefined })),
+			[Symbol.asyncIterator]() {
+				return this;
+			},
+		} as unknown as AsyncGenerator<Event, void, unknown>;
+		const client = createClient(stream);
+		const directory = "/tmp/vicissitude-opencode-session-adapter-test";
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: {},
+			directory,
+			clientFactory: mock(() =>
+				Promise.resolve({
+					client: client as unknown as OpencodeClient,
+					server: { url: "http://localhost", close: mock(() => {}) },
+				}),
+			),
+		});
+
+		await adapter.waitForSessionIdle("session-1");
+
+		expect(client.event.subscribe).toHaveBeenCalledWith({ directory });
 	});
 
 	test("abort リスナー登録直後に stop されてもイベント待ちでハングしない", async () => {
