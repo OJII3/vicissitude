@@ -80,6 +80,7 @@ describe("sqlite-schema", () => {
 			const triggers = getNames(db, "trigger", "semantic_facts");
 			expect(triggers).toContain("facts_fts_ai");
 			expect(triggers).toContain("facts_fts_ad");
+			expect(triggers).toContain("facts_fts_au");
 		});
 	});
 
@@ -240,6 +241,26 @@ describe("sqlite-schema", () => {
 
 			const cols = db.prepare("PRAGMA table_info(message_queue)").all() as ColumnInfo[];
 			expect(cols.map((c) => c.name)).toContain("author_id");
+		});
+
+		test("adds missing semantic_facts FTS UPDATE trigger to existing DB", () => {
+			db.exec(`CREATE TABLE semantic_facts (
+				id TEXT PRIMARY KEY, user_id TEXT NOT NULL, category TEXT NOT NULL, fact TEXT NOT NULL,
+				keywords TEXT NOT NULL, source_episodic_ids TEXT NOT NULL, embedding TEXT NOT NULL,
+				valid_at INTEGER NOT NULL, invalid_at INTEGER, created_at INTEGER NOT NULL,
+				metadata TEXT NOT NULL DEFAULT '{}')`);
+			db.exec("CREATE VIRTUAL TABLE semantic_facts_fts USING fts5(id UNINDEXED, fact, keywords)");
+			db.exec(`CREATE TRIGGER facts_fts_ai AFTER INSERT ON semantic_facts BEGIN
+				INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords); END`);
+			db.exec(`CREATE TRIGGER facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
+				DELETE FROM semantic_facts_fts WHERE id = old.id; END`);
+
+			createAllTables(db);
+
+			const triggers = getNames(db, "trigger", "semantic_facts");
+			expect(triggers).toContain("facts_fts_ai");
+			expect(triggers).toContain("facts_fts_ad");
+			expect(triggers).toContain("facts_fts_au");
 		});
 	});
 });

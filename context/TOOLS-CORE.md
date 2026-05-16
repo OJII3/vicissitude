@@ -40,7 +40,7 @@ Discord の全メッセージは自動的に記憶に取り込まれる（ingest
 
 ### genius
 
-> `GENIUS_ACCESS_TOKEN` が設定されている場合のみ有効。
+> `GENIUS_ACCESS_TOKEN` が設定されている場合のみ有効。Spotify 設定は不要。
 
 - `core_fetch_lyrics(title, artist)` - Genius API から楽曲の歌詞を取得
 - `core_save_listening_fact(track, impression)` - 楽曲を聴いた感想を Memory（internal namespace, category=experience）に保存

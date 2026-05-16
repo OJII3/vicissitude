@@ -142,6 +142,19 @@ describe("PrometheusCollector histogram", () => {
 		expect(output).toContain('latency_bucket{endpoint="/api",le="5"} 1');
 		expect(output).toContain('latency_bucket{endpoint="/api",le="+Inf"} 1');
 	});
+
+	it("特殊文字を含む labels 付きの histogram", () => {
+		const c = new PrometheusCollector();
+		c.registerHistogram("latency", "latency", [1]);
+		c.observeHistogram("latency", 0.5, { route: '/api,foo=bar"baz\\qux' });
+		const output = c.serialize();
+		const labels = 'route="/api,foo=bar\\"baz\\\\qux"';
+
+		expect(output).toContain(`latency_bucket{le="1",${labels}} 1`);
+		expect(output).toContain(`latency_bucket{le="+Inf",${labels}} 1`);
+		expect(output).toContain(`latency_sum{${labels}} 0.5`);
+		expect(output).toContain(`latency_count{${labels}} 1`);
+	});
 });
 
 // ─── serialize 全体フォーマット ──────────────────────────────────

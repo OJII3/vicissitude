@@ -138,6 +138,22 @@ describe("JSON profile config", () => {
 		expect(config.spotify).toBeUndefined();
 	});
 
+	it("Genius feature は Spotify secret なしで AppConfig に反映する", () => {
+		const config = loadConfigFromProfile(
+			{
+				...baseProfile,
+				features: {
+					genius: {},
+				},
+			},
+			baseEnv({ GENIUS_ACCESS_TOKEN: "genius-token" }),
+			root,
+		);
+
+		expect(config.genius?.accessToken).toBe("genius-token");
+		expect(config.spotify).toBeUndefined();
+	});
+
 	it("profile に feature section がある場合だけ機能設定を作る", () => {
 		const config = loadConfigFromProfile(
 			{

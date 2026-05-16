@@ -65,6 +65,16 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 	});
 }
 
+function createDoneStream(): AsyncGenerator<Event, void, unknown> {
+	return {
+		next: mock(() => Promise.resolve({ done: true, value: undefined })),
+		return: mock(() => Promise.resolve({ done: true, value: undefined })),
+		[Symbol.asyncIterator]() {
+			return this;
+		},
+	} as unknown as AsyncGenerator<Event, void, unknown>;
+}
+
 function makeMessageUpdatedEvent(
 	sessionId: string,
 	messageId: string,
@@ -82,6 +92,35 @@ function makeMessageUpdatedEvent(
 		},
 	} as unknown as Event;
 }
+
+describe("OpencodeSessionAdapter deleteSession", () => {
+	test("SDK の delete が成功したら resolve する", async () => {
+		const client = createClient(createDoneStream());
+		const adapter = createAdapter(client);
+
+		await adapter.deleteSession("session-1");
+
+		expect(client.session.delete).toHaveBeenCalledWith({ sessionID: "session-1" });
+	});
+
+	test("SDK の delete が error を返したら reject する", async () => {
+		const client = createClient(createDoneStream());
+		(client.session.delete as ReturnType<typeof mock>).mockImplementation(() =>
+			Promise.resolve({ data: null, error: { message: "session not found" } }),
+		);
+		const adapter = createAdapter(client);
+
+		let caught: unknown;
+		try {
+			await adapter.deleteSession("missing-session");
+		} catch (error) {
+			caught = error;
+		}
+
+		expect(caught).toBeInstanceOf(Error);
+		expect((caught as Error).message).toBe('deleteSession failed: {"message":"session not found"}');
+	});
+});
 
 // ─── 振る舞いテスト ──────────────────────────────────────────────
 

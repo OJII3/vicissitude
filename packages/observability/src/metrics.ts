@@ -174,6 +174,13 @@ interface HistogramConfig {
 	buckets: number[];
 }
 
+interface HistogramEntry {
+	labels: Record<string, string>;
+	buckets: Map<number, number>;
+	sum: number;
+	count: number;
+}
+
 const DEFAULT_DURATION_BUCKETS = [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120];
 
 function mergeLabels(
@@ -183,24 +190,10 @@ function mergeLabels(
 	return base && Object.keys(base).length > 0 ? { ...base, ...extra } : extra;
 }
 
-function parseLabelsFromKey(key: string): Record<string, string> {
-	const labels: Record<string, string> = {};
-	if (key.length === 0) return labels;
-	const inner = key.slice(1, -1);
-	for (const pair of inner.split(",")) {
-		const eq = pair.indexOf("=");
-		if (eq > 0) labels[pair.slice(0, eq)] = pair.slice(eq + 2, -1);
-	}
-	return labels;
-}
-
 export class PrometheusCollector implements MetricsCollector {
 	private counters = new Map<string, Map<string, number>>();
 	private gauges = new Map<string, Map<string, number>>();
-	private histograms = new Map<
-		string,
-		Map<string, { buckets: Map<number, number>; sum: number; count: number }>
-	>();
+	private histograms = new Map<string, Map<string, HistogramEntry>>();
 	private histogramConfigs = new Map<string, HistogramConfig>();
 	private metricMeta = new Map<string, MetricMeta>();
 
@@ -267,10 +260,12 @@ export class PrometheusCollector implements MetricsCollector {
 		const map = this.histograms.get(name);
 		if (!config || !map) return;
 
-		const key = labelsToKey(labels ?? {});
+		const baseLabels = labels ?? {};
+		const key = labelsToKey(baseLabels);
 		let entry = map.get(key);
 		if (!entry) {
 			entry = {
+				labels: { ...baseLabels },
 				buckets: new Map(config.buckets.map((b) => [b, 0])),
 				sum: 0,
 				count: 0,
@@ -322,16 +317,16 @@ export class PrometheusCollector implements MetricsCollector {
 		const config = this.histogramConfigs.get(name);
 		if (!map || !config) return;
 
-		for (const [key, entry] of map) {
-			const baseLabels = parseLabelsFromKey(key);
+		for (const [, entry] of map) {
+			const baseLabels = entry.labels;
 			for (const bucket of config.buckets) {
 				const le = mergeLabels(baseLabels, { le: String(bucket) });
 				lines.push(`${name}_bucket${labelsToKey(le)} ${entry.buckets.get(bucket) ?? 0}`);
 			}
 			const infLabels = mergeLabels(baseLabels, { le: "+Inf" });
 			lines.push(`${name}_bucket${labelsToKey(infLabels)} ${entry.count}`);
-			lines.push(`${name}_sum${key} ${entry.sum}`);
-			lines.push(`${name}_count${key} ${entry.count}`);
+			lines.push(`${name}_sum${labelsToKey(baseLabels)} ${entry.sum}`);
+			lines.push(`${name}_count${labelsToKey(baseLabels)} ${entry.count}`);
 		}
 	}
 }
