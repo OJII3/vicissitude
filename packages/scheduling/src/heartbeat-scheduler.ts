@@ -98,12 +98,7 @@ export class HeartbeatScheduler {
 		}
 
 		const executedAt = new Date().toISOString();
-		for (const reminder of config.reminders) {
-			if (succeededIds.has(reminder.id)) {
-				reminder.lastExecutedAt = executedAt;
-			}
-		}
-		await this.deps.configRepo.save(config);
+		await this.deps.configRepo.markRemindersExecuted([...succeededIds], executedAt);
 		this.deps.logger.info("[heartbeat] done");
 		return true;
 	}

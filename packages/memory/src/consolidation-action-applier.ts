@@ -26,6 +26,7 @@ export interface FactApplicationResult {
 
 const DEDUPE_THRESHOLD = 0.95;
 const DUPLICATE_CANDIDATE_LIMIT = 5;
+const EMPTY_FACT_IDS: ReadonlySet<string> = new Set();
 
 export function emptyFactApplicationResult(): FactApplicationResult {
 	return { newFacts: 0, reinforced: 0, updated: 0, invalidated: 0 };
@@ -102,28 +103,24 @@ export class ConsolidationFactApplier {
 			ctx.activeFactsById.set(duplicate.id, reinforced);
 			return "reinforce";
 		}
-		const fact = createFact({
-			userId: ctx.userId,
-			category: extracted.category,
-			fact: extracted.fact,
-			keywords: extracted.keywords,
-			sourceEpisodicIds: [ctx.episodeId],
-			embedding,
-			now: ctx.now,
-			metadata: { source: "consolidation" },
-		});
+		const fact = createFactFromExtracted(ctx, extracted, embedding);
 		await this.storage.saveFact(ctx.userId, fact);
 		ctx.activeFactsById.set(fact.id, fact);
 		return "new";
 	}
 
-	private async findDuplicate(userId: string, embedding: number[]): Promise<SemanticFact | null> {
+	private async findDuplicate(
+		userId: string,
+		embedding: number[],
+		excludedFactIds: ReadonlySet<string> = EMPTY_FACT_IDS,
+	): Promise<SemanticFact | null> {
 		const candidates = await this.storage.searchFactsByEmbedding(
 			userId,
 			embedding,
-			DUPLICATE_CANDIDATE_LIMIT,
+			DUPLICATE_CANDIDATE_LIMIT + excludedFactIds.size,
 		);
 		for (const candidate of candidates) {
+			if (excludedFactIds.has(candidate.id)) continue;
 			if (cosineSimilarity(embedding, candidate.embedding) >= DEDUPE_THRESHOLD) {
 				return candidate;
 			}
@@ -148,10 +145,25 @@ export class ConsolidationFactApplier {
 		ctx: ResolvedFactApplicationContext,
 		extracted: ExtractedFact & { action: "update" },
 	): Promise<void> {
-		this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
-		await this.storage.invalidateFact(ctx.userId, extracted.existingFactId, ctx.now);
-		ctx.activeFactsById.delete(extracted.existingFactId);
-		await this.applyNew(ctx, extracted);
+		const existing = this.requireExistingFact(ctx, extracted.existingFactId, extracted.action);
+		const embedding = await this.llm.embed(extracted.fact);
+		const duplicate = await this.findDuplicate(ctx.userId, embedding, new Set([existing.id]));
+		if (duplicate) {
+			const reinforced = {
+				...duplicate,
+				sourceEpisodicIds: appendSourceEpisode(duplicate, ctx.episodeId),
+			};
+			await this.storage.updateFact(ctx.userId, duplicate.id, reinforced);
+			await this.storage.invalidateFact(ctx.userId, existing.id, ctx.now);
+			ctx.activeFactsById.delete(existing.id);
+			ctx.activeFactsById.set(duplicate.id, reinforced);
+			return;
+		}
+
+		const replacement = createFactFromExtracted(ctx, extracted, embedding);
+		await this.storage.replaceFacts(ctx.userId, [existing.id], replacement, ctx.now);
+		ctx.activeFactsById.delete(existing.id);
+		ctx.activeFactsById.set(replacement.id, replacement);
 	}
 
 	private async applyInvalidate(
@@ -193,4 +205,21 @@ function appendSourceEpisode(fact: SemanticFact, episodeId: string): string[] {
 	return fact.sourceEpisodicIds.includes(episodeId)
 		? fact.sourceEpisodicIds
 		: [...fact.sourceEpisodicIds, episodeId];
+}
+
+function createFactFromExtracted(
+	ctx: FactApplicationContext,
+	extracted: ExtractedFact,
+	embedding: number[],
+): SemanticFact {
+	return createFact({
+		userId: ctx.userId,
+		category: extracted.category,
+		fact: extracted.fact,
+		keywords: extracted.keywords,
+		sourceEpisodicIds: [ctx.episodeId],
+		embedding,
+		now: ctx.now,
+		metadata: { source: "consolidation" },
+	});
 }

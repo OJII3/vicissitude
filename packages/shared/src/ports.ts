@@ -131,6 +131,7 @@ export interface GatewayPort {
 export interface HeartbeatConfigPort {
 	load(): Promise<HeartbeatConfig>;
 	save(config: HeartbeatConfig): Promise<void>;
+	markRemindersExecuted(reminderIds: readonly string[], executedAt: string): Promise<void>;
 }
 
 // ─── CriticAuditorPort ─────────────────────────────────────────

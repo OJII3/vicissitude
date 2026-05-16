@@ -119,6 +119,24 @@ describe("ConsoleLogger", () => {
 
 			expect(output()).toContain("no extra");
 		});
+
+		it("Error 引数の name/message/stack/cause を extra に保持しつつマスキングする", () => {
+			const logger = new ConsoleLogger();
+			const cause = new TypeError("cause token ghp_AAAAAAAAAA");
+			const error = new Error("outer mail user@example.com", { cause });
+
+			logger.error("failed sk-abcdefghijkl", error);
+
+			const entry = JSON.parse(output());
+			expect(entry.msg).toBe("failed [REDACTED]");
+			expect(entry.extra.name).toBe("Error");
+			expect(entry.extra.message).toBe("outer mail [REDACTED]");
+			expect(entry.extra.stack).toContain("outer mail [REDACTED]");
+			expect(entry.extra.stack).not.toContain("user@example.com");
+			expect(entry.extra.cause.name).toBe("TypeError");
+			expect(entry.extra.cause.message).toBe("cause token [REDACTED]");
+			expect(entry.extra.cause.stack).not.toContain("ghp_AAAAAAAAAA");
+		});
 	});
 
 	// ─── child() によるコンテキスト付きロガー ────────────────────

@@ -1,10 +1,18 @@
-import { existsSync, mkdirSync, readFileSync } from "fs";
-import { dirname, resolve } from "path";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from "fs";
+import { dirname, resolve as resolvePath } from "path";
 
-import type { HeartbeatConfig } from "@vicissitude/shared/types";
+import type {
+	HeartbeatConfig,
+	HeartbeatReminder,
+	ReminderSchedule,
+} from "@vicissitude/shared/types";
 import { z } from "zod";
 
 import { createDefaultHeartbeatConfig } from "./heartbeat-helpers.ts";
+
+const LOCK_POLL_INTERVAL_MS = 25;
+const LOCK_TIMEOUT_MS = 5_000;
+const LOCK_STALE_MS = 30_000;
 
 const heartbeatConfigSchema = z.object({
 	baseIntervalMinutes: z.number(),
@@ -25,27 +33,75 @@ const heartbeatConfigSchema = z.object({
 
 export class JsonHeartbeatConfigRepository {
 	private readonly filePath: string;
+	private readonly loadedSnapshots = new WeakMap<HeartbeatConfig, HeartbeatConfig>();
 
 	constructor(filePath: string) {
-		this.filePath = resolve(filePath);
+		this.filePath = resolvePath(filePath);
 	}
 
 	load(): Promise<HeartbeatConfig> {
+		const config = this.readConfig();
+		this.loadedSnapshots.set(config, cloneConfig(config));
+		return Promise.resolve(config);
+	}
+
+	async save(config: HeartbeatConfig): Promise<void> {
+		const baseline = this.loadedSnapshots.get(config);
+		let savedConfig = cloneConfig(config);
+
+		await this.withFileLock(async () => {
+			const current = this.readConfig();
+			savedConfig = baseline ? mergeConfigChanges(baseline, current, config) : cloneConfig(config);
+			await this.writeConfig(savedConfig);
+		});
+
+		this.loadedSnapshots.set(config, cloneConfig(savedConfig));
+	}
+
+	async markRemindersExecuted(reminderIds: readonly string[], executedAt: string): Promise<void> {
+		if (reminderIds.length === 0) return;
+		const ids = new Set(reminderIds);
+
+		await this.withFileLock(async () => {
+			const config = this.readConfig();
+			let changed = false;
+
+			for (const reminder of config.reminders) {
+				if (ids.has(reminder.id) && reminder.lastExecutedAt !== executedAt) {
+					reminder.lastExecutedAt = executedAt;
+					changed = true;
+				}
+			}
+
+			if (changed) {
+				await this.writeConfig(config);
+			}
+		});
+	}
+
+	private readConfig(): HeartbeatConfig {
 		if (!existsSync(this.filePath)) {
-			return Promise.resolve(createDefaultHeartbeatConfig());
+			return createDefaultHeartbeatConfig();
 		}
 		try {
 			const raw: string = readFileSync(this.filePath, "utf-8");
 			const parsed = heartbeatConfigSchema.parse(JSON.parse(raw));
-			return Promise.resolve(parsed as HeartbeatConfig);
+			return parsed as HeartbeatConfig;
 		} catch {
-			return Promise.resolve(createDefaultHeartbeatConfig());
+			return createDefaultHeartbeatConfig();
 		}
 	}
 
-	async save(config: HeartbeatConfig): Promise<void> {
+	private async writeConfig(config: HeartbeatConfig): Promise<void> {
 		this.ensureDir();
-		await Bun.write(this.filePath, JSON.stringify(config, null, 2));
+		const tempPath = `${this.filePath}.${String(process.pid)}.${String(Date.now())}.${String(Math.random()).slice(2)}.tmp`;
+		try {
+			await Bun.write(tempPath, JSON.stringify(config, null, 2));
+			renameSync(tempPath, this.filePath);
+		} catch (error) {
+			rmSync(tempPath, { force: true });
+			throw error;
+		}
 	}
 
 	private ensureDir(): void {
@@ -54,4 +110,172 @@ export class JsonHeartbeatConfigRepository {
 			mkdirSync(dir, { recursive: true });
 		}
 	}
+
+	private async withFileLock<T>(action: () => Promise<T>): Promise<T> {
+		this.ensureDir();
+		const lockPath = `${this.filePath}.lock`;
+		const deadline = Date.now() + LOCK_TIMEOUT_MS;
+		await this.acquireFileLock(lockPath, deadline);
+
+		try {
+			return await action();
+		} finally {
+			rmSync(lockPath, { recursive: true, force: true });
+		}
+	}
+
+	private async acquireFileLock(lockPath: string, deadline: number): Promise<void> {
+		try {
+			mkdirSync(lockPath);
+		} catch (error) {
+			if (!isFileExistsError(error)) {
+				throw error;
+			}
+			this.removeStaleLock(lockPath);
+			if (Date.now() >= deadline) {
+				throw new Error(`Timed out waiting for heartbeat config lock: ${lockPath}`, {
+					cause: error,
+				});
+			}
+			await sleep(LOCK_POLL_INTERVAL_MS);
+			return this.acquireFileLock(lockPath, deadline);
+		}
+	}
+
+	private removeStaleLock(lockPath: string): void {
+		try {
+			const ageMs = Date.now() - statSync(lockPath).mtimeMs;
+			if (ageMs > LOCK_STALE_MS) {
+				rmSync(lockPath, { recursive: true, force: true });
+			}
+		} catch (error) {
+			if (!isNotFoundError(error)) {
+				throw error;
+			}
+		}
+	}
+}
+
+function mergeConfigChanges(
+	baseline: HeartbeatConfig,
+	current: HeartbeatConfig,
+	next: HeartbeatConfig,
+): HeartbeatConfig {
+	const merged = cloneConfig(current);
+	if (next.baseIntervalMinutes !== baseline.baseIntervalMinutes) {
+		merged.baseIntervalMinutes = next.baseIntervalMinutes;
+	}
+
+	const baselineById = indexReminders(baseline.reminders);
+	const nextById = indexReminders(next.reminders);
+	const removedIds = new Set(baseline.reminders.map((r) => r.id).filter((id) => !nextById.has(id)));
+	merged.reminders = merged.reminders.filter((r) => !removedIds.has(r.id));
+
+	const mergedIndexes = indexReminderPositions(merged.reminders);
+	for (const nextReminder of next.reminders) {
+		const baselineReminder = baselineById.get(nextReminder.id);
+		const mergedIndex = mergedIndexes.get(nextReminder.id);
+		const currentReminder = mergedIndex === undefined ? undefined : merged.reminders[mergedIndex];
+		const reminder =
+			baselineReminder && currentReminder
+				? mergeReminderChanges(baselineReminder, currentReminder, nextReminder)
+				: cloneReminder(nextReminder);
+
+		if (mergedIndex === undefined) {
+			mergedIndexes.set(reminder.id, merged.reminders.length);
+			merged.reminders.push(reminder);
+		} else {
+			merged.reminders[mergedIndex] = reminder;
+		}
+	}
+
+	return merged;
+}
+
+function mergeReminderChanges(
+	baseline: HeartbeatReminder,
+	current: HeartbeatReminder,
+	next: HeartbeatReminder,
+): HeartbeatReminder {
+	const merged = cloneReminder(current);
+
+	if (next.description !== baseline.description) {
+		merged.description = next.description;
+	}
+	if (!schedulesEqual(next.schedule, baseline.schedule)) {
+		merged.schedule = cloneSchedule(next.schedule);
+	}
+	if (next.lastExecutedAt !== baseline.lastExecutedAt) {
+		merged.lastExecutedAt = next.lastExecutedAt;
+	}
+	if (next.enabled !== baseline.enabled) {
+		merged.enabled = next.enabled;
+	}
+	if (next.guildId !== baseline.guildId) {
+		if (next.guildId === undefined) {
+			delete merged.guildId;
+		} else {
+			merged.guildId = next.guildId;
+		}
+	}
+
+	return merged;
+}
+
+function indexReminders(reminders: readonly HeartbeatReminder[]): Map<string, HeartbeatReminder> {
+	return new Map(reminders.map((reminder) => [reminder.id, reminder]));
+}
+
+function indexReminderPositions(reminders: readonly HeartbeatReminder[]): Map<string, number> {
+	return new Map(reminders.map((reminder, index) => [reminder.id, index]));
+}
+
+function cloneConfig(config: HeartbeatConfig): HeartbeatConfig {
+	return {
+		baseIntervalMinutes: config.baseIntervalMinutes,
+		reminders: config.reminders.map(cloneReminder),
+	};
+}
+
+function cloneReminder(reminder: HeartbeatReminder): HeartbeatReminder {
+	return {
+		id: reminder.id,
+		description: reminder.description,
+		schedule: cloneSchedule(reminder.schedule),
+		lastExecutedAt: reminder.lastExecutedAt,
+		enabled: reminder.enabled,
+		...(reminder.guildId === undefined ? {} : { guildId: reminder.guildId }),
+	};
+}
+
+function cloneSchedule(schedule: ReminderSchedule): ReminderSchedule {
+	if (schedule.type === "interval") {
+		return { type: "interval", minutes: schedule.minutes };
+	}
+	return { type: "daily", hour: schedule.hour, minute: schedule.minute };
+}
+
+function schedulesEqual(left: ReminderSchedule, right: ReminderSchedule): boolean {
+	if (left.type !== right.type) return false;
+	if (left.type === "interval") {
+		return left.minutes === (right as { type: "interval"; minutes: number }).minutes;
+	}
+	return (
+		left.hour === (right as { type: "daily"; hour: number; minute: number }).hour &&
+		left.minute === (right as { type: "daily"; hour: number; minute: number }).minute
+	);
+}
+
+function isFileExistsError(error: unknown): boolean {
+	return error instanceof Error && "code" in error && error.code === "EEXIST";
+}
+
+function isNotFoundError(error: unknown): boolean {
+	return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => {
+		setTimeout(resolve, ms);
+	});
 }
