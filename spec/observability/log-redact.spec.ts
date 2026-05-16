@@ -192,4 +192,23 @@ describe("redactObject", () => {
 	it("数値を直接渡した場合はそのまま返る", () => {
 		expect(redactObject(42)).toBe(42);
 	});
+
+	it("Error の name/message/stack/cause を保持しつつ文字列をマスキングする", () => {
+		const cause = new TypeError("inner token ghp_AAAAAAAAAA");
+		const error = new Error("outer mail user@example.com", { cause });
+
+		const result = redactObject(error) as Record<string, unknown>;
+
+		expect(result.name).toBe("Error");
+		expect(result.message).toBe("outer mail [REDACTED]");
+		expect(typeof result.stack).toBe("string");
+		expect(result.stack).toContain("outer mail [REDACTED]");
+		expect(result.stack).not.toContain("user@example.com");
+
+		const redactedCause = result.cause as Record<string, unknown>;
+		expect(redactedCause.name).toBe("TypeError");
+		expect(redactedCause.message).toBe("inner token [REDACTED]");
+		expect(typeof redactedCause.stack).toBe("string");
+		expect(redactedCause.stack).not.toContain("ghp_AAAAAAAAAA");
+	});
 });

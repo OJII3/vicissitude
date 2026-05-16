@@ -153,4 +153,29 @@ describe("redactObject - 内部ロジック", () => {
 			expect(redactObject(undef)).toBeUndefined();
 		});
 	});
+
+	describe("Error オブジェクト", () => {
+		test("列挙可能な独自プロパティも保持してマスキングする", () => {
+			const error = new Error("failed sk-abcdefghijkl") as Error & {
+				context?: string;
+			};
+			error.context = "owner=user@example.com";
+
+			const result = redactObject(error) as Record<string, unknown>;
+
+			expect(result.name).toBe("Error");
+			expect(result.message).toBe("failed [REDACTED]");
+			expect(result.context).toBe("owner=[REDACTED]");
+		});
+
+		test("循環する cause で無限再帰しない", () => {
+			const error = new Error("self reference") as Error & { cause?: unknown };
+			error.cause = error;
+
+			const result = redactObject(error) as Record<string, unknown>;
+
+			expect(result.message).toBe("self reference");
+			expect(result.cause).toBe("[circular]");
+		});
+	});
 });

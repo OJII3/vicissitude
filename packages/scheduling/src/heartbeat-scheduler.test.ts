@@ -9,6 +9,7 @@ function createMockConfigRepo(config: HeartbeatConfig) {
 	return {
 		load: mock(() => Promise.resolve(config)),
 		save: mock(() => Promise.resolve()),
+		markRemindersExecuted: mock(() => Promise.resolve()),
 	};
 }
 
@@ -38,19 +39,20 @@ describe("HeartbeatScheduler", () => {
 
 	test("due reminder があるときだけ HEARTBEAT_REMINDERS_EXECUTED を増やす", async () => {
 		const metrics = createMockMetrics();
+		const configRepo = createMockConfigRepo({
+			baseIntervalMinutes: 30,
+			reminders: [
+				{
+					id: "due-1",
+					description: "check home",
+					schedule: { type: "interval", minutes: 1 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+			],
+		});
 		const scheduler = new HeartbeatScheduler({
-			configRepo: createMockConfigRepo({
-				baseIntervalMinutes: 30,
-				reminders: [
-					{
-						id: "due-1",
-						description: "check home",
-						schedule: { type: "interval", minutes: 1 },
-						lastExecutedAt: null,
-						enabled: true,
-					},
-				],
-			}),
+			configRepo,
 			heartbeatService: createMockHeartbeatService(),
 			logger: createMockLogger(),
 			metrics,
@@ -59,5 +61,34 @@ describe("HeartbeatScheduler", () => {
 		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
 
 		expect(metrics.incrementCounter).toHaveBeenCalledWith("heartbeat_reminders_executed_total");
+	});
+
+	test("実行成功時は古い config 全体を save せず、実行済み reminder ID だけ更新する", async () => {
+		const configRepo = createMockConfigRepo({
+			baseIntervalMinutes: 30,
+			reminders: [
+				{
+					id: "due-1",
+					description: "check home",
+					schedule: { type: "interval", minutes: 1 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+			],
+		});
+		const heartbeatService = {
+			execute: mock(() => Promise.resolve(new Set(["due-1"]))),
+		};
+		const scheduler = new HeartbeatScheduler({
+			configRepo,
+			heartbeatService,
+			logger: createMockLogger(),
+		});
+
+		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+
+		expect(configRepo.save).not.toHaveBeenCalled();
+		expect(configRepo.markRemindersExecuted).toHaveBeenCalledTimes(1);
+		expect(configRepo.markRemindersExecuted).toHaveBeenCalledWith(["due-1"], expect.any(String));
 	});
 });

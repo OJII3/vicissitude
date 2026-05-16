@@ -327,6 +327,105 @@ describe("ConsolidationPipeline — update", () => {
 		expect(facts[0]!.sourceEpisodicIds).toEqual([episode.id]);
 	});
 
+	test("preserves old fact when update embedding fails", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "update",
+					category: "preference",
+					fact: "User now prefers TypeScript over JavaScript",
+					keywords: ["typescript", "javascript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+		const llm = createConsolidationLLM(llmResponse);
+		llm.embed = async () => {
+			throw new Error("embed failed");
+		};
+
+		const pipeline = new ConsolidationPipeline(llm, storage);
+
+		let error: unknown;
+		try {
+			await pipeline.consolidate(userId);
+		} catch (err) {
+			error = err;
+		}
+		expect(error).toBeInstanceOf(Error);
+		expect((error as Error).message).toContain("embed failed");
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.id).toBe(existingFact.id);
+		expect(facts[0]!.fact).toBe("User likes JavaScript");
+	});
+
+	test("preserves old fact when update replacement cannot be saved", async () => {
+		const existingFact = createFact({
+			userId,
+			category: "preference",
+			fact: "User likes JavaScript",
+			keywords: ["javascript"],
+			sourceEpisodicIds: ["ep-old"],
+			embedding: [0.1, 0.2, 0.3],
+		});
+		await storage.saveFact(userId, existingFact);
+
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const llmResponse: ConsolidationOutput = {
+			facts: [
+				{
+					action: "update",
+					category: "preference",
+					fact: "User now prefers TypeScript over JavaScript",
+					keywords: ["typescript", "javascript"],
+					existingFactId: existingFact.id,
+				},
+			],
+		};
+		const llm = createMockLLM({
+			structuredResponse: llmResponse,
+			embedding: [0.9, -0.1, 0],
+		});
+		const originalRandomUUID = crypto.randomUUID;
+		crypto.randomUUID = (() => existingFact.id) as typeof crypto.randomUUID;
+
+		try {
+			const pipeline = new ConsolidationPipeline(llm, storage);
+
+			let error: unknown;
+			try {
+				await pipeline.consolidate(userId);
+			} catch (err) {
+				error = err;
+			}
+			expect(error).toBeInstanceOf(Error);
+		} finally {
+			crypto.randomUUID = originalRandomUUID;
+		}
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]!.id).toBe(existingFact.id);
+		expect(facts[0]!.fact).toBe("User likes JavaScript");
+	});
+
 	test("rejects reinforce after the same output updates that fact", async () => {
 		const existingFact = createFact({
 			userId,

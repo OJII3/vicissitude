@@ -51,9 +51,37 @@ function redactRecursive(obj: unknown, seen: WeakSet<object>): unknown {
 		return obj.map((item) => redactRecursive(item, seen));
 	}
 
+	if (obj instanceof Error) {
+		return redactError(obj, seen);
+	}
+
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(obj)) {
 		result[key] = redactRecursive(value, seen);
 	}
+	return result;
+}
+
+function redactError(error: Error, seen: WeakSet<object>): Record<string, unknown> {
+	const result: Record<string, unknown> = {
+		name: maskSecrets(error.name),
+		message: maskSecrets(error.message),
+	};
+
+	if (typeof error.stack === "string") {
+		result.stack = maskSecrets(error.stack);
+	}
+
+	if (Object.prototype.hasOwnProperty.call(error, "cause")) {
+		result.cause = redactRecursive(error.cause, seen);
+	}
+
+	for (const [key, value] of Object.entries(error)) {
+		if (key === "name" || key === "message" || key === "stack" || key === "cause") {
+			continue;
+		}
+		result[key] = redactRecursive(value, seen);
+	}
+
 	return result;
 }
