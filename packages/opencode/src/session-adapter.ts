@@ -309,7 +309,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 	async deleteSession(sessionId: string): Promise<void> {
 		const oc = await this.getClient();
-		await oc.session.delete({ sessionID: sessionId, ...this.directoryQuery() });
+		const result = await oc.session.delete({ sessionID: sessionId, ...this.directoryQuery() });
+		if (result.error) {
+			throw new Error(`deleteSession failed: ${JSON.stringify(result.error)}`);
+		}
 	}
 
 	close(): void {

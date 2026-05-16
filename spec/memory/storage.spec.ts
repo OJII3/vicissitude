@@ -841,6 +841,30 @@ describe("MemoryStorage — FTS5 facts", () => {
 		const results = await storage.searchFacts(userId, "dark", 10);
 		expect(results).toHaveLength(0);
 	});
+
+	test("FTS5 follows updateFact changes to fact and keywords", async () => {
+		const fact = makeFact({
+			fact: "Prefers matcha latte",
+			keywords: ["oolong"],
+		});
+		await storage.saveFact(userId, fact);
+
+		await storage.updateFact(userId, fact.id, {
+			fact: "Prefers sourdough toast",
+			keywords: ["espresso"],
+		});
+
+		const byUpdatedFact = await storage.searchFacts(userId, "sourdough", 10);
+		expect(byUpdatedFact).toHaveLength(1);
+		expect(byUpdatedFact[0]!.fact).toBe("Prefers sourdough toast");
+
+		const byUpdatedKeyword = await storage.searchFacts(userId, "espresso", 10);
+		expect(byUpdatedKeyword).toHaveLength(1);
+		expect(byUpdatedKeyword[0]!.id).toBe(fact.id);
+
+		expect(await storage.searchFacts(userId, "matcha", 10)).toHaveLength(0);
+		expect(await storage.searchFacts(userId, "oolong", 10)).toHaveLength(0);
+	});
 });
 
 describe("MemoryStorage — search limit clamping", () => {

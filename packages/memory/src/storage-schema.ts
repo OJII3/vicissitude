@@ -50,6 +50,9 @@ export function createFactTables(db: Database): void {
 		INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords); END`);
 	db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_ad AFTER DELETE ON semantic_facts BEGIN
 		DELETE FROM semantic_facts_fts WHERE id = old.id; END`);
+	db.exec(`CREATE TRIGGER IF NOT EXISTS facts_fts_au AFTER UPDATE OF fact, keywords ON semantic_facts BEGIN
+		DELETE FROM semantic_facts_fts WHERE id = old.id;
+		INSERT INTO semantic_facts_fts(id, fact, keywords) VALUES (new.id, new.fact, new.keywords); END`);
 }
 
 export function createMessageQueue(db: Database): void {
