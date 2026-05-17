@@ -22,6 +22,15 @@ function makeFakeApiTrack(overrides: Record<string, unknown> = {}) {
 	};
 }
 
+async function expectInvalidSpotifyApiResponse(promise: Promise<unknown>): Promise<void> {
+	try {
+		await promise;
+		throw new Error("expected Invalid Spotify API response");
+	} catch (error) {
+		expect(String(error)).toContain("Invalid Spotify API response");
+	}
+}
+
 describe("normalizeTrack", () => {
 	let originalFetch: typeof globalThis.fetch;
 
@@ -69,7 +78,7 @@ describe("normalizeTrack", () => {
 		expect(t?.genres).toEqual([]);
 	});
 
-	it("artists が空配列の場合 artistName='Unknown', artistId='' になる", async () => {
+	it("artists が空配列の場合は API 応答 validation で拒否する", async () => {
 		const apiTrack = makeFakeApiTrack({ artists: [] });
 
 		globalThis.fetch = mock(() =>
@@ -82,13 +91,11 @@ describe("normalizeTrack", () => {
 		) as unknown as typeof fetch;
 
 		const client = new SpotifyClient(stubAuth());
-		const tracks = await client.getSavedTracks(1, 0);
 
-		expect(tracks[0]?.artistName).toBe("Unknown");
-		expect(tracks[0]?.artistId).toBe("");
+		await expectInvalidSpotifyApiResponse(client.getSavedTracks(1, 0));
 	});
 
-	it("album.images が空配列の場合 albumArtUrl='' になる", async () => {
+	it("album.images が空配列の場合は API 応答 validation で拒否する", async () => {
 		const apiTrack = makeFakeApiTrack({
 			album: { name: "A", release_date: "2024-01-01", images: [] },
 		});
@@ -103,9 +110,8 @@ describe("normalizeTrack", () => {
 		) as unknown as typeof fetch;
 
 		const client = new SpotifyClient(stubAuth());
-		const tracks = await client.getSavedTracks(1, 0);
 
-		expect(tracks[0]?.albumArtUrl).toBe("");
+		await expectInvalidSpotifyApiResponse(client.getSavedTracks(1, 0));
 	});
 });
 

@@ -1,8 +1,8 @@
-import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type {
 	ClientMessageHandler,
 	ConnectionId,
+	EmotionToExpressionMapper,
 	EmotionToTtsStyleMapper,
 	GatewayPort,
 	MoodReader,
@@ -23,13 +23,12 @@ export interface WebSocketConnection {
 	send(data: string): void;
 }
 
-const emotionMapper = createEmotionToExpressionMapper();
-
 function randomVad(): number {
 	return Math.random() * 2 - 1;
 }
 
 export interface WsConnectionManagerDeps {
+	emotionToExpressionMapper: EmotionToExpressionMapper;
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
 	moodReader?: MoodReader;
@@ -43,9 +42,11 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
 	private readonly moodReader: MoodReader | undefined;
+	private readonly emotionToExpressionMapper: EmotionToExpressionMapper;
 	private readonly logger: Logger;
 
 	constructor(deps: WsConnectionManagerDeps) {
+		this.emotionToExpressionMapper = deps.emotionToExpressionMapper;
 		this.ttsSynthesizer = deps.ttsSynthesizer;
 		this.ttsStyleMapper = deps.ttsStyleMapper;
 		this.moodReader = deps.moodReader;
@@ -78,7 +79,7 @@ export class WsConnectionManager implements GatewayPort {
 				message: "Failed to parse client message",
 				timestamp: new Date().toISOString(),
 			};
-			connection.send(JSON.stringify(errorMsg));
+			this.send(connectionId, errorMsg);
 			return;
 		}
 
@@ -111,7 +112,7 @@ export class WsConnectionManager implements GatewayPort {
 				const emotion = this.moodReader
 					? this.moodReader.getMood("discord:default")
 					: createEmotion(randomVad(), randomVad(), randomVad());
-				const expressionWeight = emotionMapper.mapToExpression(emotion);
+				const expressionWeight = this.emotionToExpressionMapper.mapToExpression(emotion);
 				const emotionUpdate: EmotionUpdateMessage = {
 					type: "emotion_update",
 					emotion,
@@ -145,13 +146,13 @@ export class WsConnectionManager implements GatewayPort {
 	send(connectionId: ConnectionId, message: ServerMessage): void {
 		const connection = this.connections.get(connectionId);
 		if (!connection) return;
-		connection.send(JSON.stringify(message));
+		this.sendSerializedMessage(connectionId, connection, JSON.stringify(message));
 	}
 
 	broadcast(message: ServerMessage): void {
 		const data = JSON.stringify(message);
-		for (const connection of this.connections.values()) {
-			connection.send(data);
+		for (const [connectionId, connection] of this.connections) {
+			this.sendSerializedMessage(connectionId, connection, data);
 		}
 	}
 
@@ -186,6 +187,18 @@ export class WsConnectionManager implements GatewayPort {
 			this.send(params.connectionId, audioDataMessage);
 		} catch (error) {
 			this.logger.warn("[gateway] TTS synthesize failed", { error });
+		}
+	}
+
+	private sendSerializedMessage(
+		connectionId: ConnectionId,
+		connection: WebSocketConnection,
+		data: string,
+	): void {
+		try {
+			connection.send(data);
+		} catch (error) {
+			this.logger.error("[gateway] WebSocket send failed", { connectionId, error });
 		}
 	}
 }

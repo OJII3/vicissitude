@@ -1,18 +1,17 @@
 import { describe, expect, it } from "bun:test";
 
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
-import type { MemoryStorage } from "@vicissitude/memory/storage";
 import { HUA_SELF_SUBJECT } from "@vicissitude/shared/namespace";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 
 import { ListeningMemory } from "./listening-memory.ts";
-import type { Embedder } from "./listening-memory.ts";
+import type { Embedder, ListeningFactStore } from "./listening-memory.ts";
 import type { ListeningRecord } from "./types.ts";
 
 // --- stubs / fixtures ---
 
 interface StubStorage {
-	storage: MemoryStorage;
+	storage: ListeningFactStore;
 	saved: Array<{ userId: string; fact: SemanticFact }>;
 }
 
@@ -23,7 +22,7 @@ function createStubStorage(): StubStorage {
 			saved.push({ userId, fact });
 			return Promise.resolve();
 		},
-	} as unknown as MemoryStorage;
+	};
 	return { storage: stub, saved };
 }
 

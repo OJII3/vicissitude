@@ -6,13 +6,18 @@ import { join } from "node:path";
 import {
 	defaultSubject,
 	discordGuildNamespace,
+	type MemoryNamespace,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 } from "@vicissitude/memory/namespace";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 
-import { ResumeContextService } from "./resume-context-service.ts";
+import {
+	type ResumeContextMemorySource,
+	type ResumeContextWriter,
+	ResumeContextService,
+} from "./resume-context-service.ts";
 
 const tempRoots: string[] = [];
 
@@ -125,5 +130,46 @@ describe("ResumeContextService", () => {
 		service.close();
 
 		expect(existsSync(stalePath)).toBe(false);
+	});
+
+	test("memory source と writer port 経由で context を更新する", async () => {
+		const guildId = "123456789012345678";
+		let requestedNamespace: MemoryNamespace | undefined;
+		const memorySource: ResumeContextMemorySource = {
+			read: (namespace) => {
+				requestedNamespace = namespace;
+				return Promise.resolve({
+					episodes: [],
+					facts: [
+						createFact({
+							userId: defaultSubject(namespace),
+							category: "interest",
+							fact: "責務分離の話をしていた",
+						}),
+					],
+				});
+			},
+			close() {},
+		};
+		const writes: string[] = [];
+		const removes: string[] = [];
+		const writer: ResumeContextWriter = {
+			writeGuildContext: (_guildId, content) => writes.push(content),
+			removeGuildContext: (_guildId) => removes.push(_guildId),
+		};
+
+		const service = new ResumeContextService({
+			memoryDataDir: "unused",
+			overlayDir: "unused",
+			memorySource,
+			writer,
+		});
+		await service.updateGuild(guildId);
+		service.close();
+
+		expect(requestedNamespace).toEqual(discordGuildNamespace(guildId));
+		expect(writes).toHaveLength(1);
+		expect(writes[0]).toContain("- 関心: 責務分離の話をしていた");
+		expect(removes).toEqual([]);
 	});
 });

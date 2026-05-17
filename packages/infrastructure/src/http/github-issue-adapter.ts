@@ -1,7 +1,46 @@
 import type { GitHubIssuePort } from "@vicissitude/shared/ports";
+import { z } from "zod";
 
 /** GitHub API 呼び出しに必要な fetch 互換型 */
 type GitHubFetchLike = (url: string, init?: RequestInit) => Promise<Response>;
+
+const CreatedIssueResponseSchema = z.object({
+	number: z.number().int(),
+	html_url: z.string(),
+});
+
+const RecentIssueResponseSchema = z.object({
+	number: z.number().int(),
+	title: z.string(),
+});
+
+const RecentIssuesResponseSchema = z.array(RecentIssueResponseSchema);
+
+type CreatedIssueResponse = z.infer<typeof CreatedIssueResponseSchema>;
+type RecentIssuesResponse = z.infer<typeof RecentIssuesResponseSchema>;
+
+function formatZodError(error: z.ZodError): string {
+	return error.issues
+		.map((issue) => {
+			const path = issue.path.length > 0 ? issue.path.join(".") : "<root>";
+			return `${path}: ${issue.message}`;
+		})
+		.join("; ");
+}
+
+function createResponseValidationError(error: z.ZodError): Error {
+	const validationError = new Error(
+		`GitHubIssueAdapter response validation failed: ${formatZodError(error)}`,
+	);
+	validationError.name = "GitHubIssueAdapterResponseError";
+	return validationError;
+}
+
+function parseGitHubResponse<T>(schema: z.ZodType<T>, json: unknown): T {
+	const parsed = schema.safeParse(json);
+	if (!parsed.success) throw createResponseValidationError(parsed.error);
+	return parsed.data;
+}
 
 export interface GitHubIssueAdapterOptions {
 	token: string;
@@ -51,7 +90,10 @@ export class GitHubIssueAdapter implements GitHubIssuePort {
 			throw new Error(`GitHub API error: ${String(res.status)} ${res.statusText}`);
 		}
 
-		const data = (await res.json()) as { number: number; html_url: string };
+		const data = parseGitHubResponse<CreatedIssueResponse>(
+			CreatedIssueResponseSchema,
+			await res.json(),
+		);
 		return { number: data.number, url: data.html_url };
 	}
 
@@ -76,7 +118,10 @@ export class GitHubIssueAdapter implements GitHubIssuePort {
 			throw new Error(`GitHub API error: ${String(res.status)} ${res.statusText}`);
 		}
 
-		const data = (await res.json()) as Array<{ number: number; title: string }>;
+		const data = parseGitHubResponse<RecentIssuesResponse>(
+			RecentIssuesResponseSchema,
+			await res.json(),
+		);
 		return data.map((issue) => ({ number: issue.number, title: issue.title }));
 	}
 }

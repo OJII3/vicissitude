@@ -16,9 +16,9 @@ const MAX_EVENTS = 100;
 export interface BotContext {
 	getBot(): mineflayer.Bot | null;
 	setBot(bot: mineflayer.Bot | null): void;
-	getEvents(): BotEvent[];
+	getEvents(): ReadonlyArray<Readonly<BotEvent>>;
 	pushEvent(kind: string, description: string, importance: Importance): void;
-	getActionState(): ActionState;
+	getActionState(): Readonly<ActionState>;
 	setActionState(state: ActionState): void;
 }
 
@@ -27,6 +27,14 @@ const BOT_EVENT_KINDS = new Set(["spawn", "death", "kicked", "disconnect"]);
 export interface CreateBotContextOptions {
 	metrics?: MetricsCollector;
 	urgentEventNotifier?: (kind: string, description: string, importance: Importance) => void;
+}
+
+function copyEvent(event: BotEvent): BotEvent {
+	return { ...event };
+}
+
+function copyActionState(state: ActionState): ActionState {
+	return { ...state };
 }
 
 export function createBotContext(options?: CreateBotContextOptions): BotContext {
@@ -41,7 +49,7 @@ export function createBotContext(options?: CreateBotContextOptions): BotContext 
 		setBot: (b) => {
 			bot = b;
 		},
-		getEvents: () => events,
+		getEvents: () => events.map((event) => copyEvent(event)),
 		pushEvent: (kind, description, importance) => {
 			events.push({ timestamp: new Date().toISOString(), kind, description, importance });
 			if (events.length > MAX_EVENTS) events.shift();
@@ -50,7 +58,7 @@ export function createBotContext(options?: CreateBotContextOptions): BotContext 
 			}
 			urgentEventNotifier?.(kind, description, importance);
 		},
-		getActionState: () => actionState,
+		getActionState: () => copyActionState(actionState),
 		setActionState: (state) => {
 			actionState.type = state.type;
 			actionState.target = state.target;

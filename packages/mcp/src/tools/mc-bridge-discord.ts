@@ -1,5 +1,4 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import type { StoreDb } from "@vicissitude/store/db";
 import {
 	getMcConnectionStatus,
@@ -8,6 +7,8 @@ import {
 } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
 import { z } from "zod";
+
+import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
 
 export interface McBridgeDeps {
 	db: StoreDb;

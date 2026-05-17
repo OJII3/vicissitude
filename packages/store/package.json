@@ -4,12 +4,14 @@
 	"exports": {
 		"./db": "./src/db.ts",
 		"./queries": "./src/queries.ts",
+		"./session-store": "./src/session-store.ts",
 		"./schema": "./src/schema.ts",
 		"./mc-bridge": "./src/mc-bridge.ts",
 		"./mood-store": "./src/mood-store.ts",
 		"./test-helpers": "./src/test-helpers.ts"
 	},
 	"dependencies": {
+		"@vicissitude/shared": "workspace:*",
 		"drizzle-orm": "^0.45.1"
 	}
 }

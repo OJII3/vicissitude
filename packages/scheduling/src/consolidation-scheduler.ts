@@ -1,5 +1,5 @@
 import { METRIC } from "@vicissitude/observability/metrics";
-import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import { withTimeout } from "@vicissitude/shared/functions";
 import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
 import type {
 	CriticAuditSkipReason,
@@ -68,6 +68,17 @@ export class ConsolidationScheduler {
 		const start = performance.now();
 		const execution = this.executeConsolidation();
 		this.executePromise = execution;
+		let executionSettled = false;
+		void execution.then(
+			() => {
+				executionSettled = true;
+				return null;
+			},
+			() => {
+				executionSettled = true;
+				return null;
+			},
+		);
 		try {
 			await withTimeout(
 				execution,
@@ -83,18 +94,23 @@ export class ConsolidationScheduler {
 			this.metrics?.observeHistogram(METRIC.MEMORY_CONSOLIDATION_TICK_DURATION, duration);
 		}
 
-		// Wait for execution to complete, but cap to prevent deadlock
-		const settled = await Promise.race([
-			execution.then(() => true).catch(() => true),
-			delayResolve(CONSOLIDATION_TICK_TIMEOUT_MS, false as const),
-		]);
-		if (!settled) {
-			this.logger.error(
-				"[memory-consolidation] execution did not settle after force timeout, resetting running flag",
-			);
+		if (executionSettled) {
+			this.releaseExecution(execution);
+			return;
 		}
+
+		void this.releaseExecutionWhenSettled(execution);
+	}
+
+	private releaseExecution(execution: Promise<void>): void {
+		if (this.executePromise !== execution) return;
 		this.executePromise = null;
 		this.running = false;
+	}
+
+	private async releaseExecutionWhenSettled(execution: Promise<void>): Promise<void> {
+		await execution.catch(() => {});
+		this.releaseExecution(execution);
 	}
 
 	/** Inlined ConsolidateMemoryUseCase.execute */

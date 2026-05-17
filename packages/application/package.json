@@ -6,5 +6,9 @@
 		"./message-ingestion-service": "./src/message-ingestion-service.ts",
 		"./resume-context-service": "./src/resume-context-service.ts",
 		"./split-message": "./src/split-message.ts"
+	},
+	"dependencies": {
+		"@vicissitude/memory": "workspace:*",
+		"@vicissitude/shared": "workspace:*"
 	}
 }

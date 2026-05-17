@@ -21,5 +21,8 @@
 		"./fsrs": "./src/fsrs.ts",
 		"./drift-score": "./src/drift-score.ts",
 		"./critic-auditor": "./src/critic-auditor.ts"
+	},
+	"dependencies": {
+		"@vicissitude/shared": "workspace:*"
 	}
 }

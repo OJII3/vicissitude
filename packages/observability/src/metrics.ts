@@ -37,6 +37,7 @@ export const METRIC = {
 	CRITIC_AUDITOR_SKIP_TOTAL: "critic_auditor_skip_total",
 	// Cost metrics
 	LLM_COST_DOLLARS: "llm_cost_dollars_total",
+	LLM_PRICING_UNKNOWN: "llm_pricing_unknown_total",
 	// Session error metrics
 	SESSION_ERRORS: "session_errors_total",
 	SESSION_RESTARTS: "session_restarts_total",
@@ -77,6 +78,8 @@ export function recordTokenMetrics(
 			if (cost > 0) {
 				metrics.addCounter(METRIC.LLM_COST_DOLLARS, cost, { ...labels, model: modelId });
 			}
+		} else {
+			metrics.incrementCounter(METRIC.LLM_PRICING_UNKNOWN, { ...labels, model: modelId });
 		}
 	}
 }

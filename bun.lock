@@ -65,11 +65,16 @@
         "@vicissitude/observability": "workspace:*",
         "@vicissitude/opencode": "workspace:*",
         "@vicissitude/shared": "workspace:*",
-        "drizzle-orm": "^0.45.1",
+        "@vicissitude/store": "workspace:*",
+        "zod": "^4.3.6",
       },
     },
     "packages/application": {
       "name": "@vicissitude/application",
+      "dependencies": {
+        "@vicissitude/memory": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
+      },
     },
     "packages/avatar": {
       "name": "@vicissitude/avatar",
@@ -81,7 +86,6 @@
       "name": "@vicissitude/gateway",
       "dependencies": {
         "@sinclair/typebox": "^0.34.48",
-        "@vicissitude/avatar": "workspace:*",
         "@vicissitude/shared": "workspace:*",
         "elysia": "^1.4.27",
       },
@@ -89,11 +93,16 @@
     "packages/infrastructure": {
       "name": "@vicissitude/infrastructure",
       "dependencies": {
-        "discord.js": "^14.19.3",
+        "zod": "^4.3.6",
       },
     },
     "packages/listening": {
       "name": "@vicissitude/listening",
+      "dependencies": {
+        "@vicissitude/memory": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
+        "@vicissitude/spotify": "workspace:*",
+      },
     },
     "packages/mcp": {
       "name": "@vicissitude/mcp",
@@ -101,24 +110,33 @@
         "@modelcontextprotocol/sdk": "^1.27.1",
         "@vicissitude/agent": "workspace:*",
         "@vicissitude/infrastructure": "workspace:*",
-        "@vicissitude/minecraft": "workspace:*",
+        "@vicissitude/listening": "workspace:*",
+        "@vicissitude/memory": "workspace:*",
         "@vicissitude/observability": "workspace:*",
         "@vicissitude/ollama": "workspace:*",
+        "@vicissitude/opencode": "workspace:*",
         "@vicissitude/scheduling": "workspace:*",
         "@vicissitude/shared": "workspace:*",
         "@vicissitude/spotify": "workspace:*",
+        "@vicissitude/store": "workspace:*",
         "discord.js": "^14.25.1",
         "zod": "^4.3.6",
       },
     },
     "packages/memory": {
       "name": "@vicissitude/memory",
+      "dependencies": {
+        "@vicissitude/shared": "workspace:*",
+      },
     },
     "packages/minecraft": {
       "name": "@vicissitude/minecraft",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
+        "@vicissitude/mcp": "workspace:*",
         "@vicissitude/observability": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
+        "@vicissitude/store": "workspace:*",
         "canvas": "^3.2.1",
         "mineflayer": "^4.35.0",
         "mineflayer-pathfinder": "^2.4.5",
@@ -132,6 +150,10 @@
     },
     "packages/observability": {
       "name": "@vicissitude/observability",
+      "dependencies": {
+        "@vicissitude/shared": "workspace:*",
+        "pino": "^10.3.1",
+      },
     },
     "packages/ollama": {
       "name": "@vicissitude/ollama",
@@ -140,16 +162,22 @@
       "name": "@vicissitude/opencode",
       "dependencies": {
         "@opencode-ai/sdk": "^1.14.41",
+        "@vicissitude/shared": "workspace:*",
       },
     },
     "packages/scheduling": {
       "name": "@vicissitude/scheduling",
       "dependencies": {
+        "@vicissitude/observability": "workspace:*",
+        "@vicissitude/shared": "workspace:*",
         "zod": "^4.3.6",
       },
     },
     "packages/shared": {
       "name": "@vicissitude/shared",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
     },
     "packages/spotify": {
       "name": "@vicissitude/spotify",
@@ -160,6 +188,7 @@
     "packages/store": {
       "name": "@vicissitude/store",
       "dependencies": {
+        "@vicissitude/shared": "workspace:*",
         "drizzle-orm": "^0.45.1",
       },
     },

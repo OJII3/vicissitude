@@ -1,3 +1,12 @@
+import { z } from "zod";
+
+import {
+	createSpotifyRuntimeDeps,
+	type SpotifyRuntimeDeps,
+	type SpotifyRuntimeDepsInput,
+} from "./runtime-deps.ts";
+import { spotifyNonEmptyStringSchema } from "./types.ts";
+
 export interface SpotifyAuthPort {
 	getAccessToken(): Promise<string>;
 }
@@ -13,8 +22,15 @@ interface TokenCache {
 	expiresAt: number;
 }
 
+const tokenResponseSchema = z.object({
+	access_token: spotifyNonEmptyStringSchema,
+	expires_in: z.number().int().min(0),
+});
+
 export class SpotifyAuth implements SpotifyAuthPort {
 	private cache: TokenCache | null = null;
+	private inFlightToken: Promise<TokenCache> | null = null;
+	private readonly deps: SpotifyRuntimeDeps;
 
 	constructor(
 		private readonly config: {
@@ -23,11 +39,14 @@ export class SpotifyAuth implements SpotifyAuthPort {
 			refreshToken: string;
 		},
 		private readonly logger?: SpotifyLogger,
-	) {}
+		deps: SpotifyRuntimeDepsInput = {},
+	) {
+		this.deps = createSpotifyRuntimeDeps(deps);
+	}
 
 	private async fetchToken(): Promise<TokenCache> {
 		const credentials = btoa(`${this.config.clientId}:${this.config.clientSecret}`);
-		const response = await fetch("https://accounts.spotify.com/api/token", {
+		const response = await this.deps.fetch("https://accounts.spotify.com/api/token", {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/x-www-form-urlencoded",
@@ -37,7 +56,7 @@ export class SpotifyAuth implements SpotifyAuthPort {
 				grant_type: "refresh_token",
 				refresh_token: this.config.refreshToken,
 			}),
-			signal: AbortSignal.timeout(10_000),
+			signal: this.deps.timeoutSignal(10_000),
 		});
 
 		if (!response.ok) {
@@ -46,24 +65,28 @@ export class SpotifyAuth implements SpotifyAuthPort {
 			throw new Error(msg);
 		}
 
-		const data = (await response.json()) as {
-			access_token: string;
-			expires_in: number;
-		};
+		const data = tokenResponseSchema.parse(await response.json());
 
 		this.logger?.info(`[spotify:auth] トークン取得成功 (expires_in=${data.expires_in}s)`);
 
 		return {
 			accessToken: data.access_token,
-			expiresAt: Date.now() + data.expires_in * 1000,
+			expiresAt: this.deps.now() + data.expires_in * 1000,
 		};
 	}
 
 	async getAccessToken(): Promise<string> {
-		if (this.cache && Date.now() < this.cache.expiresAt) {
+		if (this.cache && this.deps.now() < this.cache.expiresAt) {
 			return this.cache.accessToken;
 		}
-		this.cache = await this.fetchToken();
-		return this.cache.accessToken;
+
+		this.inFlightToken ??= this.fetchToken();
+
+		try {
+			this.cache = await this.inFlightToken;
+			return this.cache.accessToken;
+		} finally {
+			this.inFlightToken = null;
+		}
 	}
 }

@@ -1,13 +1,17 @@
 import { describe, expect, it } from "bun:test";
 
 import {
+	type EmotionCategory,
+	EmotionCategorySchema,
 	type Emotion,
 	EmotionSchema,
 	NEUTRAL_EMOTION,
+	NEUTRAL_EMOTION_THRESHOLD,
 	type VrmExpression,
 	VrmExpressionSchema,
 	type VrmExpressionWeight,
 	VrmExpressionWeightSchema,
+	classifyEmotion,
 	createEmotion,
 } from "@vicissitude/shared/emotion";
 import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
@@ -94,6 +98,45 @@ describe("EmotionSchema", () => {
 	it("rejects missing fields", () => {
 		expect(() => EmotionSchema.parse({ valence: 0 })).toThrow();
 		expect(() => EmotionSchema.parse({})).toThrow();
+	});
+});
+
+// ─── EmotionCategory ────────────────────────────────────────────
+
+describe("EmotionCategorySchema", () => {
+	const validCategories: EmotionCategory[] = [
+		"surprised",
+		"neutral",
+		"happy",
+		"relaxed",
+		"angry",
+		"fear",
+		"sad",
+	];
+
+	it("accepts all emotion categories including fear", () => {
+		for (const category of validCategories) {
+			expect(EmotionCategorySchema.parse(category)).toBe(category);
+		}
+	});
+});
+
+// ─── NEUTRAL_EMOTION_THRESHOLD ──────────────────────────────────
+
+describe("NEUTRAL_EMOTION_THRESHOLD", () => {
+	it("defines the shared neutral boundary", () => {
+		expect(NEUTRAL_EMOTION_THRESHOLD).toBe(0.2);
+	});
+
+	it("classifyEmotion treats values inside the shared threshold as neutral", () => {
+		const inside = NEUTRAL_EMOTION_THRESHOLD - 0.01;
+		const result = classifyEmotion(createEmotion(inside, -inside, inside));
+		expect(result).toBe("neutral");
+	});
+
+	it("classifyEmotion treats values on the shared threshold as outside neutral", () => {
+		const result = classifyEmotion(createEmotion(NEUTRAL_EMOTION_THRESHOLD, 0.1, 0));
+		expect(result).not.toBe("neutral");
 	});
 });
 

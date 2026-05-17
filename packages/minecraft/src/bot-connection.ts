@@ -2,7 +2,6 @@ import type { Logger } from "@vicissitude/shared/types";
 import mineflayer from "mineflayer";
 import pathfinder from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
-import { mineflayer as prismarineViewer } from "prismarine-viewer";
 
 import type { BotContext } from "./bot-context.ts";
 import { getTimePeriod, getWeather } from "./bot-queries.ts";
@@ -70,9 +69,16 @@ function cleanupBot(b: mineflayer.Bot): void {
 	if (typeof b.quit === "function") b.quit();
 }
 
-function startViewer(b: mineflayer.Bot, viewerPort: number, logger: Logger): void {
-	prismarineViewer(b, { viewDistance: 4, firstPerson: true, port: viewerPort });
-	logger.info(`[minecraft] Viewer running on *:${String(viewerPort)}`);
+async function startViewer(b: mineflayer.Bot, viewerPort: number, logger: Logger): Promise<void> {
+	try {
+		const { mineflayer: prismarineViewer } = await import("prismarine-viewer");
+		prismarineViewer(b, { viewDistance: 4, firstPerson: true, port: viewerPort });
+		logger.info(`[minecraft] Viewer running on *:${String(viewerPort)}`);
+	} catch (err) {
+		logger.error(
+			`[minecraft] Viewer startup failed: ${err instanceof Error ? err.message : String(err)}`,
+		);
+	}
 }
 
 function handleHealthChange(b: mineflayer.Bot, ctx: BotContext, tracking: TrackingState): void {
@@ -114,7 +120,7 @@ function registerCoreEvents(params: CoreEventParams): void {
 		logger.info(`[minecraft] Bot spawned as ${b.username} at ${String(b.entity.position)}`);
 		ctx.pushEvent("spawn", `Spawned at ${String(b.entity.position)}`, "high");
 		onSpawnReady();
-		startViewer(b, viewerPort, logger);
+		void startViewer(b, viewerPort, logger);
 	});
 	b.on("death", () => {
 		ctx.pushEvent("death", "Bot died", "high");

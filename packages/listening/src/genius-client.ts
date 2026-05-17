@@ -1,4 +1,16 @@
 const GENIUS_API_BASE = "https://api.genius.com";
+const DEFAULT_TIMEOUT_MS = 10_000;
+
+export type GeniusFetch = (input: string | URL | Request, init?: RequestInit) => Promise<Response>;
+
+export type GeniusTimeout = (milliseconds: number) => AbortSignal;
+
+export interface GeniusClientOptions {
+	fetch?: GeniusFetch;
+	timeout?: GeniusTimeout;
+	timeoutMs?: number;
+	baseUrl?: string;
+}
 
 interface GeniusSearchResponse {
 	response: {
@@ -19,7 +31,20 @@ interface GeniusSearchResponse {
  * シンプルに HTML 取得 → lyrics container タグ抽出で実装する。
  */
 export class GeniusClient {
-	constructor(private readonly accessToken: string) {}
+	private readonly fetch: GeniusFetch;
+	private readonly timeout: GeniusTimeout;
+	private readonly timeoutMs: number;
+	private readonly baseUrl: string;
+
+	constructor(
+		private readonly accessToken: string,
+		options: GeniusClientOptions = {},
+	) {
+		this.fetch = options.fetch ?? globalThis.fetch.bind(globalThis);
+		this.timeout = options.timeout ?? ((milliseconds) => AbortSignal.timeout(milliseconds));
+		this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+		this.baseUrl = normalizeBaseUrl(options.baseUrl ?? GENIUS_API_BASE);
+	}
 
 	async fetchLyrics(title: string, artist: string): Promise<string | null> {
 		const query = `${title} ${artist}`;
@@ -29,9 +54,9 @@ export class GeniusClient {
 	}
 
 	private async searchSongUrl(query: string): Promise<string | null> {
-		const response = await fetch(`${GENIUS_API_BASE}/search?q=${encodeURIComponent(query)}`, {
+		const response = await this.fetch(`${this.baseUrl}/search?q=${encodeURIComponent(query)}`, {
 			headers: { Authorization: `Bearer ${this.accessToken}` },
-			signal: AbortSignal.timeout(10_000),
+			signal: this.timeout(this.timeoutMs),
 		});
 		if (!response.ok) return null;
 		const data = (await response.json()) as GeniusSearchResponse;
@@ -39,7 +64,7 @@ export class GeniusClient {
 	}
 
 	private async scrapeLyrics(url: string): Promise<string | null> {
-		const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
+		const response = await this.fetch(url, { signal: this.timeout(this.timeoutMs) });
 		if (!response.ok) return null;
 		const html = await response.text();
 		// Genius は lyrics を <div data-lyrics-container="true">...</div> に入れる
@@ -76,4 +101,8 @@ export class GeniusClient {
 			.replaceAll("&#x27;", "'")
 			.trim();
 	}
+}
+
+function normalizeBaseUrl(baseUrl: string): string {
+	return baseUrl.replaceAll(/\/+$/g, "");
 }

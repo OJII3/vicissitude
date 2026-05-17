@@ -14,7 +14,8 @@ import { SessionStore } from "@vicissitude/agent/session-store";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { ResumeContextService } from "@vicissitude/application/resume-context-service";
-import { createGatewayServer } from "@vicissitude/gateway/server";
+import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
+import { createGatewayApp, listenGatewayServer } from "@vicissitude/gateway/server";
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { GitHubIssueAdapter } from "@vicissitude/infrastructure/http/github-issue-adapter";
 import { MemoryChatAdapter } from "@vicissitude/memory/chat-adapter";
@@ -445,7 +446,7 @@ function setupEventHandlers(deps: {
 	logger: Logger;
 }): void {
 	const { gateway, ingestionService, metricsCollector, agents, logger } = deps;
-	gateway.onHomeChannelMessage((msg) => {
+	gateway.onHomeChannelMessage(async (msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			guild_id: msg.guildId ?? "none",
@@ -454,7 +455,7 @@ function setupEventHandlers(deps: {
 			is_thread: String(msg.isThread),
 			has_attachments: String(msg.attachments.length > 0),
 		});
-		ingestionService.handleIncomingMessage(msg, {
+		await ingestionService.handleIncomingMessage(msg, {
 			recordConversation: true,
 		});
 		if (msg.guildId && msg.authorId !== selfUserId) {
@@ -471,10 +472,9 @@ function setupEventHandlers(deps: {
 				isBot: msg.isBot,
 			});
 		}
-		return Promise.resolve();
 	});
 
-	gateway.onMessage((msg) => {
+	gateway.onMessage(async (msg) => {
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			guild_id: msg.guildId ?? "none",
 			channel_type: "mention",
@@ -482,7 +482,7 @@ function setupEventHandlers(deps: {
 			is_thread: String(msg.isThread),
 			has_attachments: String(msg.attachments.length > 0),
 		});
-		ingestionService.handleIncomingMessage(msg);
+		await ingestionService.handleIncomingMessage(msg);
 		if (msg.guildId) {
 			const agent = agents.get(msg.guildId);
 			if (!agent) {
@@ -497,7 +497,6 @@ function setupEventHandlers(deps: {
 				isBot: msg.isBot,
 			});
 		}
-		return Promise.resolve();
 	});
 }
 
@@ -630,13 +629,16 @@ export async function bootstrap(): Promise<void> {
 		: undefined;
 	const ttsStyleMapper = config.tts ? createEmotionToTtsStyleMapper() : undefined;
 	const moodStore = new SqliteMoodStore(db);
+	const emotionToExpressionMapper = createEmotionToExpressionMapper();
 	const wsManager = new WsConnectionManager({
+		emotionToExpressionMapper,
 		ttsSynthesizer,
 		ttsStyleMapper,
 		moodReader: moodStore,
 		logger,
 	});
-	const gatewayServer = createGatewayServer(config.gatewayPort, wsManager);
+	const gatewayApp = createGatewayApp(wsManager);
+	const gatewayServer = listenGatewayServer(gatewayApp, config.gatewayPort);
 	logger.info(
 		`[bootstrap] Gateway server started (port=${config.gatewayPort}, tts=${!!config.tts})`,
 	);

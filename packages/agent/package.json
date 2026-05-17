@@ -23,6 +23,7 @@
 		"@vicissitude/observability": "workspace:*",
 		"@vicissitude/opencode": "workspace:*",
 		"@vicissitude/shared": "workspace:*",
-		"drizzle-orm": "^0.45.1"
+		"@vicissitude/store": "workspace:*",
+		"zod": "^4.3.6"
 	}
 }

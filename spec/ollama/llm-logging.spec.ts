@@ -14,14 +14,17 @@ import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
 // --- テストヘルパー ---
 
-function mockFetch(responseBody: unknown) {
-	globalThis.fetch = (() =>
-		Promise.resolve({
-			ok: true,
-			status: 200,
-			statusText: "OK",
-			json: () => Promise.resolve(responseBody),
-		} as Response)) as unknown as typeof fetch;
+function createHttp(responseBody: unknown) {
+	return {
+		fetch: () =>
+			Promise.resolve({
+				ok: true,
+				status: 200,
+				statusText: "OK",
+				json: () => Promise.resolve(responseBody),
+			} as Response),
+		createTimeoutSignal: () => AbortSignal.abort("test timeout"),
+	};
 }
 
 describe("OllamaChatAdapter prompt() LLM ログ記録", () => {
@@ -32,9 +35,9 @@ describe("OllamaChatAdapter prompt() LLM ログ記録", () => {
 	});
 
 	it("リクエスト送信時にプロンプト内容を debug ログで記録する", async () => {
-		mockFetch({ response: "回答テキスト" });
+		const http = createHttp({ response: "回答テキスト" });
 		const logger = createMockLogger();
-		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger);
+		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger, { http });
 
 		await adapter.prompt("テスト入力プロンプト");
 
@@ -45,9 +48,9 @@ describe("OllamaChatAdapter prompt() LLM ログ記録", () => {
 	});
 
 	it("レスポンス受信時に出力内容を debug ログで記録する", async () => {
-		mockFetch({ response: "Ollamaからの回答" });
+		const http = createHttp({ response: "Ollamaからの回答" });
 		const logger = createMockLogger();
-		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger);
+		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger, { http });
 
 		await adapter.prompt("入力");
 
@@ -58,9 +61,9 @@ describe("OllamaChatAdapter prompt() LLM ログ記録", () => {
 	});
 
 	it("debug ログにモデル情報が含まれる", async () => {
-		mockFetch({ response: "ok" });
+		const http = createHttp({ response: "ok" });
 		const logger = createMockLogger();
-		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger);
+		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", logger, { http });
 
 		await adapter.prompt("入力");
 
@@ -71,9 +74,9 @@ describe("OllamaChatAdapter prompt() LLM ログ記録", () => {
 	});
 
 	it("Logger 未設定でもエラーにならない", async () => {
-		mockFetch({ response: "回答テキスト" });
+		const http = createHttp({ response: "回答テキスト" });
 		// Logger を渡さずにインスタンス生成
-		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3");
+		const adapter = new OllamaChatAdapter("http://localhost:11434", "gemma3", undefined, { http });
 
 		const result = await adapter.prompt("テスト");
 		expect(result).toBe("回答テキスト");

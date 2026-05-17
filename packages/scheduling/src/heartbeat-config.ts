@@ -15,14 +15,18 @@ const LOCK_TIMEOUT_MS = 5_000;
 const LOCK_STALE_MS = 30_000;
 
 const heartbeatConfigSchema = z.object({
-	baseIntervalMinutes: z.number(),
+	baseIntervalMinutes: z.number().min(1),
 	reminders: z.array(
 		z.object({
 			id: z.string(),
 			description: z.string(),
 			schedule: z.union([
-				z.object({ type: z.literal("interval"), minutes: z.number() }),
-				z.object({ type: z.literal("daily"), hour: z.number(), minute: z.number() }),
+				z.object({ type: z.literal("interval"), minutes: z.number().min(1) }),
+				z.object({
+					type: z.literal("daily"),
+					hour: z.number().min(0).max(23),
+					minute: z.number().min(0).max(59),
+				}),
 			]),
 			lastExecutedAt: z.string().nullable(),
 			enabled: z.boolean(),
@@ -40,9 +44,11 @@ export class JsonHeartbeatConfigRepository {
 	}
 
 	load(): Promise<HeartbeatConfig> {
-		const config = this.readConfig();
-		this.loadedSnapshots.set(config, cloneConfig(config));
-		return Promise.resolve(config);
+		return Promise.resolve().then(() => {
+			const config = this.readConfig();
+			this.loadedSnapshots.set(config, cloneConfig(config));
+			return config;
+		});
 	}
 
 	async save(config: HeartbeatConfig): Promise<void> {
@@ -83,13 +89,20 @@ export class JsonHeartbeatConfigRepository {
 		if (!existsSync(this.filePath)) {
 			return createDefaultHeartbeatConfig();
 		}
+
+		const raw: string = readFileSync(this.filePath, "utf-8");
+		let json: unknown;
 		try {
-			const raw: string = readFileSync(this.filePath, "utf-8");
-			const parsed = heartbeatConfigSchema.parse(JSON.parse(raw));
-			return parsed as HeartbeatConfig;
-		} catch {
-			return createDefaultHeartbeatConfig();
+			json = JSON.parse(raw);
+		} catch (error) {
+			throw createHeartbeatConfigJsonError(this.filePath, error);
 		}
+
+		const parsed = heartbeatConfigSchema.safeParse(json);
+		if (!parsed.success) {
+			throw createHeartbeatConfigSchemaError(this.filePath, parsed.error);
+		}
+		return parsed.data as HeartbeatConfig;
 	}
 
 	private async writeConfig(config: HeartbeatConfig): Promise<void> {
@@ -154,6 +167,18 @@ export class JsonHeartbeatConfigRepository {
 			}
 		}
 	}
+}
+
+function createHeartbeatConfigJsonError(filePath: string, cause: unknown): Error {
+	const error = new Error(`Invalid heartbeat config JSON: ${filePath}`, { cause });
+	error.name = "HeartbeatConfigJsonError";
+	return error;
+}
+
+function createHeartbeatConfigSchemaError(filePath: string, cause: unknown): Error {
+	const error = new Error(`Invalid heartbeat config schema: ${filePath}`, { cause });
+	error.name = "HeartbeatConfigSchemaError";
+	return error;
 }
 
 function mergeConfigChanges(

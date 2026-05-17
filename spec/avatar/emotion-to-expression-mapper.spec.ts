@@ -1,7 +1,12 @@
 import { describe, expect, it } from "bun:test";
 
 import { createEmotionToExpressionMapper } from "@vicissitude/avatar";
-import { type Emotion, NEUTRAL_EMOTION, createEmotion } from "@vicissitude/shared/emotion";
+import {
+	type Emotion,
+	NEUTRAL_EMOTION,
+	NEUTRAL_EMOTION_THRESHOLD,
+	createEmotion,
+} from "@vicissitude/shared/emotion";
 // ─── テスト対象のファクトリ ─────────────────────────────────────
 //
 // packages/avatar が公開する具象実装を生成する関数。
@@ -95,23 +100,24 @@ describe("EmotionToExpressionMapper — surprised priority", () => {
 // ─── Expression 選択: neutral 優先度 ───────────────────────────
 
 describe("EmotionToExpressionMapper — neutral boundary", () => {
-	it("neutral 境界: |V| = 0.19 は neutral", () => {
-		const result = mapper().mapToExpression(createEmotion(0.19, 0.1, -0.1));
+	it("shared neutral threshold の内側は neutral", () => {
+		const inside = NEUTRAL_EMOTION_THRESHOLD - 0.01;
+		const result = mapper().mapToExpression(createEmotion(inside, 0.1, -0.1));
 		expect(result.expression).toBe("neutral");
 	});
 
-	it("neutral 境界外: |V| = 0.2 は neutral ではない", () => {
-		const result = mapper().mapToExpression(createEmotion(0.2, 0.1, 0.0));
+	it("neutral 境界外: |V| = shared threshold は neutral ではない", () => {
+		const result = mapper().mapToExpression(createEmotion(NEUTRAL_EMOTION_THRESHOLD, 0.1, 0.0));
 		expect(result.expression).not.toBe("neutral");
 	});
 
-	it("neutral 境界外: |A| = 0.2 は neutral ではない", () => {
-		const result = mapper().mapToExpression(createEmotion(0.1, 0.2, 0.0));
+	it("neutral 境界外: |A| = shared threshold は neutral ではない", () => {
+		const result = mapper().mapToExpression(createEmotion(0.1, NEUTRAL_EMOTION_THRESHOLD, 0.0));
 		expect(result.expression).not.toBe("neutral");
 	});
 
-	it("neutral 境界外: |D| = 0.2 は neutral ではない", () => {
-		const result = mapper().mapToExpression(createEmotion(0.0, 0.1, 0.2));
+	it("neutral 境界外: |D| = shared threshold は neutral ではない", () => {
+		const result = mapper().mapToExpression(createEmotion(0.0, 0.1, NEUTRAL_EMOTION_THRESHOLD));
 		expect(result.expression).not.toBe("neutral");
 	});
 });
@@ -152,6 +158,13 @@ describe("EmotionToExpressionMapper — weight", () => {
 		expect(veryNeutral.expression).toBe("neutral");
 		expect(barelyNeutral.expression).toBe("neutral");
 		expect(veryNeutral.weight).toBeGreaterThan(barelyNeutral.weight);
+	});
+
+	it("fear の weight は VAD 各軸の絶対値平均", () => {
+		const result = mapper().mapToExpression(createEmotion(-0.5, 0.4, -0.3));
+
+		expect(result.expression).toBe("fear");
+		expect(result.weight).toBeCloseTo((0.5 + 0.4 + 0.3) / 3);
 	});
 
 	it("極端な感情値 (1, 1, 1) で weight が 1 に近い", () => {

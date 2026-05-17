@@ -15,7 +15,7 @@ import { registerMinecraftTools } from "./mcp-tools.ts";
 import { ReactiveLayer } from "./reactive-layer.ts";
 
 /* oxlint-disable-next-line max-lines-per-function -- server entry point; splitting would add indirection without benefit */
-function main(): void {
+export function main(): void {
 	// ── Logger ───────────────────────────────────────────────────────────────────
 	const logger = new ConsoleLogger();
 
@@ -190,4 +190,6 @@ function main(): void {
 	process.on("unhandledRejection", (err) => logger.error("[minecraft] unhandledRejection:", err));
 }
 
-main();
+if (import.meta.main) {
+	main();
+}

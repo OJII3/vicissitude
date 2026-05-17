@@ -221,13 +221,20 @@ Respond with JSON only: {"segments": [...]}`;
 				{ role: "system", content: systemPrompt },
 				{ role: "user", content: `<conversation>\n${formatted}\n</conversation>` },
 			],
-			createSegmentationSchema(messages.length),
+			createSegmentationSchema(messages.length, { minMessages: this.config.minMessages }),
 		);
 	}
 }
 
+interface SegmentationValidationOptions {
+	minMessages: number;
+}
+
 /** Create a schema validator for SegmentationOutput with message count bounds checking */
-function createSegmentationSchema(messageCount: number): Schema<SegmentationOutput> {
+function createSegmentationSchema(
+	messageCount: number,
+	options: SegmentationValidationOptions,
+): Schema<SegmentationOutput> {
 	return {
 		parse(data: unknown): SegmentationOutput {
 			if (typeof data !== "object" || data === null) {
@@ -241,6 +248,7 @@ function createSegmentationSchema(messageCount: number): Schema<SegmentationOutp
 			const segments = (obj["segments"] as unknown[]).map((s, i) =>
 				parseSegment(s, i, messageCount),
 			);
+			validateSegmentSequence(segments, options);
 			return { segments };
 		},
 	};
@@ -279,6 +287,7 @@ function validateSegmentFields(
 		["endIndex", "number"],
 		["title", "string"],
 		["summary", "string"],
+		["surprise", "string"],
 	] as const;
 
 	for (const [key, expectedType] of required) {
@@ -301,12 +310,38 @@ function validateSegmentFields(
 	}
 }
 
-/** Normalize surprise value from LLM output, falling back to "low" for invalid values */
-function normalizeSurprise(value: unknown): SurpriseLevel {
-	if (typeof value === "string" && VALID_SURPRISE.has(value)) {
+function validateSurprise(value: string, i: number): SurpriseLevel {
+	if (VALID_SURPRISE.has(value)) {
 		return value as SurpriseLevel;
 	}
-	return "low";
+	throw new TypeError(`segments[${i}].surprise: expected one of low, high, extremely_high`);
+}
+
+function validateSegmentSequence(
+	segments: SegmentResult[],
+	options: SegmentationValidationOptions,
+): void {
+	let expectedStartIndex = 0;
+	for (const [i, segment] of segments.entries()) {
+		if (segment.startIndex < expectedStartIndex) {
+			throw new RangeError(
+				`segments[${i}].startIndex: overlap detected (${segment.startIndex} < ${expectedStartIndex})`,
+			);
+		}
+		if (segment.startIndex !== expectedStartIndex) {
+			throw new RangeError(
+				`segments[${i}].startIndex: segments must be contiguous from 0 (expected ${expectedStartIndex}, got ${segment.startIndex})`,
+			);
+		}
+
+		const length = segment.endIndex - segment.startIndex;
+		if (length < options.minMessages) {
+			throw new RangeError(
+				`segments[${i}]: length ${length} is shorter than minMessages ${options.minMessages}`,
+			);
+		}
+		expectedStartIndex = segment.endIndex;
+	}
 }
 
 function parseSegment(s: unknown, i: number, messageCount: number): SegmentResult {
@@ -321,6 +356,6 @@ function parseSegment(s: unknown, i: number, messageCount: number): SegmentResul
 		endIndex: seg["endIndex"] as number,
 		title: seg["title"] as string,
 		summary: seg["summary"] as string,
-		surprise: normalizeSurprise(seg["surprise"]),
+		surprise: validateSurprise(seg["surprise"] as string, i),
 	};
 }

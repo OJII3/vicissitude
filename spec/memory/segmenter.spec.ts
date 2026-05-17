@@ -406,7 +406,7 @@ describe("Segmenter — schema validation", () => {
 		["boolean", true],
 		["object", {}],
 		["array", []],
-	])("falls back to low for invalid surprise (%s)", async (_label, surprise) => {
+	])("rejects invalid surprise (%s)", async (_label, surprise) => {
 		const segmenter = new Segmenter(
 			createInvalidLLM({
 				segments: [
@@ -424,9 +424,7 @@ describe("Segmenter — schema validation", () => {
 		);
 
 		await segmenter.addMessage(userId, makeMessage("first"));
-		const episodes = await segmenter.addMessage(userId, makeMessage("trigger"));
-		expect(episodes).toHaveLength(1);
-		expect(episodes[0]!.surprise).toBe(0.2);
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("surprise");
 	});
 
 	test("rejects segment with non-integer startIndex", async () => {
@@ -448,6 +446,104 @@ describe("Segmenter — schema validation", () => {
 
 		await segmenter.addMessage(userId, makeMessage("first"));
 		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("startIndex");
+	});
+
+	test("rejects segment shorter than minMessages", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 0,
+						endIndex: 2,
+						title: "t",
+						summary: "s",
+						surprise: "low",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 3, softTrigger: 4, hardTrigger: 10 },
+		);
+
+		await addMessagesSequentially(segmenter, userId, makeMessages(3));
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("minMessages");
+	});
+
+	test("rejects first segment that does not start at zero", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 1,
+						endIndex: 3,
+						title: "t",
+						summary: "s",
+						surprise: "low",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 3, hardTrigger: 10 },
+		);
+
+		await addMessagesSequentially(segmenter, userId, makeMessages(2));
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("contiguous");
+	});
+
+	test("rejects segments with a gap", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 0,
+						endIndex: 2,
+						title: "first",
+						summary: "first",
+						surprise: "low",
+					},
+					{
+						startIndex: 3,
+						endIndex: 5,
+						title: "second",
+						summary: "second",
+						surprise: "high",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 5, hardTrigger: 10 },
+		);
+
+		await addMessagesSequentially(segmenter, userId, makeMessages(4));
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("contiguous");
+	});
+
+	test("rejects overlapping segments", async () => {
+		const segmenter = new Segmenter(
+			createInvalidLLM({
+				segments: [
+					{
+						startIndex: 0,
+						endIndex: 3,
+						title: "first",
+						summary: "first",
+						surprise: "low",
+					},
+					{
+						startIndex: 2,
+						endIndex: 5,
+						title: "second",
+						summary: "second",
+						surprise: "high",
+					},
+				],
+			}),
+			storage,
+			{ minMessages: 1, softTrigger: 5, hardTrigger: 10 },
+		);
+
+		await addMessagesSequentially(segmenter, userId, makeMessages(4));
+		expect(segmenter.addMessage(userId, makeMessage("trigger"))).rejects.toThrow("overlap");
 	});
 });
 

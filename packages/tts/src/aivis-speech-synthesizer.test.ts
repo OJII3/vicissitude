@@ -1,25 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
 
-import { AivisSpeechSynthesizer } from "./aivis-speech-synthesizer";
+import {
+	AivisSpeechSynthesizer,
+	type AivisFetch,
+	type AivisSpeechSynthesizerConfig,
+} from "./aivis-speech-synthesizer";
 
 const BASE_URL = "http://localhost:10101";
 const DEFAULT_STYLE = createTtsStyleParams("happy", 0.7, 1.2);
 const DUMMY_AUDIO_QUERY = { speedScale: 1.0, pitchScale: 0.0 };
 
-const originalFetch = globalThis.fetch;
 let mockFetch: ReturnType<typeof mock>;
 
 beforeEach(() => {
 	mockFetch = mock();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
 });
 
-afterEach(() => {
-	globalThis.fetch = originalFetch;
-});
+function synthesizer(
+	config?: Omit<AivisSpeechSynthesizerConfig, "baseUrl" | "fetch"> & {
+		baseUrl?: string;
+	},
+): AivisSpeechSynthesizer {
+	return new AivisSpeechSynthesizer({
+		...config,
+		baseUrl: config?.baseUrl ?? BASE_URL,
+		fetch: mockFetch as unknown as AivisFetch,
+	});
+}
 
 // ─── synthesize: 2-step API call ─────────────────────────────────
 
@@ -30,7 +40,7 @@ describe("synthesize — API calls", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 96000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		await synth.synthesize("こんにちは", DEFAULT_STYLE);
 
 		expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -56,7 +66,7 @@ describe("synthesize — API calls", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		await synth.synthesize("test", DEFAULT_STYLE);
 
 		const [, synthInit] = mockFetch.mock.calls[1] as [URL, RequestInit];
@@ -71,7 +81,7 @@ describe("synthesize — API calls", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL, speakerId: 3 });
+		const synth = synthesizer({ speakerId: 3 });
 		await synth.synthesize("test", DEFAULT_STYLE);
 
 		const [queryUrl] = mockFetch.mock.calls[0] as [URL, RequestInit];
@@ -81,16 +91,15 @@ describe("synthesize — API calls", () => {
 		expect(synthUrl.searchParams.get("speaker")).toBe("3");
 	});
 
-	it("styleSpeakerMap で style に応じた speaker ID を使用する", async () => {
+	it("styleConfigs で style に応じた speaker ID を使用する", async () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({
-			baseUrl: BASE_URL,
+		const synth = synthesizer({
 			speakerId: 0,
-			styleSpeakerMap: { happy: 5, sad: 6 },
+			styleConfigs: { happy: { speakerId: 5 }, sad: { speakerId: 6 } },
 		});
 		// style = "happy" → speaker 5
 		await synth.synthesize("test", DEFAULT_STYLE);
@@ -99,22 +108,21 @@ describe("synthesize — API calls", () => {
 		expect(queryUrl.searchParams.get("speaker")).toBe("5");
 	});
 
-	it("styleSpeakerMap に未定義の style はデフォルト speakerId を使用する", async () => {
+	it("styleConfigs に未定義の style はデフォルト speakerId を使用する", async () => {
 		mockFetch.mockResolvedValueOnce(
 			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({
-			baseUrl: BASE_URL,
+		const synth = synthesizer({
 			speakerId: 2,
-			styleSpeakerMap: { happy: 5 },
+			styleConfigs: { happy: { speakerId: 5 } },
 		});
 		const sadStyle = createTtsStyleParams("sad", 0.5, 1.0);
 		await synth.synthesize("test", sadStyle);
 
 		const [queryUrl] = mockFetch.mock.calls[0] as [URL, RequestInit];
-		// sad は styleSpeakerMap に未定義 → デフォルト speakerId (2) を使用
+		// sad は styleConfigs に未定義 → デフォルト speakerId (2) を使用
 		expect(queryUrl.searchParams.get("speaker")).toBe("2");
 	});
 });
@@ -128,7 +136,7 @@ describe("synthesize — timeout", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		await synth.synthesize("test", DEFAULT_STYLE);
 
 		const [, init] = mockFetch.mock.calls[0] as [URL, RequestInit];
@@ -141,8 +149,7 @@ describe("synthesize — timeout", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 48000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({
-			baseUrl: BASE_URL,
+		const synth = synthesizer({
 			timeout: 10_000,
 		});
 		await synth.synthesize("test", DEFAULT_STYLE);
@@ -161,7 +168,7 @@ describe("computeWavDuration — calculation precision", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 96000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).not.toBeNull();
@@ -174,7 +181,7 @@ describe("computeWavDuration — calculation precision", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(48000, 24000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).not.toBeNull();
@@ -190,7 +197,7 @@ describe("computeWavDuration — edge cases", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(shortBuffer, { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).toBeNull();
@@ -202,7 +209,7 @@ describe("computeWavDuration — edge cases", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(0, 96000), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).toBeNull();
@@ -220,7 +227,7 @@ describe("computeWavDuration — edge cases", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(noDataChunk.buffer, { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).toBeNull();
@@ -236,7 +243,7 @@ describe("readUint32LE — byte order verification via WAV parsing", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(65536, 65536), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).not.toBeNull();
@@ -249,7 +256,7 @@ describe("readUint32LE — byte order verification via WAV parsing", () => {
 		);
 		mockFetch.mockResolvedValueOnce(new Response(buildWav(16909060, 16909060), { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).not.toBeNull();
@@ -263,7 +270,7 @@ describe("isAvailable — fetch call", () => {
 	it("baseUrl に GET でフェッチする", async () => {
 		mockFetch.mockResolvedValueOnce(new Response("OK", { status: 200 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		await synth.isAvailable();
 
 		expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -275,7 +282,7 @@ describe("isAvailable — fetch call", () => {
 	it("HTTP 4xx でも false を返す", async () => {
 		mockFetch.mockResolvedValueOnce(new Response("Not Found", { status: 404 }));
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.isAvailable();
 
 		expect(result).toBe(false);
@@ -290,7 +297,7 @@ describe("synthesize — logger DI", () => {
 		const fetchError = new Error("network failure");
 		mockFetch.mockRejectedValueOnce(fetchError);
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL, logger });
+		const synth = synthesizer({ logger });
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).toBeNull();
@@ -302,7 +309,7 @@ describe("synthesize — logger DI", () => {
 		const fetchError = new Error("network failure");
 		mockFetch.mockRejectedValueOnce(fetchError);
 
-		const synth = new AivisSpeechSynthesizer({ baseUrl: BASE_URL });
+		const synth = synthesizer();
 		const result = await synth.synthesize("test", DEFAULT_STYLE);
 
 		expect(result).toBeNull();

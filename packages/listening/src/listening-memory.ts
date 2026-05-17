@@ -1,5 +1,4 @@
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
-import type { MemoryStorage } from "@vicissitude/memory/storage";
 import { HUA_SELF_SUBJECT } from "@vicissitude/shared/namespace";
 
 import type { ListeningMemoryPort, ListeningRecord } from "./types.ts";
@@ -8,9 +7,13 @@ export interface Embedder {
 	embed(text: string): Promise<number[]>;
 }
 
+export interface ListeningFactStore {
+	saveFact(userId: string, fact: SemanticFact): Promise<void>;
+}
+
 export class ListeningMemory implements ListeningMemoryPort {
 	constructor(
-		private readonly storage: MemoryStorage,
+		private readonly storage: ListeningFactStore,
 		private readonly embedder: Embedder,
 	) {}
 

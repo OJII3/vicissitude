@@ -1,5 +1,10 @@
 import { JST_OFFSET_MS } from "@vicissitude/shared/functions";
-import type { DueReminder, HeartbeatConfig } from "@vicissitude/shared/types";
+import type {
+	DueReminder,
+	HeartbeatConfig,
+	HeartbeatReminder,
+	ReminderSchedule,
+} from "@vicissitude/shared/types";
 
 /** Heartbeat config JSON の相対パス（プロジェクトルート起点） */
 export const HEARTBEAT_CONFIG_RELATIVE_PATH = "data/heartbeat-config.json";
@@ -62,7 +67,7 @@ export function evaluateDueReminders(config: HeartbeatConfig, now: Date): DueRem
 		if (schedule.type === "interval") {
 			const overdueMinutes = evaluateInterval(reminder.lastExecutedAt, schedule.minutes, now);
 			if (overdueMinutes !== null) {
-				results.push({ reminder, overdueMinutes });
+				results.push(createDueReminder(reminder, overdueMinutes));
 			}
 		} else if (schedule.type === "daily") {
 			const overdueMinutes = evaluateDaily(
@@ -72,12 +77,37 @@ export function evaluateDueReminders(config: HeartbeatConfig, now: Date): DueRem
 				now,
 			);
 			if (overdueMinutes !== null) {
-				results.push({ reminder, overdueMinutes });
+				results.push(createDueReminder(reminder, overdueMinutes));
 			}
 		}
 	}
 
 	return results;
+}
+
+function createDueReminder(reminder: HeartbeatReminder, overdueMinutes: number): DueReminder {
+	const clonedReminder = cloneReminder(reminder);
+	Object.freeze(clonedReminder.schedule);
+	Object.freeze(clonedReminder);
+	return Object.freeze({ reminder: clonedReminder, overdueMinutes }) as DueReminder;
+}
+
+function cloneReminder(reminder: HeartbeatReminder): HeartbeatReminder {
+	return {
+		id: reminder.id,
+		description: reminder.description,
+		schedule: cloneSchedule(reminder.schedule),
+		lastExecutedAt: reminder.lastExecutedAt,
+		enabled: reminder.enabled,
+		...(reminder.guildId === undefined ? {} : { guildId: reminder.guildId }),
+	};
+}
+
+function cloneSchedule(schedule: ReminderSchedule): ReminderSchedule {
+	if (schedule.type === "interval") {
+		return { type: "interval", minutes: schedule.minutes };
+	}
+	return { type: "daily", hour: schedule.hour, minute: schedule.minute };
 }
 
 function evaluateInterval(

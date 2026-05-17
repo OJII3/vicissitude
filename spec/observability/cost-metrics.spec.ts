@@ -17,6 +17,7 @@ function createSetup() {
 	collector.registerCounter(METRIC.LLM_OUTPUT_TOKENS, "Output tokens");
 	collector.registerCounter(METRIC.LLM_CACHE_READ_TOKENS, "Cache read tokens");
 	collector.registerCounter(LLM_COST_METRIC, "LLM cost in USD");
+	collector.registerCounter(METRIC.LLM_PRICING_UNKNOWN, "Unknown LLM pricing");
 	return collector;
 }
 
@@ -59,7 +60,7 @@ describe("recordTokenMetrics とコストメトリクス", () => {
 		expect(output).not.toContain("llm_cost_dollars_total{");
 	});
 
-	it("未知のモデルID の場合はコストメトリクスが記録されない", () => {
+	it("未知のモデルID の場合は未知 pricing カウンターに記録される", () => {
 		const collector = createSetup();
 		const tokens = { input: 1000, output: 500, cacheRead: 200 };
 		const labels = {
@@ -75,5 +76,7 @@ describe("recordTokenMetrics とコストメトリクス", () => {
 
 		const output = collector.serialize();
 		expect(output).not.toContain("llm_cost_dollars_total{");
+		expect(output).toContain("llm_pricing_unknown_total{");
+		expect(output).toContain('model="unknown-model-xyz"');
 	});
 });

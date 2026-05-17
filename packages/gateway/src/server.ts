@@ -1,8 +1,25 @@
+import type { ConnectionId } from "@vicissitude/shared/ports";
 import { Elysia } from "elysia";
 
-import type { WsConnectionManager } from "./ws-handler";
+import type { WebSocketConnection } from "./ws-handler";
 
-export function createGatewayServer(port: number, manager: WsConnectionManager) {
+export interface GatewayConnectionManager {
+	handleOpen(connectionId: ConnectionId, connection: WebSocketConnection): void;
+	handleMessage(connectionId: ConnectionId, rawMessage: string): void;
+	handleClose(connectionId: ConnectionId): void;
+	getConnectionCount(): number;
+}
+
+export interface GatewayServer {
+	stop(): Promise<unknown>;
+}
+
+export interface GatewayApp {
+	handle(request: Request): Response | Promise<Response>;
+	listen(port: number): GatewayServer;
+}
+
+export function createGatewayApp(manager: GatewayConnectionManager): GatewayApp {
 	return new Elysia()
 		.get("/health", () => ({
 			status: "ok",
@@ -21,6 +38,9 @@ export function createGatewayServer(port: number, manager: WsConnectionManager) 
 			close(ws) {
 				manager.handleClose(ws.id);
 			},
-		})
-		.listen(port);
+		});
+}
+
+export function listenGatewayServer(app: GatewayApp, port: number): GatewayServer {
+	return app.listen(port);
 }

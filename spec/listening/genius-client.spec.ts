@@ -11,6 +11,24 @@ function installFetch(responder: (url: string, init?: RequestInit) => Promise<Re
 	}) as unknown as typeof fetch;
 }
 
+type FetchCall = {
+	url: string;
+	init: RequestInit | undefined;
+};
+
+function createInjectedFetch(responder: (url: string, init?: RequestInit) => Promise<Response>): {
+	fetch: typeof fetch;
+	calls: FetchCall[];
+} {
+	const calls: FetchCall[] = [];
+	const fetch = mock((url: string | URL | Request, init?: RequestInit) => {
+		const urlStr = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+		calls.push({ url: urlStr, init });
+		return responder(urlStr, init);
+	}) as unknown as typeof globalThis.fetch;
+	return { fetch, calls };
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
 	return new Response(JSON.stringify(body), {
 		status,
@@ -44,6 +62,79 @@ function installScrapeResponse(html: string): void {
 }
 
 // --- tests ---
+
+describe("GeniusClient.fetchLyrics — HTTP 境界の注入", () => {
+	let originalFetch: typeof globalThis.fetch;
+	beforeEach(() => {
+		originalFetch = globalThis.fetch;
+	});
+	afterEach(() => {
+		globalThis.fetch = originalFetch;
+	});
+
+	it("注入された fetch を使い globalThis.fetch に依存しない", async () => {
+		globalThis.fetch = mock(() => {
+			throw new Error("global fetch should not be called");
+		}) as unknown as typeof fetch;
+		const injected = createInjectedFetch((url) => {
+			if (url.startsWith("https://api.genius.com/")) {
+				return Promise.resolve(jsonResponse(searchBody("https://genius.com/song")));
+			}
+			return Promise.resolve(htmlResponse('<div data-lyrics-container="true">lyrics body</div>'));
+		});
+
+		const client = new GeniusClient("t", { fetch: injected.fetch });
+		const result = await client.fetchLyrics("曲", "A");
+
+		expect(result).toBe("lyrics body");
+		expect(injected.calls).toHaveLength(2);
+	});
+
+	it("検索 API の baseUrl を差し替えられる", async () => {
+		const injected = createInjectedFetch((url) => {
+			if (url.startsWith("https://genius.example/api/search")) {
+				return Promise.resolve(jsonResponse(searchBody(null)));
+			}
+			return Promise.resolve(htmlResponse(""));
+		});
+
+		const client = new GeniusClient("t", {
+			fetch: injected.fetch,
+			baseUrl: "https://genius.example/api",
+		});
+		await client.fetchLyrics("夜に駆ける", "YOASOBI");
+
+		const expected = `https://genius.example/api/search?q=${encodeURIComponent("夜に駆ける YOASOBI")}`;
+		expect(injected.calls[0]?.url).toBe(expected);
+	});
+
+	it("注入された timeout から作った signal を各 fetch に渡す", async () => {
+		const searchController = new AbortController();
+		const scrapeController = new AbortController();
+		const timeoutSignals = [searchController.signal, scrapeController.signal];
+		const timeoutCalls: number[] = [];
+		const injected = createInjectedFetch((url) => {
+			if (url.startsWith("https://api.genius.com/")) {
+				return Promise.resolve(jsonResponse(searchBody("https://genius.com/song")));
+			}
+			return Promise.resolve(htmlResponse('<div data-lyrics-container="true">lyrics body</div>'));
+		});
+
+		const client = new GeniusClient("t", {
+			fetch: injected.fetch,
+			timeout: (milliseconds) => {
+				timeoutCalls.push(milliseconds);
+				return timeoutSignals[timeoutCalls.length - 1] ?? new AbortController().signal;
+			},
+			timeoutMs: 1234,
+		});
+		await client.fetchLyrics("曲", "A");
+
+		expect(timeoutCalls).toEqual([1234, 1234]);
+		expect(injected.calls[0]?.init?.signal).toBe(searchController.signal);
+		expect(injected.calls[1]?.init?.signal).toBe(scrapeController.signal);
+	});
+});
 
 describe("GeniusClient.fetchLyrics — 歌詞抽出の仕様", () => {
 	let originalFetch: typeof globalThis.fetch;
