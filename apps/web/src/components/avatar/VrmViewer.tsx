@@ -7,6 +7,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+import { syncVrmExpression } from "./expression-sync";
+
 // ─── Auto Blink ─────────────────────────────────────────────────
 
 const BLINK_INTERVAL_MIN = 2000;
@@ -115,17 +117,10 @@ function useVrmLoader(url: string, onError: (message: string) => void, onLoaded:
 
 // ─── Expression Sync Hook ───────────────────────────────────────
 
-const EXPRESSION_NAMES = ["happy", "angry", "sad", "relaxed", "surprised"] as const;
-
 function useExpressionSync(vrm: VRM | null, expressionWeight: VrmExpressionWeight | null) {
 	useEffect(() => {
 		if (!vrm?.expressionManager) return;
-		for (const name of EXPRESSION_NAMES) {
-			vrm.expressionManager.setValue(name, 0);
-		}
-		if (expressionWeight && expressionWeight.expression !== "neutral") {
-			vrm.expressionManager.setValue(expressionWeight.expression, expressionWeight.weight);
-		}
+		syncVrmExpression(vrm.expressionManager, expressionWeight);
 	}, [vrm, expressionWeight]);
 }
 

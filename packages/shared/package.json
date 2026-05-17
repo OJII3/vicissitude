@@ -12,5 +12,8 @@
 		"./github-auth-env": "./src/github-auth-env.ts",
 		"./test-helpers": "./src/test-helpers.ts",
 		"./sqlite": "./src/sqlite.ts"
+	},
+	"dependencies": {
+		"zod": "^4.3.6"
 	}
 }

@@ -57,6 +57,18 @@ describe("JobManager", () => {
 		expect(job?.status).toBe("running");
 	});
 
+	test("getCurrentJob は内部ジョブへの mutable reference を返さない", () => {
+		const { manager } = setup();
+		manager.startJob("following", "ojii3", hangingExecutor);
+		const job = manager.getCurrentJob();
+		expect(job).not.toBeNull();
+		(job as { target: string; status: string }).target = "mutated";
+		(job as { target: string; status: string }).status = "failed";
+		const next = manager.getCurrentJob();
+		expect(next?.target).toBe("ojii3");
+		expect(next?.status).toBe("running");
+	});
+
 	test("ジョブ完了時に actionState が idle になる", async () => {
 		const { manager, states } = setup();
 		manager.startJob("moving", "(10, 64, -20)", noopExecutor);
@@ -165,6 +177,22 @@ describe("JobManager", () => {
 		expect(recent).toHaveLength(2);
 		expect(recent.at(0)?.target).toBe("A");
 		expect(recent.at(1)?.target).toBe("B");
+	});
+
+	test("getRecentJobs は履歴ジョブへの mutable reference を返さない", async () => {
+		const { manager } = setup();
+		manager.startJob("moving", "A", noopExecutor);
+		await flushPromises();
+		const recent = manager.getRecentJobs(5);
+		const first = recent.at(0) as { target: string; status: string; startedAt: Date } | undefined;
+		if (!first) throw new Error("expected recent job");
+		first.target = "mutated";
+		first.status = "failed";
+		first.startedAt.setFullYear(1999);
+		const next = manager.getRecentJobs(5);
+		expect(next.at(0)?.target).toBe("A");
+		expect(next.at(0)?.status).toBe("completed");
+		expect(next.at(0)?.startedAt.getFullYear()).not.toBe(1999);
 	});
 
 	test("getRecentJobs の limit が効く", async () => {

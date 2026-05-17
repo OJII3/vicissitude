@@ -1,9 +1,14 @@
 import {
 	type Emotion,
+	type EmotionCategory,
+	NEUTRAL_EMOTION_THRESHOLD,
+	type VrmExpression,
 	type VrmExpressionWeight,
 	classifyEmotion,
 } from "@vicissitude/shared/emotion";
 import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
+
+type WeightedExpressionCategory = Exclude<EmotionCategory, "neutral"> & VrmExpression;
 
 /**
  * VAD 感情値から VRM Expression へのマッピングを行う実装を生成する。
@@ -27,12 +32,16 @@ function mapToExpression(emotion: Emotion): VrmExpressionWeight {
 
 function mapNeutral(v: number, a: number, d: number): VrmExpressionWeight {
 	const distance = Math.sqrt(v * v + a * a + d * d);
-	// neutral 領域の最大距離
-	const maxDistance = Math.sqrt(0.2 * 0.2 * 3);
+	const maxDistance = Math.sqrt(NEUTRAL_EMOTION_THRESHOLD * NEUTRAL_EMOTION_THRESHOLD * 3);
 	return { expression: "neutral", weight: clampWeight(1 - distance / maxDistance) };
 }
 
-function computeWeightForCategory(category: string, v: number, a: number, d: number): number {
+function computeWeightForCategory(
+	category: WeightedExpressionCategory,
+	v: number,
+	a: number,
+	d: number,
+): number {
 	switch (category) {
 		case "surprised":
 			return computeWeight(a, Math.abs(d));
@@ -47,7 +56,7 @@ function computeWeightForCategory(category: string, v: number, a: number, d: num
 		case "sad":
 			return computeWeight(Math.abs(v), Math.abs(a), Math.abs(d));
 		default:
-			return computeWeight(Math.abs(a), Math.abs(d));
+			return assertNever(category);
 	}
 }
 
@@ -59,4 +68,8 @@ function computeWeight(...values: number[]): number {
 
 function clampWeight(value: number): number {
 	return Math.max(0, Math.min(1, value));
+}
+
+function assertNever(_value: never): never {
+	throw new Error("Unhandled emotion category");
 }

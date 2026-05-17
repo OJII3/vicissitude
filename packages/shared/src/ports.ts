@@ -1,5 +1,5 @@
 import type { Emotion, VrmExpressionWeight } from "./emotion";
-import type { TtsResult, TtsStyleParams } from "./tts";
+import type { TtsResult, TtsStyleParams, TtsSynthesisOutcome } from "./tts";
 import type { HeartbeatConfig } from "./types";
 import type { BodyAnimationPreset, ClientMessage, ServerMessage } from "./ws-protocol";
 
@@ -99,10 +99,17 @@ export interface EmotionToTtsStyleMapper {
 //
 // TTS 音声合成のポート。TTS エンジン（AivisSpeech 等）を抽象化する。
 // GPU PC オフライン時は null を返す（graceful degradation）。
+// 失敗理由が必要な実装は synthesizeWithReason で明示 reason を返す。
 
 /** TTS 音声合成ポート */
 export interface TtsSynthesizer {
 	synthesize(text: string, style: TtsStyleParams, signal?: AbortSignal): Promise<TtsResult | null>;
+	/** 実装が失敗理由を公開できる場合の reason 付き合成契約 */
+	synthesizeWithReason?(
+		text: string,
+		style: TtsStyleParams,
+		signal?: AbortSignal,
+	): Promise<TtsSynthesisOutcome>;
 	isAvailable(): Promise<boolean>;
 }
 

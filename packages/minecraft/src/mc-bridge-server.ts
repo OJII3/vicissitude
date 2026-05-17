@@ -6,7 +6,7 @@ import { registerMinecraftBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-m
 import { registerMcMemoryTools } from "@vicissitude/mcp/tools/mc-memory";
 import { closeDb, createDb } from "@vicissitude/store/db";
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
 	// --- Configuration from environment ---
 
 	const APP_ROOT = process.env.APP_ROOT ?? resolve(process.cwd());
@@ -43,4 +43,6 @@ async function main(): Promise<void> {
 	await server.connect(transport);
 }
 
-void main();
+if (import.meta.main) {
+	void main();
+}

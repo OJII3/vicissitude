@@ -21,7 +21,6 @@ function registerObserveStateTool(
 	server: McpServer,
 	ctx: BotContext,
 	jobManager: JobManager,
-	stuckRecovery?: MinecraftToolsOptions["stuckRecovery"],
 ): void {
 	server.registerTool(
 		"observe_state",
@@ -32,16 +31,12 @@ function registerObserveStateTool(
 				return { content: [{ type: "text", text: "ボット未接続" }] };
 			}
 
-			// 死亡画面でスタックしている場合、リスポーンリトライを試みる
 			if (bot.health <= 0) {
-				const ok = await respawnWithRetry(ctx);
 				return {
 					content: [
 						{
 							type: "text",
-							text: ok
-								? "ボットは死亡状態でしたが、リスポーンに成功しました。再度確認してください。"
-								: "ボットは死亡状態です。リスポーンに失敗しました。",
+							text: "ボットは死亡状態です。観察ではリスポーンしません。復旧するには recover_state を明示実行してください。",
 						},
 					],
 				};
@@ -52,20 +47,6 @@ function registerObserveStateTool(
 			const roundedPos = { x: Math.round(pos.x), y: Math.round(pos.y), z: Math.round(pos.z) };
 			jobManager.recordPositionSnapshot(roundedPos);
 			const stuckResult = jobManager.isStuck();
-
-			let stuckRecoveryNote: string | undefined;
-			if (stuckResult.stuck && stuckRecovery) {
-				const recovered = await attemptStuckRecovery({
-					ctx,
-					reconnect: stuckRecovery.reconnect,
-					onRecoverySuccess: stuckRecovery.onRecoverySuccess,
-					requestSessionRotation: stuckRecovery.requestSessionRotation,
-					cooldownMs: stuckRecovery.cooldownMs,
-				});
-				stuckRecoveryNote = recovered
-					? "スタック復帰: リスポーン/移動に成功"
-					: "スタック復帰: 再接続をトリガー";
-			}
 
 			const summary = summarizeState({
 				position: roundedPos,
@@ -79,11 +60,68 @@ function registerObserveStateTool(
 				equipment: getEquipment(bot),
 				recentEvents: ctx.getEvents().slice(-10),
 				stuckWarning: stuckResult.stuck
-					? [stuckResult.reason, stuckRecoveryNote].filter(Boolean).join(" / ")
+					? [stuckResult.reason, "提案: recover_state を明示実行して復旧を試してください"]
+							.filter(Boolean)
+							.join(" / ")
 					: undefined,
 			});
 
 			return { content: [{ type: "text", text: summary }] };
+		},
+	);
+}
+
+function registerRecoverStateTool(
+	server: McpServer,
+	ctx: BotContext,
+	jobManager: JobManager,
+	stuckRecovery?: MinecraftToolsOptions["stuckRecovery"],
+): void {
+	server.registerTool(
+		"recover_state",
+		{ description: "死亡・スタック状態からの復旧を明示的に実行する" },
+		async () => {
+			const bot = ctx.getBot();
+			if (!bot || !bot.entity) {
+				return { content: [{ type: "text" as const, text: "ボット未接続" }] };
+			}
+
+			if (bot.health <= 0) {
+				const ok = await respawnWithRetry(ctx);
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: ok
+								? "リスポーンに成功しました。再度 observe_state で状態を確認してください。"
+								: "リスポーンに失敗しました。接続状態を確認してください。",
+						},
+					],
+				};
+			}
+
+			const stuckResult = jobManager.isStuck();
+			if (!stuckResult.stuck) {
+				return { content: [{ type: "text" as const, text: "復旧対象はありません。" }] };
+			}
+
+			const recovered = await attemptStuckRecovery({
+				ctx,
+				reconnect: stuckRecovery?.reconnect,
+				onRecoverySuccess: stuckRecovery?.onRecoverySuccess,
+				requestSessionRotation: stuckRecovery?.requestSessionRotation,
+				cooldownMs: stuckRecovery?.cooldownMs,
+			});
+			return {
+				content: [
+					{
+						type: "text" as const,
+						text: recovered
+							? "スタック復帰に成功しました。再度 observe_state で状態を確認してください。"
+							: "スタック復帰に失敗しました。再接続またはセッション再作成が必要な可能性があります。",
+					},
+				],
+			};
 		},
 	);
 }
@@ -209,7 +247,8 @@ interface RegisterMinecraftToolsParams {
 export function registerMinecraftTools(params: RegisterMinecraftToolsParams): void {
 	const { server, ctx, jobManager, viewerPort, options } = params;
 	const s = options.metrics ? wrapServerWithMetrics(server, options.metrics) : server;
-	registerObserveStateTool(s, ctx, jobManager, options.stuckRecovery);
+	registerObserveStateTool(s, ctx, jobManager);
+	registerRecoverStateTool(s, ctx, jobManager, options.stuckRecovery);
 	registerRecentEventsTool(s, ctx);
 	registerActionTools(s, () => ctx.getBot(), jobManager, options.logger);
 	registerJobStatusTool(s, jobManager);

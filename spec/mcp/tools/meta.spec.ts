@@ -1,7 +1,7 @@
 /* oxlint-disable no-non-null-assertion -- test assertions */
 import { describe, expect, test } from "bun:test";
 
-import { registerMetaTools } from "@vicissitude/mcp/tools/meta";
+import { createToolDescriptionRecorder, registerMetaTools } from "@vicissitude/mcp/tools/meta";
 import {
 	createFakeServer,
 	registerDummyTool,
@@ -23,6 +23,18 @@ describe("registerMetaTools", () => {
 		registerMetaTools(server, toolDescriptions);
 
 		expect(tools.size).toBe(1);
+	});
+});
+
+describe("createToolDescriptionRecorder", () => {
+	test("registerTool 経由で登録された description を記録する", () => {
+		const { server, tools } = createFakeServer();
+		const recorder = createToolDescriptionRecorder(server);
+
+		registerDummyTool(recorder.server, "send_message", "Send a message");
+
+		expect(tools.has("send_message")).toBe(true);
+		expect(recorder.toolDescriptions.get("send_message")).toBe("Send a message");
 	});
 });
 

@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
 	appendEvent,
 	consumeEvents,
+	countSessions,
 	deleteSession,
 	getHeartbeat,
 	getSession,
@@ -65,6 +66,18 @@ describe("store", () => {
 		test("delete nonexistent key does not throw", () => {
 			const db = createTestDb();
 			expect(() => deleteSession(db, "nonexistent")).not.toThrow();
+		});
+
+		test("countSessions returns current session count", () => {
+			const db = createTestDb();
+			expect(countSessions(db)).toBe(0);
+
+			saveSession(db, "key1", "sid-a");
+			saveSession(db, "key2", "sid-b");
+			expect(countSessions(db)).toBe(2);
+
+			deleteSession(db, "key1");
+			expect(countSessions(db)).toBe(1);
 		});
 	});
 

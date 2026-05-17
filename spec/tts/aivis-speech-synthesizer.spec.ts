@@ -1,28 +1,35 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
+import { beforeEach, describe, expect, it, mock } from "bun:test";
 
-import type { TtsSynthesizer } from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
 import type { Logger } from "@vicissitude/shared/types";
-import { AivisSpeechSynthesizer } from "@vicissitude/tts";
+import {
+	AivisSpeechSynthesizer,
+	type AivisFetch,
+	type AivisStyleConfigMap,
+} from "@vicissitude/tts";
 
 // ─── テスト対象のクラス ─────────────────────────────────────────
 //
 // packages/tts が公開する AivisSpeech アダプター。
 // ブラックボックステスト: TtsSynthesizer ポートの契約のみ検証する。
-// 外部 HTTP 依存は global.fetch をモックして差し替える。
+// 外部 HTTP 依存は注入した fetch で差し替える。
 
 const BASE_URL = "http://localhost:10101";
 
 function synthesizer(config?: {
 	baseUrl?: string;
+	fetch?: ReturnType<typeof mock>;
 	speakerId?: number;
+	styleConfigs?: AivisStyleConfigMap;
 	timeout?: number;
 	logger?: Logger;
-}): TtsSynthesizer {
+}): AivisSpeechSynthesizer {
 	return new AivisSpeechSynthesizer({
 		baseUrl: config?.baseUrl ?? BASE_URL,
+		fetch: (config?.fetch ?? mockFetch) as unknown as AivisFetch,
 		speakerId: config?.speakerId,
+		styleConfigs: config?.styleConfigs,
 		timeout: config?.timeout,
 		logger: config?.logger,
 	});
@@ -102,16 +109,10 @@ const VALID_WAV = (() => {
 // AudioQuery のダミーレスポンス
 const DUMMY_AUDIO_QUERY = { speedScale: 1.0, pitchScale: 0.0 };
 
-const originalFetch = globalThis.fetch;
 let mockFetch: ReturnType<typeof mock>;
 
 beforeEach(() => {
 	mockFetch = mock();
-	globalThis.fetch = mockFetch as unknown as typeof fetch;
-});
-
-afterEach(() => {
-	globalThis.fetch = originalFetch;
 });
 
 const DEFAULT_STYLE: TtsStyleParams = createTtsStyleParams("happy", 0.7, 1.0);
@@ -142,6 +143,38 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 		expect(result?.audio.length).toBeGreaterThan(0);
 		expect(result?.format).toBe("wav");
 		expect(result?.durationSec).toBeGreaterThan(0);
+	});
+
+	it("注入された fetch を使い、globalThis.fetch には依存しない", async () => {
+		const injectedFetch = mock();
+		injectedFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		injectedFetch.mockResolvedValueOnce(
+			new Response(VALID_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+		const originalFetch = globalThis.fetch;
+		globalThis.fetch = mock(() => {
+			throw new Error("global fetch should not be used");
+		}) as unknown as typeof fetch;
+
+		try {
+			const result = await synthesizer({ fetch: injectedFetch }).synthesize(
+				"こんにちは",
+				DEFAULT_STYLE,
+			);
+
+			expect(result).not.toBeNull();
+			expect(injectedFetch).toHaveBeenCalledTimes(2);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
 	});
 
 	it("返り値の format が 'wav'", async () => {
@@ -176,6 +209,111 @@ describe("AivisSpeechSynthesizer — synthesize", () => {
 
 		expect(result).not.toBeNull();
 		expect(result?.durationSec).toBeGreaterThan(0);
+	});
+});
+
+// ─── synthesize: style application ──────────────────────────────
+
+describe("AivisSpeechSynthesizer — style application", () => {
+	it("styleConfigs の speakerId を audio_query と synthesis の speaker に適用する", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(VALID_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+
+		await synthesizer({
+			speakerId: 0,
+			styleConfigs: {
+				happy: { speakerId: 7 },
+			},
+		}).synthesize("こんにちは", DEFAULT_STYLE);
+
+		const [queryUrl] = mockFetch.mock.calls[0] as [URL, RequestInit];
+		const [synthUrl] = mockFetch.mock.calls[1] as [URL, RequestInit];
+		expect(queryUrl.searchParams.get("speaker")).toBe("7");
+		expect(synthUrl.searchParams.get("speaker")).toBe("7");
+	});
+
+	it("styleWeight に応じて style 別 audioQuery 設定を線形に反映する", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					speedScale: 1.0,
+					pitchScale: 0.0,
+					intonationScale: 1.0,
+					volumeScale: 1.0,
+				}),
+				{ status: 200 },
+			),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(VALID_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+		const weightedStyle = createTtsStyleParams("happy", 0.5, 1.2);
+
+		await synthesizer({
+			styleConfigs: {
+				happy: {
+					audioQuery: {
+						pitchScale: 0.4,
+						intonationScale: 1.8,
+						volumeScale: 1.2,
+					},
+				},
+			},
+		}).synthesize("こんにちは", weightedStyle);
+
+		const [, synthInit] = mockFetch.mock.calls[1] as [URL, RequestInit];
+		const body = JSON.parse(synthInit.body as string);
+		expect(body.speedScale).toBe(1.2);
+		expect(body.pitchScale).toBeCloseTo(0.2);
+		expect(body.intonationScale).toBeCloseTo(1.4);
+		expect(body.volumeScale).toBeCloseTo(1.1);
+	});
+
+	it("styleWeight が 0 の場合、style 別 audioQuery 設定は反映せず speed のみ適用する", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(
+				JSON.stringify({
+					speedScale: 1.0,
+					pitchScale: 0.0,
+					intonationScale: 1.0,
+				}),
+				{ status: 200 },
+			),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(VALID_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+		const unweightedStyle = createTtsStyleParams("happy", 0, 0.9);
+
+		await synthesizer({
+			styleConfigs: {
+				happy: {
+					audioQuery: {
+						pitchScale: 0.4,
+						intonationScale: 1.8,
+					},
+				},
+			},
+		}).synthesize("こんにちは", unweightedStyle);
+
+		const [, synthInit] = mockFetch.mock.calls[1] as [URL, RequestInit];
+		const body = JSON.parse(synthInit.body as string);
+		expect(body.speedScale).toBe(0.9);
+		expect(body.pitchScale).toBe(0.0);
+		expect(body.intonationScale).toBe(1.0);
 	});
 });
 
@@ -226,6 +364,119 @@ describe("AivisSpeechSynthesizer — synthesize errors", () => {
 		const result = await synthesizer().synthesize("こんにちは", DEFAULT_STYLE);
 
 		expect(result).toBeNull();
+	});
+});
+
+// ─── synthesizeWithReason: explicit failures ────────────────────
+
+describe("AivisSpeechSynthesizer — synthesizeWithReason", () => {
+	it("成功時は ok: true と TtsResult を返す", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(VALID_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome.ok).toBe(true);
+		if (!outcome.ok) throw new Error("unreachable");
+		expect(outcome.result.format).toBe("wav");
+		expect(outcome.result.durationSec).toBeGreaterThan(0);
+	});
+
+	it("audio_query の HTTP エラー理由を返す", async () => {
+		mockFetch.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "audio_query_http_error",
+			stage: "audio_query",
+			status: 500,
+		});
+	});
+
+	it("audio_query の JSON 不正理由を返す", async () => {
+		mockFetch.mockResolvedValueOnce(new Response("not json", { status: 200 }));
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "audio_query_invalid_response",
+			stage: "audio_query",
+		});
+	});
+
+	it("synthesis の HTTP エラー理由を返す", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(new Response("Internal Server Error", { status: 500 }));
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "synthesis_http_error",
+			stage: "synthesis",
+			status: 500,
+		});
+	});
+
+	it("不正な WAV の理由を返す", async () => {
+		mockFetch.mockResolvedValueOnce(
+			new Response(JSON.stringify(DUMMY_AUDIO_QUERY), { status: 200 }),
+		);
+		mockFetch.mockResolvedValueOnce(
+			new Response(ZERO_LENGTH_WAV.buffer, {
+				status: 200,
+				headers: { "Content-Type": "audio/wav" },
+			}),
+		);
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "invalid_audio",
+			stage: "wav_validation",
+		});
+	});
+
+	it("AbortError の理由を返す", async () => {
+		const ac = new AbortController();
+		ac.abort();
+		mockFetch.mockRejectedValueOnce(new DOMException("The operation was aborted.", "AbortError"));
+
+		const outcome = await synthesizer().synthesizeWithReason(
+			"こんにちは",
+			DEFAULT_STYLE,
+			ac.signal,
+		);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "aborted",
+		});
+	});
+
+	it("ネットワーク不達の理由を返す", async () => {
+		mockFetch.mockRejectedValueOnce(new TypeError("fetch failed"));
+
+		const outcome = await synthesizer().synthesizeWithReason("こんにちは", DEFAULT_STYLE);
+
+		expect(outcome).toMatchObject({
+			ok: false,
+			reason: "network_error",
+			message: "fetch failed",
+		});
 	});
 });
 

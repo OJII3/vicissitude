@@ -6,6 +6,9 @@ import type { SemanticFact } from "./semantic-fact.ts";
 import type { MemoryStorage } from "./storage.ts";
 import { validateUserId } from "./utils.ts";
 
+export { RetrievalReviewCommand } from "./retrieval-review-command.ts";
+export type { RetrievalReviewOptions } from "./retrieval-review-command.ts";
+
 /** Options for configuring retrieval behavior */
 export interface RetrievalOptions {
 	/** Maximum number of results per category (default 10) */
@@ -193,17 +196,12 @@ function rankResults(ctx: RankContext): RetrievalResult {
 
 /** Retrieval service — hybrid search with FSRS reranking */
 export class Retrieval {
-	private pendingReview: Promise<void> = Promise.resolve();
-
 	constructor(
 		private llm: MemoryLlmPort,
 		private storage: MemoryStorage,
-		private episodic: EpisodicMemory | null = null,
-	) {}
-
-	/** Wait for any pending FSRS reviews to complete (useful in tests and graceful shutdown) */
-	flushReviews(): Promise<void> {
-		return this.pendingReview;
+		_deprecatedEpisodic: EpisodicMemory | null = null,
+	) {
+		void _deprecatedEpisodic;
 	}
 
 	/** Run all 4 searches in parallel */
@@ -251,29 +249,6 @@ export class Retrieval {
 			}
 		}
 
-		// FSRS learning loop: fire-and-forget auto-review so returned scores
-		// reflect the pre-review state and remain consistent with this response.
-		if (this.episodic && result.episodes.length > 0) {
-			this.pendingReview = this.reviewRetrievedEpisodes(userId, result.episodes, opts.now);
-		}
-
 		return result;
-	}
-
-	/** Max episodes to auto-review per retrieve call to bound DB write cost */
-	private static readonly MAX_AUTO_REVIEW = 20;
-
-	/** Review retrieved episodes to update FSRS parameters (search hit = "good") */
-	private async reviewRetrievedEpisodes(
-		userId: string,
-		episodes: ScoredEpisode[],
-		now: Date,
-	): Promise<void> {
-		const { episodic } = this;
-		if (!episodic) return;
-		const toReview = episodes.slice(0, Retrieval.MAX_AUTO_REVIEW);
-		await Promise.all(
-			toReview.map((ep) => episodic.review(userId, ep.episode.id, { rating: "good", now })),
-		);
 	}
 }

@@ -40,6 +40,23 @@ const DEFAULT_STUCK_POSITION_THRESHOLD = 3;
 const DEFAULT_STUCK_TIME_MS_THRESHOLD = 300_000;
 const MAX_POSITION_SNAPSHOTS = 5;
 
+function copyJobInfo(info: JobInfo): JobInfo {
+	const copy: JobInfo = {
+		id: info.id,
+		type: info.type,
+		target: info.target,
+		status: info.status,
+		startedAt: new Date(info.startedAt),
+	};
+	if (info.finishedAt) copy.finishedAt = new Date(info.finishedAt);
+	if (info.error !== undefined) copy.error = info.error;
+	return copy;
+}
+
+function copyCooldownInfo(info: CooldownInfo): CooldownInfo {
+	return { type: info.type, until: new Date(info.until) };
+}
+
 export class JobManager {
 	private currentJob: {
 		info: JobInfo;
@@ -137,23 +154,24 @@ export class JobManager {
 	}
 
 	/** 現在実行中のジョブ情報を返す */
-	getCurrentJob(): JobInfo | null {
-		return this.currentJob?.info ?? null;
+	getCurrentJob(): Readonly<JobInfo> | null {
+		const info = this.currentJob?.info;
+		return info ? copyJobInfo(info) : null;
 	}
 
 	/** 直近のジョブ履歴を返す */
-	getRecentJobs(limit: number = 5): JobInfo[] {
-		return this.recentJobs.slice(-limit);
+	getRecentJobs(limit: number = 5): ReadonlyArray<Readonly<JobInfo>> {
+		return this.recentJobs.slice(-limit).map((info) => copyJobInfo(info));
 	}
 
-	getCooldowns(): CooldownInfo[] {
+	getCooldowns(): ReadonlyArray<Readonly<CooldownInfo>> {
 		const now = Date.now();
 		for (const [type, until] of this.cooldowns.entries()) {
 			if (until.getTime() <= now) this.cooldowns.delete(type);
 		}
 		return [...this.cooldowns.entries()]
 			.toSorted((a, b) => a[1].getTime() - b[1].getTime())
-			.map(([type, until]) => ({ type, until }));
+			.map(([type, until]) => copyCooldownInfo({ type, until }));
 	}
 
 	private ensureJobNotCoolingDown(type: Exclude<ActionState["type"], "idle">): void {

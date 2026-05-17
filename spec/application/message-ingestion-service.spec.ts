@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
-import { discordGuildNamespace } from "@vicissitude/memory/namespace";
+import { discordGuildNamespace } from "@vicissitude/shared/namespace";
 import type { ConversationRecorder, IncomingMessage } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../test-helpers.ts";
@@ -28,13 +28,14 @@ function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMe
 }
 
 describe("MessageIngestionService", () => {
-	test("guildId がなければ warn を出して何もしない", () => {
+	test("guildId がなければ warn を出して dropped を返す", async () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger });
 
-		service.handleIncomingMessage(createMockMessage({ guildId: undefined }));
+		const result = await service.handleIncomingMessage(createMockMessage({ guildId: undefined }));
 
 		expect(logger.warn).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({ status: "dropped", reason: "missing_guild_id" });
 	});
 
 	test("recorder があれば会話記録を行う", async () => {
@@ -44,7 +45,7 @@ describe("MessageIngestionService", () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger, recorder });
 
-		service.handleIncomingMessage(
+		const result = await service.handleIncomingMessage(
 			createMockMessage({
 				isBot: true,
 				content: "ボットの応答",
@@ -52,8 +53,6 @@ describe("MessageIngestionService", () => {
 			}),
 			{ recordConversation: true },
 		);
-
-		await Promise.resolve();
 
 		expect(recorder.record).toHaveBeenCalledTimes(1);
 		expect(recorder.record).toHaveBeenCalledWith(
@@ -63,6 +62,7 @@ describe("MessageIngestionService", () => {
 				content: "ボットの応答 [添付: cap.png]",
 			}),
 		);
+		expect(result).toEqual({ status: "accepted", recorded: true });
 	});
 
 	test("ConversationMessage に IncomingMessage.authorId が転送される", async () => {
@@ -73,7 +73,7 @@ describe("MessageIngestionService", () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger, recorder });
 
-		service.handleIncomingMessage(
+		await service.handleIncomingMessage(
 			createMockMessage({
 				isBot: true,
 				authorId: "1100000000000000001",
@@ -83,8 +83,6 @@ describe("MessageIngestionService", () => {
 			}),
 			{ recordConversation: true },
 		);
-
-		await Promise.resolve();
 
 		expect(recordMock).toHaveBeenCalledTimes(1);
 		expect(recordMock).toHaveBeenCalledWith(
@@ -105,18 +103,39 @@ describe("MessageIngestionService", () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger, recorder });
 
-		service.handleIncomingMessage(createMockMessage({ content: "mention only" }));
-		await Promise.resolve();
+		const result = await service.handleIncomingMessage(
+			createMockMessage({ content: "mention only" }),
+		);
 
 		expect(recorder.record).not.toHaveBeenCalled();
+		expect(result).toEqual({ status: "accepted", recorded: false });
 	});
 
-	test("content も attachments も空ならドロップする", () => {
+	test("content も attachments も空なら dropped を返す", async () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger });
 
-		service.handleIncomingMessage(createMockMessage({ content: "", attachments: [] }));
+		const result = await service.handleIncomingMessage(
+			createMockMessage({ content: "", attachments: [] }),
+		);
 
 		expect(logger.info).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({ status: "dropped", reason: "empty_message" });
+	});
+
+	test("会話記録失敗を await 可能な結果として返す", async () => {
+		const error = new Error("db unavailable");
+		const recorder: ConversationRecorder = {
+			record: mock(() => Promise.reject(error)),
+		};
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ logger, recorder });
+
+		const result = await service.handleIncomingMessage(createMockMessage(), {
+			recordConversation: true,
+		});
+
+		expect(logger.error).toHaveBeenCalledTimes(1);
+		expect(result).toEqual({ status: "failed", reason: "record_failed", error });
 	});
 });

@@ -8,6 +8,7 @@
 		"./stream-helpers": "./src/stream-helpers.ts"
 	},
 	"dependencies": {
-		"@opencode-ai/sdk": "^1.14.41"
+		"@opencode-ai/sdk": "^1.14.41",
+		"@vicissitude/shared": "workspace:*"
 	}
 }

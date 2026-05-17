@@ -32,7 +32,7 @@ import { registerDiscordTools } from "./tools/discord.ts";
 import { registerListeningTools } from "./tools/listening.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
-import { registerMetaTools } from "./tools/meta.ts";
+import { createToolDescriptionRecorder, registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
 import { registerSpotifyTools } from "./tools/spotify.ts";
 
@@ -172,7 +172,7 @@ async function main(): Promise<void> {
 	// --- MCP Server ---
 
 	const server = new McpServer({ name: "core", version: "1.0.0" });
-	const toolDescriptions = new Map<string, string | undefined>();
+	const { server: toolServer, toolDescriptions } = createToolDescriptionRecorder(server);
 
 	const boundNamespace: MemoryNamespace | undefined =
 		resolveNamespaceFromAgentId(AGENT_ID) ?? undefined;
@@ -186,7 +186,7 @@ async function main(): Promise<void> {
 	const moodKey = boundGuildId ? `discord:${boundGuildId}` : AGENT_ID;
 
 	registerDiscordTools(
-		server,
+		toolServer,
 		{
 			discordClient,
 			emotionAnalyzer: emotionAnalyzer?.analyzer,
@@ -197,19 +197,19 @@ async function main(): Promise<void> {
 		},
 		boundGuildId,
 	);
-	registerScheduleTools(server, configRepo, boundGuildId);
+	registerScheduleTools(toolServer, configRepo, boundGuildId);
 
 	const retrieveCache = new LruCache<{ content: Array<{ type: "text"; text: string }> }>({
 		ttlMs: 30 * 60 * 1_000,
 		maxSize: 100,
 	});
-	registerMemoryTools(server, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
+	registerMemoryTools(toolServer, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
 	if (process.env.MC_HOST) {
-		registerDiscordBridgeTools(server, { db }, boundGuildId);
+		registerDiscordBridgeTools(toolServer, { db }, boundGuildId);
 	}
 
 	registerConfiguredMediaTools(
-		server,
+		toolServer,
 		process.env,
 		{
 			registerSpotify: registerSpotifyTools,
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
 				const listeningMemory = new ListeningMemory(internalStorage, {
 					embed: (text) => ollama.embed(text),
 				});
-				registerListeningTools(server, {
+				registerListeningTools(toolServer, {
 					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
 					saveListening: async (record) => {
 						await listeningMemory.saveListening({
@@ -237,7 +237,7 @@ async function main(): Promise<void> {
 		logger,
 	);
 
-	registerMetaTools(server, toolDescriptions);
+	registerMetaTools(toolServer, toolDescriptions);
 
 	// --- Graceful Shutdown ---
 

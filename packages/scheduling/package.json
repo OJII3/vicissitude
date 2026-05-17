@@ -8,6 +8,8 @@
 		"./consolidation-scheduler": "./src/consolidation-scheduler.ts"
 	},
 	"dependencies": {
+		"@vicissitude/observability": "workspace:*",
+		"@vicissitude/shared": "workspace:*",
 		"zod": "^4.3.6"
 	}
 }

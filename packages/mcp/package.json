@@ -29,13 +29,15 @@
 		"@modelcontextprotocol/sdk": "^1.27.1",
 		"@vicissitude/agent": "workspace:*",
 		"@vicissitude/infrastructure": "workspace:*",
-		"@vicissitude/minecraft": "workspace:*",
+		"@vicissitude/listening": "workspace:*",
+		"@vicissitude/memory": "workspace:*",
 		"@vicissitude/observability": "workspace:*",
 		"@vicissitude/ollama": "workspace:*",
 		"@vicissitude/opencode": "workspace:*",
 		"@vicissitude/scheduling": "workspace:*",
 		"@vicissitude/shared": "workspace:*",
 		"@vicissitude/spotify": "workspace:*",
+		"@vicissitude/store": "workspace:*",
 		"discord.js": "^14.25.1",
 		"zod": "^4.3.6"
 	}

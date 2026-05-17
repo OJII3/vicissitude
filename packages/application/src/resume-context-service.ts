@@ -1,3 +1,4 @@
+/* oxlint-disable max-classes-per-file -- service, default source, and default writer define one public boundary */
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
@@ -5,6 +6,7 @@ import type { Episode } from "@vicissitude/memory/episode";
 import {
 	defaultSubject,
 	discordGuildNamespace,
+	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbPath,
 } from "@vicissitude/memory/namespace";
@@ -43,20 +45,44 @@ export interface ResumeContextServiceDeps {
 	memoryDataDir: string;
 	overlayDir: string;
 	logger?: Logger;
+	memorySource?: ResumeContextMemorySource;
+	writer?: ResumeContextWriter;
 	lookbackMs?: number;
 	episodeLimit?: number;
 	factLimit?: number;
 }
 
+export interface ResumeContextSnapshot {
+	episodes: Episode[];
+	facts: SemanticFact[];
+}
+
+export interface ResumeContextMemorySource {
+	read(
+		namespace: MemoryNamespace,
+		options: { sinceMs: number; episodeLimit: number },
+	): Promise<ResumeContextSnapshot | null>;
+	close(): void;
+}
+
+export interface ResumeContextWriter {
+	writeGuildContext(guildId: string, content: string): void;
+	removeGuildContext(guildId: string): void;
+}
+
 export class ResumeContextService {
-	private readonly instances = new Map<string, MemoryStorage>();
 	private readonly logger?: Logger;
+	private readonly memorySource: ResumeContextMemorySource;
+	private readonly writer: ResumeContextWriter;
 	private readonly lookbackMs: number;
 	private readonly episodeLimit: number;
 	private readonly factLimit: number;
 
 	constructor(private readonly deps: ResumeContextServiceDeps) {
 		this.logger = deps.logger;
+		this.memorySource =
+			deps.memorySource ?? new MemoryStorageResumeContextSource(deps.memoryDataDir);
+		this.writer = deps.writer ?? new FileResumeContextWriter(deps.overlayDir);
 		this.lookbackMs = deps.lookbackMs ?? DEFAULT_LOOKBACK_MS;
 		this.episodeLimit = deps.episodeLimit ?? DEFAULT_EPISODE_LIMIT;
 		this.factLimit = deps.factLimit ?? DEFAULT_FACT_LIMIT;
@@ -68,37 +94,57 @@ export class ResumeContextService {
 
 	async updateGuild(guildId: string): Promise<void> {
 		const namespace = discordGuildNamespace(guildId);
-		const key = namespaceKey(namespace);
-		const dbPath = resolveMemoryDbPath(this.deps.memoryDataDir, namespace);
-		const outputDir: string = resolve(this.deps.overlayDir, "guilds", guildId);
-		const outputPath: string = resolve(outputDir, "RESUME-CONTEXT.md");
-
-		if (!existsSync(dbPath)) {
-			this.removeFile(outputPath);
-			return;
-		}
 
 		try {
-			const storage = this.getOrCreate(key, dbPath);
-			const userId = defaultSubject(namespace);
 			const sinceMs = Date.now() - this.lookbackMs;
-			const [episodes, facts] = await Promise.all([
-				storage.getRecentEpisodes(userId, sinceMs, this.episodeLimit),
-				storage.getFacts(userId),
-			]);
-			const content = renderResumeContext(episodes, facts, this.factLimit);
-			if (!content) {
-				this.removeFile(outputPath);
+			const snapshot = await this.memorySource.read(namespace, {
+				sinceMs,
+				episodeLimit: this.episodeLimit,
+			});
+			if (!snapshot) {
+				this.writer.removeGuildContext(guildId);
 				return;
 			}
-			mkdirSync(outputDir, { recursive: true });
-			writeFileSync(outputPath, content);
+			const content = renderResumeContext(snapshot.episodes, snapshot.facts, this.factLimit);
+			if (!content) {
+				this.writer.removeGuildContext(guildId);
+				return;
+			}
+			this.writer.writeGuildContext(guildId, content);
 		} catch (error) {
 			this.logger?.warn(
 				`[resume-context] failed to update guild ${guildId}: ${formatErrorMessage(error)}`,
 				error,
 			);
 		}
+	}
+
+	close(): void {
+		this.memorySource.close();
+	}
+}
+
+export class MemoryStorageResumeContextSource implements ResumeContextMemorySource {
+	private readonly instances = new Map<string, MemoryStorage>();
+
+	constructor(private readonly memoryDataDir: string) {}
+
+	async read(
+		namespace: MemoryNamespace,
+		options: { sinceMs: number; episodeLimit: number },
+	): Promise<ResumeContextSnapshot | null> {
+		const key = namespaceKey(namespace);
+		const dbPath = resolveMemoryDbPath(this.memoryDataDir, namespace);
+
+		if (!existsSync(dbPath)) return null;
+
+		const storage = this.getOrCreate(key, dbPath);
+		const userId = defaultSubject(namespace);
+		const [episodes, facts] = await Promise.all([
+			storage.getRecentEpisodes(userId, options.sinceMs, options.episodeLimit),
+			storage.getFacts(userId),
+		]);
+		return { episodes, facts };
 	}
 
 	close(): void {
@@ -116,13 +162,25 @@ export class ResumeContextService {
 		this.instances.set(key, storage);
 		return storage;
 	}
+}
 
-	private removeFile(path: string): void {
-		rmSync(path, { force: true });
+export class FileResumeContextWriter implements ResumeContextWriter {
+	constructor(private readonly overlayDir: string) {}
+
+	writeGuildContext(guildId: string, content: string): void {
+		const outputDir: string = resolve(this.overlayDir, "guilds", guildId);
+		const outputPath: string = resolve(outputDir, "RESUME-CONTEXT.md");
+		mkdirSync(outputDir, { recursive: true });
+		writeFileSync(outputPath, content);
+	}
+
+	removeGuildContext(guildId: string): void {
+		const outputPath: string = resolve(this.overlayDir, "guilds", guildId, "RESUME-CONTEXT.md");
+		rmSync(outputPath, { force: true });
 	}
 }
 
-function renderResumeContext(
+export function renderResumeContext(
 	episodes: Episode[],
 	facts: SemanticFact[],
 	factLimit: number,

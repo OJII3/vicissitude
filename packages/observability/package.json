@@ -7,5 +7,9 @@
 		"./correlation": "./src/correlation.ts",
 		"./log-redact": "./src/log-redact.ts",
 		"./model-pricing": "./src/model-pricing.ts"
+	},
+	"dependencies": {
+		"@vicissitude/shared": "workspace:*",
+		"pino": "^10.3.1"
 	}
 }

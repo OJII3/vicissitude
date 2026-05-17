@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Logger } from "@vicissitude/shared/types";
 import { SpotifyAuth } from "@vicissitude/spotify/auth";
 import { TrackSelector } from "@vicissitude/spotify/selector";
-import { SpotifyClient } from "@vicissitude/spotify/spotify-client";
+import { hydrateSpotifyTrackGenres, SpotifyClient } from "@vicissitude/spotify/spotify-client";
 import type { SpotifyTrack } from "@vicissitude/spotify/types";
 import { z } from "zod";
 
@@ -13,6 +13,8 @@ export interface SpotifyToolDeps {
 	getArtist(artistId: string): Promise<{ genres: string[] }>;
 	searchTracks(query: string, limit: number): Promise<SpotifyTrack[]>;
 	getTrack(trackId: string): Promise<SpotifyTrack>;
+	hydrateGenres?(track: SpotifyTrack): Promise<SpotifyTrack>;
+	getTrackDetail?(trackId: string): Promise<SpotifyTrack>;
 	select(tracks: SpotifyTrack[]): SpotifyTrack | null;
 }
 
@@ -28,6 +30,16 @@ function formatTrackInfo(track: SpotifyTrack): Record<string, unknown> {
 		albumArtUrl: track.albumArtUrl,
 		spotifyUrl: `https://open.spotify.com/track/${track.id}`,
 	};
+}
+
+function hydrateTrackGenres(deps: SpotifyToolDeps, track: SpotifyTrack): Promise<SpotifyTrack> {
+	if (deps.hydrateGenres) return deps.hydrateGenres(track);
+	return hydrateSpotifyTrackGenres(track, { getArtist: deps.getArtist.bind(deps) });
+}
+
+async function getTrackDetail(deps: SpotifyToolDeps, trackId: string): Promise<SpotifyTrack> {
+	if (deps.getTrackDetail) return deps.getTrackDetail(trackId);
+	return hydrateTrackGenres(deps, await deps.getTrack(trackId));
 }
 
 /* oxlint-disable-next-line max-lines-per-function -- MCP tool registration is declarative; splitting would fragment tool definitions */
@@ -62,6 +74,8 @@ export function registerSpotifyTools(
 				getArtist: client.getArtist.bind(client),
 				searchTracks: client.searchTracks.bind(client),
 				getTrack: client.getTrack.bind(client),
+				hydrateGenres: client.hydrateGenres.bind(client),
+				getTrackDetail: client.getTrackDetail.bind(client),
 				select: selector.select.bind(selector),
 			};
 		})();
@@ -114,21 +128,13 @@ export function registerSpotifyTools(
 				};
 			}
 
-			let genres = picked.genres;
-			if (genres.length === 0 && picked.artistId) {
-				try {
-					const artist = await d.getArtist(picked.artistId);
-					genres = artist.genres;
-				} catch {
-					// genres fetch failure is non-critical
-				}
-			}
+			const hydrated = await hydrateTrackGenres(d, picked);
 
 			logger?.info(
 				`[spotify:pick] 選曲結果: "${picked.name}" - ${picked.artistName} (popularity=${picked.popularity})`,
 			);
 
-			const info = formatTrackInfo({ ...picked, genres });
+			const info = formatTrackInfo(hydrated);
 
 			return {
 				content: [{ type: "text", text: JSON.stringify(info, null, 2) }],
@@ -224,17 +230,7 @@ export function registerSpotifyTools(
 		},
 		async ({ trackId }) => {
 			try {
-				const track = await d.getTrack(trackId);
-				let genres = track.genres;
-				if (genres.length === 0 && track.artistId) {
-					try {
-						const artist = await d.getArtist(track.artistId);
-						genres = artist.genres;
-					} catch {
-						// genres fetch failure is non-critical
-					}
-				}
-				const info = formatTrackInfo({ ...track, genres });
+				const info = formatTrackInfo(await getTrackDetail(d, trackId));
 				return {
 					content: [{ type: "text", text: JSON.stringify(info, null, 2) }],
 				};

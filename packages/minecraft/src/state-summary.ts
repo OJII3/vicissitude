@@ -18,11 +18,16 @@ export interface BotStateInput {
 	food: number;
 	timePeriod: string;
 	weather: string;
-	action: ActionState;
-	nearbyEntities: { name: string; distance: number; type: string }[];
+	action: Readonly<ActionState>;
+	nearbyEntities: ReadonlyArray<{ name: string; distance: number; type: string }>;
 	inventory: { items: { name: string; count: number }[]; emptySlots: number };
 	equipment: Record<string, string>;
-	recentEvents: { timestamp: string; kind: string; description: string; importance: Importance }[];
+	recentEvents: ReadonlyArray<{
+		timestamp: string;
+		kind: string;
+		description: string;
+		importance: Importance;
+	}>;
 	stuckWarning?: string;
 }
 
@@ -96,7 +101,7 @@ const JOB_STATUS_LABELS: Record<JobInfo["status"], string> = {
 	cancelled: "キャンセル",
 };
 
-function formatJobLine(job: JobInfo): string {
+function formatJobLine(job: Readonly<JobInfo>): string {
 	const status = JOB_STATUS_LABELS[job.status];
 	const time = job.startedAt.toISOString().slice(11, 16);
 	let line = `[${time}] ${status}: ${job.type} → ${job.target}`;
@@ -106,9 +111,9 @@ function formatJobLine(job: JobInfo): string {
 
 /** ジョブステータスをテキスト形式で返す */
 export function formatJobStatus(
-	current: JobInfo | null,
-	recent: JobInfo[],
-	cooldowns: CooldownInfo[] = [],
+	current: Readonly<JobInfo> | null,
+	recent: ReadonlyArray<Readonly<JobInfo>>,
+	cooldowns: ReadonlyArray<Readonly<CooldownInfo>> = [],
 ): string {
 	const lines: string[] = ["## 現在のジョブ", current ? formatJobLine(current) : "なし"];
 
@@ -132,7 +137,7 @@ export function formatJobStatus(
 }
 
 /** イベントリストをテキスト形式に変換する */
-export function formatEvents(events: BotEventInput[]): string {
+export function formatEvents(events: ReadonlyArray<Readonly<BotEventInput>>): string {
 	if (events.length === 0) return "イベントなし";
 	return events.map((e) => `[${e.timestamp}] ${e.kind}: ${e.description}`).join("\n");
 }

@@ -1,5 +1,5 @@
 import { METRIC } from "@vicissitude/observability/metrics";
-import { delayResolve, withTimeout } from "@vicissitude/shared/functions";
+import { withTimeout } from "@vicissitude/shared/functions";
 import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type {
 	DueReminder,
@@ -25,14 +25,16 @@ export interface HeartbeatSchedulerDeps {
 export class HeartbeatScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private running = false;
+	private executePromise: Promise<void> | null = null;
+	private tickIntervalMs = HEARTBEAT_TICK_INTERVAL_MS;
 
 	constructor(private readonly deps: HeartbeatSchedulerDeps) {}
 
 	start(): void {
 		if (this.timer) return;
-		this.deps.logger.info("[heartbeat] scheduler started (1min interval)");
+		this.deps.logger.info("[heartbeat] scheduler started");
 		void this.tick();
-		this.timer = setInterval(() => void this.tick(), HEARTBEAT_TICK_INTERVAL_MS);
+		this.timer = setInterval(() => void this.tick(), this.tickIntervalMs);
 	}
 
 	stop(): void {
@@ -52,6 +54,18 @@ export class HeartbeatScheduler {
 		this.running = true;
 		const start = performance.now();
 		const execution = this.executeTick();
+		this.executePromise = execution;
+		let executionSettled = false;
+		void execution.then(
+			() => {
+				executionSettled = true;
+				return null;
+			},
+			() => {
+				executionSettled = true;
+				return null;
+			},
+		);
 		try {
 			await withTimeout(execution, HEARTBEAT_TICK_TIMEOUT_MS, "heartbeat tick timed out");
 			this.deps.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "success" });
@@ -63,25 +77,46 @@ export class HeartbeatScheduler {
 			this.deps.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
 		}
 
-		// Wait for execution to complete, but cap at double the timeout to prevent deadlock
-		const settled = await Promise.race([
-			execution.then(() => true).catch(() => true),
-			delayResolve(HEARTBEAT_TICK_TIMEOUT_MS, false as const),
-		]);
-		if (!settled) {
-			this.deps.logger.error(
-				"[heartbeat] execution did not settle after force timeout, resetting running flag",
-			);
+		if (executionSettled) {
+			this.releaseExecution(execution);
+			return;
 		}
-		this.running = false;
+
+		void this.releaseExecutionWhenSettled(execution);
 	}
 
 	private async executeTick(): Promise<void> {
 		const config = await this.deps.configRepo.load();
+		this.applyBaseInterval(config.baseIntervalMinutes);
 		const executed = await this.executeHeartbeat(config);
 		if (executed) {
 			this.deps.metrics?.incrementCounter(METRIC.HEARTBEAT_REMINDERS_EXECUTED);
 		}
+	}
+
+	private applyBaseInterval(baseIntervalMinutes: number): void {
+		const nextIntervalMs = baseIntervalMinutes * 60_000;
+		if (nextIntervalMs === this.tickIntervalMs) return;
+
+		this.tickIntervalMs = nextIntervalMs;
+		if (this.timer) {
+			clearInterval(this.timer);
+			this.timer = setInterval(() => void this.tick(), this.tickIntervalMs);
+		}
+		this.deps.logger.info(
+			`[heartbeat] scheduler interval updated (${String(baseIntervalMinutes)}min interval)`,
+		);
+	}
+
+	private releaseExecution(execution: Promise<void>): void {
+		if (this.executePromise !== execution) return;
+		this.executePromise = null;
+		this.running = false;
+	}
+
+	private async releaseExecutionWhenSettled(execution: Promise<void>): Promise<void> {
+		await execution.catch(() => {});
+		this.releaseExecution(execution);
 	}
 
 	private async executeHeartbeat(config: HeartbeatConfig): Promise<boolean> {

@@ -18,6 +18,9 @@ export interface Emotion {
 	readonly dominance: number;
 }
 
+/** 各 VAD 軸がこの絶対値未満なら neutral とみなす共有閾値 */
+export const NEUTRAL_EMOTION_THRESHOLD = 0.2;
+
 // ─── Emotion Category ───────────────────────────────────────────
 //
 // VAD 空間から分類される離散的な感情カテゴリ。
@@ -110,7 +113,12 @@ export function classifyEmotion(emotion: Emotion): EmotionCategory {
 	if (a >= 0.7 && d < 0) return "surprised";
 
 	// 2. neutral
-	if (Math.abs(v) < 0.2 && Math.abs(a) < 0.2 && Math.abs(d) < 0.2) return "neutral";
+	if (
+		Math.abs(v) < NEUTRAL_EMOTION_THRESHOLD &&
+		Math.abs(a) < NEUTRAL_EMOTION_THRESHOLD &&
+		Math.abs(d) < NEUTRAL_EMOTION_THRESHOLD
+	)
+		return "neutral";
 
 	// 3-7: primary rules
 	if (v > 0 && a > 0) return "happy";

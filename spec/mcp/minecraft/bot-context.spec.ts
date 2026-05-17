@@ -97,13 +97,47 @@ describe("setActionState", () => {
 	});
 });
 
-describe("getEvents 参照", () => {
-	test("getEvents() は内部配列への参照を返す", () => {
+describe("getEvents snapshot", () => {
+	test("getEvents() は内部配列への参照を返さない", () => {
 		const ctx = createBotContext();
 		const before = ctx.getEvents();
 		ctx.pushEvent("chat", "test", "medium");
 		const after = ctx.getEvents();
-		expect(before).toBe(after);
-		expect(before).toHaveLength(1);
+		expect(before).not.toBe(after);
+		expect(before).toHaveLength(0);
+		expect(after).toHaveLength(1);
+	});
+
+	test("返却されたイベントを変更しても内部状態は変わらない", () => {
+		const ctx = createBotContext();
+		ctx.pushEvent("chat", "hello", "low");
+		const events = ctx.getEvents();
+		const first = (events as unknown as { description: string }[]).at(0);
+		if (!first) throw new Error("expected event");
+		first.description = "mutated";
+		(events as unknown[]).push({
+			timestamp: new Date().toISOString(),
+			kind: "extra",
+			description: "extra",
+			importance: "low",
+		});
+		const next = ctx.getEvents();
+		expect(next).toHaveLength(1);
+		expect(next.at(0)?.description).toBe("hello");
+	});
+});
+
+describe("getActionState snapshot", () => {
+	test("返却された action state を変更しても内部状態は変わらない", () => {
+		const ctx = createBotContext();
+		ctx.setActionState({ type: "moving", target: "(1, 64, 1)", jobId: "job-1" });
+		const state = ctx.getActionState();
+		(state as { type: string; target?: string }).type = "idle";
+		(state as { type: string; target?: string }).target = "mutated";
+		expect(ctx.getActionState()).toEqual({
+			type: "moving",
+			target: "(1, 64, 1)",
+			jobId: "job-1",
+		});
 	});
 });

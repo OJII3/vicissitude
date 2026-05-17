@@ -1,15 +1,36 @@
 import { describe, expect, it, spyOn } from "bun:test";
 
-import type { EmotionToTtsStyleMapper, TtsSynthesizer } from "@vicissitude/shared/ports";
+import type {
+	EmotionToExpressionMapper,
+	EmotionToTtsStyleMapper,
+	TtsSynthesizer,
+} from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import { createTtsStyleParams } from "@vicissitude/shared/tts";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
-import { WsConnectionManager, type WebSocketConnection } from "./ws-handler.ts";
+import {
+	WsConnectionManager,
+	type WebSocketConnection,
+	type WsConnectionManagerDeps,
+} from "./ws-handler.ts";
 
 // ─── Helpers ────────────────────────────────────────────────────
 
 const noopLogger = createMockLogger();
+const mockExpressionMapper: EmotionToExpressionMapper = {
+	mapToExpression: () => ({ expression: "neutral", weight: 1.0 }),
+};
+type TestManagerDeps = Omit<WsConnectionManagerDeps, "emotionToExpressionMapper"> &
+	Partial<Pick<WsConnectionManagerDeps, "emotionToExpressionMapper">>;
+
+function createManager(deps?: TestManagerDeps): WsConnectionManager {
+	return new WsConnectionManager({
+		emotionToExpressionMapper: mockExpressionMapper,
+		logger: noopLogger,
+		...deps,
+	});
+}
 
 function createMockConnection(): WebSocketConnection & { sent: string[] } {
 	const sent: string[] = [];
@@ -42,7 +63,7 @@ const sampleServerMessage: ServerMessage = {
 describe("WsConnectionManager (unit)", () => {
 	describe("handleMessage - 存在しない connectionId", () => {
 		it("接続が見つからない場合、ハンドラは呼ばれず早期リターンする", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			let handlerCalled = false;
 			manager.onMessage(() => {
 				handlerCalled = true;
@@ -55,7 +76,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("接続が見つからない場合、エラーメッセージも送信されない", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -71,7 +92,7 @@ describe("WsConnectionManager (unit)", () => {
 
 	describe("handleMessage - エラーレスポンスの内容", () => {
 		it("パース失敗時、ErrorMessage の code が INVALID_MESSAGE である", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -83,7 +104,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("パース失敗時、ErrorMessage に timestamp が含まれる", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -102,7 +123,7 @@ describe("WsConnectionManager (unit)", () => {
 		it("接続数にかかわらず JSON.stringify が1回だけ呼ばれる", () => {
 			const stringifySpy = spyOn(JSON, "stringify");
 
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			manager.handleOpen("conn-1", createMockConnection());
 			manager.handleOpen("conn-2", createMockConnection());
 			manager.handleOpen("conn-3", createMockConnection());
@@ -118,7 +139,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("全接続に同一の文字列インスタンスが送信される", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			const conn1 = createMockConnection();
 			const conn2 = createMockConnection();
 			const conn3 = createMockConnection();
@@ -140,7 +161,7 @@ describe("WsConnectionManager (unit)", () => {
 	describe("handleMessage - ハンドラ内例外", () => {
 		it("ハンドラが例外を投げても外に伝播せず、Logger.error でログが出力される", () => {
 			const logger = createMockLogger();
-			const manager = new WsConnectionManager({ logger });
+			const manager = createManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -170,7 +191,7 @@ describe("WsConnectionManager (unit)", () => {
 
 		it("先行ハンドラが例外を投げても、後続ハンドラは呼ばれる", () => {
 			const logger = createMockLogger();
-			const manager = new WsConnectionManager({ logger });
+			const manager = createManager({ logger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -210,7 +231,7 @@ describe("WsConnectionManager (unit)", () => {
 		};
 
 		it("deps 省略時、既存動作が変わらない（ChatResponseMessage + EmotionUpdateMessage のみ）", () => {
-			const manager = new WsConnectionManager({ logger: noopLogger });
+			const manager = createManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
@@ -225,7 +246,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("TTS 合成成功時、AudioDataMessage が送信される", async () => {
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsSynthesizer: mockSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
 				logger: noopLogger,
@@ -253,7 +274,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("AudioDataMessage の audio フィールドが base64 エンコードされている", async () => {
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsSynthesizer: mockSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
 				logger: noopLogger,
@@ -283,7 +304,7 @@ describe("WsConnectionManager (unit)", () => {
 				synthesize: () => Promise.resolve(null),
 				isAvailable: () => Promise.resolve(true),
 			};
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsSynthesizer: nullSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
 				logger: noopLogger,
@@ -309,7 +330,7 @@ describe("WsConnectionManager (unit)", () => {
 				synthesize: () => Promise.reject(new Error("TTS service unavailable")),
 				isAvailable: () => Promise.resolve(false),
 			};
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsSynthesizer: failingSynthesizer,
 				ttsStyleMapper: mockStyleMapper,
 				logger: noopLogger,
@@ -337,7 +358,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("ttsStyleMapper のみ設定して ttsSynthesizer がない場合、TTS は実行されない", async () => {
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsStyleMapper: mockStyleMapper,
 				logger: noopLogger,
 			});
@@ -355,7 +376,7 @@ describe("WsConnectionManager (unit)", () => {
 		});
 
 		it("ttsSynthesizer のみ設定して ttsStyleMapper がない場合、TTS は実行されない", async () => {
-			const manager = new WsConnectionManager({
+			const manager = createManager({
 				ttsSynthesizer: mockSynthesizer,
 				logger: noopLogger,
 			});

@@ -49,6 +49,39 @@ export interface TtsResult {
 	readonly durationSec: number;
 }
 
+// ─── TTS Synthesis Outcome ──────────────────────────────────────
+
+/** TTS 合成失敗の段階 */
+export type TtsSynthesisFailureStage = "audio_query" | "synthesis" | "wav_validation";
+
+/** TTS 合成失敗の明示理由 */
+export type TtsSynthesisFailureReason =
+	| "audio_query_http_error"
+	| "audio_query_invalid_response"
+	| "synthesis_http_error"
+	| "invalid_audio"
+	| "aborted"
+	| "network_error"
+	| "unexpected_error";
+
+/** TTS 合成成功 */
+export interface TtsSynthesisSuccess {
+	readonly ok: true;
+	readonly result: TtsResult;
+}
+
+/** TTS 合成失敗 */
+export interface TtsSynthesisFailure {
+	readonly ok: false;
+	readonly reason: TtsSynthesisFailureReason;
+	readonly stage?: TtsSynthesisFailureStage;
+	readonly status?: number;
+	readonly message?: string;
+}
+
+/** TTS 合成の reason 付き結果 */
+export type TtsSynthesisOutcome = TtsSynthesisSuccess | TtsSynthesisFailure;
+
 // ─── Factory ────────────────────────────────────────────────────
 
 /** デフォルト速度の TtsStyleParams を生成する */

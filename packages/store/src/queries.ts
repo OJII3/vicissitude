@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { StoreDb } from "./db.ts";
 import { agentHeartbeat, emojiUsage, eventBuffer, sessions } from "./schema.ts";
@@ -54,6 +54,12 @@ export function saveSession(db: StoreDb, key: string, sessionId: string): void {
 /** セッションを削除する */
 export function deleteSession(db: StoreDb, key: string): void {
 	db.delete(sessions).where(eq(sessions.key, key)).run();
+}
+
+/** 保存済みセッション数を返す */
+export function countSessions(db: StoreDb): number {
+	const row = db.select({ value: count() }).from(sessions).get();
+	return row?.value ?? 0;
 }
 
 /** 絵文字カウントを +1 する（UPSERT） */

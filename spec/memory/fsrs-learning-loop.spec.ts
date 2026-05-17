@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import { retrievability } from "@vicissitude/memory/fsrs";
-import { Retrieval } from "@vicissitude/memory/retrieval";
+import { Retrieval, RetrievalReviewCommand } from "@vicissitude/memory/retrieval";
 import { MemoryStorage } from "@vicissitude/memory/storage";
 
 import { createMockLLM, makeEpisode } from "./test-helpers.ts";
@@ -14,22 +14,24 @@ function mockLlm(embedding: number[]) {
 	return createMockLLM({ embedding });
 }
 
-describe("FSRS learning loop — retrieve auto-review", () => {
+describe("FSRS learning loop — explicit retrieval review command", () => {
 	let storage: MemoryStorage;
 	let episodic: EpisodicMemory;
 	let retrieval: Retrieval;
+	let retrievalReview: RetrievalReviewCommand;
 
 	beforeEach(() => {
 		storage = new MemoryStorage(":memory:");
 		episodic = new EpisodicMemory(storage);
-		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage, episodic);
+		retrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
+		retrievalReview = new RetrievalReviewCommand(episodic);
 	});
 
 	afterEach(() => {
 		storage.close();
 	});
 
-	test("retrieve fires review and updates lastReviewedAt asynchronously", async () => {
+	test("retrieve is a pure read and does not update lastReviewedAt", async () => {
 		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
@@ -38,44 +40,70 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 
 		const now = new Date("2026-06-01T00:00:00Z");
 		await retrieval.retrieve(userId, "TypeScript", { now });
-		await retrieval.flushReviews();
 
 		const after = await storage.getEpisodeById(userId, ep.id);
-		expect(after!.lastReviewedAt).toEqual(now);
+		expect(after!.lastReviewedAt).toBeNull();
 	});
 
-	test("returned scores reflect pre-review state", async () => {
+	test("retrieve remains read-only even when an episodic dependency is available", async () => {
+		const retrievalWithEpisodic = new Retrieval(mockLlm([1, 0, 0]), storage, episodic);
 		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
-		// Episode has null lastReviewedAt → retrievability = 1.0
+		const now = new Date("2026-06-01T00:00:00Z");
+		await retrievalWithEpisodic.retrieve(userId, "TypeScript", { now });
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 0);
+		});
+
+		const after = await storage.getEpisodeById(userId, ep.id);
+		expect(after!.lastReviewedAt).toBeNull();
+	});
+
+	test("review command updates lastReviewedAt for retrieved episodes", async () => {
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
+		await storage.saveEpisode(userId, ep);
+
+		const now = new Date("2026-06-01T00:00:00Z");
+		const result = await retrieval.retrieve(userId, "TypeScript", { now });
+		const reviewed = await retrievalReview.reviewRetrievedEpisodes(userId, result.episodes, {
+			now,
+		});
+
+		const updated = await storage.getEpisodeById(userId, ep.id);
+		expect(reviewed).toBe(1);
+		expect(updated!.lastReviewedAt).toEqual(now);
+	});
+
+	test("returned scores remain a read snapshot after explicit review", async () => {
+		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
+		await storage.saveEpisode(userId, ep);
+
 		const now = new Date("2026-06-01T00:00:00Z");
 		const result = await retrieval.retrieve(userId, "TypeScript", { now });
 
 		expect(result.episodes[0]!.retrievability).toBe(1.0);
 
-		// After flush, the DB state is updated but the returned result is unchanged
-		await retrieval.flushReviews();
+		await retrievalReview.reviewRetrievedEpisodes(userId, result.episodes, { now });
 		const updated = await storage.getEpisodeById(userId, ep.id);
 		expect(updated!.lastReviewedAt).toEqual(now);
-		// The originally returned retrievability is still 1.0 (pre-review snapshot)
 		expect(result.episodes[0]!.retrievability).toBe(1.0);
 	});
 
-	test("episode retrieved twice has more recent lastReviewedAt", async () => {
+	test("episode reviewed twice through the command has more recent lastReviewedAt", async () => {
 		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
 
 		const t1 = new Date("2026-03-01T00:00:00Z");
 		const t2 = new Date("2026-03-15T00:00:00Z");
 
-		await retrieval.retrieve(userId, "TypeScript", { now: t1 });
-		await retrieval.flushReviews();
+		const firstResult = await retrieval.retrieve(userId, "TypeScript", { now: t1 });
+		await retrievalReview.reviewRetrievedEpisodes(userId, firstResult.episodes, { now: t1 });
 		const afterFirst = await storage.getEpisodeById(userId, ep.id);
 		expect(afterFirst!.lastReviewedAt).toEqual(t1);
 
-		await retrieval.retrieve(userId, "TypeScript", { now: t2 });
-		await retrieval.flushReviews();
+		const secondResult = await retrieval.retrieve(userId, "TypeScript", { now: t2 });
+		await retrievalReview.reviewRetrievedEpisodes(userId, secondResult.episodes, { now: t2 });
 		const afterSecond = await storage.getEpisodeById(userId, ep.id);
 		expect(afterSecond!.lastReviewedAt).toEqual(t2);
 
@@ -97,18 +125,16 @@ describe("FSRS learning loop — retrieve auto-review", () => {
 		expect(rAfterSecond).toBeGreaterThan(rAfterFirst);
 	});
 
-	test("without episodic, retrieve does not update FSRS", async () => {
-		const bareRetrieval = new Retrieval(mockLlm([1, 0, 0]), storage);
-
-		const ep = makeEpisode({ title: "TypeScript Bare", embedding: [1, 0, 0] });
-		await storage.saveEpisode(userId, ep);
-
+	test("review command ignores unknown episodes", async () => {
 		const now = new Date("2026-06-01T00:00:00Z");
-		await bareRetrieval.retrieve(userId, "TypeScript", { now });
-		await bareRetrieval.flushReviews();
+		const missingEpisode = { ...makeEpisode(), id: "missing-episode" };
+		const reviewed = await retrievalReview.reviewRetrievedEpisodes(
+			userId,
+			[{ episode: missingEpisode, score: 1, retrievability: 1 }],
+			{ now },
+		);
 
-		const after = await storage.getEpisodeById(userId, ep.id);
-		expect(after!.lastReviewedAt).toBeNull();
+		expect(reviewed).toBe(0);
 	});
 
 	test("recently reviewed episode scores higher in search results", async () => {

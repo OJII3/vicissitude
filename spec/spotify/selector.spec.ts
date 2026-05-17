@@ -92,4 +92,18 @@ describe("TrackSelector", () => {
 		expect(selected).not.toBeNull();
 		expect(selected?.id).toBe("only-one");
 	});
+
+	it("random 依存を注入して選曲結果を決定できる", async () => {
+		const { TrackSelector } = await import("@vicissitude/spotify/selector");
+		const selector: TrackSelector = new TrackSelector({ random: () => 0.75 });
+
+		const tracks = [
+			createTrack({ id: "first", popularity: 1 }),
+			createTrack({ id: "second", popularity: 1 }),
+		];
+
+		const selected = selector.select(tracks);
+
+		expect(selected?.id).toBe("second");
+	});
 });

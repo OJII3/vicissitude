@@ -5,5 +5,10 @@
 		"./types": "./src/types.ts",
 		"./genius-client": "./src/genius-client.ts",
 		"./listening-memory": "./src/listening-memory.ts"
+	},
+	"dependencies": {
+		"@vicissitude/memory": "workspace:*",
+		"@vicissitude/shared": "workspace:*",
+		"@vicissitude/spotify": "workspace:*"
 	}
 }

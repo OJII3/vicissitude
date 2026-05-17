@@ -15,28 +15,38 @@ export interface MessageIngestionOptions {
 	recordConversation?: boolean;
 }
 
+export type MessageIngestionResult =
+	| { status: "dropped"; reason: "empty_message" | "missing_guild_id" }
+	| { status: "accepted"; recorded: boolean }
+	| { status: "failed"; reason: "record_failed"; error: unknown };
+
 export class MessageIngestionService {
 	constructor(private readonly deps: MessageIngestionServiceDeps) {}
 
-	handleIncomingMessage(message: IncomingMessage, options: MessageIngestionOptions = {}): void {
+	handleIncomingMessage(
+		message: IncomingMessage,
+		options: MessageIngestionOptions = {},
+	): Promise<MessageIngestionResult> {
 		if (!message.content && message.attachments.length === 0) {
 			this.deps.logger.info(
 				`[message-ingestion] empty message from ${message.authorName}, dropping`,
 			);
-			return;
+			return Promise.resolve({ status: "dropped", reason: "empty_message" });
 		}
 		if (!message.guildId) {
 			this.deps.logger.warn("[message-ingestion] No guildId for message, dropping event");
-			return;
+			return Promise.resolve({ status: "dropped", reason: "missing_guild_id" });
 		}
 
 		if (options.recordConversation) {
-			this.recordConversation(message);
+			return this.recordConversation(message);
 		}
+
+		return Promise.resolve({ status: "accepted", recorded: false });
 	}
 
-	private recordConversation(message: IncomingMessage): void {
-		if (!this.deps.recorder || !message.guildId) return;
+	private async recordConversation(message: IncomingMessage): Promise<MessageIngestionResult> {
+		if (!this.deps.recorder || !message.guildId) return { status: "accepted", recorded: false };
 
 		const role = message.isBot ? "assistant" : "user";
 		let content = message.content;
@@ -44,7 +54,7 @@ export class MessageIngestionService {
 			const info = message.attachments.map((a) => `[添付: ${a.filename ?? "unknown"}]`).join(" ");
 			content = content ? `${content} ${info}` : info;
 		}
-		if (!content) return;
+		if (!content) return { status: "accepted", recorded: false };
 
 		const conversationMessage: ConversationMessage = {
 			role,
@@ -54,10 +64,12 @@ export class MessageIngestionService {
 			timestamp: message.timestamp,
 		};
 
-		this.deps.recorder
-			.record(discordGuildNamespace(message.guildId), conversationMessage)
-			.catch((err) => {
-				this.deps.logger.error("[message-ingestion] failed to record message", err);
-			});
+		try {
+			await this.deps.recorder.record(discordGuildNamespace(message.guildId), conversationMessage);
+			return { status: "accepted", recorded: true };
+		} catch (err) {
+			this.deps.logger.error("[message-ingestion] failed to record message", err);
+			return { status: "failed", reason: "record_failed", error: err };
+		}
 	}
 }
