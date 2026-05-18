@@ -42,6 +42,9 @@ export const METRIC = {
 	SESSION_ERRORS: "session_errors_total",
 	SESSION_RESTARTS: "session_restarts_total",
 	SESSION_RETRIES: "session_retries_total",
+	// Emotion estimation metrics
+	EMOTION_ESTIMATION_ERRORS: "emotion_estimation_errors_total",
+	EMOTION_ESTIMATION_SKIPS: "emotion_estimation_skips_total",
 } as const;
 
 // ─── labelsToKey ─────────────────────────────────────────────────

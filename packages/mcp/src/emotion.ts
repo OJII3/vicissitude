@@ -1,9 +1,18 @@
-import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
 import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { EmotionAnalyzer, LlmPromptPort } from "@vicissitude/shared/ports";
 import type { Logger, OpencodeModel, OpencodeSessionPort } from "@vicissitude/shared/types";
+
+import {
+	createEmotionAnalyzerFromPromptPort,
+	type EmotionAnalyzerOptions,
+} from "./emotion-observability.ts";
+export {
+	createEmotionAnalyzerFromPromptPort,
+	extractEmotionPromptErrorInfo,
+} from "./emotion-observability.ts";
+export type { EmotionAnalyzerOptions, EmotionPromptErrorInfo } from "./emotion-observability.ts";
 
 const EMOTION_PROMPT_TIMEOUT_MS = 30_000;
 
@@ -44,11 +53,12 @@ export function readEmotionEstimationConfigFromEnv(
 export function createEmotionAnalyzer(
 	config: EmotionEstimationConfig | undefined,
 	logger: Logger,
+	options: EmotionAnalyzerOptions = {},
 ): EmotionAnalyzerHandle | undefined {
 	if (!config) return;
 
 	const llm = createEmotionPromptPort(config, logger);
-	const analyzer = new EmotionEstimator(llm, logger);
+	const analyzer = createEmotionAnalyzerFromPromptPort(llm, config, logger, options);
 	return {
 		analyzer,
 		close() {
