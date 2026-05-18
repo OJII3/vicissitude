@@ -1,14 +1,18 @@
 /* oxlint-disable no-non-null-assertion -- test assertions after length/null checks */
 import { describe, expect, test } from "bun:test";
 
+import { createEmotionAnalyzerFromPromptPort } from "@vicissitude/mcp/emotion";
+import { METRIC } from "@vicissitude/observability/metrics";
 import { createEmotion } from "@vicissitude/shared/emotion";
 import type { Emotion } from "@vicissitude/shared/emotion";
 import type {
 	EmotionAnalysisInput,
 	EmotionAnalysisResult,
 	EmotionAnalyzer,
+	LlmPromptPort,
 	MoodWriter,
 } from "@vicissitude/shared/ports";
+import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
 
 import { captureTools, createDiscordClientStub } from "./discord-test-helpers";
 
@@ -45,6 +49,18 @@ function createSpyMoodWriter(): {
 		},
 		calls,
 	};
+}
+
+function createQuotaExceededError(retryAfterSeconds: number): Error {
+	const error = new Error("GitHub Copilot quota exceeded");
+	return Object.assign(error, {
+		name: "AI_APICallError",
+		statusCode: 429,
+		headers: {
+			"x-ratelimit-exceeded": "quota_exceeded",
+			"x-ratelimit-user-retry-after": String(retryAfterSeconds),
+		},
+	});
 }
 
 // ─── Tests ───────────────────────────────────────────────────────
@@ -206,5 +222,64 @@ describe("send_message / reply での感情推定トリガー", () => {
 		expect(writerCalls).toHaveLength(1);
 		// moodKey が使われ、agentId ではないことを検証
 		expect(writerCalls[0]!.agentId).toBe("discord:12345");
+	});
+
+	test("quota exceeded による感情推定失敗中も send_message は成功し、再投入は抑制される", async () => {
+		let promptCalls = 0;
+		const llm: LlmPromptPort = {
+			prompt(): Promise<string> {
+				promptCalls += 1;
+				return Promise.reject(createQuotaExceededError(465_000));
+			},
+		};
+		const logger = createMockLogger();
+		const metrics = createMockMetrics();
+		const analyzer = createEmotionAnalyzerFromPromptPort(
+			llm,
+			{ providerId: "github-copilot", modelId: "gpt-5-mini" },
+			logger,
+			{ metrics, now: () => 1_000_000 },
+		);
+		const { writer, calls: writerCalls } = createSpyMoodWriter();
+
+		const { tools } = captureTools({
+			discordClient: createDiscordClientStub(),
+			emotionAnalyzer: analyzer,
+			moodWriter: writer,
+			agentId: "agent-1",
+			logger,
+		});
+
+		const sendMessage = tools.get("send_message");
+		const first = (await sendMessage!({
+			channel_id: "ch-1",
+			content: "一度目",
+		})) as { content: Array<{ type: string; text: string }> };
+
+		expect(first.content[0]!.text).toContain("Sent message");
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 50);
+		});
+		expect(promptCalls).toBe(1);
+
+		const second = (await sendMessage!({
+			channel_id: "ch-1",
+			content: "二度目",
+		})) as { content: Array<{ type: string; text: string }> };
+
+		expect(second.content[0]!.text).toContain("Sent message");
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 50);
+		});
+		expect(promptCalls).toBe(1);
+		expect(writerCalls).toHaveLength(0);
+		expect(metrics.incrementCounter).toHaveBeenCalledWith(
+			METRIC.EMOTION_ESTIMATION_SKIPS,
+			expect.objectContaining({
+				provider: "github-copilot",
+				model: "gpt-5-mini",
+				reason: "provider_cooldown",
+			}),
+		);
 	});
 });

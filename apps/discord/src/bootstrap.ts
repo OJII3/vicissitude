@@ -299,6 +299,9 @@ export function createMetrics(logger: Logger, port: number) {
 	collector.registerCounter(METRIC.SESSION_ERRORS, "Session errors total");
 	collector.registerCounter(METRIC.SESSION_RESTARTS, "Session restarts total");
 	collector.registerCounter(METRIC.SESSION_RETRIES, "Session retries total");
+	// Emotion estimation metrics
+	collector.registerCounter(METRIC.EMOTION_ESTIMATION_ERRORS, "Emotion estimation errors total");
+	collector.registerCounter(METRIC.EMOTION_ESTIMATION_SKIPS, "Emotion estimation skips total");
 	// Drift metrics
 	collector.registerGauge(METRIC.DRIFT_SCORE, "Character drift score per guild");
 	collector.registerCounter(METRIC.DRIFT_AUDITS, "Character drift audit results");

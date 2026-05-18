@@ -31,6 +31,11 @@ const NEUTRAL_RESULT: EmotionAnalysisResult = {
 	confidence: 0,
 };
 
+function shouldLogEstimationFailure(error: unknown): boolean {
+	if (typeof error !== "object" || error === null) return true;
+	return (error as { suppressEmotionEstimatorLog?: unknown }).suppressEmotionEstimatorLog !== true;
+}
+
 export class EmotionEstimator implements EmotionAnalyzer {
 	constructor(
 		private readonly llm: LlmPromptPort,
@@ -54,7 +59,9 @@ export class EmotionEstimator implements EmotionAnalyzer {
 
 			return { emotion, confidence: parsed.confidence };
 		} catch (error) {
-			this.logger?.warn("[emotion] estimation failed:", error);
+			if (shouldLogEstimationFailure(error)) {
+				this.logger?.warn("[emotion] estimation failed:", error);
+			}
 			return NEUTRAL_RESULT;
 		}
 	}
