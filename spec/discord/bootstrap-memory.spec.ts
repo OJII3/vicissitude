@@ -16,7 +16,8 @@ import { resolve } from "path";
 import type { CriticResult } from "@vicissitude/memory/critic-auditor";
 import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
 import {
-	discordGuildNamespace,
+	agentScopeNamespace,
+	discordScopeId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
 } from "@vicissitude/memory/namespace";
@@ -152,7 +153,7 @@ describe("setupMemoryRecording()", () => {
 		const guildId = "1100000000000000002";
 		const botUserId = "1100000000000000001";
 		const memoryDataDir = resolve(testDir, "data/memory");
-		const namespace = discordGuildNamespace(guildId);
+		const namespace = agentScopeNamespace(discordScopeId(guildId));
 		mkdirSync(resolveMemoryDbDir(memoryDataDir, namespace), { recursive: true });
 		const storage = new MemoryStorage(resolveMemoryDbPath(memoryDataDir, namespace));
 		try {

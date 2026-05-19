@@ -42,7 +42,7 @@ describe("LruCache", () => {
 
 	describe("基本的なキャッシュ動作", () => {
 		it("set したエントリが get で取得できる", () => {
-			const key = makeKey("discord-guild:123", "hello", 10);
+			const key = makeKey("agent-scope:discord:guild:123", "hello", 10);
 			const value = { text: "cached result" };
 
 			cache.set(key, value);
@@ -55,8 +55,8 @@ describe("LruCache", () => {
 		});
 
 		it("異なるキーは別エントリとして扱われる", () => {
-			const key1 = makeKey("discord-guild:123", "hello", 10);
-			const key2 = makeKey("discord-guild:123", "world", 10);
+			const key1 = makeKey("agent-scope:discord:guild:123", "hello", 10);
+			const key2 = makeKey("agent-scope:discord:guild:123", "world", 10);
 			const value1 = { text: "result 1" };
 			const value2 = { text: "result 2" };
 
@@ -68,8 +68,8 @@ describe("LruCache", () => {
 		});
 
 		it("同一 query でも limit が異なれば別エントリ", () => {
-			const key10 = makeKey("discord-guild:123", "hello", 10);
-			const key20 = makeKey("discord-guild:123", "hello", 20);
+			const key10 = makeKey("agent-scope:discord:guild:123", "hello", 10);
+			const key20 = makeKey("agent-scope:discord:guild:123", "hello", 20);
 			const value10 = { text: "limit 10" };
 			const value20 = { text: "limit 20" };
 
@@ -81,8 +81,8 @@ describe("LruCache", () => {
 		});
 
 		it("同一 query でも namespace が異なれば別エントリ", () => {
-			const key1 = makeKey("discord-guild:111", "hello", 10);
-			const key2 = makeKey("discord-guild:222", "hello", 10);
+			const key1 = makeKey("agent-scope:discord:guild:111", "hello", 10);
+			const key2 = makeKey("agent-scope:discord:guild:222", "hello", 10);
 			const value1 = { text: "guild 111" };
 			const value2 = { text: "guild 222" };
 
@@ -104,7 +104,7 @@ describe("LruCache", () => {
 				maxSize: 100,
 			});
 
-			const key = makeKey("discord-guild:123", "hello", 10);
+			const key = makeKey("agent-scope:discord:guild:123", "hello", 10);
 			shortTtlCache.set(key, { text: "cached" });
 
 			expect(shortTtlCache.get(key)).toBeDefined();
@@ -120,7 +120,7 @@ describe("LruCache", () => {
 		});
 
 		it("TTL 内であればキャッシュが有効", () => {
-			const key = makeKey("discord-guild:123", "hello", 10);
+			const key = makeKey("agent-scope:discord:guild:123", "hello", 10);
 			const value = { text: "cached" };
 
 			cache.set(key, value);

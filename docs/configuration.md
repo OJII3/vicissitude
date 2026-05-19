@@ -118,4 +118,4 @@ profile は `apps/discord/src/profile-config.ts` の Zod schema で検証する�
 
 新規設定は JSON profile に追加する。bootstrap と MCP サーバー間で渡す env はプロセス境界の内部プロトコルとして扱い、ユーザーが設定する正本にはしない。
 
-heartbeat 専用エージェントの OpenCode 設定は `models.heartbeat` に置く。通常の guild 応答は `models.conversation` を使い、heartbeat は自律行動の抑制を効かせやすいように別 temperature を指定できる。
+heartbeat 専用エージェントの OpenCode 設定は `models.heartbeat` に置く。通常の会話応答は `models.conversation` を使い、heartbeat は自律行動の抑制を効かせやすいように別 temperature を指定できる。

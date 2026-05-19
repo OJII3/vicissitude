@@ -2,11 +2,11 @@ import { describe, expect, it, mock } from "bun:test";
 
 import { MemoryInstanceCache } from "@vicissitude/mcp/memory-cache";
 import type { MemoryReadServices } from "@vicissitude/memory";
-import type { MemoryNamespace } from "@vicissitude/memory/namespace";
+import { agentScopeNamespace, type MemoryNamespace } from "@vicissitude/memory/namespace";
 import type { MemoryStorage } from "@vicissitude/memory/storage";
 
 function makeNamespace(guildId: string): MemoryNamespace {
-	return { surface: "discord-guild", guildId };
+	return agentScopeNamespace(`test:${guildId}`);
 }
 
 function makeFactory() {
@@ -16,7 +16,7 @@ function makeFactory() {
 		const instance = {} as MemoryReadServices;
 		const storage = {
 			close: mock(() => {
-				const key = namespace.surface === "discord-guild" ? namespace.guildId : "internal";
+				const key = namespace.surface === "agent-scope" ? namespace.scopeId : "internal";
 				closeCalls.push(key);
 			}),
 		} as unknown as MemoryStorage;
@@ -56,7 +56,7 @@ describe("MemoryInstanceCache", () => {
 		cache.getOrCreate(makeNamespace("guild-2"));
 		cache.getOrCreate(makeNamespace("guild-3"));
 
-		expect(closeCalls).toEqual(["guild-1"]);
+		expect(closeCalls).toEqual(["test:guild-1"]);
 	});
 
 	it("LRU: アクセスされたエントリは evict 対象から外れる", () => {
@@ -72,7 +72,7 @@ describe("MemoryInstanceCache", () => {
 		// guild-3 追加 → guild-2 が evict されるべき
 		cache.getOrCreate(makeNamespace("guild-3"));
 
-		expect(closeCalls).toEqual(["guild-2"]);
+		expect(closeCalls).toEqual(["test:guild-2"]);
 	});
 
 	it("getStorage は getOrCreate で作成された storage を返す", () => {
@@ -115,8 +115,8 @@ describe("MemoryInstanceCache", () => {
 
 		cache.closeAll();
 
-		expect(closeCalls).toContain("guild-1");
-		expect(closeCalls).toContain("guild-2");
+		expect(closeCalls).toContain("test:guild-1");
+		expect(closeCalls).toContain("test:guild-2");
 		expect(cache.getStorage(makeNamespace("guild-1"))).toBeUndefined();
 		expect(cache.getStorage(makeNamespace("guild-2"))).toBeUndefined();
 	});

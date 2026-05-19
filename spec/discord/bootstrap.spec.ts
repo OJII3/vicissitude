@@ -2,8 +2,9 @@ import { describe, expect, it } from "bun:test";
 import { resolve } from "path";
 
 import {
-	buildAgentCoreEnvironment,
+	buildAgentDiscordEnvironment,
 	buildCoreEnvironment,
+	buildDiscordEnvironment,
 } from "../../apps/discord/src/bootstrap.ts";
 import type { AppConfig } from "../../apps/discord/src/config.ts";
 
@@ -13,6 +14,7 @@ function makeConfig(
 		genius?: AppConfig["genius"];
 		shellWorkspace?: AppConfig["shellWorkspace"];
 		emotionEstimation?: AppConfig["emotionEstimation"];
+		minecraft?: AppConfig["minecraft"];
 	} = {},
 ): AppConfig {
 	return {
@@ -51,7 +53,6 @@ describe("buildCoreEnvironment", () => {
 		const requiredKeys = [
 			"PATH",
 			"HOME",
-			"DISCORD_TOKEN",
 			"OLLAMA_BASE_URL",
 			"MEMORY_OLLAMA_BASE_URL",
 			"MEMORY_EMBEDDING_MODEL",
@@ -63,9 +64,11 @@ describe("buildCoreEnvironment", () => {
 		}
 	});
 
-	it("DISCORD_TOKEN は config.discordToken の値", () => {
+	it("Discord 固有の環境変数を含まない", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
-		expect(result.DISCORD_TOKEN).toBe("test-discord-token");
+		expect(result).not.toHaveProperty("DISCORD_TOKEN");
+		expect(result).not.toHaveProperty("DISCORD_ATTACHMENT_ALLOWED_DIRS");
+		expect(result).not.toHaveProperty("EMOTION_ESTIMATION_ENABLED");
 	});
 
 	it("OLLAMA_BASE_URL は config.memory.ollamaBaseUrl の値", () => {
@@ -91,97 +94,6 @@ describe("buildCoreEnvironment", () => {
 	it("DATA_DIR は resolve(root, 'data') の値", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
 		expect(result.DATA_DIR).toBe(resolve(ROOT, "data"));
-	});
-
-	describe("感情推定環境変数", () => {
-		it("デフォルトでは感情推定の環境変数を含まない", () => {
-			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result).not.toHaveProperty("EMOTION_ESTIMATION_ENABLED");
-			expect(result).not.toHaveProperty("EMOTION_PROVIDER_ID");
-			expect(result).not.toHaveProperty("EMOTION_MODEL_ID");
-			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
-		});
-
-		it("有効な場合は provider と model を渡す", () => {
-			const result = buildCoreEnvironment(
-				makeConfig({
-					emotionEstimation: {
-						enabled: true,
-						providerId: "openai",
-						modelId: "gpt-5.4",
-					},
-				}),
-				ROOT,
-			);
-
-			expect(result.EMOTION_ESTIMATION_ENABLED).toBe("true");
-			expect(result.EMOTION_PROVIDER_ID).toBe("openai");
-			expect(result.EMOTION_MODEL_ID).toBe("gpt-5.4");
-			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
-		});
-
-		it("ollama の場合は ollamaBaseUrl を渡す", () => {
-			const result = buildCoreEnvironment(
-				makeConfig({
-					emotionEstimation: {
-						enabled: true,
-						providerId: "ollama",
-						modelId: "emotion-model",
-						ollamaBaseUrl: "http://emotion-ollama:11434",
-					},
-				}),
-				ROOT,
-			);
-
-			expect(result.EMOTION_PROVIDER_ID).toBe("ollama");
-			expect(result.EMOTION_MODEL_ID).toBe("emotion-model");
-			expect(result.EMOTION_OLLAMA_BASE_URL).toBe("http://emotion-ollama:11434");
-		});
-	});
-
-	describe("agent core 環境変数", () => {
-		it("ollama 以外の感情推定 provider には専用 OpenCode port を渡す", () => {
-			const baseEnvironment = buildCoreEnvironment(
-				makeConfig({
-					emotionEstimation: {
-						enabled: true,
-						providerId: "openai",
-						modelId: "gpt-5.4",
-					},
-				}),
-				ROOT,
-			);
-			const result = buildAgentCoreEnvironment(
-				makeConfig({
-					emotionEstimation: {
-						enabled: true,
-						providerId: "openai",
-						modelId: "gpt-5.4",
-					},
-				}),
-				baseEnvironment,
-				5000,
-			);
-
-			expect(result.EMOTION_OPENCODE_PORT).toBe("6000");
-			expect(baseEnvironment).not.toHaveProperty("EMOTION_OPENCODE_PORT");
-		});
-
-		it("感情推定が無効、または ollama の場合は baseEnvironment をそのまま使う", () => {
-			const disabledBase = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(buildAgentCoreEnvironment(makeConfig(), disabledBase, 5000)).toBe(disabledBase);
-
-			const ollamaConfig = makeConfig({
-				emotionEstimation: {
-					enabled: true,
-					providerId: "ollama",
-					modelId: "emotion-model",
-					ollamaBaseUrl: "http://emotion-ollama:11434",
-				},
-			});
-			const ollamaBase = buildCoreEnvironment(ollamaConfig, ROOT);
-			expect(buildAgentCoreEnvironment(ollamaConfig, ollamaBase, 5000)).toBe(ollamaBase);
-		});
 	});
 
 	describe("Spotify 環境変数", () => {
@@ -247,6 +159,135 @@ describe("buildCoreEnvironment", () => {
 			expect(result).not.toHaveProperty("GENIUS_ACCESS_TOKEN");
 		});
 	});
+});
+
+describe("buildDiscordEnvironment", () => {
+	it("Discord MCP に必要な環境変数を含む", () => {
+		const result = buildDiscordEnvironment(makeConfig(), ROOT);
+		const requiredKeys = ["PATH", "HOME", "DISCORD_TOKEN", "DATA_DIR"];
+		for (const key of requiredKeys) {
+			expect(result).toHaveProperty(key);
+		}
+	});
+
+	it("DISCORD_TOKEN は config.discordToken の値", () => {
+		const result = buildDiscordEnvironment(makeConfig(), ROOT);
+		expect(result.DISCORD_TOKEN).toBe("test-discord-token");
+	});
+
+	it("DATA_DIR は resolve(root, 'data') の値", () => {
+		const result = buildDiscordEnvironment(makeConfig(), ROOT);
+		expect(result.DATA_DIR).toBe(resolve(ROOT, "data"));
+	});
+
+	it("config.minecraft が存在する場合は Minecraft bridge 用 MC_HOST を含む", () => {
+		const result = buildDiscordEnvironment(
+			makeConfig({
+				minecraft: {
+					host: "mc.example.com",
+					port: 25565,
+					username: "hua",
+					authMode: "offline",
+					mcpPort: 3001,
+					viewerPort: 3007,
+				},
+			}),
+			ROOT,
+		);
+
+		expect(result.MC_HOST).toBe("mc.example.com");
+	});
+
+	describe("感情推定環境変数", () => {
+		it("デフォルトでは感情推定の環境変数を含まない", () => {
+			const result = buildDiscordEnvironment(makeConfig(), ROOT);
+			expect(result).not.toHaveProperty("EMOTION_ESTIMATION_ENABLED");
+			expect(result).not.toHaveProperty("EMOTION_PROVIDER_ID");
+			expect(result).not.toHaveProperty("EMOTION_MODEL_ID");
+			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
+		});
+
+		it("有効な場合は provider と model を渡す", () => {
+			const result = buildDiscordEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				ROOT,
+			);
+
+			expect(result.EMOTION_ESTIMATION_ENABLED).toBe("true");
+			expect(result.EMOTION_PROVIDER_ID).toBe("openai");
+			expect(result.EMOTION_MODEL_ID).toBe("gpt-5.4");
+			expect(result).not.toHaveProperty("EMOTION_OLLAMA_BASE_URL");
+		});
+
+		it("ollama の場合は ollamaBaseUrl を渡す", () => {
+			const result = buildDiscordEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "ollama",
+						modelId: "emotion-model",
+						ollamaBaseUrl: "http://emotion-ollama:11434",
+					},
+				}),
+				ROOT,
+			);
+
+			expect(result.EMOTION_PROVIDER_ID).toBe("ollama");
+			expect(result.EMOTION_MODEL_ID).toBe("emotion-model");
+			expect(result.EMOTION_OLLAMA_BASE_URL).toBe("http://emotion-ollama:11434");
+		});
+	});
+
+	describe("agent Discord 環境変数", () => {
+		it("ollama 以外の感情推定 provider には専用 OpenCode port を渡す", () => {
+			const baseEnvironment = buildDiscordEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				ROOT,
+			);
+			const result = buildAgentDiscordEnvironment(
+				makeConfig({
+					emotionEstimation: {
+						enabled: true,
+						providerId: "openai",
+						modelId: "gpt-5.4",
+					},
+				}),
+				baseEnvironment,
+				5000,
+			);
+
+			expect(result.EMOTION_OPENCODE_PORT).toBe("6000");
+			expect(baseEnvironment).not.toHaveProperty("EMOTION_OPENCODE_PORT");
+		});
+
+		it("感情推定が無効、または ollama の場合は baseEnvironment をそのまま使う", () => {
+			const disabledBase = buildDiscordEnvironment(makeConfig(), ROOT);
+			expect(buildAgentDiscordEnvironment(makeConfig(), disabledBase, 5000)).toBe(disabledBase);
+
+			const ollamaConfig = makeConfig({
+				emotionEstimation: {
+					enabled: true,
+					providerId: "ollama",
+					modelId: "emotion-model",
+					ollamaBaseUrl: "http://emotion-ollama:11434",
+				},
+			});
+			const ollamaBase = buildDiscordEnvironment(ollamaConfig, ROOT);
+			expect(buildAgentDiscordEnvironment(ollamaConfig, ollamaBase, 5000)).toBe(ollamaBase);
+		});
+	});
 
 	describe("Shell workspace 環境変数", () => {
 		it("config.shellWorkspace が存在する場合は添付許可ディレクトリを含む", () => {
@@ -270,13 +311,13 @@ describe("buildCoreEnvironment", () => {
 					maxOutputChars: 50_000,
 				},
 			});
-			const result = buildCoreEnvironment(config, ROOT);
+			const result = buildDiscordEnvironment(config, ROOT);
 
 			expect(result.DISCORD_ATTACHMENT_ALLOWED_DIRS).toBe("/tmp/shell-workspaces");
 		});
 
 		it("config.shellWorkspace が存在しない場合は添付許可ディレクトリを追加しない", () => {
-			const result = buildCoreEnvironment(makeConfig(), ROOT);
+			const result = buildDiscordEnvironment(makeConfig(), ROOT);
 
 			expect(result).not.toHaveProperty("DISCORD_ATTACHMENT_ALLOWED_DIRS");
 		});

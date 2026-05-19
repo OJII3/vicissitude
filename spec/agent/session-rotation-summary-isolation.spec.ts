@@ -146,7 +146,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -185,7 +185,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -235,7 +235,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -270,7 +270,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -317,7 +317,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -359,7 +359,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -395,7 +395,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs: SHORT_SUMMARY_TIMEOUT_MS,
 			});
@@ -430,7 +430,7 @@ describe("セッション要約生成のハング隔離", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 				summaryTimeoutMs,
 			});

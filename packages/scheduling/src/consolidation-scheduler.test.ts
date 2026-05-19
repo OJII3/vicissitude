@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { METRIC } from "@vicissitude/observability/metrics";
-import { discordGuildNamespace } from "@vicissitude/shared/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
 import type { MemoryConsolidator } from "@vicissitude/shared/types";
@@ -10,7 +10,7 @@ import { ConsolidationScheduler } from "./consolidation-scheduler.ts";
 
 function createConsolidator(): MemoryConsolidator {
 	return {
-		getActiveNamespaces: mock(() => [discordGuildNamespace("1234567890")]),
+		getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("1234567890"))]),
 		consolidate: mock(() =>
 			Promise.resolve({
 				processedEpisodes: 0,
@@ -48,11 +48,11 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		await executeConsolidation(scheduler);
 
 		expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.CRITIC_AUDITOR_SKIP_TOTAL, {
-			namespace: "discord-guild:1234567890",
+			namespace: "agent-scope:discord:guild:1234567890",
 			reason: "no_bot_id",
 		});
 		expect(logger.warn).toHaveBeenCalledWith(
-			"[critic-audit] ns=discord-guild:1234567890: skipped (no_bot_id)",
+			"[critic-audit] ns=agent-scope:discord:guild:1234567890: skipped (no_bot_id)",
 		);
 	});
 
@@ -74,11 +74,11 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		await executeConsolidation(scheduler);
 
 		expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.CRITIC_AUDITOR_SKIP_TOTAL, {
-			namespace: "discord-guild:1234567890",
+			namespace: "agent-scope:discord:guild:1234567890",
 			reason: "low_drift",
 		});
 		expect(metrics.setGauge).toHaveBeenCalledWith(METRIC.DRIFT_SCORE, 0.01, {
-			namespace: "discord-guild:1234567890",
+			namespace: "agent-scope:discord:guild:1234567890",
 		});
 		expect(logger.warn).not.toHaveBeenCalled();
 	});
@@ -102,7 +102,7 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		expect(metrics.incrementCounter).toHaveBeenCalledTimes(2);
 		expect(logger.warn).toHaveBeenCalledTimes(1);
 		expect(logger.warn).toHaveBeenCalledWith(
-			"[critic-audit] ns=discord-guild:1234567890: skipped (no_messages)",
+			"[critic-audit] ns=agent-scope:discord:guild:1234567890: skipped (no_messages)",
 		);
 	});
 });

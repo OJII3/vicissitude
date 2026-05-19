@@ -2,59 +2,21 @@
  * MemoryNamespace 仕様テスト
  *
  * 目的:
- *   memory パッケージの「guild 単位パーティショニング」を MemoryNamespace 型に
- *   抽象化し、将来的な surface 拡張（discord-dm / web / minecraft 等）に
- *   耐える構造へ一般化する。
- *
- * 設計決定:
- *   1. MemoryNamespace は tagged union。最初は `discord-guild` と `internal` の
- *      2 バリアントのみをサポートする。
- *   2. Subject 軸（userId カラム）はスキーマ変更せず流用する。internal namespace
- *      では `HUA_SELF_SUBJECT` 定数（"hua:self"）を固定値として使う。
- *   3. 既存の `{MEMORY_DATA_DIR}/guilds/{guildId}/memory.db` ディレクトリ構造は
- *      維持する。データ移行は行わない。
- *   4. internal namespace の DB パスは `{MEMORY_DATA_DIR}/internal/memory.db`。
+ *   memory パッケージの分離単位を Discord guild ではなく AgentScope として
+ *   扱い、core/shared の公開面を platform 非依存に保つ。
  *
  * 公開 API（memory パッケージから export される想定）:
  *
  *   export type MemoryNamespace =
- *     | { readonly surface: "discord-guild"; readonly guildId: string }
+ *     | { readonly surface: "agent-scope"; readonly scopeId: string }
  *     | { readonly surface: "internal" };
  *
- *   export const HUA_SELF_SUBJECT = "hua:self";
- *
- *   // ファクトリ関数（バリデーション付き）
- *   export function discordGuildNamespace(guildId: string): MemoryNamespace;
+ *   export function agentScopeNamespace(scopeId: string): MemoryNamespace;
+ *   export function discordScopeId(guildId: string): string;
+ *   export function discordGuildIdFromScopeId(scopeId: string): string | null;
  *   export const INTERNAL_NAMESPACE: MemoryNamespace;
  *
- *   // DB パス解決: dataDir + namespace → 絶対 DB ファイルパス
- *   export function resolveMemoryDbPath(
- *     dataDir: string,
- *     namespace: MemoryNamespace,
- *   ): string;
- *
- *   // DB が配置されるディレクトリ（mkdirSync 用）
- *   export function resolveMemoryDbDir(
- *     dataDir: string,
- *     namespace: MemoryNamespace,
- *   ): string;
- *
- *   // Map キー・ログ用の安定した文字列表現（衝突なし）
- *   export function namespaceKey(namespace: MemoryNamespace): string;
- *
- *   // agent_id → namespace の解決
- *   //   "discord:heartbeat:{guildId}" → discord-guild
- *   //   "discord:{guildId}"           → discord-guild
- *   //   "internal:*" / "internal"     → internal
- *   export function resolveNamespaceFromAgentId(
- *     agentId: string | null | undefined,
- *   ): MemoryNamespace | null;
- *
- *   // subject（userId カラム用）解決
- *   //   discord-guild namespace: 呼び出し元が与える（従来どおり guildId や
- *   //                             userId を渡す）
- *   //   internal namespace:      HUA_SELF_SUBJECT を常に返す
- *   export function defaultSubject(namespace: MemoryNamespace): string;
+ *   export function migrateLegacyGuildMemoryNamespaces(dataDir: string): void;
  */
 
 import { afterEach, describe, expect, it } from "bun:test";
@@ -62,11 +24,14 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
 import {
-	discordGuildNamespace,
+	agentScopeNamespace,
+	discordGuildIdFromScopeId,
+	discordScopeId,
 	discoverNamespacesFromDisk,
 	INTERNAL_NAMESPACE,
 	HUA_SELF_SUBJECT,
 	defaultSubject,
+	migrateLegacyGuildMemoryNamespaces,
 	resolveMemoryDbPath,
 	resolveMemoryDbDir,
 	namespaceKey,
@@ -76,6 +41,8 @@ import {
 
 const DATA_DIR = "/data/memory";
 const TEMP_DIR = `/tmp/vicissitude-namespace-spec-${process.pid}`;
+const DISCORD_SCOPE = "discord:guild:123456789";
+const DISCORD_SCOPE_SEGMENT = "discord%3Aguild%3A123456789";
 
 afterEach(() => {
 	if (existsSync(TEMP_DIR)) {
@@ -84,15 +51,30 @@ afterEach(() => {
 });
 
 describe("MemoryNamespace: factory / constant", () => {
-	it("discordGuildNamespace は guildId を持つ discord-guild namespace を返す", () => {
-		const ns = discordGuildNamespace("123456789");
-		expect(ns).toEqual({ surface: "discord-guild", guildId: "123456789" });
+	it("agentScopeNamespace は scopeId を持つ agent-scope namespace を返す", () => {
+		const ns = agentScopeNamespace(DISCORD_SCOPE);
+		expect(ns).toEqual({ surface: "agent-scope", scopeId: DISCORD_SCOPE });
 	});
 
-	it("discordGuildNamespace は非数字の guildId を拒否する", () => {
-		expect(() => discordGuildNamespace("../malicious")).toThrow(/guildId/i);
-		expect(() => discordGuildNamespace("abc")).toThrow(/guildId/i);
-		expect(() => discordGuildNamespace("")).toThrow(/guildId/i);
+	it("agentScopeNamespace は path segment として危険な scopeId を拒否する", () => {
+		expect(() => agentScopeNamespace("../malicious")).toThrow(/scopeId/i);
+		expect(() => agentScopeNamespace("")).toThrow(/scopeId/i);
+		expect(() => agentScopeNamespace("has space")).toThrow(/scopeId/i);
+	});
+
+	it("discordScopeId は Discord guild ID を canonical scopeId に変換する", () => {
+		expect(discordScopeId("123456789")).toBe(DISCORD_SCOPE);
+	});
+
+	it("discordScopeId は非数字の guildId を拒否する", () => {
+		expect(() => discordScopeId("../malicious")).toThrow(/guildId/i);
+		expect(() => discordScopeId("abc")).toThrow(/guildId/i);
+		expect(() => discordScopeId("")).toThrow(/guildId/i);
+	});
+
+	it("discordGuildIdFromScopeId は Discord scopeId から guildId を取り出す", () => {
+		expect(discordGuildIdFromScopeId(DISCORD_SCOPE)).toBe("123456789");
+		expect(discordGuildIdFromScopeId("minecraft:world:overworld")).toBeNull();
 	});
 
 	it("INTERNAL_NAMESPACE は internal surface を持つ", () => {
@@ -105,12 +87,14 @@ describe("MemoryNamespace: factory / constant", () => {
 });
 
 describe("resolveMemoryDbPath / resolveMemoryDbDir", () => {
-	it("discord-guild namespace は既存のパス規則にマップする", () => {
-		const ns = discordGuildNamespace("123456789");
+	it("agent-scope namespace は scope ベースのパス規則にマップする", () => {
+		const ns = agentScopeNamespace(DISCORD_SCOPE);
 		expect(resolveMemoryDbPath(DATA_DIR, ns)).toBe(
-			resolve(DATA_DIR, "guilds", "123456789", "memory.db"),
+			resolve(DATA_DIR, "scopes", DISCORD_SCOPE_SEGMENT, "memory.db"),
 		);
-		expect(resolveMemoryDbDir(DATA_DIR, ns)).toBe(resolve(DATA_DIR, "guilds", "123456789"));
+		expect(resolveMemoryDbDir(DATA_DIR, ns)).toBe(
+			resolve(DATA_DIR, "scopes", DISCORD_SCOPE_SEGMENT),
+		);
 	});
 
 	it("internal namespace は {dataDir}/internal/memory.db にマップする", () => {
@@ -121,47 +105,48 @@ describe("resolveMemoryDbPath / resolveMemoryDbDir", () => {
 	});
 
 	it("相対 dataDir でも resolve される", () => {
-		const ns = discordGuildNamespace("123");
+		const ns = agentScopeNamespace("minecraft:world:overworld");
 		const result = resolveMemoryDbPath("data/memory", ns);
-		expect(result).toBe(resolve("data/memory", "guilds", "123", "memory.db"));
+		expect(result).toBe(
+			resolve("data/memory", "scopes", "minecraft%3Aworld%3Aoverworld", "memory.db"),
+		);
 	});
 });
 
 describe("namespaceKey", () => {
-	it("discord-guild namespace は 'discord-guild:{guildId}' にシリアライズされる", () => {
-		const ns = discordGuildNamespace("123456789");
-		expect(namespaceKey(ns)).toBe("discord-guild:123456789");
+	it("agent-scope namespace は 'agent-scope:{scopeId}' にシリアライズされる", () => {
+		const ns = agentScopeNamespace(DISCORD_SCOPE);
+		expect(namespaceKey(ns)).toBe(`agent-scope:${DISCORD_SCOPE}`);
 	});
 
 	it("internal namespace は 'internal' にシリアライズされる", () => {
 		expect(namespaceKey(INTERNAL_NAMESPACE)).toBe("internal");
 	});
 
-	it("異なる guildId の discord-guild key は衝突しない", () => {
-		const a = namespaceKey(discordGuildNamespace("111"));
-		const b = namespaceKey(discordGuildNamespace("222"));
+	it("異なる scopeId の key は衝突しない", () => {
+		const a = namespaceKey(agentScopeNamespace("discord:guild:111"));
+		const b = namespaceKey(agentScopeNamespace("discord:guild:222"));
 		expect(a).not.toBe(b);
 	});
 
-	it("internal key と discord-guild key は衝突しない", () => {
-		const discord = namespaceKey(discordGuildNamespace("123"));
+	it("internal key と agent-scope key は衝突しない", () => {
+		const scoped = namespaceKey(agentScopeNamespace(DISCORD_SCOPE));
 		const internal = namespaceKey(INTERNAL_NAMESPACE);
-		expect(discord).not.toBe(internal);
-		// internal prefix が数値 guildId と衝突しないこと
-		expect(discord.startsWith("internal")).toBe(false);
+		expect(scoped).not.toBe(internal);
+		expect(scoped.startsWith("internal")).toBe(false);
 	});
 });
 
 describe("resolveNamespaceFromAgentId", () => {
-	it("'discord:heartbeat:{guildId}' を discord-guild に解決する", () => {
+	it("'discord:heartbeat:{guildId}' を agent-scope に解決する", () => {
 		expect(resolveNamespaceFromAgentId("discord:heartbeat:123456789")).toEqual(
-			discordGuildNamespace("123456789"),
+			agentScopeNamespace(DISCORD_SCOPE),
 		);
 	});
 
-	it("'discord:{guildId}' を discord-guild に解決する", () => {
+	it("'discord:{guildId}' を agent-scope に解決する", () => {
 		expect(resolveNamespaceFromAgentId("discord:987654321")).toEqual(
-			discordGuildNamespace("987654321"),
+			agentScopeNamespace("discord:guild:987654321"),
 		);
 	});
 
@@ -205,78 +190,48 @@ describe("defaultSubject", () => {
 		expect(defaultSubject(INTERNAL_NAMESPACE)).toBe(HUA_SELF_SUBJECT);
 	});
 
-	it("discord-guild namespace では guildId を返す（既存互換）", () => {
-		// 既存コードは userId カラムに guildId を入れているため、
-		// 互換性のため discord-guild の default subject は guildId とする。
-		const ns = discordGuildNamespace("123456789");
-		expect(defaultSubject(ns)).toBe("123456789");
+	it("agent-scope namespace では scopeId を返す", () => {
+		const ns = agentScopeNamespace(DISCORD_SCOPE);
+		expect(defaultSubject(ns)).toBe(DISCORD_SCOPE);
 	});
 });
 
 describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）", () => {
-	// これらは namespace primitives の契約テスト。
-	// core-server は agentId → namespace 解決後、以下の分岐で tool にパラメータを渡す:
-	//   - Memory 系ツール:    boundNamespace = ns ?? undefined
-	//   - Discord 固有ツール: boundGuildId   = ns?.surface === "discord-guild"
-	//                                          ? ns.guildId : undefined
-
-	it("discord agent_id → boundNamespace と boundGuildId が両方設定される", () => {
+	it("discord agent_id → boundNamespace と boundScopeId が設定される", () => {
 		const ns = resolveNamespaceFromAgentId("discord:heartbeat:12345");
 		expect(ns).not.toBeNull();
 
 		const boundNamespace = ns ?? undefined;
-		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
+		const boundScopeId = ns?.surface === "agent-scope" ? ns.scopeId : undefined;
+		const boundGuildId = boundScopeId ? discordGuildIdFromScopeId(boundScopeId) : undefined;
 
-		expect(boundNamespace).toEqual(discordGuildNamespace("12345"));
+		expect(boundNamespace).toEqual(agentScopeNamespace("discord:guild:12345"));
+		expect(boundScopeId).toBe("discord:guild:12345");
 		expect(boundGuildId).toBe("12345");
 	});
 
-	it("未知 agent_id → boundNamespace / boundGuildId ともに undefined", () => {
+	it("未知 agent_id → boundNamespace / boundScopeId ともに undefined", () => {
 		const ns = resolveNamespaceFromAgentId("web:user:abc");
 		const boundNamespace = ns ?? undefined;
-		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
+		const boundScopeId = ns?.surface === "agent-scope" ? ns.scopeId : undefined;
 
 		expect(boundNamespace).toBeUndefined();
-		expect(boundGuildId).toBeUndefined();
+		expect(boundScopeId).toBeUndefined();
 	});
 
-	it("agentId が null/undefined → boundNamespace / boundGuildId ともに undefined", () => {
-		for (const input of [null, undefined]) {
-			const ns = resolveNamespaceFromAgentId(input);
-			const boundNamespace = ns ?? undefined;
-			const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
-
-			expect(boundNamespace).toBeUndefined();
-			expect(boundGuildId).toBeUndefined();
-		}
-	});
-
-	it("internal agent_id → boundNamespace は INTERNAL_NAMESPACE, boundGuildId は undefined", () => {
+	it("internal agent_id → boundNamespace は INTERNAL_NAMESPACE, boundScopeId は undefined", () => {
 		const ns = resolveNamespaceFromAgentId("internal:listening");
 		expect(ns).not.toBeNull();
 		const boundNamespace = ns ?? undefined;
-		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
+		const boundScopeId = ns?.surface === "agent-scope" ? ns.scopeId : undefined;
 		expect(boundNamespace).toEqual(INTERNAL_NAMESPACE);
-		expect(boundGuildId).toBeUndefined();
-	});
-
-	it("discord listening agent_id（廃止されたロール）→ boundNamespace / boundGuildId ともに undefined", () => {
-		const ns = resolveNamespaceFromAgentId("discord:listening:12345");
-		const boundNamespace = ns ?? undefined;
-		const boundGuildId = ns?.surface === "discord-guild" ? ns.guildId : undefined;
-
-		expect(boundNamespace).toBeUndefined();
-		expect(boundGuildId).toBeUndefined();
+		expect(boundScopeId).toBeUndefined();
 	});
 });
 
 describe("recorder subject 導出契約（defaultSubject）", () => {
-	// MemoryConversationRecorder は record(namespace, message) 時に
-	// segmenter.addMessage(subject, msg) を呼ぶ。subject は
-	// defaultSubject(namespace) で自動導出される。
-
-	it("discord-guild namespace → subject は guildId（既存互換）", () => {
-		expect(defaultSubject(discordGuildNamespace("12345"))).toBe("12345");
+	it("agent-scope namespace → subject は scopeId", () => {
+		expect(defaultSubject(agentScopeNamespace("discord:guild:12345"))).toBe("discord:guild:12345");
 	});
 
 	it("internal namespace → subject は HUA_SELF_SUBJECT", () => {
@@ -285,9 +240,22 @@ describe("recorder subject 導出契約（defaultSubject）", () => {
 	});
 
 	it("subject は validateUserId を通過する: 非空・≤256 chars", () => {
-		// HUA_SELF_SUBJECT は validateUserId の制約を満たす
 		expect(HUA_SELF_SUBJECT.length).toBeGreaterThan(0);
 		expect(HUA_SELF_SUBJECT.length).toBeLessThanOrEqual(256);
+		expect(DISCORD_SCOPE.length).toBeLessThanOrEqual(256);
+	});
+});
+
+describe("migrateLegacyGuildMemoryNamespaces", () => {
+	it("guilds/{numericId}/memory.db を scopes/{discord scope}/memory.db へ移す", () => {
+		const legacyDir = resolve(TEMP_DIR, "guilds", "123456789");
+		mkdirSync(legacyDir, { recursive: true });
+		writeFileSync(resolve(legacyDir, "memory.db"), "");
+
+		migrateLegacyGuildMemoryNamespaces(TEMP_DIR);
+
+		expect(existsSync(resolve(legacyDir, "memory.db"))).toBe(false);
+		expect(existsSync(resolve(TEMP_DIR, "scopes", DISCORD_SCOPE_SEGMENT, "memory.db"))).toBe(true);
 	});
 });
 
@@ -298,13 +266,13 @@ describe("discoverNamespacesFromDisk", () => {
 		expect(result).toEqual([]);
 	});
 
-	it("guilds/{numericId}/memory.db が存在 → discord-guild namespace を返す", () => {
-		const guildDir = resolve(TEMP_DIR, "guilds", "123456789");
-		mkdirSync(guildDir, { recursive: true });
-		writeFileSync(resolve(guildDir, "memory.db"), "");
+	it("scopes/{scopeId}/memory.db が存在 → agent-scope namespace を返す", () => {
+		const scopeDir = resolve(TEMP_DIR, "scopes", DISCORD_SCOPE_SEGMENT);
+		mkdirSync(scopeDir, { recursive: true });
+		writeFileSync(resolve(scopeDir, "memory.db"), "");
 
 		const result = discoverNamespacesFromDisk(TEMP_DIR);
-		expect(result).toEqual([discordGuildNamespace("123456789")]);
+		expect(result).toEqual([agentScopeNamespace(DISCORD_SCOPE)]);
 	});
 
 	it("internal/memory.db が存在 → internal namespace を返す", () => {
@@ -316,8 +284,8 @@ describe("discoverNamespacesFromDisk", () => {
 		expect(result).toEqual([INTERNAL_NAMESPACE]);
 	});
 
-	it("非数値ディレクトリ名 → スキップする", () => {
-		const badDir = resolve(TEMP_DIR, "guilds", "not-a-number");
+	it("不正な scopeId のディレクトリ名 → スキップする", () => {
+		const badDir = resolve(TEMP_DIR, "scopes", "has%20space");
 		mkdirSync(badDir, { recursive: true });
 		writeFileSync(resolve(badDir, "memory.db"), "");
 
@@ -326,17 +294,17 @@ describe("discoverNamespacesFromDisk", () => {
 	});
 
 	it("memory.db がないディレクトリ → スキップする", () => {
-		const guildDir = resolve(TEMP_DIR, "guilds", "999");
-		mkdirSync(guildDir, { recursive: true });
+		const scopeDir = resolve(TEMP_DIR, "scopes", DISCORD_SCOPE_SEGMENT);
+		mkdirSync(scopeDir, { recursive: true });
 
 		const result = discoverNamespacesFromDisk(TEMP_DIR);
 		expect(result).toEqual([]);
 	});
 
-	it("guilds + internal 両方存在 → 両方返す", () => {
-		const guildDir = resolve(TEMP_DIR, "guilds", "111");
-		mkdirSync(guildDir, { recursive: true });
-		writeFileSync(resolve(guildDir, "memory.db"), "");
+	it("scopes + internal 両方存在 → 両方返す", () => {
+		const scopeDir = resolve(TEMP_DIR, "scopes", DISCORD_SCOPE_SEGMENT);
+		mkdirSync(scopeDir, { recursive: true });
+		writeFileSync(resolve(scopeDir, "memory.db"), "");
 
 		const internalDir = resolve(TEMP_DIR, "internal");
 		mkdirSync(internalDir, { recursive: true });
@@ -344,22 +312,23 @@ describe("discoverNamespacesFromDisk", () => {
 
 		const result = discoverNamespacesFromDisk(TEMP_DIR);
 		expect(result).toHaveLength(2);
-		expect(result.some((ns) => ns.surface === "discord-guild" && ns.guildId === "111")).toBe(true);
+		expect(result.some((ns) => ns.surface === "agent-scope" && ns.scopeId === DISCORD_SCOPE)).toBe(
+			true,
+		);
 		expect(result.some((ns) => ns.surface === "internal")).toBe(true);
 	});
 });
 
 describe("MemoryNamespace: 型レベル契約", () => {
 	it("discriminated union として surface で分岐できる", () => {
-		const namespaces: MemoryNamespace[] = [discordGuildNamespace("123"), INTERNAL_NAMESPACE];
+		const namespaces: MemoryNamespace[] = [agentScopeNamespace(DISCORD_SCOPE), INTERNAL_NAMESPACE];
 
 		for (const ns of namespaces) {
 			switch (ns.surface) {
-				case "discord-guild":
-					expect(typeof ns.guildId).toBe("string");
+				case "agent-scope":
+					expect(typeof ns.scopeId).toBe("string");
 					break;
 				case "internal":
-					// no additional fields
 					expect(Object.keys(ns)).toEqual(["surface"]);
 					break;
 				default: {

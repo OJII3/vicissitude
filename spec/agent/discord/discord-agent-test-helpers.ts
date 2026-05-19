@@ -83,7 +83,7 @@ export function createAgent(
 	} = {},
 ): TestDiscordAgent {
 	const agent = new TestDiscordAgent({
-		guildId: "guild-1",
+		guildId: "111111111111111111",
 		profile: createProfile(),
 		sessionStore: createSessionStore() as never,
 		contextBuilder: createContextBuilder(),

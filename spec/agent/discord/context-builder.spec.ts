@@ -9,6 +9,7 @@ import {
 	extractIdentityName,
 	type ContextFileName,
 } from "@vicissitude/agent/discord/context-builder";
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
@@ -32,6 +33,10 @@ function createMockFactReader(facts: MemoryFact[]): MemoryFactReader {
 		getRelevantFacts: () => Promise.resolve(facts),
 		close: () => Promise.resolve(),
 	};
+}
+
+function scope(guildId: string): string {
+	return discordScopeId(guildId);
 }
 
 // ─── ContextBuilder ──────────────────────────────────────────────
@@ -130,7 +135,7 @@ describe("ContextBuilder", () => {
 			writeFile(overlayDir, "guilds/123456789/SERVER.md", "guild server info");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("123456789");
+			const result = await builder.build(scope("123456789"));
 
 			expect(result).toContain("guild server info");
 		});
@@ -139,7 +144,7 @@ describe("ContextBuilder", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("123456789");
+			const result = await builder.build(scope("123456789"));
 
 			expect(result).not.toContain("<SERVER.md>");
 		});
@@ -152,6 +157,7 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "SOUL.md", "soul");
 			writeFile(baseDir, "DISCORD.md", "discord");
 			writeFile(baseDir, "HEARTBEAT.md", "heartbeat");
+			writeFile(baseDir, "TOOLS-DISCORD.md", "tools-discord");
 			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
 			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
 			writeFile(baseDir, "TOOLS-MINECRAFT.md", "tools-minecraft");
@@ -160,7 +166,7 @@ describe("ContextBuilder", () => {
 			writeFile(overlayDir, "guilds/111/LESSONS.md", "lessons");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			const expectedOrder = [
 				"<IDENTITY.md>",
@@ -171,6 +177,7 @@ describe("ContextBuilder", () => {
 				"<HEARTBEAT.md>",
 				"<guild-context>",
 				"<SERVER.md>",
+				"<TOOLS-DISCORD.md>",
 				"<TOOLS-CORE.md>",
 				"<TOOLS-CODE.md>",
 				"<TOOLS-MINECRAFT.md>",
@@ -195,6 +202,7 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "SOUL.md", largeContent);
 			writeFile(baseDir, "DISCORD.md", largeContent);
 			writeFile(baseDir, "HEARTBEAT.md", largeContent);
+			writeFile(baseDir, "TOOLS-DISCORD.md", largeContent);
 			writeFile(baseDir, "TOOLS-CORE.md", largeContent);
 			writeFile(baseDir, "TOOLS-CODE.md", largeContent);
 			writeFile(baseDir, "TOOLS-MINECRAFT.md", largeContent);
@@ -203,13 +211,13 @@ describe("ContextBuilder", () => {
 			writeFile(overlayDir, "guilds/999/LESSONS.md", largeContent);
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("999");
+			const result = await builder.build(scope("999"));
 
 			expect(result.length).toBeLessThanOrEqual(160_000);
 			expect(result).toContain("<IDENTITY.md>");
 			const sectionCount = (
 				result.match(
-					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER|MEMORY|LESSONS)\.md>/g,
+					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-DISCORD|TOOLS-CORE|TOOLS-CODE|TOOLS-MINECRAFT|SERVER|MEMORY|LESSONS)\.md>/g,
 				) ?? []
 			).length;
 			expect(sectionCount).toBeLessThan(10);
@@ -220,19 +228,19 @@ describe("ContextBuilder", () => {
 		it("不正な guildId（パストラバーサル）でエラーをスローする", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			expect(builder.build("../../../etc")).rejects.toThrow("Invalid guildId");
+			expect(builder.build("../../../etc")).rejects.toThrow("Invalid Discord scopeId");
 		});
 
 		it("不正な guildId（英字）でエラーをスローする", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			expect(builder.build("abc")).rejects.toThrow("Invalid guildId");
+			expect(builder.build("abc")).rejects.toThrow("Invalid Discord scopeId");
 		});
 
 		it("正しい guildId（数字のみ）は通る", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("123456789");
+			const result = await builder.build(scope("123456789"));
 			expect(result).toContain("current_guild_id: 123456789");
 		});
 	});
@@ -242,7 +250,7 @@ describe("ContextBuilder", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("987654321");
+			const result = await builder.build(scope("987654321"));
 
 			expect(result).toContain("<guild-context>");
 			expect(result).toContain("current_guild_id: 987654321");
@@ -324,7 +332,7 @@ describe("ContextBuilder", () => {
 
 			const excludeFiles = new Set<ContextFileName>(["TOOLS-MINECRAFT.md"]);
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader, excludeFiles);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			expect(result).toContain("<IDENTITY.md>");
 			expect(result).toContain("<MEMORY-FACTS>");
@@ -351,7 +359,7 @@ describe("ContextBuilder", () => {
 			]);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			expect(result).toContain("<MEMORY-FACTS>");
 			expect(result).toContain("コーヒーが好き");
@@ -364,7 +372,7 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "IDENTITY.md", "identity");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			expect(result).not.toContain("<MEMORY-FACTS>");
 			expect(result).not.toContain("</MEMORY-FACTS>");
@@ -386,7 +394,7 @@ describe("ContextBuilder", () => {
 			]);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			expect(result).toContain("行動ガイドライン");
 
@@ -415,7 +423,7 @@ describe("ContextBuilder", () => {
 			]);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			const sessionSummaryEnd = result.indexOf("</SESSION-SUMMARY.md>");
 			const memoryFactsStart = result.indexOf("<MEMORY-FACTS>");
@@ -436,7 +444,7 @@ describe("ContextBuilder", () => {
 			const factReader = createMockFactReader([]);
 
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			expect(result).not.toContain("<MEMORY-FACTS>");
 		});

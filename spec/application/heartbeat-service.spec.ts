@@ -3,8 +3,9 @@ import { describe, expect, mock, test } from "bun:test";
 import {
 	HeartbeatService,
 	buildHeartbeatPrompt,
-	groupByGuild,
+	groupByScope,
 } from "@vicissitude/application/heartbeat-service";
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type { AiAgent, DueReminder } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../test-helpers.ts";
@@ -29,17 +30,17 @@ describe("buildHeartbeatPrompt", () => {
 	});
 });
 
-describe("groupByGuild", () => {
-	test("guild ごとにまとめ、未指定は autonomous に送る", () => {
-		const groups = groupByGuild([
+describe("groupByScope", () => {
+	test("scope ごとにまとめ、未指定は autonomous に送る", () => {
+		const groups = groupByScope([
 			{
 				reminder: {
 					id: "g1",
-					description: "guild",
+					description: "scope",
 					schedule: { type: "interval", minutes: 5 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-1",
+					scopeId: discordScopeId("111111111111111111"),
 				},
 				overdueMinutes: 0,
 			},
@@ -55,13 +56,13 @@ describe("groupByGuild", () => {
 			},
 		]);
 
-		expect(groups.get("guild-1")).toHaveLength(1);
+		expect(groups.get(discordScopeId("111111111111111111"))).toHaveLength(1);
 		expect(groups.get("_autonomous")).toHaveLength(1);
 	});
 });
 
 describe("HeartbeatService", () => {
-	test("guild ごとに agent を呼び分け、成功した id を返す", async () => {
+	test("scope ごとに agent を呼び分け、成功した id を返す", async () => {
 		const agent: AiAgent = {
 			send: mock(() => Promise.resolve({ text: "", sessionId: "s1" })),
 			stop: mock(() => {}),
@@ -75,7 +76,7 @@ describe("HeartbeatService", () => {
 					schedule: { type: "interval", minutes: 15 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-1",
+					scopeId: discordScopeId("111111111111111111"),
 				},
 				overdueMinutes: 0,
 			},

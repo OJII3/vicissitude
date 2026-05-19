@@ -1059,7 +1059,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1086,7 +1086,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				// 短いタイムアウトで raceAbort の signal 先行を誘発
 				summaryTimeoutMs: 20,
@@ -1118,7 +1118,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1186,7 +1186,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 					logger: createMockLogger(),
 					sessionPort: sessionPort as unknown as OpencodeSessionPort,
 					sessionMaxAgeMs: 3_600_000,
-					contextGuildId: "g1",
+					contextScopeId: "g1",
 					summaryWriter,
 					summaryTimeoutMs: 5_000,
 				});
@@ -1224,7 +1224,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 20,
 			});
@@ -1256,7 +1256,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				// timeout より先に abort が走るよう十分長く
 				summaryTimeoutMs: 60_000,
@@ -1297,7 +1297,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				// summaryWriter は未設定
 				summaryTimeoutMs: 5_000,
 			});
@@ -1311,7 +1311,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 			expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-abc");
 		});
 
-		test("早期 return: contextGuildId 未設定なら prompt は呼ばれない", async () => {
+		test("早期 return: contextScopeId 未設定なら prompt は呼ばれない", async () => {
 			const sessionPort = createSimpleSessionPort(() =>
 				Promise.resolve({ text: "ok", tokens: undefined }),
 			);
@@ -1326,7 +1326,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				// contextGuildId 未設定
+				// contextScopeId 未設定
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1355,7 +1355,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1383,7 +1383,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1412,7 +1412,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 5_000,
 			});
@@ -1446,7 +1446,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "g1",
+				contextScopeId: "g1",
 				summaryWriter,
 				summaryTimeoutMs: 60_000,
 			});
@@ -1494,7 +1494,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 					logger: createMockLogger(),
 					sessionPort: sessionPort as unknown as OpencodeSessionPort,
 					sessionMaxAgeMs: 3_600_000,
-					contextGuildId: "g1",
+					contextScopeId: "g1",
 					summaryWriter,
 					// summaryTimeoutMs 未指定
 				});
@@ -1532,7 +1532,7 @@ describe("AgentRunner セッション要約生成の内部ロジック（ホワ�
 					logger: createMockLogger(),
 					sessionPort: sessionPort as unknown as OpencodeSessionPort,
 					sessionMaxAgeMs: 3_600_000,
-					contextGuildId: "g1",
+					contextScopeId: "g1",
 					summaryWriter,
 					summaryTimeoutMs: 12_345,
 				});

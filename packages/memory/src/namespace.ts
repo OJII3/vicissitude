@@ -10,12 +10,17 @@
  */
 
 export {
+	AGENT_SCOPE_ID_RE,
+	agentScopeNamespace,
 	defaultSubject,
-	discordGuildNamespace,
+	DISCORD_GUILD_ID_RE,
+	discordGuildIdFromScopeId,
+	discordScopeId,
 	discoverNamespacesFromDisk,
 	GUILD_ID_RE,
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
+	migrateLegacyGuildMemoryNamespaces,
 	namespaceKey,
 	parseAgentId,
 	resolveMemoryDbDir,

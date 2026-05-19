@@ -27,8 +27,8 @@ describe("recordTokenMetrics とコストメトリクス", () => {
 		const tokens = { input: 1000, output: 500, cacheRead: 200 };
 		const labels = {
 			agent_kind: "discord",
-			agent_id: "discord:guild-1",
-			guild_id: "guild-1",
+			agent_id: "discord:111111111111111111",
+			scope_id: "discord:guild:111111111111111111",
 			trigger: "home",
 			provider: "openai",
 			model: "gpt-4o",
@@ -47,8 +47,8 @@ describe("recordTokenMetrics とコストメトリクス", () => {
 		const tokens = { input: 1000, output: 500, cacheRead: 200 };
 		const labels = {
 			agent_kind: "discord",
-			agent_id: "discord:guild-1",
-			guild_id: "guild-1",
+			agent_id: "discord:111111111111111111",
+			scope_id: "discord:guild:111111111111111111",
 			trigger: "home",
 			provider: "openai",
 			model: "gpt-4o",
@@ -65,8 +65,8 @@ describe("recordTokenMetrics とコストメトリクス", () => {
 		const tokens = { input: 1000, output: 500, cacheRead: 200 };
 		const labels = {
 			agent_kind: "discord",
-			agent_id: "discord:guild-1",
-			guild_id: "guild-1",
+			agent_id: "discord:111111111111111111",
+			scope_id: "discord:guild:111111111111111111",
 			trigger: "home",
 			provider: "openai",
 			model: "unknown-model-xyz",

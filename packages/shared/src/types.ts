@@ -49,7 +49,7 @@ export interface HeartbeatReminder {
 	schedule: ReminderSchedule;
 	lastExecutedAt: string | null;
 	enabled: boolean;
-	guildId?: string;
+	scopeId?: string;
 }
 
 export interface HeartbeatConfig {
@@ -184,7 +184,7 @@ export interface MemoryConsolidator {
 export interface SendOptions {
 	sessionKey: string;
 	message: string;
-	guildId?: string;
+	scopeId?: string;
 	attachments?: Attachment[];
 	channelId?: string;
 	isBot?: boolean;
@@ -210,7 +210,7 @@ export interface SessionStorePort {
 // ─── Context Builder Port ────────────────────────────────────────
 
 export interface ContextBuilderPort {
-	build(guildId?: string): Promise<string>;
+	build(scopeId?: string): Promise<string>;
 	buildTurnPromptPrefix?(): Promise<string | null>;
 }
 
@@ -277,5 +277,5 @@ export interface OpencodeSessionPort {
 // ─── Session Summary Writer ─────────────────────────────────────
 
 export interface SessionSummaryWriter {
-	write(guildId: string, content: string): Promise<void>;
+	write(scopeId: string, content: string): Promise<void>;
 }

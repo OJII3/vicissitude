@@ -7,7 +7,10 @@ import { mcpMinecraftConfigs, mcpServerConfigs } from "@vicissitude/agent/mcp-co
 describe("mcpServerConfigs", () => {
 	const defaultOpts = {
 		appRoot: "/test/root",
-		coreEnvironment: { DISCORD_TOKEN: "test", DATA_DIR: "/data" },
+		coreEnvironment: { DATA_DIR: "/data" },
+	};
+	const discord = {
+		environment: { DISCORD_TOKEN: "test", DATA_DIR: "/data" },
 	};
 	const shellWorkspace = {
 		image: "sandbox-image",
@@ -44,8 +47,44 @@ describe("mcpServerConfigs", () => {
 		const configs = mcpServerConfigs("discord:123", defaultOpts);
 		const core = configs.core;
 		if (core?.type === "local") {
-			expect(core.environment?.DISCORD_TOKEN).toBe("test");
 			expect(core.environment?.DATA_DIR).toBe("/data");
+		}
+	});
+
+	it("discord option が有効な場合だけ discord MCP を返す", () => {
+		const configs = mcpServerConfigs("discord:123", {
+			...defaultOpts,
+			discord,
+		});
+
+		expect(Object.keys(configs).toSorted()).toEqual(["core", "discord"]);
+	});
+
+	it("discord MCP は discord-server entrypoint と AGENT_ID 付き environment を使う", () => {
+		const configs = mcpServerConfigs("discord:123", {
+			...defaultOpts,
+			discord,
+		});
+		const discordConfig = configs.discord;
+
+		expect(discordConfig?.type).toBe("local");
+		if (discordConfig?.type === "local") {
+			expect(discordConfig.command).toEqual(["bun", "run", "/test/root/dist/discord-server.js"]);
+			expect(discordConfig.environment?.AGENT_ID).toBe("discord:123");
+			expect(discordConfig.environment?.DISCORD_TOKEN).toBe("test");
+		}
+	});
+
+	it("discord MCP の environment は coreEnvironment を混ぜない", () => {
+		const configs = mcpServerConfigs("discord:123", {
+			...defaultOpts,
+			discord,
+		});
+		const discordConfig = configs.discord;
+
+		if (discordConfig?.type === "local") {
+			expect(discordConfig.environment?.DATA_DIR).toBe("/data");
+			expect(discordConfig.environment?.MEMORY_DATA_DIR).toBeUndefined();
 		}
 	});
 

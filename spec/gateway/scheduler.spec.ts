@@ -1,6 +1,6 @@
 import { describe, expect, it } from "bun:test";
 
-import { buildHeartbeatPrompt, groupByGuild } from "@vicissitude/application/heartbeat-service";
+import { buildHeartbeatPrompt, groupByScope } from "@vicissitude/application/heartbeat-service";
 import type { DueReminder } from "@vicissitude/shared/types";
 
 // ─── buildHeartbeatPrompt ────────────────────────────────────────
@@ -76,10 +76,10 @@ describe("buildHeartbeatPrompt", () => {
 	});
 });
 
-// ─── groupByGuild ────────────────────────────────────────────────
+// ─── groupByScope ────────────────────────────────────────────────
 
-describe("groupByGuild", () => {
-	it("guildId ごとにグルーピングされる", () => {
+describe("groupByScope", () => {
+	it("scopeId ごとにグルーピングされる", () => {
 		const reminders: DueReminder[] = [
 			{
 				reminder: {
@@ -88,7 +88,7 @@ describe("groupByGuild", () => {
 					schedule: { type: "interval", minutes: 10 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-1",
+					scopeId: "discord:guild:1",
 				},
 				overdueMinutes: 5,
 			},
@@ -99,7 +99,7 @@ describe("groupByGuild", () => {
 					schedule: { type: "interval", minutes: 10 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-2",
+					scopeId: "discord:guild:2",
 				},
 				overdueMinutes: 5,
 			},
@@ -110,19 +110,19 @@ describe("groupByGuild", () => {
 					schedule: { type: "interval", minutes: 10 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-1",
+					scopeId: "discord:guild:1",
 				},
 				overdueMinutes: 5,
 			},
 		];
 
-		const groups = groupByGuild(reminders);
+		const groups = groupByScope(reminders);
 		expect(groups.size).toBe(2);
-		expect(groups.get("guild-1")).toHaveLength(2);
-		expect(groups.get("guild-2")).toHaveLength(1);
+		expect(groups.get("discord:guild:1")).toHaveLength(2);
+		expect(groups.get("discord:guild:2")).toHaveLength(1);
 	});
 
-	it("guildId が未定義なら _autonomous にグルーピングされる", () => {
+	it("scopeId が未定義なら _autonomous にグルーピングされる", () => {
 		const reminders: DueReminder[] = [
 			{
 				reminder: {
@@ -136,18 +136,18 @@ describe("groupByGuild", () => {
 			},
 		];
 
-		const groups = groupByGuild(reminders);
+		const groups = groupByScope(reminders);
 		expect(groups.size).toBe(1);
 		expect(groups.has("_autonomous")).toBe(true);
 		expect(groups.get("_autonomous")).toHaveLength(1);
 	});
 
 	it("空配列なら空の Map を返す", () => {
-		const groups = groupByGuild([]);
+		const groups = groupByScope([]);
 		expect(groups.size).toBe(0);
 	});
 
-	it("guildId ありと未定義が混在する", () => {
+	it("scopeId ありと未定義が混在する", () => {
 		const reminders: DueReminder[] = [
 			{
 				reminder: {
@@ -156,7 +156,7 @@ describe("groupByGuild", () => {
 					schedule: { type: "interval", minutes: 10 },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId: "guild-1",
+					scopeId: "discord:guild:1",
 				},
 				overdueMinutes: 5,
 			},
@@ -172,9 +172,9 @@ describe("groupByGuild", () => {
 			},
 		];
 
-		const groups = groupByGuild(reminders);
+		const groups = groupByScope(reminders);
 		expect(groups.size).toBe(2);
-		expect(groups.has("guild-1")).toBe(true);
+		expect(groups.has("discord:guild:1")).toBe(true);
 		expect(groups.has("_autonomous")).toBe(true);
 	});
 });

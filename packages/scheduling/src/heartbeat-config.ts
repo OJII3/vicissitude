@@ -1,6 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from "fs";
+/* oxlint-disable max-lines -- repository, lock handling, and legacy migration are one cohesive unit */
+import {
+	existsSync,
+	mkdirSync,
+	readFileSync,
+	renameSync,
+	rmSync,
+	statSync,
+	writeFileSync,
+} from "fs";
 import { dirname, resolve as resolvePath } from "path";
 
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type {
 	HeartbeatConfig,
 	HeartbeatReminder,
@@ -30,7 +40,7 @@ const heartbeatConfigSchema = z.object({
 			]),
 			lastExecutedAt: z.string().nullable(),
 			enabled: z.boolean(),
-			guildId: z.string().optional(),
+			scopeId: z.string().optional(),
 		}),
 	),
 });
@@ -98,9 +108,13 @@ export class JsonHeartbeatConfigRepository {
 			throw createHeartbeatConfigJsonError(this.filePath, error);
 		}
 
-		const parsed = heartbeatConfigSchema.safeParse(json);
+		const migrated = migrateLegacyHeartbeatConfigJson(json);
+		const parsed = heartbeatConfigSchema.safeParse(migrated.value);
 		if (!parsed.success) {
 			throw createHeartbeatConfigSchemaError(this.filePath, parsed.error);
+		}
+		if (migrated.changed) {
+			this.writeConfigSync(parsed.data as HeartbeatConfig);
 		}
 		return parsed.data as HeartbeatConfig;
 	}
@@ -121,6 +135,18 @@ export class JsonHeartbeatConfigRepository {
 		const dir = dirname(this.filePath);
 		if (!existsSync(dir)) {
 			mkdirSync(dir, { recursive: true });
+		}
+	}
+
+	private writeConfigSync(config: HeartbeatConfig): void {
+		this.ensureDir();
+		const tempPath = `${this.filePath}.${String(process.pid)}.${String(Date.now())}.${String(Math.random()).slice(2)}.tmp`;
+		try {
+			writeFileSync(tempPath, JSON.stringify(config, null, 2));
+			renameSync(tempPath, this.filePath);
+		} catch (error) {
+			rmSync(tempPath, { force: true });
+			throw error;
 		}
 	}
 
@@ -236,11 +262,11 @@ function mergeReminderChanges(
 	if (next.enabled !== baseline.enabled) {
 		merged.enabled = next.enabled;
 	}
-	if (next.guildId !== baseline.guildId) {
-		if (next.guildId === undefined) {
-			delete merged.guildId;
+	if (next.scopeId !== baseline.scopeId) {
+		if (next.scopeId === undefined) {
+			delete merged.scopeId;
 		} else {
-			merged.guildId = next.guildId;
+			merged.scopeId = next.scopeId;
 		}
 	}
 
@@ -269,8 +295,36 @@ function cloneReminder(reminder: HeartbeatReminder): HeartbeatReminder {
 		schedule: cloneSchedule(reminder.schedule),
 		lastExecutedAt: reminder.lastExecutedAt,
 		enabled: reminder.enabled,
-		...(reminder.guildId === undefined ? {} : { guildId: reminder.guildId }),
+		...(reminder.scopeId === undefined ? {} : { scopeId: reminder.scopeId }),
 	};
+}
+
+function migrateLegacyHeartbeatConfigJson(value: unknown): { value: unknown; changed: boolean } {
+	if (!isRecord(value) || !Array.isArray(value.reminders)) {
+		return { value, changed: false };
+	}
+
+	let changed = false;
+	const rawReminders = value.reminders as unknown[];
+	const reminders = rawReminders.map((reminder): unknown => {
+		if (!isRecord(reminder) || !("guildId" in reminder)) return reminder;
+		const { guildId, ...rest } = reminder;
+		if (typeof guildId !== "string") {
+			throw new TypeError("Invalid legacy heartbeat reminder guildId");
+		}
+		const scopeId = discordScopeId(guildId);
+		if ("scopeId" in rest && rest.scopeId !== scopeId) {
+			throw new Error("Conflicting heartbeat reminder scopeId and legacy guildId");
+		}
+		changed = true;
+		return Object.assign({}, rest, { scopeId });
+	});
+
+	return { value: { ...value, reminders }, changed };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function cloneSchedule(schedule: ReminderSchedule): ReminderSchedule {

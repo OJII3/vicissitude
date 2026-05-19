@@ -9,12 +9,12 @@
  * 詳細な仕様契約は spec/memory/namespace.spec.ts を参照。
  */
 
-import { existsSync, readdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, renameSync } from "fs";
 import { resolve } from "path";
 
 /** Memory のパーティショニング単位 */
 export type MemoryNamespace =
-	| { readonly surface: "discord-guild"; readonly guildId: string }
+	| { readonly surface: "agent-scope"; readonly scopeId: string }
 	| { readonly surface: "internal" };
 
 /** internal namespace における subject（userId カラムの固定値） */
@@ -23,22 +23,58 @@ export const HUA_SELF_SUBJECT = "hua:self";
 /** internal namespace のシングルトン */
 export const INTERNAL_NAMESPACE: MemoryNamespace = { surface: "internal" };
 
-export const GUILD_ID_RE = /^\d+$/;
+export const AGENT_SCOPE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9:_-]*$/;
+export const DISCORD_GUILD_ID_RE = /^\d+$/;
 
-/** discord-guild namespace を生成する（guildId のバリデーション付き） */
-export function discordGuildNamespace(guildId: string): MemoryNamespace {
-	if (!GUILD_ID_RE.test(guildId)) {
+/** Discord adapter 用の guild ID バリデーション。core schema では使わない。 */
+export const GUILD_ID_RE = DISCORD_GUILD_ID_RE;
+
+/** agent-scope namespace を生成する（scopeId のバリデーション付き） */
+export function agentScopeNamespace(scopeId: string): MemoryNamespace {
+	assertAgentScopeId(scopeId);
+	return { surface: "agent-scope", scopeId };
+}
+
+/** Discord guild ID から canonical scopeId を生成する。 */
+export function discordScopeId(guildId: string): string {
+	if (!DISCORD_GUILD_ID_RE.test(guildId)) {
 		throw new Error(`Invalid guildId: ${guildId}`);
 	}
-	return { surface: "discord-guild", guildId };
+	return `discord:guild:${guildId}`;
+}
+
+/** Discord scopeId から guild ID を取り出す。Discord scope でなければ null。 */
+export function discordGuildIdFromScopeId(scopeId: string): string | null {
+	const match = scopeId.match(/^discord:guild:(\d+)$/);
+	return match?.[1] ?? null;
+}
+
+function assertAgentScopeId(scopeId: string): void {
+	if (!AGENT_SCOPE_ID_RE.test(scopeId)) {
+		throw new Error(`Invalid scopeId: ${scopeId}`);
+	}
+}
+
+function scopePathSegment(scopeId: string): string {
+	assertAgentScopeId(scopeId);
+	return encodeURIComponent(scopeId);
+}
+
+function scopeIdFromPathSegment(segment: string): string | null {
+	try {
+		const scopeId = decodeURIComponent(segment);
+		return AGENT_SCOPE_ID_RE.test(scopeId) ? scopeId : null;
+	} catch {
+		return null;
+	}
 }
 
 /** namespace に対応する DB 配置ディレクトリの絶対パスを返す（mkdirSync 用） */
 export function resolveMemoryDbDir(dataDir: string, namespace: MemoryNamespace): string {
 	switch (namespace.surface) {
-		case "discord-guild":
+		case "agent-scope":
 			// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() の戻り値は string だが oxlint が誤検知する
-			return resolve(dataDir, "guilds", namespace.guildId);
+			return resolve(dataDir, "scopes", scopePathSegment(namespace.scopeId));
 		case "internal":
 			// oxlint-disable-next-line typescript/no-unsafe-return -- resolve() の戻り値は string だが oxlint が誤検知する
 			return resolve(dataDir, "internal");
@@ -57,8 +93,8 @@ export function resolveMemoryDbPath(dataDir: string, namespace: MemoryNamespace)
  */
 export function namespaceKey(namespace: MemoryNamespace): string {
 	switch (namespace.surface) {
-		case "discord-guild":
-			return `discord-guild:${namespace.guildId}`;
+		case "agent-scope":
+			return `agent-scope:${namespace.scopeId}`;
 		case "internal":
 			return "internal";
 	}
@@ -69,12 +105,12 @@ export type DiscordAgentRole = "polling" | "heartbeat";
 
 /** agentId のパース結果 */
 export type ParsedAgentId =
-	| { readonly platform: "discord"; readonly role: DiscordAgentRole; readonly guildId: string }
+	| { readonly platform: "discord"; readonly role: DiscordAgentRole; readonly scopeId: string }
 	| { readonly platform: "internal" }
 	| null;
 
 /**
- * agentId を解析してプラットフォーム・ロール・guildId を返す。
+ * agentId を解析してプラットフォーム・ロール・scopeId を返す。
  * 未知のプレフィックス・null/undefined/空文字・不正形式は null を返す。
  */
 export function parseAgentId(agentId: string | null | undefined): ParsedAgentId {
@@ -83,9 +119,9 @@ export function parseAgentId(agentId: string | null | undefined): ParsedAgentId 
 		return { platform: "internal" };
 	}
 	const m = agentId.match(/^discord:(?:(heartbeat):)?(.+)$/);
-	if (m?.[2] && GUILD_ID_RE.test(m[2])) {
+	if (m?.[2] && DISCORD_GUILD_ID_RE.test(m[2])) {
 		const role = (m[1] ?? "polling") as DiscordAgentRole;
-		return { platform: "discord", role, guildId: m[2] };
+		return { platform: "discord", role, scopeId: discordScopeId(m[2]) };
 	}
 	return null;
 }
@@ -102,7 +138,7 @@ export function resolveNamespaceFromAgentId(
 	if (!parsed) return null;
 	switch (parsed.platform) {
 		case "discord":
-			return { surface: "discord-guild", guildId: parsed.guildId };
+			return agentScopeNamespace(parsed.scopeId);
 		case "internal":
 			return INTERNAL_NAMESPACE;
 	}
@@ -110,15 +146,46 @@ export function resolveNamespaceFromAgentId(
 
 /**
  * namespace のデフォルト subject（userId カラム値）を返す。
- *   - discord-guild: guildId（既存互換）
- *   - internal:      HUA_SELF_SUBJECT
+ *   - agent-scope: scopeId
+ *   - internal:    HUA_SELF_SUBJECT
  */
 export function defaultSubject(namespace: MemoryNamespace): string {
 	switch (namespace.surface) {
-		case "discord-guild":
-			return namespace.guildId;
+		case "agent-scope":
+			return namespace.scopeId;
 		case "internal":
 			return HUA_SELF_SUBJECT;
+	}
+}
+
+/**
+ * 旧 `guilds/{guildId}/memory.db` を新しい `scopes/{discord scope}/memory.db` へ移す。
+ * 互換読み込みは行わず、起動時に一度だけ呼び出す migration として使う。
+ */
+export function migrateLegacyGuildMemoryNamespaces(dataDir: string): void {
+	const legacyRoot = resolve(dataDir, "guilds");
+	let entries: string[];
+	try {
+		entries = readdirSync(legacyRoot);
+	} catch {
+		return;
+	}
+
+	for (const name of entries) {
+		if (!DISCORD_GUILD_ID_RE.test(name)) continue;
+		const legacyDir = resolve(legacyRoot, name);
+		if (!existsSync(resolve(legacyDir, "memory.db"))) continue;
+
+		const namespace = agentScopeNamespace(discordScopeId(name));
+		const targetDir = resolveMemoryDbDir(dataDir, namespace);
+		if (existsSync(targetDir)) {
+			throw new Error(
+				`Cannot migrate legacy memory namespace ${legacyDir}: target already exists: ${targetDir}`,
+			);
+		}
+
+		mkdirSync(resolve(dataDir, "scopes"), { recursive: true });
+		renameSync(legacyDir, targetDir);
 	}
 }
 
@@ -134,17 +201,18 @@ export function discoverNamespacesFromDisk(dataDir: string): MemoryNamespace[] {
 		result.push(INTERNAL_NAMESPACE);
 	}
 
-	// guilds/{guildId}/memory.db
-	const guildsDir = resolve(dataDir, "guilds");
+	// scopes/{encodedScopeId}/memory.db
+	const scopesDir = resolve(dataDir, "scopes");
 	let entries: string[];
 	try {
-		entries = readdirSync(guildsDir);
+		entries = readdirSync(scopesDir);
 	} catch {
 		return result;
 	}
 	for (const name of entries) {
-		if (GUILD_ID_RE.test(name) && existsSync(resolve(guildsDir, name, "memory.db"))) {
-			result.push(discordGuildNamespace(name));
+		const scopeId = scopeIdFromPathSegment(name);
+		if (scopeId && existsSync(resolve(scopesDir, name, "memory.db"))) {
+			result.push(agentScopeNamespace(scopeId));
 		}
 	}
 

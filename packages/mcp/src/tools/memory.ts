@@ -1,9 +1,9 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { MemoryReadServices } from "@vicissitude/memory";
 import {
+	AGENT_SCOPE_ID_RE,
+	agentScopeNamespace,
 	defaultSubject,
-	discordGuildNamespace,
-	GUILD_ID_RE,
 	INTERNAL_NAMESPACE,
 	type MemoryNamespace,
 	namespaceKey,
@@ -13,7 +13,7 @@ import { z } from "zod";
 
 import type { LruCache } from "../lru-cache";
 
-const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
+const scopeIdSchema = z.string().regex(AGENT_SCOPE_ID_RE).describe("Agent scope ID");
 
 const formatFacts = (fs: SemanticFact[]) =>
 	fs.map((f) => `- [${f.category}] ${f.fact} (keywords: ${f.keywords.join(", ")})`);
@@ -29,9 +29,9 @@ export function registerMemoryTools(
 	boundNamespace?: MemoryNamespace,
 ): void {
 	const { getOrCreateMemory, cache } = deps;
-	function resolveNamespace(guildIdInput: string | undefined): MemoryNamespace | null {
+	function resolveNamespace(scopeIdInput: string | undefined): MemoryNamespace | null {
 		if (boundNamespace) return boundNamespace;
-		if (guildIdInput) return discordGuildNamespace(guildIdInput);
+		if (scopeIdInput) return agentScopeNamespace(scopeIdInput);
 		return null;
 	}
 
@@ -41,14 +41,14 @@ export function registerMemoryTools(
 			description:
 				"Retrieve long-term memories related to the query via hybrid search (text + vector + FSRS re-ranking)",
 			inputSchema: {
-				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
+				...(boundNamespace ? {} : { scope_id: scopeIdSchema }),
 				query: z.string().min(1).describe("Search query"),
 				limit: z.number().min(1).max(50).optional().describe("Max results (default: 10)"),
 			},
 		},
-		async ({ guild_id, query, limit }: { guild_id?: string; query: string; limit?: number }) => {
+		async ({ scope_id, query, limit }: { scope_id?: string; query: string; limit?: number }) => {
 			try {
-				const ns = resolveNamespace(guild_id);
+				const ns = resolveNamespace(scope_id);
 				if (!ns) {
 					return {
 						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],
@@ -145,7 +145,7 @@ export function registerMemoryTools(
 		{
 			description: "List accumulated facts (semantic memory)",
 			inputSchema: {
-				...(boundNamespace ? {} : { guild_id: guildIdSchema }),
+				...(boundNamespace ? {} : { scope_id: scopeIdSchema }),
 				category: z
 					.enum([
 						"identity",
@@ -162,10 +162,10 @@ export function registerMemoryTools(
 			},
 		},
 		async ({
-			guild_id,
+			scope_id,
 			category,
 		}: {
-			guild_id?: string;
+			scope_id?: string;
 			category?:
 				| "identity"
 				| "preference"
@@ -177,7 +177,7 @@ export function registerMemoryTools(
 				| "guideline";
 		}) => {
 			try {
-				const ns = resolveNamespace(guild_id);
+				const ns = resolveNamespace(scope_id);
 				if (!ns) {
 					return {
 						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],

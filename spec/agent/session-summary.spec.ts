@@ -126,7 +126,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -184,7 +184,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -228,7 +228,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 999_999_999,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -272,7 +272,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -317,7 +317,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -340,8 +340,8 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 		});
 	});
 
-	describe("contextGuildId 未設定時のスキップ", () => {
-		test("contextGuildId が未設定の場合は prompt(要約) / summaryWriter.write は呼ばれない", async () => {
+	describe("contextScopeId 未設定時のスキップ", () => {
+		test("contextScopeId が未設定の場合は prompt(要約) / summaryWriter.write は呼ばれない", async () => {
 			const firstSessionDone = deferred<OpencodeSessionEvent>();
 			const secondSessionDone = deferred<OpencodeSessionEvent>();
 			const sessionPort = createSessionPortWithTwoSessions(
@@ -402,7 +402,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			runner.sleepSpy = () => Promise.resolve();
@@ -443,7 +443,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 0,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 			});
 			runner.sleepSpy = () => Promise.resolve();
 			activeRunners.add(runner);
@@ -481,7 +481,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			activeRunners.add(runner);
@@ -511,7 +511,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			activeRunners.add(runner);
@@ -526,7 +526,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 	});
 
 	describe("requestSessionRotation での要約生成", () => {
-		test("requestSessionRotation 時も contextGuildId があれば prompt → write が呼ばれる", async () => {
+		test("requestSessionRotation 時も contextScopeId があれば prompt → write が呼ばれる", async () => {
 			const sessionPort = createSimpleSessionPort();
 			sessionPort.prompt = mock(() =>
 				Promise.resolve({ text: "強制ローテーション時の要約", tokens: undefined }),
@@ -543,7 +543,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "987654321",
+				contextScopeId: "987654321",
 				summaryWriter,
 			});
 			activeRunners.add(runner);
@@ -557,7 +557,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 			expect(summaryWriter.write).toHaveBeenCalledWith("987654321", "強制ローテーション時の要約");
 		});
 
-		test("requestSessionRotation で contextGuildId が未設定の場合は prompt(要約) は呼ばれない", async () => {
+		test("requestSessionRotation で contextScopeId が未設定の場合は prompt(要約) は呼ばれない", async () => {
 			const sessionPort = createSimpleSessionPort();
 
 			const summaryWriter = createSummaryWriter();
@@ -600,7 +600,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger,
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			activeRunners.add(runner);
@@ -629,7 +629,7 @@ describe("AgentRunner セッション要約引き継ぎ", () => {
 				logger: createMockLogger(),
 				sessionPort: sessionPort as unknown as OpencodeSessionPort,
 				sessionMaxAgeMs: 3_600_000,
-				contextGuildId: "123456789",
+				contextScopeId: "123456789",
 				summaryWriter,
 			});
 			activeRunners.add(runner);

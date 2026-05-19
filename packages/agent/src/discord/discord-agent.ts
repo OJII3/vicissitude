@@ -1,3 +1,4 @@
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type {
 	AgentResponse,
 	AttachmentProcessor,
@@ -59,7 +60,7 @@ export class DiscordAgent extends AgentRunner {
 			sessionPort: deps.sessionPort,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
-			contextGuildId: deps.guildId,
+			contextScopeId: discordScopeId(deps.guildId),
 			summaryWriter: deps.summaryWriter,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,

@@ -72,12 +72,12 @@ describe("AgentRunner LLM metrics", () => {
 			sessionPort: createSessionPort(done.promise),
 			sessionMaxAgeMs: 3_600_000,
 			metrics: collector,
-			contextGuildId: "guild-1",
+			contextScopeId: "discord:guild:111",
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
-		await runner.send({ sessionKey: "home", message: "hello", guildId: "guild-1" });
+		await runner.send({ sessionKey: "home", message: "hello", scopeId: "discord:guild:111" });
 		await Bun.sleep(0);
 		await Bun.sleep(0);
 		done.resolve({ type: "idle", tokens: { input: 100, output: 40, cacheRead: 10 } });
@@ -86,9 +86,9 @@ describe("AgentRunner LLM metrics", () => {
 
 		const output = collector.serialize();
 		const requestLabels =
-			'{agent_id="discord:guild-1",agent_kind="discord",guild_id="guild-1",model="test-model",outcome="success",provider="test-provider",trigger="home"}';
+			'{agent_id="discord:guild-1",agent_kind="discord",model="test-model",outcome="success",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
 		const commonLabels =
-			'{agent_id="discord:guild-1",agent_kind="discord",guild_id="guild-1",model="test-model",provider="test-provider",trigger="home"}';
+			'{agent_id="discord:guild-1",agent_kind="discord",model="test-model",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
 		expect(output).toContain(`ai_requests_total${requestLabels} 1`);
 		expect(output).toContain(`ai_request_duration_seconds_count${requestLabels} 1`);
 		expect(output).toContain(`llm_busy_sessions${commonLabels} 0`);
@@ -109,15 +109,15 @@ describe("AgentRunner LLM metrics", () => {
 			sessionPort: createSessionPort(done.promise),
 			sessionMaxAgeMs: 3_600_000,
 			metrics: collector,
-			contextGuildId: "guild-1",
+			contextScopeId: "discord:guild:111",
 		});
 		runner.sleepSpy = () => Promise.resolve();
 		activeRunners.add(runner);
 
 		await runner.send({
-			sessionKey: "system:heartbeat:guild-1",
+			sessionKey: "system:heartbeat:discord:guild:111",
 			message: "heartbeat",
-			guildId: "guild-1",
+			scopeId: "discord:guild:111",
 		});
 		await Bun.sleep(0);
 		await Bun.sleep(0);
@@ -127,7 +127,7 @@ describe("AgentRunner LLM metrics", () => {
 
 		const output = collector.serialize();
 		expect(output).toContain(
-			'session_errors_total{agent_id="discord:heartbeat:guild-1",agent_kind="discord_heartbeat",error_class="unknown",error_type="timeout",guild_id="guild-1",http_status="unknown",model="test-model",provider="test-provider",retryable="true",source="session_event",trigger="heartbeat"} 1',
+			'session_errors_total{agent_id="discord:heartbeat:guild-1",agent_kind="discord_heartbeat",error_class="unknown",error_type="timeout",http_status="unknown",model="test-model",provider="test-provider",retryable="true",scope_id="discord:guild:111",source="session_event",trigger="heartbeat"} 1',
 		);
 	});
 });

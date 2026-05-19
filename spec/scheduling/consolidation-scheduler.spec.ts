@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { discordGuildNamespace } from "@vicissitude/memory/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/memory/namespace";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import type {
 	CriticAuditCompleted,
@@ -72,7 +72,7 @@ describe("ConsolidationScheduler", () => {
 	test("アクティブギルド 1 件 → consolidate 呼び出し、success メトリクス", async () => {
 		const logger = createMockLogger();
 		const metrics = createMockMetrics();
-		const ns = discordGuildNamespace("12345");
+		const ns = agentScopeNamespace(discordScopeId("12345"));
 		const consolidator = createMockConsolidator({
 			getActiveNamespaces: mock(() => [ns]),
 			consolidate: mock(() =>
@@ -99,12 +99,12 @@ describe("ConsolidationScheduler", () => {
 		const logger = createMockLogger();
 		const metrics = createMockMetrics();
 		const consolidateErr = new Error("DB error");
-		const ns1 = discordGuildNamespace("111");
-		const ns2 = discordGuildNamespace("222");
+		const ns1 = agentScopeNamespace(discordScopeId("111"));
+		const ns2 = agentScopeNamespace(discordScopeId("222"));
 		const consolidator = createMockConsolidator({
 			getActiveNamespaces: mock(() => [ns1, ns2]),
-			consolidate: mock((ns: { surface: string; guildId?: string }) => {
-				if (ns.surface === "discord-guild" && ns.guildId === "111") {
+			consolidate: mock((ns: { surface: string; scopeId?: string }) => {
+				if (ns.surface === "agent-scope" && ns.scopeId === "discord:guild:111") {
 					return Promise.reject(consolidateErr);
 				}
 				return Promise.resolve({
@@ -121,7 +121,7 @@ describe("ConsolidationScheduler", () => {
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(logger.error).toHaveBeenCalledWith(
-			expect.stringContaining("ns=discord-guild:111 failed:"),
+			expect.stringContaining("ns=agent-scope:discord:guild:111 failed:"),
 			consolidateErr,
 		);
 		// 2 番目のギルドも処理される
@@ -134,7 +134,7 @@ describe("ConsolidationScheduler", () => {
 		const metrics = createMockMetrics();
 		let resolveConsolidate!: () => void;
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("999")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("999"))]),
 			consolidate: mock(
 				() =>
 					new Promise<ConsolidationResult>((resolve) => {
@@ -173,7 +173,7 @@ describe("ConsolidationScheduler", () => {
 		const logger = createMockLogger();
 		let resolveConsolidate!: () => void;
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("999")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("999"))]),
 			consolidate: mock(
 				() =>
 					new Promise<ConsolidationResult>((resolve) => {
@@ -218,7 +218,7 @@ describe("ConsolidationScheduler", () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("111")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("111"))]),
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
@@ -239,7 +239,7 @@ describe("ConsolidationScheduler", () => {
 			const logger = createMockLogger();
 			const metrics = createMockMetrics();
 			const auditor = createMockCriticAuditor();
-			const ns = discordGuildNamespace("222");
+			const ns = agentScopeNamespace(discordScopeId("222"));
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [ns]),
 				consolidate: mock(() => Promise.resolve(successResult)),
@@ -248,9 +248,9 @@ describe("ConsolidationScheduler", () => {
 			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
 			await (scheduler as unknown as TickFn).tick();
 
-			// audit が userId = "222"（discordGuildNamespace の guildId）で呼ばれる
+			// audit が userId = "discord:guild:222"（scopeId）で呼ばれる
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
-			expect(auditor.audit).toHaveBeenCalledWith("222");
+			expect(auditor.audit).toHaveBeenCalledWith("discord:guild:222");
 		});
 
 		test("audit が結果を返す → DRIFT_AUDITS メトリクスがインクリメントされる", async () => {
@@ -262,7 +262,7 @@ describe("ConsolidationScheduler", () => {
 				),
 			});
 			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("333"))]),
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
@@ -270,7 +270,7 @@ describe("ConsolidationScheduler", () => {
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total", {
-				namespace: "discord-guild:333",
+				namespace: "agent-scope:discord:guild:333",
 				severity: "minor",
 			});
 		});
@@ -284,7 +284,7 @@ describe("ConsolidationScheduler", () => {
 				),
 			});
 			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("444")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("444"))]),
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
@@ -304,7 +304,7 @@ describe("ConsolidationScheduler", () => {
 				audit: mock(() => Promise.resolve({ status: "skipped", reason: "low_drift" } as const)),
 			});
 			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("555"))]),
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
@@ -313,7 +313,7 @@ describe("ConsolidationScheduler", () => {
 
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
 			expect(metrics.incrementCounter).toHaveBeenCalledWith("critic_auditor_skip_total", {
-				namespace: "discord-guild:555",
+				namespace: "agent-scope:discord:guild:555",
 				reason: "low_drift",
 			});
 			expect(metrics.incrementCounter).not.toHaveBeenCalledWith(
@@ -329,12 +329,12 @@ describe("ConsolidationScheduler", () => {
 			const auditError = new Error("LLM timeout");
 			const auditor = createMockCriticAuditor({
 				audit: mock((userId: string) => {
-					if (userId === "666") return Promise.reject(auditError);
+					if (userId === "discord:guild:666") return Promise.reject(auditError);
 					return Promise.resolve(completed({ severity: "minor", summary: "ok" }));
 				}),
 			});
-			const ns1 = discordGuildNamespace("666");
-			const ns2 = discordGuildNamespace("777");
+			const ns1 = agentScopeNamespace(discordScopeId("666"));
+			const ns2 = agentScopeNamespace(discordScopeId("777"));
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [ns1, ns2]),
 				consolidate: mock(() => Promise.resolve(successResult)),
@@ -350,10 +350,10 @@ describe("ConsolidationScheduler", () => {
 			);
 			// ns2 の audit は正常に呼ばれる
 			expect(auditor.audit).toHaveBeenCalledTimes(2);
-			expect(auditor.audit).toHaveBeenCalledWith("777");
+			expect(auditor.audit).toHaveBeenCalledWith("discord:guild:777");
 			// ns2 の結果がメトリクスに反映される
 			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total", {
-				namespace: "discord-guild:777",
+				namespace: "agent-scope:discord:guild:777",
 				severity: "minor",
 			});
 		});
@@ -367,7 +367,7 @@ describe("ConsolidationScheduler", () => {
 				),
 			});
 			const consolidator = createMockConsolidator({
-				getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("333"))]),
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
@@ -375,7 +375,7 @@ describe("ConsolidationScheduler", () => {
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(metrics.setGauge).toHaveBeenCalledWith("drift_score", 0.42, {
-				namespace: "discord-guild:333",
+				namespace: "agent-scope:discord:guild:333",
 			});
 		});
 
@@ -385,12 +385,12 @@ describe("ConsolidationScheduler", () => {
 			const auditor = createMockCriticAuditor({
 				audit: mock(() => Promise.resolve(completed({ severity: "none", summary: "ok" }))),
 			});
-			const ns1 = discordGuildNamespace("888");
-			const ns2 = discordGuildNamespace("999");
+			const ns1 = agentScopeNamespace(discordScopeId("888"));
+			const ns2 = agentScopeNamespace(discordScopeId("999"));
 			const consolidator = createMockConsolidator({
 				getActiveNamespaces: mock(() => [ns1, ns2]),
-				consolidate: mock((ns: { surface: string; guildId?: string }) => {
-					if (ns.surface === "discord-guild" && ns.guildId === "888") {
+				consolidate: mock((ns: { surface: string; scopeId?: string }) => {
+					if (ns.surface === "agent-scope" && ns.scopeId === "discord:guild:888") {
 						return Promise.reject(new Error("DB error"));
 					}
 					return Promise.resolve(successResult);
@@ -403,8 +403,8 @@ describe("ConsolidationScheduler", () => {
 			// ns1 で consolidate が失敗 → audit はスキップされる
 			// ns2 では consolidate 成功 → audit が呼ばれる
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
-			expect(auditor.audit).toHaveBeenCalledWith("999");
-			expect(auditor.audit).not.toHaveBeenCalledWith("888");
+			expect(auditor.audit).toHaveBeenCalledWith("discord:guild:999");
+			expect(auditor.audit).not.toHaveBeenCalledWith("discord:guild:888");
 		});
 	});
 });
@@ -435,7 +435,7 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			),
 		});
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("111")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("111"))]),
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
@@ -480,7 +480,7 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			),
 		});
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("222")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("222"))]),
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
@@ -510,7 +510,7 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			),
 		});
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("333")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("333"))]),
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
@@ -538,7 +538,7 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			),
 		});
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("444")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("444"))]),
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
@@ -571,7 +571,7 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			),
 		});
 		const consolidator = createMockConsolidator({
-			getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
+			getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("555"))]),
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 

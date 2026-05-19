@@ -21,16 +21,20 @@ function createMockAgent(name: string): AiAgent {
 // ─── GuildRouter ─────────────────────────────────────────────────
 
 describe("GuildRouter", () => {
-	it("登録済み guildId で正しいエージェントに委譲される", async () => {
+	it("登録済み scopeId で正しいエージェントに委譲される", async () => {
 		const agentA = createMockAgent("a");
 		const agentB = createMockAgent("b");
 		const agents = new Map<string, AiAgent>([
-			["guild-a", agentA],
-			["guild-b", agentB],
+			["111", agentA],
+			["222", agentB],
 		]);
 		const router = new GuildRouter(agents);
 
-		const opts: SendOptions = { sessionKey: "key", message: "hello", guildId: "guild-a" };
+		const opts: SendOptions = {
+			sessionKey: "key",
+			message: "hello",
+			scopeId: "discord:guild:111",
+		};
 		const result = await router.send(opts);
 
 		expect(result.text).toBe("response from a");
@@ -38,14 +42,14 @@ describe("GuildRouter", () => {
 		expect(agentB.send).not.toHaveBeenCalled();
 	});
 
-	it("guildId 未指定 + defaultAgent なしの場合にエラーがスローされる", () => {
+	it("scopeId 未指定 + defaultAgent なしの場合にエラーがスローされる", () => {
 		const router = new GuildRouter(new Map());
 
 		const opts: SendOptions = { sessionKey: "key", message: "hello" };
-		expect(router.send(opts)).rejects.toThrow("GuildRouter requires guildId");
+		expect(router.send(opts)).rejects.toThrow("GuildRouter requires scopeId");
 	});
 
-	it("guildId 未指定 + defaultAgent ありの場合に defaultAgent に委譲される", async () => {
+	it("scopeId 未指定 + defaultAgent ありの場合に defaultAgent に委譲される", async () => {
 		const defaultAgent = createMockAgent("default");
 		const router = new GuildRouter(new Map(), defaultAgent);
 
@@ -56,21 +60,25 @@ describe("GuildRouter", () => {
 		expect(defaultAgent.send).toHaveBeenCalledTimes(1);
 	});
 
-	it("未登録の guildId の場合にエラーがスローされる", () => {
+	it("未登録の scopeId の場合にエラーがスローされる", () => {
 		const agentA = createMockAgent("a");
-		const agents = new Map<string, AiAgent>([["guild-a", agentA]]);
+		const agents = new Map<string, AiAgent>([["111", agentA]]);
 		const router = new GuildRouter(agents);
 
-		const opts: SendOptions = { sessionKey: "key", message: "hello", guildId: "guild-unknown" };
-		expect(router.send(opts)).rejects.toThrow("No agent registered for guildId: guild-unknown");
+		const opts: SendOptions = {
+			sessionKey: "key",
+			message: "hello",
+			scopeId: "discord:guild:999",
+		};
+		expect(router.send(opts)).rejects.toThrow("No agent registered for scopeId: discord:guild:999");
 	});
 
 	it("stop() が全エージェントに伝播される", () => {
 		const agentA = createMockAgent("a");
 		const agentB = createMockAgent("b");
 		const agents = new Map<string, AiAgent>([
-			["guild-a", agentA],
-			["guild-b", agentB],
+			["111", agentA],
+			["222", agentB],
 		]);
 		const router = new GuildRouter(agents);
 

@@ -3,6 +3,7 @@
 	"private": true,
 	"exports": {
 		"./core-server": "./src/core-server.ts",
+		"./discord-server": "./src/discord-server.ts",
 		"./code-exec-server": "./src/code-exec-server.ts",
 		"./shell-workspace": "./src/shell-workspace.ts",
 		"./shell-workspace-server": "./src/shell-workspace-server.ts",
