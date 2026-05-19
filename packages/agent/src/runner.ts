@@ -2,7 +2,7 @@
 import {
 	buildAgentMetricLabels,
 	classifyErrorType,
-	inferGuildId,
+	inferScopeId,
 	inferTrigger,
 	METRIC,
 	recordTokenMetrics,
@@ -37,7 +37,7 @@ interface PendingMessage {
 	text: string;
 	attachments?: Attachment[];
 	trigger: string;
-	guildId?: string;
+	scopeId?: string;
 }
 
 interface ActivePromptMetrics {
@@ -73,8 +73,8 @@ export interface RunnerDeps {
 	sessionPort: OpencodeSessionPort;
 	sessionMaxAgeMs: number;
 	metrics?: MetricsCollector;
-	/** ContextBuilder に渡す guildId（Discord エージェント用）。省略時は undefined */
-	contextGuildId?: string;
+	/** ContextBuilder に渡す scopeId。省略時は undefined */
+	contextScopeId?: string;
 	/** セッション要約の書き出しポート。省略時は要約生成をスキップ */
 	summaryWriter?: SessionSummaryWriter;
 	/** セッション要約生成 (`sessionPort.prompt`) のタイムアウト（ms）。壊れたセッションで summary が永久に返らないときに rotation を止めないため必須。デフォルト: 30_000 */
@@ -105,7 +105,7 @@ export class AgentRunner implements AiAgent {
 	private lastPromptText: string | null = null;
 	private lastPromptAttachments: Attachment[] | null = null;
 	private lastPromptTrigger: string | null = null;
-	private lastPromptGuildId: string | null = null;
+	private lastPromptScopeId: string | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
 	private hasBotPending = false;
 	private activePromptMetrics: ActivePromptMetrics | null = null;
@@ -119,7 +119,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionPort: OpencodeSessionPort;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
-	private readonly contextGuildId?: string;
+	private readonly contextScopeId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
 	private readonly summaryTimeoutMs: number;
 	private readonly compactionTokenThreshold?: number;
@@ -144,7 +144,7 @@ export class AgentRunner implements AiAgent {
 		this.sessionPort = deps.sessionPort;
 		this.sessionMaxAgeMs = deps.sessionMaxAgeMs;
 		this.metrics = deps.metrics;
-		this.contextGuildId = deps.contextGuildId;
+		this.contextScopeId = deps.contextScopeId;
 		this.summaryWriter = deps.summaryWriter;
 		this.summaryTimeoutMs = deps.summaryTimeoutMs ?? DEFAULT_SUMMARY_TIMEOUT_MS;
 		this.compactionTokenThreshold = deps.compactionTokenThreshold;
@@ -158,7 +158,7 @@ export class AgentRunner implements AiAgent {
 			text: options.message,
 			attachments: options.attachments,
 			trigger: inferTrigger(options.sessionKey),
-			guildId: options.guildId ?? inferGuildId(options.sessionKey) ?? this.contextGuildId,
+			scopeId: options.scopeId ?? inferScopeId(options.sessionKey) ?? this.contextScopeId,
 		});
 		if (options.isBot) this.hasBotPending = true;
 		this.pendingResolve?.();
@@ -171,13 +171,13 @@ export class AgentRunner implements AiAgent {
 					text: this.lastPromptText,
 					attachments: this.lastPromptAttachments ?? undefined,
 					trigger: this.lastPromptTrigger ?? "unknown",
-					guildId: this.lastPromptGuildId ?? undefined,
+					scopeId: this.lastPromptScopeId ?? undefined,
 				});
 			}
 			this.lastPromptText = null;
 			this.lastPromptAttachments = null;
 			this.lastPromptTrigger = null;
-			this.lastPromptGuildId = null;
+			this.lastPromptScopeId = null;
 			this.sessionAbortController?.abort();
 		}
 
@@ -197,11 +197,11 @@ export class AgentRunner implements AiAgent {
 	}
 
 	private buildMetricLabels(
-		options: { trigger?: string; guildId?: string } = {},
+		options: { trigger?: string; scopeId?: string } = {},
 	): Record<string, string> {
 		return buildAgentMetricLabels({
 			agentId: this.agentId,
-			guildId: options.guildId ?? this.contextGuildId,
+			scopeId: options.scopeId ?? this.contextScopeId,
 			trigger: options.trigger ?? "session",
 			providerId: this.profile.model.providerId,
 			modelId: this.profile.model.modelId,
@@ -217,8 +217,8 @@ export class AgentRunner implements AiAgent {
 		};
 	}
 
-	private startPromptMetrics(trigger: string, guildId: string | undefined): void {
-		const labels = this.buildMetricLabels({ trigger, guildId });
+	private startPromptMetrics(trigger: string, scopeId: string | undefined): void {
+		const labels = this.buildMetricLabels({ trigger, scopeId });
 		this.activePromptMetrics = { labels, startedAt: performance.now() };
 		this.lastPromptMetricLabels = null;
 		this.metrics?.incrementGauge(METRIC.LLM_BUSY_SESSIONS, labels);
@@ -287,7 +287,7 @@ export class AgentRunner implements AiAgent {
 					this.lastPromptText = null;
 					this.lastPromptAttachments = null;
 					this.lastPromptTrigger = null;
-					this.lastPromptGuildId = null;
+					this.lastPromptScopeId = null;
 					this.sessionAbortController = null;
 					resetBackoffState();
 					continue;
@@ -331,7 +331,7 @@ export class AgentRunner implements AiAgent {
 					this.lastPromptText = null;
 					this.lastPromptAttachments = null;
 					this.lastPromptTrigger = null;
-					this.lastPromptGuildId = null;
+					this.lastPromptScopeId = null;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
 					await this.sleep(IDLE_COOLDOWN_MS);
@@ -499,7 +499,7 @@ export class AgentRunner implements AiAgent {
 		let text: string;
 		let attachments: Attachment[];
 		let trigger: string;
-		let guildId: string | undefined;
+		let scopeId: string | undefined;
 		if (this.lastPromptText === null) {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
@@ -516,7 +516,7 @@ export class AgentRunner implements AiAgent {
 			text = drained.text;
 			attachments = drained.attachments;
 			trigger = drained.trigger;
-			guildId = drained.guildId;
+			scopeId = drained.scopeId;
 		} else {
 			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
 			const drained = this.drainMessages();
@@ -527,13 +527,13 @@ export class AgentRunner implements AiAgent {
 				[this.lastPromptTrigger ?? undefined, hasDrainedMessage ? drained.trigger : undefined],
 				"unknown",
 			);
-			guildId = mergeMetricLabel(
-				[this.lastPromptGuildId ?? undefined, hasDrainedMessage ? drained.guildId : undefined],
-				this.contextGuildId ?? "none",
+			scopeId = mergeMetricLabel(
+				[this.lastPromptScopeId ?? undefined, hasDrainedMessage ? drained.scopeId : undefined],
+				this.contextScopeId ?? "none",
 			);
 		}
 
-		this.lastPromptMetricLabels = this.buildMetricLabels({ trigger, guildId });
+		this.lastPromptMetricLabels = this.buildMetricLabels({ trigger, scopeId });
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
 		if (this.attachmentProcessor) {
@@ -547,7 +547,7 @@ export class AgentRunner implements AiAgent {
 		this.lastPromptText = text;
 		this.lastPromptAttachments = attachments;
 		this.lastPromptTrigger = trigger;
-		this.lastPromptGuildId = guildId ?? null;
+		this.lastPromptScopeId = scopeId ?? null;
 
 		const turnPromptPrefix = await this.contextBuilder.buildTurnPromptPrefix?.();
 		if (signal.aborted) return;
@@ -559,14 +559,14 @@ export class AgentRunner implements AiAgent {
 		if (signal.aborted) return;
 
 		const needsSystem = !this.hasStartedSession || this.pendingSystemReinject;
-		const system = needsSystem ? await this.contextBuilder.build(this.contextGuildId) : undefined;
+		const system = needsSystem ? await this.contextBuilder.build(this.contextScopeId) : undefined;
 		if (signal.aborted) return;
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting session ${sessionId}`);
 
 		this.sessionAbortController = new AbortController();
 		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
-		this.startPromptMetrics(trigger, guildId);
+		this.startPromptMetrics(trigger, scopeId);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
@@ -646,7 +646,7 @@ export class AgentRunner implements AiAgent {
 		text: string;
 		attachments: Attachment[];
 		trigger: string;
-		guildId?: string;
+		scopeId?: string;
 	} {
 		const items = this.pendingMessages.splice(0);
 		this.hasBotPending = false;
@@ -657,9 +657,9 @@ export class AgentRunner implements AiAgent {
 				items.map((m) => m.trigger),
 				"unknown",
 			),
-			guildId: mergeMetricLabel(
-				items.map((m) => m.guildId),
-				this.contextGuildId ?? "none",
+			scopeId: mergeMetricLabel(
+				items.map((m) => m.scopeId),
+				this.contextScopeId ?? "none",
 			),
 		};
 	}
@@ -869,7 +869,7 @@ export class AgentRunner implements AiAgent {
 	 */
 	private async generateSessionSummary(sessionId: string): Promise<void> {
 		if (this.abortController?.signal.aborted) return;
-		if (!this.contextGuildId || !this.summaryWriter || !this.profile.summaryPrompt) return;
+		if (!this.contextScopeId || !this.summaryWriter || !this.profile.summaryPrompt) return;
 		const timeoutSignal = AbortSignal.timeout(this.summaryTimeoutMs);
 		const combinedSignal = this.abortController
 			? AbortSignal.any([timeoutSignal, this.abortController.signal])
@@ -886,9 +886,9 @@ export class AgentRunner implements AiAgent {
 			);
 			const { text } = await raceAbort(promptPromise, combinedSignal);
 			if (!text.trim()) return;
-			await this.summaryWriter.write(this.contextGuildId, text);
+			await this.summaryWriter.write(this.contextScopeId, text);
 			this.logger.info(
-				`[${this.profile.name}:${this.agentId}] session summary saved for guild ${this.contextGuildId}`,
+				`[${this.profile.name}:${this.agentId}] session summary saved for scope ${this.contextScopeId}`,
 			);
 		} catch (err) {
 			const name = err instanceof Error ? err.name : "";

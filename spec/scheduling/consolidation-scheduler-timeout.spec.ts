@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { discordGuildNamespace } from "@vicissitude/memory/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/memory/namespace";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
 
@@ -33,7 +33,7 @@ describe("ConsolidationScheduler timeout exclusivity", () => {
 		try {
 			let resolveConsolidate!: () => void;
 			const consolidator: MemoryConsolidator = {
-				getActiveNamespaces: mock(() => [discordGuildNamespace("999")]),
+				getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("999"))]),
 				consolidate: mock(
 					() =>
 						new Promise<ConsolidationResult>((resolve) => {

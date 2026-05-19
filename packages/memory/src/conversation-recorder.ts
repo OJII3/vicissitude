@@ -14,6 +14,7 @@ import type { MemoryLlmPort } from "./llm-port.ts";
 import {
 	defaultSubject,
 	discoverNamespacesFromDisk,
+	migrateLegacyGuildMemoryNamespaces,
 	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbDir,
@@ -23,15 +24,18 @@ import { Segmenter } from "./segmenter.ts";
 import { MemoryStorage } from "./storage.ts";
 import type { ChatMessage } from "./types.ts";
 
-export interface GuildInstance {
+export interface MemoryNamespaceInstance {
 	segmenter: { addMessage(userId: string, msg: ChatMessage): Promise<Episode[]> };
 	storage: { close(): void };
 	consolidation: { consolidate(userId: string): Promise<ConsolidationResult> };
 }
 
-export type GuildInstanceFactory = (dbPath: string, llm: MemoryLlmPort) => GuildInstance;
+export type MemoryNamespaceInstanceFactory = (
+	dbPath: string,
+	llm: MemoryLlmPort,
+) => MemoryNamespaceInstance;
 
-const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
+const defaultFactory: MemoryNamespaceInstanceFactory = (dbPath, llm) => {
 	const storage = new MemoryStorage(dbPath);
 	const episodic = new EpisodicMemory(storage);
 	const segmenter = new Segmenter(llm, storage);
@@ -40,17 +44,21 @@ const defaultFactory: GuildInstanceFactory = (dbPath, llm) => {
 };
 
 export class MemoryConversationRecorder implements ConversationRecorder, MemoryConsolidator {
-	private readonly instances = new Map<string, { ns: MemoryNamespace; inst: GuildInstance }>();
+	private readonly instances = new Map<
+		string,
+		{ ns: MemoryNamespace; inst: MemoryNamespaceInstance }
+	>();
 	/** record() 用ロック: segmenter のキュー競合を防ぐ */
 	private readonly locks = new Map<string, Promise<void>>();
-	private readonly factory: GuildInstanceFactory;
+	private readonly factory: MemoryNamespaceInstanceFactory;
 
 	constructor(
 		private readonly llm: MemoryLlmPort,
 		private readonly dataDir: string,
-		factory?: GuildInstanceFactory,
+		factory?: MemoryNamespaceInstanceFactory,
 	) {
 		this.factory = factory ?? defaultFactory;
+		migrateLegacyGuildMemoryNamespaces(this.dataDir);
 	}
 
 	async record(namespace: MemoryNamespace, message: ConversationMessage): Promise<void> {
@@ -109,7 +117,7 @@ export class MemoryConversationRecorder implements ConversationRecorder, MemoryC
 		this.locks.clear();
 	}
 
-	private getOrCreate(namespace: MemoryNamespace): GuildInstance {
+	private getOrCreate(namespace: MemoryNamespace): MemoryNamespaceInstance {
 		const key = namespaceKey(namespace);
 		const existing = this.instances.get(key);
 		if (existing) return existing.inst;

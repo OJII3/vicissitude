@@ -1,4 +1,4 @@
-import { discordGuildNamespace } from "@vicissitude/shared/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
 import type {
 	ConversationMessage,
 	ConversationRecorder,
@@ -65,7 +65,10 @@ export class MessageIngestionService {
 		};
 
 		try {
-			await this.deps.recorder.record(discordGuildNamespace(message.guildId), conversationMessage);
+			await this.deps.recorder.record(
+				agentScopeNamespace(discordScopeId(message.guildId)),
+				conversationMessage,
+			);
 			return { status: "accepted", recorded: true };
 		} catch (err) {
 			this.deps.logger.error("[message-ingestion] failed to record message", err);

@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import { discordGuildNamespace, GUILD_ID_RE } from "@vicissitude/shared/namespace";
+import { agentScopeNamespace, discordGuildIdFromScopeId } from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 type FileEntry = { name: string; scope: "shared" | "guild" };
@@ -23,6 +23,7 @@ const CONTEXT_FILES = [
 	// → guild-context inserted after this phase
 	// Phase 3: Reference
 	{ name: "SERVER.md", scope: "guild" },
+	{ name: "TOOLS-DISCORD.md", scope: "shared" },
 	{ name: "TOOLS-CORE.md", scope: "shared" },
 	{ name: "TOOLS-CODE.md", scope: "shared" },
 	{ name: "TOOLS-MINECRAFT.md", scope: "shared" },
@@ -43,13 +44,11 @@ export class ContextBuilder implements ContextBuilderPort {
 		private readonly excludeFiles?: ReadonlySet<ContextFileName>,
 	) {}
 
-	async build(guildId?: string): Promise<string> {
-		if (guildId !== undefined && !GUILD_ID_RE.test(guildId)) {
-			throw new Error(`Invalid guildId: ${guildId}`);
-		}
+	async build(scopeId?: string): Promise<string> {
+		const guildId = this.resolveDiscordGuildId(scopeId);
 
 		const fileContents = await this.readAllFiles(guildId);
-		const factsSection = await this.buildFactsSection(guildId);
+		const factsSection = await this.buildFactsSection(scopeId);
 
 		const sections: string[] = [];
 		let totalLength = 0;
@@ -97,11 +96,20 @@ export class ContextBuilder implements ContextBuilderPort {
 	/** Maximum facts to inject into system prompt */
 	private static readonly FACTS_LIMIT = 20;
 
-	private async buildFactsSection(guildId?: string): Promise<string | null> {
-		if (!this.factReader || !guildId) return null;
+	private resolveDiscordGuildId(scopeId: string | undefined): string | undefined {
+		if (scopeId === undefined) return undefined;
+		const guildId = discordGuildIdFromScopeId(scopeId);
+		if (!guildId) {
+			throw new Error(`Invalid Discord scopeId: ${scopeId}`);
+		}
+		return guildId;
+	}
+
+	private async buildFactsSection(scopeId?: string): Promise<string | null> {
+		if (!this.factReader || !scopeId) return null;
 
 		const facts = await this.factReader.getRelevantFacts(
-			discordGuildNamespace(guildId),
+			agentScopeNamespace(scopeId),
 			"",
 			ContextBuilder.FACTS_LIMIT,
 		);

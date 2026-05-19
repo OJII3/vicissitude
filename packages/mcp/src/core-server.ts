@@ -10,6 +10,7 @@ import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	INTERNAL_NAMESPACE,
+	migrateLegacyGuildMemoryNamespaces,
 	type MemoryNamespace,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
@@ -21,16 +22,10 @@ import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
-import { closeDb, createDb } from "@vicissitude/store/db";
-import { SqliteMoodStore } from "@vicissitude/store/mood-store";
-import { Client } from "discord.js";
 
-import { createEmotionAnalyzer, readEmotionEstimationConfigFromEnv } from "./emotion.ts";
 import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
-import { registerDiscordTools } from "./tools/discord.ts";
 import { registerListeningTools } from "./tools/listening.ts";
-import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { createToolDescriptionRecorder, registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -109,32 +104,11 @@ async function main(): Promise<void> {
 	const MEMORY_DATA_DIR = process.env.MEMORY_DATA_DIR ?? "data/memory";
 	const DATA_DIR = process.env.DATA_DIR ?? "data";
 	const configRepo = new JsonHeartbeatConfigRepository(resolve(DATA_DIR, "heartbeat-config.json"));
-
-	if (!process.env.DISCORD_TOKEN) {
-		logger.error("[core-server] DISCORD_TOKEN environment variable is required");
-		process.exit(1);
-	}
-
-	// --- Discord Client (REST-only, no Gateway connection) ---
-	// MCP ツールは REST API のみ使用し、Gateway イベントは不要。
-	// login() を呼ばないことで Gateway セッションの生成を回避する。
-
-	const discordClient = new Client({ intents: [] });
-	discordClient.token = process.env.DISCORD_TOKEN;
-	discordClient.rest.setToken(process.env.DISCORD_TOKEN);
-
-	// --- Drizzle DB ---
-
-	const db = createDb(DATA_DIR);
-	const moodStore = new SqliteMoodStore(db);
+	migrateLegacyGuildMemoryNamespaces(MEMORY_DATA_DIR);
 
 	// --- Memory (embed-only — consolidation runs in the main process) ---
 
 	const ollama = new OllamaEmbeddingAdapter(MEMORY_OLLAMA_BASE_URL, MEMORY_EMBEDDING_MODEL);
-	const emotionAnalyzer = createEmotionAnalyzer(
-		readEmotionEstimationConfigFromEnv(process.env),
-		logger,
-	);
 
 	/** MemoryLlmPort that only supports embed — chat/chatStructured throw since they are unused here */
 	const embedOnlyLlm: MemoryLlmPort = {
@@ -178,35 +152,19 @@ async function main(): Promise<void> {
 		resolveNamespaceFromAgentId(AGENT_ID) ?? undefined;
 	if (!boundNamespace) {
 		logger.warn(
-			`[core-server] AGENT_ID=${AGENT_ID} did not resolve to a known namespace — tools require explicit guild_id`,
+			`[core-server] AGENT_ID=${AGENT_ID} did not resolve to a known namespace — tools require explicit scope_id`,
 		);
 	}
-	const boundGuildId =
-		boundNamespace?.surface === "discord-guild" ? boundNamespace.guildId : undefined;
-	const moodKey = boundGuildId ? `discord:${boundGuildId}` : AGENT_ID;
+	const boundScopeId =
+		boundNamespace?.surface === "agent-scope" ? boundNamespace.scopeId : undefined;
 
-	registerDiscordTools(
-		toolServer,
-		{
-			discordClient,
-			emotionAnalyzer: emotionAnalyzer?.analyzer,
-			moodWriter: moodStore,
-			agentId: AGENT_ID,
-			moodKey,
-			logger,
-		},
-		boundGuildId,
-	);
-	registerScheduleTools(toolServer, configRepo, boundGuildId);
+	registerScheduleTools(toolServer, configRepo, boundScopeId);
 
 	const retrieveCache = new LruCache<{ content: Array<{ type: "text"; text: string }> }>({
 		ttlMs: 30 * 60 * 1_000,
 		maxSize: 100,
 	});
 	registerMemoryTools(toolServer, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
-	if (process.env.MC_HOST) {
-		registerDiscordBridgeTools(toolServer, { db }, boundGuildId);
-	}
 
 	registerConfiguredMediaTools(
 		toolServer,
@@ -243,11 +201,8 @@ async function main(): Promise<void> {
 
 	async function shutdown() {
 		await server.close();
-		void discordClient.destroy();
-		emotionAnalyzer?.close();
 		retrieveCache.dispose();
 		memoryCache.closeAll();
-		closeDb(db);
 		process.exit(0);
 	}
 

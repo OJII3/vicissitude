@@ -26,7 +26,9 @@ import { DriftScoreCalculator } from "@vicissitude/memory/drift-score";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
-	discordGuildNamespace,
+	agentScopeNamespace,
+	discordGuildIdFromScopeId,
+	discordScopeId,
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
 	resolveMemoryDbDir,
@@ -102,7 +104,11 @@ function createFileSessionSummaryWriter(
 	onWrite?: (guildId: string) => Promise<void>,
 ): SessionSummaryWriter {
 	return {
-		async write(guildId: string, content: string): Promise<void> {
+		async write(scopeId: string, content: string): Promise<void> {
+			const guildId = discordGuildIdFromScopeId(scopeId);
+			if (!guildId) {
+				throw new Error(`Session summary requires Discord scopeId: ${scopeId}`);
+			}
 			const dir = resolve(overlayDir, `guilds/${guildId}`);
 			mkdirSync(dir, { recursive: true });
 			writeFileSync(resolve(dir, "SESSION-SUMMARY.md"), content);
@@ -116,22 +122,12 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 	const env: Record<string, string> = {
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
-		DISCORD_TOKEN: config.discordToken,
 		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
 		MEMORY_OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
 		MEMORY_EMBEDDING_MODEL: config.memory.embeddingModel,
 		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
 	};
-
-	if (config.emotionEstimation) {
-		env.EMOTION_ESTIMATION_ENABLED = "true";
-		env.EMOTION_PROVIDER_ID = config.emotionEstimation.providerId;
-		env.EMOTION_MODEL_ID = config.emotionEstimation.modelId;
-		if (config.emotionEstimation.ollamaBaseUrl) {
-			env.EMOTION_OLLAMA_BASE_URL = config.emotionEstimation.ollamaBaseUrl;
-		}
-	}
 
 	if (config.spotify) {
 		env.SPOTIFY_CLIENT_ID = config.spotify.clientId;
@@ -144,6 +140,27 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 
 	if (config.genius) {
 		env.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
+	}
+
+	return env;
+}
+
+/** Discord MCP stdio プロセスに渡す環境変数を組み立てる */
+export function buildDiscordEnvironment(config: AppConfig, root: string): Record<string, string> {
+	const env: Record<string, string> = {
+		PATH: process.env.PATH ?? "",
+		HOME: process.env.HOME ?? "",
+		DISCORD_TOKEN: config.discordToken,
+		DATA_DIR: resolve(root, "data"),
+	};
+
+	if (config.emotionEstimation) {
+		env.EMOTION_ESTIMATION_ENABLED = "true";
+		env.EMOTION_PROVIDER_ID = config.emotionEstimation.providerId;
+		env.EMOTION_MODEL_ID = config.emotionEstimation.modelId;
+		if (config.emotionEstimation.ollamaBaseUrl) {
+			env.EMOTION_OLLAMA_BASE_URL = config.emotionEstimation.ollamaBaseUrl;
+		}
 	}
 
 	if (config.minecraft) {
@@ -168,7 +185,7 @@ function buildOpencodeShellWorkspaceDirectory(
 
 const EMOTION_OPENCODE_PORT_OFFSET = 1000;
 
-export function buildAgentCoreEnvironment(
+export function buildAgentDiscordEnvironment(
 	config: AppConfig,
 	baseEnvironment: Record<string, string>,
 	agentPort: number,
@@ -198,6 +215,7 @@ export function createGuildAgents(
 		portOffset?: number;
 		appRoot: string;
 		coreEnvironment: Record<string, string>;
+		discordEnvironment: Record<string, string>;
 		/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
 		compactionTokenThreshold?: number;
 		/** compaction 間のクールダウン（ms） */
@@ -219,7 +237,10 @@ export function createGuildAgents(
 			modelId: opencode.modelId,
 			mcpServers: mcpServerConfigs(agentId, {
 				appRoot: deps.appRoot,
-				coreEnvironment: buildAgentCoreEnvironment(config, deps.coreEnvironment, agentPort),
+				coreEnvironment: deps.coreEnvironment,
+				discord: {
+					environment: buildAgentDiscordEnvironment(config, deps.discordEnvironment, agentPort),
+				},
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
@@ -353,7 +374,9 @@ export async function buildCriticAuditorAdapter(
 			let storage = storageCache.get(userId);
 			if (!storage) {
 				const namespace: MemoryNamespace =
-					userId === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : discordGuildNamespace(userId);
+					userId === HUA_SELF_SUBJECT
+						? INTERNAL_NAMESPACE
+						: agentScopeNamespace(discordScopeId(userId));
 				mkdirSync(resolveMemoryDbDir(dataDir, namespace), { recursive: true });
 				storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
 				storageCache.set(userId, storage);
@@ -469,7 +492,7 @@ function setupEventHandlers(deps: {
 			void agent?.send({
 				sessionKey: "home",
 				message: formatDiscordMessage(msg),
-				guildId: msg.guildId,
+				scopeId: discordScopeId(msg.guildId),
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
@@ -494,7 +517,7 @@ function setupEventHandlers(deps: {
 			void agent?.send({
 				sessionKey: "mention",
 				message: formatDiscordMessage(msg),
-				guildId: msg.guildId,
+				scopeId: discordScopeId(msg.guildId),
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
@@ -649,8 +672,9 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft MCP (HTTP, start async)
 	const mcReady = startMinecraftMcp(config, root, logger);
 
-	// Core MCP environment (stdio プロセスに渡す環境変数)
+	// MCP environments (stdio プロセスに渡す環境変数)
 	const coreEnvironment = buildCoreEnvironment(config, root);
+	const discordEnvironment = buildDiscordEnvironment(config, root);
 
 	// Port layout
 	const guildIds = channelConfig.getGuildIds();
@@ -676,6 +700,7 @@ export async function bootstrap(): Promise<void> {
 		summaryWriter,
 		appRoot: root,
 		coreEnvironment,
+		discordEnvironment,
 		compactionTokenThreshold: 20_000,
 	});
 
@@ -724,6 +749,7 @@ export async function bootstrap(): Promise<void> {
 		portOffset: ports.heartbeatOffset,
 		appRoot: root,
 		coreEnvironment,
+		discordEnvironment,
 		compactionTokenThreshold: 20_000,
 		opencode: config.heartbeatOpencode,
 	});

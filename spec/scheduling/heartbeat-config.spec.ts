@@ -5,17 +5,18 @@ import { join } from "path";
 
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { createDefaultHeartbeatConfig } from "@vicissitude/scheduling/heartbeat-helpers";
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type { HeartbeatConfig, HeartbeatReminder } from "@vicissitude/shared/types";
 
 const EXECUTED_AT = "2026-05-16T01:23:45.000Z";
 
 const addedReminder: HeartbeatReminder = {
-	id: "guild-check",
-	description: "ギルドの様子を見る",
+	id: "scope-check",
+	description: "scope の様子を見る",
 	schedule: { type: "interval", minutes: 30 },
 	lastExecutedAt: null,
 	enabled: true,
-	guildId: "123456789012345678",
+	scopeId: discordScopeId("123456789012345678"),
 };
 
 function createTempConfigPath(): { dir: string; filePath: string } {
@@ -86,6 +87,35 @@ describe("JsonHeartbeatConfigRepository", () => {
 		const saved = readConfig(temp.filePath);
 		expect(saved.reminders.some((r) => r.id === addedReminder.id)).toBe(true);
 		expect(saved.reminders.find((r) => r.id === "home-check")?.lastExecutedAt).toBe(EXECUTED_AT);
+	});
+
+	test("legacy guildId reminder は scopeId に migration され、ファイルも更新される", async () => {
+		const temp = createTempConfigPath();
+		tempDir = temp.dir;
+		const repo = new JsonHeartbeatConfigRepository(temp.filePath);
+		writeFileSync(
+			temp.filePath,
+			JSON.stringify({
+				baseIntervalMinutes: 1,
+				reminders: [
+					{
+						id: "legacy",
+						description: "legacy reminder",
+						schedule: { type: "interval", minutes: 30 },
+						lastExecutedAt: null,
+						enabled: true,
+						guildId: "123456789012345678",
+					},
+				],
+			}),
+		);
+
+		const loaded = await repo.load();
+		const saved = readConfig(temp.filePath);
+
+		expect(loaded.reminders[0]?.scopeId).toBe(discordScopeId("123456789012345678"));
+		expect(saved.reminders[0]?.scopeId).toBe(discordScopeId("123456789012345678"));
+		expect("guildId" in (saved.reminders[0] ?? {})).toBe(false);
 	});
 
 	test("設定ファイルがない場合は default config を返し、load だけではファイルを作らない", async () => {

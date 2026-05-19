@@ -28,10 +28,10 @@ ${reminderLines}
 特になければ何もしなくていいよ。`;
 }
 
-export function groupByGuild(dueReminders: DueReminder[]): Map<string, DueReminder[]> {
+export function groupByScope(dueReminders: DueReminder[]): Map<string, DueReminder[]> {
 	const groups = new Map<string, DueReminder[]>();
 	for (const due of dueReminders) {
-		const key = due.reminder.guildId ?? "_autonomous";
+		const key = due.reminder.scopeId ?? "_autonomous";
 		const group = groups.get(key);
 		if (group) {
 			group.push(due);
@@ -51,22 +51,22 @@ export class HeartbeatService {
 	constructor(private readonly deps: HeartbeatServiceDeps) {}
 
 	async execute(dueReminders: DueReminder[]): Promise<Set<string>> {
-		const grouped = groupByGuild(dueReminders);
+		const grouped = groupByScope(dueReminders);
 		const succeededIds = new Set<string>();
 		const results = await Promise.all(
-			[...grouped.entries()].map(async ([guildKey, reminders]) => {
-				const guildId = guildKey === "_autonomous" ? undefined : guildKey;
-				const sessionKey = `${HEARTBEAT_SESSION_PREFIX}${guildKey}`;
+			[...grouped.entries()].map(async ([scopeKey, reminders]) => {
+				const scopeId = scopeKey === "_autonomous" ? undefined : scopeKey;
+				const sessionKey = `${HEARTBEAT_SESSION_PREFIX}${scopeKey}`;
 				const prompt = buildHeartbeatPrompt(reminders);
 				this.deps.logger.info(
-					`[heartbeat] guild=${guildKey}: executing ${reminders.length} due reminder(s)`,
+					`[heartbeat] scope=${scopeKey}: executing ${reminders.length} due reminder(s)`,
 				);
 
 				try {
-					await this.deps.agent.send({ sessionKey, message: prompt, guildId });
+					await this.deps.agent.send({ sessionKey, message: prompt, scopeId });
 					return reminders.map((reminder) => reminder.reminder.id);
 				} catch (error) {
-					this.deps.logger.error(`[heartbeat] guild=${guildKey} AI execution error:`, error);
+					this.deps.logger.error(`[heartbeat] scope=${scopeKey} AI execution error:`, error);
 					return [];
 				}
 			}),

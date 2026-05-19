@@ -4,6 +4,7 @@ import os from "os";
 import { join } from "path";
 
 import { ContextBuilder } from "@vicissitude/agent/discord/context-builder";
+import { discordScopeId } from "@vicissitude/shared/namespace";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
 
@@ -20,6 +21,10 @@ function writeFile(dir: string, relativePath: string, content: string): void {
 	writeFileSync(fullPath, content);
 }
 
+function scope(guildId: string): string {
+	return discordScopeId(guildId);
+}
+
 // ─── SESSION-SUMMARY.md の読み込み ───────────────────────────────
 
 describe("ContextBuilder SESSION-SUMMARY.md", () => {
@@ -33,7 +38,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			);
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("123456789");
+			const result = await builder.build(scope("123456789"));
 
 			expect(result).toContain("<SESSION-SUMMARY.md>");
 			expect(result).toContain("前回セッションでユーザーはAIについて質問していた。");
@@ -44,7 +49,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("123456789");
+			const result = await builder.build(scope("123456789"));
 
 			expect(result).not.toContain("<SESSION-SUMMARY.md>");
 		});
@@ -71,7 +76,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			writeFile(baseDir, "DISCORD.md", "discord");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			const memoryIdx = result.indexOf("<MEMORY.md>");
 			const summaryIdx = result.indexOf("<SESSION-SUMMARY.md>");
@@ -91,6 +96,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			writeFile(baseDir, "SOUL.md", "soul");
 			writeFile(baseDir, "DISCORD.md", "discord");
 			writeFile(baseDir, "HEARTBEAT.md", "heartbeat");
+			writeFile(baseDir, "TOOLS-DISCORD.md", "tools-discord");
 			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
 			writeFile(overlayDir, "guilds/111/LESSONS.md", "lessons");
 			writeFile(overlayDir, "guilds/111/MEMORY.md", "memory");
@@ -98,7 +104,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			writeFile(overlayDir, "guilds/111/SERVER.md", "server");
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("111");
+			const result = await builder.build(scope("111"));
 
 			// 期待する順序: MEMORY.md → SESSION-SUMMARY.md → DISCORD.md
 			const expectedOrder = ["<MEMORY.md>", "<SESSION-SUMMARY.md>", "<DISCORD.md>"];
@@ -117,7 +123,7 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 			// MEMORY.md は作成しない
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
-			const result = await builder.build("222");
+			const result = await builder.build(scope("222"));
 
 			expect(result).toContain("<SESSION-SUMMARY.md>");
 			expect(result).toContain("summary without memory");
@@ -132,8 +138,8 @@ describe("ContextBuilder SESSION-SUMMARY.md", () => {
 
 			const builder = new ContextBuilder(overlayDir, baseDir);
 
-			const result111 = await builder.build("111");
-			const result222 = await builder.build("222");
+			const result111 = await builder.build(scope("111"));
+			const result222 = await builder.build(scope("222"));
 
 			expect(result111).toContain("guild 111 の要約");
 			expect(result111).not.toContain("guild 222 の要約");

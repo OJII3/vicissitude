@@ -16,7 +16,7 @@ const TOTAL_MAX = 150_000;
  * Minecraft エージェント専用コンテキストビルダー。
  * オーバーレイ方式（data/context/minecraft/ → context/minecraft/）で
  * Minecraft 用コンテキストファイルを読み込む。
- * Guild 非依存（guildId 引数は無視）。
+ * scope 非依存（scopeId 引数は無視）。
  */
 export class MinecraftContextBuilder implements ContextBuilderPort {
 	constructor(
@@ -24,7 +24,7 @@ export class MinecraftContextBuilder implements ContextBuilderPort {
 		private readonly baseDir: string,
 	) {}
 
-	async build(_guildId?: string): Promise<string> {
+	async build(_scopeId?: string): Promise<string> {
 		const sections: string[] = [];
 		let totalLength = 0;
 

@@ -1,8 +1,9 @@
+import { discordGuildIdFromScopeId } from "@vicissitude/shared/namespace";
 import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
 
 /**
  * ギルドIDに基づいて適切なギルド固有エージェントにルーティングするファサード。
- * guildId が未指定の場合は defaultAgent にフォールバックする。
+ * scopeId が未指定の場合は defaultAgent にフォールバックする。
  */
 export class GuildRouter implements AiAgent {
 	private readonly agents: Map<string, AiAgent>;
@@ -14,18 +15,22 @@ export class GuildRouter implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		const { guildId } = options;
-		if (!guildId) {
+		const { scopeId } = options;
+		if (!scopeId) {
 			if (!this.defaultAgent) {
 				return Promise.reject(
-					new Error("GuildRouter requires guildId in SendOptions (no defaultAgent configured)"),
+					new Error("GuildRouter requires scopeId in SendOptions (no defaultAgent configured)"),
 				);
 			}
 			return this.defaultAgent.send(options);
 		}
+		const guildId = discordGuildIdFromScopeId(scopeId);
+		if (!guildId) {
+			return Promise.reject(new Error(`GuildRouter received non-Discord scopeId: ${scopeId}`));
+		}
 		const agent = this.agents.get(guildId);
 		if (!agent) {
-			return Promise.reject(new Error(`No agent registered for guildId: ${guildId}`));
+			return Promise.reject(new Error(`No agent registered for scopeId: ${scopeId}`));
 		}
 		return agent.send(options);
 	}

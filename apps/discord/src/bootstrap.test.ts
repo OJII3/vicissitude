@@ -51,6 +51,7 @@ function createContextRoot(): string {
 	const root = mkdtempSync(join(os.tmpdir(), "vicissitude-context-root-"));
 	const contextDir = join(root, "context");
 	mkdirSync(contextDir, { recursive: true });
+	writeFileSync(join(contextDir, "TOOLS-DISCORD.md"), "discord tools");
 	writeFileSync(join(contextDir, "TOOLS-CORE.md"), "core tools");
 	writeFileSync(join(contextDir, "TOOLS-CODE.md"), "shell tools");
 	writeFileSync(join(contextDir, "TOOLS-MINECRAFT.md"), "minecraft tools");
@@ -84,6 +85,7 @@ describe("createContextLayer", () => {
 		const context = await contextBuilder.build();
 
 		expect(context).toContain("core tools");
+		expect(context).toContain("discord tools");
 		expect(context).not.toContain("shell tools");
 		expect(context).not.toContain("minecraft tools");
 	});
@@ -116,29 +118,55 @@ describe("createContextLayer", () => {
 		const context = await contextBuilder.build();
 
 		expect(context).toContain("core tools");
+		expect(context).toContain("discord tools");
 		expect(context).toContain("shell tools");
 		expect(context).not.toContain("minecraft tools");
 	});
 });
 
 describe("createGuildAgents", () => {
+	test("Discord guild agent に core と discord MCP を渡す", () => {
+		const config = createTestConfig();
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createGuildAgents(config, ["123456789"], {
+			db,
+			sessionStore,
+			contextBuilder: { build: () => Promise.resolve("context") },
+			logger: createMockLogger(),
+			appRoot: "/app",
+			coreEnvironment: { DATA_DIR: "/data/core" },
+			discordEnvironment: { DISCORD_TOKEN: "token", DATA_DIR: "/data/discord" },
+		});
+		const agent = agents.get("123456789") as unknown as {
+			profile: {
+				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
+			};
+		};
+
+		expect(Object.keys(agent.profile.mcpServers).toSorted()).toEqual(["core", "discord"]);
+		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("discord:123456789");
+		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:123456789");
+		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
+	});
+
 	test("deps の OpenCode 設定でモデルと temperature を上書きする", () => {
 		const config = createTestConfig();
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["guild-1"], {
+		const agents = createGuildAgents(config, ["123456789"], {
 			db,
 			sessionStore,
 			contextBuilder: { build: () => Promise.resolve("context") },
 			logger: createMockLogger(),
 			appRoot: "/app",
 			coreEnvironment: {},
+			discordEnvironment: {},
 			opencode: {
 				providerId: "heartbeat-provider",
 				modelId: "heartbeat-model",
 				temperature: 0.2,
 			},
 		});
-		const agent = agents.get("guild-1") as unknown as {
+		const agent = agents.get("123456789") as unknown as {
 			profile: { model: { providerId: string; modelId: string } };
 			sessionPort: { config: { temperature?: number } };
 		};
@@ -176,15 +204,16 @@ describe("createGuildAgents", () => {
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["guild-1"], {
+		const agents = createGuildAgents(config, ["123456789"], {
 			db,
 			sessionStore,
 			contextBuilder: { build: () => Promise.resolve("context") },
 			logger: createMockLogger(),
 			appRoot: "/app",
 			coreEnvironment: {},
+			discordEnvironment: {},
 		});
-		const agent = agents.get("guild-1") as unknown as {
+		const agent = agents.get("123456789") as unknown as {
 			sessionPort: { config: { environment?: Record<string, string> } };
 		};
 

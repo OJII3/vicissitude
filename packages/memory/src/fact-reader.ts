@@ -4,6 +4,7 @@ import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 import {
 	defaultSubject,
+	migrateLegacyGuildMemoryNamespaces,
 	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbPath,
@@ -29,7 +30,9 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 	constructor(
 		private readonly dataDir: string,
 		private readonly embedding?: EmbeddingPort,
-	) {}
+	) {
+		migrateLegacyGuildMemoryNamespaces(this.dataDir);
+	}
 
 	async getFacts(namespace?: MemoryNamespace): Promise<MemoryFact[]> {
 		if (!namespace) return [];

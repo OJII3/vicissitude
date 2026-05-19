@@ -1,27 +1,27 @@
 /* oxlint-disable max-lines -- schedule tools register 5 MCP tools in one module */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { GUILD_ID_RE } from "@vicissitude/shared/namespace";
+import { AGENT_SCOPE_ID_RE } from "@vicissitude/shared/namespace";
 import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type { HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod";
 
-const guildIdSchema = z.string().regex(GUILD_ID_RE).describe("Discord guild ID");
+const scopeIdSchema = z.string().regex(AGENT_SCOPE_ID_RE).describe("Agent scope ID");
 
-export function filterRemindersByGuild(
+export function filterRemindersByScope(
 	reminders: HeartbeatReminder[],
-	guildId: string,
+	scopeId: string,
 ): HeartbeatReminder[] {
-	return reminders.filter((r) => checkGuildScope(r, guildId));
+	return reminders.filter((r) => checkScope(r, scopeId));
 }
 
-export function checkGuildScope(reminder: HeartbeatReminder, guildId: string): boolean {
-	return reminder.guildId === guildId || reminder.guildId === undefined;
+export function checkScope(reminder: HeartbeatReminder, scopeId: string): boolean {
+	return reminder.scopeId === scopeId || reminder.scopeId === undefined;
 }
 
 function registerReadTools(
 	server: McpServer,
 	configPort: HeartbeatConfigPort,
-	boundGuildId?: string,
+	boundScopeId?: string,
 ): void {
 	server.registerTool(
 		"get_heartbeat_config",
@@ -35,16 +35,16 @@ function registerReadTools(
 	server.registerTool(
 		"list_reminders",
 		{
-			description: "List reminders (current guild + global only)",
-			inputSchema: boundGuildId ? {} : { guild_id: guildIdSchema },
+			description: "List reminders (current scope + global only)",
+			inputSchema: boundScopeId ? {} : { scope_id: scopeIdSchema },
 		},
-		async ({ guild_id }: { guild_id?: string }) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
+		async ({ scope_id }: { scope_id?: string }) => {
+			const scopeId = boundScopeId ?? scope_id;
+			if (!scopeId) {
+				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
 			}
 			const config = await configPort.load();
-			const visible = filterRemindersByGuild(config.reminders, gid);
+			const visible = filterRemindersByScope(config.reminders, scopeId);
 			const lines = visible.map((r) => {
 				const schedule =
 					r.schedule.type === "interval"
@@ -52,7 +52,7 @@ function registerReadTools(
 						: `daily ${String(r.schedule.hour)}:${String(r.schedule.minute).padStart(2, "0")}`;
 				const status = r.enabled ? "enabled" : "disabled";
 				const last = r.lastExecutedAt ?? "never";
-				const scope = r.guildId ? `guild:${r.guildId}` : "global";
+				const scope = r.scopeId ? `scope:${r.scopeId}` : "global";
 				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, last: ${last})`;
 			});
 			return { content: [{ type: "text" as const, text: lines.join("\n") || "No reminders" }] };
@@ -84,14 +84,14 @@ function registerReadTools(
 function registerAddReminder(
 	server: McpServer,
 	configPort: HeartbeatConfigPort,
-	boundGuildId?: string,
+	boundScopeId?: string,
 ): void {
 	server.registerTool(
 		"add_reminder",
 		{
-			description: "Add a new reminder (defaults to current guild)",
+			description: "Add a new reminder (defaults to current scope)",
 			inputSchema: {
-				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
+				...(boundScopeId ? {} : { scope_id: scopeIdSchema }),
 				id: z.string().describe("Unique identifier"),
 				description: z.string().describe("Reminder description"),
 				schedule_type: z.enum(["interval", "daily"]).describe("Schedule type"),
@@ -105,11 +105,11 @@ function registerAddReminder(
 				global: z
 					.boolean()
 					.optional()
-					.describe("Set true for a global reminder not bound to any guild (default: false)"),
+					.describe("Set true for a global reminder not bound to any scope (default: false)"),
 			},
 		},
 		async ({
-			guild_id,
+			scope_id,
 			id,
 			description,
 			schedule_type,
@@ -118,7 +118,7 @@ function registerAddReminder(
 			daily_minute,
 			global: isGlobal,
 		}: {
-			guild_id?: string;
+			scope_id?: string;
 			id: string;
 			description: string;
 			schedule_type: "interval" | "daily";
@@ -127,9 +127,9 @@ function registerAddReminder(
 			daily_minute?: number;
 			global?: boolean;
 		}) => {
-			const resolvedGuildId = boundGuildId ?? guild_id;
-			if (!resolvedGuildId) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
+			const resolvedScopeId = boundScopeId ?? scope_id;
+			if (!resolvedScopeId) {
+				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
 			}
 			const config = await configPort.load();
 
@@ -139,7 +139,7 @@ function registerAddReminder(
 				};
 			}
 
-			const guildId = isGlobal ? undefined : resolvedGuildId;
+			const scopeId = isGlobal ? undefined : resolvedScopeId;
 
 			let reminder: HeartbeatReminder;
 			if (schedule_type === "interval") {
@@ -154,7 +154,7 @@ function registerAddReminder(
 					schedule: { type: "interval", minutes: interval_minutes },
 					lastExecutedAt: null,
 					enabled: true,
-					guildId,
+					scopeId,
 				};
 			} else {
 				reminder = {
@@ -167,7 +167,7 @@ function registerAddReminder(
 					},
 					lastExecutedAt: null,
 					enabled: true,
-					guildId,
+					scopeId,
 				};
 			}
 
@@ -183,14 +183,14 @@ function registerAddReminder(
 function registerModifyReminders(
 	server: McpServer,
 	configPort: HeartbeatConfigPort,
-	boundGuildId?: string,
+	boundScopeId?: string,
 ): void {
 	server.registerTool(
 		"update_reminder",
 		{
-			description: "Update a reminder (own guild or global only)",
+			description: "Update a reminder (own scope or global only)",
 			inputSchema: {
-				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
+				...(boundScopeId ? {} : { scope_id: scopeIdSchema }),
 				id: z.string().describe("ID of the reminder to update"),
 				description: z.string().optional().describe("New description"),
 				enabled: z.boolean().optional().describe("Enable/disable"),
@@ -205,7 +205,7 @@ function registerModifyReminders(
 			},
 		},
 		async ({
-			guild_id,
+			scope_id,
 			id,
 			description,
 			enabled,
@@ -214,7 +214,7 @@ function registerModifyReminders(
 			daily_hour,
 			daily_minute,
 		}: {
-			guild_id?: string;
+			scope_id?: string;
 			id: string;
 			description?: string;
 			enabled?: boolean;
@@ -223,9 +223,9 @@ function registerModifyReminders(
 			daily_hour?: number;
 			daily_minute?: number;
 		}) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
+			const scopeId = boundScopeId ?? scope_id;
+			if (!scopeId) {
+				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
 			}
 			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
@@ -236,12 +236,12 @@ function registerModifyReminders(
 				};
 			}
 
-			if (!checkGuildScope(reminder, gid)) {
+			if (!checkScope(reminder, scopeId)) {
 				return {
 					content: [
 						{
 							type: "text" as const,
-							text: `Error: reminder "${id}" belongs to another guild and cannot be updated`,
+							text: `Error: reminder "${id}" belongs to another scope and cannot be updated`,
 						},
 					],
 				};
@@ -270,16 +270,16 @@ function registerModifyReminders(
 	server.registerTool(
 		"remove_reminder",
 		{
-			description: "Remove a reminder (own guild or global only)",
+			description: "Remove a reminder (own scope or global only)",
 			inputSchema: {
-				...(boundGuildId ? {} : { guild_id: guildIdSchema }),
+				...(boundScopeId ? {} : { scope_id: scopeIdSchema }),
 				id: z.string().describe("ID of the reminder to remove"),
 			},
 		},
-		async ({ guild_id, id }: { guild_id?: string; id: string }) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
+		async ({ scope_id, id }: { scope_id?: string; id: string }) => {
+			const scopeId = boundScopeId ?? scope_id;
+			if (!scopeId) {
+				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
 			}
 			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
@@ -290,12 +290,12 @@ function registerModifyReminders(
 				};
 			}
 
-			if (!checkGuildScope(reminder, gid)) {
+			if (!checkScope(reminder, scopeId)) {
 				return {
 					content: [
 						{
 							type: "text" as const,
-							text: `Error: reminder "${id}" belongs to another guild and cannot be removed`,
+							text: `Error: reminder "${id}" belongs to another scope and cannot be removed`,
 						},
 					],
 				};
@@ -313,9 +313,9 @@ function registerModifyReminders(
 export function registerScheduleTools(
 	server: McpServer,
 	configPort: HeartbeatConfigPort,
-	boundGuildId?: string,
+	boundScopeId?: string,
 ): void {
-	registerReadTools(server, configPort, boundGuildId);
-	registerAddReminder(server, configPort, boundGuildId);
-	registerModifyReminders(server, configPort, boundGuildId);
+	registerReadTools(server, configPort, boundScopeId);
+	registerAddReminder(server, configPort, boundScopeId);
+	registerModifyReminders(server, configPort, boundScopeId);
 }

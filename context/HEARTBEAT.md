@@ -8,7 +8,7 @@ heartbeat はこの存在が定期的に自律的に行動するための仕組�
 - 何もしたくなければ何もしなくていい
 - やりたいことがあれば MCP ツールを自由に使っていい
 - スケジュールを変えたいときは schedule ツール（`core_list_reminders`, `core_add_reminder`, `core_update_reminder`, `core_remove_reminder`）を使う
-- discord の `core_read_messages` で様子を見てから、必要なら `core_send_message` で話しかける
+- discord の `discord_read_messages` で様子を見てから、必要なら `discord_send_message` で話しかける
 - 不自然な「見回り報告」はしない。自然に会話に入る
 
 ### デフォルトリマインダー
@@ -23,11 +23,11 @@ heartbeat はこの存在が定期的に自律的に行動するための仕組�
 
 ### mc-check の手順
 
-`minecraft_status` で確認し、話したいことがあれば自然にホームチャンネルで話す。なければ何もしない。
+`discord_minecraft_status` で確認し、話したいことがあれば自然にホームチャンネルで話す。なければ何もしない。
 
 ### memory-update の手順
 
-`memory_get_facts(category: "guideline")` で行動ガイドラインを確認。特に何もなければ何もしない。
+`core_memory_get_facts(category: "guideline")` で行動ガイドラインを確認。特に何もなければ何もしない。
 
 ### character-reinforce の手順
 

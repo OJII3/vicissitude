@@ -4,13 +4,23 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 
+const T = {
+	sendMessage: "discord_send_message",
+	reply: "discord_reply",
+	addReaction: "discord_add_reaction",
+	readMessages: "discord_read_messages",
+	listChannels: "discord_list_channels",
+	minecraftDelegate: "discord_minecraft_delegate",
+	minecraftStatus: "discord_minecraft_status",
+} as const;
+
 const MESSAGE_PROMPT_INSTRUCTIONS = `あなたはこの会話空間にいる存在です。
 名前・自己認識・人格・口調・会話規則は、このセッション冒頭に埋め込まれたシステム文脈の定義に従ってください。
 以下のメッセージに応答してください。
 
 重要:
-- あなたのテキスト出力はユーザーに届かない。返信するには必ず core_send_message(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能。リアクションには core_add_reaction を使う
-- core_list_channels は通常使う必要がない。channel_id はメッセージヘッダに含まれている。また list_channels の結果にスレッド・フォーラムスレッドは含まれない
+- あなたのテキスト出力はユーザーに届かない。返信するには必ず ${T.sendMessage}(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能。リアクションには ${T.addReaction} を使う
+- ${T.listChannels} は通常使う必要がない。channel_id はメッセージヘッダに含まれている。また list_channels の結果にスレッド・フォーラムスレッドは含まれない
 - 各メッセージの [action: ...] ヒントに従って行動してください
   - respond: 返信が必要
   - optional: 返信は任意（話題に加わりたいときだけ）
@@ -22,8 +32,8 @@ ${SECURITY_PROMPT_LINES}`;
 const MINECRAFT_PROMPT_SECTION = `
 
 Minecraft:
-- ユーザーが Minecraft の状況を聞いたら → minecraft_status ツールで最新情報を取得して回答
-- ユーザーが Minecraft 内の作業を依頼したら → minecraft_delegate で自分のマイクラ側に指示を出す
+- ユーザーが Minecraft の状況を聞いたら → ${T.minecraftStatus} ツールで最新情報を取得して回答
+- ユーザーが Minecraft 内の作業を依頼したら → ${T.minecraftDelegate} で自分のマイクラ側に指示を出す
 - マイクラで面白いことや大変なことがあったら → 会話の流れに自然に織り交ぜて共有`;
 
 const IMAGE_RECOGNITION_PROMPT_SECTION = `
@@ -38,8 +48,8 @@ const SHELL_WORKSPACE_PROMPT_SECTION = `
 Shell workspace:
 - コード実行、ビルド、コンパイル、package install、ファイル生成、長めの調査が必要な依頼は、直接実行せず task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
 - ${SHELL_WORKSPACE_AGENT_NAME} は OpenCode 組み込み bash / Read / Write を専用 workspace directory 内で使う
-- ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを core_send_message で Discord に送る
-- shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を core_send_message の file_path に指定する`;
+- ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを ${T.sendMessage} で Discord に送る
+- shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を ${T.sendMessage} の file_path に指定する`;
 
 export interface ShellWorkspaceSubagentConfig {
 	providerId: string;

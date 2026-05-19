@@ -6,6 +6,8 @@ export interface McpConfigOptions {
 	appRoot: string;
 	/** core MCP プロセスに渡す環境変数 */
 	coreEnvironment: Record<string, string>;
+	/** Discord MCP プロセスに渡す環境変数。Discord agent だけが設定する。 */
+	discord?: DiscordMcpConfigOptions;
 	capabilities?: readonly AgentCapability[];
 	shellWorkspace?: ShellWorkspaceMcpConfigOptions;
 }
@@ -24,6 +26,10 @@ export interface ShellWorkspaceMcpConfigOptions {
 	defaultTimeoutSeconds: number;
 	maxTimeoutSeconds: number;
 	maxOutputChars: number;
+}
+
+export interface DiscordMcpConfigOptions {
+	environment: Record<string, string>;
 }
 
 /**
@@ -46,6 +52,17 @@ export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
 			},
 		},
 	};
+
+	if (opts.discord) {
+		configs.discord = {
+			type: "local",
+			command: ["bun", "run", resolve(appRoot, "dist/discord-server.js")],
+			environment: {
+				...opts.discord.environment,
+				AGENT_ID: agentId,
+			},
+		};
+	}
 
 	if (capabilities.has("shell-workspace")) {
 		if (!opts.shellWorkspace) {

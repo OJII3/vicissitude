@@ -1,7 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
-import { discordGuildNamespace } from "@vicissitude/shared/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
 import type { ConversationRecorder, IncomingMessage } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../test-helpers.ts";
@@ -56,7 +56,7 @@ describe("MessageIngestionService", () => {
 
 		expect(recorder.record).toHaveBeenCalledTimes(1);
 		expect(recorder.record).toHaveBeenCalledWith(
-			discordGuildNamespace("1111"),
+			agentScopeNamespace(discordScopeId("1111")),
 			expect.objectContaining({
 				role: "assistant",
 				content: "ボットの応答 [添付: cap.png]",
@@ -86,7 +86,7 @@ describe("MessageIngestionService", () => {
 
 		expect(recordMock).toHaveBeenCalledTimes(1);
 		expect(recordMock).toHaveBeenCalledWith(
-			discordGuildNamespace("1111"),
+			agentScopeNamespace(discordScopeId("1111")),
 			expect.objectContaining({
 				role: "assistant",
 				content: "応答",

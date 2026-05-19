@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+	agentScopeNamespace,
 	defaultSubject,
-	discordGuildNamespace,
+	discordScopeId,
 	type MemoryNamespace,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
@@ -57,7 +58,7 @@ describe("ResumeContextService", () => {
 		const memoryDataDir: string = join(root, "memory");
 		const overlayDir: string = join(root, "context");
 		const guildId = "123456789012345678";
-		const namespace = discordGuildNamespace(guildId);
+		const namespace = agentScopeNamespace(discordScopeId(guildId));
 		const userId = defaultSubject(namespace);
 		const dbDir = resolveMemoryDbDir(memoryDataDir, namespace);
 		mkdirSync(dbDir, { recursive: true });
@@ -167,7 +168,7 @@ describe("ResumeContextService", () => {
 		await service.updateGuild(guildId);
 		service.close();
 
-		expect(requestedNamespace).toEqual(discordGuildNamespace(guildId));
+		expect(requestedNamespace).toEqual(agentScopeNamespace(discordScopeId(guildId)));
 		expect(writes).toHaveLength(1);
 		expect(writes[0]).toContain("- 関心: 責務分離の話をしていた");
 		expect(removes).toEqual([]);

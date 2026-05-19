@@ -41,7 +41,7 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 			{
 				id: "mc-check",
 				description:
-					"マイクラの様子を確認する。minecraft_status ツールで確認し、話したいことがあればホームチャンネルで話す",
+					"マイクラの様子を確認する。discord_minecraft_status ツールで確認し、話したいことがあればホームチャンネルで話す",
 				schedule: { type: "interval", minutes: 15 },
 				lastExecutedAt: null,
 				enabled: false,
@@ -99,7 +99,7 @@ function cloneReminder(reminder: HeartbeatReminder): HeartbeatReminder {
 		schedule: cloneSchedule(reminder.schedule),
 		lastExecutedAt: reminder.lastExecutedAt,
 		enabled: reminder.enabled,
-		...(reminder.guildId === undefined ? {} : { guildId: reminder.guildId }),
+		...(reminder.scopeId === undefined ? {} : { scopeId: reminder.scopeId }),
 	};
 }
 

@@ -4,8 +4,9 @@ import { resolve } from "path";
 
 import type { Episode } from "@vicissitude/memory/episode";
 import {
+	agentScopeNamespace,
 	defaultSubject,
-	discordGuildNamespace,
+	discordScopeId,
 	type MemoryNamespace,
 	namespaceKey,
 	resolveMemoryDbPath,
@@ -93,7 +94,7 @@ export class ResumeContextService {
 	}
 
 	async updateGuild(guildId: string): Promise<void> {
-		const namespace = discordGuildNamespace(guildId);
+		const namespace = agentScopeNamespace(discordScopeId(guildId));
 
 		try {
 			const sinceMs = Date.now() - this.lookbackMs;

@@ -1,6 +1,6 @@
 import { describe, expect, mock, test } from "bun:test";
 
-import { discordGuildNamespace } from "@vicissitude/memory/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/memory/namespace";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type { ConsolidationResult, MemoryConsolidator } from "@vicissitude/shared/types";
@@ -17,7 +17,7 @@ const successResult: ConsolidationResult = {
 
 function createConsolidator(): MemoryConsolidator {
 	return {
-		getActiveNamespaces: mock(() => [discordGuildNamespace("555")]),
+		getActiveNamespaces: mock(() => [agentScopeNamespace(discordScopeId("555"))]),
 		consolidate: mock(() => Promise.resolve(successResult)),
 	};
 }
@@ -38,12 +38,12 @@ describe("ConsolidationScheduler critic audit skip logging", () => {
 
 		expect(auditor.audit).toHaveBeenCalledTimes(2);
 		expect(metrics.incrementCounter).toHaveBeenCalledWith("critic_auditor_skip_total", {
-			namespace: "discord-guild:555",
+			namespace: "agent-scope:discord:guild:555",
 			reason: "no_messages",
 		});
 		expect(logger.warn).toHaveBeenCalledTimes(1);
 		expect(logger.warn).toHaveBeenCalledWith(
-			"[critic-audit] ns=discord-guild:555: skipped (no_messages)",
+			"[critic-audit] ns=agent-scope:discord:guild:555: skipped (no_messages)",
 		);
 	});
 });

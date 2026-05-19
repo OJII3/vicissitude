@@ -298,7 +298,7 @@ describe("retryable:false の即時ローテーション戦略", () => {
 			logger: createMockLogger(),
 			sessionPort: sessionPort as unknown as OpencodeSessionPort,
 			sessionMaxAgeMs: 3_600_000,
-			contextGuildId: "123456789",
+			contextScopeId: "123456789",
 			summaryWriter,
 			summaryTimeoutMs: 100,
 		});

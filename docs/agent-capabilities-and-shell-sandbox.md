@@ -21,7 +21,7 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 `shell-worker` は OpenCode builtin `bash` で作業する。OpenCode session operation には専用 `directory` を渡し、作業ディレクトリを `data/shell-workspaces/opencode/<agent-id>/` に固定する。
 
-作業ディレクトリは永続化対象の `data/shell-workspaces` 配下なので、bot restart 後もファイルは残る。作成ファイルを Discord に添付する場合は、`shell-worker` が workspace 配下に保存した絶対 path を返し、メイン会話 agent が `core_send_message(..., file_path)` に指定する。
+作業ディレクトリは永続化対象の `data/shell-workspaces` 配下なので、bot restart 後もファイルは残る。作成ファイルを Discord に添付する場合は、`shell-worker` が workspace 配下に保存した絶対 path を返し、メイン会話 agent が `discord_send_message(..., file_path)` に指定する。
 
 ## Permission Policy
 

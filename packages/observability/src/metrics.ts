@@ -93,7 +93,7 @@ const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
 
 export interface AgentMetricLabelOptions {
 	agentId: string;
-	guildId?: string;
+	scopeId?: string;
 	sessionKey?: string;
 	trigger?: string;
 	providerId: string;
@@ -116,36 +116,43 @@ export function inferTrigger(sessionKey: string): string {
 	return "unknown";
 }
 
-export function inferGuildId(sessionKey: string): string | undefined {
+export function inferScopeId(sessionKey: string): string | undefined {
 	if (sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) {
 		return sessionKey.slice(HEARTBEAT_SESSION_PREFIX.length);
 	}
 
+	if (sessionKey.startsWith("discord:guild:")) {
+		return sessionKey;
+	}
+
 	if (sessionKey.startsWith("discord:")) {
 		const [, first, second] = sessionKey.split(":");
-		return first === "heartbeat" ? second : first;
+		const discordId = first === "heartbeat" ? second : first;
+		return discordId ? `discord:guild:${discordId}` : undefined;
 	}
 
 	return undefined;
 }
 
-function inferGuildIdFromAgentId(agentId: string): string | undefined {
-	if (agentId.startsWith("discord:heartbeat:")) return agentId.slice("discord:heartbeat:".length);
-	if (agentId.startsWith("discord:")) return agentId.slice("discord:".length);
+function inferScopeIdFromAgentId(agentId: string): string | undefined {
+	if (agentId.startsWith("discord:heartbeat:")) {
+		return `discord:guild:${agentId.slice("discord:heartbeat:".length)}`;
+	}
+	if (agentId.startsWith("discord:")) return `discord:guild:${agentId.slice("discord:".length)}`;
 	return undefined;
 }
 
 export function buildAgentMetricLabels(options: AgentMetricLabelOptions): Record<string, string> {
-	const sessionGuildId = options.sessionKey ? inferGuildId(options.sessionKey) : undefined;
-	const guildId =
-		options.guildId ?? sessionGuildId ?? inferGuildIdFromAgentId(options.agentId) ?? "none";
+	const sessionScopeId = options.sessionKey ? inferScopeId(options.sessionKey) : undefined;
+	const scopeId =
+		options.scopeId ?? sessionScopeId ?? inferScopeIdFromAgentId(options.agentId) ?? "none";
 	const trigger =
 		options.trigger ?? (options.sessionKey ? inferTrigger(options.sessionKey) : "unknown");
 
 	return {
 		agent_kind: inferAgentKind(options.agentId),
 		agent_id: options.agentId,
-		guild_id: guildId,
+		scope_id: scopeId,
 		trigger,
 		provider: options.providerId,
 		model: options.modelId,
