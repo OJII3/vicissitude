@@ -126,7 +126,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum(increase(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[1h]))",
+					"expr": "sum(increase(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[1h]))",
 					"legendFormat": "prompts/h"
 				}
 			],
@@ -178,7 +178,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum(rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\",outcome=\"success\"}[$__rate_interval])) / clamp_min(sum(rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])), 1e-9)",
+					"expr": "sum(rate(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\",outcome=\"success\"}[$__rate_interval])) / clamp_min(sum(rate(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])), 1e-9)",
 					"legendFormat": "success"
 				}
 			],
@@ -230,7 +230,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum(increase(llm_cost_dollars_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum(increase(llm_cost_dollars_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "usd"
 				}
 			],
@@ -281,7 +281,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, outcome) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (agent_kind, outcome) (rate(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{agent_kind}} {{outcome}}"
 				}
 			],
@@ -332,17 +332,17 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "histogram_quantile(0.50, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
+					"expr": "histogram_quantile(0.50, sum by (le) (rate(ai_request_duration_seconds_bucket{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p50"
 				},
 				{
 					"refId": "B",
-					"expr": "histogram_quantile(0.90, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
+					"expr": "histogram_quantile(0.90, sum by (le) (rate(ai_request_duration_seconds_bucket{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p90"
 				},
 				{
 					"refId": "C",
-					"expr": "histogram_quantile(0.99, sum by (le) (rate(ai_request_duration_seconds_bucket{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
+					"expr": "histogram_quantile(0.99, sum by (le) (rate(ai_request_duration_seconds_bucket{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval])))",
 					"legendFormat": "p99"
 				}
 			],
@@ -621,8 +621,8 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, guild_id) (llm_busy_sessions{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"})",
-					"legendFormat": "{{agent_kind}} {{guild_id}}"
+					"expr": "sum by (agent_kind, scope_id) (llm_busy_sessions{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"})",
+					"legendFormat": "{{agent_kind}} {{scope_id}}"
 				}
 			],
 			"title": "Busy LLM Prompts",
@@ -672,7 +672,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (trigger, outcome) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (trigger, outcome) (rate(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{trigger}} {{outcome}}"
 				}
 			],
@@ -723,7 +723,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (provider, model) (rate(ai_requests_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (provider, model) (rate(ai_requests_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{provider}}/{{model}}"
 				}
 			],
@@ -774,7 +774,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, model) (rate(llm_input_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (agent_kind, model) (rate(llm_input_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{agent_kind}} {{model}}"
 				}
 			],
@@ -825,7 +825,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, model) (rate(llm_output_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (agent_kind, model) (rate(llm_output_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{agent_kind}} {{model}}"
 				}
 			],
@@ -876,7 +876,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, model) (rate(llm_cache_read_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
+					"expr": "sum by (agent_kind, model) (rate(llm_cache_read_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__rate_interval]))",
 					"legendFormat": "{{agent_kind}} {{model}}"
 				}
 			],
@@ -927,7 +927,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, model) (increase(llm_cost_dollars_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (agent_kind, model) (increase(llm_cost_dollars_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "{{agent_kind}} {{model}}"
 				}
 			],
@@ -978,17 +978,17 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (trigger) (increase(llm_input_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (trigger) (increase(llm_input_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "input {{trigger}}"
 				},
 				{
 					"refId": "B",
-					"expr": "sum by (trigger) (increase(llm_output_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (trigger) (increase(llm_output_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "output {{trigger}}"
 				},
 				{
 					"refId": "C",
-					"expr": "sum by (trigger) (increase(llm_cache_read_tokens_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (trigger) (increase(llm_cache_read_tokens_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "cache {{trigger}}"
 				}
 			],
@@ -1051,7 +1051,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, error_type) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (agent_kind, error_type) (increase(session_errors_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "{{agent_kind}} {{error_type}}"
 				}
 			],
@@ -1102,7 +1102,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, error_type) (increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (agent_kind, error_type) (increase(session_retries_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "{{agent_kind}} {{error_type}}"
 				}
 			],
@@ -1153,7 +1153,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (agent_kind, reason) (increase(session_restarts_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (agent_kind, reason) (increase(session_restarts_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "{{agent_kind}} {{reason}}"
 				}
 			],
@@ -1204,12 +1204,12 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum by (http_status) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (http_status) (increase(session_errors_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "http {{http_status}}"
 				},
 				{
 					"refId": "B",
-					"expr": "sum by (retryable) (increase(session_errors_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
+					"expr": "sum by (retryable) (increase(session_errors_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range]))",
 					"legendFormat": "retryable {{retryable}}"
 				}
 			],
@@ -1260,7 +1260,7 @@
 			"targets": [
 				{
 					"refId": "A",
-					"expr": "sum(increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) / clamp_min(sum(increase(session_retries_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) + sum(increase(session_restarts_total{guild_id=~\"$guild_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])), 1)",
+					"expr": "sum(increase(session_retries_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) / clamp_min(sum(increase(session_retries_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])) + sum(increase(session_restarts_total{scope_id=~\"$scope_id\",agent_kind=~\"$agent_kind\",model=~\"$model\",trigger=~\"$trigger\"}[$__range])), 1)",
 					"legendFormat": "retry ratio"
 				}
 			],
@@ -2198,6 +2198,30 @@
 				"name": "guild_id",
 				"options": [],
 				"query": "label_values(discord_messages_received_total, guild_id)",
+				"refresh": 2,
+				"regex": "",
+				"sort": 1,
+				"type": "query"
+			},
+			{
+				"allValue": ".*",
+				"current": {
+					"selected": false,
+					"text": "All",
+					"value": "$__all"
+				},
+				"datasource": {
+					"type": "prometheus",
+					"uid": "${DS_PROMETHEUS}"
+				},
+				"definition": "label_values(ai_requests_total, scope_id)",
+				"hide": 0,
+				"includeAll": true,
+				"label": "Scope",
+				"multi": true,
+				"name": "scope_id",
+				"options": [],
+				"query": "label_values(ai_requests_total, scope_id)",
 				"refresh": 2,
 				"regex": "",
 				"sort": 1,
