@@ -145,8 +145,8 @@ export class ConsolidationScheduler {
 	): Promise<void> {
 		if (!this.criticAuditor) return;
 		try {
-			const userId = defaultSubject(namespace);
-			const result = await this.criticAuditor.audit(userId);
+			const subject = defaultSubject(namespace);
+			const result = await this.criticAuditor.audit(subject);
 			if (result.status === "skipped") {
 				this.metrics?.incrementCounter(METRIC.CRITIC_AUDITOR_SKIP_TOTAL, {
 					namespace: key,

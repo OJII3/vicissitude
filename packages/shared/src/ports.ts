@@ -167,7 +167,7 @@ export type CriticAuditOutcome = CriticAuditCompleted | CriticAuditSkipped;
 
 /** CriticAuditor ポートインターフェース */
 export interface CriticAuditorPort {
-	audit(userId: string): Promise<CriticAuditOutcome>;
+	audit(subject: string): Promise<CriticAuditOutcome>;
 }
 
 // ─── GitHubIssuePort ──────────────────────────────────────────

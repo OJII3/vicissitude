@@ -17,6 +17,7 @@ import type { CriticResult } from "@vicissitude/memory/critic-auditor";
 import type { MemoryLlmPort, Schema } from "@vicissitude/memory/llm-port";
 import {
 	agentScopeNamespace,
+	defaultSubject,
 	discordScopeId,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
@@ -154,15 +155,16 @@ describe("setupMemoryRecording()", () => {
 		const botUserId = "1100000000000000001";
 		const memoryDataDir = resolve(testDir, "data/memory");
 		const namespace = agentScopeNamespace(discordScopeId(guildId));
+		const subject = defaultSubject(namespace);
 		mkdirSync(resolveMemoryDbDir(memoryDataDir, namespace), { recursive: true });
 		const storage = new MemoryStorage(resolveMemoryDbPath(memoryDataDir, namespace));
 		try {
 			await Promise.all(
 				Array.from({ length: 3 }, (_, i) =>
 					storage.saveEpisode(
-						guildId,
+						subject,
 						makeEpisode({
-							userId: guildId,
+							userId: subject,
 							messages: [
 								{ role: "user", content: `hello ${i}`, authorId: "user-1" },
 								{
@@ -187,12 +189,62 @@ describe("setupMemoryRecording()", () => {
 
 		expect(adapter).toBeDefined();
 		if (!adapter) return;
-		const result = await adapter.audit(guildId);
+		const result = await adapter.audit(subject);
 
 		expect(result.status).toBe("completed");
 		expect(calls).toHaveLength(1);
 		const systemPrompt = calls[0]?.messages.find((m) => m.role === "system")?.content ?? "";
 		expect(systemPrompt).toContain("Unique persona marker");
+	});
+
+	test("buildCriticAuditorAdapter(): audit() は agent-scope の default subject をそのまま監査対象にする", async () => {
+		const contextDir = resolve(testDir, "context");
+		mkdirSync(contextDir, { recursive: true });
+		const soulPath = resolve(contextDir, "SOUL.md");
+		writeFileSync(soulPath, "# Character\nUnique scope subject marker");
+
+		const guildId = "1100000000000000003";
+		const botUserId = "1100000000000000001";
+		const memoryDataDir = resolve(testDir, "data/memory");
+		const namespace = agentScopeNamespace(discordScopeId(guildId));
+		const subject = defaultSubject(namespace);
+		mkdirSync(resolveMemoryDbDir(memoryDataDir, namespace), { recursive: true });
+		const storage = new MemoryStorage(resolveMemoryDbPath(memoryDataDir, namespace));
+		try {
+			await Promise.all(
+				Array.from({ length: 3 }, (_, i) =>
+					storage.saveEpisode(
+						subject,
+						makeEpisode({
+							userId: subject,
+							messages: [
+								{ role: "user", content: `scope hello ${i}`, authorId: "user-1" },
+								{
+									role: "assistant",
+									content: "お手伝いします。素晴らしいご質問ですね。了解しました。もちろんです。",
+									authorId: botUserId,
+									name: "ふあ",
+								},
+							],
+							startAt: new Date(Date.now() - 60_000),
+							endAt: new Date(),
+						}),
+					),
+				),
+			);
+		} finally {
+			storage.close();
+		}
+
+		const { llm, calls } = createSpyLLM({ severity: "none", summary: "ok" });
+		const adapter = await buildCriticAuditorAdapter(soulPath, llm, memoryDataDir, () => botUserId);
+
+		expect(adapter).toBeDefined();
+		if (!adapter) return;
+		const result = await adapter.audit(subject);
+
+		expect(result.status).toBe("completed");
+		expect(calls).toHaveLength(1);
 	});
 
 	test("SOUL.md が存在しない場合: MemoryResources を返す", async () => {
