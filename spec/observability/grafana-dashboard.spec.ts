@@ -51,7 +51,7 @@ describe("Grafana dashboard", () => {
 		expect(aiExpressions.length).toBeGreaterThan(0);
 		for (const expr of aiExpressions) {
 			expect(expr).toContain('scope_id=~"$scope_id"');
-			expect(expr).not.toContain('guild_id=~"$guild_id"');
+			expect(expr).not.toContain("guild_id");
 		}
 	});
 
@@ -63,7 +63,7 @@ describe("Grafana dashboard", () => {
 		expect(discordExpressions.length).toBeGreaterThan(0);
 		for (const expr of discordExpressions) {
 			expect(expr).toContain('guild_id=~"$guild_id"');
-			expect(expr).not.toContain('scope_id=~"$scope_id"');
+			expect(expr).not.toContain("scope_id");
 		}
 	});
 });
