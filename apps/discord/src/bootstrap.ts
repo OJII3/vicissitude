@@ -365,21 +365,19 @@ export async function buildCriticAuditorAdapter(
 
 	const storageCache = new Map<string, MemoryStorage>();
 	return {
-		audit(userId: string) {
+		audit(subject: string) {
 			// gateway.start() 前に audit が呼ばれた場合、bot user id 未解決のため早期 return
-			// (namespace 解決は GUILD_ID_RE バリデーションを行うため、それより前に判定する)
+			// (namespace 解決は scopeId バリデーションを行うため、それより前に判定する)
 			const botUserId = getBotUserId();
 			if (!botUserId) return Promise.resolve({ status: "skipped", reason: "no_bot_id" });
 
-			let storage = storageCache.get(userId);
+			let storage = storageCache.get(subject);
 			if (!storage) {
 				const namespace: MemoryNamespace =
-					userId === HUA_SELF_SUBJECT
-						? INTERNAL_NAMESPACE
-						: agentScopeNamespace(discordScopeId(userId));
+					subject === HUA_SELF_SUBJECT ? INTERNAL_NAMESPACE : agentScopeNamespace(subject);
 				mkdirSync(resolveMemoryDbDir(dataDir, namespace), { recursive: true });
 				storage = new MemoryStorage(resolveMemoryDbPath(dataDir, namespace));
-				storageCache.set(userId, storage);
+				storageCache.set(subject, storage);
 			}
 			const auditor = new CriticAuditor({
 				llm,
@@ -388,7 +386,7 @@ export async function buildCriticAuditorAdapter(
 				characterDefinition,
 				botUserId,
 			});
-			return auditor.audit(userId);
+			return auditor.audit(subject);
 		},
 	};
 }
