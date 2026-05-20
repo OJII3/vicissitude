@@ -248,7 +248,7 @@ describe("ConsolidationScheduler", () => {
 			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
 			await (scheduler as unknown as TickFn).tick();
 
-			// audit が userId = "discord:guild:222"（scopeId）で呼ばれる
+			// audit が agent-scope の default subject（scopeId）で呼ばれる
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
 			expect(auditor.audit).toHaveBeenCalledWith("discord:guild:222");
 		});
