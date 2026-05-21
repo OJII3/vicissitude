@@ -160,6 +160,7 @@ src/agent/
 - コミット後は必ず push し、プルリクエストを作成する。
 - コミット・push・PR 作成・マージの前に、追加の確認待ちで停止しない。
 - PR 作成後は、指示されたワークフローでマージまで行う。auto-triage では `.agents/skills/auto-triage/SKILL.md` に従い、スカッシュマージしてリモートブランチを削除する。
+- マージ前には必ず `review-pr` スキルを使用し、指摘は即修正または GitHub Issue 起票に振り分ける。未処理の指摘を残したままマージしない。
 - マージ時はスカッシュマージし、マージ後にリモートブランチを削除する: `gh pr merge <number> --squash --delete-branch`
 
 ## auto-triage
