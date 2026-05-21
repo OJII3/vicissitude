@@ -2,7 +2,7 @@ import { writeFileSync } from "fs";
 import { resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { createBackup, ensureDir, readWithFallbackFrom } from "../memory-helpers.ts";
 
@@ -89,7 +89,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 					.describe("新しい MINECRAFT-GOALS.md の内容（最大 20,000 文字）"),
 			},
 		},
-		({ content }) => {
+		({ content }: { content: string }) => {
 			writeOverlay(dataDir, GOALS_FILENAME, content);
 			return {
 				content: [
@@ -131,7 +131,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 					.describe("新しい MINECRAFT-PROGRESS.md の内容（最大 20,000 文字）"),
 			},
 		},
-		({ content }) => {
+		({ content }: { content: string }) => {
 			writeOverlay(dataDir, PROGRESS_FILENAME, content);
 			return {
 				content: [
@@ -173,7 +173,17 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 					.describe("既知の失敗パターン（例: 夜間は敵mobで中断されやすい）"),
 			},
 		},
-		({ name, description, preconditions, failure_patterns }) => {
+		({
+			name,
+			description,
+			preconditions,
+			failure_patterns,
+		}: {
+			name: string;
+			description: string;
+			preconditions?: string;
+			failure_patterns?: string;
+		}) => {
 			const existing = readOverlay(dataDir, SKILLS_FILENAME, baseContextDir);
 			const safeName = sanitizeSkillName(name);
 			const safeDescription = sanitizeSkillDescription(description);

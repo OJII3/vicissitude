@@ -92,17 +92,13 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 次の値は profile に書かない。
 
-| feature       | env                                                                   |
-| ------------- | --------------------------------------------------------------------- |
-| Discord       | `DISCORD_TOKEN`                                                       |
-| Spotify       | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` |
-| Genius        | `GENIUS_ACCESS_TOKEN`                                                 |
-| GitHub Issues | `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`                         |
-| shell-worker  | `HUA_GITHUB_TOKEN`                                                    |
+| feature       | env                                           |
+| ------------- | --------------------------------------------- |
+| Discord       | `DISCORD_TOKEN`                               |
+| GitHub Issues | `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` |
+| shell-worker  | `HUA_GITHUB_TOKEN`                            |
 
 feature section が存在する場合だけ、その feature の secret env を必須にする。
-
-Spotify の推薦プレイリストは secret ではないため `features.spotify.recommendPlaylistId` に書く。`SPOTIFY_RECOMMEND_PLAYLIST_ID` は profile 正本化に伴い読み込まない。
 
 `features.shellWorkspace.environment` は shell-worker の OpenCode server process と shell workspace 子コンテナへ渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
 

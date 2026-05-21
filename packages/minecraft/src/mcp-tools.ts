@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { METRIC } from "@vicissitude/observability/metrics";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { registerActionTools } from "./actions/index.ts";
 import type { BotContext } from "./bot-context.ts";
@@ -144,7 +144,7 @@ function registerRecentEventsTool(server: McpServer, ctx: BotContext): void {
 					.describe("最低重要度フィルタ（例: medium → medium 以上のみ）"),
 			},
 		},
-		({ limit, importance }) => {
+		({ limit, importance }: { limit: number; importance?: "low" | "medium" | "high" }) => {
 			const events = ctx.getEvents();
 			let filtered = events;
 			if (importance) {
@@ -171,7 +171,7 @@ function registerJobStatusTool(server: McpServer, jobManager: JobManager): void 
 					.describe("取得するジョブ履歴数（デフォルト: 5、最大: 20）"),
 			},
 		},
-		({ limit }) => {
+		({ limit }: { limit: number }) => {
 			const current = jobManager.getCurrentJob();
 			const recent = jobManager.getRecentJobs(limit);
 			const text = formatJobStatus(current, recent, jobManager.getCooldowns());

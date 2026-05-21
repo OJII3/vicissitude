@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { findPerceivedEntityByName } from "../bot-queries.ts";
 import type { JobManager } from "../job-manager.ts";
@@ -183,7 +183,7 @@ export function registerAttackEntity(
 					.describe("最大攻撃回数（デフォルト: 20、安全弁）"),
 			},
 		},
-		async ({ entityName, maxHits }) => {
+		async ({ entityName, maxHits }: { entityName: string; maxHits: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

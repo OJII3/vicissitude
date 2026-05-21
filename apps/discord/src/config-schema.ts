@@ -18,17 +18,6 @@ export const minecraftSchema = z.object({
 	viewerPort: safeInt,
 });
 
-export const spotifySchema = z.object({
-	clientId: z.string(),
-	clientSecret: z.string(),
-	refreshToken: z.string(),
-	recommendPlaylistId: z.string().optional(),
-});
-
-export const geniusSchema = z.object({
-	accessToken: z.string(),
-});
-
 export const ttsSchema = z.object({
 	baseUrl: z.string(),
 	speakerId: safeInt,
@@ -126,8 +115,6 @@ export const appConfigSchema = z.object({
 		modelId: z.string(),
 		temperature: safeNumber.min(0).max(2),
 	}),
-	spotify: spotifySchema.optional(),
-	genius: geniusSchema.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
@@ -138,8 +125,6 @@ export const appConfigSchema = z.object({
 	contextDir: z.string(),
 });
 
-export type SpotifyConfig = z.infer<typeof spotifySchema>;
-export type GeniusConfig = z.infer<typeof geniusSchema>;
 export type TtsConfig = z.infer<typeof ttsSchema>;
 export type MinecraftConfig = z.infer<typeof minecraftSchema>;
 export type AppConfig = z.infer<typeof appConfigSchema>;

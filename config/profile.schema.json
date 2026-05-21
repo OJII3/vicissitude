@@ -314,21 +314,6 @@
 					"required": ["baseUrl", "speakerId"],
 					"additionalProperties": false
 				},
-				"spotify": {
-					"type": "object",
-					"properties": {
-						"recommendPlaylistId": {
-							"type": "string",
-							"minLength": 1
-						}
-					},
-					"additionalProperties": false
-				},
-				"genius": {
-					"type": "object",
-					"properties": {},
-					"additionalProperties": false
-				},
 				"githubIssues": {
 					"type": "object",
 					"properties": {},

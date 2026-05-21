@@ -2,7 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import {
 	SHELL_WORKSPACE_DEFAULT_IMAGE,
@@ -153,7 +153,7 @@ async function main(): Promise<void> {
 				ttl_minutes: z.number().int().min(1).max(config.maxTtlMinutes).optional(),
 			},
 		},
-		({ label, ttl_minutes }) => {
+		({ label, ttl_minutes }: { label?: string; ttl_minutes?: number }) => {
 			const info = manager.startSession({ label, ttlMinutes: ttl_minutes });
 			return { content: [{ type: "text", text: formatJson(info) }] };
 		},
@@ -170,7 +170,17 @@ async function main(): Promise<void> {
 				timeout_seconds: z.number().int().min(1).max(config.maxTimeoutSeconds).optional(),
 			},
 		},
-		async ({ session_id, command, cwd, timeout_seconds }) => {
+		async ({
+			session_id,
+			command,
+			cwd,
+			timeout_seconds,
+		}: {
+			session_id: string;
+			command: string;
+			cwd?: string;
+			timeout_seconds?: number;
+		}) => {
 			const result = await manager.exec({
 				sessionId: session_id,
 				command,
@@ -189,7 +199,7 @@ async function main(): Promise<void> {
 				session_id: z.uuid().optional(),
 			},
 		},
-		({ session_id }) => {
+		({ session_id }: { session_id?: string }) => {
 			return { content: [{ type: "text", text: formatJson(manager.status(session_id)) }] };
 		},
 	);
@@ -203,7 +213,7 @@ async function main(): Promise<void> {
 				path: z.string().min(1).max(MAX_CWD_LENGTH),
 			},
 		},
-		({ session_id, path }) => {
+		({ session_id, path }: { session_id: string; path: string }) => {
 			const filePath = manager.exportFile(session_id, path);
 			return { content: [{ type: "text", text: filePath }] };
 		},
@@ -217,7 +227,7 @@ async function main(): Promise<void> {
 				session_id: z.uuid(),
 			},
 		},
-		({ session_id }) => {
+		({ session_id }: { session_id: string }) => {
 			const info = manager.stopSession(session_id);
 			return { content: [{ type: "text", text: formatJson(info) }] };
 		},

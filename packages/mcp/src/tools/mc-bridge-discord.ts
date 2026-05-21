@@ -6,7 +6,7 @@ import {
 	tryAcquireSessionLock,
 } from "@vicissitude/store/mc-bridge";
 import { appendEvent } from "@vicissitude/store/queries";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
 
@@ -36,7 +36,7 @@ export function registerDiscordBridgeTools(
 					.describe("Command for the Minecraft agent"),
 			},
 		},
-		({ command }) => {
+		({ command }: { command: string }) => {
 			const event = {
 				ts: new Date().toISOString(),
 				content: command,

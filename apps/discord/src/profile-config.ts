@@ -88,12 +88,6 @@ export const profileConfigSchema = z.strictObject({
 			.optional(),
 		minecraft: minecraftSchema.optional(),
 		tts: ttsSchema.optional(),
-		spotify: z
-			.strictObject({
-				recommendPlaylistId: z.string().min(1).optional(),
-			})
-			.optional(),
-		genius: z.strictObject({}).optional(),
 		githubIssues: z.strictObject({}).optional(),
 	}),
 });
@@ -188,17 +182,6 @@ export function loadConfigFromProfile(
 			modelId: profile.models.minecraft.modelId,
 			temperature: profile.models.minecraft.temperature,
 		},
-		spotify: profile.features.spotify
-			? {
-					clientId: requireSecret(env, "SPOTIFY_CLIENT_ID", "features.spotify"),
-					clientSecret: requireSecret(env, "SPOTIFY_CLIENT_SECRET", "features.spotify"),
-					refreshToken: requireSecret(env, "SPOTIFY_REFRESH_TOKEN", "features.spotify"),
-					recommendPlaylistId: profile.features.spotify.recommendPlaylistId,
-				}
-			: undefined,
-		genius: profile.features.genius
-			? { accessToken: requireSecret(env, "GENIUS_ACCESS_TOKEN", "features.genius") }
-			: undefined,
 		tts: profile.features.tts,
 		minecraft: profile.features.minecraft,
 		github: profile.features.githubIssues

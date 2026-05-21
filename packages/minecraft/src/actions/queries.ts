@@ -1,5 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { getNearbyBlockCounts } from "../bot-queries.ts";
 import { type GetBot, textResult } from "./shared.ts";
@@ -20,7 +20,7 @@ export function registerNearbyBlocks(server: McpServer, getBot: GetBot): void {
 					.describe("探索範囲（デフォルト: 16、最大: 32）"),
 			},
 		},
-		({ maxDistance }) => {
+		({ maxDistance }: { maxDistance: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

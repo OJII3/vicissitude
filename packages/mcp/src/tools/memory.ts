@@ -9,7 +9,7 @@ import {
 	namespaceKey,
 } from "@vicissitude/memory/namespace";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { LruCache } from "../lru-cache";
 

@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import type { Furnace } from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { JobManager } from "../job-manager.ts";
 import {
@@ -155,7 +155,7 @@ export function registerSmeltItem(server: McpServer, getBot: GetBot, jobManager:
 					.describe('燃料アイテム名（デフォルト: "coal"、例: "charcoal", "oak_planks"）'),
 			},
 		},
-		({ itemName, count, fuelName }) => {
+		({ itemName, count, fuelName }: { itemName: string; count: number; fuelName: string }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

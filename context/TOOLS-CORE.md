@@ -19,22 +19,6 @@
 - `core_memory_get_facts(category?)` - 蓄積されたファクト一覧を取得
   - category: "identity" | "preference" | "interest" | "personality" | "relationship" | "experience" | "goal" | "guideline"
 
-### spotify
-
-> `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN` が設定されている場合のみ有効。
-
-- `core_spotify_pick_track` - Spotify ライブラリからランダムに1曲選んで情報を返す。引数なし
-- `core_spotify_search(query, limit?)` - 曲名・アーティスト名などのキーワードで Spotify を検索
-- `core_spotify_saved_tracks(limit?, offset?)` - お気に入りの曲（Liked Songs）を取得
-- `core_spotify_track_detail(trackId)` - トラック ID から楽曲の詳細情報を取得（アーティストのジャンル情報補完付き）
-
-### genius
-
-> `GENIUS_ACCESS_TOKEN` が設定されている場合のみ有効。Spotify 設定は不要。
-
-- `core_fetch_lyrics(title, artist)` - Genius API から楽曲の歌詞を取得
-- `core_save_listening_fact(track, impression)` - 楽曲を聴いた感想を Memory（internal namespace, category=experience）に保存
-
 ### メタ
 
 - `core_list_tools` - 利用可能なツールの名前と説明の一覧を取得

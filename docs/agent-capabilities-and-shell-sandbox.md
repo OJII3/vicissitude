@@ -55,5 +55,5 @@ Podman mount source としてホスト側 path が必要な profile では `feat
 
 - メイン会話 agent への builtin `bash` 直接許可。
 - host HOME や auth files の調査、編集、添付。
-- ユーザー本人の認証情報を使った GitHub、Spotify、SSH 操作。
+- ユーザー本人の認証情報を使った GitHub、SSH 操作。
 - OpenCode `bash` を Podman sandbox 相当の隔離境界として扱うこと。

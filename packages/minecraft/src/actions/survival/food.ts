@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { GetBot } from "../shared.ts";
 import { textResult } from "../shared.ts";
@@ -63,7 +63,7 @@ export function registerEatFood(server: McpServer, getBot: GetBot): void {
 					.describe("緊急時のみ true（golden_apple の使用を許可）"),
 			},
 		},
-		async ({ emergency }) => {
+		async ({ emergency }: { emergency: boolean }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

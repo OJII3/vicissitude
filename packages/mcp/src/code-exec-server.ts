@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const server = new McpServer({
 	name: "code-exec",
@@ -126,7 +126,7 @@ server.registerTool(
 			code: z.string().max(MAX_CODE_LENGTH),
 		},
 	},
-	async ({ language, code }) => {
+	async ({ language, code }: { language: Language; code: string }) => {
 		const cmd = buildPodmanCmd(language, code);
 		const output = await exec(cmd);
 		return { content: [{ type: "text", text: output }] };

@@ -1,13 +1,7 @@
-import type {
-	AppConfig,
-	GeniusConfig,
-	MinecraftConfig,
-	SpotifyConfig,
-	TtsConfig,
-} from "./config-schema.ts";
+import type { AppConfig, MinecraftConfig, TtsConfig } from "./config-schema.ts";
 import { loadConfigFromProfile, loadProfileConfigFile } from "./profile-config.ts";
 
-export type { AppConfig, GeniusConfig, MinecraftConfig, SpotifyConfig, TtsConfig };
+export type { AppConfig, MinecraftConfig, TtsConfig };
 
 export { loadConfigFromProfile, loadProfileConfigFile };
 

@@ -96,28 +96,18 @@
         "zod": "^4.3.6",
       },
     },
-    "packages/listening": {
-      "name": "@vicissitude/listening",
-      "dependencies": {
-        "@vicissitude/memory": "workspace:*",
-        "@vicissitude/shared": "workspace:*",
-        "@vicissitude/spotify": "workspace:*",
-      },
-    },
     "packages/mcp": {
       "name": "@vicissitude/mcp",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
         "@vicissitude/agent": "workspace:*",
         "@vicissitude/infrastructure": "workspace:*",
-        "@vicissitude/listening": "workspace:*",
         "@vicissitude/memory": "workspace:*",
         "@vicissitude/observability": "workspace:*",
         "@vicissitude/ollama": "workspace:*",
         "@vicissitude/opencode": "workspace:*",
         "@vicissitude/scheduling": "workspace:*",
         "@vicissitude/shared": "workspace:*",
-        "@vicissitude/spotify": "workspace:*",
         "@vicissitude/store": "workspace:*",
         "discord.js": "^14.25.1",
         "zod": "^4.3.6",
@@ -175,12 +165,6 @@
     },
     "packages/shared": {
       "name": "@vicissitude/shared",
-      "dependencies": {
-        "zod": "^4.3.6",
-      },
-    },
-    "packages/spotify": {
-      "name": "@vicissitude/spotify",
       "dependencies": {
         "zod": "^4.3.6",
       },
@@ -572,8 +556,6 @@
 
     "@vicissitude/infrastructure": ["@vicissitude/infrastructure@workspace:packages/infrastructure"],
 
-    "@vicissitude/listening": ["@vicissitude/listening@workspace:packages/listening"],
-
     "@vicissitude/mcp": ["@vicissitude/mcp@workspace:packages/mcp"],
 
     "@vicissitude/memory": ["@vicissitude/memory@workspace:packages/memory"],
@@ -589,8 +571,6 @@
     "@vicissitude/scheduling": ["@vicissitude/scheduling@workspace:packages/scheduling"],
 
     "@vicissitude/shared": ["@vicissitude/shared@workspace:packages/shared"],
-
-    "@vicissitude/spotify": ["@vicissitude/spotify@workspace:packages/spotify"],
 
     "@vicissitude/store": ["@vicissitude/store@workspace:packages/store"],
 
@@ -1313,6 +1293,16 @@
     "@tanstack/router-generator/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@tanstack/router-plugin/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/agent/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/infrastructure/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/mcp/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/minecraft/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/scheduling/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@vicissitude/shared/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
