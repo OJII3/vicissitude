@@ -1900,6 +1900,64 @@ describe("AgentRunner 推論中断・bot デバウンス（内部ロジック）
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
 
+	test("Discord 送信 tool 開始後の send() は中断せず、新着だけを次ターンへ回す", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			return sessionWatchCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+		});
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "first" });
+		await Bun.sleep(0);
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+
+		const firstCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[0] as unknown[];
+		const firstParams = firstCallArgs[0] as {
+			onActivity?: (activity: { type: "tool"; tool: string; status: "running" }) => void;
+		};
+		const firstSignal = firstCallArgs[1] as AbortSignal;
+		firstParams.onActivity?.({
+			type: "tool",
+			tool: "discord_send_message",
+			status: "running",
+		});
+
+		await runner.send({ sessionKey: "k", message: "interrupt" });
+		await Bun.sleep(0);
+
+		expect(firstSignal.aborted).toBe(false);
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(1);
+
+		firstSessionDone.resolve({ type: "idle" });
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop -- polling loop の進行を待つ
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.promptAsyncAndWatchSession).toHaveBeenCalledTimes(2);
+		const secondCallArgs = sessionPort.promptAsyncAndWatchSession.mock.calls[1] as unknown[];
+		const secondParams = secondCallArgs[0] as { text: string };
+		expect(secondParams.text).not.toContain("first");
+		expect(secondParams.text).toContain("interrupt");
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
+
 	test("stop() が sessionAbortController を abort する", async () => {
 		const sessionDone = deferred<OpencodeSessionEvent>();
 		const sessionPort = createSessionPort(() => sessionDone.promise);

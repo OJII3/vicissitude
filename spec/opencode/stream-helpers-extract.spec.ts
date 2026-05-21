@@ -15,6 +15,7 @@ import { describe, expect, mock, test } from "bun:test";
 import type { Event, OpencodeClient, Part } from "@opencode-ai/sdk/v2";
 import {
 	abortSession,
+	extractPartActivity,
 	extractText,
 	extractTokens,
 	logPartActivity,
@@ -280,5 +281,67 @@ describe("logPartActivity", () => {
 
 		expect(logger.info).not.toHaveBeenCalled();
 		expect(logger.error).not.toHaveBeenCalled();
+	});
+});
+
+// ─── extractPartActivity ─────────────────────────────────────────
+
+describe("extractPartActivity", () => {
+	const sessionId = "test-session";
+
+	function makePartEvent(partProps: Record<string, unknown>, sid: string = sessionId): Event {
+		return {
+			type: "message.part.updated",
+			properties: {
+				part: { sessionID: sid, ...partProps },
+			},
+		} as unknown as Event;
+	}
+
+	test("tool running を構造化 activity として返す", () => {
+		const event = makePartEvent({
+			type: "tool",
+			tool: "discord_send_message",
+			state: { status: "running" },
+		});
+
+		expect(extractPartActivity(event, sessionId)).toEqual({
+			type: "tool",
+			tool: "discord_send_message",
+			status: "running",
+		});
+	});
+
+	test("tool completed を構造化 activity として返す", () => {
+		const event = makePartEvent({
+			type: "tool",
+			tool: "discord_reply",
+			state: { status: "completed", output: "Sent message 1" },
+		});
+
+		expect(extractPartActivity(event, sessionId)).toEqual({
+			type: "tool",
+			tool: "discord_reply",
+			status: "completed",
+		});
+	});
+
+	test("対象 session 以外の activity は返さない", () => {
+		const event = makePartEvent(
+			{
+				type: "tool",
+				tool: "discord_send_message",
+				state: { status: "running" },
+			},
+			"other-session",
+		);
+
+		expect(extractPartActivity(event, sessionId)).toBeNull();
+	});
+
+	test("tool 以外の part は返さない", () => {
+		const event = makePartEvent({ type: "text", text: "hello" });
+
+		expect(extractPartActivity(event, sessionId)).toBeNull();
 	});
 });

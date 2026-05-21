@@ -12,6 +12,7 @@ import {
 } from "@opencode-ai/sdk/v2";
 import type {
 	Logger,
+	OpencodeSessionActivity,
 	OpencodePromptParams,
 	OpencodeSessionEvent,
 	OpencodeModel,
@@ -23,6 +24,7 @@ import type {
 import {
 	abortSession,
 	classifyEvent,
+	extractPartActivity,
 	extractText,
 	extractTokens,
 	logPartActivity,
@@ -213,6 +215,8 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				}
 
 				logPartActivity(typed, params.sessionId, this.logger);
+				const activity = extractPartActivity(typed, params.sessionId);
+				if (activity) params.onActivity?.(activity);
 
 				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
 				if (classified) {
@@ -237,7 +241,11 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		}
 		return { type: "idle" };
 	}
-	async waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent> {
+	async waitForSessionIdle(
+		sessionId: string,
+		signal?: AbortSignal,
+		onActivity?: (activity: OpencodeSessionActivity) => void,
+	): Promise<OpencodeSessionEvent> {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe(this.directoryQuery());
 		const tokensByMessage = new Map<string, TokenUsage>();
@@ -271,6 +279,8 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
 				}
 				logPartActivity(typed, sessionId, this.logger);
+				const activity = extractPartActivity(typed, sessionId);
+				if (activity) onActivity?.(activity);
 				const result = classifyEvent(typed, sessionId, tokensByMessage);
 				if (result) {
 					if (result.type === "error") {

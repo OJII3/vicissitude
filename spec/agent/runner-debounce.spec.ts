@@ -431,6 +431,77 @@ describe("推論中断", () => {
 		runner.stop();
 		secondSessionDone.resolve({ type: "cancelled" });
 	});
+
+	test("Discord 送信 tool 開始後の追いメッセージでは旧プロンプトを再投入しない", async () => {
+		const firstSessionDone = deferred<OpencodeSessionEvent>();
+		const secondSessionDone = deferred<OpencodeSessionEvent>();
+		let promptCallCount = 0;
+		const sessionPort = {
+			createSession: mock(() => Promise.resolve("session-1")),
+			sessionExists: mock(() => Promise.resolve(false)),
+			prompt: mock(() => Promise.resolve({ text: "要約テキスト", tokens: undefined })),
+			promptAsync: mock(() => Promise.resolve()),
+			promptAsyncAndWatchSession: mock(() => {
+				promptCallCount += 1;
+				return promptCallCount === 1 ? firstSessionDone.promise : secondSessionDone.promise;
+			}),
+			waitForSessionIdle: mock(() => Promise.resolve({ type: "idle" as const })),
+			deleteSession: mock(() => Promise.resolve()),
+			summarizeSession: mock(() => Promise.resolve()),
+			close: mock(() => {}),
+		} as unknown as OpencodeSessionPort;
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		runner.enableDebounce = true;
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "original question" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const firstCallArgs = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock
+			.calls[0] as unknown[];
+		const firstParams = firstCallArgs[0] as {
+			onActivity?: (activity: { type: "tool"; tool: string; status: "running" }) => void;
+		};
+		const firstSignal = firstCallArgs[1] as AbortSignal;
+		firstParams.onActivity?.({
+			type: "tool",
+			tool: "discord_send_message",
+			status: "running",
+		});
+
+		await runner.send({ sessionKey: "k", message: "follow up" });
+		await Bun.sleep(0);
+
+		expect(firstSignal.aborted).toBe(false);
+		expect(promptCallCount).toBe(1);
+
+		firstSessionDone.resolve({ type: "idle" });
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop -- polling loop の進行を待つ
+			await Bun.sleep(0);
+		}
+
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBe(2);
+		const secondParams = calls.at(1)?.[0] as { text: string } | undefined;
+		expect(secondParams?.text).not.toContain("original question");
+		expect(secondParams?.text).toContain("follow up");
+
+		runner.stop();
+		secondSessionDone.resolve({ type: "cancelled" });
+	});
 });
 
 // ─── bot 用デバウンス延長 ─────────────────────────────────────────
