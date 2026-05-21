@@ -240,7 +240,14 @@ export interface OpencodePromptParams {
 	system?: string;
 	tools?: Record<string, boolean>;
 	attachments?: Attachment[];
+	onActivity?: (activity: OpencodeSessionActivity) => void;
 }
+
+export type OpencodeSessionActivity = {
+	type: "tool";
+	tool: string;
+	status: "running" | "completed" | "error";
+};
 
 export type OpencodeSessionEvent =
 	| { type: "idle"; tokens?: TokenUsage }
@@ -268,7 +275,11 @@ export interface OpencodeSessionPort {
 		params: OpencodePromptParams,
 		signal?: AbortSignal,
 	): Promise<OpencodeSessionEvent>;
-	waitForSessionIdle(sessionId: string, signal?: AbortSignal): Promise<OpencodeSessionEvent>;
+	waitForSessionIdle(
+		sessionId: string,
+		signal?: AbortSignal,
+		onActivity?: (activity: OpencodeSessionActivity) => void,
+	): Promise<OpencodeSessionEvent>;
 	summarizeSession(sessionId: string, model: OpencodeModel): Promise<void>;
 	deleteSession(sessionId: string): Promise<void>;
 	close(): void;

@@ -1,6 +1,11 @@
 import type { Event, EventMessageUpdated, OpencodeClient, Part } from "@opencode-ai/sdk/v2";
 import { withTimeout } from "@vicissitude/shared/functions";
-import type { Logger, OpencodeSessionEvent, TokenUsage } from "@vicissitude/shared/types";
+import type {
+	Logger,
+	OpencodeSessionActivity,
+	OpencodeSessionEvent,
+	TokenUsage,
+} from "@vicissitude/shared/types";
 
 export type AbortableAsyncStream<T> = AsyncIterator<T> & {
 	return?: (value?: unknown) => Promise<IteratorResult<T>>;
@@ -231,6 +236,22 @@ export function sumTokens(tokensByMessage: Map<string, TokenUsage>): TokenUsage 
 		cacheRead += t.cacheRead;
 	}
 	return { input, output, cacheRead };
+}
+
+export function extractPartActivity(
+	event: Event,
+	sessionId: string,
+): OpencodeSessionActivity | null {
+	if (event.type !== "message.part.updated") return null;
+	const { part } = event.properties;
+	if (part.sessionID !== sessionId || part.type !== "tool") return null;
+	const status = part.state.status;
+	if (status !== "running" && status !== "completed" && status !== "error") return null;
+	return {
+		type: "tool",
+		tool: part.tool,
+		status,
+	};
 }
 
 /** message.part.updated イベントからセッション内のアクティビティをログに出す */

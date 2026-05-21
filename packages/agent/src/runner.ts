@@ -16,6 +16,7 @@ import type {
 	ContextBuilderPort,
 	Logger,
 	MetricsCollector,
+	OpencodeSessionActivity,
 	OpencodeSessionEvent,
 	OpencodeSessionPort,
 	SendOptions,
@@ -32,6 +33,7 @@ const DEFAULT_SUMMARY_TIMEOUT_MS = 30_000;
 const MESSAGE_DEBOUNCE_MS = 500;
 const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
+const UNINTERRUPTIBLE_DISCORD_TOOLS = new Set(["discord_send_message", "discord_reply"]);
 
 interface PendingMessage {
 	text: string;
@@ -108,6 +110,7 @@ export class AgentRunner implements AiAgent {
 	private lastPromptScopeId: string | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
 	private hasBotPending = false;
+	private promptHasUninterruptibleSideEffect = false;
 	private activePromptMetrics: ActivePromptMetrics | null = null;
 	private lastPromptMetricLabels: Record<string, string> | null = null;
 
@@ -164,8 +167,14 @@ export class AgentRunner implements AiAgent {
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 
-		// 推論中（sessionWatch が pending）なら中断して旧メッセージを保全
+		// 推論中（sessionWatch が pending）なら中断して旧メッセージを保全。
+		// ただし Discord 送信系 tool が開始済みなら、外部副作用が巻き戻せないため
+		// 現在の turn を最後まで待ち、新着は次 turn に回す。
 		if (this.sessionWatch) {
+			if (this.promptHasUninterruptibleSideEffect) {
+				this.ensurePolling();
+				return Promise.resolve({ text: "", sessionId: "queued" });
+			}
 			if (this.lastPromptText !== null) {
 				this.pendingMessages.unshift({
 					text: this.lastPromptText,
@@ -174,10 +183,7 @@ export class AgentRunner implements AiAgent {
 					scopeId: this.lastPromptScopeId ?? undefined,
 				});
 			}
-			this.lastPromptText = null;
-			this.lastPromptAttachments = null;
-			this.lastPromptTrigger = null;
-			this.lastPromptScopeId = null;
+			this.clearLastPrompt();
 			this.sessionAbortController?.abort();
 		}
 
@@ -284,10 +290,8 @@ export class AgentRunner implements AiAgent {
 					// runner stop による中断
 					if (signal.aborted) return;
 					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
-					this.lastPromptText = null;
-					this.lastPromptAttachments = null;
-					this.lastPromptTrigger = null;
-					this.lastPromptScopeId = null;
+					this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
 					this.sessionAbortController = null;
 					resetBackoffState();
 					continue;
@@ -301,6 +305,8 @@ export class AgentRunner implements AiAgent {
 						}),
 					);
 					this.finalizePromptMetrics("deleted");
+					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
 					resetBackoffState();
@@ -328,12 +334,20 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
-					this.lastPromptText = null;
-					this.lastPromptAttachments = null;
-					this.lastPromptTrigger = null;
-					this.lastPromptScopeId = null;
+					this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
+					await this.sleep(IDLE_COOLDOWN_MS);
+					continue;
+				}
+
+				if (this.promptHasUninterruptibleSideEffect) {
+					this.finalizePromptMetrics("error");
+					this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
+					resetBackoffState();
+					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
 					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
 				}
@@ -401,6 +415,14 @@ export class AgentRunner implements AiAgent {
 					}),
 				);
 				this.finalizePromptMetrics("error");
+				if (this.promptHasUninterruptibleSideEffect) {
+					this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
+					resetBackoffState();
+					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
+					await this.sleep(IDLE_COOLDOWN_MS);
+					continue;
+				}
 				// 例外時は retryable 不明のため retryable:true 扱いのバックオフ
 				this.retryAttempt += 1;
 				this.metrics?.incrementCounter(
@@ -473,6 +495,7 @@ export class AgentRunner implements AiAgent {
 		this.abortController?.abort();
 		this.abortController = null;
 		this.sessionWatch = null;
+		this.promptHasUninterruptibleSideEffect = false;
 		this.sessionPort.close();
 	}
 
@@ -484,7 +507,26 @@ export class AgentRunner implements AiAgent {
 			return;
 		}
 		this.logger.info(`[${this.profile.name}:${this.agentId}] re-watching event stream`);
-		this.sessionWatch = this.sessionPort.waitForSessionIdle(sessionId, signal);
+		this.sessionWatch = this.sessionPort.waitForSessionIdle(sessionId, signal, (activity) =>
+			this.handleSessionActivity(activity),
+		);
+	}
+
+	private handleSessionActivity(activity: OpencodeSessionActivity): void {
+		if (
+			activity.type === "tool" &&
+			activity.status === "running" &&
+			UNINTERRUPTIBLE_DISCORD_TOOLS.has(activity.tool)
+		) {
+			this.promptHasUninterruptibleSideEffect = true;
+		}
+	}
+
+	private clearLastPrompt(): void {
+		this.lastPromptText = null;
+		this.lastPromptAttachments = null;
+		this.lastPromptTrigger = null;
+		this.lastPromptScopeId = null;
 	}
 
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
@@ -566,6 +608,7 @@ export class AgentRunner implements AiAgent {
 
 		this.sessionAbortController = new AbortController();
 		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
+		this.promptHasUninterruptibleSideEffect = false;
 		this.startPromptMetrics(trigger, scopeId);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
@@ -577,6 +620,7 @@ export class AgentRunner implements AiAgent {
 				},
 				system,
 				attachments: attachments.length > 0 ? attachments : undefined,
+				onActivity: (activity) => this.handleSessionActivity(activity),
 			},
 			combinedSignal,
 		);

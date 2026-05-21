@@ -2,6 +2,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import type { OpencodeSessionActivity } from "@vicissitude/shared/types";
 
 import { OpencodeSessionAdapter } from "./session-adapter.ts";
 type AbortListener = (...args: unknown[]) => void;
@@ -268,6 +269,87 @@ describe("OpencodeSessionAdapter", () => {
 		await expect(watch).resolves.toEqual({ type: "cancelled" });
 		expect(client.session.abort).toHaveBeenCalledWith({ sessionID: "session-1" });
 		expect(streamState.returnMock).toHaveBeenCalled();
+	});
+
+	test("promptAsyncAndWatchSession は tool activity を callback に通知する", async () => {
+		const streamState = createStream();
+		const client = createClient(streamState.stream);
+		const adapter = createAdapter(client as unknown as OpencodeClient);
+		const activities: OpencodeSessionActivity[] = [];
+		const onActivity = (activity: OpencodeSessionActivity) => {
+			activities.push(activity);
+		};
+
+		const watch = adapter.promptAsyncAndWatchSession({
+			sessionId: "session-1",
+			text: "watch",
+			model: { providerId: "provider", modelId: "model" },
+			onActivity,
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		streamState.push({
+			type: "message.part.updated",
+			properties: {
+				part: {
+					sessionID: "session-1",
+					type: "tool",
+					tool: "discord_send_message",
+					state: { status: "running" },
+				},
+			},
+		} as unknown as Event);
+		await Bun.sleep(0);
+		streamState.push({
+			type: "session.idle",
+			properties: { sessionID: "session-1" },
+		} as unknown as Event);
+
+		await expect(watch).resolves.toEqual({ type: "idle", tokens: undefined });
+		expect(activities).toContainEqual({
+			type: "tool",
+			tool: "discord_send_message",
+			status: "running",
+		});
+	});
+
+	test("waitForSessionIdle は tool activity を callback に通知する", async () => {
+		const streamState = createStream();
+		const client = createClient(streamState.stream);
+		const adapter = createAdapter(client as unknown as OpencodeClient);
+		const activities: OpencodeSessionActivity[] = [];
+		const onActivity = (activity: OpencodeSessionActivity) => {
+			activities.push(activity);
+		};
+
+		const watch = adapter.waitForSessionIdle("session-1", undefined, onActivity);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		streamState.push({
+			type: "message.part.updated",
+			properties: {
+				part: {
+					sessionID: "session-1",
+					type: "tool",
+					tool: "discord_reply",
+					state: { status: "running" },
+				},
+			},
+		} as unknown as Event);
+		await Bun.sleep(0);
+		streamState.push({
+			type: "session.idle",
+			properties: { sessionID: "session-1" },
+		} as unknown as Event);
+
+		await expect(watch).resolves.toEqual({ type: "idle", tokens: undefined });
+		expect(activities).toContainEqual({
+			type: "tool",
+			tool: "discord_reply",
+			status: "running",
+		});
 	});
 
 	test("promptAsyncAndWatchSession は session と同じ directory のイベントを購読する", async () => {
