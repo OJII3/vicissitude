@@ -342,16 +342,6 @@ export class AgentRunner implements AiAgent {
 					continue;
 				}
 
-				if (this.promptHasUninterruptibleSideEffect) {
-					this.finalizePromptMetrics("error");
-					this.clearLastPrompt();
-					this.promptHasUninterruptibleSideEffect = false;
-					resetBackoffState();
-					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
-					await this.sleep(IDLE_COOLDOWN_MS);
-					continue;
-				}
-
 				// --- error イベントのエラー戦略 ---
 				if (event.retryable === false) {
 					// retryable:false: 即時ローテーション（バックオフなし）
@@ -362,9 +352,21 @@ export class AgentRunner implements AiAgent {
 						}),
 					);
 					this.finalizePromptMetrics("error");
+					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
 					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
 					await this.forceSessionRotation({ skipSummary: true });
 					resetBackoffState();
+					continue;
+				}
+
+				if (this.promptHasUninterruptibleSideEffect) {
+					this.finalizePromptMetrics("error");
+					this.clearLastPrompt();
+					this.promptHasUninterruptibleSideEffect = false;
+					resetBackoffState();
+					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
+					await this.sleep(IDLE_COOLDOWN_MS);
 					continue;
 				}
 

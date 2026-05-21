@@ -324,6 +324,55 @@ describe("retryable:false の即時ローテーション戦略", () => {
 		session2.resolve({ type: "cancelled" });
 	});
 
+	test("Discord 送信 tool 開始後でも retryable:false は旧プロンプトを再投入せず即時ローテーションする", async () => {
+		const session1 = deferred<OpencodeSessionEvent>();
+		const session2 = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "original question" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const firstCallArgs = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock
+			.calls[0] as unknown[];
+		const firstParams = firstCallArgs[0] as {
+			onActivity?: (activity: { type: "tool"; tool: string; status: "running" }) => void;
+		};
+		firstParams.onActivity?.({
+			type: "tool",
+			tool: "discord_send_message",
+			status: "running",
+		});
+
+		await runner.send({ sessionKey: "k", message: "follow up" });
+		session1.resolve({ type: "error", message: "Bad Request", retryable: false });
+		for (let i = 0; i < 10; i++) {
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.deleteSession).toHaveBeenCalled();
+		const calls = (sessionPort.promptAsyncAndWatchSession as ReturnType<typeof mock>).mock.calls;
+		expect(calls.length).toBeGreaterThanOrEqual(2);
+		const secondParams = calls.at(1)?.[0] as { text: string } | undefined;
+		expect(secondParams?.text).not.toContain("original question");
+		expect(secondParams?.text).toContain("follow up");
+
+		runner.stop();
+		session2.resolve({ type: "cancelled" });
+	});
+
 	test("retryable:false のローテーション後も再エラーで同じロジックが回る（ランナー停止しない）", async () => {
 		const sessions = [
 			deferred<OpencodeSessionEvent>(),
