@@ -197,6 +197,15 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
 - アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（現状は NixOS の Alloy）が `container_tag=vicissitude` の journald ログを `job=vicissitude` として収集し、standalone の monitoring profile では Promtail が同じ `job=vicissitude` へ揃えて転送する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 
+### 3.11 Web UI
+
+`apps/web` はローカルのアバター表示・チャット操作 UI とし、React + Vite で構築する。
+
+- ルーティングは TanStack Router の file-based routing を使い、`apps/web/src/routes/` を正本にする。
+- `apps/web/src/routeTree.gen.ts` は生成物として扱い、手編集せず `generate:routes` で更新する。
+- Vite plugin は TanStack Router plugin を React plugin より前に配置し、ルート生成とコード分割を bundler 側で扱う。
+- 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
+
 ## 4. 非機能要件
 
 - 実行環境はローカル常駐（Bun ランタイム）。
