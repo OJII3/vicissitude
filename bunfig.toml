@@ -1,3 +1,6 @@
 [install]
 peer = false
 linker = "isolated"
+
+[test]
+pathIgnorePatterns = ["data/**"]
