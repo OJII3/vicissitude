@@ -6,7 +6,7 @@ import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-
 import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Logger } from "@vicissitude/shared/types";
 import type { Client, TextChannel } from "discord.js";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const DEFAULT_ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 const ATTACHMENT_ALLOWED_DIRS_ENV = "DISCORD_ATTACHMENT_ALLOWED_DIRS";
@@ -99,7 +99,15 @@ export function registerDiscordTools(
 				file_path: z.string().optional().describe("Path to a file to attach"),
 			},
 		},
-		async ({ channel_id, content, file_path }) => {
+		async ({
+			channel_id,
+			content,
+			file_path,
+		}: {
+			channel_id: string;
+			content: string;
+			file_path?: string;
+		}) => {
 			const channel = await getSendableChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
@@ -129,7 +137,17 @@ export function registerDiscordTools(
 				file_path: z.string().optional().describe("Path to a file to attach"),
 			},
 		},
-		async ({ channel_id, message_id, content, file_path }) => {
+		async ({
+			channel_id,
+			message_id,
+			content,
+			file_path,
+		}: {
+			channel_id: string;
+			message_id: string;
+			content: string;
+			file_path?: string;
+		}) => {
 			const channel = await getSendableChannel(channel_id);
 			if ("sendTyping" in channel) {
 				await channel.sendTyping();
@@ -154,7 +172,15 @@ export function registerDiscordTools(
 			description: "Add a reaction emoji to a message",
 			inputSchema: { channel_id: z.string(), message_id: z.string(), emoji: z.string() },
 		},
-		async ({ channel_id, message_id, emoji }) => {
+		async ({
+			channel_id,
+			message_id,
+			emoji,
+		}: {
+			channel_id: string;
+			message_id: string;
+			emoji: string;
+		}) => {
 			const channel = await getSendableChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			await target.react(emoji);
@@ -168,7 +194,7 @@ export function registerDiscordTools(
 			description: "Read recent messages from a Discord channel",
 			inputSchema: { channel_id: z.string(), limit: z.number().min(1).max(50).default(10) },
 		},
-		async ({ channel_id, limit }) => {
+		async ({ channel_id, limit }: { channel_id: string; limit: number }) => {
 			const channel = await getSendableChannel(channel_id);
 			const messages = await channel.messages.fetch({ limit });
 			const formatted = messages.map((m) => {

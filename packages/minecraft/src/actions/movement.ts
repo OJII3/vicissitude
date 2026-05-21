@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { canPerceiveEntity, findPerceivedBlock } from "../bot-queries.ts";
 import { buildCollectBlockContext, buildGoToContext } from "../error-context.ts";
@@ -126,7 +126,7 @@ export function registerFollowPlayer(
 				range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
 			},
 		},
-		async ({ username, range }) => {
+		async ({ username, range }: { username: string; range: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
@@ -159,7 +159,7 @@ export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobM
 				range: z.number().min(0).default(2).describe("目標地点からの許容距離（デフォルト: 2）"),
 			},
 		},
-		({ x, y, z: zCoord, range }) => {
+		({ x, y, z: zCoord, range }: { x: number; y: number; z: number; range: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
@@ -205,7 +205,15 @@ export function registerCollectBlock(
 				maxDistance: z.number().min(1).default(32).describe("検索範囲（デフォルト: 32）"),
 			},
 		},
-		({ blockName, count, maxDistance }) => {
+		({
+			blockName,
+			count,
+			maxDistance,
+		}: {
+			blockName: string;
+			count: number;
+			maxDistance: number;
+		}) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

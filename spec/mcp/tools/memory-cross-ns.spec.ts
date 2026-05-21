@@ -64,15 +64,15 @@ const guildEpisode1 = makeEpisode({ id: "ge-1", title: "ギルドのエピソー
 
 const internalFact1 = makeFact({
 	id: "if-1",
-	fact: "最近よく聴いている曲はAimer",
+	fact: "最近よく歩く場所は川沿い",
 	category: "interest",
 });
 const internalFact2 = makeFact({
 	id: "if-2",
-	fact: "音楽の好みはJ-POP",
+	fact: "散歩の好みは朝の公園",
 	category: "preference",
 });
-const internalEpisode1 = makeEpisode({ id: "ie-1", title: "音楽聴取ログ" });
+const internalEpisode1 = makeEpisode({ id: "ie-1", title: "散歩ログ" });
 
 // ─── Mock memory services factory ────────────────────────────────
 
@@ -218,7 +218,7 @@ describe("memory_retrieve", () => {
 
 		const result: ToolResult = await handler({
 			scope_id: discordScopeId("999888777"),
-			query: "音楽",
+			query: "散歩",
 		});
 
 		expect(result.isError).toBeUndefined();
@@ -226,8 +226,8 @@ describe("memory_retrieve", () => {
 
 		expect(text).toContain("ギルドのファクト1");
 		expect(text).toContain("ギルドのエピソード1");
-		expect(text).toContain("最近よく聴いている曲はAimer");
-		expect(text).toContain("音楽聴取ログ");
+		expect(text).toContain("最近よく歩く場所は川沿い");
+		expect(text).toContain("散歩ログ");
 	});
 });
 
@@ -242,7 +242,7 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		const handler = handlers.get("memory_retrieve")!;
 		expect(handler).toBeDefined();
 
-		const result: ToolResult = await handler({ query: "音楽" });
+		const result: ToolResult = await handler({ query: "散歩" });
 
 		expect(result.isError).toBeUndefined();
 		const text = result.content[0]!.text;
@@ -252,8 +252,8 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		expect(text).toContain("ギルドのエピソード1");
 
 		// internal の記憶も含まれる
-		expect(text).toContain("最近よく聴いている曲はAimer");
-		expect(text).toContain("音楽聴取ログ");
+		expect(text).toContain("最近よく歩く場所は川沿い");
+		expect(text).toContain("散歩ログ");
 
 		// セクションヘッダーが含まれる
 		expect(text).toContain("## Episodic Memory");
@@ -273,20 +273,20 @@ describe("memory_retrieve: cross-namespace 検索", () => {
 		const handler = handlers.get("memory_retrieve")!;
 		expect(handler).toBeDefined();
 
-		const result: ToolResult = await handler({ query: "音楽" });
+		const result: ToolResult = await handler({ query: "散歩" });
 
 		expect(result.isError).toBeUndefined();
 		const text = result.content[0]!.text;
 
 		// internal のファクトが含まれる
-		expect(text).toContain("最近よく聴いている曲はAimer");
+		expect(text).toContain("最近よく歩く場所は川沿い");
 
 		// 重複していないことを確認（同じファクトが2回出現しない）
-		const aimerOccurrences = text.split("最近よく聴いている曲はAimer").length - 1;
-		expect(aimerOccurrences).toBe(1);
+		const walkOccurrences = text.split("最近よく歩く場所は川沿い").length - 1;
+		expect(walkOccurrences).toBe(1);
 
 		// エピソードの title は1回だけ（summary にも title 文字列が含まれるため title 出現回数で判定）
-		const episodeTitlePattern = /### 音楽聴取ログ/g;
+		const episodeTitlePattern = /### 散歩ログ/g;
 		const episodeTitleMatches = text.match(episodeTitlePattern);
 		expect(episodeTitleMatches?.length ?? 0).toBe(1);
 	});
@@ -387,7 +387,7 @@ describe("memory_get_facts", () => {
 		const text = result.content[0]!.text;
 
 		expect(text).toContain("ギルドのファクト1");
-		expect(text).toContain("最近よく聴いている曲はAimer");
+		expect(text).toContain("最近よく歩く場所は川沿い");
 	});
 });
 
@@ -412,8 +412,8 @@ describe("memory_get_facts: cross-namespace 検索", () => {
 		expect(text).toContain("ギルドのファクト2");
 
 		// internal のファクトも含まれる
-		expect(text).toContain("最近よく聴いている曲はAimer");
-		expect(text).toContain("音楽の好みはJ-POP");
+		expect(text).toContain("最近よく歩く場所は川沿い");
+		expect(text).toContain("散歩の好みは朝の公園");
 	});
 
 	test("category フィルタが internal namespace のファクトにも適用される", async () => {
@@ -434,11 +434,11 @@ describe("memory_get_facts: cross-namespace 検索", () => {
 
 		// interest カテゴリのファクトのみ（guildFact2, internalFact1）
 		expect(text).toContain("ギルドのファクト2");
-		expect(text).toContain("最近よく聴いている曲はAimer");
+		expect(text).toContain("最近よく歩く場所は川沿い");
 
 		// preference カテゴリのファクトは含まれない（guildFact1, internalFact2）
 		expect(text).not.toContain("ギルドのファクト1");
-		expect(text).not.toContain("音楽の好みはJ-POP");
+		expect(text).not.toContain("散歩の好みは朝の公園");
 	});
 
 	test("boundNamespace が internal の場合、結果が重複しない", async () => {
@@ -456,14 +456,14 @@ describe("memory_get_facts: cross-namespace 検索", () => {
 		const text = result.content[0]!.text;
 
 		// internal のファクトが含まれる
-		expect(text).toContain("最近よく聴いている曲はAimer");
-		expect(text).toContain("音楽の好みはJ-POP");
+		expect(text).toContain("最近よく歩く場所は川沿い");
+		expect(text).toContain("散歩の好みは朝の公園");
 
 		// 重複していないことを確認（各ファクトが出力テキストに1回だけ出現する）
-		const lines = text.split("\n").filter((l) => l.includes("最近よく聴いている曲はAimer"));
+		const lines = text.split("\n").filter((l) => l.includes("最近よく歩く場所は川沿い"));
 		expect(lines.length).toBe(1);
 
-		const jpopLines = text.split("\n").filter((l) => l.includes("音楽の好みはJ-POP"));
-		expect(jpopLines.length).toBe(1);
+		const parkLines = text.split("\n").filter((l) => l.includes("散歩の好みは朝の公園"));
+		expect(parkLines.length).toBe(1);
 	});
 });

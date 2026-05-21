@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
 import { Vec3 } from "vec3";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { JobManager } from "../../job-manager.ts";
 import {
@@ -128,7 +128,7 @@ export function registerFindShelter(
 					.describe("ベッド検索範囲（デフォルト: 48）"),
 			},
 		},
-		({ maxDistance }) => {
+		({ maxDistance }: { maxDistance: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

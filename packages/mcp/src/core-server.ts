@@ -3,13 +3,10 @@ import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { GeniusClient } from "@vicissitude/listening/genius-client";
-import { ListeningMemory } from "@vicissitude/listening/listening-memory";
 import type { MemoryReadServices } from "@vicissitude/memory";
 import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
-	INTERNAL_NAMESPACE,
 	migrateLegacyGuildMemoryNamespaces,
 	type MemoryNamespace,
 	resolveMemoryDbDir,
@@ -25,59 +22,9 @@ import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat
 
 import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
-import { registerListeningTools } from "./tools/listening.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { createToolDescriptionRecorder, registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
-import { registerSpotifyTools } from "./tools/spotify.ts";
-
-type CoreServer = Parameters<typeof registerSpotifyTools>[0];
-type CoreLogger = Parameters<typeof registerSpotifyTools>[2];
-
-interface MediaToolEnvironment extends Record<string, string | undefined> {
-	SPOTIFY_CLIENT_ID?: string;
-	SPOTIFY_CLIENT_SECRET?: string;
-	SPOTIFY_REFRESH_TOKEN?: string;
-	SPOTIFY_RECOMMEND_PLAYLIST_ID?: string;
-	GENIUS_ACCESS_TOKEN?: string;
-}
-
-interface MediaToolRegistrars {
-	registerSpotify: typeof registerSpotifyTools;
-	registerListening: (accessToken: string) => void;
-}
-
-function hasValue(value: string | undefined): value is string {
-	return value !== undefined && value.trim().length > 0;
-}
-
-export function registerConfiguredMediaTools(
-	server: CoreServer,
-	env: MediaToolEnvironment,
-	registrars: MediaToolRegistrars,
-	logger?: CoreLogger,
-): void {
-	if (
-		hasValue(env.SPOTIFY_CLIENT_ID) &&
-		hasValue(env.SPOTIFY_CLIENT_SECRET) &&
-		hasValue(env.SPOTIFY_REFRESH_TOKEN)
-	) {
-		registrars.registerSpotify(
-			server,
-			{
-				clientId: env.SPOTIFY_CLIENT_ID,
-				clientSecret: env.SPOTIFY_CLIENT_SECRET,
-				refreshToken: env.SPOTIFY_REFRESH_TOKEN,
-				recommendPlaylistId: env.SPOTIFY_RECOMMEND_PLAYLIST_ID,
-			},
-			logger,
-		);
-	}
-
-	if (hasValue(env.GENIUS_ACCESS_TOKEN)) {
-		registrars.registerListening(env.GENIUS_ACCESS_TOKEN);
-	}
-}
 
 /**
  * core MCP サーバーのエントリポイント（stdio モード）。
@@ -165,35 +112,6 @@ async function main(): Promise<void> {
 		maxSize: 100,
 	});
 	registerMemoryTools(toolServer, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
-
-	registerConfiguredMediaTools(
-		toolServer,
-		process.env,
-		{
-			registerSpotify: registerSpotifyTools,
-			registerListening: (accessToken) => {
-				const geniusClient = new GeniusClient(accessToken);
-				memoryCache.getOrCreate(INTERNAL_NAMESPACE);
-				const internalStorage = memoryCache.getStorage(INTERNAL_NAMESPACE);
-				if (!internalStorage)
-					throw new Error("unreachable: getOrCreate failed to populate memoryCache");
-				const listeningMemory = new ListeningMemory(internalStorage, {
-					embed: (text) => ollama.embed(text),
-				});
-				registerListeningTools(toolServer, {
-					fetchLyrics: (title, artist) => geniusClient.fetchLyrics(title, artist),
-					saveListening: async (record) => {
-						await listeningMemory.saveListening({
-							track: record.track,
-							impression: record.impression,
-							listenedAt: record.listenedAt,
-						});
-					},
-				});
-			},
-		},
-		logger,
-	);
 
 	registerMetaTools(toolServer, toolDescriptions);
 

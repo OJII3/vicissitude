@@ -10,8 +10,6 @@ import type { AppConfig } from "../../apps/discord/src/config.ts";
 
 function makeConfig(
 	overrides: {
-		spotify?: AppConfig["spotify"];
-		genius?: AppConfig["genius"];
 		shellWorkspace?: AppConfig["shellWorkspace"];
 		emotionEstimation?: AppConfig["emotionEstimation"];
 		minecraft?: AppConfig["minecraft"];
@@ -94,70 +92,6 @@ describe("buildCoreEnvironment", () => {
 	it("DATA_DIR は resolve(root, 'data') の値", () => {
 		const result = buildCoreEnvironment(makeConfig(), ROOT);
 		expect(result.DATA_DIR).toBe(resolve(ROOT, "data"));
-	});
-
-	describe("Spotify 環境変数", () => {
-		it("config.spotify が存在する場合は Spotify 環境変数を含む", () => {
-			const config = makeConfig({
-				spotify: {
-					clientId: "sp-id",
-					clientSecret: "sp-secret",
-					refreshToken: "sp-refresh",
-				},
-			});
-			const result = buildCoreEnvironment(config, ROOT);
-			expect(result.SPOTIFY_CLIENT_ID).toBe("sp-id");
-			expect(result.SPOTIFY_CLIENT_SECRET).toBe("sp-secret");
-			expect(result.SPOTIFY_REFRESH_TOKEN).toBe("sp-refresh");
-		});
-
-		it("config.spotify.recommendPlaylistId が存在する場合は SPOTIFY_RECOMMEND_PLAYLIST_ID を含む", () => {
-			const config = makeConfig({
-				spotify: {
-					clientId: "sp-id",
-					clientSecret: "sp-secret",
-					refreshToken: "sp-refresh",
-					recommendPlaylistId: "playlist-123",
-				},
-			});
-			const result = buildCoreEnvironment(config, ROOT);
-			expect(result.SPOTIFY_RECOMMEND_PLAYLIST_ID).toBe("playlist-123");
-		});
-
-		it("config.spotify.recommendPlaylistId が存在しない場合は SPOTIFY_RECOMMEND_PLAYLIST_ID を含まない", () => {
-			const config = makeConfig({
-				spotify: {
-					clientId: "sp-id",
-					clientSecret: "sp-secret",
-					refreshToken: "sp-refresh",
-				},
-			});
-			const result = buildCoreEnvironment(config, ROOT);
-			expect(result).not.toHaveProperty("SPOTIFY_RECOMMEND_PLAYLIST_ID");
-		});
-
-		it("config.spotify が存在しない場合は Spotify 環境変数を含まない", () => {
-			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result).not.toHaveProperty("SPOTIFY_CLIENT_ID");
-			expect(result).not.toHaveProperty("SPOTIFY_CLIENT_SECRET");
-			expect(result).not.toHaveProperty("SPOTIFY_REFRESH_TOKEN");
-			expect(result).not.toHaveProperty("SPOTIFY_RECOMMEND_PLAYLIST_ID");
-		});
-	});
-
-	describe("Genius 環境変数", () => {
-		it("config.genius が存在する場合は GENIUS_ACCESS_TOKEN を含む", () => {
-			const config = makeConfig({
-				genius: { accessToken: "genius-token" },
-			});
-			const result = buildCoreEnvironment(config, ROOT);
-			expect(result.GENIUS_ACCESS_TOKEN).toBe("genius-token");
-		});
-
-		it("config.genius が存在しない場合は GENIUS_ACCESS_TOKEN を含まない", () => {
-			const result = buildCoreEnvironment(makeConfig(), ROOT);
-			expect(result).not.toHaveProperty("GENIUS_ACCESS_TOKEN");
-		});
 	});
 });
 

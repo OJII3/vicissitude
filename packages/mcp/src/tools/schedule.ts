@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AGENT_SCOPE_ID_RE } from "@vicissitude/shared/namespace";
 import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type { HeartbeatReminder } from "@vicissitude/shared/types";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 const scopeIdSchema = z.string().regex(AGENT_SCOPE_ID_RE).describe("Agent scope ID");
 
@@ -65,7 +65,7 @@ function registerReadTools(
 			description: "Set base check interval (minutes)",
 			inputSchema: { minutes: z.number().min(1).describe("Check interval in minutes") },
 		},
-		async ({ minutes }) => {
+		async ({ minutes }: { minutes: number }) => {
 			const config = await configPort.load();
 			config.baseIntervalMinutes = minutes;
 			await configPort.save(config);

@@ -84,11 +84,7 @@ export function rowToFact(row: FactRow): SemanticFact {
 function validateMetadata(data: unknown): SemanticFactMetadata {
 	const record = validateRecord(data, "metadata");
 	const metadata: SemanticFactMetadata = {};
-	if (
-		record["source"] === "consolidation" ||
-		record["source"] === "critic-auditor" ||
-		record["source"] === "listening"
-	) {
+	if (record["source"] === "consolidation" || record["source"] === "critic-auditor") {
 		metadata.source = record["source"];
 	}
 	if (record["guidelineAuthority"] === "audit-candidate") {

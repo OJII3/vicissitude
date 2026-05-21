@@ -119,7 +119,7 @@ function createFileSessionSummaryWriter(
 
 /** core MCP stdio プロセスに渡す環境変数を組み立てる */
 export function buildCoreEnvironment(config: AppConfig, root: string): Record<string, string> {
-	const env: Record<string, string> = {
+	return {
 		PATH: process.env.PATH ?? "",
 		HOME: process.env.HOME ?? "",
 		OLLAMA_BASE_URL: config.memory.ollamaBaseUrl,
@@ -128,21 +128,6 @@ export function buildCoreEnvironment(config: AppConfig, root: string): Record<st
 		MEMORY_DATA_DIR: resolve(config.dataDir, "memory"),
 		DATA_DIR: resolve(root, "data"),
 	};
-
-	if (config.spotify) {
-		env.SPOTIFY_CLIENT_ID = config.spotify.clientId;
-		env.SPOTIFY_CLIENT_SECRET = config.spotify.clientSecret;
-		env.SPOTIFY_REFRESH_TOKEN = config.spotify.refreshToken;
-		if (config.spotify.recommendPlaylistId) {
-			env.SPOTIFY_RECOMMEND_PLAYLIST_ID = config.spotify.recommendPlaylistId;
-		}
-	}
-
-	if (config.genius) {
-		env.GENIUS_ACCESS_TOKEN = config.genius.accessToken;
-	}
-
-	return env;
 }
 
 /** Discord MCP stdio プロセスに渡す環境変数を組み立てる */

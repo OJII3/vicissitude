@@ -3,7 +3,7 @@ import { formatTimestamp } from "@vicissitude/shared/functions";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { EventOrError } from "./event-helpers.ts";
 import {
@@ -15,6 +15,8 @@ import {
 import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
 
 const MAX_REPORT_CHARS = 10_000;
+type ReportImportance = "low" | "medium" | "high" | "critical";
+type ReportCategory = "progress" | "completion" | "stuck" | "danger" | "discovery" | "status";
 
 // ─── formatCommands ──────────────────────────────────────────────
 
@@ -66,7 +68,15 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 					),
 			},
 		},
-		({ message, importance, category }) => {
+		({
+			message,
+			importance,
+			category,
+		}: {
+			message: string;
+			importance: ReportImportance;
+			category: ReportCategory;
+		}) => {
 			const guildId = getSessionLockGuildId(db);
 			if (!guildId) {
 				return {

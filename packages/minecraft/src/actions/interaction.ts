@@ -1,11 +1,12 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import { Vec3 } from "vec3";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { type GetBot, textResult } from "./shared.ts";
 
 const MAX_CHAT_LENGTH = 256;
+type EquipmentDestination = "hand" | "head" | "torso" | "legs" | "feet" | "off-hand";
 
 /** 6 方向の隣接オフセット（上, 下, 東, 西, 南, 北） */
 const FACE_VECTORS: Vec3[] = [
@@ -50,7 +51,7 @@ export function registerSendChat(server: McpServer, getBot: GetBot): void {
 					.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字、"/" 始まり禁止）`),
 			},
 		},
-		({ message }) => {
+		({ message }: { message: string }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 			if (message.startsWith("/")) return textResult("コマンド送信は許可されていません");
@@ -73,7 +74,7 @@ export function registerEquipItem(server: McpServer, getBot: GetBot): void {
 					.describe("装備先（デフォルト: hand）"),
 			},
 		},
-		async ({ itemName, destination }) => {
+		async ({ itemName, destination }: { itemName: string; destination: EquipmentDestination }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
@@ -100,7 +101,17 @@ export function registerPlaceBlock(server: McpServer, getBot: GetBot): void {
 				z: z.number().int().describe("設置先の Z 座標"),
 			},
 		},
-		async ({ blockName, x, y, z: zCoord }) => {
+		async ({
+			blockName,
+			x,
+			y,
+			z: zCoord,
+		}: {
+			blockName: string;
+			x: number;
+			y: number;
+			z: number;
+		}) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

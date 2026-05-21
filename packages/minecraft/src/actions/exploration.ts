@@ -1,7 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import type { JobManager } from "../job-manager.ts";
 import {
@@ -61,7 +61,7 @@ export function registerSearchForBlock(
 					.describe("最大探索半径（デフォルト: 128）"),
 			},
 		},
-		({ blockName, maxRadius }) => {
+		({ blockName, maxRadius }: { blockName: string; maxRadius: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 			const blockType = bot.registry.blocksByName[blockName];
@@ -111,7 +111,13 @@ export function registerExploreDirection(
 				distance: z.number().min(16).max(256).default(100).describe("移動距離（デフォルト: 100）"),
 			},
 		},
-		({ direction, distance }) => {
+		({
+			direction,
+			distance,
+		}: {
+			direction?: "north" | "south" | "east" | "west";
+			distance: number;
+		}) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

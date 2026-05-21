@@ -88,12 +88,6 @@ MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツー�
 | ゲーム操作   | minecraft       | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                         |
 | ゲーム通信   | mc-bridge       | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                        |
 | ゲーム記憶   | mc-bridge       | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill    |
-| 選曲         | core            | core_spotify_pick_track                                                                                                                                              |
-| 楽曲検索     | core            | core_spotify_search                                                                                                                                                  |
-| お気に入り   | core            | core_spotify_saved_tracks                                                                                                                                            |
-| 楽曲詳細     | core            | core_spotify_track_detail                                                                                                                                            |
-| 歌詞取得     | core            | core_fetch_lyrics                                                                                                                                                    |
-| 聴取記録     | core            | core_save_listening_fact                                                                                                                                             |
 | メタ         | core            | core_list_tools                                                                                                                                                      |
 
 OpenCode SDK 組み込み: `webfetch`
@@ -163,24 +157,12 @@ guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が�
 | 運用ルール                         | MEMORY.md           | 開発者が設定する行動指示     |
 | 精選教訓（原則）                   | LESSONS.md          | 複数経験から一般化。手動管理 |
 
-### 3.8 音楽の理解・記憶
-
-- 聴取対象は Spotify 連携で選曲された楽曲（`SpotifyTrack`）。
-- 歌詞取得: Genius API を使用。歌詞が取得できない楽曲もあるため、歌詞 null でも動作する。
-- 楽曲理解: Spotify メタ情報（ジャンル、人気度、リリース日）に加え、LLM が曲名・アーティスト・歌詞から以下を推測する。
-  - ボーカル性別（`male` / `female` / `mixed` / `unknown`）
-  - タイアップ情報（アニメ主題歌等、なければ null）
-  - 曲の雰囲気・テーマ（複数の短いタグ）
-  - 楽曲の短い要約
-- 感想保存: 聴いた楽曲について LLM が感想を生成し、`SemanticFact`（category = `experience`）として Memory の internal namespace に保存する。曲名・アーティスト名を keywords に含め、既存の `memory_retrieve` / `memory_get_facts` で引き出せる。
-- 保存先 namespace: `INTERNAL_NAMESPACE` + `HUA_SELF_SUBJECT`（ふあ自身の体験として記録、ギルド横断で参照可能）。
-
-### 3.9 エラー応答
+### 3.8 エラー応答
 
 - AI 呼び出し失敗時は、エラーメッセージを reply で返す。
 - 失敗内容はログに記録する。
 
-### 3.10 オブザーバビリティ
+### 3.9 オブザーバビリティ
 
 AI エージェントとチャットボットのメトリクスは、複数 scope と複数種類のエージェントを同じ Prometheus/Grafana 上で比較・分解できるようにする。
 
@@ -197,7 +179,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
 - アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（現状は NixOS の Alloy）が `container_tag=vicissitude` の journald ログを `job=vicissitude` として収集し、standalone の monitoring profile では Promtail が同じ `job=vicissitude` へ揃えて転送する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 
-### 3.11 Web UI
+### 3.10 Web UI
 
 `apps/web` はローカルのアバター表示・チャット操作 UI とし、React + Vite で構築する。
 
@@ -213,14 +195,12 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 
 ## 5. 設定要件
 
-設定の正本は `config/*.json` の JSON profile とし、起動時に `VICISSITUDE_CONFIG_PATH` で指定する。モデル、ポート、feature 有効化、Minecraft、TTS、Spotify 推薦プレイリストなどの非 secret 設定は profile に書く。
+設定の正本は `config/*.json` の JSON profile とし、起動時に `VICISSITUDE_CONFIG_PATH` で指定する。モデル、ポート、feature 有効化、Minecraft、TTS などの非 secret 設定は profile に書く。
 
 `.env` は secret と profile path だけに薄く保つ。
 
 - `VICISSITUDE_CONFIG_PATH`: 必須。例: `config/default.json`
 - `DISCORD_TOKEN`: 必須
-- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`: `features.spotify` 設定時に必須
-- `GENIUS_ACCESS_TOKEN`: `features.genius` 設定時に必須
 - `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
 - `HUA_GITHUB_TOKEN`: `features.shellWorkspace.environment` など profile の `fromEnv` 参照で指定した場合に必須
 

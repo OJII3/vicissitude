@@ -1,6 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import pathfinderPkg from "mineflayer-pathfinder";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { findPerceivedEntityByName } from "../../bot-queries.ts";
 import type { JobManager } from "../../job-manager.ts";
@@ -37,7 +37,7 @@ export function registerFleeFromEntity(
 					.describe("逃走距離（デフォルト: 32ブロック）"),
 			},
 		},
-		async ({ entityName, distance }) => {
+		async ({ entityName, distance }: { entityName: string; distance: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

@@ -3,7 +3,7 @@ import type { Logger } from "@vicissitude/shared/types";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
 import type { Recipe } from "prismarine-recipe";
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { buildCraftItemContext, buildSleepContext } from "../error-context.ts";
 import type { JobManager } from "../job-manager.ts";
@@ -147,7 +147,7 @@ export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager:
 					.describe(`クラフト個数（デフォルト: 1、最大: ${String(MAX_CRAFT_COUNT)}）`),
 			},
 		},
-		({ itemName, count }) => {
+		({ itemName, count }: { itemName: string; count: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 
@@ -187,7 +187,7 @@ export function registerSleepInBed(
 					.describe("ベッド検索範囲（デフォルト: 32、最大: 64）"),
 			},
 		},
-		({ maxDistance }) => {
+		({ maxDistance }: { maxDistance: number }) => {
 			const bot = getBot();
 			if (!bot?.entity) return textResult("ボット未接続");
 

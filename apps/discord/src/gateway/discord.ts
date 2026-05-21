@@ -1,14 +1,7 @@
 import { mapAttachments } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
 import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
-import {
-	ActivityType,
-	Client,
-	Events,
-	GatewayIntentBits,
-	type Message,
-	Partials,
-} from "discord.js";
+import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
@@ -88,12 +81,6 @@ export class DiscordGateway {
 	stop(): void {
 		void this.client?.destroy();
 		this.client = null;
-	}
-
-	setListeningActivity(trackName: string): void {
-		const user = this.client?.user;
-		if (!user) return;
-		user.setActivity(trackName, { type: ActivityType.Listening });
 	}
 
 	clearActivity(): void {

@@ -168,12 +168,12 @@ describe("resolveNamespaceFromAgentId", () => {
 		expect(resolveNamespaceFromAgentId("discord:../malicious")).toBeNull();
 	});
 
-	it("'discord:listening:{guildId}'（廃止されたロール）は null を返す", () => {
-		expect(resolveNamespaceFromAgentId("discord:listening:123456789")).toBeNull();
+	it("'discord:legacy:{guildId}'（廃止されたロール）は null を返す", () => {
+		expect(resolveNamespaceFromAgentId("discord:legacy:123456789")).toBeNull();
 	});
 
-	it("'internal:listening' を INTERNAL_NAMESPACE に解決する", () => {
-		expect(resolveNamespaceFromAgentId("internal:listening")).toEqual(INTERNAL_NAMESPACE);
+	it("'internal:maintenance' を INTERNAL_NAMESPACE に解決する", () => {
+		expect(resolveNamespaceFromAgentId("internal:maintenance")).toEqual(INTERNAL_NAMESPACE);
 	});
 
 	it("'internal:any-suffix' を INTERNAL_NAMESPACE に解決する", () => {
@@ -220,7 +220,7 @@ describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）",
 	});
 
 	it("internal agent_id → boundNamespace は INTERNAL_NAMESPACE, boundScopeId は undefined", () => {
-		const ns = resolveNamespaceFromAgentId("internal:listening");
+		const ns = resolveNamespaceFromAgentId("internal:maintenance");
 		expect(ns).not.toBeNull();
 		const boundNamespace = ns ?? undefined;
 		const boundScopeId = ns?.surface === "agent-scope" ? ns.scopeId : undefined;

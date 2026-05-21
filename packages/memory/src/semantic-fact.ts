@@ -1,6 +1,6 @@
 import type { FactCategory } from "./types.ts";
 
-export type SemanticFactSource = "consolidation" | "critic-auditor" | "listening";
+export type SemanticFactSource = "consolidation" | "critic-auditor";
 
 export interface SemanticFactMetadata {
 	source?: SemanticFactSource;

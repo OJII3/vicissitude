@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 import type { Logger } from "@vicissitude/shared/types";
-import { ActivityType, Events } from "discord.js";
+import { Events } from "discord.js";
 
 import { DiscordGateway } from "../../apps/discord/src/gateway/discord";
 
@@ -72,10 +72,6 @@ describe("DiscordGateway — プレゼンス表示 API 契約", () => {
 	});
 
 	describe("client 未起動時（getClient() が null）", () => {
-		it("setListeningActivity は no-op（例外を投げない）", () => {
-			expect(() => gateway.setListeningActivity("夜に駆ける - YOASOBI")).not.toThrow();
-		});
-
 		it("clearActivity は no-op（例外を投げない）", () => {
 			expect(() => gateway.clearActivity()).not.toThrow();
 		});
@@ -86,31 +82,11 @@ describe("DiscordGateway — プレゼンス表示 API 契約", () => {
 			await gateway.start();
 		});
 
-		it("setListeningActivity が client.user.setActivity を ActivityType.Listening で呼ぶ", () => {
-			gateway.setListeningActivity("夜に駆ける - YOASOBI");
-
-			const setActivity = currentMockClient?.user.setActivity;
-			expect(setActivity).toHaveBeenCalled();
-			// 第2引数のオプションに ActivityType.Listening が含まれる
-			const call = (setActivity?.mock.calls[0] ?? []) as unknown[];
-			expect(call[0]).toBe("夜に駆ける - YOASOBI");
-			const opts = call[1] as { type?: number } | undefined;
-			expect(opts?.type).toBe(ActivityType.Listening);
-		});
-
 		it("clearActivity が client.user.setActivity を引数なし/null で呼ぶ（プレゼンスクリア）", () => {
 			gateway.clearActivity();
 
 			const setActivity = currentMockClient?.user.setActivity;
 			expect(setActivity).toHaveBeenCalled();
-		});
-
-		it("setListeningActivity を連続して呼ぶと毎回 setActivity が呼ばれる", () => {
-			gateway.setListeningActivity("曲A - アーティストA");
-			gateway.setListeningActivity("曲B - アーティストB");
-
-			const setActivity = currentMockClient?.user.setActivity;
-			expect(setActivity).toHaveBeenCalledTimes(2);
 		});
 	});
 });
