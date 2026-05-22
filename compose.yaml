@@ -14,6 +14,7 @@ volumes:
   ollama-data:
   bot-node-modules:
   bot-dist:
+  web-dist:
   prometheus-data:
   loki-data:
   promtail-positions:
@@ -36,7 +37,7 @@ services:
       - ./apps:/app/apps:ro
       - ./scripts:/app/scripts:ro
       - bot-node-modules:/app/node_modules
-    command: ["bun", "install", "--frozen-lockfile", "--production"]
+    command: ["bun", "install", "--frozen-lockfile"]
     restart: "no"
 
   # Step 2: bun build (バンドル)
@@ -46,10 +47,14 @@ services:
     volumes:
       - ./packages:/app/packages:ro
       - ./apps:/app/apps:ro
+      - ./package.json:/app/package.json:ro
+      - ./bun.lock:/app/bun.lock:ro
+      - ./bunfig.toml:/app/bunfig.toml:ro
       - ./tsconfig.json:/app/tsconfig.json:ro
       - ./tsconfig.base.json:/app/tsconfig.base.json:ro
       - bot-node-modules:/app/node_modules:ro
       - bot-dist:/app/dist
+      - web-dist:/app/apps/web/dist
     command:
       - sh
       - -c
@@ -60,7 +65,9 @@ services:
         bun build packages/mcp/src/code-exec-server.ts --outfile dist/code-exec-server.js --target bun --packages external &&
         bun build packages/mcp/src/shell-workspace-server.ts --outfile dist/shell-workspace-server.js --target bun --packages external &&
         bun build packages/minecraft/src/server.ts --outfile dist/minecraft-server.js --target bun --packages external &&
-        bun build packages/minecraft/src/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external
+        bun build packages/minecraft/src/mc-bridge-server.ts --outfile dist/mc-bridge-server.js --target bun --packages external &&
+        cd apps/web &&
+        TANSTACK_ROUTE_GENERATION=false bun run build
     depends_on:
       installer:
         condition: service_completed_successfully
@@ -104,6 +111,30 @@ services:
       ollama:
         condition: service_healthy
     command: ["xvfb-run", "-a", "bun", "run", "dist/index.js"]
+
+  web:
+    <<: *bot-base
+    container_name: vicissitude-web
+    init: true
+    environment:
+      WEB_DIST_DIR: /app/apps/web/dist
+      WEB_PORT: ${WEB_PORT:-4000}
+    ports:
+      - "0.0.0.0:${WEB_PORT:-4000}:${WEB_PORT:-4000}"
+    volumes:
+      - web-dist:/app/apps/web/dist:ro
+      - ./scripts:/app/scripts:ro
+    networks:
+      - vicissitude-net
+    logging:
+      driver: journald
+      options:
+        tag: vicissitude-web
+    restart: unless-stopped
+    depends_on:
+      builder:
+        condition: service_completed_successfully
+    command: ["bun", "run", "scripts/serve-web.ts"]
 
   prometheus:
     container_name: vicissitude-prometheus
