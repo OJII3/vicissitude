@@ -1,0 +1,3 @@
+[shell_environment_policy]
+inherit = "all"
+ignore_default_excludes = true
