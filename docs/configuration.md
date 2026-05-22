@@ -16,6 +16,8 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 生成 compose override は root `package.json` の workspaces から各 workspace の `node_modules` volume も生成する。`installer` が isolated linker 用 symlink を書き込み、`builder` と `bot` は同じ volume を read-only で読む。これにより `packages` / `apps` の source bind mount は read-only のまま維持し、deploy 時にホストの workspace 配下を更新しない。
 
+`nr deploy` は `apps/web` も compose スタック内で扱う。`installer` は Web UI の Vite build に必要な devDependencies も含めて依存関係を解決し、`builder` は bot/MCP の Bun bundle に加えて `apps/web` を build する。Web build 成果物は `web-dist` volume に出力し、`web` サービスが `WEB_PORT`（既定値 `4000`）で静的配信する。
+
 ## 形式
 
 profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。`loadConfig` は profile を必須とし、旧 env 由来の非 secret 設定は読み込まない。

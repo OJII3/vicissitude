@@ -8,6 +8,8 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 `nr deploy` は本番 checkout の stale deploy を防ぐため、実行前に `origin/main` を更新し、現在のブランチが `main` で、`HEAD` が `origin/main` と一致しており、作業ツリーが clean であることを検証する。一致しない場合や未コミット変更がある場合は deploy を中止する。
 
+`nr deploy` は Discord bot と同じ compose スタック内で Web UI もビルド・配信する。`apps/web` の Vite build 成果物は `web-dist` volume に出力され、`web` サービスが `ports.web` の既定値である `4000` 番を公開して静的配信する。
+
 ## コンセプト
 
 そこで生きているかような自然な存在、AITuber もどきを作る。ただし、特段バーチャルにこだわらない。当面はDiscordが本拠地。
@@ -187,6 +189,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `apps/web/src/routeTree.gen.ts` は生成物として扱い、手編集せず `generate:routes` で更新する。
 - Vite plugin は TanStack Router plugin を React plugin より前に配置し、ルート生成とコード分割を bundler 側で扱う。
 - 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
+- 本番 deploy では `nr deploy` の compose スタックに含まれる `web` サービスで静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
 
 ## 4. 非機能要件
 
