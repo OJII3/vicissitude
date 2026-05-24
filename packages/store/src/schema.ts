@@ -35,6 +35,19 @@ export const moodState = sqliteTable("mood_state", {
 	updatedAt: integer("updated_at").notNull(),
 });
 
+/** 感情推定 provider/model cooldown テーブル */
+export const emotionProviderCooldown = sqliteTable(
+	"emotion_provider_cooldown",
+	{
+		providerId: text("provider_id").notNull(),
+		modelId: text("model_id").notNull(),
+		untilMs: integer("until_ms").notNull(),
+		reason: text("reason").notNull(),
+		updatedAt: integer("updated_at").notNull(),
+	},
+	(table) => [primaryKey({ columns: [table.providerId, table.modelId] })],
+);
+
 /** エージェントハートビートテーブル（MCP wait_for_events の生存シグナル） */
 export const agentHeartbeat = sqliteTable("agent_heartbeat", {
 	agentId: text("agent_id").primaryKey(),

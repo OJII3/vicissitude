@@ -3,6 +3,8 @@ import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { EmotionAnalyzer, LlmPromptPort } from "@vicissitude/shared/ports";
 import type { Logger, OpencodeModel, OpencodeSessionPort } from "@vicissitude/shared/types";
+import type { StoreDb } from "@vicissitude/store/db";
+import { SqliteEmotionProviderCooldownStore } from "@vicissitude/store/emotion-provider-cooldown-store";
 
 import {
 	createEmotionAnalyzerFromPromptPort,
@@ -53,7 +55,7 @@ export function readEmotionEstimationConfigFromEnv(
 export function createEmotionAnalyzer(
 	config: EmotionEstimationConfig | undefined,
 	logger: Logger,
-	options: EmotionAnalyzerOptions = {},
+	options: EmotionAnalyzerOptions,
 ): EmotionAnalyzerHandle | undefined {
 	if (!config) return;
 
@@ -67,6 +69,18 @@ export function createEmotionAnalyzer(
 			}
 		},
 	};
+}
+
+export function createEmotionAnalyzerWithStoreDb(
+	config: EmotionEstimationConfig | undefined,
+	logger: Logger,
+	db: StoreDb,
+	options: Omit<EmotionAnalyzerOptions, "cooldownStore"> = {},
+): EmotionAnalyzerHandle | undefined {
+	return createEmotionAnalyzer(config, logger, {
+		...options,
+		cooldownStore: new SqliteEmotionProviderCooldownStore(db),
+	});
 }
 
 function createEmotionPromptPort(config: EmotionEstimationConfig, logger: Logger): LlmPromptPort {

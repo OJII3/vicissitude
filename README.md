@@ -177,7 +177,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
   - `trigger`: `home`, `mention`, `heartbeat`, `minecraft`, `mixed`, `unknown`。
   - `provider`, `model`: 使用した LLM provider/model。
 - セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どの scope・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
-- 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、再投入を `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
+- 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、共有 store に保存して MCP プロセス境界をまたいだ再投入を抑制する。抑制時は `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
 - アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（現状は NixOS の Alloy）が `container_tag=vicissitude` の journald ログを `job=vicissitude` として収集し、standalone の monitoring profile では Promtail が同じ `job=vicissitude` へ揃えて転送する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 

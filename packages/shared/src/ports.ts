@@ -47,6 +47,24 @@ export interface EmotionAnalyzer {
 	analyze(input: EmotionAnalysisInput): Promise<EmotionAnalysisResult>;
 }
 
+/** 感情推定 provider/model の cooldown キー */
+export interface EmotionProviderCooldownKey {
+	readonly providerId: string;
+	readonly modelId: string;
+}
+
+/** 感情推定 provider/model の cooldown 状態 */
+export interface EmotionProviderCooldown {
+	readonly untilMs: number;
+	readonly reason: string;
+}
+
+/** 感情推定 provider/model cooldown の共有ストア */
+export interface EmotionProviderCooldownStore {
+	getCooldown(key: EmotionProviderCooldownKey, nowMs: number): EmotionProviderCooldown | null;
+	setCooldown(key: EmotionProviderCooldownKey, cooldown: EmotionProviderCooldown): void;
+}
+
 // ─── MoodStore ─────────────────────────────────────────────────
 //
 // 感情状態（VAD）の永続化ポート。

@@ -8,6 +8,7 @@
 		"./schema": "./src/schema.ts",
 		"./mc-bridge": "./src/mc-bridge.ts",
 		"./mood-store": "./src/mood-store.ts",
+		"./emotion-provider-cooldown-store": "./src/emotion-provider-cooldown-store.ts",
 		"./test-helpers": "./src/test-helpers.ts"
 	},
 	"dependencies": {
