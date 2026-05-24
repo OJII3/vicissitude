@@ -9,7 +9,11 @@ import {
 	extractIdentityName,
 	type ContextFileName,
 } from "@vicissitude/agent/discord/context-builder";
-import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
+import {
+	agentScopeNamespace,
+	discordDmScopeId,
+	discordScopeId,
+} from "@vicissitude/shared/namespace";
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
@@ -158,6 +162,20 @@ describe("ContextBuilder", () => {
 
 			expect(result).toContain("<MEMORY.md>");
 			expect(result).toContain("web local memory");
+			expect(result).not.toContain("<guild-context>");
+		});
+
+		it("Discord DM scope では scopes/{encodedScopeId} の固有ファイルと dm-context が読み込まれる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(overlayDir, "scopes/discord%3Adm%3A999888777/MEMORY.md", "dm memory");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build(discordDmScopeId("999888777"));
+
+			expect(result).toContain("<MEMORY.md>");
+			expect(result).toContain("dm memory");
+			expect(result).toContain("<dm-context>");
+			expect(result).toContain("current_dm_user_id: 999888777");
 			expect(result).not.toContain("<guild-context>");
 		});
 	});

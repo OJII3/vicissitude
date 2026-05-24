@@ -1,7 +1,11 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
-import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
+import {
+	agentScopeNamespace,
+	discordDmScopeId,
+	discordScopeId,
+} from "@vicissitude/shared/namespace";
 import type { ConversationRecorder, IncomingMessage } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../test-helpers.ts";
@@ -28,14 +32,14 @@ function createMockMessage(overrides: Partial<IncomingMessage> = {}): IncomingMe
 }
 
 describe("MessageIngestionService", () => {
-	test("guildId がなければ warn を出して dropped を返す", async () => {
+	test("scopeId を解決できなければ warn を出して dropped を返す", async () => {
 		const logger = createMockLogger();
 		const service = new MessageIngestionService({ logger });
 
 		const result = await service.handleIncomingMessage(createMockMessage({ guildId: undefined }));
 
 		expect(logger.warn).toHaveBeenCalledTimes(1);
-		expect(result).toEqual({ status: "dropped", reason: "missing_guild_id" });
+		expect(result).toEqual({ status: "dropped", reason: "missing_scope_id" });
 	});
 
 	test("recorder があれば会話記録を行う", async () => {
@@ -94,6 +98,34 @@ describe("MessageIngestionService", () => {
 				name: "hua-bot",
 			}),
 		);
+	});
+
+	test("DM scopeId があれば DM 専用 namespace に会話記録する", async () => {
+		const recorder: ConversationRecorder = {
+			record: mock(() => Promise.resolve()),
+		};
+		const logger = createMockLogger();
+		const service = new MessageIngestionService({ logger, recorder });
+
+		const result = await service.handleIncomingMessage(
+			createMockMessage({
+				guildId: undefined,
+				scopeId: discordDmScopeId("999888777"),
+				channelName: "DM",
+				content: "dm hello",
+			}),
+			{ recordConversation: true },
+		);
+
+		expect(recorder.record).toHaveBeenCalledTimes(1);
+		expect(recorder.record).toHaveBeenCalledWith(
+			agentScopeNamespace(discordDmScopeId("999888777")),
+			expect.objectContaining({
+				role: "user",
+				content: "dm hello",
+			}),
+		);
+		expect(result).toEqual({ status: "accepted", recorded: true });
 	});
 
 	test("recordConversation 未指定なら Memory 記録しない", async () => {

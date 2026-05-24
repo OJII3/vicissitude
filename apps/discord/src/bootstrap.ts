@@ -29,6 +29,8 @@ import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	agentScopeNamespace,
+	discordDmScopeId,
+	discordDmUserIdFromScopeId,
 	discordGuildIdFromScopeId,
 	discordScopeId,
 	HUA_SELF_SUBJECT,
@@ -130,13 +132,12 @@ function createFileSessionSummaryWriter(
 	return {
 		async write(scopeId: string, content: string): Promise<void> {
 			const guildId = discordGuildIdFromScopeId(scopeId);
-			if (!guildId) {
-				throw new Error(`Session summary requires Discord scopeId: ${scopeId}`);
-			}
-			const dir = resolve(overlayDir, `guilds/${guildId}`);
+			const dir = guildId
+				? resolve(overlayDir, `guilds/${guildId}`)
+				: resolve(overlayDir, `scopes/${encodeURIComponent(scopeId)}`);
 			mkdirSync(dir, { recursive: true });
 			writeFileSync(resolve(dir, "SESSION-SUMMARY.md"), content);
-			await onWrite?.(guildId);
+			if (guildId) await onWrite?.(guildId);
 		},
 	};
 }
@@ -223,9 +224,37 @@ export function buildAgentDiscordEnvironment(
 	};
 }
 
-export function createGuildAgents(
-	config: AppConfig,
+export interface DiscordAgentSpec {
+	agentId: string;
+	scopeId: string;
+}
+
+export function createConversationAgentSpecs(
 	guildIds: string[],
+	dmUserIds: string[],
+): DiscordAgentSpec[] {
+	return [
+		...guildIds.map((guildId) => ({
+			agentId: `discord:${guildId}`,
+			scopeId: discordScopeId(guildId),
+		})),
+		...dmUserIds.map((userId) => ({
+			agentId: `discord:dm:${userId}`,
+			scopeId: discordDmScopeId(userId),
+		})),
+	];
+}
+
+export function createHeartbeatAgentSpecs(guildIds: string[]): DiscordAgentSpec[] {
+	return guildIds.map((guildId) => ({
+		agentId: `discord:heartbeat:${guildId}`,
+		scopeId: discordScopeId(guildId),
+	}));
+}
+
+export function createDiscordAgents(
+	config: AppConfig,
+	agentSpecs: DiscordAgentSpec[],
 	deps: {
 		db: StoreDb;
 		sessionStore: SessionStorePort;
@@ -233,8 +262,6 @@ export function createGuildAgents(
 		logger: Logger;
 		metrics?: MetricsCollector;
 		summaryWriter?: SessionSummaryWriter;
-		/** agentId プレフィックス（デフォルト: "discord"） */
-		agentIdPrefix?: string;
 		/** ポート番号のオフセット（デフォルト: 0）。basePort + portOffset + index でポートを決定 */
 		portOffset?: number;
 		appRoot: string;
@@ -252,14 +279,12 @@ export function createGuildAgents(
 	const portOffset = deps.portOffset ?? 0;
 	const opencode = deps.opencode ?? config.opencode;
 
-	for (const [index, guildId] of guildIds.entries()) {
-		const agentIdPrefix = deps.agentIdPrefix ?? "discord";
-		const agentId = `${agentIdPrefix}:${guildId}`;
+	for (const [index, spec] of agentSpecs.entries()) {
 		const agentPort = config.opencode.basePort + portOffset + index;
 		const profile = createConversationProfile({
 			providerId: opencode.providerId,
 			modelId: opencode.modelId,
-			mcpServers: mcpServerConfigs(agentId, {
+			mcpServers: mcpServerConfigs(spec.agentId, {
 				appRoot: deps.appRoot,
 				coreEnvironment: deps.coreEnvironment,
 				discord: {
@@ -279,7 +304,7 @@ export function createGuildAgents(
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
-			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
+			directory: buildOpencodeShellWorkspaceDirectory(config, spec.agentId),
 			environment: buildOpencodeShellWorkspaceEnvironment(config),
 			logger: deps.logger,
 		});
@@ -294,7 +319,8 @@ export function createGuildAgents(
 				})
 			: undefined;
 		const agent = new DiscordAgent({
-			guildId,
+			agentId: spec.agentId,
+			scopeId: spec.scopeId,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
@@ -303,12 +329,11 @@ export function createGuildAgents(
 			metrics: deps.metrics,
 			profile,
 			summaryWriter: deps.summaryWriter,
-			agentIdPrefix: deps.agentIdPrefix,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,
 			attachmentProcessor,
 		});
-		agents.set(guildId, agent);
+		agents.set(spec.scopeId, agent);
 	}
 
 	return agents;
@@ -538,6 +563,7 @@ function setupEventHandlers(deps: {
 	const { gateway, ingestionService, metricsCollector, agents, logger } = deps;
 	gateway.onHomeChannelMessage(async (msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
+		const scopeId = msg.scopeId ?? (msg.guildId ? discordScopeId(msg.guildId) : undefined);
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			guild_id: msg.guildId ?? "none",
 			channel_type: "home",
@@ -549,14 +575,14 @@ function setupEventHandlers(deps: {
 			recordConversation: true,
 		});
 		if (msg.guildId && msg.authorId !== selfUserId) {
-			const agent = agents.get(msg.guildId);
+			const agent = scopeId ? agents.get(scopeId) : undefined;
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, message will not be processed`);
 			}
 			void agent?.send({
 				sessionKey: "home",
 				message: formatDiscordMessage(msg),
-				scopeId: discordScopeId(msg.guildId),
+				scopeId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
@@ -565,6 +591,7 @@ function setupEventHandlers(deps: {
 	});
 
 	gateway.onMessage(async (msg) => {
+		const scopeId = msg.scopeId ?? (msg.guildId ? discordScopeId(msg.guildId) : undefined);
 		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
 			guild_id: msg.guildId ?? "none",
 			channel_type: "mention",
@@ -573,20 +600,54 @@ function setupEventHandlers(deps: {
 			has_attachments: String(msg.attachments.length > 0),
 		});
 		await ingestionService.handleIncomingMessage(msg);
-		if (msg.guildId) {
-			const agent = agents.get(msg.guildId);
+		if (msg.guildId && scopeId) {
+			const agent = agents.get(scopeId);
 			if (!agent) {
 				logger.warn(`[bootstrap] no agent for guild ${msg.guildId}, mention will not be processed`);
 			}
 			void agent?.send({
 				sessionKey: "mention",
 				message: formatDiscordMessage(msg),
-				scopeId: discordScopeId(msg.guildId),
+				scopeId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
 				isBot: msg.isBot,
 			});
 		}
+	});
+
+	gateway.onDirectMessage(async (msg) => {
+		const selfUserId = gateway.getClient()?.user?.id;
+		const scopeId = msg.scopeId;
+		metricsCollector.incrementCounter(METRIC.DISCORD_MESSAGES_RECEIVED, {
+			guild_id: "none",
+			channel_type: "dm",
+			author_type: msg.isBot ? "bot" : "user",
+			is_thread: String(msg.isThread),
+			has_attachments: String(msg.attachments.length > 0),
+		});
+		await ingestionService.handleIncomingMessage(msg, {
+			recordConversation: true,
+		});
+		if (!scopeId) {
+			logger.warn("[bootstrap] DM message has no scopeId, message will not be processed");
+			return;
+		}
+		if (msg.authorId === selfUserId) return;
+
+		const agent = agents.get(scopeId);
+		if (!agent) {
+			const userId = discordDmUserIdFromScopeId(scopeId) ?? "unknown";
+			logger.warn(`[bootstrap] no DM agent for user ${userId}, message will not be processed`);
+		}
+		void agent?.send({
+			sessionKey: "dm",
+			message: formatDiscordMessage(msg),
+			scopeId,
+			attachments: msg.attachments,
+			channelId: msg.channelId,
+			isBot: msg.isBot,
+		});
 	});
 }
 
@@ -706,7 +767,12 @@ export async function bootstrap(): Promise<void> {
 	// Channel config
 	const channelConfig = await loadChannelConfig(root);
 	const guildIds = channelConfig.getGuildIds();
-	const ports = createPortLayout(config.opencode.basePort, guildIds.length);
+	const dmUserIds = config.discordDm?.allowedUserIds ?? [];
+	const ports = createPortLayout(
+		config.opencode.basePort,
+		guildIds.length + dmUserIds.length,
+		guildIds.length,
+	);
 
 	// MCP environments (stdio プロセスに渡す環境変数)
 	const coreEnvironment = buildCoreEnvironment(config, root);
@@ -715,6 +781,7 @@ export async function bootstrap(): Promise<void> {
 	// Discord Gateway
 	const gateway = new DiscordGateway(config.discordToken, logger);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
+	gateway.setAllowedDirectMessageUserIds(dmUserIds);
 
 	// Minecraft MCP (HTTP, start async)
 	const mcReady = startMinecraftMcp(config, root, logger);
@@ -777,7 +844,8 @@ export async function bootstrap(): Promise<void> {
 	const summaryWriter = createFileSessionSummaryWriter(contextOverlayDir, (guildId) =>
 		resumeContextService.updateGuild(guildId),
 	);
-	const agents = createGuildAgents(config, guildIds, {
+	const conversationAgentSpecs = createConversationAgentSpecs(guildIds, dmUserIds);
+	const agents = createDiscordAgents(config, conversationAgentSpecs, {
 		db,
 		sessionStore,
 		contextBuilder,
@@ -815,13 +883,13 @@ export async function bootstrap(): Promise<void> {
 	const routingAgent = new GuildRouter(agents, firstAgent);
 
 	// Heartbeat 専用エージェント（ユーザーメッセージとセッションを分離し、遅延を防ぐ）
-	const heartbeatAgents = createGuildAgents(config, guildIds, {
+	const heartbeatAgentSpecs = createHeartbeatAgentSpecs(guildIds);
+	const heartbeatAgents = createDiscordAgents(config, heartbeatAgentSpecs, {
 		db,
 		sessionStore,
 		contextBuilder,
 		logger,
 		metrics: metrics.collector,
-		agentIdPrefix: "discord:heartbeat",
 		portOffset: ports.heartbeatOffset,
 		appRoot: root,
 		coreEnvironment,
@@ -898,7 +966,9 @@ export async function bootstrap(): Promise<void> {
 	process.on("SIGTERM", () => void shutdown());
 
 	// Start
-	logger.info(`[bootstrap] Polling mode for ${guildIds.length} guild(s): ${guildIds.join(", ")}`);
+	logger.info(
+		`[bootstrap] Polling mode for ${guildIds.length} guild(s), ${dmUserIds.length} DM user(s): ${guildIds.join(", ")}`,
+	);
 	await gateway.start();
 	heartbeatScheduler.start();
 	memoryResources?.consolidationScheduler.start();

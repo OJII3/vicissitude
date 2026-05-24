@@ -3,6 +3,7 @@ import { resolve } from "path";
 import {
 	AGENT_SCOPE_ID_RE,
 	agentScopeNamespace,
+	discordDmUserIdFromScopeId,
 	discordGuildIdFromScopeId,
 } from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
@@ -42,6 +43,7 @@ const IDENTITY_NAME_ENV = "VICISSITUDE_IDENTITY_NAME";
 
 interface ScopeContext {
 	guildId?: string;
+	dmUserId?: string;
 	scopedContextDir?: string;
 }
 
@@ -91,6 +93,13 @@ export class ContextBuilder implements ContextBuilderPort {
 					totalLength += guildContext.length;
 				}
 			}
+			if (entry.name === GUILD_CONTEXT_AFTER && scope.dmUserId) {
+				const dmContext = `<dm-context>\ncurrent_dm_user_id: ${scope.dmUserId}\n</dm-context>`;
+				if (totalLength + dmContext.length <= TOTAL_MAX) {
+					sections.push(dmContext);
+					totalLength += dmContext.length;
+				}
+			}
 		}
 
 		return sections.join("\n\n");
@@ -109,6 +118,10 @@ export class ContextBuilder implements ContextBuilderPort {
 		if (scopeId === undefined) return {};
 		const guildId = discordGuildIdFromScopeId(scopeId);
 		if (guildId) return { guildId, scopedContextDir: `guilds/${guildId}` };
+		const dmUserId = discordDmUserIdFromScopeId(scopeId);
+		if (dmUserId) {
+			return { dmUserId, scopedContextDir: `scopes/${encodeURIComponent(scopeId)}` };
+		}
 		if (!scopeId.includes(":") || !AGENT_SCOPE_ID_RE.test(scopeId)) {
 			throw new Error(`Invalid Discord scopeId: ${scopeId}`);
 		}

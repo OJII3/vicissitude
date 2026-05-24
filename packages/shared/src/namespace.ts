@@ -25,6 +25,7 @@ export const INTERNAL_NAMESPACE: MemoryNamespace = { surface: "internal" };
 
 export const AGENT_SCOPE_ID_RE = /^[A-Za-z0-9][A-Za-z0-9:_-]*$/;
 export const DISCORD_GUILD_ID_RE = /^\d+$/;
+export const DISCORD_USER_ID_RE = /^\d+$/;
 
 /** Discord adapter 用の guild ID バリデーション。core schema では使わない。 */
 export const GUILD_ID_RE = DISCORD_GUILD_ID_RE;
@@ -46,6 +47,20 @@ export function discordScopeId(guildId: string): string {
 /** Discord scopeId から guild ID を取り出す。Discord scope でなければ null。 */
 export function discordGuildIdFromScopeId(scopeId: string): string | null {
 	const match = scopeId.match(/^discord:guild:(\d+)$/);
+	return match?.[1] ?? null;
+}
+
+/** Discord DM 相手の user ID から canonical scopeId を生成する。 */
+export function discordDmScopeId(userId: string): string {
+	if (!DISCORD_USER_ID_RE.test(userId)) {
+		throw new Error(`Invalid Discord userId: ${userId}`);
+	}
+	return `discord:dm:${userId}`;
+}
+
+/** Discord DM scopeId から user ID を取り出す。DM scope でなければ null。 */
+export function discordDmUserIdFromScopeId(scopeId: string): string | null {
+	const match = scopeId.match(/^discord:dm:(\d+)$/);
 	return match?.[1] ?? null;
 }
 
@@ -118,6 +133,10 @@ export function parseAgentId(agentId: string | null | undefined): ParsedAgentId 
 	if (!agentId) return null;
 	if (/^internal(?::.+)?$/.test(agentId)) {
 		return { platform: "internal" };
+	}
+	const dm = agentId.match(/^discord:dm:(\d+)$/);
+	if (dm?.[1]) {
+		return { platform: "discord", role: "polling", scopeId: discordDmScopeId(dm[1]) };
 	}
 	const m = agentId.match(/^discord:(?:(heartbeat):)?(.+)$/);
 	if (m?.[2] && DISCORD_GUILD_ID_RE.test(m[2])) {

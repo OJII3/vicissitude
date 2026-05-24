@@ -3,7 +3,7 @@ import { mock } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerDiscordTools } from "@vicissitude/mcp/tools/discord";
-import type { DiscordDeps } from "@vicissitude/mcp/tools/discord";
+import type { DiscordDeps, DiscordToolBounds } from "@vicissitude/mcp/tools/discord";
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ export type ToolResult = { content: Array<{ type: string; text: string }>; isErr
 /** registerDiscordTools で登録されたツールを name → handler のマップとして取得する */
 export function captureTools(
 	deps: DiscordDeps,
-	boundGuildId?: string,
+	bounds?: string | DiscordToolBounds,
 ): { tools: Map<string, ToolHandler>; cleanup: () => void } {
 	const tools = new Map<string, ToolHandler>();
 
@@ -25,7 +25,8 @@ export function captureTools(
 		},
 	} as unknown as McpServer;
 
-	const cleanup = registerDiscordTools(fakeServer, deps, boundGuildId);
+	const toolBounds = typeof bounds === "string" ? { guildId: bounds } : bounds;
+	const cleanup = registerDiscordTools(fakeServer, deps, toolBounds);
 
 	return { tools, cleanup };
 }

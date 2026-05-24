@@ -19,7 +19,7 @@ const MESSAGE_PROMPT_INSTRUCTIONS = `あなたはこの会話空間にいる存�
 以下のメッセージに応答してください。
 
 重要:
-- あなたのテキスト出力はユーザーに届かない。返信するには必ず ${T.sendMessage}(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。スレッド・フォーラムスレッドにも送信可能。リアクションには ${T.addReaction} を使う
+- あなたのテキスト出力はユーザーに届かない。返信するには必ず ${T.sendMessage}(channel_id, content) ツールを呼ぶこと。メッセージヘッダの #チャンネル名(数値ID) から数値IDを読み取り channel_id に指定する。DM・スレッド・フォーラムスレッドにも送信可能。リアクションには ${T.addReaction} を使う
 - ${T.listChannels} は通常使う必要がない。channel_id はメッセージヘッダに含まれている。また list_channels の結果にスレッド・フォーラムスレッドは含まれない
 - 各メッセージの [action: ...] ヒントに従って行動してください
   - respond: 返信が必要

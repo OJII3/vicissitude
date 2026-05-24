@@ -68,7 +68,7 @@ function createMockMessageWithMentions(opts: {
 			sendTyping: mock(async () => {}),
 			send: mock(async () => {}),
 		},
-		guildId: "guild-1",
+		guildId: "111",
 		content: opts.content,
 		mentions: {
 			has: () => false,

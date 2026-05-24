@@ -4,27 +4,28 @@ import { createPortLayout } from "../../apps/discord/src/port-allocator.ts";
 
 describe("createPortLayout", () => {
 	const basePort = 4096;
-	const guildCount = 3;
-	const ports = createPortLayout(basePort, guildCount);
+	const conversationAgentCount = 5;
+	const heartbeatAgentCount = 3;
+	const ports = createPortLayout(basePort, conversationAgentCount, heartbeatAgentCount);
 
-	test("guild(i) returns basePort + i", () => {
-		expect(ports.guild(0)).toBe(4096);
-		expect(ports.guild(1)).toBe(4097);
-		expect(ports.guild(2)).toBe(4098);
+	test("conversation(i) returns basePort + i", () => {
+		expect(ports.conversation(0)).toBe(4096);
+		expect(ports.conversation(1)).toBe(4097);
+		expect(ports.conversation(4)).toBe(4100);
 	});
 
-	test("minecraft() returns basePort + guildCount", () => {
-		expect(ports.minecraft()).toBe(4099);
+	test("minecraft() returns basePort + conversationAgentCount", () => {
+		expect(ports.minecraft()).toBe(4101);
 	});
 
-	test("heartbeat(i) returns basePort + guildCount + 1 + i", () => {
-		expect(ports.heartbeat(0)).toBe(4100);
-		expect(ports.heartbeat(1)).toBe(4101);
-		expect(ports.heartbeat(2)).toBe(4102);
+	test("heartbeat(i) returns after conversation agents and minecraft", () => {
+		expect(ports.heartbeat(0)).toBe(4102);
+		expect(ports.heartbeat(1)).toBe(4103);
+		expect(ports.heartbeat(2)).toBe(4104);
 	});
 
-	test("heartbeatOffset returns guildCount + 1", () => {
-		expect(ports.heartbeatOffset).toBe(4);
+	test("heartbeatOffset returns conversationAgentCount + 1", () => {
+		expect(ports.heartbeatOffset).toBe(6);
 	});
 
 	test("memory() returns basePort - 2", () => {
@@ -32,14 +33,14 @@ describe("createPortLayout", () => {
 	});
 
 	test("webAgent() returns the first port after heartbeat agents", () => {
-		expect(ports.webAgent()).toBe(4103);
+		expect(ports.webAgent()).toBe(4105);
 	});
 
 	test("port ranges do not overlap", () => {
 		const allPorts = [
-			...Array.from({ length: guildCount }, (_, i) => ports.guild(i)),
+			...Array.from({ length: conversationAgentCount }, (_, i) => ports.conversation(i)),
 			ports.minecraft(),
-			...Array.from({ length: guildCount }, (_, i) => ports.heartbeat(i)),
+			...Array.from({ length: heartbeatAgentCount }, (_, i) => ports.heartbeat(i)),
 			ports.webAgent(),
 			ports.memory(),
 		];

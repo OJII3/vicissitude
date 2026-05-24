@@ -33,6 +33,27 @@ describe("agent metric labels", () => {
 		expect(inferScopeId("system:heartbeat:_autonomous")).toBe("_autonomous");
 	});
 
+	it("Discord DM エージェントを DM scope・trigger で識別する", () => {
+		expect(inferAgentKind("discord:dm:999888777")).toBe("discord");
+		expect(inferTrigger("dm")).toBe("dm");
+		expect(inferScopeId("discord:dm:999888777")).toBe("discord:dm:999888777");
+		expect(
+			buildAgentMetricLabels({
+				agentId: "discord:dm:999888777",
+				sessionKey: "dm",
+				providerId: "openai",
+				modelId: "gpt-5.4",
+			}),
+		).toEqual({
+			agent_kind: "discord",
+			agent_id: "discord:dm:999888777",
+			scope_id: "discord:dm:999888777",
+			trigger: "dm",
+			provider: "openai",
+			model: "gpt-5.4",
+		});
+	});
+
 	it("Minecraft エージェントを scope_id=none として識別する", () => {
 		expect(
 			buildAgentMetricLabels({

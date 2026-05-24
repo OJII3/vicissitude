@@ -132,6 +132,21 @@
 		"features": {
 			"type": "object",
 			"properties": {
+				"discordDm": {
+					"type": "object",
+					"properties": {
+						"allowedUserIds": {
+							"minItems": 1,
+							"type": "array",
+							"items": {
+								"type": "string",
+								"pattern": "^\\d+$"
+							}
+						}
+					},
+					"required": ["allowedUserIds"],
+					"additionalProperties": false
+				},
 				"imageRecognition": {
 					"type": "object",
 					"properties": {
@@ -217,8 +232,8 @@
 							}
 						},
 						"backgroundSubagents": {
-							"const": true,
-							"type": "boolean"
+							"type": "boolean",
+							"const": true
 						},
 						"hostDataDir": {
 							"type": "string",

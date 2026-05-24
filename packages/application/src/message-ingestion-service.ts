@@ -16,7 +16,7 @@ export interface MessageIngestionOptions {
 }
 
 export type MessageIngestionResult =
-	| { status: "dropped"; reason: "empty_message" | "missing_guild_id" }
+	| { status: "dropped"; reason: "empty_message" | "missing_scope_id" }
 	| { status: "accepted"; recorded: boolean }
 	| { status: "failed"; reason: "record_failed"; error: unknown };
 
@@ -33,20 +33,24 @@ export class MessageIngestionService {
 			);
 			return Promise.resolve({ status: "dropped", reason: "empty_message" });
 		}
-		if (!message.guildId) {
-			this.deps.logger.warn("[message-ingestion] No guildId for message, dropping event");
-			return Promise.resolve({ status: "dropped", reason: "missing_guild_id" });
+		const scopeId = resolveMessageScopeId(message);
+		if (!scopeId) {
+			this.deps.logger.warn("[message-ingestion] No scopeId for message, dropping event");
+			return Promise.resolve({ status: "dropped", reason: "missing_scope_id" });
 		}
 
 		if (options.recordConversation) {
-			return this.recordConversation(message);
+			return this.recordConversation(message, scopeId);
 		}
 
 		return Promise.resolve({ status: "accepted", recorded: false });
 	}
 
-	private async recordConversation(message: IncomingMessage): Promise<MessageIngestionResult> {
-		if (!this.deps.recorder || !message.guildId) return { status: "accepted", recorded: false };
+	private async recordConversation(
+		message: IncomingMessage,
+		scopeId: string,
+	): Promise<MessageIngestionResult> {
+		if (!this.deps.recorder) return { status: "accepted", recorded: false };
 
 		const role = message.isBot ? "assistant" : "user";
 		let content = message.content;
@@ -65,14 +69,17 @@ export class MessageIngestionService {
 		};
 
 		try {
-			await this.deps.recorder.record(
-				agentScopeNamespace(discordScopeId(message.guildId)),
-				conversationMessage,
-			);
+			await this.deps.recorder.record(agentScopeNamespace(scopeId), conversationMessage);
 			return { status: "accepted", recorded: true };
 		} catch (err) {
 			this.deps.logger.error("[message-ingestion] failed to record message", err);
 			return { status: "failed", reason: "record_failed", error: err };
 		}
 	}
+}
+
+function resolveMessageScopeId(message: IncomingMessage): string | null {
+	if (message.scopeId) return message.scopeId;
+	if (message.guildId) return discordScopeId(message.guildId);
+	return null;
 }

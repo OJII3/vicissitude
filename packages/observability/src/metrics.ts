@@ -109,6 +109,7 @@ export function inferAgentKind(agentId: string): string {
 
 export function inferTrigger(sessionKey: string): string {
 	if (sessionKey === "home" || sessionKey.endsWith(":_channel")) return "home";
+	if (sessionKey === "dm" || sessionKey.startsWith("discord:dm:")) return "dm";
 	if (sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) return "heartbeat";
 	if (sessionKey.startsWith("discord:heartbeat:")) return "heartbeat";
 	if (sessionKey === "mention" || sessionKey.startsWith("discord:")) return "mention";
@@ -125,8 +126,13 @@ export function inferScopeId(sessionKey: string): string | undefined {
 		return sessionKey;
 	}
 
+	if (sessionKey.startsWith("discord:dm:")) {
+		return sessionKey;
+	}
+
 	if (sessionKey.startsWith("discord:")) {
 		const [, first, second] = sessionKey.split(":");
+		if (first === "dm") return second ? `discord:dm:${second}` : undefined;
 		const discordId = first === "heartbeat" ? second : first;
 		return discordId ? `discord:guild:${discordId}` : undefined;
 	}
@@ -137,6 +143,9 @@ export function inferScopeId(sessionKey: string): string | undefined {
 function inferScopeIdFromAgentId(agentId: string): string | undefined {
 	if (agentId.startsWith("discord:heartbeat:")) {
 		return `discord:guild:${agentId.slice("discord:heartbeat:".length)}`;
+	}
+	if (agentId.startsWith("discord:dm:")) {
+		return agentId;
 	}
 	if (agentId.startsWith("discord:")) return `discord:guild:${agentId.slice("discord:".length)}`;
 	return undefined;

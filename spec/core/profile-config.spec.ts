@@ -146,6 +146,9 @@ describe("JSON profile config", () => {
 						providerId: "vision-provider",
 						modelId: "vision-model",
 					},
+					discordDm: {
+						allowedUserIds: ["123456789012345678"],
+					},
 					emotionEstimation: {
 						providerId: "openai",
 						modelId: "gpt-5.4",
@@ -180,6 +183,9 @@ describe("JSON profile config", () => {
 			enabled: true,
 			providerId: "vision-provider",
 			modelId: "vision-model",
+		});
+		expect(config.discordDm).toEqual({
+			allowedUserIds: ["123456789012345678"],
 		});
 		expect(config.emotionEstimation).toEqual({
 			enabled: true,

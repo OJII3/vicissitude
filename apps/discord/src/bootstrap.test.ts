@@ -7,7 +7,7 @@ import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
 import {
 	createContextLayer,
-	createGuildAgents,
+	createDiscordAgents,
 	createWebContextLayer,
 	createWebConversationAgent,
 	createStoreLayer,
@@ -144,20 +144,24 @@ describe("createContextLayer", () => {
 	});
 });
 
-describe("createGuildAgents", () => {
+describe("createDiscordAgents", () => {
 	test("Discord guild agent に core と discord MCP を渡す", () => {
 		const config = createTestConfig();
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["123456789"], {
-			db,
-			sessionStore,
-			contextBuilder: { build: () => Promise.resolve("context") },
-			logger: createMockLogger(),
-			appRoot: "/app",
-			coreEnvironment: { DATA_DIR: "/data/core" },
-			discordEnvironment: { DISCORD_TOKEN: "token", DATA_DIR: "/data/discord" },
-		});
-		const agent = agents.get("123456789") as unknown as {
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: { DATA_DIR: "/data/core" },
+				discordEnvironment: { DISCORD_TOKEN: "token", DATA_DIR: "/data/discord" },
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: {
 				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
 			};
@@ -169,24 +173,54 @@ describe("createGuildAgents", () => {
 		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
 	});
 
+	test("Discord DM agent は DM scopeId と agentId で作成される", () => {
+		const config = createTestConfig();
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:dm:999888777", scopeId: "discord:dm:999888777" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: { DATA_DIR: "/data/core" },
+				discordEnvironment: { DISCORD_TOKEN: "token", DATA_DIR: "/data/discord" },
+			},
+		);
+		const agent = agents.get("discord:dm:999888777") as unknown as {
+			profile: {
+				mcpServers: Record<string, { environment?: Record<string, string> }>;
+			};
+		};
+
+		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("discord:dm:999888777");
+		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:dm:999888777");
+	});
+
 	test("deps の OpenCode 設定でモデルと temperature を上書きする", () => {
 		const config = createTestConfig();
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["123456789"], {
-			db,
-			sessionStore,
-			contextBuilder: { build: () => Promise.resolve("context") },
-			logger: createMockLogger(),
-			appRoot: "/app",
-			coreEnvironment: {},
-			discordEnvironment: {},
-			opencode: {
-				providerId: "heartbeat-provider",
-				modelId: "heartbeat-model",
-				temperature: 0.2,
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:heartbeat:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+				opencode: {
+					providerId: "heartbeat-provider",
+					modelId: "heartbeat-model",
+					temperature: 0.2,
+				},
 			},
-		});
-		const agent = agents.get("123456789") as unknown as {
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: { model: { providerId: string; modelId: string } };
 			sessionPort: { config: { temperature?: number } };
 		};
@@ -224,16 +258,20 @@ describe("createGuildAgents", () => {
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["123456789"], {
-			db,
-			sessionStore,
-			contextBuilder: { build: () => Promise.resolve("context") },
-			logger: createMockLogger(),
-			appRoot: "/app",
-			coreEnvironment: {},
-			discordEnvironment: {},
-		});
-		const agent = agents.get("123456789") as unknown as {
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
 			sessionPort: { config: { environment?: Record<string, string> } };
 		};
 
@@ -269,16 +307,20 @@ describe("createGuildAgents", () => {
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
-		const agents = createGuildAgents(config, ["123456789"], {
-			db,
-			sessionStore,
-			contextBuilder: { build: () => Promise.resolve("context") },
-			logger: createMockLogger(),
-			appRoot: "/app",
-			coreEnvironment: {},
-			discordEnvironment: {},
-		});
-		const agent = agents.get("123456789") as unknown as {
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: { primaryTools?: string[]; builtinTools: Record<string, boolean> };
 			sessionPort: { config: { environment?: Record<string, string> } };
 		};

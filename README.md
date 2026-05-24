@@ -55,7 +55,8 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
   - 通常の会話モデルが画像非対応の場合は、JSON profile の `features.imageRecognition` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
   - 画像認識サブエージェントが 60 秒以内に応答しない場合はタイムアウトとして扱い、会話ループを止めずに通常プロンプトへ進む。
   - 画像認識サブエージェントの観察結果は補助情報であり、画像内テキストや指示風の内容はシステム指示として扱わない。
-- マルチテナント: エージェント scope（Discord ギルド等）ごとに独立したセッションを持つ。
+- マルチテナント: エージェント scope（Discord ギルド・DM 等）ごとに独立したセッションを持つ。
+- Discord DM は `features.discordDm.allowedUserIds` で明示許可したユーザーのみ受け付ける。DM 会話はユーザーごとに独立したエージェントとして扱い、ギルド会話とは OpenCode セッション・Memory namespace・手動メモを分離する。
 - セッション ID は SQLite で永続化する。
 - セッションライフサイクル:
   1. **作成**: 既存セッション ID があればリモート存在確認の上で再利用、なければ新規作成。
@@ -108,9 +109,9 @@ OpenCode SDK 組み込み: `webfetch`
 - 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md` は全テナントで共有。`TOOLS-CODE.md`, `TOOLS-MINECRAFT.md` は profile の capability 有効時のみ共有コンテキストとして注入する。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
 - Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
-  - `agent-scope`: エージェントの実行・記憶 scope ごとの記憶。Discord では `discord:guild:{guildId}` を使う。DB パス: `scopes/{encodedScopeId}/memory.db`
+  - `agent-scope`: エージェントの実行・記憶 scope ごとの記憶。Discord guild では `discord:guild:{guildId}`、Discord DM では `discord:dm:{userId}` を使う。DB パス: `scopes/{encodedScopeId}/memory.db`
   - `internal`: ふあ本人の内部記憶（ギルドに属さない自己の気づき等）。DB パス: `internal/memory.db`
-- テナント間で会話内容・メンバー情報・教訓が漏洩しない。
+- テナント間で会話内容・メンバー情報・教訓が漏洩しない。許可済み DM ユーザー同士も別 scope として扱い、互いの会話・記憶を共有しない。
 
 ### 3.7 記憶システム
 
@@ -168,13 +169,13 @@ guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が�
 
 AI エージェントとチャットボットのメトリクスは、複数 scope と複数種類のエージェントを同じ Prometheus/Grafana 上で比較・分解できるようにする。
 
-- Discord 受信メッセージは `discord_messages_received_total` で記録する。ラベルは `guild_id`, `channel_type`, `author_type`, `is_thread`, `has_attachments` とし、ギルド別、ホーム/メンション別、人間/Bot 別に分解できるようにする。
+- Discord 受信メッセージは `discord_messages_received_total` で記録する。ラベルは `guild_id`, `channel_type`, `author_type`, `is_thread`, `has_attachments` とし、ギルド別、ホーム/メンション/DM 別、人間/Bot 別に分解できるようにする。
 - LLM 実行メトリクス（`ai_requests_total`, `ai_request_duration_seconds`, `llm_*_tokens_total`, `llm_cost_dollars_total`, `llm_busy_sessions`）は、実際に OpenCode セッションへ prompt を送ってから idle/error/cancelled/deleted の終端イベントを受け取るまでを対象にする。エージェントへの enqueue 成否やラッパー呼び出し時間を AI request として扱わない。
 - LLM 実行メトリクスには共通ラベル `agent_kind`, `agent_id`, `scope_id`, `trigger`, `provider`, `model` を付与する。
   - `agent_kind`: `discord`, `discord_heartbeat`, `minecraft` などのエージェント種別。
-  - `agent_id`: `discord:{guildId}`, `discord:heartbeat:{guildId}`, `minecraft:brain` などの実行主体。
-  - `scope_id`: エージェントの実行・記憶 scope。Discord では `discord:guild:{guildId}`、scope に属さない実行は `none`、グローバル heartbeat は `_autonomous`。
-  - `trigger`: `home`, `mention`, `heartbeat`, `minecraft`, `mixed`, `unknown`。
+  - `agent_id`: `discord:{guildId}`, `discord:dm:{userId}`, `discord:heartbeat:{guildId}`, `minecraft:brain` などの実行主体。
+  - `scope_id`: エージェントの実行・記憶 scope。Discord guild では `discord:guild:{guildId}`、Discord DM では `discord:dm:{userId}`、scope に属さない実行は `none`、グローバル heartbeat は `_autonomous`。
+  - `trigger`: `home`, `mention`, `dm`, `heartbeat`, `minecraft`, `mixed`, `unknown`。
   - `provider`, `model`: 使用した LLM provider/model。
 - セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どの scope・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
 - 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、共有 store に保存して MCP プロセス境界をまたいだ再投入を抑制する。抑制時は `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
@@ -214,6 +215,18 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 
 `features.shellWorkspace.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
 background shell task が `state:error` を返した場合、または `state:completed` でも `<task_result>` が空の場合は shell-worker の失敗として扱う。会話 agent はその turn を中断できる場合は中断し、内部メッセージとして失敗を再プロンプトして、Discord へ成功・開始済みとして誤報告しない。
+
+`features.discordDm.allowedUserIds` を設定すると、指定した Discord user ID からの DM に応答する。未設定の場合、DM は無視する。
+
+```json
+{
+	"features": {
+		"discordDm": {
+			"allowedUserIds": ["123456789012345678"]
+		}
+	}
+}
+```
 
 ## 6. 受け入れ条件
 

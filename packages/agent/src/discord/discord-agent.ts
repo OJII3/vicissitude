@@ -1,4 +1,3 @@
-import { discordScopeId } from "@vicissitude/shared/namespace";
 import type {
 	AgentResponse,
 	AttachmentProcessor,
@@ -20,7 +19,8 @@ export interface ConversationBreakConfig {
 }
 
 export interface DiscordAgentDeps {
-	guildId: string;
+	scopeId: string;
+	agentId: string;
 	sessionStore: SessionStorePort;
 	contextBuilder: ContextBuilderPort;
 	logger: Logger;
@@ -29,8 +29,6 @@ export interface DiscordAgentDeps {
 	metrics?: MetricsCollector;
 	profile: AgentProfile;
 	summaryWriter?: SessionSummaryWriter;
-	/** agentId のプレフィックス（デフォルト: "discord"）。Heartbeat 専用エージェントなどでセッション分離に使用 */
-	agentIdPrefix?: string;
 	/** proactive compaction のトークン閾値。省略時は proactive compaction 無効 */
 	compactionTokenThreshold?: number;
 	/** compaction 間のクールダウン（ms）。デフォルト: 1_800_000 (30分) */
@@ -50,17 +48,16 @@ export class DiscordAgent extends AgentRunner {
 	private readonly rotationGapMs: number;
 
 	constructor(deps: DiscordAgentDeps) {
-		const agentId = `${deps.agentIdPrefix ?? "discord"}:${deps.guildId}`;
 		super({
 			profile: deps.profile,
-			agentId,
+			agentId: deps.agentId,
 			sessionStore: deps.sessionStore,
 			contextBuilder: deps.contextBuilder,
 			logger: deps.logger,
 			sessionPort: deps.sessionPort,
 			sessionMaxAgeMs: deps.sessionMaxAgeMs,
 			metrics: deps.metrics,
-			contextScopeId: discordScopeId(deps.guildId),
+			contextScopeId: deps.scopeId,
 			summaryWriter: deps.summaryWriter,
 			compactionTokenThreshold: deps.compactionTokenThreshold,
 			compactionCooldownMs: deps.compactionCooldownMs,

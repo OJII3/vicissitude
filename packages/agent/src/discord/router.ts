@@ -1,16 +1,15 @@
-import { discordGuildIdFromScopeId } from "@vicissitude/shared/namespace";
 import type { AgentResponse, AiAgent, SendOptions } from "@vicissitude/shared/types";
 
 /**
- * ギルドIDに基づいて適切なギルド固有エージェントにルーティングするファサード。
+ * scopeId に基づいて適切な Discord 会話エージェントにルーティングするファサード。
  * scopeId が未指定の場合は defaultAgent にフォールバックする。
  */
-export class GuildRouter implements AiAgent {
+export class ScopeRouter implements AiAgent {
 	private readonly agents: Map<string, AiAgent>;
 	private readonly defaultAgent: AiAgent | undefined;
 
-	constructor(guildAgents: Map<string, AiAgent>, defaultAgent?: AiAgent) {
-		this.agents = guildAgents;
+	constructor(scopeAgents: Map<string, AiAgent>, defaultAgent?: AiAgent) {
+		this.agents = scopeAgents;
 		this.defaultAgent = defaultAgent;
 	}
 
@@ -19,16 +18,12 @@ export class GuildRouter implements AiAgent {
 		if (!scopeId) {
 			if (!this.defaultAgent) {
 				return Promise.reject(
-					new Error("GuildRouter requires scopeId in SendOptions (no defaultAgent configured)"),
+					new Error("ScopeRouter requires scopeId in SendOptions (no defaultAgent configured)"),
 				);
 			}
 			return this.defaultAgent.send(options);
 		}
-		const guildId = discordGuildIdFromScopeId(scopeId);
-		if (!guildId) {
-			return Promise.reject(new Error(`GuildRouter received non-Discord scopeId: ${scopeId}`));
-		}
-		const agent = this.agents.get(guildId);
+		const agent = this.agents.get(scopeId);
 		if (!agent) {
 			return Promise.reject(new Error(`No agent registered for scopeId: ${scopeId}`));
 		}
@@ -45,3 +40,5 @@ export class GuildRouter implements AiAgent {
 		}
 	}
 }
+
+export { ScopeRouter as GuildRouter };

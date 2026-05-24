@@ -4,6 +4,7 @@ import {
 	DiscordAgent,
 	type ConversationBreakConfig,
 } from "@vicissitude/agent/discord/discord-agent";
+import { discordScopeId } from "@vicissitude/shared/namespace";
 import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
 import { createMockLogger } from "../../test-helpers.ts";
@@ -83,7 +84,8 @@ export function createAgent(
 	} = {},
 ): TestDiscordAgent {
 	const agent = new TestDiscordAgent({
-		guildId: "111111111111111111",
+		agentId: "discord:111111111111111111",
+		scopeId: discordScopeId("111111111111111111"),
 		profile: createProfile(),
 		sessionStore: createSessionStore() as never,
 		contextBuilder: createContextBuilder(),

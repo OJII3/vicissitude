@@ -11,22 +11,23 @@ import type {
 	MoodWriter,
 } from "@vicissitude/shared/ports";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
+import { ChannelType } from "discord.js";
 
 import { registerDiscordTools } from "./discord.ts";
-import type { DiscordDeps } from "./discord.ts";
+import type { DiscordDeps, DiscordToolBounds } from "./discord.ts";
 
 // ─── Test Helpers ────────────────────────────────────────────────
 
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
-function captureTools(deps: DiscordDeps): Map<string, ToolHandler> {
+function captureTools(deps: DiscordDeps, bounds?: DiscordToolBounds): Map<string, ToolHandler> {
 	const tools = new Map<string, ToolHandler>();
 	const fakeServer = {
 		registerTool(name: string, _schema: unknown, handler: ToolHandler) {
 			tools.set(name, handler);
 		},
 	} as unknown as McpServer;
-	registerDiscordTools(fakeServer, deps);
+	registerDiscordTools(fakeServer, deps, bounds);
 	return tools;
 }
 
@@ -38,6 +39,23 @@ function createDiscordClientStub(): DiscordDeps["discordClient"] {
 			fetch: () =>
 				Promise.resolve({
 					isTextBased: () => true,
+					send: () => Promise.resolve(sentMessage),
+					sendTyping: () => Promise.resolve(),
+					messages: { fetch: () => Promise.resolve(sentMessage) },
+				}),
+		},
+	} as unknown as DiscordDeps["discordClient"];
+}
+
+function createDmDiscordClientStub(recipientId: string): DiscordDeps["discordClient"] {
+	const sentMessage = { id: "sent-msg-1", reply: () => Promise.resolve({ id: "reply-msg-1" }) };
+	return {
+		channels: {
+			cache: new Map(),
+			fetch: () =>
+				Promise.resolve({
+					type: ChannelType.DM,
+					recipientId,
 					send: () => Promise.resolve(sentMessage),
 					sendTyping: () => Promise.resolve(),
 					messages: { fetch: () => Promise.resolve(sentMessage) },
@@ -274,5 +292,41 @@ describe("triggerEmotionEstimation の分岐ロジック", () => {
 		expect(writerCalls).toHaveLength(1);
 		expect(writerCalls[0]!.agentId).toBe("agent-1");
 		expect(writerCalls[0]!.emotion).toEqual(emotion);
+	});
+});
+
+describe("DM bound tools", () => {
+	test("boundDmUserId と一致する DM channel には送信できる", async () => {
+		const tools = captureTools(
+			{
+				discordClient: createDmDiscordClientStub("111"),
+				agentId: "discord:dm:111",
+			},
+			{ dmUserId: "111" },
+		);
+
+		const result = (await tools.get("send_message")!({
+			channel_id: "dm-channel",
+			content: "dm",
+		})) as { content: Array<{ text: string }> };
+
+		expect(result.content[0]!.text).toContain("Sent message");
+	});
+
+	test("boundDmUserId と一致しない DM channel には送信しない", () => {
+		const tools = captureTools(
+			{
+				discordClient: createDmDiscordClientStub("222"),
+				agentId: "discord:dm:111",
+			},
+			{ dmUserId: "111" },
+		);
+
+		expect(
+			tools.get("send_message")!({
+				channel_id: "dm-channel",
+				content: "dm",
+			}),
+		).rejects.toThrow("not a DM channel for the bound user");
 	});
 });
