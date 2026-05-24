@@ -40,6 +40,9 @@ export interface ChatResponder {
 	respond(input: ChatResponderInput): Promise<ChatResponderResult>;
 }
 
+export const CHAT_INPUT_MAX_LENGTH = 4_000;
+export const CHAT_INPUT_MIN_INTERVAL_MS = 1_000;
+
 export interface WsConnectionManagerDeps {
 	emotionToExpressionMapper: EmotionToExpressionMapper;
 	chatResponder: ChatResponder;
@@ -48,11 +51,14 @@ export interface WsConnectionManagerDeps {
 	moodReader?: MoodReader;
 	moodAgentId?: string;
 	logger: Logger;
+	nowProvider?: () => number;
 }
 
 export class WsConnectionManager implements GatewayPort {
 	private readonly connections = new Map<ConnectionId, WebSocketConnection>();
 	private readonly abortControllers = new Map<ConnectionId, AbortController>();
+	private readonly pendingChatConnections = new Set<ConnectionId>();
+	private readonly lastChatInputAtByConnection = new Map<ConnectionId, number>();
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
@@ -61,6 +67,7 @@ export class WsConnectionManager implements GatewayPort {
 	private readonly emotionToExpressionMapper: EmotionToExpressionMapper;
 	private readonly chatResponder: ChatResponder;
 	private readonly logger: Logger;
+	private readonly nowProvider: () => number;
 
 	constructor(deps: WsConnectionManagerDeps) {
 		this.emotionToExpressionMapper = deps.emotionToExpressionMapper;
@@ -70,6 +77,7 @@ export class WsConnectionManager implements GatewayPort {
 		this.moodReader = deps.moodReader;
 		this.moodAgentId = deps.moodAgentId ?? "web:local";
 		this.logger = deps.logger;
+		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
@@ -80,6 +88,8 @@ export class WsConnectionManager implements GatewayPort {
 	handleClose(connectionId: string): void {
 		this.abortControllers.get(connectionId)?.abort();
 		this.abortControllers.delete(connectionId);
+		this.pendingChatConnections.delete(connectionId);
+		this.lastChatInputAtByConnection.delete(connectionId);
 		this.connections.delete(connectionId);
 	}
 
@@ -116,8 +126,11 @@ export class WsConnectionManager implements GatewayPort {
 		}
 
 		if (message.type === "chat_input") {
+			if (!this.startChatInput(connectionId, message.text)) return;
 			const signal = this.abortControllers.get(connectionId)?.signal;
-			void this.handleChatInput(connectionId, message, signal);
+			void this.handleChatInput(connectionId, message, signal).finally(() => {
+				this.pendingChatConnections.delete(connectionId);
+			});
 		}
 	}
 
@@ -228,6 +241,51 @@ export class WsConnectionManager implements GatewayPort {
 			};
 			this.send(connectionId, errorMsg);
 		}
+	}
+
+	private startChatInput(connectionId: ConnectionId, text: string): boolean {
+		if (text.length > CHAT_INPUT_MAX_LENGTH) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_INPUT_TOO_LONG",
+				`Chat input is too long; maximum is ${CHAT_INPUT_MAX_LENGTH} characters`,
+			);
+			return false;
+		}
+
+		if (this.pendingChatConnections.has(connectionId)) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_RESPONSE_IN_PROGRESS",
+				"Wait for the current chat response before sending another message",
+			);
+			return false;
+		}
+
+		const now = this.nowProvider();
+		const lastInputAt = this.lastChatInputAtByConnection.get(connectionId);
+		if (lastInputAt !== undefined && now - lastInputAt < CHAT_INPUT_MIN_INTERVAL_MS) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_RATE_LIMITED",
+				"Chat input rate limit exceeded",
+			);
+			return false;
+		}
+
+		this.pendingChatConnections.add(connectionId);
+		this.lastChatInputAtByConnection.set(connectionId, now);
+		return true;
+	}
+
+	private sendChatInputRejected(connectionId: ConnectionId, code: string, message: string): void {
+		const errorMsg: ErrorMessage = {
+			type: "error",
+			code,
+			message,
+			timestamp: new Date().toISOString(),
+		};
+		this.send(connectionId, errorMsg);
 	}
 
 	private sendSerializedMessage(

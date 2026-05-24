@@ -60,6 +60,7 @@ function createAgent(overrides?: {
 	contextBuilder?: ContextBuilderPort;
 	sessionStore?: SessionStorePort;
 	recorder?: ConversationRecorder;
+	promptTimeoutMs?: number;
 }) {
 	const sessionPort = overrides?.sessionPort ?? createSessionPort();
 	const contextBuilder = overrides?.contextBuilder ?? createContextBuilder();
@@ -80,6 +81,7 @@ function createAgent(overrides?: {
 			model: { providerId: "provider", modelId: "model" },
 		},
 		recorder: overrides?.recorder,
+		promptTimeoutMs: overrides?.promptTimeoutMs,
 	});
 	return { agent, sessionPort, contextBuilder, sessionStore };
 }
@@ -159,5 +161,43 @@ describe("WebConversationAgent", () => {
 			content: "こんにちは、Web からも話せるよ。",
 			authorId: "web:assistant",
 		});
+	});
+
+	test("Web prompt が timeout したら応答を打ち切り、次の入力を処理できる", async () => {
+		let promptSignal: AbortSignal | undefined;
+		let promptCount = 0;
+		const sessionPort = createSessionPort();
+		sessionPort.prompt = mock((_params: OpencodePromptParams, signal?: AbortSignal) => {
+			promptSignal = signal;
+			promptCount++;
+			if (promptCount === 1) {
+				return new Promise<{ text: string }>(() => {});
+			}
+			return Promise.resolve({ text: "timeout 後の応答" });
+		});
+		const { agent } = createAgent({ sessionPort, promptTimeoutMs: 5 });
+
+		let caught: unknown;
+		try {
+			await agent.respond({
+				connectionId: "conn-1",
+				text: "timeout する入力",
+				timestamp: "2026-05-24T00:00:00.000Z",
+			});
+		} catch (error) {
+			caught = error;
+		}
+
+		expect((caught as Error).name).toBe("TimeoutError");
+		expect(promptSignal?.aborted).toBe(true);
+
+		const result = await agent.respond({
+			connectionId: "conn-1",
+			text: "次の入力",
+			timestamp: "2026-05-24T00:00:01.000Z",
+		});
+
+		expect(result.text).toBe("timeout 後の応答");
+		expect(sessionPort.prompt).toHaveBeenCalledTimes(2);
 	});
 });

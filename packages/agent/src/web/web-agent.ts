@@ -13,6 +13,7 @@ import type { AgentProfile } from "../profile.ts";
 
 export const WEB_AGENT_ID = "web:local";
 export const WEB_SCOPE_ID = "web:local";
+export const WEB_PROMPT_TIMEOUT_MS = 120_000;
 const WEB_SESSION_KEY = "__web__:web:local";
 const WEB_USER_ID = "web:user";
 const WEB_ASSISTANT_ID = "web:assistant";
@@ -43,6 +44,7 @@ export interface WebConversationAgentDeps {
 	profile: AgentProfile;
 	recorder?: ConversationRecorder;
 	nowProvider?: () => number;
+	promptTimeoutMs?: number;
 }
 
 export class WebConversationAgent {
@@ -56,6 +58,7 @@ export class WebConversationAgent {
 	private readonly profile: AgentProfile;
 	private readonly recorder?: ConversationRecorder;
 	private readonly nowProvider: () => number;
+	private readonly promptTimeoutMs: number;
 	private hasInjectedSystem = false;
 	private queue: Promise<void> = Promise.resolve();
 
@@ -70,6 +73,7 @@ export class WebConversationAgent {
 		this.profile = deps.profile;
 		this.recorder = deps.recorder;
 		this.nowProvider = deps.nowProvider ?? Date.now;
+		this.promptTimeoutMs = deps.promptTimeoutMs ?? WEB_PROMPT_TIMEOUT_MS;
 	}
 
 	respond(request: WebConversationRequest): Promise<AgentResponse> {
@@ -126,14 +130,19 @@ export class WebConversationAgent {
 			: await this.contextBuilder.build(this.scopeId);
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting Web session ${sessionId}`);
-		const result = await this.sessionPort.prompt(
-			{
-				sessionId,
-				text: promptText,
-				model: this.profile.model,
-				system,
-			},
-			request.signal,
+		const promptSignal = createPromptSignal(request.signal, this.promptTimeoutMs);
+		if (promptSignal.aborted) throw abortReasonToError(promptSignal.reason);
+		const result = await raceAbort(
+			this.sessionPort.prompt(
+				{
+					sessionId,
+					text: promptText,
+					model: this.profile.model,
+					system,
+				},
+				promptSignal,
+			),
+			promptSignal,
 		);
 		this.hasInjectedSystem = true;
 
@@ -185,4 +194,26 @@ export class WebConversationAgent {
 			this.logger.warn("[web-agent] failed to record conversation", { error });
 		}
 	}
+}
+
+function createPromptSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
+	const timeoutSignal = AbortSignal.timeout(timeoutMs);
+	return parentSignal ? AbortSignal.any([parentSignal, timeoutSignal]) : timeoutSignal;
+}
+
+function abortReasonToError(reason: unknown): Error {
+	if (reason instanceof Error) return reason;
+	return new DOMException("Web conversation request aborted", "AbortError");
+}
+
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+	if (signal.aborted) return Promise.reject(abortReasonToError(signal.reason));
+
+	return new Promise<T>((resolve, reject) => {
+		const onAbort = () => reject(abortReasonToError(signal.reason));
+		signal.addEventListener("abort", onAbort, { once: true });
+		void promise.then(resolve, reject).finally(() => {
+			signal.removeEventListener("abort", onAbort);
+		});
+	});
 }

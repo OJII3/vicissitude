@@ -1,4 +1,4 @@
-import { describe, expect, it, spyOn } from "bun:test";
+import { describe, expect, it, mock, spyOn } from "bun:test";
 
 import type {
 	EmotionToExpressionMapper,
@@ -10,6 +10,8 @@ import { createTtsStyleParams } from "@vicissitude/shared/tts";
 import type { ServerMessage } from "@vicissitude/shared/ws-protocol";
 
 import {
+	CHAT_INPUT_MAX_LENGTH,
+	CHAT_INPUT_MIN_INTERVAL_MS,
 	WsConnectionManager,
 	type WebSocketConnection,
 	type WsConnectionManagerDeps,
@@ -419,5 +421,69 @@ describe("WsConnectionManager (unit)", () => {
 			// chat_message + emotion_update のみ
 			expect(conn.sent).toHaveLength(2);
 		});
+	});
+});
+
+describe("WsConnectionManager chat_input limits", () => {
+	it("最大長を超える入力は chatResponder に渡さず拒否する", () => {
+		const respond = mock(() => Promise.resolve({ text: "no" }));
+		const manager = createManager({ chatResponder: { respond }, logger: noopLogger });
+		const conn = createMockConnection();
+		manager.handleOpen("conn-1", conn);
+
+		manager.handleMessage(
+			"conn-1",
+			JSON.stringify({ ...validChatInput, text: "x".repeat(CHAT_INPUT_MAX_LENGTH + 1) }),
+		);
+
+		expect(respond).not.toHaveBeenCalled();
+		const errorMsg = JSON.parse(conn.sent[0] as string) as { code: string };
+		expect(errorMsg.code).toBe("CHAT_INPUT_TOO_LONG");
+	});
+
+	it("同じ接続で応答中の追加入力は chatResponder に渡さない", async () => {
+		let resolveResponse: ((value: { text: string }) => void) | undefined;
+		const respond = mock(
+			() =>
+				new Promise<{ text: string }>((resolve) => {
+					resolveResponse = resolve;
+				}),
+		);
+		const manager = createManager({ chatResponder: { respond }, logger: noopLogger });
+		const conn = createMockConnection();
+		manager.handleOpen("conn-1", conn);
+
+		manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+		manager.handleMessage("conn-1", JSON.stringify({ ...validChatInput, text: "again" }));
+
+		expect(respond).toHaveBeenCalledTimes(1);
+		const errorMsg = JSON.parse(conn.sent[0] as string) as { code: string };
+		expect(errorMsg.code).toBe("CHAT_RESPONSE_IN_PROGRESS");
+
+		resolveResponse?.({ text: "done" });
+		await Bun.sleep(0);
+	});
+
+	it("同じ接続の短時間連投は chatResponder に渡さない", async () => {
+		let now = 20_000;
+		const respond = mock(({ text }: { text: string }) => Promise.resolve({ text }));
+		const manager = createManager({
+			chatResponder: { respond },
+			logger: noopLogger,
+			nowProvider: () => now,
+		});
+		const conn = createMockConnection();
+		manager.handleOpen("conn-1", conn);
+
+		manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+		await Bun.sleep(0);
+		now += CHAT_INPUT_MIN_INTERVAL_MS - 1;
+		manager.handleMessage("conn-1", JSON.stringify({ ...validChatInput, text: "again" }));
+
+		expect(respond).toHaveBeenCalledTimes(1);
+		const errorMsg = conn.sent
+			.map((s) => JSON.parse(s) as { type: string; code?: string })
+			.find((message) => message.type === "error");
+		expect(errorMsg?.code).toBe("CHAT_RATE_LIMITED");
 	});
 });

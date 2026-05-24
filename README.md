@@ -192,6 +192,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - チャット UI は VRM 表示の上に重ねる透明オーバーレイとし、背景を遮らない半透明のヘッダー・吹き出し・入力欄で構成する。
 - 本番 deploy では `nr deploy` の compose スタックに含まれる `web` サービスで静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
 - Web チャットは gateway の `chat_input` を Web 専用 LLM agent に渡して応答する。入力文を gateway 内でエコーするダミー応答は使わない。
+- Web チャット入力は gateway で最大 4,000 文字、接続ごとに同時 1 応答、1 秒 1 件までに制限し、Web LLM prompt は 120 秒でタイムアウトさせる。
 - Web 専用 LLM agent は Discord 会話 agent と同じ `IDENTITY.md` / `SOUL.md` 由来の人格を使う。ただし Discord 送信ツールや Discord 固有の行動コンテキストは持たず、最終テキストをそのまま Web UI の `chat_message` として返す。
 - Web 会話の実行主体と記憶 scope は `web:local` とし、Discord guild scope とは OpenCode セッション、`SessionStore` キー、Memory namespace を分離する。Web 用の手動メモは `data/context/scopes/web%3Alocal/` に置く。
 
