@@ -1,6 +1,7 @@
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
+import { DISCORD_USER_ID_RE } from "@vicissitude/shared/namespace";
 import { z } from "zod";
 
 import {
@@ -41,6 +42,12 @@ const emotionEstimationProfileSchema = z
 		}
 	});
 
+const discordDmProfileSchema = z.strictObject({
+	allowedUserIds: z
+		.array(z.string().regex(DISCORD_USER_ID_RE, "Discord user ID must be numeric"))
+		.min(1),
+});
+
 export const profileConfigSchema = z.strictObject({
 	$schema: z.string().min(1).optional(),
 	ports: z.strictObject({
@@ -67,6 +74,7 @@ export const profileConfigSchema = z.strictObject({
 		}),
 	}),
 	features: z.strictObject({
+		discordDm: discordDmProfileSchema.optional(),
 		imageRecognition: modelSelectionSchema.optional(),
 		emotionEstimation: emotionEstimationProfileSchema.optional(),
 		shellWorkspace: z
@@ -191,6 +199,11 @@ export function loadConfigFromProfile(
 					token: requireSecret(env, "GITHUB_TOKEN", "features.githubIssues"),
 					owner: requireSecret(env, "GITHUB_OWNER", "features.githubIssues"),
 					repo: requireSecret(env, "GITHUB_REPO", "features.githubIssues"),
+				}
+			: undefined,
+		discordDm: profile.features.discordDm
+			? {
+					allowedUserIds: profile.features.discordDm.allowedUserIds,
 				}
 			: undefined,
 		imageRecognition: profile.features.imageRecognition

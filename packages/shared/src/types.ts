@@ -69,6 +69,7 @@ export interface IncomingMessage {
 	channelId: string;
 	channelName?: string;
 	guildId?: string;
+	scopeId?: string;
 	authorId: string;
 	authorName: string;
 	messageId: string;

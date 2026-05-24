@@ -72,7 +72,7 @@ function createMockMessage(overrides: {
 			sendTyping: mock(async () => {}),
 			send: mock(async () => {}),
 		},
-		guildId: overrides.guildId ?? "guild-1",
+		guildId: overrides.guildId ?? "111",
 		content: overrides.content ?? "hello",
 		mentions: { has: () => false, members: null, users: { get: () => null } },
 		createdAt: new Date(),

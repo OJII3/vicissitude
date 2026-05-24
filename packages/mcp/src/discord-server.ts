@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
+	discordDmUserIdFromScopeId,
 	discordGuildIdFromScopeId,
 	type MemoryNamespace,
 	resolveNamespaceFromAgentId,
@@ -61,6 +62,9 @@ async function main(): Promise<void> {
 	const boundGuildId = boundScopeId
 		? (discordGuildIdFromScopeId(boundScopeId) ?? undefined)
 		: undefined;
+	const boundDmUserId = boundScopeId
+		? (discordDmUserIdFromScopeId(boundScopeId) ?? undefined)
+		: undefined;
 	const moodKey = boundGuildId ? `discord:${boundGuildId}` : AGENT_ID;
 
 	const server = new McpServer({ name: "discord", version: "1.0.0" });
@@ -75,7 +79,7 @@ async function main(): Promise<void> {
 			moodKey,
 			logger,
 		},
-		boundGuildId,
+		{ guildId: boundGuildId, dmUserId: boundDmUserId },
 	);
 
 	if (process.env.MC_HOST) {

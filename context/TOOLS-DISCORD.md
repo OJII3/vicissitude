@@ -4,7 +4,7 @@
 
 ### chat
 
-> `channel_id` にはテキストチャンネルだけでなくスレッド・フォーラムスレッドの ID も指定可能。
+> `channel_id` にはテキストチャンネルだけでなく DM・スレッド・フォーラムスレッドの ID も指定可能。
 
 - `discord_send_message(channel_id, content, file_path?)` - チャンネルにメッセージ送信（オプションでファイル添付）
 - `discord_reply(channel_id, message_id, content, file_path?)` - メッセージに返信（オプションでファイル添付）

@@ -25,6 +25,8 @@ import { resolve } from "path";
 
 import {
 	agentScopeNamespace,
+	discordDmScopeId,
+	discordDmUserIdFromScopeId,
 	discordGuildIdFromScopeId,
 	discordScopeId,
 	discoverNamespacesFromDisk,
@@ -42,6 +44,7 @@ import {
 const DATA_DIR = "/data/memory";
 const TEMP_DIR = `/tmp/vicissitude-namespace-spec-${process.pid}`;
 const DISCORD_SCOPE = "discord:guild:123456789";
+const DISCORD_DM_SCOPE = "discord:dm:987654321";
 const DISCORD_SCOPE_SEGMENT = "discord%3Aguild%3A123456789";
 
 afterEach(() => {
@@ -72,9 +75,24 @@ describe("MemoryNamespace: factory / constant", () => {
 		expect(() => discordScopeId("")).toThrow(/guildId/i);
 	});
 
+	it("discordDmScopeId は Discord user ID を canonical DM scopeId に変換する", () => {
+		expect(discordDmScopeId("987654321")).toBe(DISCORD_DM_SCOPE);
+	});
+
+	it("discordDmScopeId は非数字の userId を拒否する", () => {
+		expect(() => discordDmScopeId("../malicious")).toThrow(/userId/i);
+		expect(() => discordDmScopeId("abc")).toThrow(/userId/i);
+		expect(() => discordDmScopeId("")).toThrow(/userId/i);
+	});
+
 	it("discordGuildIdFromScopeId は Discord scopeId から guildId を取り出す", () => {
 		expect(discordGuildIdFromScopeId(DISCORD_SCOPE)).toBe("123456789");
 		expect(discordGuildIdFromScopeId("minecraft:world:overworld")).toBeNull();
+	});
+
+	it("discordDmUserIdFromScopeId は Discord DM scopeId から userId を取り出す", () => {
+		expect(discordDmUserIdFromScopeId(DISCORD_DM_SCOPE)).toBe("987654321");
+		expect(discordDmUserIdFromScopeId(DISCORD_SCOPE)).toBeNull();
 	});
 
 	it("INTERNAL_NAMESPACE は internal surface を持つ", () => {
@@ -150,6 +168,12 @@ describe("resolveNamespaceFromAgentId", () => {
 		);
 	});
 
+	it("'discord:dm:{userId}' を DM agent-scope に解決する", () => {
+		expect(resolveNamespaceFromAgentId("discord:dm:987654321")).toEqual(
+			agentScopeNamespace(DISCORD_DM_SCOPE),
+		);
+	});
+
 	it("未知の agent_id プレフィックスは null を返す", () => {
 		expect(resolveNamespaceFromAgentId("minecraft:world1")).toBeNull();
 		expect(resolveNamespaceFromAgentId("random-string")).toBeNull();
@@ -175,6 +199,7 @@ describe("resolveNamespaceFromAgentId", () => {
 	it("guildId 部分が非数字の discord agent_id は null を返す（不正入力）", () => {
 		expect(resolveNamespaceFromAgentId("discord:heartbeat:abc")).toBeNull();
 		expect(resolveNamespaceFromAgentId("discord:../malicious")).toBeNull();
+		expect(resolveNamespaceFromAgentId("discord:dm:abc")).toBeNull();
 	});
 
 	it("'discord:legacy:{guildId}'（廃止されたロール）は null を返す", () => {

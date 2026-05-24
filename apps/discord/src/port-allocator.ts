@@ -1,21 +1,25 @@
 export interface PortLayout {
-	guild(index: number): number;
+	conversation(index: number): number;
 	minecraft(): number;
 	heartbeat(index: number): number;
-	/** createGuildAgents の portOffset に渡す相対オフセット */
+	/** createDiscordAgents の heartbeat portOffset に渡す相対オフセット */
 	heartbeatOffset: number;
 	webAgent(): number;
 	memory(): number;
 }
 
-export function createPortLayout(basePort: number, guildCount: number): PortLayout {
-	const heartbeatOffset = guildCount + 1;
+export function createPortLayout(
+	basePort: number,
+	conversationAgentCount: number,
+	heartbeatAgentCount: number,
+): PortLayout {
+	const heartbeatOffset = conversationAgentCount + 1;
 	return {
-		guild: (index) => basePort + index,
-		minecraft: () => basePort + guildCount,
+		conversation: (index) => basePort + index,
+		minecraft: () => basePort + conversationAgentCount,
 		heartbeat: (index) => basePort + heartbeatOffset + index,
 		heartbeatOffset,
-		webAgent: () => basePort + heartbeatOffset + guildCount,
+		webAgent: () => basePort + heartbeatOffset + heartbeatAgentCount,
 		memory: () => basePort - 2,
 	};
 }

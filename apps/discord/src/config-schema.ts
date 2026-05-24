@@ -1,3 +1,4 @@
+import { DISCORD_USER_ID_RE } from "@vicissitude/shared/namespace";
 import { z } from "zod";
 
 /** NaN を拒否する整数バリデーション */
@@ -27,6 +28,12 @@ export const githubSchema = z.object({
 	token: z.string(),
 	owner: z.string(),
 	repo: z.string(),
+});
+
+export const discordDmSchema = z.object({
+	allowedUserIds: z
+		.array(z.string().regex(DISCORD_USER_ID_RE, "Discord user ID must be numeric"))
+		.min(1, "discordDm.allowedUserIds must contain at least one user ID"),
 });
 
 export const imageRecognitionSchema = z.object({
@@ -119,6 +126,7 @@ export const appConfigSchema = z.object({
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
+	discordDm: discordDmSchema.optional(),
 	imageRecognition: imageRecognitionSchema.optional(),
 	emotionEstimation: emotionEstimationSchema.optional(),
 	shellWorkspace: shellWorkspaceSchema.optional(),

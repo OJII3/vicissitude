@@ -5,7 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Logger } from "@vicissitude/shared/types";
-import type { Client, TextChannel } from "discord.js";
+import { ChannelType, type Client, type TextChannel } from "discord.js";
 import { z } from "zod/v4";
 
 const DEFAULT_ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
@@ -42,6 +42,11 @@ export interface DiscordDeps {
 	logger?: Logger;
 }
 
+export interface DiscordToolBounds {
+	guildId?: string;
+	dmUserId?: string;
+}
+
 function sleep(ms: number): Promise<void> {
 	return new Promise<void>((resolve) => {
 		setTimeout(resolve, ms);
@@ -53,13 +58,35 @@ function typingDelay(contentLength: number): number {
 	return Math.min(5000, Math.max(2000, contentLength * 20));
 }
 
+function assertBoundDmChannel(channel: unknown, boundDmUserId: string, channelId: string): void {
+	const candidate = channel as {
+		type?: ChannelType;
+		recipientId?: string | null;
+		recipient?: { id?: string } | null;
+		recipients?: Iterable<{ id?: string }>;
+	};
+	if (candidate.type !== ChannelType.DM) {
+		throw new Error(`Channel ${channelId} is not a DM channel for the bound user`);
+	}
+	if (candidate.recipientId === boundDmUserId || candidate.recipient?.id === boundDmUserId) {
+		return;
+	}
+	if (candidate.recipients) {
+		for (const recipient of candidate.recipients) {
+			if (recipient.id === boundDmUserId) return;
+		}
+	}
+	throw new Error(`Channel ${channelId} is not a DM channel for the bound user`);
+}
+
 /** Returns a cleanup function */
 export function registerDiscordTools(
 	server: McpServer,
 	deps: DiscordDeps,
-	boundGuildId?: string,
+	bounds: DiscordToolBounds = {},
 ): () => void {
 	const { discordClient } = deps;
+	const { guildId: boundGuildId, dmUserId: boundDmUserId } = bounds;
 
 	/** エージェント応答テキストから感情推定 → MoodStore 書き込み（fire-and-forget） */
 	function triggerEmotionEstimation(text: string): void {
@@ -85,6 +112,7 @@ export function registerDiscordTools(
 			const type = channel?.type;
 			throw new Error(`Channel ${channelId} is not sendable (type=${type ?? "null"})`);
 		}
+		if (boundDmUserId) assertBoundDmChannel(channel, boundDmUserId, channelId);
 		return channel as TextChannel;
 	}
 
@@ -92,7 +120,7 @@ export function registerDiscordTools(
 		"send_message",
 		{
 			description:
-				"Send a message to a Discord channel (optionally with a file attachment). channel_id accepts text channels, threads, and forum threads.",
+				"Send a message to a Discord channel (optionally with a file attachment). channel_id accepts text channels, DMs, threads, and forum threads.",
 			inputSchema: {
 				channel_id: z.string(),
 				content: z.string(),
@@ -211,9 +239,20 @@ export function registerDiscordTools(
 		{
 			description:
 				"List text channels in a Discord guild. Threads and forum threads are NOT included. You usually don't need this — the channel_id is already in the message header.",
-			inputSchema: boundGuildId ? {} : { guild_id: z.string() },
+			inputSchema: boundGuildId || boundDmUserId ? {} : { guild_id: z.string() },
 		},
 		async ({ guild_id }: { guild_id?: string }) => {
+			if (boundDmUserId) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "Error: list_channels is not available in DM scope",
+						},
+					],
+					isError: true,
+				};
+			}
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };

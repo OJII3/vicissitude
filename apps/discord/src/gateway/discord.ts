@@ -1,5 +1,6 @@
 import { mapAttachments } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
+import { discordDmScopeId, discordScopeId } from "@vicissitude/shared/namespace";
 import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
 import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
 
@@ -13,7 +14,9 @@ export class DiscordGateway {
 	private client: Client | null = null;
 	private handler: MessageHandler | null = null;
 	private homeChannelHandler: MessageHandler | null = null;
+	private directMessageHandler: MessageHandler | null = null;
 	private homeChannelIds: Set<string> = new Set();
+	private allowedDirectMessageUserIds: Set<string> = new Set();
 	private emojiUsedHandler: EmojiUsedHandler | null = null;
 
 	constructor(
@@ -29,6 +32,10 @@ export class DiscordGateway {
 		this.homeChannelHandler = handler;
 	}
 
+	onDirectMessage(handler: MessageHandler): void {
+		this.directMessageHandler = handler;
+	}
+
 	onEmojiUsed(handler: EmojiUsedHandler): void {
 		this.emojiUsedHandler = handler;
 	}
@@ -39,6 +46,10 @@ export class DiscordGateway {
 	 */
 	setHomeChannelIds(ids: string[]): void {
 		this.homeChannelIds = new Set(ids);
+	}
+
+	setAllowedDirectMessageUserIds(ids: string[]): void {
+		this.allowedDirectMessageUserIds = new Set(ids);
 	}
 
 	getClient(): Client | null {
@@ -70,7 +81,7 @@ export class DiscordGateway {
 		this.registerThreadUpdateHandler(client);
 
 		this.logger.info(
-			`[discord] connecting... (homeChannels=${this.homeChannelIds.size}, handler=${!!this.handler}, homeHandler=${!!this.homeChannelHandler})`,
+			`[discord] connecting... (homeChannels=${this.homeChannelIds.size}, dmUsers=${this.allowedDirectMessageUserIds.size}, handler=${!!this.handler}, homeHandler=${!!this.homeChannelHandler}, dmHandler=${!!this.directMessageHandler})`,
 		);
 		await client.login(this.token);
 		this.client = client;
@@ -107,16 +118,46 @@ export class DiscordGateway {
 					return;
 				}
 
-				// bot 自身のメッセージ: ホームチャンネルなら Memory 記録用にハンドラへ流す
+				const dmPeerId = this.resolveDirectMessagePeerId(message, client.user.id);
+
+				// bot 自身のメッセージ: ホームチャンネル/許可済み DM なら Memory 記録用にハンドラへ流す
 				if (message.author.id === client.user.id) {
 					if (this.isHomeMessage(message) && this.homeChannelHandler) {
 						const adapted = this.adaptMessage(message, false, message.channel.isThread());
 						await this.homeChannelHandler(adapted, this.adaptChannel(message));
 					}
+					if (
+						dmPeerId &&
+						this.allowedDirectMessageUserIds.has(dmPeerId) &&
+						this.directMessageHandler
+					) {
+						const adapted = this.adaptMessage(message, false, false, {
+							scopeId: discordDmScopeId(dmPeerId),
+							channelName: "DM",
+						});
+						await this.directMessageHandler(adapted, this.adaptChannel(message));
+					}
 					return;
 				}
 
 				this.trackEmojiUsage(message);
+
+				if (dmPeerId) {
+					const allowed = this.allowedDirectMessageUserIds.has(dmPeerId);
+					this.logger[allowed ? "info" : "warn"](
+						`[discord] messageCreate: author=${message.author.username} dmUser=${dmPeerId} allowed=${allowed}`,
+					);
+					if (!allowed) return;
+
+					const adapted = this.adaptMessage(message, true, false, {
+						scopeId: discordDmScopeId(dmPeerId),
+						channelName: "DM",
+					});
+					if (this.directMessageHandler) {
+						await this.directMessageHandler(adapted, this.adaptChannel(message));
+					}
+					return;
+				}
 
 				const isMentioned = message.mentions.has(client.user);
 				const isHome = this.isHomeMessage(message);
@@ -151,6 +192,25 @@ export class DiscordGateway {
 			const name = match[1];
 			if (name) this.emojiUsedHandler(message.guildId, name);
 		}
+	}
+
+	private resolveDirectMessagePeerId(message: Message, clientUserId: string): string | null {
+		if (message.guildId) return null;
+		if (message.author.id !== clientUserId) return message.author.id;
+
+		const channel = message.channel as {
+			recipientId?: string | null;
+			recipient?: { id?: string } | null;
+			recipients?: Iterable<{ id?: string }>;
+		};
+		if (channel.recipientId) return channel.recipientId;
+		if (channel.recipient?.id) return channel.recipient.id;
+		if (channel.recipients) {
+			for (const recipient of channel.recipients) {
+				if (recipient.id && recipient.id !== clientUserId) return recipient.id;
+			}
+		}
+		return null;
 	}
 
 	private registerThreadUpdateHandler(client: Client): void {
@@ -200,14 +260,24 @@ export class DiscordGateway {
 		});
 	}
 
-	private adaptMessage(message: Message, isMentioned: boolean, isThread: boolean): IncomingMessage {
+	private adaptMessage(
+		message: Message,
+		isMentioned: boolean,
+		isThread: boolean,
+		options: { scopeId?: string; channelName?: string } = {},
+	): IncomingMessage {
 		const attachments = mapAttachments(message.attachments);
+		const scopeId =
+			options.scopeId ?? (message.guildId ? discordScopeId(message.guildId) : undefined);
 
 		return {
 			platform: "discord",
 			channelId: message.channel.id,
-			channelName: "name" in message.channel ? (message.channel.name ?? undefined) : undefined,
+			channelName:
+				options.channelName ??
+				("name" in message.channel ? (message.channel.name ?? undefined) : undefined),
 			guildId: message.guildId ?? undefined,
+			scopeId,
 			authorId: message.author.id,
 			authorName:
 				message.member?.displayName ?? message.author.displayName ?? message.author.username,
