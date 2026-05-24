@@ -239,9 +239,20 @@ export function registerDiscordTools(
 		{
 			description:
 				"List text channels in a Discord guild. Threads and forum threads are NOT included. You usually don't need this — the channel_id is already in the message header.",
-			inputSchema: boundGuildId ? {} : { guild_id: z.string() },
+			inputSchema: boundGuildId || boundDmUserId ? {} : { guild_id: z.string() },
 		},
 		async ({ guild_id }: { guild_id?: string }) => {
+			if (boundDmUserId) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "Error: list_channels is not available in DM scope",
+						},
+					],
+					isError: true,
+				};
+			}
 			const gid = boundGuildId ?? guild_id;
 			if (!gid) {
 				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };

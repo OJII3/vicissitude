@@ -329,4 +329,21 @@ describe("DM bound tools", () => {
 			}),
 		).rejects.toThrow("not a DM channel for the bound user");
 	});
+
+	test("DM scope では guild_id を渡しても list_channels を使えない", async () => {
+		const tools = captureTools(
+			{
+				discordClient: createDiscordClientStub(),
+				agentId: "discord:dm:111",
+			},
+			{ dmUserId: "111" },
+		);
+
+		const result = (await tools.get("list_channels")!({
+			guild_id: "guild-1",
+		})) as { content: Array<{ text: string }>; isError?: boolean };
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0]!.text).toContain("not available in DM scope");
+	});
 });
