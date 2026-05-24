@@ -245,6 +245,50 @@ describe("createGuildAgents", () => {
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).toContain("GH_TOKEN");
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).not.toContain("github-token");
 	});
+
+	test("backgroundSubagents 有効時は OpenCode 実験フラグを渡す", () => {
+		const config = createTestConfig({
+			shellWorkspace: {
+				enabled: true,
+				image: "sandbox",
+				agent: {
+					providerId: "shell-provider",
+					modelId: "shell-model",
+					temperature: 0.4,
+					steps: 16,
+				},
+				backgroundSubagents: true,
+				dataDir: "/tmp/shell-workspaces",
+				auditLogPath: "/tmp/shell-audit.jsonl",
+				networkProfile: "open",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createGuildAgents(config, ["123456789"], {
+			db,
+			sessionStore,
+			contextBuilder: { build: () => Promise.resolve("context") },
+			logger: createMockLogger(),
+			appRoot: "/app",
+			coreEnvironment: {},
+			discordEnvironment: {},
+		});
+		const agent = agents.get("123456789") as unknown as {
+			profile: { primaryTools?: string[]; builtinTools: Record<string, boolean> };
+			sessionPort: { config: { environment?: Record<string, string> } };
+		};
+
+		expect(agent.profile.builtinTools.task_status).toBe(true);
+		expect(agent.profile.primaryTools).toEqual(["task", "task_status"]);
+		expect(agent.sessionPort.config.environment?.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS).toBe(
+			"true",
+		);
+	});
 });
 
 describe("createWebConversationAgent", () => {

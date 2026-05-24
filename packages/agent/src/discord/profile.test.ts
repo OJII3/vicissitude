@@ -44,10 +44,12 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.builtinTools.bash).toBe(true);
 		expect(profile.builtinTools.read).toBe(true);
 		expect(profile.builtinTools.write).toBe(true);
+		expect(profile.builtinTools.task_status).toBe(false);
 		expect(profile.defaultAgent).toBe("build");
 		expect(profile.primaryTools).toEqual(["task"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
 		expect(profile.pollingPrompt).toContain("OpenCode 組み込み bash / Read / Write");
+		expect(profile.pollingPrompt).not.toContain("background=true");
 
 		const build = profile.opencodeAgents?.build;
 		const buildTools = (build as { tools?: Record<string, boolean> } | undefined)?.tools;
@@ -73,6 +75,36 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(workerPermission?.external_directory).toBe("deny");
 	});
 
+	test("background subagent 有効時は task_status を開き background 指示を含める", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+			shellWorkspaceSubagent: {
+				providerId: "worker-provider",
+				modelId: "worker-model",
+				temperature: 0.4,
+				steps: 12,
+			},
+			shellWorkspaceBackgroundSubagents: true,
+		});
+
+		expect(profile.builtinTools.task).toBe(true);
+		expect(profile.builtinTools.task_status).toBe(true);
+		expect(profile.primaryTools).toEqual(["task", "task_status"]);
+		expect(profile.pollingPrompt).toContain("background=true");
+		expect(profile.pollingPrompt).toContain("task_status(task_id=..., wait=false)");
+
+		const build = profile.opencodeAgents?.build;
+		const buildPermission = (build as { permission?: Record<string, string> } | undefined)
+			?.permission;
+		expect(buildPermission?.task_status).toBe("allow");
+
+		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
+		const workerTools = (worker as { tools?: Record<string, boolean> } | undefined)?.tools;
+		expect(workerTools?.task_status).toBe(false);
+	});
+
 	test("shell workspace 無効時は task と subagent 設定を追加しない", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
@@ -81,6 +113,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		});
 
 		expect(profile.builtinTools.task).toBe(false);
+		expect(profile.builtinTools.task_status).toBe(false);
 		expect(profile.builtinTools.bash).toBe(false);
 		expect(profile.opencodeAgents).toBeUndefined();
 		expect(profile.defaultAgent).toBeUndefined();
