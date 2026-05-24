@@ -31,11 +31,16 @@ describe("createPortLayout", () => {
 		expect(ports.memory()).toBe(4094);
 	});
 
+	test("webAgent() returns the first port after heartbeat agents", () => {
+		expect(ports.webAgent()).toBe(4103);
+	});
+
 	test("port ranges do not overlap", () => {
 		const allPorts = [
 			...Array.from({ length: guildCount }, (_, i) => ports.guild(i)),
 			ports.minecraft(),
 			...Array.from({ length: guildCount }, (_, i) => ports.heartbeat(i)),
+			ports.webAgent(),
 			ports.memory(),
 		];
 		const unique = new Set(allPorts);

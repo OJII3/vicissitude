@@ -12,6 +12,8 @@
 		"./minecraft/brain-manager": "./src/minecraft/brain-manager.ts",
 		"./minecraft/minecraft-agent": "./src/minecraft/minecraft-agent.ts",
 		"./discord/profile": "./src/discord/profile.ts",
+		"./web/profile": "./src/web/profile.ts",
+		"./web/web-agent": "./src/web/web-agent.ts",
 		"./minecraft/context-builder": "./src/minecraft/context-builder.ts",
 		"./minecraft/profile": "./src/minecraft/profile.ts",
 		"./emotion/estimator": "./src/emotion/estimator.ts",

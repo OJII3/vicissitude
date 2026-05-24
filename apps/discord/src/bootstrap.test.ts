@@ -8,6 +8,8 @@ import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import {
 	createContextLayer,
 	createGuildAgents,
+	createWebContextLayer,
+	createWebConversationAgent,
 	createStoreLayer,
 	createMetrics,
 } from "./bootstrap.ts";
@@ -122,6 +124,24 @@ describe("createContextLayer", () => {
 		expect(context).toContain("shell tools");
 		expect(context).not.toContain("minecraft tools");
 	});
+
+	test("Web context は人格と core tools を残し Discord 固有コンテキストを除外する", async () => {
+		const root = createContextRoot();
+		const contextDir = join(root, "context");
+		writeFileSync(join(contextDir, "IDENTITY.md"), "identity");
+		writeFileSync(join(contextDir, "DISCORD.md"), "discord rules");
+		writeFileSync(join(contextDir, "HEARTBEAT.md"), "heartbeat rules");
+		const { contextBuilder } = createWebContextLayer(createTestConfig(), root);
+		const context = await contextBuilder.build("web:local");
+
+		expect(context).toContain("identity");
+		expect(context).toContain("core tools");
+		expect(context).not.toContain("discord rules");
+		expect(context).not.toContain("heartbeat rules");
+		expect(context).not.toContain("discord tools");
+		expect(context).not.toContain("shell tools");
+		expect(context).not.toContain("minecraft tools");
+	});
 });
 
 describe("createGuildAgents", () => {
@@ -224,5 +244,29 @@ describe("createGuildAgents", () => {
 		);
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).toContain("GH_TOKEN");
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).not.toContain("github-token");
+	});
+});
+
+describe("createWebConversationAgent", () => {
+	test("Web agent は core MCP のみを持ち AGENT_ID を web:local にする", () => {
+		const config = createTestConfig();
+		const { sessionStore } = createStoreLayer(config);
+		const agent = createWebConversationAgent(config, {
+			sessionStore,
+			contextBuilder: { build: () => Promise.resolve("context") },
+			logger: createMockLogger(),
+			appRoot: "/app",
+			coreEnvironment: { DATA_DIR: "/data/core" },
+			opencodePort: 4103,
+		}) as unknown as {
+			profile: {
+				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
+			};
+			sessionPort: { config: { port: number } };
+		};
+
+		expect(Object.keys(agent.profile.mcpServers)).toEqual(["core"]);
+		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("web:local");
+		expect(agent.sessionPort.config.port).toBe(4103);
 	});
 });

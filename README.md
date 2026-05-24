@@ -190,6 +190,9 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - Vite plugin は TanStack Router plugin を React plugin より前に配置し、ルート生成とコード分割を bundler 側で扱う。
 - 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
 - 本番 deploy では `nr deploy` の compose スタックに含まれる `web` サービスで静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
+- Web チャットは gateway の `chat_input` を Web 専用 LLM agent に渡して応答する。入力文を gateway 内でエコーするダミー応答は使わない。
+- Web 専用 LLM agent は Discord 会話 agent と同じ `IDENTITY.md` / `SOUL.md` 由来の人格を使う。ただし Discord 送信ツールや Discord 固有の行動コンテキストは持たず、最終テキストをそのまま Web UI の `chat_message` として返す。
+- Web 会話の実行主体と記憶 scope は `web:local` とし、Discord guild scope とは OpenCode セッション、`SessionStore` キー、Memory namespace を分離する。Web 用の手動メモは `data/context/scopes/web%3Alocal/` に置く。
 
 ## 4. 非機能要件
 

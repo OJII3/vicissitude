@@ -4,6 +4,7 @@ export interface PortLayout {
 	heartbeat(index: number): number;
 	/** createGuildAgents の portOffset に渡す相対オフセット */
 	heartbeatOffset: number;
+	webAgent(): number;
 	memory(): number;
 }
 
@@ -14,6 +15,7 @@ export function createPortLayout(basePort: number, guildCount: number): PortLayo
 		minecraft: () => basePort + guildCount,
 		heartbeat: (index) => basePort + heartbeatOffset + index,
 		heartbeatOffset,
+		webAgent: () => basePort + heartbeatOffset + guildCount,
 		memory: () => basePort - 2,
 	};
 }

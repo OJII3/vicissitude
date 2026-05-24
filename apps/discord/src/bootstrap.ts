@@ -11,6 +11,8 @@ import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
+import { createWebConversationProfile } from "@vicissitude/agent/web/profile";
+import { WEB_AGENT_ID, WEB_SCOPE_ID, WebConversationAgent } from "@vicissitude/agent/web/web-agent";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { ResumeContextService } from "@vicissitude/application/resume-context-service";
@@ -49,6 +51,7 @@ import type { MemoryNamespace } from "@vicissitude/shared/namespace";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
 import type {
 	AiAgent,
+	ConversationRecorder,
 	ContextBuilderPort,
 	Logger,
 	MemoryFactReader,
@@ -93,6 +96,27 @@ export function createContextLayer(config: AppConfig, root: string, factReader?:
 		resolve(root, "context"),
 		factReader,
 		excludeFiles.size > 0 ? excludeFiles : undefined,
+	);
+	return { contextBuilder };
+}
+
+export function createWebContextLayer(
+	config: AppConfig,
+	root: string,
+	factReader?: MemoryFactReader,
+) {
+	const excludeFiles = new Set<ContextFileName>([
+		"DISCORD.md",
+		"HEARTBEAT.md",
+		"TOOLS-DISCORD.md",
+		"TOOLS-MINECRAFT.md",
+		"TOOLS-CODE.md",
+	]);
+	const contextBuilder = new ContextBuilder(
+		resolve(root, "data/context"),
+		resolve(root, "context"),
+		factReader,
+		excludeFiles,
 	);
 	return { contextBuilder };
 }
@@ -272,6 +296,47 @@ export function createGuildAgents(
 	}
 
 	return agents;
+}
+
+export function createWebConversationAgent(
+	config: AppConfig,
+	deps: {
+		sessionStore: SessionStorePort;
+		contextBuilder: ContextBuilderPort;
+		logger: Logger;
+		recorder?: ConversationRecorder;
+		appRoot: string;
+		coreEnvironment: Record<string, string>;
+		opencodePort: number;
+	},
+): WebConversationAgent {
+	const profile = createWebConversationProfile({
+		providerId: config.opencode.providerId,
+		modelId: config.opencode.modelId,
+		mcpServers: mcpServerConfigs(WEB_AGENT_ID, {
+			appRoot: deps.appRoot,
+			coreEnvironment: deps.coreEnvironment,
+		}),
+	});
+	const sessionPort = new OpencodeSessionAdapter({
+		port: deps.opencodePort,
+		mcpServers: profile.mcpServers,
+		builtinTools: profile.builtinTools,
+		temperature: config.opencode.temperature,
+		logger: deps.logger,
+	});
+
+	return new WebConversationAgent({
+		agentId: WEB_AGENT_ID,
+		scopeId: WEB_SCOPE_ID,
+		sessionStore: deps.sessionStore,
+		contextBuilder: deps.contextBuilder,
+		logger: deps.logger,
+		sessionPort,
+		sessionMaxAgeMs: config.opencode.sessionMaxAgeHours * 3_600_000,
+		profile,
+		recorder: deps.recorder,
+	});
 }
 
 // ─── Metrics ────────────────────────────────────────────────────
@@ -615,6 +680,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Context
 	const { contextBuilder } = createContextLayer(config, root, factReader);
+	const { contextBuilder: webContextBuilder } = createWebContextLayer(config, root, factReader);
 
 	// Metrics
 	const metricsPort = Number(process.env.METRICS_PORT) || 9091;
@@ -623,10 +689,40 @@ export async function bootstrap(): Promise<void> {
 
 	// Channel config
 	const channelConfig = await loadChannelConfig(root);
+	const guildIds = channelConfig.getGuildIds();
+	const ports = createPortLayout(config.opencode.basePort, guildIds.length);
+
+	// MCP environments (stdio プロセスに渡す環境変数)
+	const coreEnvironment = buildCoreEnvironment(config, root);
+	const discordEnvironment = buildDiscordEnvironment(config, root);
 
 	// Discord Gateway
 	const gateway = new DiscordGateway(config.discordToken, logger);
 	gateway.setHomeChannelIds(channelConfig.getHomeChannelIds());
+
+	// Minecraft MCP (HTTP, start async)
+	const mcReady = startMinecraftMcp(config, root, logger);
+
+	// Memory recording
+	const memoryResources = await setupMemoryRecording(config, logger, {
+		memoryPort: ports.memory(),
+		metricsCollector: metrics.collector,
+		embeddingAdapter: ollamaEmbedding,
+		root,
+		// gateway.start() より前に setupMemoryRecording が呼ばれるため、
+		// CriticAuditor が必要とする bot user id は遅延解決する (#847)
+		getBotUserId: () => gateway.getClient()?.user?.id,
+	});
+
+	const webAgent = createWebConversationAgent(config, {
+		sessionStore,
+		contextBuilder: webContextBuilder,
+		logger,
+		recorder: memoryResources?.recorder,
+		appRoot: root,
+		coreEnvironment,
+		opencodePort: ports.webAgent(),
+	});
 
 	// Gateway WebSocket server (with optional TTS)
 	const ttsSynthesizer = config.tts
@@ -641,9 +737,11 @@ export async function bootstrap(): Promise<void> {
 	const emotionToExpressionMapper = createEmotionToExpressionMapper();
 	const wsManager = new WsConnectionManager({
 		emotionToExpressionMapper,
+		chatResponder: webAgent,
 		ttsSynthesizer,
 		ttsStyleMapper,
 		moodReader: moodStore,
+		moodAgentId: WEB_AGENT_ID,
 		logger,
 	});
 	const gatewayApp = createGatewayApp(wsManager);
@@ -651,17 +749,6 @@ export async function bootstrap(): Promise<void> {
 	logger.info(
 		`[bootstrap] Gateway server started (port=${config.gatewayPort}, tts=${!!config.tts})`,
 	);
-
-	// Minecraft MCP (HTTP, start async)
-	const mcReady = startMinecraftMcp(config, root, logger);
-
-	// MCP environments (stdio プロセスに渡す環境変数)
-	const coreEnvironment = buildCoreEnvironment(config, root);
-	const discordEnvironment = buildDiscordEnvironment(config, root);
-
-	// Port layout
-	const guildIds = channelConfig.getGuildIds();
-	const ports = createPortLayout(config.opencode.basePort, guildIds.length);
 
 	// Guild agents
 	const contextOverlayDir = resolve(root, "data/context");
@@ -687,16 +774,6 @@ export async function bootstrap(): Promise<void> {
 		compactionTokenThreshold: 20_000,
 	});
 
-	// Memory recording
-	const memoryResources = await setupMemoryRecording(config, logger, {
-		memoryPort: ports.memory(),
-		metricsCollector: metrics.collector,
-		embeddingAdapter: ollamaEmbedding,
-		root,
-		// gateway.start() より前に setupMemoryRecording が呼ばれるため、
-		// CriticAuditor が必要とする bot user id は遅延解決する (#847)
-		getBotUserId: () => gateway.getClient()?.user?.id,
-	});
 	const ingestionService = new MessageIngestionService({
 		logger,
 		recorder: memoryResources?.recorder,
@@ -789,6 +866,7 @@ export async function bootstrap(): Promise<void> {
 		heartbeatScheduler,
 		gateway,
 		gatewayServer,
+		webAgent,
 		mcBrainManager,
 		heartbeatRouter,
 		routingAgent,

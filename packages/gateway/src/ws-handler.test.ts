@@ -21,12 +21,18 @@ const noopLogger = createMockLogger();
 const mockExpressionMapper: EmotionToExpressionMapper = {
 	mapToExpression: () => ({ expression: "neutral", weight: 1.0 }),
 };
-type TestManagerDeps = Omit<WsConnectionManagerDeps, "emotionToExpressionMapper"> &
-	Partial<Pick<WsConnectionManagerDeps, "emotionToExpressionMapper">>;
+type TestManagerDeps = Omit<
+	WsConnectionManagerDeps,
+	"emotionToExpressionMapper" | "chatResponder"
+> &
+	Partial<Pick<WsConnectionManagerDeps, "emotionToExpressionMapper" | "chatResponder">>;
 
 function createManager(deps?: TestManagerDeps): WsConnectionManager {
 	return new WsConnectionManager({
 		emotionToExpressionMapper: mockExpressionMapper,
+		chatResponder: {
+			respond: ({ text }) => Promise.resolve({ text }),
+		},
 		logger: noopLogger,
 		...deps,
 	});
@@ -230,19 +236,39 @@ describe("WsConnectionManager (unit)", () => {
 			isAvailable: () => Promise.resolve(true),
 		};
 
-		it("deps 省略時、既存動作が変わらない（ChatResponseMessage + EmotionUpdateMessage のみ）", () => {
+		it("chatResponder の応答から ChatResponseMessage + EmotionUpdateMessage を送る", async () => {
 			const manager = createManager({ logger: noopLogger });
 			const conn = createMockConnection();
 			manager.handleOpen("conn-1", conn);
 
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
 
 			// chat_message + emotion_update の2つだけ
 			expect(conn.sent).toHaveLength(2);
 			const msg0 = JSON.parse(conn.sent[0] as string);
 			const msg1 = JSON.parse(conn.sent[1] as string);
 			expect(msg0.type).toBe("chat_message");
+			expect(msg0.text).toBe("hello");
 			expect(msg1.type).toBe("emotion_update");
+		});
+
+		it("chatResponder の応答テキストは入力文のエコーに限定されない", async () => {
+			const manager = createManager({
+				chatResponder: {
+					respond: () => Promise.resolve({ text: "LLM response" }),
+				},
+				logger: noopLogger,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
+
+			const chatMsg = JSON.parse(conn.sent[0] as string);
+			expect(chatMsg.type).toBe("chat_message");
+			expect(chatMsg.text).toBe("LLM response");
 		});
 
 		it("TTS 合成成功時、AudioDataMessage が送信される", async () => {
@@ -341,6 +367,7 @@ describe("WsConnectionManager (unit)", () => {
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
 
 			// テキスト応答は即座に返る
+			await Bun.sleep(0);
 			const chatMsg = JSON.parse(conn.sent[0] as string);
 			expect(chatMsg.type).toBe("chat_message");
 			expect(chatMsg.text).toBe("hello");

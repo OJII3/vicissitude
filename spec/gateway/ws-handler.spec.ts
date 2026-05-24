@@ -24,12 +24,18 @@ const mockExpressionWeight = { expression: "neutral" as const, weight: 1.0 };
 const mockExpressionMapper: EmotionToExpressionMapper = {
 	mapToExpression: () => mockExpressionWeight,
 };
-type TestManagerDeps = Omit<WsConnectionManagerDeps, "emotionToExpressionMapper"> &
-	Partial<Pick<WsConnectionManagerDeps, "emotionToExpressionMapper">>;
+type TestManagerDeps = Omit<
+	WsConnectionManagerDeps,
+	"emotionToExpressionMapper" | "chatResponder"
+> &
+	Partial<Pick<WsConnectionManagerDeps, "emotionToExpressionMapper" | "chatResponder">>;
 
 function createManager(deps?: TestManagerDeps): WsConnectionManager {
 	return new WsConnectionManager({
 		emotionToExpressionMapper: mockExpressionMapper,
+		chatResponder: {
+			respond: ({ text }) => Promise.resolve({ text }),
+		},
 		logger: noopLogger,
 		...deps,
 	});
@@ -209,7 +215,7 @@ describe("WsConnectionManager", () => {
 	// ─── 表情マッパー注入 ────────────────────────────────────────
 
 	describe("表情マッパー注入", () => {
-		it("chat_input の emotion_update は deps で受け取った mapper の結果を使う", () => {
+		it("chat_input の emotion_update は deps で受け取った mapper の結果を使う", async () => {
 			const fixedEmotion = { valence: -0.7, arousal: 0.6, dominance: 0.2 };
 			const moodReader: MoodReader = {
 				getMood: () => fixedEmotion,
@@ -230,6 +236,7 @@ describe("WsConnectionManager", () => {
 			manager.handleOpen("conn-1", conn);
 
 			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
 
 			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
 			const emotionUpdate = messages.find(
@@ -237,6 +244,87 @@ describe("WsConnectionManager", () => {
 			);
 			expect(emotionUpdate).toBeDefined();
 			expect(emotionUpdate?.expressionWeight).toEqual(expressionWeight);
+		});
+
+		it("chatResponder が返した emotion を moodReader より優先して表情に反映する", async () => {
+			const responseEmotion = { valence: 0.7, arousal: 0.2, dominance: 0.1 };
+			const moodReader: MoodReader = {
+				getMood: () => ({ valence: -0.7, arousal: -0.2, dominance: -0.1 }),
+			};
+			const expressionWeight = { expression: "happy" as const, weight: 0.73 };
+			const emotionToExpressionMapper: EmotionToExpressionMapper = {
+				mapToExpression: (emotion) => {
+					expect(emotion).toEqual(responseEmotion);
+					return expressionWeight;
+				},
+			};
+			const manager = createManager({
+				emotionToExpressionMapper,
+				moodReader,
+				chatResponder: {
+					respond: () => Promise.resolve({ text: "LLM response", emotion: responseEmotion }),
+				},
+				logger: noopLogger,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const emotionUpdate = messages.find(
+				(message): message is EmotionUpdateMessage => message.type === "emotion_update",
+			);
+			expect(emotionUpdate?.expressionWeight).toEqual(expressionWeight);
+		});
+	});
+
+	describe("Web LLM chat responder", () => {
+		it("chat_input はエコーではなく chatResponder の応答テキストを返す", async () => {
+			const manager = createManager({
+				chatResponder: {
+					respond: ({ text, connectionId }) =>
+						Promise.resolve({ text: `${connectionId}: ${text} に返答` }),
+				},
+				logger: noopLogger,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
+
+			const messages = conn.sent.map((s) => JSON.parse(s) as ServerMessage);
+			const chatMessage = messages.find(
+				(message): message is ChatResponseMessage => message.type === "chat_message",
+			);
+			expect(chatMessage?.text).toBe("conn-1: こんにちは に返答");
+			expect(chatMessage?.text).not.toBe(validChatInput.text);
+		});
+
+		it("chatResponder の失敗時は送信元へ CHAT_RESPONSE_FAILED を返す", async () => {
+			const logger = createMockLogger();
+			const manager = createManager({
+				chatResponder: {
+					respond: () => Promise.reject(new Error("LLM unavailable")),
+				},
+				logger,
+			});
+			const conn = createMockConnection();
+			manager.handleOpen("conn-1", conn);
+
+			manager.handleMessage("conn-1", JSON.stringify(validChatInput));
+			await Bun.sleep(0);
+
+			expect(conn.sent).toHaveLength(1);
+			const errorMessage = JSON.parse(conn.sent[0] as string) as ErrorMessage;
+			expect(errorMessage.type).toBe("error");
+			expect(errorMessage.code).toBe("CHAT_RESPONSE_FAILED");
+			expect(logger.error).toHaveBeenCalledWith(
+				"[gateway] Chat response handler failed",
+				expect.any(Object),
+			);
 		});
 	});
 
