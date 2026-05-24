@@ -84,8 +84,10 @@ function MessageBubble({ msg, isPlaying }: { msg: ChatMessage; isPlaying: boolea
 	return (
 		<div className={`flex items-center ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
 			<div
-				className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
-					msg.role === "user" ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-800"
+				className={`max-w-[80%] rounded-lg border px-3 py-2 text-sm shadow-sm backdrop-blur-sm ${
+					msg.role === "user"
+						? "border-blue-300/40 bg-blue-500/80 text-white"
+						: "border-white/45 bg-white/65 text-gray-900"
 				}`}
 			>
 				{msg.text}
@@ -115,9 +117,11 @@ function MessageList({
 	}, [messages]);
 
 	return (
-		<div className="flex-1 overflow-y-auto p-4 space-y-3">
+		<div className="flex-1 space-y-3 overflow-y-auto p-4">
 			{messages.length === 0 && (
-				<p className="text-center text-sm text-gray-400">メッセージを送信してください</p>
+				<p className="text-center text-sm text-gray-600 drop-shadow-sm">
+					メッセージを送信してください
+				</p>
 			)}
 			{messages.map((msg) => (
 				<MessageBubble key={msg.id} msg={msg} isPlaying={msg.id === playingMessageId} />
@@ -154,7 +158,7 @@ function ChatInput({ onSend }: ChatInputProps) {
 	);
 
 	return (
-		<div className="border-t border-gray-200 p-3">
+		<div className="border-t border-white/35 bg-white/25 p-3 backdrop-blur-sm">
 			<div className="flex gap-2">
 				<input
 					type="text"
@@ -162,13 +166,13 @@ function ChatInput({ onSend }: ChatInputProps) {
 					onChange={(e) => setInput(e.target.value)}
 					onKeyDown={handleKeyDown}
 					placeholder="メッセージを入力..."
-					className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400"
+					className="flex-1 rounded-lg border border-white/45 bg-white/70 px-3 py-2 text-sm text-gray-900 outline-none placeholder:text-gray-500 focus:border-blue-400 focus:bg-white/85 focus:ring-1 focus:ring-blue-400"
 				/>
 				<button
 					type="button"
 					onClick={handleSend}
 					disabled={!input.trim()}
-					className="rounded-lg bg-blue-500 px-4 py-2 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+					className="rounded-lg bg-blue-500/85 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-600/90 disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					送信
 				</button>
@@ -200,9 +204,9 @@ export function ChatPanel({ onExpressionChange }: ChatPanelProps) {
 	);
 
 	return (
-		<div className="flex h-full flex-col">
-			<div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-				<h2 className="text-lg font-semibold">Chat</h2>
+		<div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-lg text-gray-900">
+			<div className="flex items-center justify-between border-b border-white/35 bg-white/25 px-4 py-3 backdrop-blur-sm">
+				<h2 className="text-lg font-semibold drop-shadow-sm">Chat</h2>
 				<span
 					className={`h-2.5 w-2.5 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
 					title={connected ? "接続中" : "未接続"}
