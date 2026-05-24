@@ -51,6 +51,11 @@ Shell workspace:
 - ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを ${T.sendMessage} で Discord に送る
 - shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を ${T.sendMessage} の file_path に指定する`;
 
+const SHELL_WORKSPACE_BACKGROUND_PROMPT_SECTION = `
+- 長時間かかる shell workspace 作業は task ツールで background=true を指定して開始し、開始したことを ${T.sendMessage} で短く知らせる
+- background task の完了結果が返ってきたら内容を確認し、必要な要約や添付だけを ${T.sendMessage} で Discord に送る
+- background task の状態確認が必要な場合だけ task_status(task_id=..., wait=false) を使う`;
+
 export interface ShellWorkspaceSubagentConfig {
 	providerId: string;
 	modelId: string;
@@ -60,6 +65,7 @@ export interface ShellWorkspaceSubagentConfig {
 
 function buildShellWorkspaceAgents(
 	shellWorkspaceSubagent: ShellWorkspaceSubagentConfig | undefined,
+	backgroundSubagents: boolean,
 ) {
 	if (!shellWorkspaceSubagent) return;
 	return {
@@ -71,6 +77,7 @@ function buildShellWorkspaceAgents(
 			},
 			permission: {
 				task: "allow" as const,
+				...(backgroundSubagents ? { task_status: "allow" as const } : {}),
 				bash: "deny" as const,
 				read: "deny" as const,
 				edit: "deny" as const,
@@ -86,6 +93,7 @@ function buildShellWorkspaceAgents(
 			steps: shellWorkspaceSubagent.steps,
 			tools: {
 				task: false,
+				...(backgroundSubagents ? { task_status: false } : {}),
 				bash: true,
 				read: true,
 				write: true,
@@ -114,15 +122,23 @@ export function createConversationProfile(options: {
 	minecraftEnabled?: boolean;
 	imageRecognitionEnabled?: boolean;
 	shellWorkspaceSubagent?: ShellWorkspaceSubagentConfig;
+	shellWorkspaceBackgroundSubagents?: boolean;
 }): AgentProfile {
+	const shellWorkspaceBackgroundSubagents = options.shellWorkspaceBackgroundSubagents === true;
 	const sections = [
 		MESSAGE_PROMPT_INSTRUCTIONS,
 		options.minecraftEnabled ? MINECRAFT_PROMPT_SECTION : undefined,
 		options.imageRecognitionEnabled ? IMAGE_RECOGNITION_PROMPT_SECTION : undefined,
 		options.shellWorkspaceSubagent ? SHELL_WORKSPACE_PROMPT_SECTION : undefined,
+		options.shellWorkspaceSubagent && shellWorkspaceBackgroundSubagents
+			? SHELL_WORKSPACE_BACKGROUND_PROMPT_SECTION
+			: undefined,
 	];
 	const pollingPrompt = sections.filter((section): section is string => !!section).join("");
-	const opencodeAgents = buildShellWorkspaceAgents(options.shellWorkspaceSubagent);
+	const opencodeAgents = buildShellWorkspaceAgents(
+		options.shellWorkspaceSubagent,
+		shellWorkspaceBackgroundSubagents,
+	);
 	return {
 		name: "conversation",
 		mcpServers: options.mcpServers,
@@ -133,9 +149,12 @@ export function createConversationProfile(options: {
 			read: !!options.shellWorkspaceSubagent,
 			write: !!options.shellWorkspaceSubagent,
 			task: !!options.shellWorkspaceSubagent,
+			task_status: !!options.shellWorkspaceSubagent && shellWorkspaceBackgroundSubagents,
 		},
 		opencodeAgents,
-		primaryTools: opencodeAgents ? ["task"] : undefined,
+		primaryTools: opencodeAgents
+			? ["task", ...(shellWorkspaceBackgroundSubagents ? ["task_status"] : [])]
+			: undefined,
 		defaultAgent: opencodeAgents ? "build" : undefined,
 		pollingPrompt,
 		model: { providerId: options.providerId, modelId: options.modelId },

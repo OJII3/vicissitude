@@ -192,6 +192,21 @@ function buildOpencodeShellWorkspaceDirectory(
 	return resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
 }
 
+function buildOpencodeShellWorkspaceEnvironment(
+	config: AppConfig,
+): Record<string, string> | undefined {
+	if (!config.shellWorkspace) return;
+	const environment = config.shellWorkspace.environment
+		? { ...config.shellWorkspace.environment }
+		: undefined;
+	if (!config.shellWorkspace.backgroundSubagents)
+		return addGitHubCredentialHelperEnvironment(environment);
+	return addGitHubCredentialHelperEnvironment({
+		...environment,
+		OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS: "true",
+	});
+}
+
 const EMOTION_OPENCODE_PORT_OFFSET = 1000;
 
 export function buildAgentDiscordEnvironment(
@@ -254,6 +269,7 @@ export function createGuildAgents(
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
 			shellWorkspaceSubagent: config.shellWorkspace?.agent,
+			shellWorkspaceBackgroundSubagents: config.shellWorkspace?.backgroundSubagents,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: agentPort,
@@ -264,7 +280,7 @@ export function createGuildAgents(
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
 			directory: buildOpencodeShellWorkspaceDirectory(config, agentId),
-			environment: addGitHubCredentialHelperEnvironment(config.shellWorkspace?.environment),
+			environment: buildOpencodeShellWorkspaceEnvironment(config),
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition

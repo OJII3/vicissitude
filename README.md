@@ -212,6 +212,8 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
 - `HUA_GITHUB_TOKEN`: `features.shellWorkspace.environment` など profile の `fromEnv` 参照で指定した場合に必須
 
+`features.shellWorkspace.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
+
 ## 6. 受け入れ条件
 
 1. Bot メンションで AI 応答が返る。

@@ -69,6 +69,7 @@ export const shellWorkspaceSchema = z
 		image: z.string().min(1, "shellWorkspace.image is required"),
 		agent: shellWorkspaceAgentSchema,
 		environment: shellWorkspaceEnvironmentSchema.optional(),
+		backgroundSubagents: z.literal(true).optional(),
 		dataDir: z.string(),
 		hostDataDir: z.string().optional(),
 		auditLogPath: z.string(),
