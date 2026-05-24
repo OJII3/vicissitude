@@ -243,11 +243,19 @@ export interface OpencodePromptParams {
 	onActivity?: (activity: OpencodeSessionActivity) => void;
 }
 
-export type OpencodeSessionActivity = {
-	type: "tool";
-	tool: string;
-	status: "running" | "completed" | "error";
-};
+export type OpencodeSessionActivity =
+	| {
+			type: "tool";
+			tool: string;
+			status: "running" | "completed" | "error";
+	  }
+	| {
+			type: "backgroundTaskFailure";
+			taskId?: string;
+			state?: string;
+			reason: "task_error" | "empty_result";
+			message: string;
+	  };
 
 export type OpencodeSessionEvent =
 	| { type: "idle"; tokens?: TokenUsage }

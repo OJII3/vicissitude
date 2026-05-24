@@ -51,6 +51,15 @@ JSON profile の `features.shellWorkspace.environment` には shell-worker と s
 
 Podman mount source としてホスト側 path が必要な profile では `features.shellWorkspace.hostDataDir` に書く。OpenCode shell subagent 経路だけなら省略する。
 
+## Background Task Failure Handling
+
+`features.shellWorkspace.backgroundSubagents: true` では、メイン会話 agent が OpenCode `task(background=true)` と `task_status` を使える。OpenCode が返す `task` / `task_status` 出力、または `Background task completed` synthetic text に次のどちらかが含まれる場合、Vicissitude は shell-worker の失敗として扱う。
+
+- `state: error` または `<task_error>...</task_error>`
+- `<task_result></task_result>` が空
+
+失敗を検知した場合、Runner は失敗内容を内部メッセージとして積む。Discord 送信など巻き戻せない副作用がまだ始まっていなければ現在の turn を abort し、元のユーザー依頼と失敗内容を合わせて再プロンプトする。これにより、shell-worker が実際には動いていないのに「開始した」「成功した」と報告することを避ける。
+
 ## 非目標
 
 - メイン会話 agent への builtin `bash` 直接許可。
