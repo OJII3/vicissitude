@@ -10,7 +10,7 @@ import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { Client } from "discord.js";
 
-import { createEmotionAnalyzer, readEmotionEstimationConfigFromEnv } from "./emotion.ts";
+import { createEmotionAnalyzerWithStoreDb, readEmotionEstimationConfigFromEnv } from "./emotion.ts";
 import { registerDiscordTools } from "./tools/discord.ts";
 import { registerDiscordBridgeTools } from "./tools/mc-bridge-discord.ts";
 
@@ -43,9 +43,10 @@ async function main(): Promise<void> {
 
 	const db = createDb(DATA_DIR);
 	const moodStore = new SqliteMoodStore(db);
-	const emotionAnalyzer = createEmotionAnalyzer(
+	const emotionAnalyzer = createEmotionAnalyzerWithStoreDb(
 		readEmotionEstimationConfigFromEnv(process.env),
 		logger,
+		db,
 	);
 
 	const boundNamespace: MemoryNamespace | undefined =

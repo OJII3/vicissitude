@@ -25,6 +25,7 @@ describe("store", () => {
 			expect(tableNames).toContain("sessions");
 			expect(tableNames).toContain("emoji_usage");
 			expect(tableNames).toContain("event_buffer");
+			expect(tableNames).toContain("emotion_provider_cooldown");
 			expect(tableNames).toContain("mc_session_lock");
 			expect(tableNames).toContain("mood_state");
 			expect(tableNames).toContain("agent_heartbeat");

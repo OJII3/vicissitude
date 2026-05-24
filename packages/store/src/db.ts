@@ -64,6 +64,15 @@ CREATE TABLE IF NOT EXISTS mood_state (
 	updated_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS emotion_provider_cooldown (
+	provider_id TEXT NOT NULL,
+	model_id TEXT NOT NULL,
+	until_ms INTEGER NOT NULL,
+	reason TEXT NOT NULL,
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (provider_id, model_id)
+);
+
 CREATE TABLE IF NOT EXISTS agent_heartbeat (
 	agent_id TEXT PRIMARY KEY,
 	last_seen_at INTEGER NOT NULL

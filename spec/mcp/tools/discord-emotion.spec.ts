@@ -13,6 +13,8 @@ import type {
 	MoodWriter,
 } from "@vicissitude/shared/ports";
 import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
+import { SqliteEmotionProviderCooldownStore } from "@vicissitude/store/emotion-provider-cooldown-store";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 import { captureTools, createDiscordClientStub } from "./discord-test-helpers";
 
@@ -238,7 +240,11 @@ describe("send_message / reply での感情推定トリガー", () => {
 			llm,
 			{ providerId: "github-copilot", modelId: "gpt-5-mini" },
 			logger,
-			{ metrics, now: () => 1_000_000 },
+			{
+				cooldownStore: new SqliteEmotionProviderCooldownStore(createTestDb()),
+				metrics,
+				now: () => 1_000_000,
+			},
 		);
 		const { writer, calls: writerCalls } = createSpyMoodWriter();
 

@@ -5,6 +5,8 @@ import { METRIC } from "@vicissitude/observability/metrics";
 import { NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
 import type { LlmPromptPort } from "@vicissitude/shared/ports";
 import { createMockLogger, createMockMetrics } from "@vicissitude/shared/test-helpers";
+import { SqliteEmotionProviderCooldownStore } from "@vicissitude/store/emotion-provider-cooldown-store";
+import { createTestDb } from "@vicissitude/store/test-helpers";
 
 function createQuotaExceededError(retryAfterSeconds: number): Error {
 	const error = new Error("GitHub Copilot quota exceeded");
@@ -34,7 +36,11 @@ describe("感情推定の quota exceeded 検知", () => {
 			llm,
 			{ providerId: "github-copilot", modelId: "gpt-5-mini" },
 			logger,
-			{ metrics, now: () => now },
+			{
+				cooldownStore: new SqliteEmotionProviderCooldownStore(createTestDb()),
+				metrics,
+				now: () => now,
+			},
 		);
 
 		const first = await analyzer.analyze({ text: "短い返事" });
@@ -88,5 +94,55 @@ describe("感情推定の quota exceeded 検知", () => {
 		now += 465_001_000;
 		await analyzer.analyze({ text: "待機後の返事" });
 		expect(promptCalls).toBe(2);
+	});
+
+	test("cooldown は同じ provider/model の analyzer インスタンス間で共有される", async () => {
+		let now = 1_000_000;
+		let firstPromptCalls = 0;
+		let secondPromptCalls = 0;
+		const db = createTestDb();
+		const model = { providerId: "github-copilot", modelId: "gpt-5-mini" };
+		const firstStore = new SqliteEmotionProviderCooldownStore(db);
+		const secondStore = new SqliteEmotionProviderCooldownStore(db);
+		const firstAnalyzer = createEmotionAnalyzerFromPromptPort(
+			{
+				prompt(): Promise<string> {
+					firstPromptCalls += 1;
+					return Promise.reject(createQuotaExceededError(465_000));
+				},
+			},
+			model,
+			createMockLogger(),
+			{ cooldownStore: firstStore, now: () => now },
+		);
+		const secondAnalyzer = createEmotionAnalyzerFromPromptPort(
+			{
+				prompt(): Promise<string> {
+					secondPromptCalls += 1;
+					return Promise.resolve(
+						JSON.stringify({
+							valence: 0,
+							arousal: 0,
+							dominance: 0,
+							confidence: 1,
+						}),
+					);
+				},
+			},
+			model,
+			createMockLogger(),
+			{ cooldownStore: secondStore, now: () => now },
+		);
+
+		await firstAnalyzer.analyze({ text: "最初の失敗" });
+		const result = await secondAnalyzer.analyze({ text: "別プロセス相当の再投入" });
+
+		expect(result).toEqual({ emotion: NEUTRAL_EMOTION, confidence: 0 });
+		expect(firstPromptCalls).toBe(1);
+		expect(secondPromptCalls).toBe(0);
+
+		now += 465_001_000;
+		await secondAnalyzer.analyze({ text: "cooldown 後の再投入" });
+		expect(secondPromptCalls).toBe(1);
 	});
 });

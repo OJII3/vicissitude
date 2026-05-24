@@ -1,6 +1,10 @@
 import { EmotionEstimator } from "@vicissitude/agent/emotion/estimator";
 import { classifyErrorType, METRIC } from "@vicissitude/observability/metrics";
-import type { EmotionAnalyzer, LlmPromptPort } from "@vicissitude/shared/ports";
+import type {
+	EmotionAnalyzer,
+	EmotionProviderCooldownStore,
+	LlmPromptPort,
+} from "@vicissitude/shared/ports";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 
 import { extractEmotionPromptErrorInfo } from "./emotion-error-info.ts";
@@ -10,6 +14,7 @@ export type { EmotionPromptErrorInfo } from "./emotion-error-info.ts";
 const LONG_RETRY_AFTER_THRESHOLD_SECONDS = 60;
 
 export interface EmotionAnalyzerOptions {
+	cooldownStore: EmotionProviderCooldownStore;
 	metrics?: MetricsCollector;
 	now?: () => number;
 }
@@ -34,7 +39,7 @@ export function createEmotionAnalyzerFromPromptPort(
 	llm: LlmPromptPort,
 	model: EmotionPromptModel,
 	logger: Logger,
-	options: EmotionAnalyzerOptions = {},
+	options: EmotionAnalyzerOptions,
 ): EmotionAnalyzer {
 	return new EmotionEstimator(createObservedEmotionPromptPort(llm, model, logger, options), logger);
 }
@@ -45,15 +50,11 @@ function createObservedEmotionPromptPort(
 	logger: Logger,
 	options: EmotionAnalyzerOptions,
 ): LlmPromptPort {
-	let cooldown: CooldownState | null = null;
 	const now = options.now ?? Date.now;
 	const context: ObservationContext = { model, logger, metrics: options.metrics };
 
 	function activeCooldown(): CooldownState | null {
-		if (!cooldown) return null;
-		if (now() < cooldown.untilMs) return cooldown;
-		cooldown = null;
-		return null;
+		return options.cooldownStore.getCooldown(model, now());
 	}
 
 	return {
@@ -67,7 +68,7 @@ function createObservedEmotionPromptPort(
 				return await inner.prompt(text);
 			} catch (error) {
 				recordFailure(error, context, now, (state) => {
-					cooldown = state;
+					options.cooldownStore.setCooldown(model, state);
 				});
 				throw createSuppressedEmotionPromptError("emotion estimation prompt failed", error);
 			}
