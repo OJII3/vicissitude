@@ -151,9 +151,18 @@ describe("resolveNamespaceFromAgentId", () => {
 	});
 
 	it("未知の agent_id プレフィックスは null を返す", () => {
-		expect(resolveNamespaceFromAgentId("web:user:abc")).toBeNull();
 		expect(resolveNamespaceFromAgentId("minecraft:world1")).toBeNull();
 		expect(resolveNamespaceFromAgentId("random-string")).toBeNull();
+	});
+
+	it("'web:local' を Web 専用 agent-scope に解決する", () => {
+		expect(resolveNamespaceFromAgentId("web:local")).toEqual(agentScopeNamespace("web:local"));
+	});
+
+	it("'web:user:abc' は Web 専用 agent-scope としてそのまま解決する", () => {
+		expect(resolveNamespaceFromAgentId("web:user:abc")).toEqual(
+			agentScopeNamespace("web:user:abc"),
+		);
 	});
 
 	it("null / undefined / 空文字は null を返す", () => {
@@ -211,7 +220,7 @@ describe("core-server adapter 契約（resolveNamespaceFromAgentId fallback）",
 	});
 
 	it("未知 agent_id → boundNamespace / boundScopeId ともに undefined", () => {
-		const ns = resolveNamespaceFromAgentId("web:user:abc");
+		const ns = resolveNamespaceFromAgentId("minecraft:world1");
 		const boundNamespace = ns ?? undefined;
 		const boundScopeId = ns?.surface === "agent-scope" ? ns.scopeId : undefined;
 

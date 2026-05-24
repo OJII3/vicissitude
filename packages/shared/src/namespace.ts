@@ -106,6 +106,7 @@ export type DiscordAgentRole = "polling" | "heartbeat";
 /** agentId のパース結果 */
 export type ParsedAgentId =
 	| { readonly platform: "discord"; readonly role: DiscordAgentRole; readonly scopeId: string }
+	| { readonly platform: "web"; readonly scopeId: string }
 	| { readonly platform: "internal" }
 	| null;
 
@@ -123,6 +124,9 @@ export function parseAgentId(agentId: string | null | undefined): ParsedAgentId 
 		const role = (m[1] ?? "polling") as DiscordAgentRole;
 		return { platform: "discord", role, scopeId: discordScopeId(m[2]) };
 	}
+	if (/^web:.+$/.test(agentId) && AGENT_SCOPE_ID_RE.test(agentId)) {
+		return { platform: "web", scopeId: agentId };
+	}
 	return null;
 }
 
@@ -138,6 +142,8 @@ export function resolveNamespaceFromAgentId(
 	if (!parsed) return null;
 	switch (parsed.platform) {
 		case "discord":
+			return agentScopeNamespace(parsed.scopeId);
+		case "web":
 			return agentScopeNamespace(parsed.scopeId);
 		case "internal":
 			return INTERNAL_NAMESPACE;

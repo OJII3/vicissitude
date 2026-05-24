@@ -9,7 +9,7 @@ import {
 	extractIdentityName,
 	type ContextFileName,
 } from "@vicissitude/agent/discord/context-builder";
-import { discordScopeId } from "@vicissitude/shared/namespace";
+import { agentScopeNamespace, discordScopeId } from "@vicissitude/shared/namespace";
 import type { MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 // ─── ヘルパー ────────────────────────────────────────────────────
@@ -148,6 +148,18 @@ describe("ContextBuilder", () => {
 
 			expect(result).not.toContain("<SERVER.md>");
 		});
+
+		it("非 Discord scope では scopes/{encodedScopeId} の固有ファイルが読み込まれる", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(overlayDir, "scopes/web%3Alocal/MEMORY.md", "web local memory");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build("web:local");
+
+			expect(result).toContain("<MEMORY.md>");
+			expect(result).toContain("web local memory");
+			expect(result).not.toContain("<guild-context>");
+		});
 	});
 
 	describe("セクションの並び順", () => {
@@ -242,6 +254,39 @@ describe("ContextBuilder", () => {
 			const builder = new ContextBuilder(overlayDir, baseDir);
 			const result = await builder.build(scope("123456789"));
 			expect(result).toContain("current_guild_id: 123456789");
+		});
+
+		it("Web scope は guild-context なしで通る", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build("web:local");
+			expect(result).toContain("identity");
+			expect(result).not.toContain("<guild-context>");
+		});
+	});
+
+	describe("Memory facts", () => {
+		it("非 Discord scope の facts は同じ agent-scope namespace から取得する", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			const facts: MemoryFact[] = [
+				{ content: "web scoped fact", category: "preference", createdAt: "2026-05-24" },
+			];
+			const calls: unknown[] = [];
+			const factReader: MemoryFactReader = {
+				getFacts: () => Promise.resolve([]),
+				getRelevantFacts: (namespace) => {
+					calls.push(namespace);
+					return Promise.resolve(facts);
+				},
+				close: () => Promise.resolve(),
+			};
+			const builder = new ContextBuilder(overlayDir, baseDir, factReader);
+
+			const result = await builder.build("web:local");
+
+			expect(calls).toEqual([agentScopeNamespace("web:local")]);
+			expect(result).toContain("web scoped fact");
 		});
 	});
 

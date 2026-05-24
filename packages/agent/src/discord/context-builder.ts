@@ -1,6 +1,10 @@
 import { resolve } from "path";
 
-import { agentScopeNamespace, discordGuildIdFromScopeId } from "@vicissitude/shared/namespace";
+import {
+	AGENT_SCOPE_ID_RE,
+	agentScopeNamespace,
+	discordGuildIdFromScopeId,
+} from "@vicissitude/shared/namespace";
 import type { ContextBuilderPort, MemoryFact, MemoryFactReader } from "@vicissitude/shared/types";
 
 type FileEntry = { name: string; scope: "shared" | "guild" };
@@ -36,6 +40,11 @@ const PER_FILE_MAX = 20_000;
 const TOTAL_MAX = 150_000;
 const IDENTITY_NAME_ENV = "VICISSITUDE_IDENTITY_NAME";
 
+interface ScopeContext {
+	guildId?: string;
+	scopedContextDir?: string;
+}
+
 export class ContextBuilder implements ContextBuilderPort {
 	constructor(
 		private readonly overlayDir: string,
@@ -45,9 +54,9 @@ export class ContextBuilder implements ContextBuilderPort {
 	) {}
 
 	async build(scopeId?: string): Promise<string> {
-		const guildId = this.resolveDiscordGuildId(scopeId);
+		const scope = this.resolveScopeContext(scopeId);
 
-		const fileContents = await this.readAllFiles(guildId);
+		const fileContents = await this.readAllFiles(scope);
 		const factsSection = await this.buildFactsSection(scopeId);
 
 		const sections: string[] = [];
@@ -75,8 +84,8 @@ export class ContextBuilder implements ContextBuilderPort {
 				totalLength += factsSection.length;
 			}
 
-			if (entry.name === GUILD_CONTEXT_AFTER && guildId) {
-				const guildContext = `<guild-context>\ncurrent_guild_id: ${guildId}\n</guild-context>`;
+			if (entry.name === GUILD_CONTEXT_AFTER && scope.guildId) {
+				const guildContext = `<guild-context>\ncurrent_guild_id: ${scope.guildId}\n</guild-context>`;
 				if (totalLength + guildContext.length <= TOTAL_MAX) {
 					sections.push(guildContext);
 					totalLength += guildContext.length;
@@ -96,13 +105,14 @@ export class ContextBuilder implements ContextBuilderPort {
 	/** Maximum facts to inject into system prompt */
 	private static readonly FACTS_LIMIT = 20;
 
-	private resolveDiscordGuildId(scopeId: string | undefined): string | undefined {
-		if (scopeId === undefined) return undefined;
+	private resolveScopeContext(scopeId: string | undefined): ScopeContext {
+		if (scopeId === undefined) return {};
 		const guildId = discordGuildIdFromScopeId(scopeId);
-		if (!guildId) {
+		if (guildId) return { guildId, scopedContextDir: `guilds/${guildId}` };
+		if (!scopeId.includes(":") || !AGENT_SCOPE_ID_RE.test(scopeId)) {
 			throw new Error(`Invalid Discord scopeId: ${scopeId}`);
 		}
-		return guildId;
+		return { scopedContextDir: `scopes/${encodeURIComponent(scopeId)}` };
 	}
 
 	private async buildFactsSection(scopeId?: string): Promise<string | null> {
@@ -140,12 +150,12 @@ export class ContextBuilder implements ContextBuilderPort {
 		return `<MEMORY-FACTS>\n${lines.join("\n").trim()}\n</MEMORY-FACTS>`;
 	}
 
-	private readAllFiles(guildId: string | undefined): Promise<(string | null)[]> {
+	private readAllFiles(scope: ScopeContext): Promise<(string | null)[]> {
 		return Promise.all(
 			CONTEXT_FILES.map((entry) => {
 				if (entry.scope === "guild") {
-					if (!guildId) return Promise.resolve(null);
-					return this.readOverlaid(`guilds/${guildId}/${entry.name}`);
+					if (!scope.scopedContextDir) return Promise.resolve(null);
+					return this.readOverlaid(`${scope.scopedContextDir}/${entry.name}`);
 				}
 				return this.readOverlaid(entry.name);
 			}),

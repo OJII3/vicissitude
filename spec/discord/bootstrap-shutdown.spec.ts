@@ -32,6 +32,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 				return Promise.resolve();
 			}),
 		},
+		webAgent: { stop: mock(track("webAgent")) },
 		mcBrainManager: { stop: mock(track("mcBrainManager")) },
 		heartbeatRouter: { stop: mock(track("heartbeatRouter")) },
 		routingAgent: { stop: mock(track("routingAgent")) },
@@ -70,7 +71,7 @@ describe("createShutdown()", () => {
 	});
 
 	describe("シャットダウン順序", () => {
-		it("14 コンポーネントが定義順にシャットダウンされる", async () => {
+		it("15 コンポーネントが定義順にシャットダウンされる", async () => {
 			const deps = makeDeps();
 			// clearInterval のスパイで sessionGauge の順序を記録
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {
@@ -86,6 +87,7 @@ describe("createShutdown()", () => {
 				"heartbeatScheduler",
 				"gateway",
 				"gatewayServer",
+				"webAgent",
 				"mcBrainManager",
 				"heartbeatRouter",
 				"routingAgent",
@@ -179,6 +181,13 @@ describe("createShutdown()", () => {
 			expect(exitSpy).toHaveBeenCalledWith(0);
 		});
 
+		it("webAgent が undefined でも正常にスキップされる", async () => {
+			const deps = makeDeps({ webAgent: undefined });
+			const shutdown = createShutdown(deps);
+			await shutdown();
+			expect(exitSpy).toHaveBeenCalledWith(0);
+		});
+
 		it("chatAdapter が undefined でも正常にスキップされる", async () => {
 			const deps = makeDeps({ chatAdapter: undefined });
 			const shutdown = createShutdown(deps);
@@ -210,6 +219,7 @@ describe("createShutdown()", () => {
 		it("全オプショナル依存が undefined でも正常にシャットダウンされる", async () => {
 			const deps = makeDeps({
 				consolidationScheduler: undefined,
+				webAgent: undefined,
 				mcBrainManager: undefined,
 				chatAdapter: undefined,
 				recorder: undefined,

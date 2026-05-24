@@ -17,16 +17,18 @@ function IndexPage() {
 	}, []);
 
 	return (
-		<main className="flex h-screen flex-col lg:flex-row">
+		<main className="relative h-screen overflow-hidden bg-gray-100">
 			{/* 3D アバター */}
-			<div className="h-1/2 w-full lg:h-full lg:w-1/2 bg-gray-100">
+			<div className="absolute inset-0">
 				<VrmViewer expressionWeight={expressionWeight} />
 			</div>
 
 			{/* チャット */}
-			<div className="h-1/2 w-full lg:h-full lg:w-1/2 bg-white">
-				<ChatPanel onExpressionChange={handleExpressionChange} />
-			</div>
+			<section className="pointer-events-none absolute inset-0 flex items-end justify-center p-3 sm:p-4 lg:items-stretch lg:justify-end lg:p-6">
+				<div className="pointer-events-auto flex h-[46vh] min-h-0 w-full max-w-xl rounded-lg border border-white/30 bg-white/35 shadow-xl shadow-gray-900/10 backdrop-blur-md sm:h-[48vh] lg:h-full lg:max-w-md xl:max-w-lg">
+					<ChatPanel onExpressionChange={handleExpressionChange} />
+				</div>
+			</section>
 		</main>
 	);
 }

@@ -7,6 +7,7 @@ export interface ShutdownDeps {
 	heartbeatScheduler: { stop(): void };
 	gateway: { stop(): void };
 	gatewayServer: { stop(): Promise<unknown> };
+	webAgent?: { stop(): void };
 	mcBrainManager?: { stop(): void };
 	heartbeatRouter: { stop(): void };
 	routingAgent: { stop(): void };
@@ -42,6 +43,7 @@ export function createShutdown(deps: ShutdownDeps): () => Promise<void> {
 		await safe("heartbeatScheduler", () => deps.heartbeatScheduler.stop());
 		await safe("gateway", () => deps.gateway.stop());
 		await safe("gatewayServer", async () => void (await deps.gatewayServer.stop()));
+		await safe("webAgent", () => deps.webAgent?.stop());
 		await safe("mcBrainManager", () => deps.mcBrainManager?.stop());
 		// heartbeatRouter.stop() -> each AgentRunner.stop() -> sessionPort.close() (SIGTERM to opencode child)
 		await safe("heartbeatRouter", () => deps.heartbeatRouter.stop());

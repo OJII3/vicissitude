@@ -1,4 +1,5 @@
-import { createEmotion } from "@vicissitude/shared/emotion";
+import { NEUTRAL_EMOTION } from "@vicissitude/shared/emotion";
+import type { Emotion } from "@vicissitude/shared/emotion";
 import type {
 	ClientMessageHandler,
 	ConnectionId,
@@ -23,34 +24,60 @@ export interface WebSocketConnection {
 	send(data: string): void;
 }
 
-function randomVad(): number {
-	return Math.random() * 2 - 1;
+export interface ChatResponderInput {
+	connectionId: ConnectionId;
+	text: string;
+	timestamp: string;
+	signal?: AbortSignal;
 }
+
+export interface ChatResponderResult {
+	text: string;
+	emotion?: Emotion;
+}
+
+export interface ChatResponder {
+	respond(input: ChatResponderInput): Promise<ChatResponderResult>;
+}
+
+export const CHAT_INPUT_MAX_LENGTH = 4_000;
+export const CHAT_INPUT_MIN_INTERVAL_MS = 1_000;
 
 export interface WsConnectionManagerDeps {
 	emotionToExpressionMapper: EmotionToExpressionMapper;
+	chatResponder: ChatResponder;
 	ttsSynthesizer?: TtsSynthesizer;
 	ttsStyleMapper?: EmotionToTtsStyleMapper;
 	moodReader?: MoodReader;
+	moodAgentId?: string;
 	logger: Logger;
+	nowProvider?: () => number;
 }
 
 export class WsConnectionManager implements GatewayPort {
 	private readonly connections = new Map<ConnectionId, WebSocketConnection>();
 	private readonly abortControllers = new Map<ConnectionId, AbortController>();
+	private readonly pendingChatConnections = new Set<ConnectionId>();
+	private readonly lastChatInputAtByConnection = new Map<ConnectionId, number>();
 	private readonly handlers: ClientMessageHandler[] = [];
 	private readonly ttsSynthesizer: TtsSynthesizer | undefined;
 	private readonly ttsStyleMapper: EmotionToTtsStyleMapper | undefined;
 	private readonly moodReader: MoodReader | undefined;
+	private readonly moodAgentId: string;
 	private readonly emotionToExpressionMapper: EmotionToExpressionMapper;
+	private readonly chatResponder: ChatResponder;
 	private readonly logger: Logger;
+	private readonly nowProvider: () => number;
 
 	constructor(deps: WsConnectionManagerDeps) {
 		this.emotionToExpressionMapper = deps.emotionToExpressionMapper;
+		this.chatResponder = deps.chatResponder;
 		this.ttsSynthesizer = deps.ttsSynthesizer;
 		this.ttsStyleMapper = deps.ttsStyleMapper;
 		this.moodReader = deps.moodReader;
+		this.moodAgentId = deps.moodAgentId ?? "web:local";
 		this.logger = deps.logger;
+		this.nowProvider = deps.nowProvider ?? Date.now;
 	}
 
 	handleOpen(connectionId: string, connection: WebSocketConnection): void {
@@ -61,6 +88,8 @@ export class WsConnectionManager implements GatewayPort {
 	handleClose(connectionId: string): void {
 		this.abortControllers.get(connectionId)?.abort();
 		this.abortControllers.delete(connectionId);
+		this.pendingChatConnections.delete(connectionId);
+		this.lastChatInputAtByConnection.delete(connectionId);
 		this.connections.delete(connectionId);
 	}
 
@@ -96,50 +125,12 @@ export class WsConnectionManager implements GatewayPort {
 			}
 		}
 
-		// 3. ダミー応答: chat_input に対してエコー + ランダム emotion を返す
 		if (message.type === "chat_input") {
-			try {
-				const now = new Date().toISOString();
-				const chatResponse: ChatResponseMessage = {
-					type: "chat_message",
-					status: "complete",
-					text: message.text,
-					messageId: crypto.randomUUID(),
-					timestamp: now,
-				};
-				this.send(connectionId, chatResponse);
-
-				const emotion = this.moodReader
-					? this.moodReader.getMood("discord:default")
-					: createEmotion(randomVad(), randomVad(), randomVad());
-				const expressionWeight = this.emotionToExpressionMapper.mapToExpression(emotion);
-				const emotionUpdate: EmotionUpdateMessage = {
-					type: "emotion_update",
-					emotion,
-					expressionWeight,
-					timestamp: now,
-				};
-				this.broadcast(emotionUpdate);
-
-				// TTS 合成（非同期・fire-and-forget）
-				if (this.ttsSynthesizer && this.ttsStyleMapper) {
-					const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
-					const signal = this.abortControllers.get(connectionId)?.signal;
-					void this.synthesizeAndSend({
-						connectionId,
-						messageId: chatResponse.messageId,
-						text: message.text,
-						style: ttsStyle,
-						synthesizer: this.ttsSynthesizer,
-						signal,
-					});
-				}
-			} catch (error) {
-				this.logger.error("[gateway] Dummy response handler failed", {
-					connectionId,
-					error,
-				});
-			}
+			if (!this.startChatInput(connectionId, message.text)) return;
+			const signal = this.abortControllers.get(connectionId)?.signal;
+			void this.handleChatInput(connectionId, message, signal).finally(() => {
+				this.pendingChatConnections.delete(connectionId);
+			});
 		}
 	}
 
@@ -188,6 +179,113 @@ export class WsConnectionManager implements GatewayPort {
 		} catch (error) {
 			this.logger.warn("[gateway] TTS synthesize failed", { error });
 		}
+	}
+
+	private async handleChatInput(
+		connectionId: ConnectionId,
+		message: { text: string; timestamp: string },
+		signal?: AbortSignal,
+	): Promise<void> {
+		try {
+			const response = await this.chatResponder.respond({
+				connectionId,
+				text: message.text,
+				timestamp: message.timestamp,
+				signal,
+			});
+			if (signal?.aborted) return;
+
+			const now = new Date().toISOString();
+			const chatResponse: ChatResponseMessage = {
+				type: "chat_message",
+				status: "complete",
+				text: response.text,
+				messageId: crypto.randomUUID(),
+				timestamp: now,
+			};
+			this.send(connectionId, chatResponse);
+
+			const emotion =
+				response.emotion ?? this.moodReader?.getMood(this.moodAgentId) ?? NEUTRAL_EMOTION;
+			const expressionWeight = this.emotionToExpressionMapper.mapToExpression(emotion);
+			const emotionUpdate: EmotionUpdateMessage = {
+				type: "emotion_update",
+				emotion,
+				expressionWeight,
+				timestamp: now,
+			};
+			this.broadcast(emotionUpdate);
+
+			if (this.ttsSynthesizer && this.ttsStyleMapper) {
+				const ttsStyle = this.ttsStyleMapper.mapToStyle(emotion);
+				void this.synthesizeAndSend({
+					connectionId,
+					messageId: chatResponse.messageId,
+					text: response.text,
+					style: ttsStyle,
+					synthesizer: this.ttsSynthesizer,
+					signal,
+				});
+			}
+		} catch (error) {
+			if (signal?.aborted) return;
+			this.logger.error("[gateway] Chat response handler failed", {
+				connectionId,
+				error,
+			});
+			const errorMsg: ErrorMessage = {
+				type: "error",
+				code: "CHAT_RESPONSE_FAILED",
+				message: "Failed to generate chat response",
+				timestamp: new Date().toISOString(),
+			};
+			this.send(connectionId, errorMsg);
+		}
+	}
+
+	private startChatInput(connectionId: ConnectionId, text: string): boolean {
+		if (text.length > CHAT_INPUT_MAX_LENGTH) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_INPUT_TOO_LONG",
+				`Chat input is too long; maximum is ${CHAT_INPUT_MAX_LENGTH} characters`,
+			);
+			return false;
+		}
+
+		if (this.pendingChatConnections.has(connectionId)) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_RESPONSE_IN_PROGRESS",
+				"Wait for the current chat response before sending another message",
+			);
+			return false;
+		}
+
+		const now = this.nowProvider();
+		const lastInputAt = this.lastChatInputAtByConnection.get(connectionId);
+		if (lastInputAt !== undefined && now - lastInputAt < CHAT_INPUT_MIN_INTERVAL_MS) {
+			this.sendChatInputRejected(
+				connectionId,
+				"CHAT_RATE_LIMITED",
+				"Chat input rate limit exceeded",
+			);
+			return false;
+		}
+
+		this.pendingChatConnections.add(connectionId);
+		this.lastChatInputAtByConnection.set(connectionId, now);
+		return true;
+	}
+
+	private sendChatInputRejected(connectionId: ConnectionId, code: string, message: string): void {
+		const errorMsg: ErrorMessage = {
+			type: "error",
+			code,
+			message,
+			timestamp: new Date().toISOString(),
+		};
+		this.send(connectionId, errorMsg);
 	}
 
 	private sendSerializedMessage(
