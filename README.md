@@ -213,6 +213,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `HUA_GITHUB_TOKEN`: `features.shellWorkspace.environment` など profile の `fromEnv` 参照で指定した場合に必須
 
 `features.shellWorkspace.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
+background shell task が `state:error` を返した場合、または `state:completed` でも `<task_result>` が空の場合は shell-worker の失敗として扱う。会話 agent はその turn を中断できる場合は中断し、内部メッセージとして失敗を再プロンプトして、Discord へ成功・開始済みとして誤報告しない。
 
 ## 6. 受け入れ条件
 

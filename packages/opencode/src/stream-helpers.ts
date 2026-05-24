@@ -7,6 +7,8 @@ import type {
 	TokenUsage,
 } from "@vicissitude/shared/types";
 
+import { extractBackgroundTaskFailure } from "./background-task-activity.ts";
+
 export type AbortableAsyncStream<T> = AsyncIterator<T> & {
 	return?: (value?: unknown) => Promise<IteratorResult<T>>;
 };
@@ -244,7 +246,10 @@ export function extractPartActivity(
 ): OpencodeSessionActivity | null {
 	if (event.type !== "message.part.updated") return null;
 	const { part } = event.properties;
-	if (part.sessionID !== sessionId || part.type !== "tool") return null;
+	if (part.sessionID !== sessionId) return null;
+	const backgroundTaskFailure = extractBackgroundTaskFailure(part);
+	if (backgroundTaskFailure) return backgroundTaskFailure;
+	if (part.type !== "tool") return null;
 	const status = part.state.status;
 	if (status !== "running" && status !== "completed" && status !== "error") return null;
 	return {

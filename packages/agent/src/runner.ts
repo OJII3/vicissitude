@@ -113,6 +113,7 @@ export class AgentRunner implements AiAgent {
 	private promptHasUninterruptibleSideEffect = false;
 	private activePromptMetrics: ActivePromptMetrics | null = null;
 	private lastPromptMetricLabels: Record<string, string> | null = null;
+	private reportedBackgroundTaskFailures = new Set<string>();
 
 	private readonly profile: AgentProfile;
 	private readonly agentId: string;
@@ -521,7 +522,63 @@ export class AgentRunner implements AiAgent {
 			UNINTERRUPTIBLE_DISCORD_TOOLS.has(activity.tool)
 		) {
 			this.promptHasUninterruptibleSideEffect = true;
+			return;
 		}
+		if (activity.type === "backgroundTaskFailure") {
+			this.handleBackgroundTaskFailure(activity);
+		}
+	}
+
+	private handleBackgroundTaskFailure(
+		activity: Extract<OpencodeSessionActivity, { type: "backgroundTaskFailure" }>,
+	): void {
+		const key = `${activity.taskId ?? "unknown"}:${activity.reason}:${activity.message}`;
+		if (this.reportedBackgroundTaskFailures.has(key)) return;
+		this.reportedBackgroundTaskFailures.add(key);
+		this.logger.error(
+			`[${this.profile.name}:${this.agentId}] shell-worker background task failed`,
+			activity.message,
+		);
+		this.metrics?.incrementCounter(
+			METRIC.SESSION_ERRORS,
+			this.metricLabels({
+				source: "background_task",
+				error_type: activity.reason,
+				http_status: "unknown",
+				retryable: "unknown",
+				error_class: "BackgroundTaskFailure",
+			}),
+		);
+		this.pendingMessages.push({
+			text: `<internal_message>
+shell-worker background task failed.
+task_id: ${activity.taskId ?? "unknown"}
+state: ${activity.state ?? "unknown"}
+reason: ${activity.reason}
+detail: ${activity.message}
+
+この shell-worker 作業を成功・開始済みとして報告してはいけません。Discord には失敗として短く報告してください。
+</internal_message>`,
+			trigger: "internal",
+			scopeId: this.contextScopeId,
+		});
+		this.pendingResolve?.();
+		this.pendingDebounceResolve?.();
+
+		if (!this.sessionWatch || this.promptHasUninterruptibleSideEffect) {
+			this.ensurePolling();
+			return;
+		}
+		if (this.lastPromptText !== null) {
+			this.pendingMessages.unshift({
+				text: this.lastPromptText,
+				attachments: this.lastPromptAttachments ?? undefined,
+				trigger: this.lastPromptTrigger ?? "unknown",
+				scopeId: this.lastPromptScopeId ?? undefined,
+			});
+		}
+		this.clearLastPrompt();
+		this.sessionAbortController?.abort();
 	}
 
 	private clearLastPrompt(): void {
