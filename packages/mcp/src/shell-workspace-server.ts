@@ -2,6 +2,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
+import type { ShellWorkspaceGitConfig } from "@vicissitude/shared/workspace-gitconfig";
 import { z } from "zod/v4";
 
 import {
@@ -61,6 +62,18 @@ function readForwardedEnvironment(env: NodeJS.ProcessEnv): Record<string, string
 	);
 }
 
+function readGitConfigEnv(env: NodeJS.ProcessEnv): ShellWorkspaceGitConfig | undefined {
+	const userName = env.SHELL_WORKSPACE_GIT_USER_NAME?.trim();
+	const userEmail = env.SHELL_WORKSPACE_GIT_USER_EMAIL?.trim();
+	if (!userName && !userEmail) return;
+	if (!userName || !userEmail) {
+		throw new Error(
+			"SHELL_WORKSPACE_GIT_USER_NAME and SHELL_WORKSPACE_GIT_USER_EMAIL must be configured together",
+		);
+	}
+	return { userName, userEmail };
+}
+
 function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
 	const defaultTtlMinutes = readIntEnv("SHELL_WORKSPACE_DEFAULT_TTL_MINUTES", 60);
 	const maxTtlMinutes = readIntEnv("SHELL_WORKSPACE_MAX_TTL_MINUTES", 120);
@@ -85,6 +98,7 @@ function loadShellWorkspaceConfig(): ShellWorkspaceConfig {
 		hostDataDir: process.env.SHELL_WORKSPACE_HOST_DATA_DIR,
 		auditLogPath: process.env.SHELL_WORKSPACE_AUDIT_LOG ?? DEFAULT_AUDIT_LOG,
 		environment: readForwardedEnvironment(process.env),
+		git: readGitConfigEnv(process.env),
 		defaultTtlMinutes,
 		maxTtlMinutes,
 		defaultTimeoutSeconds,

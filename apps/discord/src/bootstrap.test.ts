@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync } from "fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
 import { join } from "path";
 
@@ -282,6 +282,65 @@ describe("createDiscordAgents", () => {
 		);
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).toContain("GH_TOKEN");
 		expect(agent.sessionPort.config.environment?.GIT_CONFIG_VALUE_0).not.toContain("github-token");
+	});
+
+	test("shellWorkspace の Git identity は workspace 内の gitconfig として渡す", () => {
+		const dataDir = mkdtempSync(join(os.tmpdir(), "vicissitude-shell-workspace-"));
+		const config = createTestConfig({
+			shellWorkspace: {
+				enabled: true,
+				image: "sandbox",
+				agent: {
+					providerId: "shell-provider",
+					modelId: "shell-model",
+					temperature: 0.4,
+					steps: 16,
+				},
+				git: {
+					userName: "ふあ",
+					userEmail: "282728168+agenthua@users.noreply.github.com",
+				},
+				dataDir,
+				auditLogPath: "/tmp/shell-audit.jsonl",
+				networkProfile: "open",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
+			sessionPort: { config: { environment?: Record<string, string> } };
+		};
+		const gitConfigPath = join(
+			dataDir,
+			"opencode",
+			"discord_123456789",
+			".config",
+			"git",
+			"config",
+		);
+		const gitConfig = readFileSync(gitConfigPath, "utf8");
+
+		expect(agent.sessionPort.config.environment?.GIT_CONFIG_GLOBAL).toBe(gitConfigPath);
+		expect(gitConfig).toContain('name = "ふあ"');
+		expect(gitConfig).toContain('email = "282728168+agenthua@users.noreply.github.com"');
+		expect(gitConfig).toContain('[credential "https://github.com"]');
 	});
 
 	test("backgroundSubagents 有効時は OpenCode 実験フラグを渡す", () => {

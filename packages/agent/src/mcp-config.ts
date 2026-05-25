@@ -1,5 +1,7 @@
 import { resolve } from "path";
 
+import type { ShellWorkspaceGitConfig } from "@vicissitude/shared/workspace-gitconfig";
+
 import type { McpServerConfig } from "./profile.ts";
 
 export interface McpConfigOptions {
@@ -21,6 +23,7 @@ export interface ShellWorkspaceMcpConfigOptions {
 	auditLogPath: string;
 	networkProfile: "open" | "none";
 	environment?: Record<string, string>;
+	git?: ShellWorkspaceGitConfig;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
 	defaultTimeoutSeconds: number;
@@ -101,6 +104,10 @@ function buildShellWorkspaceEnvironment(
 	};
 	if (forwardedEnvironmentNames.length > 0) {
 		env.SHELL_WORKSPACE_FORWARD_ENV = forwardedEnvironmentNames.join(",");
+	}
+	if (config.git) {
+		env.SHELL_WORKSPACE_GIT_USER_NAME = config.git.userName;
+		env.SHELL_WORKSPACE_GIT_USER_EMAIL = config.git.userEmail;
 	}
 	if (config.hostDataDir) env.SHELL_WORKSPACE_HOST_DATA_DIR = config.hostDataDir;
 	if (process.env.XDG_RUNTIME_DIR) env.XDG_RUNTIME_DIR = process.env.XDG_RUNTIME_DIR;

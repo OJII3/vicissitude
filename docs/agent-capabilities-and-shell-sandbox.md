@@ -49,6 +49,8 @@ shell workspace は JSON profile の `features.shellWorkspace` が存在する�
 
 JSON profile の `features.shellWorkspace.environment` には shell-worker と shell workspace 子コンテナへ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。`GH_TOKEN` / `GITHUB_TOKEN` を渡すと、子コンテナ内の `gh` と Git HTTPS credential helper が同じ token を使う。
 
+`features.shellWorkspace.git` には shell workspace 用の Git author identity を書く。起動時に workspace 内の `.config/git/config` が生成され、OpenCode shell-worker は `GIT_CONFIG_GLOBAL` でそのファイルを参照する。これにより host の `ojii3` Git config ではなく、ふあ用の Git account で commit できる。
+
 Podman mount source としてホスト側 path が必要な profile では `features.shellWorkspace.hostDataDir` に書く。OpenCode shell subagent 経路だけなら省略する。
 
 ## Background Task Failure Handling

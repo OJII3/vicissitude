@@ -149,6 +149,24 @@ describe("ShellWorkspaceManager", () => {
 		manager.close();
 	});
 
+	it("git config 指定時は workspace 内に永続 gitconfig を作る", () => {
+		const config = createConfig({
+			git: {
+				userName: "ふあ",
+				userEmail: "282728168+agenthua@users.noreply.github.com",
+			},
+		});
+		const manager = new ShellWorkspaceManager(config);
+		const session = manager.startSession({});
+		const gitConfig = readFileSync(join(session.workspaceDir, ".config", "git", "config"), "utf8");
+
+		expect(gitConfig).toContain('name = "ふあ"');
+		expect(gitConfig).toContain('email = "282728168+agenthua@users.noreply.github.com"');
+		expect(gitConfig).toContain('[credential "https://github.com"]');
+		expect(gitConfig).toContain("GH_TOKEN");
+		manager.close();
+	});
+
 	it("exec 時に GitHub 認証用 environment を Podman process へ渡す", async () => {
 		const seenOptions: Array<{
 			timeoutMs: number;

@@ -61,6 +61,10 @@ import type {
 	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
+import {
+	workspaceGitConfigPath,
+	writeShellWorkspaceGitConfig,
+} from "@vicissitude/shared/workspace-gitconfig";
 import type { StoreDb } from "@vicissitude/store/db";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
@@ -184,26 +188,33 @@ export function buildDiscordEnvironment(config: AppConfig, root: string): Record
 	return env;
 }
 
-function buildOpencodeShellWorkspaceDirectory(
+function prepareOpencodeShellWorkspaceDirectory(
 	config: AppConfig,
 	agentId: string,
 ): string | undefined {
 	if (!config.shellWorkspace) return;
 	const safeAgentId = agentId.replaceAll(/[^A-Za-z0-9._-]/g, "_");
-	return resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
+	const directory = resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
+	if (config.shellWorkspace.git) writeShellWorkspaceGitConfig(directory, config.shellWorkspace.git);
+	return directory;
 }
 
 function buildOpencodeShellWorkspaceEnvironment(
 	config: AppConfig,
+	directory: string | undefined,
 ): Record<string, string> | undefined {
 	if (!config.shellWorkspace) return;
 	const environment = config.shellWorkspace.environment
 		? { ...config.shellWorkspace.environment }
-		: undefined;
+		: {};
+	const baseEnvironment: Record<string, string> = { ...environment };
+	if (config.shellWorkspace.git && directory) {
+		baseEnvironment.GIT_CONFIG_GLOBAL = workspaceGitConfigPath(directory);
+	}
 	if (!config.shellWorkspace.backgroundSubagents)
-		return addGitHubCredentialHelperEnvironment(environment);
+		return addGitHubCredentialHelperEnvironment(baseEnvironment);
 	return addGitHubCredentialHelperEnvironment({
-		...environment,
+		...baseEnvironment,
 		OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS: "true",
 	});
 }
@@ -281,6 +292,7 @@ export function createDiscordAgents(
 
 	for (const [index, spec] of agentSpecs.entries()) {
 		const agentPort = config.opencode.basePort + portOffset + index;
+		const shellWorkspaceDirectory = prepareOpencodeShellWorkspaceDirectory(config, spec.agentId);
 		const profile = createConversationProfile({
 			providerId: opencode.providerId,
 			modelId: opencode.modelId,
@@ -304,8 +316,8 @@ export function createDiscordAgents(
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
-			directory: buildOpencodeShellWorkspaceDirectory(config, spec.agentId),
-			environment: buildOpencodeShellWorkspaceEnvironment(config),
+			directory: shellWorkspaceDirectory,
+			environment: buildOpencodeShellWorkspaceEnvironment(config, shellWorkspaceDirectory),
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition

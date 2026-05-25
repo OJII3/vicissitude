@@ -165,6 +165,10 @@ describe("JSON profile config", () => {
 							GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
 							GITHUB_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
 						},
+						git: {
+							userName: "ふあ",
+							userEmail: "282728168+agenthua@users.noreply.github.com",
+						},
 						backgroundSubagents: true,
 						hostDataDir: "/host/project/data/shell-workspaces",
 						defaultTtlMinutes: 15,
@@ -205,6 +209,10 @@ describe("JSON profile config", () => {
 			environment: {
 				GH_TOKEN: "test-github-token",
 				GITHUB_TOKEN: "test-github-token",
+			},
+			git: {
+				userName: "ふあ",
+				userEmail: "282728168+agenthua@users.noreply.github.com",
 			},
 			backgroundSubagents: true,
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",

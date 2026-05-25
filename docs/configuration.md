@@ -78,6 +78,10 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 				"GH_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" },
 				"GITHUB_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" }
 			},
+			"git": {
+				"userName": "ふあ",
+				"userEmail": "282728168+agenthua@users.noreply.github.com"
+			},
 			"hostDataDir": "/home/hua/vicissitude/data/shell-workspaces",
 			"networkProfile": "open",
 			"defaultTtlMinutes": 60,
@@ -107,6 +111,8 @@ feature section が存在する場合だけ、その feature の secret env を�
 `features.shellWorkspace.hostDataDir` は shell workspace 用 MCP server が Podman mount source として使うホスト側 path を必要とする場合だけ profile に書く。OpenCode shell subagent 経路だけを使う profile では省略する。
 
 compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。shell workspace 子コンテナでは `GH_TOKEN` / `GITHUB_TOKEN` がある場合だけ Git HTTPS credential helper を env 経由で追加し、`git push` も同じ token を使う。
+
+`features.shellWorkspace.git` を設定すると、shell workspace ごとに `.config/git/config` を生成し、OpenCode shell-worker では `GIT_CONFIG_GLOBAL` でそのファイルを参照する。ここには secret を書かず、Git author identity と `GH_TOKEN` / `GITHUB_TOKEN` を読む GitHub credential helper だけを置く。
 
 ## パースと検証
 

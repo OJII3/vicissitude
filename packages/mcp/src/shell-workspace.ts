@@ -10,6 +10,11 @@ import {
 } from "fs";
 import { dirname, resolve, sep } from "path";
 
+import {
+	writeShellWorkspaceGitConfig,
+	type ShellWorkspaceGitConfig,
+} from "@vicissitude/shared/workspace-gitconfig";
+
 const PODMAN_TIMEOUT_EXIT = 255;
 const DEFAULT_NETWORK_PROFILE = "open";
 const SHELL_WORKSPACE_CONTAINER_WORKDIR = "/workspace";
@@ -26,6 +31,7 @@ export interface ShellWorkspaceConfig {
 	hostDataDir?: string;
 	auditLogPath: string;
 	environment?: Record<string, string>;
+	git?: ShellWorkspaceGitConfig;
 	defaultTtlMinutes: number;
 	maxTtlMinutes: number;
 	defaultTimeoutSeconds: number;
@@ -189,6 +195,7 @@ export class ShellWorkspaceManager {
 			mkdirSync(sandboxDir, { recursive: false });
 			chmodSync(sandboxDir, 0o777);
 		}
+		if (this.config.git) writeShellWorkspaceGitConfig(dir, this.config.git);
 
 		const session: ShellSession = {
 			id,
