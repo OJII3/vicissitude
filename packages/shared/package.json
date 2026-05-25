@@ -10,6 +10,7 @@
 		"./ports": "./src/ports.ts",
 		"./tts": "./src/tts.ts",
 		"./github-auth-env": "./src/github-auth-env.ts",
+		"./workspace-gitconfig": "./src/workspace-gitconfig.ts",
 		"./test-helpers": "./src/test-helpers.ts",
 		"./sqlite": "./src/sqlite.ts"
 	},

@@ -70,12 +70,27 @@ export const shellWorkspaceAgentSchema = z.object({
 
 export const shellWorkspaceEnvironmentSchema = z.record(z.string().min(1), z.string().min(1));
 
+export const shellWorkspaceGitSchema = z.object({
+	userName: z
+		.string()
+		.min(1, "shellWorkspace.git.userName is required")
+		.refine(isSingleLineGitConfigValue, "shellWorkspace.git.userName is invalid"),
+	userEmail: z
+		.email("shellWorkspace.git.userEmail must be an email address")
+		.refine(isSingleLineGitConfigValue, "shellWorkspace.git.userEmail is invalid"),
+});
+
+function isSingleLineGitConfigValue(value: string): boolean {
+	return !value.includes("\0") && !value.includes("\r") && !value.includes("\n");
+}
+
 export const shellWorkspaceSchema = z
 	.object({
 		enabled: z.literal(true),
 		image: z.string().min(1, "shellWorkspace.image is required"),
 		agent: shellWorkspaceAgentSchema,
 		environment: shellWorkspaceEnvironmentSchema.optional(),
+		git: shellWorkspaceGitSchema.optional(),
 		backgroundSubagents: z.literal(true).optional(),
 		dataDir: z.string(),
 		hostDataDir: z.string().optional(),

@@ -1,4 +1,4 @@
-const GITHUB_GIT_CREDENTIAL_HELPER =
+export const GITHUB_GIT_CREDENTIAL_HELPER =
 	"!f() { echo username=x-access-token; echo password=${GH_TOKEN:-$GITHUB_TOKEN}; }; f";
 
 export function addGitHubCredentialHelperEnvironment(
