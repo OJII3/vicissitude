@@ -9,8 +9,8 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
+const CODE_SKILL_NAME = "code";
 const MINECRAFT_SKILL_NAME = "minecraft";
-const MINECRAFT_ALLOWED_SKILLS = [MINECRAFT_SKILL_NAME] as const;
 
 const T = {
 	sendMessage: "discord_send_message",
@@ -54,8 +54,7 @@ const IMAGE_RECOGNITION_PROMPT_SECTION = `
 const SHELL_WORKSPACE_PROMPT_SECTION = `
 
 Shell workspace:
-- コード実行、ビルド、コンパイル、package install、ファイル生成、長めの調査が必要な依頼は、直接実行せず task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
-- ${SHELL_WORKSPACE_AGENT_NAME} は OpenCode 組み込み bash / Read / Write を専用 workspace directory 内で使う
+- コード実行、ビルド、コンパイル、package install、ファイル生成、長めの調査が必要な依頼は、OpenCode skill \`${CODE_SKILL_NAME}\` の手順に従って task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
 - ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを ${T.sendMessage} で Discord に送る
 - shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を ${T.sendMessage} の file_path に指定する`;
 
@@ -133,9 +132,14 @@ Report concise command results, relevant file paths, and any remaining failure c
 }
 
 function buildConversationSkillPermission(options: {
+	shellWorkspaceEnabled?: boolean;
 	minecraftEnabled?: boolean;
 }): SkillPermissionConfig {
-	return createSkillPermission(options.minecraftEnabled ? MINECRAFT_ALLOWED_SKILLS : undefined);
+	const allowedSkills = [
+		...(options.shellWorkspaceEnabled ? [CODE_SKILL_NAME] : []),
+		...(options.minecraftEnabled ? [MINECRAFT_SKILL_NAME] : []),
+	];
+	return createSkillPermission(allowedSkills.length > 0 ? allowedSkills : undefined);
 }
 
 function buildPrimaryTools(options: {
@@ -162,6 +166,7 @@ export function createConversationProfile(options: {
 }): AgentProfile {
 	const shellWorkspaceBackgroundSubagents = options.shellWorkspaceBackgroundSubagents === true;
 	const conversationSkillPermission = buildConversationSkillPermission({
+		shellWorkspaceEnabled: !!options.shellWorkspaceSubagent,
 		minecraftEnabled: options.minecraftEnabled,
 	});
 	const conversationSkillEnabled = isSkillToolEnabled(conversationSkillPermission);

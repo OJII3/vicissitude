@@ -46,18 +46,21 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.builtinTools.write).toBe(true);
 		expect(profile.builtinTools.skill).toBe(true);
 		expect(profile.builtinTools.task_status).toBe(false);
-		expect(profile.skillPermission).toEqual({ "*": "deny" });
+		expect(profile.skillPermission).toEqual({ "*": "deny", code: "allow" });
 		expect(profile.defaultAgent).toBe("build");
-		expect(profile.primaryTools).toEqual(["task"]);
+		expect(profile.primaryTools).toEqual(["task", "skill"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
-		expect(profile.pollingPrompt).toContain("OpenCode 組み込み bash / Read / Write");
+		expect(profile.pollingPrompt).toContain("OpenCode skill `code`");
 		expect(profile.pollingPrompt).not.toContain("background=true");
 
 		const build = profile.opencodeAgents?.build;
 		const buildTools = (build as { tools?: Record<string, boolean> } | undefined)?.tools;
 		expect(buildTools?.read).toBe(false);
 		expect(buildTools?.write).toBe(false);
-		expect(buildTools?.skill).toBe(false);
+		expect(buildTools?.skill).toBe(true);
+		const buildPermission = (build as { permission?: Record<string, unknown> } | undefined)
+			?.permission;
+		expect(buildPermission?.skill).toEqual({ "*": "deny", code: "allow" });
 
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
@@ -100,7 +103,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 
 		expect(profile.builtinTools.task).toBe(true);
 		expect(profile.builtinTools.task_status).toBe(true);
-		expect(profile.primaryTools).toEqual(["task", "task_status"]);
+		expect(profile.primaryTools).toEqual(["task", "task_status", "skill"]);
 		expect(profile.pollingPrompt).toContain("background=true");
 		expect(profile.pollingPrompt).toContain("task_status(task_id=..., wait=false)");
 
@@ -173,6 +176,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(buildTools?.skill).toBe(true);
 		expect(buildPermission?.skill).toEqual({
 			"*": "deny",
+			code: "allow",
 			minecraft: "allow",
 		});
 	});

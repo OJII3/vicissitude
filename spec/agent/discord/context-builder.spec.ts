@@ -189,7 +189,6 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "HEARTBEAT.md", "heartbeat");
 			writeFile(baseDir, "TOOLS-DISCORD.md", "tools-discord");
 			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
-			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
 			writeFile(overlayDir, "guilds/111/SERVER.md", "server");
 			writeFile(overlayDir, "guilds/111/MEMORY.md", "memory");
 			writeFile(overlayDir, "guilds/111/LESSONS.md", "lessons");
@@ -208,7 +207,6 @@ describe("ContextBuilder", () => {
 				"<SERVER.md>",
 				"<TOOLS-DISCORD.md>",
 				"<TOOLS-CORE.md>",
-				"<TOOLS-CODE.md>",
 			];
 
 			let lastIndex = -1;
@@ -232,7 +230,6 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "HEARTBEAT.md", largeContent);
 			writeFile(baseDir, "TOOLS-DISCORD.md", largeContent);
 			writeFile(baseDir, "TOOLS-CORE.md", largeContent);
-			writeFile(baseDir, "TOOLS-CODE.md", largeContent);
 			writeFile(overlayDir, "guilds/999/SERVER.md", largeContent);
 			writeFile(overlayDir, "guilds/999/MEMORY.md", largeContent);
 			writeFile(overlayDir, "guilds/999/LESSONS.md", largeContent);
@@ -244,10 +241,10 @@ describe("ContextBuilder", () => {
 			expect(result).toContain("<IDENTITY.md>");
 			const sectionCount = (
 				result.match(
-					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-DISCORD|TOOLS-CORE|TOOLS-CODE|SERVER|MEMORY|LESSONS)\.md>/g,
+					/<\/(IDENTITY|SOUL|DISCORD|HEARTBEAT|TOOLS-DISCORD|TOOLS-CORE|SERVER|MEMORY|LESSONS)\.md>/g,
 				) ?? []
 			).length;
-			expect(sectionCount).toBeLessThan(10);
+			expect(sectionCount).toBeLessThan(9);
 		});
 	});
 
@@ -332,15 +329,15 @@ describe("ContextBuilder", () => {
 			writeFile(baseDir, "IDENTITY.md", "identity");
 			writeFile(baseDir, "SOUL.md", "soul");
 			writeFile(baseDir, "DISCORD.md", "discord");
-			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
+			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
 
-			const excludeFiles = new Set<ContextFileName>(["TOOLS-CODE.md", "DISCORD.md"]);
+			const excludeFiles = new Set<ContextFileName>(["TOOLS-CORE.md", "DISCORD.md"]);
 			const builder = new ContextBuilder(overlayDir, baseDir, undefined, excludeFiles);
 			const result = await builder.build();
 
 			expect(result).toContain("<IDENTITY.md>");
 			expect(result).toContain("<SOUL.md>");
-			expect(result).not.toContain("<TOOLS-CODE.md>");
+			expect(result).not.toContain("<TOOLS-CORE.md>");
 			expect(result).not.toContain("<DISCORD.md>");
 		});
 
@@ -348,7 +345,7 @@ describe("ContextBuilder", () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			writeFile(baseDir, "IDENTITY.md", "identity");
 			writeFile(baseDir, "SOUL.md", "soul");
-			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
+			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
 
 			const builder = new ContextBuilder(
 				overlayDir,
@@ -360,7 +357,20 @@ describe("ContextBuilder", () => {
 
 			expect(result).toContain("<IDENTITY.md>");
 			expect(result).toContain("<SOUL.md>");
-			expect(result).toContain("<TOOLS-CODE.md>");
+			expect(result).toContain("<TOOLS-CORE.md>");
+		});
+
+		it("TOOLS-CODE.md は直接コンテキスト注入しない", async () => {
+			const { baseDir, overlayDir } = createTmpDirs();
+			writeFile(baseDir, "IDENTITY.md", "identity");
+			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
+
+			const builder = new ContextBuilder(overlayDir, baseDir);
+			const result = await builder.build();
+
+			expect(result).toContain("<IDENTITY.md>");
+			expect(result).not.toContain("<TOOLS-CODE.md>");
+			expect(result).not.toContain("tools-code");
 		});
 
 		it("TOOLS-MINECRAFT.md は直接コンテキスト注入しない", async () => {
@@ -393,7 +403,7 @@ describe("ContextBuilder", () => {
 		it("excludeFiles と factReader を併用できる", async () => {
 			const { baseDir, overlayDir } = createTmpDirs();
 			writeFile(baseDir, "IDENTITY.md", "identity");
-			writeFile(baseDir, "TOOLS-CODE.md", "tools-code");
+			writeFile(baseDir, "TOOLS-CORE.md", "tools-core");
 
 			const factReader = createMockFactReader([
 				{
@@ -403,13 +413,13 @@ describe("ContextBuilder", () => {
 				},
 			]);
 
-			const excludeFiles = new Set<ContextFileName>(["TOOLS-CODE.md"]);
+			const excludeFiles = new Set<ContextFileName>(["TOOLS-CORE.md"]);
 			const builder = new ContextBuilder(overlayDir, baseDir, factReader, excludeFiles);
 			const result = await builder.build(scope("111"));
 
 			expect(result).toContain("<IDENTITY.md>");
 			expect(result).toContain("<MEMORY-FACTS>");
-			expect(result).not.toContain("<TOOLS-CODE.md>");
+			expect(result).not.toContain("<TOOLS-CORE.md>");
 		});
 	});
 

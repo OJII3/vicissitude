@@ -92,7 +92,7 @@ describe("createContextLayer", () => {
 		expect(context).not.toContain("minecraft tools");
 	});
 
-	test("shellWorkspace 有効時は TOOLS-CODE を注入する", async () => {
+	test("shellWorkspace 有効時も TOOLS-CODE は直接注入しない", async () => {
 		const root = createContextRoot();
 		const { contextBuilder } = createContextLayer(
 			createTestConfig({
@@ -121,7 +121,8 @@ describe("createContextLayer", () => {
 
 		expect(context).toContain("core tools");
 		expect(context).toContain("discord tools");
-		expect(context).toContain("shell tools");
+		expect(context).not.toContain("shell tools");
+		expect(context).not.toContain("<TOOLS-CODE.md>");
 		expect(context).not.toContain("minecraft tools");
 	});
 
@@ -546,15 +547,18 @@ describe("createDiscordAgents", () => {
 
 		expect(agent.profile.builtinTools.skill).toBe(true);
 		expect(agent.profile.builtinTools.task_status).toBe(true);
-		expect(agent.profile.primaryTools).toEqual(["task", "task_status"]);
-		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(false);
+		expect(agent.profile.primaryTools).toEqual(["task", "task_status", "skill"]);
+		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(true);
+		expect(agent.profile.opencodeAgents?.build?.permission).toMatchObject({
+			skill: { "*": "deny", code: "allow" },
+		});
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
 		expect(agent.sessionPort.config.environment?.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS).toBe(
 			"true",
 		);
 	});
 
-	test("shellWorkspace と Minecraft 併用時は primary agent に minecraft skill を許可する", () => {
+	test("shellWorkspace と Minecraft 併用時は primary agent に code と minecraft skill を許可する", () => {
 		const config = createTestConfig({
 			minecraft: {
 				host: "localhost",
@@ -615,6 +619,7 @@ describe("createDiscordAgents", () => {
 		expect(build?.tools?.skill).toBe(true);
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
+			code: "allow",
 			minecraft: "allow",
 		});
 		expect(worker?.permission?.skill).toEqual({
