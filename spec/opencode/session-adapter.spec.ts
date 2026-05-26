@@ -110,7 +110,7 @@ describe("OpencodeSessionAdapter deleteSession", () => {
 			mcpServers: {},
 			builtinTools: { skill: true },
 			skillPermission: { "*": "deny", debug: "allow" },
-			skillPaths: ["/app/.agents/skills"],
+			skillPaths: ["/app/context/skills/discord"],
 			clientFactory,
 		});
 
@@ -119,7 +119,7 @@ describe("OpencodeSessionAdapter deleteSession", () => {
 		const calls = clientFactory.mock.calls as unknown as Array<[{ config: unknown }]>;
 		expect(calls[0]?.[0].config).toEqual(
 			expect.objectContaining({
-				skills: { paths: ["/app/.agents/skills"] },
+				skills: { paths: ["/app/context/skills/discord"] },
 				permission: { skill: { "*": "deny", debug: "allow" } },
 			}),
 		);

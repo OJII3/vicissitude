@@ -19,9 +19,11 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 `shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明を有効化しない。有効な profile では、メイン会話 agent は `task` と `skill` を primary tool として持ち、`build` primary agent の permission は `bash: deny`、`skill.code: allow` にする。
 
-Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`.agents/skills/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `code` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
+Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`context/skills/discord/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `code` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
 
-Shell workspace ツール説明は `TOOLS-CODE.md` を system context に注入せず、`.agents/skills/code/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `code` skill を許可する。heartbeat agent は shell workspace を持たないため `code` skill も許可しない。
+Shell workspace ツール説明は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/code/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `code` skill を許可する。heartbeat agent は shell workspace を持たないため `code` skill も許可しない。
+
+`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場として残し、bot runtime の `skills.paths` には渡さない。runtime skill は agent 種別ごとに `context/skills/{agent}` へ分ける。Discord 会話 / heartbeat session では `context/skills/discord` を渡し、shell workspace 有効時だけ `context/skills/shell-worker` も追加する。
 
 ## Shell Workspace
 
