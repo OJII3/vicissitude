@@ -104,6 +104,28 @@ describe("McBrainManager", () => {
 		expect(startedLog).toBe(true);
 	});
 
+	test("session lock 取得で minecraft runtime skill path を渡す", async () => {
+		manager.start();
+
+		tryAcquireSessionLock(deps.db, "test-guild");
+		await Bun.sleep(TEST_POLL_MS * 3);
+
+		const agent = (
+			manager as unknown as {
+				agent?: {
+					sessionPort?: {
+						config?: {
+							skillPaths?: string[];
+						};
+					};
+				};
+			}
+		).agent;
+		expect(agent?.sessionPort?.config?.skillPaths).toEqual([
+			"/tmp/test-mc-sub/context/skills/minecraft",
+		]);
+	});
+
 	test("session lock 解放で agent が停止する", async () => {
 		manager.start();
 
