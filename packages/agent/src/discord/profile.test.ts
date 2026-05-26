@@ -72,7 +72,11 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(workerTools?.task).toBe(false);
 		const workerPermission = (worker as { permission?: Record<string, unknown> } | undefined)
 			?.permission;
-		expect(workerPermission?.skill).toEqual({ "*": "deny", debug: "allow" });
+		expect(workerPermission?.skill).toEqual({
+			"*": "deny",
+			debug: "allow",
+			"skill-creator": "allow",
+		});
 		expect(workerPermission?.bash).toBe("allow");
 		expect(workerPermission?.read).toBe("allow");
 		expect(workerPermission?.edit).toBe("allow");
