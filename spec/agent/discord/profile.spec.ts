@@ -35,7 +35,7 @@ describe("createConversationProfile", () => {
 		expect(profile.pollingPrompt).toContain("respond");
 	});
 
-	test("shell workspace 有効時は shell-worker だけ debug skill を使える", () => {
+	test("shell workspace 有効時は shell-worker だけ許可済み skill を使える", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
@@ -60,7 +60,11 @@ describe("createConversationProfile", () => {
 		expect(build?.tools?.skill).toBe(false);
 		expect(build?.permission?.skill).toEqual({ "*": "deny" });
 		expect(worker?.tools?.skill).toBe(true);
-		expect(worker?.permission?.skill).toEqual({ "*": "deny", debug: "allow" });
+		expect(worker?.permission?.skill).toEqual({
+			"*": "deny",
+			debug: "allow",
+			"skill-creator": "allow",
+		});
 	});
 
 	test("shell workspace 無効時は OpenCode Skills を全拒否する", () => {

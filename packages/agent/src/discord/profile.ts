@@ -8,7 +8,7 @@ import {
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
-const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug"] as const;
+const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
 
 const T = {
 	sendMessage: "discord_send_message",

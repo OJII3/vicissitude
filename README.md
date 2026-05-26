@@ -100,7 +100,8 @@ OpenCode SDK 組み込み: `webfetch`
 OpenCode Agent Skills は `.agents/skills/*/SKILL.md` を discovery 対象にするが、各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。
 
 - Discord 会話 primary、heartbeat、Web、Minecraft、画像認識、emotion、memory 補助セッションは OpenCode Skills を全拒否する。
-- shell workspace 有効時のみ OpenCode の `skill` tool を有効化し、primary `build` agent では拒否、`shell-worker` subagent だけ `debug` skill を許可する。
+- shell workspace 有効時のみ OpenCode の `skill` tool を有効化し、primary `build` agent では拒否、`shell-worker` subagent だけ `debug` / `skill-creator` skill を許可する。
+- `skill-creator` は OpenAI Skills の `skills/.system/skill-creator` を `.agents/skills/skill-creator` に vendoring する。
 - Minecraft の `mc_read_skills` / `mc_record_skill` は Minecraft MCP のワールド記憶であり、OpenCode Agent Skills とは別系統として扱う。
 
 ### 3.5 コンテキスト管理
