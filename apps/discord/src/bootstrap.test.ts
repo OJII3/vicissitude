@@ -200,7 +200,7 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
 		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
-		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/context/skills/discord"]);
 	});
 
 	test("Minecraft 有効時は Discord agent に minecraft skill を許可する", () => {
@@ -241,7 +241,7 @@ describe("createDiscordAgents", () => {
 			"*": "deny",
 			minecraft: "allow",
 		});
-		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/context/skills/discord"]);
 	});
 
 	test("Discord DM agent は DM scopeId と agentId で作成される", () => {
@@ -338,7 +338,7 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.builtinTools.task).toBe(false);
 		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
 		expect(agent.profile.opencodeAgents).toBeUndefined();
-		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/context/skills/discord"]);
 		expect(agent.sessionPort.config.directory).toBeUndefined();
 		expect(agent.sessionPort.config.environment).toBeUndefined();
 	});
@@ -542,7 +542,7 @@ describe("createDiscordAgents", () => {
 				builtinTools: Record<string, boolean>;
 				opencodeAgents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
 			};
-			sessionPort: { config: { environment?: Record<string, string> } };
+			sessionPort: { config: { environment?: Record<string, string>; skillPaths?: string[] } };
 		};
 
 		expect(agent.profile.builtinTools.skill).toBe(true);
@@ -553,6 +553,10 @@ describe("createDiscordAgents", () => {
 			skill: { "*": "deny", code: "allow" },
 		});
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
+		expect(agent.sessionPort.config.skillPaths).toEqual([
+			"/app/context/skills/discord",
+			"/app/context/skills/shell-worker",
+		]);
 		expect(agent.sessionPort.config.environment?.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS).toBe(
 			"true",
 		);
@@ -655,6 +659,6 @@ describe("createWebConversationAgent", () => {
 		expect(agent.profile.builtinTools.skill).toBe(false);
 		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
 		expect(agent.sessionPort.config.port).toBe(4103);
-		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+		expect(agent.sessionPort.config.skillPaths).toBeUndefined();
 	});
 });

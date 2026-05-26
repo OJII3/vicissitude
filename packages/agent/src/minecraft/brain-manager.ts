@@ -107,7 +107,6 @@ export class McBrainManager {
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
 			skillPermission: profile.skillPermission,
-			skillPaths: [resolve(deps.root, ".agents/skills")],
 			temperature: deps.temperature,
 			logger: deps.logger,
 		});

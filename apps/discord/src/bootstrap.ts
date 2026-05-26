@@ -218,8 +218,14 @@ function buildOpencodeShellWorkspaceEnvironment(
 
 const EMOTION_OPENCODE_PORT_OFFSET = 1000;
 
-function opencodeSkillPaths(appRoot: string): string[] {
-	return [resolve(appRoot, ".agents/skills")];
+function discordOpencodeSkillPaths(
+	appRoot: string,
+	options: { shellWorkspaceEnabled: boolean },
+): string[] {
+	return [
+		resolve(appRoot, "context/skills/discord"),
+		...(options.shellWorkspaceEnabled ? [resolve(appRoot, "context/skills/shell-worker")] : []),
+	];
 }
 
 export function buildAgentDiscordEnvironment(
@@ -327,7 +333,7 @@ export function createDiscordAgents(
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
 			skillPermission: profile.skillPermission,
-			skillPaths: opencodeSkillPaths(deps.appRoot),
+			skillPaths: discordOpencodeSkillPaths(deps.appRoot, { shellWorkspaceEnabled }),
 			agents: profile.opencodeAgents,
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
@@ -394,7 +400,6 @@ export function createWebConversationAgent(
 		mcpServers: profile.mcpServers,
 		builtinTools: profile.builtinTools,
 		skillPermission: profile.skillPermission,
-		skillPaths: opencodeSkillPaths(deps.appRoot),
 		temperature: config.opencode.temperature,
 		logger: deps.logger,
 	});
@@ -539,7 +544,6 @@ export async function setupMemoryRecording(
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
 			skillPermission: denyAllSkillPermission(),
-			skillPaths: opencodeSkillPaths(opts.root),
 		});
 		const chatAdapter = new MemoryChatAdapter(
 			memorySessionPort,
