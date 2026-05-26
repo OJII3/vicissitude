@@ -99,9 +99,9 @@ OpenCode SDK 組み込み: `webfetch`
 
 OpenCode Agent Skills は `.agents/skills/*/SKILL.md` を discovery 対象にするが、各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。
 
-- `features.minecraft` 設定時は Discord 会話 primary と heartbeat で `minecraft` skill だけを許可する。Minecraft ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
-- shell workspace 有効時は `shell-worker` subagent だけに `debug` / `skill-creator` skill を許可する。Minecraft 無効時の primary `build` agent は skill を拒否する。
-- shell workspace と `features.minecraft` の併用時は、primary `build` agent に `minecraft` skill だけを許可し、`shell-worker` の許可 skill とは分離する。
+- `features.minecraft` 設定時は Discord 会話 primary と heartbeat で `minecraft` skill を許可する。Minecraft ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
+- shell workspace 有効時は Discord 会話 primary に `code` skill を許可し、`shell-worker` subagent には `debug` / `skill-creator` skill を許可する。Shell workspace ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
+- shell workspace と `features.minecraft` の併用時は、primary `build` agent に `code` / `minecraft` skill だけを許可し、`shell-worker` の許可 skill とは分離する。
 - Web、Minecraft brain、画像認識、emotion、memory 補助セッションは OpenCode Skills を全拒否する。
 - `skill-creator` は OpenAI Skills の `skills/.system/skill-creator` を `.agents/skills/skill-creator` に vendoring する。
 - Minecraft の `mc_read_skills` / `mc_record_skill` は Minecraft MCP のワールド記憶であり、OpenCode Agent Skills とは別系統として扱う。
@@ -110,14 +110,14 @@ OpenCode Agent Skills は `.agents/skills/*/SKILL.md` を discovery 対象にす
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md`
-- capability 連動ファイル: `TOOLS-CODE.md` は `features.shellWorkspace` 設定時のみ注入する。Minecraft ツール説明は `TOOLS-MINECRAFT.md` ではなく `.agents/skills/minecraft/SKILL.md` として管理し、`features.minecraft` 設定時のみ `minecraft` skill を許可する。
+- capability 連動ツール説明: Shell workspace は `.agents/skills/code/SKILL.md`、Minecraft は `.agents/skills/minecraft/SKILL.md` として管理し、profile feature 設定時のみ該当 skill を許可する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
 
 ### 3.6 マルチテナント分離
 
-- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md` は全テナントで共有。`TOOLS-CODE.md` は profile の capability 有効時のみ共有コンテキストとして注入する。Minecraft ツール説明は OpenCode の `minecraft` skill として profile feature に連動して許可する。
+- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md` は全テナントで共有。Shell workspace と Minecraft のツール説明は OpenCode skill として profile feature に連動して許可する。
 - 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
 - Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
   - `agent-scope`: エージェントの実行・記憶 scope ごとの記憶。Discord guild では `discord:guild:{guildId}`、Discord DM では `discord:dm:{userId}` を使う。DB パス: `scopes/{encodedScopeId}/memory.db`

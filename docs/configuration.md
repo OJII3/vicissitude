@@ -26,6 +26,8 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 `features.minecraft` は Minecraft MCP と Discord 側 bridge に加えて、OpenCode の `minecraft` skill 許可も切り替える。Minecraft ツール説明は system context へ直接注入せず、`.agents/skills/minecraft/SKILL.md` を OpenCode skill として必要時に読み込む。
 
+`features.shellWorkspace` は shell-worker subagent に加えて、OpenCode の `code` skill 許可も切り替える。Shell workspace 手順は system context へ直接注入せず、`.agents/skills/code/SKILL.md` を OpenCode skill として必要時に読み込む。
+
 ```json
 {
 	"ports": {

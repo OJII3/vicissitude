@@ -30,7 +30,6 @@ const CONTEXT_FILES = [
 	{ name: "SERVER.md", scope: "guild" },
 	{ name: "TOOLS-DISCORD.md", scope: "shared" },
 	{ name: "TOOLS-CORE.md", scope: "shared" },
-	{ name: "TOOLS-CODE.md", scope: "shared" },
 ] as const satisfies readonly FileEntry[];
 
 export type ContextFileName = (typeof CONTEXT_FILES)[number]["name"];

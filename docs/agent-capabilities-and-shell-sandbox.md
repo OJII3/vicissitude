@@ -15,10 +15,13 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 | `minecraft-bridge` | Discord から Minecraft エージェントへの委譲            | `features.minecraft` 設定時のみ      |
 | `minecraft-skill`  | OpenCode `minecraft` skill による Minecraft ツール説明 | `features.minecraft` 設定時のみ      |
 | `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent         | `features.shellWorkspace` 設定時のみ |
+| `code-skill`       | OpenCode `code` skill による shell workspace 手順      | `features.shellWorkspace` 設定時のみ |
 
-`shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明コンテキストを注入しない。有効な profile では、メイン会話 agent は `task` を primary tool として持ち、`build` primary agent の permission は `bash: deny` にする。
+`shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明を有効化しない。有効な profile では、メイン会話 agent は `task` と `skill` を primary tool として持ち、`build` primary agent の permission は `bash: deny`、`skill.code: allow` にする。
 
-Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`.agents/skills/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill だけを許可する。shell workspace と併用する場合も、`build` primary agent に許可する skill は `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
+Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`.agents/skills/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `code` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
+
+Shell workspace ツール説明は `TOOLS-CODE.md` を system context に注入せず、`.agents/skills/code/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `code` skill を許可する。heartbeat agent は shell workspace を持たないため `code` skill も許可しない。
 
 ## Shell Workspace
 
@@ -32,6 +35,7 @@ Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入�
 
 - メイン会話 agent:
   - `task: allow`
+  - `features.shellWorkspace` 設定時のみ `skill.code: allow`
   - `features.minecraft` 設定時のみ `skill.minecraft: allow`
   - `bash: deny`
   - `external_directory: deny`
@@ -40,7 +44,7 @@ Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入�
   - `task: deny`
   - `external_directory: deny`
 - OpenCode の global builtin tool は `webfetch`、feature に連動した `skill`、`task`、shell workspace 有効時の `bash` だけを開く。
-- `primary_tools` は shell workspace 有効時に `["task"]` を基本とし、background subagent 有効時は `task_status`、Minecraft 有効時は `skill` を追加する。
+- `primary_tools` は shell workspace 有効時に `["task", "skill"]` を基本とし、background subagent 有効時は `task_status` を追加する。Minecraft 有効時は許可 skill に `minecraft` を追加する。
 - `shell-worker` prompt では workspace 外の読み書き、host secrets、auth files、環境変数 dump、権限昇格を禁止する。
 
 これは OpenCode permission と作業ディレクトリによる制御であり、Podman sandbox のような OS-level isolation ではない。OpenCode `bash` を使う以上、実行プロセスは bot コンテナのユーザー権限と network の範囲で動く。

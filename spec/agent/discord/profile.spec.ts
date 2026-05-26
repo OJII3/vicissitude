@@ -35,7 +35,7 @@ describe("createConversationProfile", () => {
 		expect(profile.pollingPrompt).toContain("respond");
 	});
 
-	test("shell workspace 有効時は shell-worker だけ許可済み skill を使える", () => {
+	test("shell workspace 有効時は primary に code skill を許可する", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
@@ -56,9 +56,10 @@ describe("createConversationProfile", () => {
 			| undefined;
 
 		expect(profile.builtinTools.skill).toBe(true);
-		expect(profile.skillPermission).toEqual({ "*": "deny" });
-		expect(build?.tools?.skill).toBe(false);
-		expect(build?.permission?.skill).toEqual({ "*": "deny" });
+		expect(profile.skillPermission).toEqual({ "*": "deny", code: "allow" });
+		expect(profile.primaryTools).toEqual(["task", "skill"]);
+		expect(build?.tools?.skill).toBe(true);
+		expect(build?.permission?.skill).toEqual({ "*": "deny", code: "allow" });
 		expect(worker?.tools?.skill).toBe(true);
 		expect(worker?.permission?.skill).toEqual({
 			"*": "deny",
@@ -95,7 +96,7 @@ describe("createConversationProfile", () => {
 		expect(profile.opencodeAgents).toBeUndefined();
 	});
 
-	test("shell workspace と Minecraft の併用時は build agent に minecraft skill だけを許可する", () => {
+	test("shell workspace と Minecraft の併用時は build agent に code と minecraft skill だけを許可する", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
@@ -120,6 +121,7 @@ describe("createConversationProfile", () => {
 		expect(build?.tools?.skill).toBe(true);
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
+			code: "allow",
 			minecraft: "allow",
 		});
 		expect(worker?.tools?.skill).toBe(true);

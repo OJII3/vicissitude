@@ -96,14 +96,15 @@ export function createStoreLayer(config: AppConfig) {
 
 // ─── Context Layer ──────────────────────────────────────────────
 
-export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
-	const excludeFiles = new Set<ContextFileName>();
-	if (!config.shellWorkspace) excludeFiles.add("TOOLS-CODE.md");
+export function createContextLayer(
+	_config: AppConfig,
+	root: string,
+	factReader?: MemoryFactReader,
+) {
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
 		factReader,
-		excludeFiles.size > 0 ? excludeFiles : undefined,
 	);
 	return { contextBuilder };
 }
@@ -113,12 +114,7 @@ export function createWebContextLayer(
 	root: string,
 	factReader?: MemoryFactReader,
 ) {
-	const excludeFiles = new Set<ContextFileName>([
-		"DISCORD.md",
-		"HEARTBEAT.md",
-		"TOOLS-DISCORD.md",
-		"TOOLS-CODE.md",
-	]);
+	const excludeFiles = new Set<ContextFileName>(["DISCORD.md", "HEARTBEAT.md", "TOOLS-DISCORD.md"]);
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
 		resolve(root, "context"),
