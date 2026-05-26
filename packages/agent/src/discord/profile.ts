@@ -9,7 +9,7 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
-const CODE_SKILL_NAME = "code";
+const SHELL_WORKER_DELEGATION_SKILL_NAME = "delegate-to-shell-worker";
 const MINECRAFT_SKILL_NAME = "minecraft";
 
 const T = {
@@ -54,7 +54,8 @@ const IMAGE_RECOGNITION_PROMPT_SECTION = `
 const SHELL_WORKSPACE_PROMPT_SECTION = `
 
 Shell workspace:
-- コード実行、ビルド、コンパイル、package install、ファイル生成、長めの調査が必要な依頼は、OpenCode skill \`${CODE_SKILL_NAME}\` の手順に従って task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
+- コード実行、ビルド、コンパイル、package install、ファイル生成、データ変換、計算、Web/API 確認、長めの調査、再現確認、添付ファイル準備など、shell やファイルで進められる依頼は OpenCode skill \`${SHELL_WORKER_DELEGATION_SKILL_NAME}\` の手順に従って task ツールで ${SHELL_WORKSPACE_AGENT_NAME} サブエージェントに委譲する
+- 記憶だけで答えるより shell-worker が確認・生成・実行した方がよい依頼は積極的に委譲する
 - ${SHELL_WORKSPACE_AGENT_NAME} から返った結果を確認し、必要な要約や添付だけを ${T.sendMessage} で Discord に送る
 - shell workspace 内で作ったファイルを添付する必要がある場合は、${SHELL_WORKSPACE_AGENT_NAME} に workspace 内へ保存させ、返却された絶対 path を ${T.sendMessage} の file_path に指定する`;
 
@@ -101,7 +102,7 @@ function buildShellWorkspaceAgents(
 		[SHELL_WORKSPACE_AGENT_NAME]: {
 			mode: "subagent" as const,
 			description:
-				"Run commands, compile code, install packages, and prepare files in the OpenCode shell workspace.",
+				"Use the shell workspace to run commands, inspect files, install packages, test, investigate, transform data, and prepare generated files.",
 			model: `${shellWorkspaceSubagent.providerId}/${shellWorkspaceSubagent.modelId}`,
 			temperature: shellWorkspaceSubagent.temperature,
 			steps: shellWorkspaceSubagent.steps,
@@ -136,7 +137,7 @@ function buildConversationSkillPermission(options: {
 	minecraftEnabled?: boolean;
 }): SkillPermissionConfig {
 	const allowedSkills = [
-		...(options.shellWorkspaceEnabled ? [CODE_SKILL_NAME] : []),
+		...(options.shellWorkspaceEnabled ? [SHELL_WORKER_DELEGATION_SKILL_NAME] : []),
 		...(options.minecraftEnabled ? [MINECRAFT_SKILL_NAME] : []),
 	];
 	return createSkillPermission(allowedSkills.length > 0 ? allowedSkills : undefined);

@@ -100,8 +100,8 @@ OpenCode SDK 組み込み: `webfetch`
 OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を discovery 対象にする。`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場であり、bot runtime には渡さない。各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。
 
 - `features.minecraft` 設定時は Discord 会話 primary と heartbeat で `minecraft` skill を許可する。Minecraft ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
-- shell workspace 有効時は Discord 会話 primary に `code` skill を許可し、`shell-worker` subagent には `debug` / `skill-creator` skill を許可する。Shell workspace ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
-- shell workspace と `features.minecraft` の併用時は、primary `build` agent に `code` / `minecraft` skill だけを許可し、`shell-worker` の許可 skill とは分離する。
+- shell workspace 有効時は Discord 会話 primary に `delegate-to-shell-worker` skill を許可し、`shell-worker` subagent には `debug` / `skill-creator` skill を許可する。Shell workspace 委譲手順は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
+- shell workspace と `features.minecraft` の併用時は、primary `build` agent に `delegate-to-shell-worker` / `minecraft` skill だけを許可し、`shell-worker` の許可 skill とは分離する。
 - Discord 会話 / heartbeat session の `skills.paths` は `context/skills/discord` を指す。shell workspace 有効時だけ同じ session に `context/skills/shell-worker` も追加し、`shell-worker` subagent 用 skill を discovery できるようにする。Web、Minecraft brain、画像認識、emotion、memory 補助セッションは OpenCode Skills を全拒否し、runtime skill path も渡さない。
 - `skill-creator` は OpenAI Skills の `skills/.system/skill-creator` を、開発用は `.agents/skills/skill-creator`、runtime shell-worker 用は `context/skills/shell-worker/skill-creator` に vendoring する。
 - Minecraft の `mc_read_skills` / `mc_record_skill` は Minecraft MCP のワールド記憶であり、OpenCode Agent Skills とは別系統として扱う。
@@ -110,7 +110,7 @@ OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md`
-- capability 連動ツール説明: Shell workspace は `context/skills/discord/code/SKILL.md`、Minecraft は `context/skills/discord/minecraft/SKILL.md` として管理し、profile feature 設定時のみ該当 skill を許可する。
+- capability 連動ツール説明: Shell workspace は `context/skills/discord/delegate-to-shell-worker/SKILL.md`、Minecraft は `context/skills/discord/minecraft/SKILL.md` として管理し、profile feature 設定時のみ該当 skill を許可する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
 - Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
 - サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。

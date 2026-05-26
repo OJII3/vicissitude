@@ -550,7 +550,7 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.primaryTools).toEqual(["task", "task_status", "skill"]);
 		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(true);
 		expect(agent.profile.opencodeAgents?.build?.permission).toMatchObject({
-			skill: { "*": "deny", code: "allow" },
+			skill: { "*": "deny", "delegate-to-shell-worker": "allow" },
 		});
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
 		expect(agent.sessionPort.config.skillPaths).toEqual([
@@ -562,7 +562,7 @@ describe("createDiscordAgents", () => {
 		);
 	});
 
-	test("shellWorkspace と Minecraft 併用時は primary agent に code と minecraft skill を許可する", () => {
+	test("shellWorkspace と Minecraft 併用時は primary agent に delegate-to-shell-worker と minecraft skill を許可する", () => {
 		const config = createTestConfig({
 			minecraft: {
 				host: "localhost",
@@ -623,7 +623,7 @@ describe("createDiscordAgents", () => {
 		expect(build?.tools?.skill).toBe(true);
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
-			code: "allow",
+			"delegate-to-shell-worker": "allow",
 			minecraft: "allow",
 		});
 		expect(worker?.permission?.skill).toEqual({

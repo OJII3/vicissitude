@@ -8,20 +8,20 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## Capability
 
-| Capability         | 内容                                                   | 既定                                 |
-| ------------------ | ------------------------------------------------------ | ------------------------------------ |
-| `core`             | Discord 送信、返信、リアクション、記憶、リマインダー   | 有効                                 |
-| `webfetch`         | OpenCode 組み込み `webfetch`                           | 有効                                 |
-| `minecraft-bridge` | Discord から Minecraft エージェントへの委譲            | `features.minecraft` 設定時のみ      |
-| `minecraft-skill`  | OpenCode `minecraft` skill による Minecraft ツール説明 | `features.minecraft` 設定時のみ      |
-| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent         | `features.shellWorkspace` 設定時のみ |
-| `code-skill`       | OpenCode `code` skill による shell workspace 手順      | `features.shellWorkspace` 設定時のみ |
+| Capability           | 内容                                                                      | 既定                                 |
+| -------------------- | ------------------------------------------------------------------------- | ------------------------------------ |
+| `core`               | Discord 送信、返信、リアクション、記憶、リマインダー                      | 有効                                 |
+| `webfetch`           | OpenCode 組み込み `webfetch`                                              | 有効                                 |
+| `minecraft-bridge`   | Discord から Minecraft エージェントへの委譲                               | `features.minecraft` 設定時のみ      |
+| `minecraft-skill`    | OpenCode `minecraft` skill による Minecraft ツール説明                    | `features.minecraft` 設定時のみ      |
+| `shell-workspace`    | OpenCode `bash` を使う `shell-worker` subagent                            | `features.shellWorkspace` 設定時のみ |
+| `shell-worker-skill` | OpenCode `delegate-to-shell-worker` skill による shell workspace 委譲手順 | `features.shellWorkspace` 設定時のみ |
 
-`shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明を有効化しない。有効な profile では、メイン会話 agent は `task` と `skill` を primary tool として持ち、`build` primary agent の permission は `bash: deny`、`skill.code: allow` にする。
+`shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明を有効化しない。有効な profile では、メイン会話 agent は `task` と `skill` を primary tool として持ち、`build` primary agent の permission は `bash: deny`、`skill.delegate-to-shell-worker: allow` にする。
 
-Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`context/skills/discord/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `code` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
+Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`context/skills/discord/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `delegate-to-shell-worker` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
 
-Shell workspace ツール説明は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/code/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `code` skill を許可する。heartbeat agent は shell workspace を持たないため `code` skill も許可しない。
+Shell workspace 委譲手順は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `delegate-to-shell-worker` skill を許可する。heartbeat agent は shell workspace を持たないため `delegate-to-shell-worker` skill も許可しない。
 
 `.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場として残し、bot runtime の `skills.paths` には渡さない。runtime skill は agent 種別ごとに `context/skills/{agent}` へ分ける。Discord 会話 / heartbeat session では `context/skills/discord` を渡し、shell workspace 有効時だけ `context/skills/shell-worker` も追加する。
 
@@ -37,7 +37,7 @@ Shell workspace ツール説明は `TOOLS-CODE.md` を system context に注入�
 
 - メイン会話 agent:
   - `task: allow`
-  - `features.shellWorkspace` 設定時のみ `skill.code: allow`
+  - `features.shellWorkspace` 設定時のみ `skill.delegate-to-shell-worker: allow`
   - `features.minecraft` 設定時のみ `skill.minecraft: allow`
   - `bash: deny`
   - `external_directory: deny`
