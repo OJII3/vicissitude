@@ -8,14 +8,17 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## Capability
 
-| Capability         | 内容                                                 | 既定                                 |
-| ------------------ | ---------------------------------------------------- | ------------------------------------ |
-| `core`             | Discord 送信、返信、リアクション、記憶、リマインダー | 有効                                 |
-| `webfetch`         | OpenCode 組み込み `webfetch`                         | 有効                                 |
-| `minecraft-bridge` | Discord から Minecraft エージェントへの委譲          | `features.minecraft` 設定時のみ      |
-| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent       | `features.shellWorkspace` 設定時のみ |
+| Capability         | 内容                                                   | 既定                                 |
+| ------------------ | ------------------------------------------------------ | ------------------------------------ |
+| `core`             | Discord 送信、返信、リアクション、記憶、リマインダー   | 有効                                 |
+| `webfetch`         | OpenCode 組み込み `webfetch`                           | 有効                                 |
+| `minecraft-bridge` | Discord から Minecraft エージェントへの委譲            | `features.minecraft` 設定時のみ      |
+| `minecraft-skill`  | OpenCode `minecraft` skill による Minecraft ツール説明 | `features.minecraft` 設定時のみ      |
+| `shell-workspace`  | OpenCode `bash` を使う `shell-worker` subagent         | `features.shellWorkspace` 設定時のみ |
 
-`shell-workspace` が無効な profile では、`task`、`bash`、ツール説明コンテキストを注入しない。有効な profile では、メイン会話 agent は `task` のみを primary tool として持ち、`build` primary agent の permission は `bash: deny` にする。
+`shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明コンテキストを注入しない。有効な profile では、メイン会話 agent は `task` を primary tool として持ち、`build` primary agent の permission は `bash: deny` にする。
+
+Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`.agents/skills/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill だけを許可する。shell workspace と併用する場合も、`build` primary agent に許可する skill は `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
 
 ## Shell Workspace
 
@@ -29,14 +32,15 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 - メイン会話 agent:
   - `task: allow`
+  - `features.minecraft` 設定時のみ `skill.minecraft: allow`
   - `bash: deny`
   - `external_directory: deny`
 - `shell-worker` subagent:
   - `bash: allow`
   - `task: deny`
   - `external_directory: deny`
-- OpenCode の global builtin tool は `webfetch`、`task`、shell workspace 有効時の `bash` だけを開く。
-- `primary_tools` は `["task"]` にし、メイン会話 agent の入口を委譲に限定する。
+- OpenCode の global builtin tool は `webfetch`、feature に連動した `skill`、`task`、shell workspace 有効時の `bash` だけを開く。
+- `primary_tools` は shell workspace 有効時に `["task"]` を基本とし、background subagent 有効時は `task_status`、Minecraft 有効時は `skill` を追加する。
 - `shell-worker` prompt では workspace 外の読み書き、host secrets、auth files、環境変数 dump、権限昇格を禁止する。
 
 これは OpenCode permission と作業ディレクトリによる制御であり、Podman sandbox のような OS-level isolation ではない。OpenCode `bash` を使う以上、実行プロセスは bot コンテナのユーザー権限と network の範囲で動く。

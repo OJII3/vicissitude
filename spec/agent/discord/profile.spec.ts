@@ -78,4 +78,55 @@ describe("createConversationProfile", () => {
 		expect(profile.skillPermission).toEqual({ "*": "deny" });
 		expect(profile.opencodeAgents).toBeUndefined();
 	});
+
+	test("Minecraft 有効時は minecraft skill だけを primary agent に許可する", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+			minecraftEnabled: true,
+		});
+
+		expect(profile.builtinTools.skill).toBe(true);
+		expect(profile.skillPermission).toEqual({
+			"*": "deny",
+			minecraft: "allow",
+		});
+		expect(profile.opencodeAgents).toBeUndefined();
+	});
+
+	test("shell workspace と Minecraft の併用時は build agent に minecraft skill だけを許可する", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+			minecraftEnabled: true,
+			shellWorkspaceSubagent: {
+				providerId: "worker-provider",
+				modelId: "worker-model",
+				temperature: 0.4,
+				steps: 12,
+			},
+		});
+
+		const build = profile.opencodeAgents?.build as
+			| { tools?: Record<string, boolean>; permission?: Record<string, unknown> }
+			| undefined;
+		const worker = profile.opencodeAgents?.["shell-worker"] as
+			| { tools?: Record<string, boolean>; permission?: Record<string, unknown> }
+			| undefined;
+
+		expect(profile.primaryTools).toEqual(["task", "skill"]);
+		expect(build?.tools?.skill).toBe(true);
+		expect(build?.permission?.skill).toEqual({
+			"*": "deny",
+			minecraft: "allow",
+		});
+		expect(worker?.tools?.skill).toBe(true);
+		expect(worker?.permission?.skill).toEqual({
+			"*": "deny",
+			debug: "allow",
+			"skill-creator": "allow",
+		});
+	});
 });

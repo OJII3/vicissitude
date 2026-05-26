@@ -98,7 +98,6 @@ export function createStoreLayer(config: AppConfig) {
 
 export function createContextLayer(config: AppConfig, root: string, factReader?: MemoryFactReader) {
 	const excludeFiles = new Set<ContextFileName>();
-	if (!config.minecraft) excludeFiles.add("TOOLS-MINECRAFT.md");
 	if (!config.shellWorkspace) excludeFiles.add("TOOLS-CODE.md");
 	const contextBuilder = new ContextBuilder(
 		resolve(root, "data/context"),
@@ -118,7 +117,6 @@ export function createWebContextLayer(
 		"DISCORD.md",
 		"HEARTBEAT.md",
 		"TOOLS-DISCORD.md",
-		"TOOLS-MINECRAFT.md",
 		"TOOLS-CODE.md",
 	]);
 	const contextBuilder = new ContextBuilder(

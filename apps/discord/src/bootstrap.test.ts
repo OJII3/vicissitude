@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines, max-lines-per-function -- bootstrap の DI 結合テストはケース数に応じて長くなるため許容 */
 import { describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import os from "os";
@@ -56,7 +57,6 @@ function createContextRoot(): string {
 	writeFileSync(join(contextDir, "TOOLS-DISCORD.md"), "discord tools");
 	writeFileSync(join(contextDir, "TOOLS-CORE.md"), "core tools");
 	writeFileSync(join(contextDir, "TOOLS-CODE.md"), "shell tools");
-	writeFileSync(join(contextDir, "TOOLS-MINECRAFT.md"), "minecraft tools");
 	return root;
 }
 
@@ -125,6 +125,31 @@ describe("createContextLayer", () => {
 		expect(context).not.toContain("minecraft tools");
 	});
 
+	test("Minecraft 有効時も TOOLS-MINECRAFT は直接注入しない", async () => {
+		const root = createContextRoot();
+		const contextDir = join(root, "context");
+		writeFileSync(join(contextDir, "TOOLS-MINECRAFT.md"), "minecraft tools");
+		const { contextBuilder } = createContextLayer(
+			createTestConfig({
+				minecraft: {
+					host: "localhost",
+					port: 25565,
+					username: "hua",
+					authMode: "offline",
+					mcpPort: 3001,
+					viewerPort: 3007,
+				},
+			}),
+			root,
+		);
+		const context = await contextBuilder.build();
+
+		expect(context).toContain("core tools");
+		expect(context).toContain("discord tools");
+		expect(context).not.toContain("minecraft tools");
+		expect(context).not.toContain("<TOOLS-MINECRAFT.md>");
+	});
+
 	test("Web context は人格と core tools を残し Discord 固有コンテキストを除外する", async () => {
 		const root = createContextRoot();
 		const contextDir = join(root, "context");
@@ -174,6 +199,47 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
 		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+	});
+
+	test("Minecraft 有効時は Discord agent に minecraft skill を許可する", () => {
+		const config = createTestConfig({
+			minecraft: {
+				host: "localhost",
+				port: 25565,
+				username: "hua",
+				authMode: "offline",
+				mcpPort: 3001,
+				viewerPort: 3007,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: { DISCORD_TOKEN: "token", DATA_DIR: "/data/discord" },
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
+			profile: {
+				builtinTools: Record<string, boolean>;
+				skillPermission: Record<string, string>;
+			};
+			sessionPort: { config: { skillPaths?: string[] } };
+		};
+
+		expect(agent.profile.builtinTools.skill).toBe(true);
+		expect(agent.profile.skillPermission).toEqual({
+			"*": "deny",
+			minecraft: "allow",
+		});
 		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
 	});
 
@@ -274,6 +340,52 @@ describe("createDiscordAgents", () => {
 		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
 		expect(agent.sessionPort.config.directory).toBeUndefined();
 		expect(agent.sessionPort.config.environment).toBeUndefined();
+	});
+
+	test("Minecraft 有効時は heartbeat agent でも minecraft skill を許可する", () => {
+		const config = createTestConfig({
+			minecraft: {
+				host: "localhost",
+				port: 25565,
+				username: "hua",
+				authMode: "offline",
+				mcpPort: 3001,
+				viewerPort: 3007,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:heartbeat:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+				opencode: {
+					providerId: "heartbeat-provider",
+					modelId: "heartbeat-model",
+					temperature: 0.2,
+				},
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
+			profile: {
+				builtinTools: Record<string, boolean>;
+				skillPermission: Record<string, string>;
+				opencodeAgents?: unknown;
+			};
+		};
+
+		expect(agent.profile.builtinTools.skill).toBe(true);
+		expect(agent.profile.skillPermission).toEqual({
+			"*": "deny",
+			minecraft: "allow",
+		});
+		expect(agent.profile.opencodeAgents).toBeUndefined();
 	});
 
 	test("shellWorkspace の GitHub token は Git credential helper 付きで OpenCode に渡す", () => {
@@ -440,6 +552,76 @@ describe("createDiscordAgents", () => {
 		expect(agent.sessionPort.config.environment?.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS).toBe(
 			"true",
 		);
+	});
+
+	test("shellWorkspace と Minecraft 併用時は primary agent に minecraft skill を許可する", () => {
+		const config = createTestConfig({
+			minecraft: {
+				host: "localhost",
+				port: 25565,
+				username: "hua",
+				authMode: "offline",
+				mcpPort: 3001,
+				viewerPort: 3007,
+			},
+			shellWorkspace: {
+				enabled: true,
+				image: "sandbox",
+				agent: {
+					providerId: "shell-provider",
+					modelId: "shell-model",
+					temperature: 0.4,
+					steps: 16,
+				},
+				dataDir: "/tmp/shell-workspaces",
+				auditLogPath: "/tmp/shell-audit.jsonl",
+				networkProfile: "open",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			},
+		});
+		const { db, sessionStore } = createStoreLayer(config);
+		const agents = createDiscordAgents(
+			config,
+			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
+			{
+				db,
+				sessionStore,
+				contextBuilder: { build: () => Promise.resolve("context") },
+				logger: createMockLogger(),
+				appRoot: "/app",
+				coreEnvironment: {},
+				discordEnvironment: {},
+			},
+		);
+		const agent = agents.get("discord:guild:123456789") as unknown as {
+			profile: {
+				primaryTools?: string[];
+				opencodeAgents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+			};
+		};
+
+		const build = agent.profile.opencodeAgents?.build as
+			| { tools?: Record<string, boolean>; permission?: { skill?: Record<string, string> } }
+			| undefined;
+		const worker = agent.profile.opencodeAgents?.["shell-worker"] as
+			| { tools?: Record<string, boolean>; permission?: { skill?: Record<string, string> } }
+			| undefined;
+
+		expect(agent.profile.primaryTools).toEqual(["task", "skill"]);
+		expect(build?.tools?.skill).toBe(true);
+		expect(build?.permission?.skill).toEqual({
+			"*": "deny",
+			minecraft: "allow",
+		});
+		expect(worker?.permission?.skill).toEqual({
+			"*": "deny",
+			debug: "allow",
+			"skill-creator": "allow",
+		});
 	});
 });
 

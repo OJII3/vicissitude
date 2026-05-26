@@ -1,14 +1,16 @@
 import {
 	createSkillPermission,
-	denyAllSkillPermission,
 	isSkillToolEnabled,
 	OPENCODE_ALL_TOOLS_DISABLED,
 } from "@vicissitude/opencode/constants";
+import type { SkillPermissionConfig } from "@vicissitude/shared/types";
 
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
+const MINECRAFT_SKILL_NAME = "minecraft";
+const MINECRAFT_ALLOWED_SKILLS = [MINECRAFT_SKILL_NAME] as const;
 
 const T = {
 	sendMessage: "discord_send_message",
@@ -72,8 +74,10 @@ export interface ShellWorkspaceSubagentConfig {
 function buildShellWorkspaceAgents(
 	shellWorkspaceSubagent: ShellWorkspaceSubagentConfig | undefined,
 	backgroundSubagents: boolean,
+	primarySkillPermission: SkillPermissionConfig,
 ) {
 	if (!shellWorkspaceSubagent) return;
+	const primarySkillEnabled = isSkillToolEnabled(primarySkillPermission);
 	const shellWorkspaceSkillPermission = createSkillPermission(
 		DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS,
 	);
@@ -83,10 +87,10 @@ function buildShellWorkspaceAgents(
 			tools: {
 				read: false,
 				write: false,
-				skill: false,
+				skill: primarySkillEnabled,
 			},
 			permission: {
-				skill: denyAllSkillPermission(),
+				skill: primarySkillPermission,
 				task: "allow" as const,
 				...(backgroundSubagents ? { task_status: "allow" as const } : {}),
 				bash: "deny" as const,
@@ -128,6 +132,25 @@ Report concise command results, relevant file paths, and any remaining failure c
 	};
 }
 
+function buildConversationSkillPermission(options: {
+	minecraftEnabled?: boolean;
+}): SkillPermissionConfig {
+	return createSkillPermission(options.minecraftEnabled ? MINECRAFT_ALLOWED_SKILLS : undefined);
+}
+
+function buildPrimaryTools(options: {
+	hasSubagents: boolean;
+	backgroundSubagents: boolean;
+	skillEnabled: boolean;
+}): string[] | undefined {
+	if (!options.hasSubagents) return;
+	return [
+		"task",
+		...(options.backgroundSubagents ? ["task_status"] : []),
+		...(options.skillEnabled ? ["skill"] : []),
+	];
+}
+
 export function createConversationProfile(options: {
 	providerId: string;
 	modelId: string;
@@ -138,6 +161,10 @@ export function createConversationProfile(options: {
 	shellWorkspaceBackgroundSubagents?: boolean;
 }): AgentProfile {
 	const shellWorkspaceBackgroundSubagents = options.shellWorkspaceBackgroundSubagents === true;
+	const conversationSkillPermission = buildConversationSkillPermission({
+		minecraftEnabled: options.minecraftEnabled,
+	});
+	const conversationSkillEnabled = isSkillToolEnabled(conversationSkillPermission);
 	const shellWorkspaceSkillEnabled =
 		!!options.shellWorkspaceSubagent &&
 		isSkillToolEnabled(createSkillPermission(DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS));
@@ -154,6 +181,7 @@ export function createConversationProfile(options: {
 	const opencodeAgents = buildShellWorkspaceAgents(
 		options.shellWorkspaceSubagent,
 		shellWorkspaceBackgroundSubagents,
+		conversationSkillPermission,
 	);
 	return {
 		name: "conversation",
@@ -161,18 +189,20 @@ export function createConversationProfile(options: {
 		builtinTools: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
-			skill: shellWorkspaceSkillEnabled,
+			skill: conversationSkillEnabled || shellWorkspaceSkillEnabled,
 			bash: !!options.shellWorkspaceSubagent,
 			read: !!options.shellWorkspaceSubagent,
 			write: !!options.shellWorkspaceSubagent,
 			task: !!options.shellWorkspaceSubagent,
 			task_status: !!options.shellWorkspaceSubagent && shellWorkspaceBackgroundSubagents,
 		},
-		skillPermission: denyAllSkillPermission(),
+		skillPermission: conversationSkillPermission,
 		opencodeAgents,
-		primaryTools: opencodeAgents
-			? ["task", ...(shellWorkspaceBackgroundSubagents ? ["task_status"] : [])]
-			: undefined,
+		primaryTools: buildPrimaryTools({
+			hasSubagents: !!opencodeAgents,
+			backgroundSubagents: shellWorkspaceBackgroundSubagents,
+			skillEnabled: conversationSkillEnabled,
+		}),
 		defaultAgent: opencodeAgents ? "build" : undefined,
 		pollingPrompt,
 		model: { providerId: options.providerId, modelId: options.modelId },
