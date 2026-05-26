@@ -18,6 +18,7 @@ import type {
 	OpencodeModel,
 	OpencodeSessionPort,
 	PromptResult,
+	SkillPermissionConfig,
 	TokenUsage,
 } from "@vicissitude/shared/types";
 
@@ -41,6 +42,8 @@ export interface OpencodeSessionAdapterConfig {
 	/** `{ enabled: boolean }` は SDK の設定スキーマが許容する無効化用のフォールバック型 */
 	mcpServers: Record<string, McpLocalConfig | McpRemoteConfig | { enabled: boolean }>;
 	builtinTools: Record<string, boolean>;
+	skillPermission: SkillPermissionConfig;
+	skillPaths?: string[];
 	agents?: Record<string, AgentConfig>;
 	defaultAgent?: string;
 	primaryTools?: string[];
@@ -359,6 +362,10 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 				config: {
 					mcp: this.config.mcpServers,
 					tools: this.config.builtinTools,
+					skills: this.config.skillPaths ? { paths: this.config.skillPaths } : undefined,
+					permission: {
+						skill: this.config.skillPermission,
+					},
 					default_agent: this.config.defaultAgent,
 					agent,
 					experimental: {

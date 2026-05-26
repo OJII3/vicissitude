@@ -10,6 +10,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { OpencodeClient } from "@opencode-ai/sdk/v2";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { OpencodeSessionPort } from "@vicissitude/shared/types";
 
@@ -54,6 +55,7 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
+		skillPermission: denyAllSkillPermission(),
 		clientFactory: mock(() =>
 			Promise.resolve({
 				client,

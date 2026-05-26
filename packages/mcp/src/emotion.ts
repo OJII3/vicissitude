@@ -1,5 +1,8 @@
 import { OllamaChatAdapter } from "@vicissitude/ollama/ollama-chat-adapter";
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
+import {
+	denyAllSkillPermission,
+	OPENCODE_ALL_TOOLS_DISABLED,
+} from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { EmotionAnalyzer, LlmPromptPort } from "@vicissitude/shared/ports";
 import type { Logger, OpencodeModel, OpencodeSessionPort } from "@vicissitude/shared/types";
@@ -101,6 +104,7 @@ function createEmotionPromptPort(config: EmotionEstimationConfig, logger: Logger
 			port: opencodePort,
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
+			skillPermission: denyAllSkillPermission(),
 			logger,
 		}),
 		{ providerId: config.providerId, modelId: config.modelId },

@@ -42,7 +42,10 @@ import { MemoryStorage } from "@vicissitude/memory/storage";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { PrometheusCollector, PrometheusServer, METRIC } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
+import {
+	denyAllSkillPermission,
+	OPENCODE_ALL_TOOLS_DISABLED,
+} from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-scheduler";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
@@ -221,6 +224,10 @@ function buildOpencodeShellWorkspaceEnvironment(
 
 const EMOTION_OPENCODE_PORT_OFFSET = 1000;
 
+function opencodeSkillPaths(appRoot: string): string[] {
+	return [resolve(appRoot, ".agents/skills")];
+}
+
 export function buildAgentDiscordEnvironment(
 	config: AppConfig,
 	baseEnvironment: Record<string, string>,
@@ -263,6 +270,14 @@ export function createHeartbeatAgentSpecs(guildIds: string[]): DiscordAgentSpec[
 	}));
 }
 
+function isHeartbeatAgentId(agentId: string): boolean {
+	return agentId.startsWith("discord:heartbeat:");
+}
+
+function canUseShellWorkspace(config: AppConfig, agentId: string): boolean {
+	return !!config.shellWorkspace && !isHeartbeatAgentId(agentId);
+}
+
 export function createDiscordAgents(
 	config: AppConfig,
 	agentSpecs: DiscordAgentSpec[],
@@ -292,7 +307,10 @@ export function createDiscordAgents(
 
 	for (const [index, spec] of agentSpecs.entries()) {
 		const agentPort = config.opencode.basePort + portOffset + index;
-		const shellWorkspaceDirectory = prepareOpencodeShellWorkspaceDirectory(config, spec.agentId);
+		const shellWorkspaceEnabled = canUseShellWorkspace(config, spec.agentId);
+		const shellWorkspaceDirectory = shellWorkspaceEnabled
+			? prepareOpencodeShellWorkspaceDirectory(config, spec.agentId)
+			: undefined;
 		const profile = createConversationProfile({
 			providerId: opencode.providerId,
 			modelId: opencode.modelId,
@@ -305,19 +323,25 @@ export function createDiscordAgents(
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
-			shellWorkspaceSubagent: config.shellWorkspace?.agent,
-			shellWorkspaceBackgroundSubagents: config.shellWorkspace?.backgroundSubagents,
+			shellWorkspaceSubagent: shellWorkspaceEnabled ? config.shellWorkspace?.agent : undefined,
+			shellWorkspaceBackgroundSubagents: shellWorkspaceEnabled
+				? config.shellWorkspace?.backgroundSubagents
+				: undefined,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
 			port: agentPort,
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
+			skillPermission: profile.skillPermission,
+			skillPaths: opencodeSkillPaths(deps.appRoot),
 			agents: profile.opencodeAgents,
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
 			directory: shellWorkspaceDirectory,
-			environment: buildOpencodeShellWorkspaceEnvironment(config, shellWorkspaceDirectory),
+			environment: shellWorkspaceEnabled
+				? buildOpencodeShellWorkspaceEnvironment(config, shellWorkspaceDirectory)
+				: undefined,
 			logger: deps.logger,
 		});
 		const attachmentProcessor = config.imageRecognition
@@ -375,6 +399,8 @@ export function createWebConversationAgent(
 		port: deps.opencodePort,
 		mcpServers: profile.mcpServers,
 		builtinTools: profile.builtinTools,
+		skillPermission: profile.skillPermission,
+		skillPaths: opencodeSkillPaths(deps.appRoot),
 		temperature: config.opencode.temperature,
 		logger: deps.logger,
 	});
@@ -518,6 +544,8 @@ export async function setupMemoryRecording(
 			port: opts.memoryPort,
 			mcpServers: {},
 			builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
+			skillPermission: denyAllSkillPermission(),
+			skillPaths: opencodeSkillPaths(opts.root),
 		});
 		const chatAdapter = new MemoryChatAdapter(
 			memorySessionPort,

@@ -34,4 +34,44 @@ describe("createConversationProfile", () => {
 
 		expect(profile.pollingPrompt).toContain("respond");
 	});
+
+	test("shell workspace 有効時は shell-worker だけ debug skill を使える", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+			shellWorkspaceSubagent: {
+				providerId: "worker-provider",
+				modelId: "worker-model",
+				temperature: 0.4,
+				steps: 12,
+			},
+		});
+
+		const build = profile.opencodeAgents?.build as
+			| { tools?: Record<string, boolean>; permission?: Record<string, unknown> }
+			| undefined;
+		const worker = profile.opencodeAgents?.["shell-worker"] as
+			| { tools?: Record<string, boolean>; permission?: Record<string, unknown> }
+			| undefined;
+
+		expect(profile.builtinTools.skill).toBe(true);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
+		expect(build?.tools?.skill).toBe(false);
+		expect(build?.permission?.skill).toEqual({ "*": "deny" });
+		expect(worker?.tools?.skill).toBe(true);
+		expect(worker?.permission?.skill).toEqual({ "*": "deny", debug: "allow" });
+	});
+
+	test("shell workspace 無効時は OpenCode Skills を全拒否する", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+		});
+
+		expect(profile.builtinTools.skill).toBe(false);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
+		expect(profile.opencodeAgents).toBeUndefined();
+	});
 });

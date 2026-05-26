@@ -28,6 +28,8 @@ describe("createMinecraftProfile", () => {
 		for (const tool of tools) {
 			expect(profile.pollingPrompt).toContain(tool);
 		}
+		expect(profile.builtinTools.skill).toBe(false);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
 	});
 
 	test("pollingPrompt にプレフィックスなしのツール名が残っていない", () => {

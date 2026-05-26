@@ -1,4 +1,7 @@
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
+import {
+	denyAllSkillPermission,
+	OPENCODE_ALL_TOOLS_DISABLED,
+} from "@vicissitude/opencode/constants";
 
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
@@ -24,6 +27,7 @@ export function createWebConversationProfile(options: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
 		},
+		skillPermission: denyAllSkillPermission(),
 		pollingPrompt: WEB_PROMPT_INSTRUCTIONS,
 		model: { providerId: options.providerId, modelId: options.modelId },
 		summaryPrompt: `あなたは Web 会話セッション要約アシスタントです。

@@ -234,6 +234,10 @@ export interface OpencodeModel {
 	modelId: string;
 }
 
+export type SkillPermissionAction = "allow" | "deny" | "ask";
+
+export type SkillPermissionConfig = Record<string, SkillPermissionAction>;
+
 export interface OpencodePromptParams {
 	sessionId: string;
 	text: string;

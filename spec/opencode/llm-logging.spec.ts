@@ -10,6 +10,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { OpencodeClient } from "@opencode-ai/sdk/v2";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 
@@ -56,6 +57,7 @@ function createAdapter(opts: { logger?: ReturnType<typeof createMockLogger> } = 
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
+		skillPermission: denyAllSkillPermission(),
 		logger,
 		clientFactory: mock(() =>
 			Promise.resolve({
@@ -117,6 +119,7 @@ describe("OpencodeSessionAdapter prompt() LLM ログ記録", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			// logger を渡さない
 			clientFactory: mock(() =>
 				Promise.resolve({

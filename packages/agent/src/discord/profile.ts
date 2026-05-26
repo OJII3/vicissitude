@@ -1,8 +1,14 @@
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
+import {
+	createSkillPermission,
+	denyAllSkillPermission,
+	isSkillToolEnabled,
+	OPENCODE_ALL_TOOLS_DISABLED,
+} from "@vicissitude/opencode/constants";
 
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
+const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug"] as const;
 
 const T = {
 	sendMessage: "discord_send_message",
@@ -68,14 +74,19 @@ function buildShellWorkspaceAgents(
 	backgroundSubagents: boolean,
 ) {
 	if (!shellWorkspaceSubagent) return;
+	const shellWorkspaceSkillPermission = createSkillPermission(
+		DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS,
+	);
 	return {
 		build: {
 			mode: "primary" as const,
 			tools: {
 				read: false,
 				write: false,
+				skill: false,
 			},
 			permission: {
+				skill: denyAllSkillPermission(),
 				task: "allow" as const,
 				...(backgroundSubagents ? { task_status: "allow" as const } : {}),
 				bash: "deny" as const,
@@ -97,8 +108,10 @@ function buildShellWorkspaceAgents(
 				bash: true,
 				read: true,
 				write: true,
+				skill: isSkillToolEnabled(shellWorkspaceSkillPermission),
 			},
 			permission: {
+				skill: shellWorkspaceSkillPermission,
 				task: "deny" as const,
 				bash: "allow" as const,
 				read: "allow" as const,
@@ -125,6 +138,9 @@ export function createConversationProfile(options: {
 	shellWorkspaceBackgroundSubagents?: boolean;
 }): AgentProfile {
 	const shellWorkspaceBackgroundSubagents = options.shellWorkspaceBackgroundSubagents === true;
+	const shellWorkspaceSkillEnabled =
+		!!options.shellWorkspaceSubagent &&
+		isSkillToolEnabled(createSkillPermission(DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS));
 	const sections = [
 		MESSAGE_PROMPT_INSTRUCTIONS,
 		options.minecraftEnabled ? MINECRAFT_PROMPT_SECTION : undefined,
@@ -145,12 +161,14 @@ export function createConversationProfile(options: {
 		builtinTools: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
+			skill: shellWorkspaceSkillEnabled,
 			bash: !!options.shellWorkspaceSubagent,
 			read: !!options.shellWorkspaceSubagent,
 			write: !!options.shellWorkspaceSubagent,
 			task: !!options.shellWorkspaceSubagent,
 			task_status: !!options.shellWorkspaceSubagent && shellWorkspaceBackgroundSubagents,
 		},
+		skillPermission: denyAllSkillPermission(),
 		opencodeAgents,
 		primaryTools: opencodeAgents
 			? ["task", ...(shellWorkspaceBackgroundSubagents ? ["task_status"] : [])]

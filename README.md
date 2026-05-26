@@ -95,6 +95,14 @@ MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツー�
 
 OpenCode SDK 組み込み: `webfetch`
 
+### 3.4.1 Agent Skills
+
+OpenCode Agent Skills は `.agents/skills/*/SKILL.md` を discovery 対象にするが、各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。
+
+- Discord 会話 primary、heartbeat、Web、Minecraft、画像認識、emotion、memory 補助セッションは OpenCode Skills を全拒否する。
+- shell workspace 有効時のみ OpenCode の `skill` tool を有効化し、primary `build` agent では拒否、`shell-worker` subagent だけ `debug` skill を許可する。
+- Minecraft の `mc_read_skills` / `mc_record_skill` は Minecraft MCP のワールド記憶であり、OpenCode Agent Skills とは別系統として扱う。
+
 ### 3.5 コンテキスト管理
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。

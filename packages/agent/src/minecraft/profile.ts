@@ -1,4 +1,7 @@
-import { OPENCODE_ALL_TOOLS_DISABLED } from "@vicissitude/opencode/constants";
+import {
+	denyAllSkillPermission,
+	OPENCODE_ALL_TOOLS_DISABLED,
+} from "@vicissitude/opencode/constants";
 
 import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
 
@@ -90,6 +93,7 @@ export function createMinecraftProfile(options: {
 		name: "minecraft",
 		mcpServers: options.mcpServers,
 		builtinTools: OPENCODE_ALL_TOOLS_DISABLED,
+		skillPermission: denyAllSkillPermission(),
 		pollingPrompt: POLLING_PROMPT,
 		model: { providerId: options.providerId, modelId: options.modelId },
 	};

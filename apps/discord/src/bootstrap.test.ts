@@ -164,13 +164,17 @@ describe("createDiscordAgents", () => {
 		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: {
 				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
+				skillPermission: Record<string, string>;
 			};
+			sessionPort: { config: { skillPaths?: string[] } };
 		};
 
 		expect(Object.keys(agent.profile.mcpServers).toSorted()).toEqual(["core", "discord"]);
 		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
+		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
 	});
 
 	test("Discord DM agent は DM scopeId と agentId で作成される", () => {
@@ -199,8 +203,28 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:dm:999888777");
 	});
 
-	test("deps の OpenCode 設定でモデルと temperature を上書きする", () => {
-		const config = createTestConfig();
+	test("heartbeat agent は shellWorkspace 有効時でも deps の OpenCode 設定だけを使う", () => {
+		const config = createTestConfig({
+			shellWorkspace: {
+				enabled: true,
+				image: "sandbox",
+				agent: {
+					providerId: "shell-provider",
+					modelId: "shell-model",
+					temperature: 0.4,
+					steps: 16,
+				},
+				backgroundSubagents: true,
+				dataDir: "/tmp/shell-workspaces",
+				auditLogPath: "/tmp/shell-audit.jsonl",
+				networkProfile: "open",
+				defaultTtlMinutes: 60,
+				maxTtlMinutes: 120,
+				defaultTimeoutSeconds: 30,
+				maxTimeoutSeconds: 120,
+				maxOutputChars: 50_000,
+			},
+		});
 		const { db, sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
@@ -221,8 +245,20 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: { model: { providerId: string; modelId: string } };
-			sessionPort: { config: { temperature?: number } };
+			profile: {
+				model: { providerId: string; modelId: string };
+				builtinTools: Record<string, boolean>;
+				skillPermission: Record<string, string>;
+				opencodeAgents?: unknown;
+			};
+			sessionPort: {
+				config: {
+					temperature?: number;
+					skillPaths?: string[];
+					directory?: string;
+					environment?: Record<string, string>;
+				};
+			};
 		};
 
 		expect(agent.profile.model).toEqual({
@@ -230,6 +266,14 @@ describe("createDiscordAgents", () => {
 			modelId: "heartbeat-model",
 		});
 		expect(agent.sessionPort.config.temperature).toBe(0.2);
+		expect(agent.profile.builtinTools.skill).toBe(false);
+		expect(agent.profile.builtinTools.bash).toBe(false);
+		expect(agent.profile.builtinTools.task).toBe(false);
+		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.profile.opencodeAgents).toBeUndefined();
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
+		expect(agent.sessionPort.config.directory).toBeUndefined();
+		expect(agent.sessionPort.config.environment).toBeUndefined();
 	});
 
 	test("shellWorkspace の GitHub token は Git credential helper 付きで OpenCode に渡す", () => {
@@ -380,12 +424,19 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: { primaryTools?: string[]; builtinTools: Record<string, boolean> };
+			profile: {
+				primaryTools?: string[];
+				builtinTools: Record<string, boolean>;
+				opencodeAgents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+			};
 			sessionPort: { config: { environment?: Record<string, string> } };
 		};
 
+		expect(agent.profile.builtinTools.skill).toBe(true);
 		expect(agent.profile.builtinTools.task_status).toBe(true);
 		expect(agent.profile.primaryTools).toEqual(["task", "task_status"]);
+		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(false);
+		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
 		expect(agent.sessionPort.config.environment?.OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS).toBe(
 			"true",
 		);
@@ -406,12 +457,17 @@ describe("createWebConversationAgent", () => {
 		}) as unknown as {
 			profile: {
 				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
+				builtinTools: Record<string, boolean>;
+				skillPermission: Record<string, string>;
 			};
-			sessionPort: { config: { port: number } };
+			sessionPort: { config: { port: number; skillPaths?: string[] } };
 		};
 
 		expect(Object.keys(agent.profile.mcpServers)).toEqual(["core"]);
 		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("web:local");
+		expect(agent.profile.builtinTools.skill).toBe(false);
+		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
 		expect(agent.sessionPort.config.port).toBe(4103);
+		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/.agents/skills"]);
 	});
 });

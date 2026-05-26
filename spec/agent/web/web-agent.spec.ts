@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import { WEB_AGENT_ID, WEB_SCOPE_ID, WebConversationAgent } from "@vicissitude/agent/web/web-agent";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { agentScopeNamespace } from "@vicissitude/shared/namespace";
 import type {
 	ContextBuilderPort,
@@ -77,6 +78,7 @@ function createAgent(overrides?: {
 			name: "web-conversation",
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			pollingPrompt: "Web prompt",
 			model: { providerId: "provider", modelId: "model" },
 		},
