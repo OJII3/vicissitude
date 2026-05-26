@@ -23,7 +23,9 @@ Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入�
 
 Shell workspace 委譲手順は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `delegate-to-shell-worker` skill を許可する。heartbeat agent は shell workspace を持たないため `delegate-to-shell-worker` skill も許可しない。
 
-`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場として残し、bot runtime の `skills.paths` には渡さない。runtime skill は agent 種別ごとに `context/skills/{agent}` へ分ける。Discord 会話 / heartbeat session では `context/skills/discord` を渡し、shell workspace 有効時だけ `context/skills/shell-worker` も追加する。
+Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-playbook/SKILL.md` に置く。Minecraft brain session では `context/skills/minecraft` を渡し、`minecraft-agent-playbook` skill だけを許可する。`context/minecraft/MINECRAFT-GOALS.md` / `MINECRAFT-PROGRESS.md` / `MINECRAFT-SKILLS.md` はワールド状態・学習メモとして残し、OpenCode Agent Skill とは分離する。
+
+`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場として残し、bot runtime の `skills.paths` には渡さない。runtime skill は agent 種別ごとに `context/skills/{agent}` へ分ける。Discord 会話 / heartbeat session では `context/skills/discord` を渡し、shell workspace 有効時だけ `context/skills/shell-worker` も追加する。Minecraft brain session では `context/skills/minecraft` を渡す。
 
 ## Shell Workspace
 
