@@ -100,9 +100,6 @@ function validateKeywords(obj: Record<string, unknown>, i: number): void {
 
 function validateExistingFactId(obj: Record<string, unknown>, i: number): void {
 	const action = obj["action"] as ConsolidationAction;
-	if (action === "new" && obj["existingFactId"] !== undefined) {
-		throw new TypeError(`facts[${i}].existingFactId: not allowed for action "new"`);
-	}
 	if (ACTIONS_REQUIRING_EXISTING_FACT_ID.has(action) && typeof obj["existingFactId"] !== "string") {
 		throw new TypeError(`facts[${i}].existingFactId: required for action "${action}"`);
 	}

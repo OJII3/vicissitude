@@ -914,25 +914,38 @@ describe("ConsolidationPipeline — schema validation", () => {
 		expect(pipeline.consolidate(userId)).rejects.toThrow("existingFactId");
 	});
 
-	test("rejects new action with existingFactId", async () => {
+	test("normalizes new action with redundant existingFactId", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
 		const pipeline = new ConsolidationPipeline(
-			createInvalidLLM({
-				facts: [
-					{
-						action: "new",
-						category: "preference",
-						fact: "Some fact",
-						keywords: ["test"],
-						existingFactId: "fact-1",
-					},
-				],
+			createMockLLM({
+				structuredResponse: {
+					facts: [
+						{
+							action: "new",
+							category: "preference",
+							fact: "Some fact",
+							keywords: ["test"],
+							existingFactId: "fact-1",
+						},
+					],
+				},
 			}),
 			storage,
 		);
-		expect(pipeline.consolidate(userId)).rejects.toThrow("not allowed");
+		const result = await pipeline.consolidate(userId);
+		expect(result).toEqual({
+			processedEpisodes: 1,
+			newFacts: 1,
+			reinforced: 0,
+			updated: 0,
+			invalidated: 0,
+		});
+
+		const facts = await storage.getFacts(userId);
+		expect(facts).toHaveLength(1);
+		expect(facts[0]?.fact).toBe("Some fact");
 	});
 
 	test("rejects fact with non-array keywords", async () => {
