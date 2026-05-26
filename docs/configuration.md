@@ -24,6 +24,8 @@ profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=co
 
 disabled feature は key ごと省略する。`enabled: false`、`null`、空文字の placeholder は書かない。enabled feature は必要な値をすべて同じ section に置き、profile 内に「書いても書かなくてもよい」任意値は増やさない。
 
+`features.minecraft` は Minecraft MCP と Discord 側 bridge に加えて、OpenCode の `minecraft` skill 許可も切り替える。Minecraft ツール説明は system context へ直接注入せず、`.agents/skills/minecraft/SKILL.md` を OpenCode skill として必要時に読み込む。
+
 ```json
 {
 	"ports": {
