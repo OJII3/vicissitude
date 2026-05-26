@@ -46,11 +46,14 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.builtinTools.write).toBe(true);
 		expect(profile.builtinTools.skill).toBe(true);
 		expect(profile.builtinTools.task_status).toBe(false);
-		expect(profile.skillPermission).toEqual({ "*": "deny", code: "allow" });
+		expect(profile.skillPermission).toEqual({
+			"*": "deny",
+			"delegate-to-shell-worker": "allow",
+		});
 		expect(profile.defaultAgent).toBe("build");
 		expect(profile.primaryTools).toEqual(["task", "skill"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
-		expect(profile.pollingPrompt).toContain("OpenCode skill `code`");
+		expect(profile.pollingPrompt).toContain("OpenCode skill `delegate-to-shell-worker`");
 		expect(profile.pollingPrompt).not.toContain("background=true");
 
 		const build = profile.opencodeAgents?.build;
@@ -60,7 +63,10 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(buildTools?.skill).toBe(true);
 		const buildPermission = (build as { permission?: Record<string, unknown> } | undefined)
 			?.permission;
-		expect(buildPermission?.skill).toEqual({ "*": "deny", code: "allow" });
+		expect(buildPermission?.skill).toEqual({
+			"*": "deny",
+			"delegate-to-shell-worker": "allow",
+		});
 
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
@@ -176,7 +182,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(buildTools?.skill).toBe(true);
 		expect(buildPermission?.skill).toEqual({
 			"*": "deny",
-			code: "allow",
+			"delegate-to-shell-worker": "allow",
 			minecraft: "allow",
 		});
 	});
