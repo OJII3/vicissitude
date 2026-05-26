@@ -19,6 +19,8 @@ describe("createWebConversationProfile", () => {
 		});
 		expect(profile.builtinTools.webfetch).toBe(true);
 		expect(profile.builtinTools.bash).toBe(false);
+		expect(profile.builtinTools.skill).toBe(false);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
 		expect(profile.pollingPrompt).toContain("最終テキストは Web UI に表示されます");
 		expect(profile.pollingPrompt).not.toContain("discord_send_message");
 		expect(profile.pollingPrompt).not.toContain("discord_reply");

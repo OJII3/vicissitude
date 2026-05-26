@@ -1,4 +1,5 @@
 import type { OpencodeAgentConfig } from "@vicissitude/opencode/session-adapter";
+import type { SkillPermissionConfig } from "@vicissitude/shared/types";
 
 export interface AgentProfile {
 	/** プロファイル名（例: "conversation"） */
@@ -7,6 +8,8 @@ export interface AgentProfile {
 	mcpServers: Record<string, McpServerConfig>;
 	/** OpenCode 組み込みツール設定 */
 	builtinTools: Record<string, boolean>;
+	/** OpenCode skill の既定権限。agent 個別設定で必要な skill だけ上書きする */
+	skillPermission: SkillPermissionConfig;
 	/** OpenCode agent 設定 */
 	opencodeAgents?: Record<string, OpencodeAgentConfig>;
 	/** OpenCode primary agent 専用ツール */

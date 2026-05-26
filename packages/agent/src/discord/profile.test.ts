@@ -44,7 +44,9 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.builtinTools.bash).toBe(true);
 		expect(profile.builtinTools.read).toBe(true);
 		expect(profile.builtinTools.write).toBe(true);
+		expect(profile.builtinTools.skill).toBe(true);
 		expect(profile.builtinTools.task_status).toBe(false);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
 		expect(profile.defaultAgent).toBe("build");
 		expect(profile.primaryTools).toEqual(["task"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
@@ -55,6 +57,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		const buildTools = (build as { tools?: Record<string, boolean> } | undefined)?.tools;
 		expect(buildTools?.read).toBe(false);
 		expect(buildTools?.write).toBe(false);
+		expect(buildTools?.skill).toBe(false);
 
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
@@ -65,9 +68,11 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(workerTools?.bash).toBe(true);
 		expect(workerTools?.read).toBe(true);
 		expect(workerTools?.write).toBe(true);
+		expect(workerTools?.skill).toBe(true);
 		expect(workerTools?.task).toBe(false);
-		const workerPermission = (worker as { permission?: Record<string, string> } | undefined)
+		const workerPermission = (worker as { permission?: Record<string, unknown> } | undefined)
 			?.permission;
+		expect(workerPermission?.skill).toEqual({ "*": "deny", debug: "allow" });
 		expect(workerPermission?.bash).toBe("allow");
 		expect(workerPermission?.read).toBe("allow");
 		expect(workerPermission?.edit).toBe("allow");
@@ -115,6 +120,8 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.builtinTools.task).toBe(false);
 		expect(profile.builtinTools.task_status).toBe(false);
 		expect(profile.builtinTools.bash).toBe(false);
+		expect(profile.builtinTools.skill).toBe(false);
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
 		expect(profile.opencodeAgents).toBeUndefined();
 		expect(profile.defaultAgent).toBeUndefined();
 		expect(profile.primaryTools).toBeUndefined();

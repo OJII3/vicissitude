@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- OpenCode session adapter の仕様ケースを集約しているため許容 */
 /**
  * Issue #536: streamDisconnected 時にトークン情報が破棄されるバグの再現テスト
  *
@@ -9,6 +10,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { OpencodeSessionEvent } from "@vicissitude/shared/types";
 
@@ -56,6 +58,7 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
+		skillPermission: denyAllSkillPermission(),
 		clientFactory: mock(() =>
 			Promise.resolve({
 				client,
@@ -94,6 +97,34 @@ function makeMessageUpdatedEvent(
 }
 
 describe("OpencodeSessionAdapter deleteSession", () => {
+	test("OpenCode 起動時に skills.paths と permission.skill を渡す", async () => {
+		const client = createClient(createDoneStream());
+		const clientFactory = mock(() =>
+			Promise.resolve({
+				client,
+				server: { url: "http://localhost", close: mock(() => {}) },
+			}),
+		);
+		const adapter = new OpencodeSessionAdapter({
+			port: 4096,
+			mcpServers: {},
+			builtinTools: { skill: true },
+			skillPermission: { "*": "deny", debug: "allow" },
+			skillPaths: ["/app/.agents/skills"],
+			clientFactory,
+		});
+
+		await adapter.createSession("test session");
+
+		const calls = clientFactory.mock.calls as unknown as Array<[{ config: unknown }]>;
+		expect(calls[0]?.[0].config).toEqual(
+			expect.objectContaining({
+				skills: { paths: ["/app/.agents/skills"] },
+				permission: { skill: { "*": "deny", debug: "allow" } },
+			}),
+		);
+	});
+
 	test("SDK の delete が成功したら resolve する", async () => {
 		const client = createClient(createDoneStream());
 		const adapter = createAdapter(client);

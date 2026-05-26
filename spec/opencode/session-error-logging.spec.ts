@@ -9,6 +9,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { Logger } from "@vicissitude/shared/types";
 
@@ -44,6 +45,7 @@ function createAdapterWithLoggerSpy(client: OpencodeClient) {
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
+		skillPermission: denyAllSkillPermission(),
 		logger: loggerSpy as Logger,
 		clientFactory: mock(() =>
 			Promise.resolve({

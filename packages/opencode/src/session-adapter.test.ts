@@ -2,6 +2,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import type { OpencodeSessionActivity } from "@vicissitude/shared/types";
 
 import { OpencodeSessionAdapter } from "./session-adapter.ts";
@@ -89,6 +90,7 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 		port: 4096,
 		mcpServers: {},
 		builtinTools: {},
+		skillPermission: denyAllSkillPermission(),
 		clientFactory: mock(() =>
 			Promise.resolve({
 				client,
@@ -112,6 +114,7 @@ describe("OpencodeSessionAdapter", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: { task: true },
+			skillPermission: denyAllSkillPermission(),
 			agents: {
 				build: { mode: "primary", tools: { shell_exec: false } },
 				"shell-worker": {
@@ -151,6 +154,7 @@ describe("OpencodeSessionAdapter", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			directory: "/tmp/vicissitude-opencode-workspace",
 			clientFactory: mock(() =>
 				Promise.resolve({
@@ -218,6 +222,7 @@ describe("OpencodeSessionAdapter", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			environment: {
 				VICISSITUDE_OPENCODE_TEST_TOKEN: "secret-value",
 			},
@@ -366,6 +371,7 @@ describe("OpencodeSessionAdapter", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			directory,
 			clientFactory: mock(() =>
 				Promise.resolve({
@@ -398,6 +404,7 @@ describe("OpencodeSessionAdapter", () => {
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			directory,
 			clientFactory: mock(() =>
 				Promise.resolve({
@@ -637,6 +644,7 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 			port: 4096,
 			mcpServers: {},
 			builtinTools: {},
+			skillPermission: denyAllSkillPermission(),
 			clientFactory: mock(() =>
 				Promise.resolve({
 					client: client as unknown as OpencodeClient,
