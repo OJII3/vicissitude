@@ -11,12 +11,17 @@ import { z } from "zod/v4";
 const DEFAULT_ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 const ATTACHMENT_ALLOWED_DIRS_ENV = "DISCORD_ATTACHMENT_ALLOWED_DIRS";
 
+function normalizeAllowedDir(dir: string): string {
+	const absolute = path.resolve(dir);
+	return existsSync(absolute) ? realpathSync(absolute) : absolute;
+}
+
 function allowedFileDirs(): string[] {
 	const extra = (process.env[ATTACHMENT_ALLOWED_DIRS_ENV] ?? "")
 		.split(path.delimiter)
 		.map((dir) => dir.trim())
 		.filter((dir) => dir.length > 0);
-	return [...DEFAULT_ALLOWED_FILE_DIRS, ...extra].map((dir) => path.resolve(dir));
+	return [...DEFAULT_ALLOWED_FILE_DIRS, ...extra].map((dir) => normalizeAllowedDir(dir));
 }
 
 function validateFilePath(filePath: string): void {
