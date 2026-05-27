@@ -95,6 +95,8 @@ MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツー�
 
 OpenCode SDK 組み込み: `webfetch`
 
+OpenCode agent ごとに MCP tool permission を分ける。Discord 会話 primary agent は Discord 送信、返信、添付、リアクション、Core 記憶・リマインダー、必要な Minecraft 委譲を担当する。`shell-worker` subagent は OpenCode builtin `bash` / Read / Write で作業し、`*_*` / `discord_*` / `core_*` / `minecraft_*` / `mc-bridge_*` / `shell-workspace_*` などの MCP tool wildcard は agent permission で `deny` する。`shell-worker` が生成した本文やファイルを Discord に出す場合も、`shell-worker` は送信せず、primary agent が Discord ツールを呼ぶ。
+
 ### 3.4.1 Agent Skills
 
 OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を discovery 対象にする。`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場であり、bot runtime には渡さない。各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。

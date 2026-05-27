@@ -121,6 +121,10 @@ describe("OpencodeSessionAdapter", () => {
 					mode: "subagent",
 					model: "provider/worker-model",
 					tools: { shell_exec: true },
+					permission: {
+						"*_*": "deny",
+						"discord_*": "deny",
+					},
 				},
 			},
 			defaultAgent: "build",
@@ -136,7 +140,7 @@ describe("OpencodeSessionAdapter", () => {
 		const options = calls[0]?.[0] as {
 			config: {
 				default_agent?: string;
-				agent?: Record<string, { temperature?: number; mode?: string }>;
+				agent?: Record<string, { temperature?: number; mode?: string; permission?: unknown }>;
 				experimental?: { primary_tools?: string[] };
 			};
 		};
@@ -145,6 +149,10 @@ describe("OpencodeSessionAdapter", () => {
 		expect(options.config.agent?.build?.mode).toBe("primary");
 		expect(options.config.agent?.build?.temperature).toBe(0.9);
 		expect(options.config.agent?.["shell-worker"]?.mode).toBe("subagent");
+		expect(options.config.agent?.["shell-worker"]?.permission).toEqual({
+			"*_*": "deny",
+			"discord_*": "deny",
+		});
 	});
 
 	test("session 操作に OpenCode directory を渡す", async () => {
