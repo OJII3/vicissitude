@@ -58,6 +58,7 @@
               podman
               python311
               podman-compose
+            ] ++ lib.optionals stdenv.isLinux [
               slirp4netns
             ];
           };
