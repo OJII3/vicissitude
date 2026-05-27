@@ -553,6 +553,14 @@ describe("createDiscordAgents", () => {
 			skill: { "*": "deny", "delegate-to-shell-worker": "allow" },
 		});
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
+		expect(agent.profile.opencodeAgents?.["shell-worker"]?.permission).toMatchObject({
+			"*_*": "deny",
+			"core_*": "deny",
+			"discord_*": "deny",
+			"mc-bridge_*": "deny",
+			"minecraft_*": "deny",
+			"shell-workspace_*": "deny",
+		});
 		expect(agent.sessionPort.config.skillPaths).toEqual([
 			"/app/context/skills/discord",
 			"/app/context/skills/shell-worker",
@@ -630,6 +638,11 @@ describe("createDiscordAgents", () => {
 			"*": "deny",
 			debug: "allow",
 			"skill-creator": "allow",
+		});
+		expect(worker?.permission).toMatchObject({
+			"*_*": "deny",
+			"discord_*": "deny",
+			"minecraft_*": "deny",
 		});
 	});
 });

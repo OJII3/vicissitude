@@ -33,11 +33,16 @@ Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-pla
 
 作業ディレクトリは永続化対象の `data/shell-workspaces` 配下なので、bot restart 後もファイルは残る。作成ファイルを Discord に添付する場合は、`shell-worker` が workspace 配下に保存した絶対 path を返し、メイン会話 agent が `discord_send_message(..., file_path)` に指定する。
 
+`shell-worker` は Discord / Core / Minecraft などの MCP ツールを直接使わない。Discord への送信、返信、添付、リアクション、メッセージ取得、Minecraft への委譲など、会話や外部環境に副作用を持つ操作は primary agent の責務とする。`shell-worker` が Discord に出したい本文や添付したいファイルを作った場合も、送信は行わず、本文案や workspace 配下の file path を primary agent へ返す。
+
 ## Permission Policy
+
+OpenCode では agent ごとの permission で MCP tool wildcard を deny できる前提とする。MCP ツールは agent 種別ごとに許可対象を分け、`shell-worker` には MCP ツールを使わせない。
 
 既定 policy:
 
 - メイン会話 agent:
+  - Discord 送信、返信、添付、リアクション、メッセージ取得は primary agent が担当する
   - `task: allow`
   - `features.shellWorkspace` 設定時のみ `skill.delegate-to-shell-worker: allow`
   - `features.minecraft` 設定時のみ `skill.minecraft: allow`
@@ -45,8 +50,20 @@ Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-pla
   - `external_directory: deny`
 - `shell-worker` subagent:
   - `bash: allow`
+  - `read: allow`
+  - `edit: allow`
   - `task: deny`
   - `external_directory: deny`
+  - `*_*: deny`
+  - `discord_*: deny`
+  - `core_*: deny`
+  - `minecraft_*: deny`
+  - `mc-bridge_*: deny`
+  - `shell-workspace_*: deny`
+  - その他の MCP tool wildcard も既定で `deny`
+- Minecraft brain session:
+  - Minecraft 操作と mc-bridge の状態更新を担当する
+  - Discord 送信は担当しない
 - OpenCode の global builtin tool は `webfetch`、feature に連動した `skill`、`task`、shell workspace 有効時の `bash` だけを開く。
 - `primary_tools` は shell workspace 有効時に `["task", "skill"]` を基本とし、background subagent 有効時は `task_status` を追加する。Minecraft 有効時は許可 skill に `minecraft` を追加する。
 - `shell-worker` prompt では workspace 外の読み書き、host secrets、auth files、環境変数 dump、権限昇格を禁止する。

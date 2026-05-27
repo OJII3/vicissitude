@@ -91,6 +91,15 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(workerPermission?.edit).toBe("allow");
 		expect(workerPermission?.task).toBe("deny");
 		expect(workerPermission?.external_directory).toBe("deny");
+		expect(workerPermission).toMatchObject({
+			"*_*": "deny",
+			"core_*": "deny",
+			"discord_*": "deny",
+			"mc-bridge_*": "deny",
+			"minecraft_*": "deny",
+			"shell-workspace_*": "deny",
+		});
+		expect(worker?.prompt).toContain("Return results to the primary agent");
 	});
 
 	test("background subagent 有効時は task_status を開き background 指示を含める", () => {
@@ -184,6 +193,14 @@ describe("createConversationProfile shell workspace subagent", () => {
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
 			minecraft: "allow",
+		});
+		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
+		const workerPermission = (worker as { permission?: Record<string, unknown> } | undefined)
+			?.permission;
+		expect(workerPermission).toMatchObject({
+			"*_*": "deny",
+			"discord_*": "deny",
+			"minecraft_*": "deny",
 		});
 	});
 });
