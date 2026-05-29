@@ -35,7 +35,7 @@ describe("createConversationProfile", () => {
 		expect(profile.pollingPrompt).toContain("respond");
 	});
 
-	test("shell workspace 有効時は primary に delegate-to-shell-worker skill を許可する", () => {
+	test("shell workspace 有効時は primary に delegate-to-shell-worker と self-update skill を許可する", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
@@ -59,18 +59,46 @@ describe("createConversationProfile", () => {
 		expect(profile.skillPermission).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 		});
 		expect(profile.primaryTools).toEqual(["task", "skill"]);
 		expect(build?.tools?.skill).toBe(true);
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 		});
 		expect(worker?.tools?.skill).toBe(true);
 		expect(worker?.permission?.skill).toEqual({
 			"*": "deny",
 			debug: "allow",
 			"skill-creator": "allow",
+		});
+	});
+
+	test("self-update は shell workspace 無効時には許可しない", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+		});
+
+		expect(profile.skillPermission["self-update"]).toBeUndefined();
+		expect(profile.skillPermission).toEqual({ "*": "deny" });
+	});
+
+	test("self-update は Minecraft のみ有効時には許可しない", () => {
+		const profile = createConversationProfile({
+			providerId: "provider",
+			modelId: "model",
+			mcpServers: {},
+			minecraftEnabled: true,
+		});
+
+		expect(profile.skillPermission["self-update"]).toBeUndefined();
+		expect(profile.skillPermission).toEqual({
+			"*": "deny",
+			minecraft: "allow",
 		});
 	});
 
@@ -102,7 +130,7 @@ describe("createConversationProfile", () => {
 		expect(profile.opencodeAgents).toBeUndefined();
 	});
 
-	test("shell workspace と Minecraft の併用時は build agent に delegate-to-shell-worker と minecraft skill だけを許可する", () => {
+	test("shell workspace と Minecraft の併用時は build agent に delegate-to-shell-worker / self-update / minecraft skill だけを許可する", () => {
 		const profile = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
@@ -128,6 +156,7 @@ describe("createConversationProfile", () => {
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 			minecraft: "allow",
 		});
 		expect(worker?.tools?.skill).toBe(true);

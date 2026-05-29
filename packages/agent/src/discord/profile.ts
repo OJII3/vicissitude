@@ -10,6 +10,7 @@ import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
 const SHELL_WORKER_DELEGATION_SKILL_NAME = "delegate-to-shell-worker";
+const SELF_UPDATE_SKILL_NAME = "self-update";
 const MINECRAFT_SKILL_NAME = "minecraft";
 const SHELL_WORKSPACE_DENIED_MCP_TOOLS = {
 	"*_*": "deny",
@@ -147,7 +148,9 @@ function buildConversationSkillPermission(options: {
 	minecraftEnabled?: boolean;
 }): SkillPermissionConfig {
 	const allowedSkills = [
-		...(options.shellWorkspaceEnabled ? [SHELL_WORKER_DELEGATION_SKILL_NAME] : []),
+		...(options.shellWorkspaceEnabled
+			? [SHELL_WORKER_DELEGATION_SKILL_NAME, SELF_UPDATE_SKILL_NAME]
+			: []),
 		...(options.minecraftEnabled ? [MINECRAFT_SKILL_NAME] : []),
 	];
 	return createSkillPermission(allowedSkills.length > 0 ? allowedSkills : undefined);

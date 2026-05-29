@@ -550,7 +550,7 @@ describe("createDiscordAgents", () => {
 		expect(agent.profile.primaryTools).toEqual(["task", "task_status", "skill"]);
 		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(true);
 		expect(agent.profile.opencodeAgents?.build?.permission).toMatchObject({
-			skill: { "*": "deny", "delegate-to-shell-worker": "allow" },
+			skill: { "*": "deny", "delegate-to-shell-worker": "allow", "self-update": "allow" },
 		});
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
 		expect(agent.profile.opencodeAgents?.["shell-worker"]?.permission).toMatchObject({
@@ -632,6 +632,7 @@ describe("createDiscordAgents", () => {
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 			minecraft: "allow",
 		});
 		expect(worker?.permission?.skill).toEqual({

@@ -49,6 +49,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(profile.skillPermission).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 		});
 		expect(profile.defaultAgent).toBe("build");
 		expect(profile.primaryTools).toEqual(["task", "skill"]);
@@ -66,6 +67,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(buildPermission?.skill).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 		});
 
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
@@ -192,6 +194,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 		expect(buildPermission?.skill).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
+			"self-update": "allow",
 			minecraft: "allow",
 		});
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
