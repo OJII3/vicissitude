@@ -197,3 +197,64 @@ describe("formatDiscordMessage", () => {
 		expect(result).not.toContain("[bot-interaction-hint");
 	});
 });
+
+// ─── formatDiscordMessage: 信頼マーカー ─────────────────────────
+//
+// 信頼判定は表示名（なりすまし可能）ではなく authorId と信頼ユーザー集合の
+// 照合でコード側が確実に行い、結果を [trusted-requester] マーカーとして
+// プロンプト文字列に注入する。self-update skill の自動マージ可否がこの
+// マーカーの有無に依存する。
+
+describe("formatDiscordMessage: 信頼マーカー", () => {
+	test("authorId が信頼ユーザー集合に含まれるとき [trusted-requester] マーカーが付く", () => {
+		const msg = createMessage({ authorId: "883258849254072341" });
+		const result = formatDiscordMessage(msg, { trustedUserIds: ["883258849254072341"] });
+
+		expect(result).toContain("[trusted-requester]");
+	});
+
+	test("authorId が信頼ユーザー集合に含まれないとき [trusted-requester] マーカーは付かない", () => {
+		const msg = createMessage({ authorId: "999999999999999999" });
+		const result = formatDiscordMessage(msg, { trustedUserIds: ["883258849254072341"] });
+
+		expect(result).not.toContain("[trusted-requester]");
+	});
+
+	test("信頼ユーザー集合が空のとき誰にも [trusted-requester] マーカーは付かない", () => {
+		const msg = createMessage({ authorId: "883258849254072341" });
+		const result = formatDiscordMessage(msg, { trustedUserIds: [] });
+
+		expect(result).not.toContain("[trusted-requester]");
+	});
+
+	test("options 自体が未指定のとき [trusted-requester] マーカーは付かない（安全側デグレ）", () => {
+		const msg = createMessage({ authorId: "883258849254072341" });
+		const result = formatDiscordMessage(msg);
+
+		expect(result).not.toContain("[trusted-requester]");
+	});
+
+	test("trustedUserIds が未指定のとき [trusted-requester] マーカーは付かない", () => {
+		const msg = createMessage({ authorId: "883258849254072341" });
+		const result = formatDiscordMessage(msg, {});
+
+		expect(result).not.toContain("[trusted-requester]");
+	});
+
+	test("信頼ユーザーでも非信頼ユーザーでも既存の基本フォーマットは維持される", () => {
+		const trusted = formatDiscordMessage(createMessage({ authorId: "t-1", authorName: "Owner" }), {
+			trustedUserIds: ["t-1"],
+		});
+		const untrusted = formatDiscordMessage(
+			createMessage({ authorId: "u-1", authorName: "Guest" }),
+			{
+				trustedUserIds: ["t-1"],
+			},
+		);
+
+		expect(trusted).toContain("Owner");
+		expect(trusted).toContain("[action: optional]");
+		expect(untrusted).toContain("Guest");
+		expect(untrusted).toContain("[action: optional]");
+	});
+});
