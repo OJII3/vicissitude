@@ -37,18 +37,19 @@ description: "Use when a Discord user asks to turn a capability into a skill ('�
    - push して `gh pr create` する。PR タイトルは `feat(skill): add <name> skill`。
 3. 返ってきた PR URL を Discord に共有する。
 4. CI（`nr validate`）が green になるのを確認する（`shell-worker` に `gh` で確認させる）。
-5. ガードレール判定を行う（下記）。全て満たすときだけ `shell-worker` に `gh pr merge --squash --delete-branch` を実行させる。
+5. ガードレール判定を行う（下記）。全て満たすときだけ `shell-worker` に `gh pr merge --squash --delete-branch` を実行させる。満たさないときは PR を open のまま停止し、人間レビュー待ちにする。
 6. Discord に完了報告（自動マージしたか、人間レビュー待ちにしたか）を送る。
 
 ## ガードレール（自動マージの安全弁）
 
 以下を全て満たすときだけ自動マージする。
 
+- **依頼者が信頼ユーザーである**（直近の依頼メッセージに `[trusted-requester]` マーカーが付いている）。スキルの内容はふあ自身の将来の指示セットになるため、信頼ユーザー以外が振る舞いを書き換えられないようにする。マーカーは表示名ではなく authorId 照合でコード側が付与するため、なりすませない。
 - diff が `context/skills/**` のみ（コード・`.claude/agents/`・README 本体などを含まない）。
 - 新規スキル追加、または既存スキルの非破壊的編集のみ。
 - CI（`nr validate`）が green。
 
-一つでも外れたら自動マージしない。Discord に「人間レビューが要りそう」と理由を添えて報告し、PR は open のまま停止する。
+一つでも外れたら自動マージしない。Discord に「人間レビューが要りそう」と理由を添えて報告し、PR は open のまま停止する。とくに **信頼ユーザー以外（`[trusted-requester]` マーカーなし）からの依頼では、CI が green でも自動マージせず**、PR 作成・共有までで止めて「マージにはオーナーのレビューが要る」と伝える。
 
 ## 委譲境界
 

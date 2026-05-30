@@ -597,8 +597,10 @@ function setupEventHandlers(deps: {
 	metricsCollector: PrometheusCollector;
 	agents: Map<string, DiscordAgent>;
 	logger: Logger;
+	/** 信頼ユーザー (依頼者) 集合。これに含まれる authorId のメッセージに信頼マーカーを付ける */
+	trustedUserIds: string[];
 }): void {
-	const { gateway, ingestionService, metricsCollector, agents, logger } = deps;
+	const { gateway, ingestionService, metricsCollector, agents, logger, trustedUserIds } = deps;
 	gateway.onHomeChannelMessage(async (msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
 		const scopeId = msg.scopeId ?? (msg.guildId ? discordScopeId(msg.guildId) : undefined);
@@ -619,7 +621,7 @@ function setupEventHandlers(deps: {
 			}
 			void agent?.send({
 				sessionKey: "home",
-				message: formatDiscordMessage(msg),
+				message: formatDiscordMessage(msg, { trustedUserIds }),
 				scopeId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
@@ -645,7 +647,7 @@ function setupEventHandlers(deps: {
 			}
 			void agent?.send({
 				sessionKey: "mention",
-				message: formatDiscordMessage(msg),
+				message: formatDiscordMessage(msg, { trustedUserIds }),
 				scopeId,
 				attachments: msg.attachments,
 				channelId: msg.channelId,
@@ -680,7 +682,7 @@ function setupEventHandlers(deps: {
 		}
 		void agent?.send({
 			sessionKey: "dm",
-			message: formatDiscordMessage(msg),
+			message: formatDiscordMessage(msg, { trustedUserIds }),
 			scopeId,
 			attachments: msg.attachments,
 			channelId: msg.channelId,
@@ -908,6 +910,7 @@ export async function bootstrap(): Promise<void> {
 		metricsCollector: metrics.collector,
 		agents,
 		logger,
+		trustedUserIds: dmUserIds,
 	});
 
 	// Emoji tracking
