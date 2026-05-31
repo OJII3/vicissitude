@@ -6,7 +6,9 @@ import { join } from "node:path";
 import {
 	buildDeployComposeOverride,
 	prepareDeployCompose,
+	resolveOptionalMcpAuthPath,
 	resolveOptionalOpencodeConfigPath,
+	resolveOptionalProjectOpencodeConfigPath,
 	resolveWorkspaceNodeModulesMounts,
 } from "./prepare-deploy-compose.ts";
 
@@ -23,6 +25,20 @@ describe("prepare-deploy-compose", () => {
 		expect(compose).toContain("services:\n  bot:");
 		expect(compose).toContain('source: "/home/example/.config/opencode/opencode.json"');
 		expect(compose).toContain('target: "/app/.config/opencode/opencode.json"');
+		expect(compose).toContain("read_only: true");
+	});
+
+	test("project root の opencode.json と mcp-auth.json を bot に read-only bind mount する", () => {
+		const compose = buildDeployComposeOverride(null, [], {
+			mcpAuthPath: "/home/example/.local/share/opencode/mcp-auth.json",
+			projectOpencodeConfigPath: "/repo/opencode.json",
+		});
+
+		expect(compose).toContain("services:\n  bot:");
+		expect(compose).toContain('source: "/repo/opencode.json"');
+		expect(compose).toContain('target: "/app/opencode.json"');
+		expect(compose).toContain('source: "/home/example/.local/share/opencode/mcp-auth.json"');
+		expect(compose).toContain('target: "/app/.local/share/opencode/mcp-auth.json"');
 		expect(compose).toContain("read_only: true");
 	});
 
@@ -82,6 +98,31 @@ describe("prepare-deploy-compose", () => {
 		}
 	});
 
+	test("project root の opencode.json が regular file ならそのパスを返す", () => {
+		const rootDir = makeTempDir();
+		const configPath = join(rootDir, "opencode.json");
+		try {
+			writeFileSync(configPath, "{}\n");
+
+			expect(resolveOptionalProjectOpencodeConfigPath(rootDir)).toBe(configPath);
+		} finally {
+			rmSync(rootDir, { recursive: true, force: true });
+		}
+	});
+
+	test("ホーム配下の mcp-auth.json が regular file ならそのパスを返す", () => {
+		const homeDir = makeTempDir();
+		const mcpAuthPath = join(homeDir, ".local", "share", "opencode", "mcp-auth.json");
+		try {
+			mkdirSync(join(homeDir, ".local", "share", "opencode"), { recursive: true });
+			writeFileSync(mcpAuthPath, "{}\n");
+
+			expect(resolveOptionalMcpAuthPath(homeDir)).toBe(mcpAuthPath);
+		} finally {
+			rmSync(homeDir, { recursive: true, force: true });
+		}
+	});
+
 	test("opencode.json の位置が directory なら deploy を止める", () => {
 		const homeDir = makeTempDir();
 		try {
@@ -113,6 +154,8 @@ describe("prepare-deploy-compose", () => {
 			expect(result).toEqual({
 				outputPath,
 				opencodeConfigPath: null,
+				projectOpencodeConfigPath: null,
+				mcpAuthPath: null,
 				workspaceNodeModulesMounts: [
 					{
 						volumeName: "deploy-packages-shared-node-modules",
