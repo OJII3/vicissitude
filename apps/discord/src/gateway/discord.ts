@@ -2,7 +2,14 @@ import { mapAttachments } from "@vicissitude/infrastructure/discord/attachment-m
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
 import { discordDmScopeId, discordScopeId } from "@vicissitude/shared/namespace";
 import type { IncomingMessage, Logger, MessageChannel } from "@vicissitude/shared/types";
-import { Client, Events, GatewayIntentBits, type Message, Partials } from "discord.js";
+import {
+	ActivityType,
+	Client,
+	Events,
+	GatewayIntentBits,
+	type Message,
+	Partials,
+} from "discord.js";
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
@@ -98,6 +105,12 @@ export class DiscordGateway {
 		const user = this.client?.user;
 		if (!user) return;
 		user.setActivity();
+	}
+
+	setWatchingActivity(name: string): void {
+		const user = this.client?.user;
+		if (!user) return;
+		user.setActivity(name, { type: ActivityType.Watching });
 	}
 
 	private isHomeMessage(message: Message): boolean {

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, mock } from "bun:test";
 
 import type { Logger } from "@vicissitude/shared/types";
-import { Events } from "discord.js";
+import { ActivityType, Events } from "discord.js";
 
 import { DiscordGateway } from "../../apps/discord/src/gateway/discord";
 
@@ -87,6 +87,13 @@ describe("DiscordGateway — プレゼンス表示 API 契約", () => {
 
 			const setActivity = currentMockClient?.user.setActivity;
 			expect(setActivity).toHaveBeenCalled();
+		});
+
+		it("setWatchingActivity は Watching activity として設定する", () => {
+			gateway.setWatchingActivity("12%");
+
+			const setActivity = currentMockClient?.user.setActivity;
+			expect(setActivity).toHaveBeenCalledWith("12%", { type: ActivityType.Watching });
 		});
 	});
 });
