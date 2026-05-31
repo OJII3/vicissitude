@@ -82,6 +82,8 @@ services:
       APP_ROOT: /app
       VICISSITUDE_CONFIG_PATH: ${VICISSITUDE_CONFIG_PATH:-config/default.json}
       GH_TOKEN: ${HUA_GITHUB_TOKEN:-}
+      XDG_CONFIG_HOME: /app/.config
+      XDG_DATA_HOME: /app/.local/share
     env_file:
       - .env
     ports:
@@ -96,8 +98,10 @@ services:
       - ./config:/app/config:ro
       - ./data:/app/data:rw
       - ./context:/app/context:ro
+      - ./opencode.json:/app/opencode.json:ro
       - ${XDG_RUNTIME_DIR:-/run/user/1000}/podman/podman.sock:/run/podman/podman.sock:ro
       - ${HOME}/.local/share/opencode/auth.json:/app/.local/share/opencode/auth.json:ro
+      - ${HOME}/.local/share/opencode/mcp-auth.json:/app/.local/share/opencode/mcp-auth.json:ro
     networks:
       - vicissitude-net
     logging:
