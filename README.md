@@ -204,6 +204,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `apps/web/src/routeTree.gen.ts` は生成物として扱い、手編集せず `generate:routes` で更新する。
 - Vite plugin は TanStack Router plugin を React plugin より前に配置し、ルート生成とコード分割を bundler 側で扱う。
 - 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
+- Web アバターの既定 idle モーションは Project AIRI の `idle_loop.vrma` をローカル配信し、VRM 読み込み後にループ再生する。
 - チャット UI は VRM 表示の上に重ねる透明オーバーレイとし、背景を遮らない半透明のヘッダー・吹き出し・入力欄で構成する。
 - 本番 deploy では `nr deploy` の compose スタックに含まれる `web` サービスで静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
 - Web チャットは gateway の `chat_input` を Web 専用 LLM agent に渡して応答する。入力文を gateway 内でエコーするダミー応答は使わない。

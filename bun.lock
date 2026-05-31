@@ -39,6 +39,7 @@
       "name": "@vicissitude/web",
       "dependencies": {
         "@pixiv/three-vrm": "^3.5.3",
+        "@pixiv/three-vrm-animation": "^3.5.3",
         "@react-three/drei": "^10.7.7",
         "@react-three/fiber": "^9.6.1",
         "@tanstack/react-router": "^1.170.6",
@@ -368,6 +369,8 @@
 
     "@pixiv/three-vrm": ["@pixiv/three-vrm@3.5.3", "", { "dependencies": { "@pixiv/three-vrm-core": "3.5.3", "@pixiv/three-vrm-materials-hdr-emissive-multiplier": "3.5.3", "@pixiv/three-vrm-materials-mtoon": "3.5.3", "@pixiv/three-vrm-materials-v0compat": "3.5.3", "@pixiv/three-vrm-node-constraint": "3.5.3", "@pixiv/three-vrm-springbone": "3.5.3" }, "peerDependencies": { "three": ">=0.137" } }, "sha512-BHvkyedh0RzvSEiwcOf+oOWPAwMGW0xLWQ2CSU+rX/j5E6aII9ool/j97QD67NPlCwBD6lrMRa9RrzEg3xgORA=="],
 
+    "@pixiv/three-vrm-animation": ["@pixiv/three-vrm-animation@3.5.3", "", { "dependencies": { "@pixiv/three-vrm-core": "3.5.3", "@pixiv/types-vrmc-vrm-1.0": "3.5.3", "@pixiv/types-vrmc-vrm-animation-1.0": "3.5.3" }, "peerDependencies": { "three": ">=0.137" } }, "sha512-3zcp8TfPZdVX2y0Tgff9HmLl7KlEQ7WfeTSdmmZzEJpauzqxCK609TOtpQQnFASZBtMsCLt5XIH3B+I1VRfuTw=="],
+
     "@pixiv/three-vrm-core": ["@pixiv/three-vrm-core@3.5.3", "", { "dependencies": { "@pixiv/types-vrm-0.0": "3.5.3", "@pixiv/types-vrmc-vrm-1.0": "3.5.3" }, "peerDependencies": { "three": ">=0.137" } }, "sha512-iZDOkOxOnvT8vGPE2SgNRee3fQw/u11y4MULE9VPXN/LKSf946aVi+YfVnnMBRdwMfQ2uBNHxUvkIQlRIkXnHQ=="],
 
     "@pixiv/three-vrm-materials-hdr-emissive-multiplier": ["@pixiv/three-vrm-materials-hdr-emissive-multiplier@3.5.3", "", { "dependencies": { "@pixiv/types-vrmc-materials-hdr-emissive-multiplier-1.0": "3.5.3" }, "peerDependencies": { "three": ">=0.137" } }, "sha512-CGPVBzjmrG4yoKkHl7w03/ZJj+RfzQ9LjzI623MYIN9O9YkYd5627ls8ZpkbwN+sgboz7eIx9BkoNfWtLmEVSw=="],
@@ -393,6 +396,8 @@
     "@pixiv/types-vrmc-springbone-extended-collider-1.0": ["@pixiv/types-vrmc-springbone-extended-collider-1.0@3.5.3", "", {}, "sha512-DaKEfwWsV4xyu0wdWfJ/bPvYpAammj49n0em8JTy52TmOhUm5oTN0ZZ5cmgdL9PVqN9qmWUkOdnK1ck1Id2H3A=="],
 
     "@pixiv/types-vrmc-vrm-1.0": ["@pixiv/types-vrmc-vrm-1.0@3.5.3", "", {}, "sha512-3HsBZWKXU/CnY2J6uAVuYmM0NPt/e5jroQZH85WYK0EzYmebqTmWKF/fllguNliJQAovdhn8sIA8NbHZoQvbUA=="],
+
+    "@pixiv/types-vrmc-vrm-animation-1.0": ["@pixiv/types-vrmc-vrm-animation-1.0@3.5.3", "", { "dependencies": { "@pixiv/types-vrmc-vrm-1.0": "3.5.3" } }, "sha512-SwwHofRepbZVvseIXIC3THA3Z/EKULOH2JJR9NjHRGOUdDcrIkQuQaZ0ml99P47EaUx5vwSlG7C7FEM9+ByvTQ=="],
 
     "@react-three/drei": ["@react-three/drei@10.7.7", "", { "dependencies": { "@babel/runtime": "^7.26.0", "@mediapipe/tasks-vision": "0.10.17", "@monogrid/gainmap-js": "^3.0.6", "@use-gesture/react": "^10.3.1", "camera-controls": "^3.1.0", "cross-env": "^7.0.3", "detect-gpu": "^5.0.56", "glsl-noise": "^0.0.0", "hls.js": "^1.5.17", "maath": "^0.10.8", "meshline": "^3.3.1", "stats-gl": "^2.2.8", "stats.js": "^0.17.0", "suspend-react": "^0.1.3", "three-mesh-bvh": "^0.8.3", "three-stdlib": "^2.35.6", "troika-three-text": "^0.52.4", "tunnel-rat": "^0.1.2", "use-sync-external-store": "^1.4.0", "utility-types": "^3.11.0", "zustand": "^5.0.1" }, "peerDependencies": { "@react-three/fiber": "^9.0.0", "react": "^19", "react-dom": "^19", "three": ">=0.159" }, "optionalPeers": ["react-dom"] }, "sha512-ff+J5iloR0k4tC++QtD/j9u3w5fzfgFAWDtAGQah9pF2B1YgOq/5JxqY0/aVoQG5r3xSZz0cv5tk2YuBob4xEQ=="],
 
