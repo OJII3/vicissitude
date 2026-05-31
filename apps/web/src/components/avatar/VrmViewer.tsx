@@ -1,5 +1,10 @@
 import { VRMLoaderPlugin, VRMUtils } from "@pixiv/three-vrm";
 import type { VRM } from "@pixiv/three-vrm";
+import {
+	createVRMAnimationClip,
+	VRMAnimationLoaderPlugin,
+	type VRMAnimation,
+} from "@pixiv/three-vrm-animation";
 import { OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import type { VrmExpressionWeight } from "@vicissitude/shared/emotion";
@@ -7,6 +12,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
+import { DEFAULT_AVATAR_MODEL_URL, DEFAULT_IDLE_ANIMATION_URL } from "./avatar-assets";
 import { syncVrmExpression } from "./expression-sync";
 
 // ─── Auto Blink ─────────────────────────────────────────────────
@@ -124,17 +130,81 @@ function useExpressionSync(vrm: VRM | null, expressionWeight: VrmExpressionWeigh
 	}, [vrm, expressionWeight]);
 }
 
+// ─── VRM Animation Hook ────────────────────────────────────────
+
+function firstVrmAnimation(gltf: { userData: Record<string, unknown> }): VRMAnimation | null {
+	const animations = gltf.userData["vrmAnimations"];
+	if (!Array.isArray(animations) || animations.length === 0) return null;
+	return animations[0] as VRMAnimation;
+}
+
+function useVrmAnimation(
+	vrm: VRM | null,
+	animationUrl: string,
+	onError: (message: string) => void,
+) {
+	const [animationMixer, setAnimationMixer] = useState<THREE.AnimationMixer | null>(null);
+	const onErrorRef = useRef(onError);
+	onErrorRef.current = onError;
+
+	useEffect(() => {
+		setAnimationMixer(null);
+		if (!vrm) return;
+
+		const loader = new GLTFLoader();
+		loader.register((parser) => new VRMAnimationLoaderPlugin(parser));
+
+		let disposed = false;
+		let mixer: THREE.AnimationMixer | null = null;
+		let action: THREE.AnimationAction | null = null;
+
+		loader.load(
+			animationUrl,
+			(gltf) => {
+				if (disposed) return;
+				const animation = firstVrmAnimation(gltf);
+				if (!animation) {
+					onErrorRef.current("VRMA データが見つかりません");
+					return;
+				}
+
+				const clip = createVRMAnimationClip(animation, vrm);
+				mixer = new THREE.AnimationMixer(vrm.scene);
+				action = mixer.clipAction(clip);
+				action.setLoop(THREE.LoopRepeat, Number.POSITIVE_INFINITY);
+				action.reset().play();
+				setAnimationMixer(mixer);
+			},
+			undefined,
+			() => {
+				if (!disposed) onErrorRef.current("モーションの読み込みに失敗しました");
+			},
+		);
+
+		return () => {
+			disposed = true;
+			action?.stop();
+			mixer?.stopAllAction();
+			mixer?.uncacheRoot(vrm.scene);
+		};
+	}, [animationUrl, vrm]);
+
+	return animationMixer;
+}
+
 // ─── VRM Scene (Canvas 内部) ────────────────────────────────────
 
 interface VrmSceneProps {
 	url: string;
+	animationUrl: string;
 	expressionWeight: VrmExpressionWeight | null;
 	onError: (message: string) => void;
 	onLoaded: () => void;
 }
 
-function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
+function VrmScene({ url, animationUrl, expressionWeight, onError, onLoaded }: VrmSceneProps) {
 	const vrm = useVrmLoader(url, onError, onLoaded);
+	const animationMixer = useVrmAnimation(vrm, animationUrl, onError);
 	const blinkingRef = useAutoBlink(vrm);
 	const timerRef = useRef(new THREE.Timer());
 
@@ -144,10 +214,11 @@ function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
 		if (!vrm) return;
 		timerRef.current.update();
 		const delta = timerRef.current.getDelta();
-		vrm.update(delta);
+		animationMixer?.update(delta);
 		if (vrm.expressionManager) {
 			vrm.expressionManager.setValue("blink", blinkingRef.current ? 1 : 0);
 		}
+		vrm.update(delta);
 	});
 
 	return null;
@@ -157,10 +228,15 @@ function VrmScene({ url, expressionWeight, onError, onLoaded }: VrmSceneProps) {
 
 interface VrmViewerProps {
 	modelUrl?: string;
+	animationUrl?: string;
 	expressionWeight: VrmExpressionWeight | null;
 }
 
-export function VrmViewer({ modelUrl = "/models/sample.vrm", expressionWeight }: VrmViewerProps) {
+export function VrmViewer({
+	modelUrl = DEFAULT_AVATAR_MODEL_URL,
+	animationUrl = DEFAULT_IDLE_ANIMATION_URL,
+	expressionWeight,
+}: VrmViewerProps) {
 	const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading");
 	const [errorMessage, setErrorMessage] = useState("");
 
@@ -191,6 +267,7 @@ export function VrmViewer({ modelUrl = "/models/sample.vrm", expressionWeight }:
 				<Suspense fallback={null}>
 					<VrmScene
 						url={modelUrl}
+						animationUrl={animationUrl}
 						expressionWeight={expressionWeight}
 						onError={handleError}
 						onLoaded={handleLoaded}
