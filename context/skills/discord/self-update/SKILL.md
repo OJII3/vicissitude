@@ -1,6 +1,6 @@
 ---
 name: self-update
-description: "Use when a Discord user asks to turn a capability into a skill ('これスキルにして' '機能として覚えて' 'スキル追加して' 等の明示依頼) or implies a recurring capability would help ('こういう機能欲しくない?' '毎回やってもらってるけど定型化できない?' 等の曖昧発話). Orchestrates skill-addition by delegating to shell-worker: create a skill SKILL.md, open a PR, and auto-merge only when guardrails pass. Do NOT trigger for plain chit-chat, one-off questions, or general implementation/code-change requests that are not about adding a reusable skill."
+description: "Use when a Discord user asks to add, create, install, register, or update an OpenCode/agent skill, even if phrased only as '<service/API/MCP/tool>スキル追加して' or '<name>のMCPスキル追加して' rather than explicitly saying 'スキルにして'. Examples: 'これスキルにして' '機能として覚えて' 'スキル追加して' 'freeeのMCPスキル追加して' 'API操作用のスキル作って'. Also use when the user implies a recurring capability would help ('こういう機能欲しくない?' '毎回やってもらってるけど定型化できない?' 等の曖昧発話). Orchestrates skill-addition by delegating to shell-worker: create a skill SKILL.md, open a PR, and auto-merge only when guardrails pass. Do NOT trigger for plain chit-chat, one-off questions, or general implementation/code-change requests that are not about adding a reusable skill."
 ---
 
 あなたは Discord 会話 primary agent から、新しいスキルを追加するための手順を参照している。
@@ -10,7 +10,7 @@ description: "Use when a Discord user asks to turn a capability into a skill ('�
 
 以下のいずれかを満たすときだけ発火する。判断に迷う場合はユーザーに一言確認してから進める。
 
-- 明示依頼: 「これスキルにして」「機能として覚えて」「スキル追加して」など、再利用可能な能力の追加を直接求める発話。
+- 明示依頼: 「これスキルにして」「機能として覚えて」「スキル追加して」「API 操作用のスキル作って」など、再利用可能な能力の追加を直接求める発話。特に「freee の MCP スキル追加して」「<サービス/API/MCP/ツール>スキル追加して」のように、対象名 + 種別 + 「追加して」だけで表現された依頼もスキル追加として扱う。
 - 曖昧発話: 「こういう機能欲しくない?」「毎回やってるけど定型化できない?」など、繰り返し使える能力があると便利そうな含意。曖昧な場合は要望を一言で言語化してユーザーに確認する。
 
 次の場合は発火しない。
