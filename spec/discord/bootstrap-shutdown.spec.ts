@@ -23,6 +23,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 			return l;
 		})(),
 		sessionGaugeTimer: setInterval(() => {}, 100_000),
+		monthlyUsagePresence: { stop: mock(track("monthlyUsagePresence")) },
 		consolidationScheduler: { stop: mock(track("consolidation")) },
 		heartbeatScheduler: { stop: mock(track("heartbeatScheduler")) },
 		gateway: { stop: mock(track("gateway")) },
@@ -40,6 +41,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 		factReader: { close: mock(track("factReader")) },
 		chatAdapter: { close: mock(track("chatAdapter")) },
 		recorder: { close: mock(track("recorder")) },
+		resumeContextService: { close: mock(track("resumeContextService")) },
 		mcProcess: { kill: mock(track("mcProcess")) },
 		closeDb: mock(track("db")),
 		...overrides,
@@ -71,7 +73,7 @@ describe("createShutdown()", () => {
 	});
 
 	describe("シャットダウン順序", () => {
-		it("15 コンポーネントが定義順にシャットダウンされる", async () => {
+		it("17 コンポーネントが定義順にシャットダウンされる", async () => {
 			const deps = makeDeps();
 			// clearInterval のスパイで sessionGauge の順序を記録
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {
@@ -83,6 +85,7 @@ describe("createShutdown()", () => {
 
 			expect(deps.callOrder).toEqual([
 				"sessionGauge",
+				"monthlyUsagePresence",
 				"consolidation",
 				"heartbeatScheduler",
 				"gateway",
@@ -95,6 +98,7 @@ describe("createShutdown()", () => {
 				"factReader",
 				"chatAdapter",
 				"recorder",
+				"resumeContextService",
 				"mcProcess",
 				"db",
 			]);
@@ -218,11 +222,13 @@ describe("createShutdown()", () => {
 
 		it("全オプショナル依存が undefined でも正常にシャットダウンされる", async () => {
 			const deps = makeDeps({
+				monthlyUsagePresence: undefined,
 				consolidationScheduler: undefined,
 				webAgent: undefined,
 				mcBrainManager: undefined,
 				chatAdapter: undefined,
 				recorder: undefined,
+				resumeContextService: undefined,
 				mcProcess: undefined,
 			});
 			clearIntervalSpy.mockImplementation((..._args: unknown[]) => {

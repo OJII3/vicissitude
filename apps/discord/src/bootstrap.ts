@@ -83,6 +83,7 @@ import {
 	removeLegacyConsolidateReminder,
 	syncMcCheckReminder,
 } from "./migrations.ts";
+import { MonthlyUsagePresenceService } from "./monthly-usage-presence.ts";
 import { createPortLayout } from "./port-allocator.ts";
 import { createShutdown } from "./shutdown.ts";
 
@@ -959,6 +960,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
+	const monthlyUsagePresence = new MonthlyUsagePresenceService(gateway, logger);
 
 	// MCP processes (Minecraft のみ HTTP、core は stdio で OpenCode が管理)
 	const mcProcess = await mcReady;
@@ -987,6 +989,7 @@ export async function bootstrap(): Promise<void> {
 	const shutdown = createShutdown({
 		logger,
 		sessionGaugeTimer,
+		monthlyUsagePresence,
 		consolidationScheduler: memoryResources?.consolidationScheduler,
 		heartbeatScheduler,
 		gateway,
@@ -1011,6 +1014,7 @@ export async function bootstrap(): Promise<void> {
 		`[bootstrap] Polling mode for ${guildIds.length} guild(s), ${dmUserIds.length} DM user(s): ${guildIds.join(", ")}`,
 	);
 	await gateway.start();
+	monthlyUsagePresence.start();
 	heartbeatScheduler.start();
 	memoryResources?.consolidationScheduler.start();
 	// DiscordAgent は lazy start: 最初の send() 呼び出しで自動的にポーリングループが起動する
