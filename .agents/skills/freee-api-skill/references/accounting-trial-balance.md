@@ -20,32 +20,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない
- (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない
+  (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -69,8 +70,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_bs_two_years
 
@@ -86,31 +87,32 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -134,8 +136,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_bs_three_years
 
@@ -151,31 +153,32 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -199,8 +202,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl
 
@@ -216,32 +219,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -266,8 +270,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_two_years
 
@@ -283,32 +287,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -333,8 +338,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_three_years
 
@@ -350,32 +355,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -400,8 +406,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_sections
 
@@ -417,32 +423,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| section_ids | query | はい | string | 出力する部門の指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択の部門で比較できます。） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                       |
+| ------------------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                   |
+| section_ids               | query | はい   | string         | 出力する部門の指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択の部門で比較できます。）                                                                                                            |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                   |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                   |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                    |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                           |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                           |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                         |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -467,8 +474,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_segment_1_tags
 
@@ -484,33 +491,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_1_tag_ids | query | はい | string | 出力するセグメント１タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_1_tag_ids         | query | はい   | string         | 出力するセグメント１タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -536,8 +544,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_segment_2_tags
 
@@ -553,33 +561,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_2_tag_ids | query | はい | string | 出力するセグメント２タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_2_tag_ids         | query | はい   | string         | 出力するセグメント２タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -605,8 +614,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_pl_segment_3_tags
 
@@ -622,33 +631,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_3_tag_ids | query | はい | string | 出力するセグメント３タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_3_tag_ids         | query | はい   | string         | 出力するセグメント３タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -674,8 +684,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr
 
@@ -691,32 +701,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -741,8 +752,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_two_years
 
@@ -758,32 +769,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -808,8 +820,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_three_years
 
@@ -825,32 +837,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                                      |
+| ------------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                                  |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                                  |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                                  |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                                   |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                                          |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                                        |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、部門、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト), 全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -875,8 +888,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_sections
 
@@ -892,32 +905,33 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| section_ids | query | はい | string | 出力する部門の指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択の部門で比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                       |
+| ------------------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                   |
+| section_ids               | query | はい   | string         | 出力する部門の指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択の部門で比較できます）                                                                                                              |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                                                                                   |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                                                                                   |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。                                                                    |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                           |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                           |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                                                                                         |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 勘定科目: account_item, セグメント１タグ: segment_1_tag, セグメント２タグ: segment_2_tag, セグメント３タグ: segment_3_tag） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。 |
 
 取引先、品目、セグメント の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, account_item, segment_1_tag, segment_2_tag, segment_3_tag) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -942,8 +956,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_segment_1_tags
 
@@ -959,33 +973,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_1_tag_ids | query | はい | string | 出力するセグメント１タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_1_tag_ids         | query | はい   | string         | 出力するセグメント１タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -1011,8 +1026,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_segment_2_tags
 
@@ -1028,33 +1043,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_2_tag_ids | query | はい | string | 出力するセグメント２タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_2_tag_ids         | query | はい   | string         | 出力するセグメント２タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -1080,8 +1096,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ### GET /api/1/reports/trial_cr_segment_3_tags
 
@@ -1097,33 +1113,34 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| segment_3_tag_ids | query | はい | string | 出力するセグメント３タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます） |
-| fiscal_year | query | いいえ | integer(int64) | 会計年度 |
-| start_month | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。 |
-| end_month | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
-| start_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_date | query | いいえ | string | 発生日で絞込：終了日(yyyy-mm-dd) |
-| account_item_display_type | query | いいえ | string | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group) |
-| breakdown_display_type | query | いいえ | string | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。
+| 名前                      | 位置  | 必須   | 型             | 説明                                                                                                                                                                    |
+| ------------------------- | ----- | ------ | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                |
+| segment_3_tag_ids         | query | はい   | string         | 出力するセグメント３タグIDの指定（半角数字のidを半角カンマ区切りスペースなしで指定してください。0を指定すると、未選択のセグメントで比較できます）                       |
+| fiscal_year               | query | いいえ | integer(int64) | 会計年度                                                                                                                                                                |
+| start_month               | query | いいえ | integer(int64) | 発生月で絞込：開始会計月(1-12)。指定されない場合、現在の会計年度の期首月が指定されます。                                                                                |
+| end_month                 | query | いいえ | integer(int64) | 発生月で絞込：終了会計月(1-12)(会計年度が10月始まりでstart_monthが11なら11, 12, 1, ... 9のいずれかを指定する)。指定されない場合、現在の会計年度の期末月が指定されます。 |
+| start_date                | query | いいえ | string         | 発生日で絞込：開始日(yyyy-mm-dd)                                                                                                                                        |
+| end_date                  | query | いいえ | string         | 発生日で絞込：終了日(yyyy-mm-dd)                                                                                                                                        |
+| account_item_display_type | query | いいえ | string         | 勘定科目の表示（勘定科目: account_item, 決算書表示:group）。指定されない場合、勘定科目: account_itemが指定されます。 (選択肢: account_item, group)                      |
+| breakdown_display_type    | query | いいえ | string         | 内訳の表示（取引先: partner, 品目: item, 部門: section, 勘定科目: account_item） ※勘定科目はaccount_item_display_typeが「group」の時のみ指定できます。                  |
 
 取引先、品目、部門 の各項目が単独で5,000以上登録されている場合は、breakdown_display_type で該当項目を指定するとエラーになります。
 
 例）取引先の登録数が5,000以上、品目の登録数が4,999以下の場合
-* breakdown_display_type: 取引先を指定 → エラーになる
-* breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
-| partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
-| partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
-| item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
-| section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
-| adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
-| approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
-プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
-事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
- (選択肢: without_in_progress, all) |
+
+- breakdown_display_type: 取引先を指定 → エラーになる
+- breakdown_display_type: 品目を指定 → エラーにならない (選択肢: partner, item, section, account_item) |
+  | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込（0を指定すると、取引先が未選択で絞り込めます） |
+  | partner_code | query | いいえ | string | 取引先コードで絞込（事業所設定で取引先コードの利用を有効にしている場合のみ利用可能です） |
+  | item_id | query | いいえ | integer(int64) | 品目IDで絞込（0を指定すると、品目が未選択で絞り込めます） |
+  | section_id | query | いいえ | integer(int64) | 部門IDで絞込（0を指定すると、部門が未選択で絞り込めます） |
+  | adjustment | query | いいえ | string | 決算整理仕訳で絞込（決算整理仕訳のみ: only, 決算整理仕訳以外: without）。指定されない場合、決算整理仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | cost_allocation | query | いいえ | string | 配賦仕訳で絞込（配賦仕訳のみ：only,配賦仕訳以外：without）。指定されない場合、配賦仕訳を含む金額が返却されます。 (選択肢: only, without) |
+  | approval_flow_status | query | いいえ | string | 承認ステータスで絞込 (未承認を除く: without_in_progress (デフォルト)、全てのステータス: all)<br>
+  プレミアムプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）以上で指定可能です。<br>
+  事業所の設定から仕訳承認フローの利用を有効にした場合に指定可能です。
+  (選択肢: without_in_progress, all) |
 
 ### レスポンス (200)
 
@@ -1149,10 +1166,8 @@ created_at : 作成日時 account_item_name : 勘定科目名 hierarchy_level: �
 - up_to_date (必須): boolean - 集計結果が最新かどうか 例: `true`
 - up_to_date_reasons (任意): array[object] - 集計が最新でない場合の要因情報
   配列の要素:
-    - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
-    - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
-
-
+  - code (必須): string - コード (選択肢: depreciation_creating, depreciation_create_error) 例: `depreciation_creating`
+  - message (必須): string - 集計が最新でない理由 例: `当期の固定資産の償却作成が完了していないため、正しい集計結果でない可能性があります。しばらく時間をおいてからもう一度お試しください。`
 
 ## 参考情報
 

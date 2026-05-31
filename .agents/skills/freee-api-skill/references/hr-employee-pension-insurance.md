@@ -17,11 +17,12 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| year | query | はい | integer | 従業員情報を取得したい年 |
-| month | query | はい | integer | 従業員情報を取得したい月<br>
+| 名前       | 位置  | 必須 | 型      | 説明                         |
+| ---------- | ----- | ---- | ------- | ---------------------------- |
+| company_id | query | はい | integer | 事業所ID                     |
+| year       | query | はい | integer | 従業員情報を取得したい年     |
+| month      | query | はい | integer | 従業員情報を取得したい月<br> |
+
 締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が検索結果として返します。<br>
 翌月払いの従業員の2022/01の従業員情報を取得する場合は、year=2021,month=12を指定してください。<br> |
 | employee_id | path | はい | integer | 従業員ID |
@@ -59,8 +60,8 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前        | 位置 | 必須 | 型      | 説明     |
+| ----------- | ---- | ---- | ------- | -------- |
 | employee_id | path | はい | integer | 従業員ID |
 
 ### リクエストボディ
@@ -68,8 +69,8 @@ successful operation
 - company_id (必須): integer(int32) - 更新対象事業所ID（必須） (最小: 1, 最大: 2147483647)
 - year (必須): integer(int32) - 更新対象年（必須） 例: `2021` (最小: 2000, 最大: 2100)
 - month (必須): integer(int32) - 更新対象月（必須）<br>
-締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が更新されます。<br>
-翌月払いの従業員の2022/01の従業員情報を更新する場合は、year=2021,month=12を指定してください。<br> 例: `1` (最小: 1, 最大: 12)
+  締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が更新されます。<br>
+  翌月払いの従業員の2022/01の従業員情報を更新する場合は、year=2021,month=12を指定してください。<br> 例: `1` (最小: 1, 最大: 12)
 - employee_welfare_pension_insurance_rule (必須): object
   - entried (任意): boolean - 厚生年金保険に加入しているかどうか null不可
   - welfare_pension_insurance_salary_calc_type (任意): string - 給与計算時の厚生年金保険料の計算方法 (選択肢: auto, manual) 例: `manual`
@@ -106,8 +107,6 @@ successful operation
   - standard_monthly_remuneration (任意): integer(int32) - 標準報酬月額
   - welfare_pension_insurance_bonus_calc_type (任意): string - 賞与計算時の厚生年金保険料の計算方法 (選択肢: auto, manual) 例: `manual`
   - welfare_pension_insurance_salary_calc_type (任意): string - 給与計算時の厚生年金保険料の計算方法 (選択肢: auto, manual) 例: `manual`
-
-
 
 ## 参考情報
 

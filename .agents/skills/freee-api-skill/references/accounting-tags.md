@@ -14,24 +14,24 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_update_date | query | いいえ | string | 更新日で絞り込み：開始日(yyyy-mm-dd) |
-| end_update_date | query | いいえ | string | 更新日で絞り込み：終了日(yyyy-mm-dd) |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
+| 名前              | 位置  | 必須   | 型             | 説明                                                     |
+| ----------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id        | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_update_date | query | いいえ | string         | 更新日で絞り込み：開始日(yyyy-mm-dd)                     |
+| end_update_date   | query | いいえ | string         | 更新日で絞り込み：終了日(yyyy-mm-dd)                     |
+| offset            | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                 |
+| limit             | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
 
 ### レスポンス (200)
 
 - tags (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - タグID 例: `1` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - name (必須): string - 名前(30文字以内) 例: `メモタグ`
-    - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
-    - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `MEMOTAG`
-    - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `123`
+  - id (必須): integer(int64) - タグID 例: `1` (最小: 1)
+  - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - name (必須): string - 名前(30文字以内) 例: `メモタグ`
+  - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
+  - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `MEMOTAG`
+  - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `123`
 
 ### POST /api/1/tags
 
@@ -66,9 +66,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | タグID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | タグID   |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -89,9 +89,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | メモタグID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | メモタグID |
 
 ### リクエストボディ
 
@@ -118,14 +118,12 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | タグID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | タグID   |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (204)
-
-
 
 ## 参考情報
 

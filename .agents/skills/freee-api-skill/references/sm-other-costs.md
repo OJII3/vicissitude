@@ -17,17 +17,17 @@ start_amount_excluding_tax : 金額(税抜)の絞り込み下限 end_amount_excl
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_amount_excluding_tax | query | いいえ | integer(int64) | 金額(税抜)で絞込：下限 |
-| end_amount_excluding_tax | query | いいえ | integer(int64) | 金額(税抜)で絞込：上限 |
-| business_ids[] | query | いいえ | array[string] | 案件ID |
-| canceled | query | いいえ | boolean | 取消状態 |
-| start_incurred_date | query | いいえ | string(date) | 発生日で絞込：開始日(yyyy-mm-dd) |
-| end_incurred_date | query | いいえ | string(date) | 発生日で絞込：終了日(yyyy-mm-dd) |
-| limit | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
-| offset | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0） |
+| 名前                       | 位置  | 必須   | 型             | 説明                                                     |
+| -------------------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id                 | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_amount_excluding_tax | query | いいえ | integer(int64) | 金額(税抜)で絞込：下限                                   |
+| end_amount_excluding_tax   | query | いいえ | integer(int64) | 金額(税抜)で絞込：上限                                   |
+| business_ids[]             | query | いいえ | array[string]  | 案件ID                                                   |
+| canceled                   | query | いいえ | boolean        | 取消状態                                                 |
+| start_incurred_date        | query | いいえ | string(date)   | 発生日で絞込：開始日(yyyy-mm-dd)                         |
+| end_incurred_date          | query | いいえ | string(date)   | 発生日で絞込：終了日(yyyy-mm-dd)                         |
+| limit                      | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
+| offset                     | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0）                |
 
 ### レスポンス (200)
 
@@ -56,9 +56,9 @@ freee会計の取引明細インポートから登録されたその他原価は
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | その他原価ID |
+| 名前 | 位置 | 必須 | 型     | 説明         |
+| ---- | ---- | ---- | ------ | ------------ |
+| id   | path | はい | string | その他原価ID |
 
 ### レスポンス (200)
 
@@ -70,10 +70,10 @@ freee会計の取引明細インポートから登録されたその他原価は
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | string | その他原価ID |
+| 名前       | 位置  | 必須 | 型             | 説明         |
+| ---------- | ----- | ---- | -------------- | ------------ |
+| company_id | query | はい | integer(int64) | 事業所ID     |
+| id         | path  | はい | string         | その他原価ID |
 
 ### レスポンス (200)
 
@@ -110,9 +110,9 @@ freee会計の取引明細インポートから登録されたその他原価は
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | その他原価ID |
+| 名前 | 位置 | 必須 | 型     | 説明         |
+| ---- | ---- | ---- | ------ | ------------ |
+| id   | path | はい | string | その他原価ID |
 
 ### レスポンス (200)
 
@@ -124,13 +124,11 @@ freee会計の取引明細インポートから登録されたその他原価は
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | その他原価ID |
+| 名前 | 位置 | 必須 | 型     | 説明         |
+| ---- | ---- | ---- | ------ | ------------ |
+| id   | path | はい | string | その他原価ID |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

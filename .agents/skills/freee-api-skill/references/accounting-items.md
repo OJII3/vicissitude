@@ -14,23 +14,18 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_update_date | query | いいえ | string | 更新日で絞り込み：開始日(yyyy-mm-dd) |
-| end_update_date | query | いいえ | string | 更新日で絞り込み：終了日(yyyy-mm-dd) |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
+| 名前              | 位置  | 必須   | 型             | 説明                                                     |
+| ----------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id        | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_update_date | query | いいえ | string         | 更新日で絞り込み：開始日(yyyy-mm-dd)                     |
+| end_update_date   | query | いいえ | string         | 更新日で絞り込み：終了日(yyyy-mm-dd)                     |
+| offset            | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                 |
+| limit             | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
 
 ### レスポンス (200)
 
 - items (必須): array[object]
-  配列の要素:
-    - id (必須): integer(int64) - 品目ID 例: `101` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - name (必須): string - 品目名 (30文字以内) 例: `タクシー代`
-    - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
-    - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
+配列の要素: - id (必須): integer(int64) - 品目ID 例: `101` (最小: 1) - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1) - name (必須): string - 品目名 (30文字以内) 例: `タクシー代` - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17` - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
 <br>
 <ul>
   <li>
@@ -72,21 +67,21 @@
   - name (必須): string - 品目名 (30文字以内) 例: `タクシー代`
   - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでitemを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでitemを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `TAXI`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `201`
   - code (任意): string - 品目コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
@@ -99,10 +94,10 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | integer(int64) | 品目ID |
+| id         | path  | はい | integer(int64) | 品目ID   |
 
 ### レスポンス (200)
 
@@ -112,21 +107,21 @@
   - name (必須): string - 品目名 (30文字以内) 例: `タクシー代`
   - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでitemを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでitemを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `TAXI`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `201`
   - code (任意): string - 品目コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
@@ -139,9 +134,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 品目ID |
+| 名前 | 位置 | 必須 | 型             | 説明   |
+| ---- | ---- | ---- | -------------- | ------ |
+| id   | path | はい | integer(int64) | 品目ID |
 
 ### リクエストボディ
 
@@ -159,21 +154,21 @@
   - name (必須): string - 品目名 (30文字以内) 例: `タクシー代`
   - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでitemを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでitemを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `TAXI`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `201`
   - code (任意): string - 品目コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
@@ -186,9 +181,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 品目ID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | 品目ID   |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (204)
@@ -216,26 +211,24 @@
   - name (必須): string - 品目名 (30文字以内) 例: `タクシー代`
   - update_date (必須): string - 更新日(yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - 品目の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでitemを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでitemを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、品目自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの品目をパラメータに指定すれば、取引などにfalseの品目を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `TAXI`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `201`
   - code (任意): string - 品目コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
-
-
 
 ## 参考情報
 

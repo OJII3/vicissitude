@@ -17,12 +17,13 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| status | query | いいえ | string | '申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し)、 取引ステータス(unsettled:支払待ち, settled:支払済み)'<br>
+| 名前       | 位置  | 必須   | 型             | 説明                                                                                                                                                           |
+| ---------- | ----- | ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id | query | はい   | integer(int64) | 事業所ID                                                                                                                                                       |
+| status     | query | いいえ | string         | '申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し)、 取引ステータス(unsettled:支払待ち, settled:支払済み)'<br> |
+
 approver_id を指定した場合は無効です。
- (選択肢: draft, in_progress, approved, rejected, feedback, unsettled, settled) |
+(選択肢: draft, in_progress, approved, rejected, feedback, unsettled, settled) |
 | start_application_date | query | いいえ | string | 申請日で絞込：開始日(yyyy-mm-dd) |
 | end_application_date | query | いいえ | string | 申請日で絞込：終了日(yyyy-mm-dd) |
 | start_issue_date | query | いいえ | string | 発生日で絞込：開始日(yyyy-mm-dd) |
@@ -32,7 +33,7 @@ approver_id を指定した場合は無効です。
 | applicant_id | query | いいえ | integer(int64) | 申請者のユーザーID |
 | approver_id | query | いいえ | integer(int64) | 承認者のユーザーID<br>
 'approver_id を指定した場合は、 in_progress: 申請中 の支払依頼のみを返します。'
- |
+|
 | min_amount | query | いいえ | integer(int64) | 金額で絞込 (下限金額) |
 | max_amount | query | いいえ | integer(int64) | 金額で絞込 (上限金額) |
 | partner_id | query | いいえ | integer(int64) | 取引先IDで絞込 |
@@ -49,35 +50,34 @@ approver_id を指定した場合は無効です。
 
 - payment_requests (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 支払依頼ID 例: `1` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - title (必須): string - 申請タイトル 例: `仕入代金支払い`
-    - application_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
-    - total_amount (必須): integer(int64) - 合計金額 例: `30000`
-    - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
-    - deal_id (任意): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
-    - deal_status (任意): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
-    - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
-    - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
-    - application_number (必須): string - 申請No. 例: `2`
-    - current_step_id (必須): integer(int64) - 現在承認ステップID 例: `1` (最小: 1)
-    - current_round (必須): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
-    - document_code (必須): string - 請求書番号 例: `2`
-    - issue_date (必須): string - 発生日 (yyyy-mm-dd) 例: `2019-12-17`
-    - payment_date (必須): string - 支払期限 (yyyy-mm-dd) 例: `2019-12-17`
-    - payment_method (必須): string - 支払方法(none: 指定なし, domestic_bank_transfer: 国内振込, abroad_bank_transfer: 国外振込, account_transfer: 口座振替, credit_card: クレジットカード) (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
-    - partner_id (必須): integer(int64) - 取引先ID 例: `201` (最小: 1)
-    - partner_code (必須): string - 取引先コード 例: `code001`
-    - partner_name (必須): string - 取引先名 例: `freee`
-    - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
+  - id (必須): integer(int64) - 支払依頼ID 例: `1` (最小: 1)
+  - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - title (必須): string - 申請タイトル 例: `仕入代金支払い`
+  - application_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
+  - total_amount (必須): integer(int64) - 合計金額 例: `30000`
+  - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
+  - deal_id (任意): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
+  - deal_status (任意): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
+  - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
+  - approvers (必須): array[object] - 承認者（配列）
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+  - application_number (必須): string - 申請No. 例: `2`
+  - current_step_id (必須): integer(int64) - 現在承認ステップID 例: `1` (最小: 1)
+  - current_round (必須): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
+  - document_code (必須): string - 請求書番号 例: `2`
+  - issue_date (必須): string - 発生日 (yyyy-mm-dd) 例: `2019-12-17`
+  - payment_date (必須): string - 支払期限 (yyyy-mm-dd) 例: `2019-12-17`
+  - payment_method (必須): string - 支払方法(none: 指定なし, domestic_bank_transfer: 国内振込, abroad_bank_transfer: 国外振込, account_transfer: 口座振替, credit_card: クレジットカード) (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
+  - partner_id (必須): integer(int64) - 取引先ID 例: `201` (最小: 1)
+  - partner_code (必須): string - 取引先コード 例: `code001`
+  - partner_name (必須): string - 取引先名 例: `freee`
+  - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
-    - input_mode (任意): string - 内税/外税（inclusive: 内税、exclusive: 外税）
-外税の支払依頼は他のエンドポイントで利用できないため、Web 画面からご確認ください。 (選択肢: inclusive, exclusive) 例: `inclusive`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified` - input_mode (任意): string - 内税/外税（inclusive: 内税、exclusive: 外税）
+  外税の支払依頼は他のエンドポイントで利用できないため、Web 画面からご確認ください。 (選択肢: inclusive, exclusive) 例: `inclusive`
 
 ### POST /api/1/payment_requests
 
@@ -93,42 +93,31 @@ approver_id を指定した場合は無効です。
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - title (必須): string - 申請タイトル 例: `仕入代金支払い`
 - application_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。
+  例: `2019-12-17`
 - description (任意): string - 備考 例: `◯◯連携先ID: cx12345`
 - payment_request_lines (必須): array[object] - 支払依頼の項目行一覧（配列）
-  配列の要素:
-    - line_type (任意): string - '行の種類 (deal_line: 支払依頼の通常取引行, negative_line: 支払依頼の控除・マイナス行, withholding_tax: 源泉所得税行)'<br>
-'デフォルトは deal_line: 支払依頼の通常取引行 です'
- (選択肢: deal_line, negative_line, withholding_tax) 例: `deal_line`
-    - description (任意): string - 内容 例: `原稿料`
-    - amount (必須): integer(int64) - 金額 例: `30000` (最小: 0, 最大: 99999999999)
-    - account_item_id (任意): integer(int64) - 勘定科目ID 例: `1` (最小: 1)
-    - tax_code (任意): integer(int64) - 税区分コード<br>
-勘定科目IDを指定する場合は必須です。
- 例: `1` (最小: 0, 最大: 2147483647)
-    - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1)
-    - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1)
-    - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]`
-    - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
+  配列の要素: - line_type (任意): string - '行の種類 (deal_line: 支払依頼の通常取引行, negative_line: 支払依頼の控除・マイナス行, withholding_tax: 源泉所得税行)'<br>
+  'デフォルトは deal_line: 支払依頼の通常取引行 です'
+  (選択肢: deal_line, negative_line, withholding_tax) 例: `deal_line` - description (任意): string - 内容 例: `原稿料` - amount (必須): integer(int64) - 金額 例: `30000` (最小: 0, 最大: 99999999999) - account_item_id (任意): integer(int64) - 勘定科目ID 例: `1` (最小: 1) - tax_code (任意): integer(int64) - 税区分コード<br>
+  勘定科目IDを指定する場合は必須です。
+  例: `1` (最小: 0, 最大: 2147483647) - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1) - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1) - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]` - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1) - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1) - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID<br>
-「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
-指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
+  指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - approval_flow_route_id (必須): integer(int64) - 申請経路ID<br>
-指定する申請経路IDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  指定する申請経路IDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - parent_id (任意): integer(int64) - 親申請ID(法人エンタープライズプラン、法人アドバンスプラン（および旧法人プロフェッショナルプラン）)<br>
 <ul>
   <li>承認済みの既存各種申請IDのみ指定可能です。</li>
@@ -136,55 +125,55 @@ approver_id を指定した場合は無効です。
 </ul>
  例: `2` (最小: 1)
 - draft (必須): boolean - 支払依頼のステータス<br>
-falseを指定した時は申請中（in_progress）で支払依頼を作成します。<br>
-trueを指定した時は下書き（draft）で支払依頼を作成します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で支払依頼を作成します。<br>
+  trueを指定した時は下書き（draft）で支払依頼を作成します。
+  例: `true`
 - document_code (任意): string - 請求書番号（255文字以内） 例: `2`
 - receipt_ids (任意): array[integer] - ファイルボックス（証憑ファイル）ID（配列）
 - issue_date (必須): string - 発生日 (yyyy-mm-dd) 例: `2019-12-17`
 - payment_date (任意): string - 支払期限 (yyyy-mm-dd) 例: `2019-12-17`
 - payment_method (任意): string - '支払方法(none: 指定なし, domestic_bank_transfer: 国内振込, abroad_bank_transfer: 国外振込, account_transfer: 口座振替, credit_card: クレジットカード)'<br>
-'デフォルトは none: 指定なし です。'
- (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
+  'デフォルトは none: 指定なし です。'
+  (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
 - partner_id (任意): integer(int64) - 支払先の取引先ID 例: `201` (最小: 1)
 - partner_code (任意): string - 支払先の取引先コード<br>
-支払先の取引先ID指定時には無効
- 例: `code001`
+  支払先の取引先ID指定時には無効
+  例: `code001`
 - bank_code (任意): string - 銀行コード（半角数字1桁〜4桁）<br>
-支払先指定時には無効
- 例: `0001`
+  支払先指定時には無効
+  例: `0001`
 - bank_name (任意): string - 銀行名（255文字以内）<br>
-支払先指定時には無効
- 例: `freee銀行`
+  支払先指定時には無効
+  例: `freee銀行`
 - bank_name_kana (任意): string - 銀行名（カナ）（15文字以内）<br>
-支払先指定時には無効
- 例: `フリーギンコウ`
+  支払先指定時には無効
+  例: `フリーギンコウ`
 - branch_code (任意): string - 支店番号（半角数字1桁〜3桁）<br>
-支払先指定時には無効
- 例: `101`
+  支払先指定時には無効
+  例: `101`
 - branch_name (任意): string - 支店名（255文字以内）<br>
-支払先指定時には無効
- 例: `銀座支店`
+  支払先指定時には無効
+  例: `銀座支店`
 - branch_kana (任意): string - 支店名（カナ）（15文字以内）<br>
-指定可能な文字は、英数・カナ・丸括弧・ハイフン・スペースのみです。<br>
-支払先指定時には無効
- 例: `ギンザシテン`
+  指定可能な文字は、英数・カナ・丸括弧・ハイフン・スペースのみです。<br>
+  支払先指定時には無効
+  例: `ギンザシテン`
 - account_name (任意): string - 受取人名（カナ）（48文字以内）<br>
-支払先指定時には無効
- 例: `フリータロウ`
+  支払先指定時には無効
+  例: `フリータロウ`
 - account_number (任意): string - 口座番号（半角数字1桁〜7桁）<br>
-支払先指定時には無効
- 例: `1010101`
+  支払先指定時には無効
+  例: `1010101`
 - account_type (任意): string - '口座種別(ordinary: 普通、checking: 当座、earmarked: 納税準備預金、savings: 貯蓄、other: その他)'<br>
-'支払先指定時には無効'<br>
-'デフォルトは ordinary: 普通 です'
- (選択肢: ordinary, checking, earmarked, savings, other) 例: `ordinary`
+  '支払先指定時には無効'<br>
+  'デフォルトは ordinary: 普通 です'
+  (選択肢: ordinary, checking, earmarked, savings, other) 例: `ordinary`
 - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
 - qualified_invoice_statusキーをリクエストに含めない場合、unspecifiedが適用されます。
 - issue_dateが2023年9月30日以前の場合、unspecified以外利用できません。
 - インボイス経過措置の税区分の設定が使用する設定になっていない場合、unspecified以外利用できません。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ### レスポンス (201)
 
@@ -201,10 +190,10 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 支払依頼のコメント一覧（配列）
@@ -230,7 +219,7 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
   - account_name (必須): string - 受取人名（カナ） 例: `フリータロウ`
   - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ### GET /api/1/payment_requests/{id}
 
@@ -243,10 +232,10 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 支払依頼ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 支払依頼ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (200)
 
@@ -263,10 +252,10 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 支払依頼のコメント一覧（配列）
@@ -292,7 +281,7 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
   - account_name (必須): string - 受取人名（カナ） 例: `フリータロウ`
   - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ### PUT /api/1/payment_requests/{id}
 
@@ -305,105 +294,93 @@ trueを指定した時は下書き（draft）で支払依頼を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 支払依頼ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 支払依頼ID |
 
 ### リクエストボディ
 
 - company_id (必須): integer(int64) - 事業所ID 例: `1`
 - title (必須): string - 申請タイトル<br>
-申請者が、下書き状態もしくは差戻し状態の支払依頼に対して指定する場合のみ有効
- 例: `仕入代金支払い`
+  申請者が、下書き状態もしくは差戻し状態の支払依頼に対して指定する場合のみ有効
+  例: `仕入代金支払い`
 - application_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。<br>
-申請者が、下書き状態もしくは差戻し状態の支払依頼に対して指定する場合のみ有効
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。<br>
+  申請者が、下書き状態もしくは差戻し状態の支払依頼に対して指定する場合のみ有効
+  例: `2019-12-17`
 - description (任意): string - 備考 例: `◯◯連携先ID: cx12345`
 - payment_request_lines (必須): array[object] - 支払依頼の項目行一覧（配列）
-  配列の要素:
-    - id (任意): integer(int64) - 支払依頼の項目行ID: 既存項目行を更新する場合に指定します。IDを指定しない項目行は、新規行として扱われ追加されます。また、payment_request_linesに含まれない既存の項目行は削除されます。更新後も残したい行は、必ず支払依頼の項目行IDを指定してpayment_request_linesに含めてください。 例: `1` (最小: 1)
-    - line_type (任意): string - '行の種類 (deal_line: 支払依頼の通常取引行, negative_line: 支払依頼の控除・マイナス行, withholding_tax: 源泉所得税行)'<br>
-'デフォルトは deal_line: 支払依頼の通常取引行 です'
- (選択肢: deal_line, negative_line, withholding_tax) 例: `deal_line`
-    - description (任意): string - 内容 例: `原稿料`
-    - amount (必須): integer(int64) - 金額 例: `30000` (最小: 0, 最大: 99999999999)
-    - account_item_id (任意): integer(int64) - 勘定科目ID 例: `1` (最小: 1)
-    - tax_code (任意): integer(int64) - 税区分コード<br>
-勘定科目IDを指定する場合は必須です。
- 例: `1` (最小: 0, 最大: 2147483647)
-    - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1)
-    - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1)
-    - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]`
-    - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
+  配列の要素: - id (任意): integer(int64) - 支払依頼の項目行ID: 既存項目行を更新する場合に指定します。IDを指定しない項目行は、新規行として扱われ追加されます。また、payment_request_linesに含まれない既存の項目行は削除されます。更新後も残したい行は、必ず支払依頼の項目行IDを指定してpayment_request_linesに含めてください。 例: `1` (最小: 1) - line_type (任意): string - '行の種類 (deal_line: 支払依頼の通常取引行, negative_line: 支払依頼の控除・マイナス行, withholding_tax: 源泉所得税行)'<br>
+  'デフォルトは deal_line: 支払依頼の通常取引行 です'
+  (選択肢: deal_line, negative_line, withholding_tax) 例: `deal_line` - description (任意): string - 内容 例: `原稿料` - amount (必須): integer(int64) - 金額 例: `30000` (最小: 0, 最大: 99999999999) - account_item_id (任意): integer(int64) - 勘定科目ID 例: `1` (最小: 1) - tax_code (任意): integer(int64) - 税区分コード<br>
+  勘定科目IDを指定する場合は必須です。
+  例: `1` (最小: 0, 最大: 2147483647) - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1) - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1) - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]` - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1) - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1) - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID<br>
-「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
-指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
+  指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - approval_flow_route_id (必須): integer(int64) - 申請経路ID<br>
-指定する申請経路IDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  指定する申請経路IDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - draft (必須): boolean - 支払依頼のステータス<br>
-falseを指定した時は申請中（in_progress）で支払依頼を更新します。<br>
-trueを指定した時は下書き（draft）で支払依頼を更新します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で支払依頼を更新します。<br>
+  trueを指定した時は下書き（draft）で支払依頼を更新します。
+  例: `true`
 - document_code (任意): string - 請求書番号（255文字以内） 例: `2`
 - receipt_ids (任意): array[integer] - ファイルボックス（証憑ファイル）ID（配列）
 - issue_date (必須): string - 発生日 (yyyy-mm-dd) 例: `2019-12-17`
 - payment_date (任意): string - 支払期限 (yyyy-mm-dd) 例: `2019-12-17`
 - payment_method (任意): string - '支払方法(none: 指定なし, domestic_bank_transfer: 国内振込, abroad_bank_transfer: 国外振込, account_transfer: 口座振替, credit_card: クレジットカード)'<br>
-'デフォルトは none: 指定なし です。'
- (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
+  'デフォルトは none: 指定なし です。'
+  (選択肢: none, domestic_bank_transfer, abroad_bank_transfer, account_transfer, credit_card) 例: `none`
 - partner_id (任意): integer(int64) - 支払先の取引先ID 例: `201` (最小: 1)
 - partner_code (任意): string - 支払先の取引先コード<br>
-支払先の取引先ID指定時には無効
- 例: `code001`
+  支払先の取引先ID指定時には無効
+  例: `code001`
 - bank_code (任意): string - 銀行コード（半角数字1桁〜4桁）<br>
-支払先指定時には無効
- 例: `0001`
+  支払先指定時には無効
+  例: `0001`
 - bank_name (任意): string - 銀行名（255文字以内）<br>
-支払先指定時には無効
- 例: `freee銀行`
+  支払先指定時には無効
+  例: `freee銀行`
 - bank_name_kana (任意): string - 銀行名（カナ）（15文字以内）<br>
-支払先指定時には無効
- 例: `フリーギンコウ`
+  支払先指定時には無効
+  例: `フリーギンコウ`
 - branch_code (任意): string - 支店番号（半角数字1桁〜3桁）<br>
-支払先指定時には無効
- 例: `101`
+  支払先指定時には無効
+  例: `101`
 - branch_name (任意): string - 支店名（255文字以内）<br>
-支払先指定時には無効
- 例: `銀座支店`
+  支払先指定時には無効
+  例: `銀座支店`
 - branch_kana (任意): string - 支店名（カナ）（15文字以内）<br>
-指定可能な文字は、英数・カナ・丸括弧・ハイフン・スペースのみです。<br>
-支払先指定時には無効
- 例: `ギンザシテン`
+  指定可能な文字は、英数・カナ・丸括弧・ハイフン・スペースのみです。<br>
+  支払先指定時には無効
+  例: `ギンザシテン`
 - account_name (任意): string - 受取人名（カナ）（48文字以内）<br>
-支払先指定時には無効
- 例: `フリータロウ`
+  支払先指定時には無効
+  例: `フリータロウ`
 - account_number (任意): string - 口座番号（半角数字1桁〜7桁）<br>
-支払先指定時には無効
- 例: `1010101`
+  支払先指定時には無効
+  例: `1010101`
 - account_type (任意): string - '口座種別(ordinary: 普通、checking: 当座、earmarked: 納税準備預金、savings: 貯蓄、other: その他)'<br>
-'支払先指定時には無効'<br>
-'デフォルトは ordinary: 普通 です'
- (選択肢: ordinary, checking, earmarked, savings, other) 例: `ordinary`
+  '支払先指定時には無効'<br>
+  'デフォルトは ordinary: 普通 です'
+  (選択肢: ordinary, checking, earmarked, savings, other) 例: `ordinary`
 - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
 - qualified_invoice_statusキーをリクエストに含めない場合、unspecifiedが適用されます。
 - issue_dateが2023年9月30日以前の場合、unspecified以外利用できません。
 - インボイス経過措置の税区分の設定が使用する設定になっていない場合、unspecified以外利用できません。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ### レスポンス (200)
 
@@ -420,10 +397,10 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 支払依頼のコメント一覧（配列）
@@ -449,7 +426,7 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
   - account_name (必須): string - 受取人名（カナ） 例: `フリータロウ`
   - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ### DELETE /api/1/payment_requests/{id}
 
@@ -462,10 +439,10 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 支払依頼ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 支払依頼ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (204)
 
@@ -480,9 +457,9 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 支払依頼ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 支払依頼ID |
 
 ### リクエストボディ
 
@@ -509,10 +486,10 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:支払済み, unsettled:支払待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 支払依頼のコメント一覧（配列）
@@ -538,9 +515,7 @@ trueを指定した時は下書き（draft）で支払依頼を更新します�
   - account_name (必須): string - 受取人名（カナ） 例: `フリータロウ`
   - qualified_invoice_status (任意): string - 適格請求書発行事業者（qualified: 該当する、not_qualified: 該当しない、unspecified: 未選択）
 - 支払依頼をインボイス要件をみたす申請として扱うかどうかを表します。
- (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
-
-
+  (選択肢: qualified, not_qualified, unspecified) 例: `qualified`
 
 ## 参考情報
 

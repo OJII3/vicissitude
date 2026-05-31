@@ -10,24 +10,23 @@
 
 操作: 見積書一覧の取得
 
-
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| quotation_number | query | いいえ | string | 見積書番号 |
-| subject | query | いいえ | string | 件名 |
-| partner_ids | query | いいえ | string | 取引先ID（半角数字のidを半角カンマ区切りスペースなしで指定してください。最大3件まで指定できます。） |
-| sending_status | query | いいえ | string | 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent) |
-| cancel_status | query | いいえ | string | 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled) |
-| start_quotation_date | query | いいえ | string(date) | 見積日の開始日 |
-| end_quotation_date | query | いいえ | string(date) | 見積日の終了日 |
-| start_expiration_date | query | いいえ | string(date) | 有効期限の開始日 |
-| end_expiration_date | query | いいえ | string(date) | 有効期限の終了日 |
-| limit | query | いいえ | integer | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 100) |
-| offset | query | いいえ | integer | 取得レコードのオフセット (デフォルト: 0) |
-| sales_management_origin | query | いいえ | boolean | freee販売から作成された帳票データを含める。trueを指定する場合はfreee販売から作成された帳票へのアクセス権限が必要です。 |
+| 名前                    | 位置  | 必須   | 型             | 説明                                                                                                                   |
+| ----------------------- | ----- | ------ | -------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| company_id              | query | はい   | integer(int64) | 事業所ID                                                                                                               |
+| quotation_number        | query | いいえ | string         | 見積書番号                                                                                                             |
+| subject                 | query | いいえ | string         | 件名                                                                                                                   |
+| partner_ids             | query | いいえ | string         | 取引先ID（半角数字のidを半角カンマ区切りスペースなしで指定してください。最大3件まで指定できます。）                    |
+| sending_status          | query | いいえ | string         | 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)                                             |
+| cancel_status           | query | いいえ | string         | 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)                                 |
+| start_quotation_date    | query | いいえ | string(date)   | 見積日の開始日                                                                                                         |
+| end_quotation_date      | query | いいえ | string(date)   | 見積日の終了日                                                                                                         |
+| start_expiration_date   | query | いいえ | string(date)   | 有効期限の開始日                                                                                                       |
+| end_expiration_date     | query | いいえ | string(date)   | 有効期限の終了日                                                                                                       |
+| limit                   | query | いいえ | integer        | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 100)                                                                |
+| offset                  | query | いいえ | integer        | 取得レコードのオフセット (デフォルト: 0)                                                                               |
+| sales_management_origin | query | いいえ | boolean        | freee販売から作成された帳票データを含める。trueを指定する場合はfreee販売から作成された帳票へのアクセス権限が必要です。 |
 
 ### レスポンス (200)
 
@@ -35,37 +34,36 @@ The request has succeeded.
 
 - quotations (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 見積書ID (最小: 1, 最大: 9223372036854775000)
-    - company_id (必須): integer(int64) - 事業所ID (最小: 1, 最大: 9223372036854775000)
-    - quotation_number (必須): string - 見積書番号
-    - subject (必須): string - 件名
-    - template_id (任意): integer(int64) - 帳票テンプレートID (最小: 1, 最大: 9223372036854775000)
-    - quotation_date (必須): string(date) - 見積日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
-    - expiration_date (任意): string(date) - 有効期限 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
-    - memo (必須): string - 社内メモ
-    - sending_status (必須): string - 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)
-    - cancel_status (必須): string - 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)
-    - total_amount (必須): number(double) - 合計金額
-    - amount_withholding_tax (任意): number - 源泉所得税
-    - amount_including_tax (必須): number(double) - 税込金額
-    - amount_excluding_tax (必須): number - 小計（税別）
-    - amount_tax (必須): number - 消費税額
-    - partner_id (必須): integer(int64) - 取引先ID (最小: 1, 最大: 9223372036854775000)
-    - partner_code (任意): string - 取引先コード
-    - partner_name (任意): string - 取引先名
+  - id (必須): integer(int64) - 見積書ID (最小: 1, 最大: 9223372036854775000)
+  - company_id (必須): integer(int64) - 事業所ID (最小: 1, 最大: 9223372036854775000)
+  - quotation_number (必須): string - 見積書番号
+  - subject (必須): string - 件名
+  - template_id (任意): integer(int64) - 帳票テンプレートID (最小: 1, 最大: 9223372036854775000)
+  - quotation_date (必須): string(date) - 見積日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
+  - expiration_date (任意): string(date) - 有効期限 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
+  - memo (必須): string - 社内メモ
+  - sending_status (必須): string - 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)
+  - cancel_status (必須): string - 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)
+  - total_amount (必須): number(double) - 合計金額
+  - amount_withholding_tax (任意): number - 源泉所得税
+  - amount_including_tax (必須): number(double) - 税込金額
+  - amount_excluding_tax (必須): number - 小計（税別）
+  - amount_tax (必須): number - 消費税額
+  - partner_id (必須): integer(int64) - 取引先ID (最小: 1, 最大: 9223372036854775000)
+  - partner_code (任意): string - 取引先コード
+  - partner_name (任意): string - 取引先名
 - partner_nameに空文字が戻る場合は、対象レコードをweb画面から更新するか、freee請求書APIから更新すると解消されます。
-    - partner_display_name (任意): string - 取引先宛名
+  - partner_display_name (任意): string - 取引先宛名
 - 帳票の宛名に利用されます。
-    - company_contact_name (任意): string - 自社担当者 (デフォルト: 表示ユーザー名)
-    - email_url_file_downloaded_at (任意): string(string) - URL共有で送付された送付先のメールのダウンロード時刻 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}(:[0-9]{2})?$)
-    - email_url_file_downloaded_status (任意): string - URL共有で送付された送付先のメールのダウンロードステータス (選択肢: downloaded, undownloaded)
-    - report_url (必須): string(uri) - 帳票詳細ページのURL
-    - sales_management_origin (任意): boolean - freee販売から作成された帳票かどうか
+  - company_contact_name (任意): string - 自社担当者 (デフォルト: 表示ユーザー名)
+  - email_url_file_downloaded_at (任意): string(string) - URL共有で送付された送付先のメールのダウンロード時刻 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}(:[0-9]{2})?$)
+  - email_url_file_downloaded_status (任意): string - URL共有で送付された送付先のメールのダウンロードステータス (選択肢: downloaded, undownloaded)
+  - report_url (必須): string(uri) - 帳票詳細ページのURL
+  - sales_management_origin (任意): boolean - freee販売から作成された帳票かどうか
 
 ### POST /quotations
 
 操作: 見積書の作成
-
 
 説明: 見積書の作成をします。
 
@@ -91,11 +89,11 @@ The request has succeeded.
 - quotation_note (任意): string - 備考
 - memo (任意): string - 社内メモ
 - partner_id (任意): integer(int64) - 取引先ID<br>
-取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 - partner_code (任意): string - 取引先コード<br>
-取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
+  取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
 - partner_title (必須): string - 敬称（御中、様、(空白)の3つから選択）
 - [非推奨]全角カッコの（空白）は削除予定です。
 - 全角カッコの（空白）を指定した場合、はレスポンスは、半角カッコの(空白)になります。 (選択肢: 御中, 様, (空白), （空白）)
@@ -128,19 +126,19 @@ The request has succeeded.
 - company_description (任意): string - 自社説明を上書きする場合に指定します。。
 - lines (必須): array[object] - 見積書の明細行
   配列の要素:
-    - type (任意): string - 明細の種類
+  - type (任意): string - 明細の種類
 - item: 品目行
 - tax_rate、quantityは必須になります。
 - text: テキスト行
 - descriptionのみ入力可能です。
 - 入力がない場合、itemが利用されます。 (選択肢: item, text)
-    - description (任意): string - 摘要（品名）
-    - unit (任意): string - 明細の単位名
-    - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
-    - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
-    - tax_rate (任意): number - 税率（%）（帳票の税率計算に用います。） (選択肢: 0, 8, 10)
-    - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
-    - withholding (任意): boolean - 源泉徴収対象
+  - description (任意): string - 摘要（品名）
+  - unit (任意): string - 明細の単位名
+  - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
+  - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
+  - tax_rate (任意): number - 税率（%）（帳票の税率計算に用います。） (選択肢: 0, 8, 10)
+  - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
+  - withholding (任意): boolean - 源泉徴収対象
 
 ### レスポンス (201)
 
@@ -211,13 +209,12 @@ The request has succeeded and a new resource has been created as a result.
 
 操作: 使用可能な見積書の帳票テンプレート一覧の取得
 
-
 説明: 使用可能な見積書の帳票テンプレート一覧を返します。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -226,22 +223,21 @@ The request has succeeded.
 
 - templates (必須): array[object]
   配列の要素:
-    - id (必須): integer - 帳票テンプレートID (最小: 1, 最大: 2147483647)
-    - name (必須): string - 帳票テンプレート名
+  - id (必須): integer - 帳票テンプレートID (最小: 1, 最大: 2147483647)
+  - name (必須): string - 帳票テンプレート名
 
 ### GET /quotations/{id}
 
 操作: 見積書の取得
 
-
 説明: 指定されたIDの見積書を返します。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | integer | 見積書ID |
+| id         | path  | はい | integer        | 見積書ID |
 
 ### レスポンス (200)
 
@@ -312,14 +308,13 @@ The request has succeeded.
 
 操作: 見積書の更新
 
-
 説明: 見積書の更新をします。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 見積書ID |
+| 名前 | 位置 | 必須 | 型      | 説明     |
+| ---- | ---- | ---- | ------- | -------- |
+| id   | path | はい | integer | 見積書ID |
 
 ### リクエストボディ
 
@@ -343,11 +338,11 @@ The request has succeeded.
 - quotation_note (任意): string - 備考
 - memo (任意): string - 社内メモ
 - partner_id (任意): integer(int64) - 取引先ID<br>
-取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 - partner_code (任意): string - 取引先コード<br>
-取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
+  取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
 - partner_title (必須): string - 敬称（御中、様、(空白)の3つから選択）
 - [非推奨]全角カッコの（空白）は削除予定です。
 - 全角カッコの（空白）を指定した場合、はレスポンスは、半角カッコの(空白)になります。 (選択肢: 御中, 様, (空白), （空白）)
@@ -380,19 +375,19 @@ The request has succeeded.
 - company_description (任意): string - 自社説明を上書きする場合に指定します。。
 - lines (必須): array[object] - 見積書の明細行
   配列の要素:
-    - type (任意): string - 明細の種類
+  - type (任意): string - 明細の種類
 - item: 品目行
 - tax_rate、quantityは必須になります。
 - text: テキスト行
 - descriptionのみ入力可能です。
 - 入力がない場合、itemが利用されます。 (選択肢: item, text)
-    - description (任意): string - 摘要（品名）
-    - unit (任意): string - 明細の単位名
-    - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
-    - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
-    - tax_rate (任意): number - 税率（%）（帳票の税率計算に用います。） (選択肢: 0, 8, 10)
-    - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
-    - withholding (任意): boolean - 源泉徴収対象
+  - description (任意): string - 摘要（品名）
+  - unit (任意): string - 明細の単位名
+  - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
+  - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
+  - tax_rate (任意): number - 税率（%）（帳票の税率計算に用います。） (選択肢: 0, 8, 10)
+  - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
+  - withholding (任意): boolean - 源泉徴収対象
 
 ### レスポンス (200)
 
@@ -458,8 +453,6 @@ The request has succeeded.
   - template (任意): object - 帳票テンプレート情報（帳票テンプレート作成の際に設定できる項目です。）
   - lines (必須): array[object] - 見積書の明細行
   - report_url (必須): string(uri) - 帳票詳細ページのURL
-
-
 
 ## 参考情報
 

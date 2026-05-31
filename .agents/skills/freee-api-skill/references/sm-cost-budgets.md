@@ -17,32 +17,32 @@ type : 原価種別 (procurement, external_procurement, other_cost) start_amount
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| type | query | いいえ | string | 原価種別 (仕入: procurement, 外部仕入: external_procurement, その他原価: other_cost) (選択肢: procurement, external_procurement, other_cost) |
-| start_amount_excluding_tax | query | いいえ | integer(int64) | 金額(税抜):下限 |
-| end_amount_excluding_tax | query | いいえ | integer(int64) | 金額(税抜):上限 |
-| start_date_period | query | いいえ | string(date) | 発生予定期間:開始日(yyyy-mm-dd) |
-| end_date_period | query | いいえ | string(date) | 発生予定期間:終了日(yyyy-mm-dd) |
-| master_item_ids[] | query | いいえ | array[string] | 商品ID |
-| start_quantity | query | いいえ | integer(int64) | 数量:下限 |
-| end_quantity | query | いいえ | integer(int64) | 数量:上限 |
-| start_unit_price | query | いいえ | integer(int64) | 単価:下限 |
-| end_unit_price | query | いいえ | integer(int64) | 単価:上限 |
-| charge_employee_ids[] | query | いいえ | array[integer] | 社内担当者の従業員ID |
-| reporting_section_ids[] | query | いいえ | array[integer] | 担当部門ID |
-| supplier_ids[] | query | いいえ | array[integer] | 仕入先の取引先ID |
-| payment_partner_ids[] | query | いいえ | array[integer] | 支払先の取引先ID |
-| accounting_reporting_section_ids[] | query | いいえ | array[integer] | 会計計上部門ID |
-| item_tag_ids[] | query | いいえ | array[integer] | 会計品目タグID |
-| segment_tag_1_ids[] | query | いいえ | array[integer] | セグメントタグ1 ID |
-| segment_tag_2_ids[] | query | いいえ | array[integer] | セグメントタグ2 ID |
-| segment_tag_3_ids[] | query | いいえ | array[integer] | セグメントタグ3 ID |
-| business_ids[] | query | いいえ | array[string] | 案件ID |
-| canceled | query | いいえ | boolean | 取消状態 |
-| limit | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
-| offset | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0） |
+| 名前                               | 位置  | 必須   | 型             | 説明                                                                                                                                         |
+| ---------------------------------- | ----- | ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id                         | query | はい   | integer(int64) | 事業所ID                                                                                                                                     |
+| type                               | query | いいえ | string         | 原価種別 (仕入: procurement, 外部仕入: external_procurement, その他原価: other_cost) (選択肢: procurement, external_procurement, other_cost) |
+| start_amount_excluding_tax         | query | いいえ | integer(int64) | 金額(税抜):下限                                                                                                                              |
+| end_amount_excluding_tax           | query | いいえ | integer(int64) | 金額(税抜):上限                                                                                                                              |
+| start_date_period                  | query | いいえ | string(date)   | 発生予定期間:開始日(yyyy-mm-dd)                                                                                                              |
+| end_date_period                    | query | いいえ | string(date)   | 発生予定期間:終了日(yyyy-mm-dd)                                                                                                              |
+| master_item_ids[]                  | query | いいえ | array[string]  | 商品ID                                                                                                                                       |
+| start_quantity                     | query | いいえ | integer(int64) | 数量:下限                                                                                                                                    |
+| end_quantity                       | query | いいえ | integer(int64) | 数量:上限                                                                                                                                    |
+| start_unit_price                   | query | いいえ | integer(int64) | 単価:下限                                                                                                                                    |
+| end_unit_price                     | query | いいえ | integer(int64) | 単価:上限                                                                                                                                    |
+| charge_employee_ids[]              | query | いいえ | array[integer] | 社内担当者の従業員ID                                                                                                                         |
+| reporting_section_ids[]            | query | いいえ | array[integer] | 担当部門ID                                                                                                                                   |
+| supplier_ids[]                     | query | いいえ | array[integer] | 仕入先の取引先ID                                                                                                                             |
+| payment_partner_ids[]              | query | いいえ | array[integer] | 支払先の取引先ID                                                                                                                             |
+| accounting_reporting_section_ids[] | query | いいえ | array[integer] | 会計計上部門ID                                                                                                                               |
+| item_tag_ids[]                     | query | いいえ | array[integer] | 会計品目タグID                                                                                                                               |
+| segment_tag_1_ids[]                | query | いいえ | array[integer] | セグメントタグ1 ID                                                                                                                           |
+| segment_tag_2_ids[]                | query | いいえ | array[integer] | セグメントタグ2 ID                                                                                                                           |
+| segment_tag_3_ids[]                | query | いいえ | array[integer] | セグメントタグ3 ID                                                                                                                           |
+| business_ids[]                     | query | いいえ | array[string]  | 案件ID                                                                                                                                       |
+| canceled                           | query | いいえ | boolean        | 取消状態                                                                                                                                     |
+| limit                              | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100）                                                                                     |
+| offset                             | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0）                                                                                                    |
 
 ### レスポンス (200)
 
@@ -65,10 +65,10 @@ type : 原価種別 (procurement, external_procurement, other_cost) start_amount
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | string | 原価予算ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| company_id | query | はい | integer(int64) | 事業所ID   |
+| id         | path  | はい | string         | 原価予算ID |
 
 ### レスポンス (200)
 
@@ -83,9 +83,9 @@ type : 原価種別 (procurement, external_procurement, other_cost) start_amount
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | 原価予算ID |
+| 名前 | 位置 | 必須 | 型     | 説明       |
+| ---- | ---- | ---- | ------ | ---------- |
+| id   | path | はい | string | 原価予算ID |
 
 ### レスポンス (200)
 
@@ -97,13 +97,11 @@ type : 原価種別 (procurement, external_procurement, other_cost) start_amount
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | 原価予算ID |
+| 名前 | 位置 | 必須 | 型     | 説明       |
+| ---- | ---- | ---- | ------ | ---------- |
+| id   | path | はい | string | 原価予算ID |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

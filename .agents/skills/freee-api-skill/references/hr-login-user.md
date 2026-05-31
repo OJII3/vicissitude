@@ -22,9 +22,9 @@ successful operation
 - id (任意): integer(int32) - ユーザーID
 - companies (任意): array[object] - ユーザーが属する事業所の一覧
   配列の要素:
-    - id (任意): integer(int32) - 事業所ID
-    - name (任意): string - 事業所名
-    - role (任意): string - 事業所におけるロール。
+  - id (任意): integer(int32) - 事業所ID
+  - name (任意): string - 事業所名
+  - role (任意): string - 事業所におけるロール。
 
 - `company_admin`: 管理者
 - `self_only`: 一般
@@ -33,12 +33,7 @@ successful operation
 - `shift_admin`: AIシフト担当者
 - `time_clock_device_setter`: 打刻機設定者
 
-[各権限でできることは各アカウントの権限についてのヘルプページを参照してください。](https://support.freee.co.jp/hc/ja/articles/204087410#3)
-    - external_cid (任意): string - 事業所番号(半角英数字10桁)
-    - employee_id (任意): integer(int32) - 事業所に所属する従業員としての従業員ID、従業員情報が未登録の場合はnullになります。
-    - display_name (任意): string - 事業所に所属する従業員の表示名
-
-
+[各権限でできることは各アカウントの権限についてのヘルプページを参照してください。](https://support.freee.co.jp/hc/ja/articles/204087410#3) - external_cid (任意): string - 事業所番号(半角英数字10桁) - employee_id (任意): integer(int32) - 事業所に所属する従業員としての従業員ID、従業員情報が未登録の場合はnullになります。- display_name (任意): string - 事業所に所属する従業員の表示名
 
 ## 参考情報
 

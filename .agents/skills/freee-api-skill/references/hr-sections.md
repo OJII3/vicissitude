@@ -17,8 +17,8 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型      | 説明     |
+| ---------- | ----- | ---- | ------- | -------- |
 | company_id | query | はい | integer | 事業所ID |
 
 ### レスポンス (200)
@@ -27,13 +27,13 @@ successful operation
 
 - groups (必須): array[object]
   配列の要素:
-    - id (必須): integer(int32) - 部門ID 例: `3` (最小: 1, 最大: 2147483647)
-    - code (任意): string - 部門コード 例: `group2`
-    - name (必須): string - 部門名称 例: `営業部門`
-    - level (必須): integer(int32) - 部門階層レベル（数字が大きいほど階層が深いです。） 例: `2` (最小: 1, 最大: 2147483647)
-    - parent_group_id (任意): integer(int32) - 親部門ID 例: `2` (最小: 1, 最大: 2147483647)
-    - parent_group_code (任意): string - 親部門コード 例: `group1`
-    - parent_group_name (任意): string - 親部門名称 例: `営業統括`
+  - id (必須): integer(int32) - 部門ID 例: `3` (最小: 1, 最大: 2147483647)
+  - code (任意): string - 部門コード 例: `group2`
+  - name (必須): string - 部門名称 例: `営業部門`
+  - level (必須): integer(int32) - 部門階層レベル（数字が大きいほど階層が深いです。） 例: `2` (最小: 1, 最大: 2147483647)
+  - parent_group_id (任意): integer(int32) - 親部門ID 例: `2` (最小: 1, 最大: 2147483647)
+  - parent_group_code (任意): string - 親部門コード 例: `group1`
+  - parent_group_name (任意): string - 親部門名称 例: `営業統括`
 - total_count (必須): integer(int32) - 合計件数 例: `1` (最小: 0, 最大: 2147483647)
 
 ### POST /api/v1/groups
@@ -77,9 +77,9 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 部門ID |
+| 名前 | 位置 | 必須 | 型      | 説明   |
+| ---- | ---- | ---- | ------- | ------ |
+| id   | path | はい | integer | 部門ID |
 
 ### リクエストボディ
 
@@ -112,16 +112,14 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 部門ID |
+| 名前       | 位置  | 必須 | 型      | 説明     |
+| ---------- | ----- | ---- | ------- | -------- |
+| id         | path  | はい | integer | 部門ID   |
 | company_id | query | はい | integer | 事業所ID |
 
 ### レスポンス (204)
 
 successful operation
-
-
 
 ## 参考情報
 

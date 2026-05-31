@@ -17,13 +17,13 @@ work_recordsオプションにtrueを指定することで、明細となる日�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
+| 名前         | 位置  | 必須   | 型      | 説明                                                              |
+| ------------ | ----- | ------ | ------- | ----------------------------------------------------------------- |
+| company_id   | query | はい   | integer | 事業所ID                                                          |
 | work_records | query | いいえ | boolean | サマリ情報に日次の勤怠情報を含める(true/false)(デフォルト: false) |
-| employee_id | path | はい | integer | 従業員ID |
-| year | path | はい | integer | 従業員情報を取得したい年 |
-| month | path | はい | integer | 従業員情報を取得したい月 |
+| employee_id  | path  | はい   | integer | 従業員ID                                                          |
+| year         | path  | はい   | integer | 従業員情報を取得したい年                                          |
+| month        | path  | はい   | integer | 従業員情報を取得したい月                                          |
 
 ### レスポンス (200)
 
@@ -60,8 +60,8 @@ successful operation
 - total_lateness_and_early_leaving_mins (任意): integer(int32) - 遅刻早退時間（分）
 - multi_hourly_wages (任意): array[object] - 複数時給の労働時間の内訳（複数時給を設定している従業員のみ）
   配列の要素:
-    - name (任意): string - 時給名
-    - total_normal_time_mins (任意): integer(int32) - 所定内労働時間（分）
+  - name (任意): string - 時給名
+  - total_normal_time_mins (任意): integer(int32) - 所定内労働時間（分）
 - work_records (任意): array[object] - 日々の勤怠情報
 - total_shortage_work_mins (任意): integer(int32) - 不足時間（分）
 - total_deemed_paid_excess_statutory_work_mins (任意): integer(int32) - みなし外の法定内残業時間（分）
@@ -78,11 +78,11 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| employee_id | path | はい | integer | 従業員ID |
-| year | path | はい | integer | 更新対象年 |
-| month | path | はい | integer | 更新対象月 |
+| 名前        | 位置 | 必須 | 型      | 説明       |
+| ----------- | ---- | ---- | ------- | ---------- |
+| employee_id | path | はい | integer | 従業員ID   |
+| year        | path | はい | integer | 更新対象年 |
+| month       | path | はい | integer | 更新対象月 |
 
 ### リクエストボディ
 
@@ -103,14 +103,17 @@ successful operation
 - num_absences_for_deduction (任意): number(float) - 控除対象の欠勤日数
 
 フレックスタイム制の場合は、指定した値が反映されず無視されます。 (最小: 0, 最大: 9999.999)
+
 - total_lateness_mins (任意): integer - 遅刻時間（分） (最小: 0, 最大: 2147483647)
 - total_lateness_mins_for_deduction (任意): integer - 控除対象の遅刻時間（分）
 
 フレックスタイム制と裁量労働制の場合は、指定した値が反映されず無視されます。 (最小: 0, 最大: 2147483647)
+
 - total_early_leaving_mins (任意): integer - 早退時間（分） (最小: 0, 最大: 2147483647)
 - total_early_leaving_mins_for_deduction (任意): integer - 控除対象の早退時間（分）
 
 フレックスタイム制と裁量労働制の場合は、指定した値が反映されず無視されます。 (最小: 0, 最大: 2147483647)
+
 - num_paid_holidays (任意): number(float) - 有給取得日数 (最小: 0, 最大: 31)
 - total_shortage_work_mins (任意): integer - 不足時間（分）（フレックスタイム制でのみ使用） (最小: 0, 最大: 2147483647)
 - total_deemed_paid_excess_statutory_work_mins (任意): integer - みなし外の法定内残業時間（分）（裁量労働制でのみ使用） (最小: 0, 最大: 2147483647)
@@ -151,14 +154,12 @@ successful operation
 - total_lateness_and_early_leaving_mins (任意): integer(int32) - 遅刻早退時間（分）
 - multi_hourly_wages (任意): array[object] - 複数時給の労働時間の内訳（複数時給を設定している従業員のみ）
   配列の要素:
-    - name (任意): string - 時給名
-    - total_normal_time_mins (任意): integer(int32) - 所定内労働時間（分）
+  - name (任意): string - 時給名
+  - total_normal_time_mins (任意): integer(int32) - 所定内労働時間（分）
 - work_records (任意): array[object] - 日々の勤怠情報
 - total_shortage_work_mins (任意): integer(int32) - 不足時間（分）
 - total_deemed_paid_excess_statutory_work_mins (任意): integer(int32) - みなし外の法定内残業時間（分）
 - total_deemed_paid_overtime_except_normal_work_mins (任意): integer(int32) - みなし外の時間外労働時間（分）
-
-
 
 ## 参考情報
 

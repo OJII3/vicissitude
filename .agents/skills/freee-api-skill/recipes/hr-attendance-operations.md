@@ -4,11 +4,11 @@ freee人事労務APIを使った勤怠管理ガイド。
 
 ## 利用可能なパス
 
-| パス | 説明 |
-|------|------|
-| `/api/v1/employees/{id}/work_records/{date}` | 勤怠記録（GET/PUT/DELETE） |
-| `/api/v1/employees/{id}/time_clocks` | 打刻（POST） |
-| `/api/v1/employees/{id}/work_record_summaries/{year}/{month}` | 勤怠サマリ（GET） |
+| パス                                                          | 説明                       |
+| ------------------------------------------------------------- | -------------------------- |
+| `/api/v1/employees/{id}/work_records/{date}`                  | 勤怠記録（GET/PUT/DELETE） |
+| `/api/v1/employees/{id}/time_clocks`                          | 打刻（POST）               |
+| `/api/v1/employees/{id}/work_record_summaries/{year}/{month}` | 勤怠サマリ（GET）          |
 
 ## 使用例
 

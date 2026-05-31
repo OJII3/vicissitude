@@ -17,16 +17,16 @@ start_sales_order_date : 受注日(絞り込み開始) end_sales_order_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_sales_order_date | query | いいえ | string(date) | 受注日で絞込：開始日(yyyy-mm-dd) |
-| end_sales_order_date | query | いいえ | string(date) | 受注日で絞込：終了日(yyyy-mm-dd) |
-| charge_employee_ids[] | query | いいえ | array[integer] | 社内担当者の従業員ID |
-| customer_ids[] | query | いいえ | array[integer] | 顧客の取引先ID |
-| canceled | query | いいえ | boolean | 取消状態 |
-| limit | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
-| offset | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0） |
+| 名前                   | 位置  | 必須   | 型             | 説明                                                     |
+| ---------------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id             | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_sales_order_date | query | いいえ | string(date)   | 受注日で絞込：開始日(yyyy-mm-dd)                         |
+| end_sales_order_date   | query | いいえ | string(date)   | 受注日で絞込：終了日(yyyy-mm-dd)                         |
+| charge_employee_ids[]  | query | いいえ | array[integer] | 社内担当者の従業員ID                                     |
+| customer_ids[]         | query | いいえ | array[integer] | 顧客の取引先ID                                           |
+| canceled               | query | いいえ | boolean        | 取消状態                                                 |
+| limit                  | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
+| offset                 | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0）                |
 
 ### レスポンス (200)
 
@@ -49,15 +49,14 @@ start_sales_order_date : 受注日(絞り込み開始) end_sales_order_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | string | 受注ID |
+| id         | path  | はい | string         | 受注ID   |
 
 ### レスポンス (200)
 
 受注詳細取得のレスポンス
-
 
 ### PATCH /sales_orders/{id}
 
@@ -70,13 +69,11 @@ start_sales_order_date : 受注日(絞り込み開始) end_sales_order_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | 受注ID |
+| 名前 | 位置 | 必須 | 型     | 説明   |
+| ---- | ---- | ---- | ------ | ------ |
+| id   | path | はい | string | 受注ID |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

@@ -19,14 +19,12 @@
 - id (任意): integer - ユーザーID 例: `1`
 - companies (任意): array[object] - ユーザーが属する事業所の一覧
   配列の要素:
-    - id (任意): integer - 事業所ID 例: `1`
-    - name (任意): string - 事業所名 例: `フリー株式会社`
-    - display_name (任意): string - 事業所に所属する従業員の表示名 例: `フリー株式会社`
-    - role (任意): string - 事業所におけるロール 例: `company_admin`
-    - external_cid (任意): string - 事業所番号(半角英数字10桁) 例: `1234567890`
-    - person_me (任意): object - ログインユーザー情報
-
-
+  - id (任意): integer - 事業所ID 例: `1`
+  - name (任意): string - 事業所名 例: `フリー株式会社`
+  - display_name (任意): string - 事業所に所属する従業員の表示名 例: `フリー株式会社`
+  - role (任意): string - 事業所におけるロール 例: `company_admin`
+  - external_cid (任意): string - 事業所番号(半角英数字10桁) 例: `1234567890`
+  - person_me (任意): object - ログインユーザー情報
 
 ## 参考情報
 

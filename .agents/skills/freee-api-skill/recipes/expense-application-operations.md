@@ -8,11 +8,11 @@ freee会計APIを使った経費申請のガイド。
 
 ## 利用可能なパス
 
-| パス | 説明 |
-|------|------|
-| `/api/1/expense_applications` | 経費申請一覧・作成 |
-| `/api/1/expense_applications/{id}` | 経費申請詳細・更新・削除 |
-| `/api/1/expense_application_line_templates` | 経費科目一覧 |
+| パス                                        | 説明                     |
+| ------------------------------------------- | ------------------------ |
+| `/api/1/expense_applications`               | 経費申請一覧・作成       |
+| `/api/1/expense_applications/{id}`          | 経費申請詳細・更新・削除 |
+| `/api/1/expense_application_line_templates` | 経費科目一覧             |
 
 ## 取得前の注意
 

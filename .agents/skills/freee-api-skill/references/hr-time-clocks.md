@@ -14,19 +14,18 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| from_date | query | いいえ | string(date) | 取得する打刻期間の開始日(YYYY-MM-DD)(例:2018-08-01)(デフォルト: 当月の打刻開始日) |
-| to_date | query | いいえ | string(date) | 取得する打刻期間の終了日(YYYY-MM-DD)(例:2018-08-31)(デフォルト: 当日) |
-| limit | query | いいえ | integer | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 100) |
-| offset | query | いいえ | integer | 取得レコードのオフセット (デフォルト: 0) |
-| employee_id | path | はい | integer | 従業員ID |
+| 名前        | 位置  | 必須   | 型           | 説明                                                                              |
+| ----------- | ----- | ------ | ------------ | --------------------------------------------------------------------------------- |
+| company_id  | query | はい   | integer      | 事業所ID                                                                          |
+| from_date   | query | いいえ | string(date) | 取得する打刻期間の開始日(YYYY-MM-DD)(例:2018-08-01)(デフォルト: 当月の打刻開始日) |
+| to_date     | query | いいえ | string(date) | 取得する打刻期間の終了日(YYYY-MM-DD)(例:2018-08-31)(デフォルト: 当日)             |
+| limit       | query | いいえ | integer      | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 100)                           |
+| offset      | query | いいえ | integer      | 取得レコードのオフセット (デフォルト: 0)                                          |
+| employee_id | path  | はい   | integer      | 従業員ID                                                                          |
 
 ### レスポンス (200)
 
 successful operation
-
 
 ### POST /api/v1/employees/{employee_id}/time_clocks
 
@@ -39,8 +38,8 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前        | 位置 | 必須 | 型      | 説明     |
+| ----------- | ---- | ---- | ------- | -------- |
 | employee_id | path | はい | integer | 従業員ID |
 
 ### リクエストボディ
@@ -70,11 +69,11 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| employee_id | path | はい | integer | 従業員ID |
-| id | path | はい | integer | 打刻ID |
+| 名前        | 位置  | 必須 | 型      | 説明     |
+| ----------- | ----- | ---- | ------- | -------- |
+| company_id  | query | はい | integer | 事業所ID |
+| employee_id | path  | はい | integer | 従業員ID |
+| id          | path  | はい | integer | 打刻ID   |
 
 ### レスポンス (200)
 
@@ -96,11 +95,11 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| date | query | いいえ | string(date) | 従業員情報を取得したい年月日(YYYY-MM-DD)(例:2018-08-01)(デフォルト：当日) |
-| employee_id | path | はい | integer | 従業員ID |
+| 名前        | 位置  | 必須   | 型           | 説明                                                                      |
+| ----------- | ----- | ------ | ------------ | ------------------------------------------------------------------------- |
+| company_id  | query | はい   | integer      | 事業所ID                                                                  |
+| date        | query | いいえ | string(date) | 従業員情報を取得したい年月日(YYYY-MM-DD)(例:2018-08-01)(デフォルト：当日) |
+| employee_id | path  | はい   | integer      | 従業員ID                                                                  |
 
 ### レスポンス (200)
 
@@ -108,8 +107,6 @@ successful operation
 
 - available_types (任意): array[string] - 打刻可能種別(clock_in:出勤, break_begin:休憩開始, break_end:休憩終了, clock_out:退勤)
 - base_date (任意): string(date) - 打刻基準日 例: `2018-07-31`
-
-
 
 ## 参考情報
 

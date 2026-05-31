@@ -113,13 +113,13 @@ PM `GET /workloads` で登録した工数を取得し、日・プロジェクト
 
 ## 安全チェック一覧
 
-| チェック項目 | API | 確認フィールド | ブロック条件 |
-|---|---|---|---|
-| 休日チェック | HR work_records | day_pattern | prescribed_holiday, legal_holiday |
-| 欠勤チェック | HR work_records | is_absence | true |
-| 有給チェック | HR work_records | paid_holidays | 配列が空でない |
-| 締め済みチェック | HR work_records | is_editable | false |
-| 重複チェック | PM workloads | 同日・同プロジェクト | 既存レコードあり |
+| チェック項目     | API             | 確認フィールド       | ブロック条件                      |
+| ---------------- | --------------- | -------------------- | --------------------------------- |
+| 休日チェック     | HR work_records | day_pattern          | prescribed_holiday, legal_holiday |
+| 欠勤チェック     | HR work_records | is_absence           | true                              |
+| 有給チェック     | HR work_records | paid_holidays        | 配列が空でない                    |
+| 締め済みチェック | HR work_records | is_editable          | false                             |
+| 重複チェック     | PM workloads    | 同日・同プロジェクト | 既存レコードあり                  |
 
 ## Tips
 

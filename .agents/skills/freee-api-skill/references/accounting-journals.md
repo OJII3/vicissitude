@@ -17,15 +17,15 @@ download_type generic (旧CSV) generic_v2 (新CSV（freee汎用形式）) csv (�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| download_type | query | はい | string | ダウンロード形式 (選択肢: generic, generic_v2, csv, pdf) |
-| encoding | query | いいえ | string | 文字コード (選択肢: sjis, utf-8) |
-| company_id | query | はい | integer(int64) | 事業所ID |
-| visible_tags[] | query | いいえ | array[string] | 補助科目やコメントとして出力する項目 |
-| visible_ids[] | query | いいえ | array[string] | 追加出力するID項目 |
-| start_date | query | いいえ | string | 取得開始日 (yyyy-mm-dd) |
-| end_date | query | いいえ | string | 取得終了日 (yyyy-mm-dd) |
+| 名前           | 位置  | 必須   | 型             | 説明                                                     |
+| -------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| download_type  | query | はい   | string         | ダウンロード形式 (選択肢: generic, generic_v2, csv, pdf) |
+| encoding       | query | いいえ | string         | 文字コード (選択肢: sjis, utf-8)                         |
+| company_id     | query | はい   | integer(int64) | 事業所ID                                                 |
+| visible_tags[] | query | いいえ | array[string]  | 補助科目やコメントとして出力する項目                     |
+| visible_ids[]  | query | いいえ | array[string]  | 追加出力するID項目                                       |
+| start_date     | query | いいえ | string         | 取得開始日 (yyyy-mm-dd)                                  |
+| end_date       | query | いいえ | string         | 取得終了日 (yyyy-mm-dd)                                  |
 
 ### GET /api/1/journals/reports/{id}/status
 
@@ -38,10 +38,10 @@ status enqueued : 実行待ち working : 実行中 uploaded : 準備完了 id : 
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | integer(int64) | 受け付けID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| company_id | query | はい | integer(int64) | 事業所ID   |
+| id         | path  | はい | integer(int64) | 受け付けID |
 
 ### レスポンス (200)
 
@@ -68,14 +68,12 @@ id : 受け付けID
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 受け付けID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 受け付けID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

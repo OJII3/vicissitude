@@ -17,30 +17,32 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| status | query | いいえ | string | 申請ステータス
+| 名前       | 位置  | 必須   | 型      | 説明           |
+| ---------- | ----- | ------ | ------- | -------------- |
+| company_id | query | はい   | integer | 事業所ID       |
+| status     | query | いいえ | string  | 申請ステータス |
+
 - `draft` - 下書き
 - `in_progress` - 申請中
 - `approved` - 承認済
 - `feedback` - 差戻し (選択肢: draft, in_progress, approved, feedback) |
-| application_number | query | いいえ | integer | 申請No |
-| start_issue_date | query | いいえ | string(date) | 申請開始日 |
-| end_issue_date | query | いいえ | string(date) | 申請終了日 |
-| approver_id | query | いいえ | integer | 現在承認ステップの承認者のユーザーID
+  | application_number | query | いいえ | integer | 申請No |
+  | start_issue_date | query | いいえ | string(date) | 申請開始日 |
+  | end_issue_date | query | いいえ | string(date) | 申請終了日 |
+  | approver_id | query | いいえ | integer | 現在承認ステップの承認者のユーザーID
 
 approver_idに値を指定する場合、指定なしの申請経路を利用した申請は返却されません
- |
+|
 | applicant_id | query | いいえ | integer | 申請者のユーザーID |
 | start_target_date | query | いいえ | string(date) | 対象開始日 |
 | end_target_date | query | いいえ | string(date) | 対象終了日 |
 | passed_auto_check | query | いいえ | boolean | 自動チェック結果
+
 - trueを指定した場合、自動チェック結果がtrueの申請のみ返却します。
 - falseを指定した場合、自動チェック結果がfalseの申請のみ返却します。
 - キーごと指定しない場合、すべての申請を返却します。 |
-| limit | query | いいえ | integer | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 100) |
-| offset | query | いいえ | integer | 取得レコードのオフセット (デフォルト: 0) |
+  | limit | query | いいえ | integer | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 100) |
+  | offset | query | いいえ | integer | 取得レコードのオフセット (デフォルト: 0) |
 
 ### レスポンス (200)
 
@@ -60,7 +62,6 @@ successful operation
 
 ### リクエストボディ
 
-
 ### レスポンス (201)
 
 successful operation
@@ -78,10 +79,10 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| id | path | はい | integer | 有給休暇申請ID |
+| 名前       | 位置  | 必須 | 型      | 説明           |
+| ---------- | ----- | ---- | ------- | -------------- |
+| company_id | query | はい | integer | 事業所ID       |
+| id         | path  | はい | integer | 有給休暇申請ID |
 
 ### レスポンス (200)
 
@@ -100,12 +101,11 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 有給休暇申請ID |
+| 名前 | 位置 | 必須 | 型      | 説明           |
+| ---- | ---- | ---- | ------- | -------------- |
+| id   | path | はい | integer | 有給休暇申請ID |
 
 ### リクエストボディ
-
 
 ### レスポンス (200)
 
@@ -124,10 +124,10 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 有給休暇申請ID |
-| company_id | query | はい | integer | 事業所ID |
+| 名前       | 位置  | 必須 | 型      | 説明           |
+| ---------- | ----- | ---- | ------- | -------------- |
+| id         | path  | はい | integer | 有給休暇申請ID |
+| company_id | query | はい | integer | 事業所ID       |
 
 ### レスポンス (204)
 
@@ -144,9 +144,9 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 有給休暇申請ID |
+| 名前 | 位置 | 必須 | 型      | 説明           |
+| ---- | ---- | ---- | ------- | -------------- |
+| id   | path | はい | integer | 有給休暇申請ID |
 
 ### リクエストボディ
 
@@ -161,8 +161,6 @@ successful operation
 successful operation
 
 - paid_holiday (必須): object
-
-
 
 ## 参考情報
 

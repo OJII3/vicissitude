@@ -11,17 +11,17 @@ freee工数管理APIを使ったプロジェクト・工数の管理ガイド。
 
 ## 利用可能なパス
 
-| パス | メソッド | 説明 |
-|------|---------|------|
-| `/projects` | GET, POST | プロジェクト一覧・作成 |
-| `/projects/{id}` | GET, PUT, DELETE, PATCH | プロジェクト詳細・更新・削除 |
-| `/workloads` | GET, POST | 工数実績一覧・登録 |
-| `/workload_summaries` | GET | 工数サマリ取得 |
-| `/people` | GET | 従業員一覧（payroll_employee_id でHR連携可） |
-| `/teams` | GET | チーム一覧 |
-| `/partners` | GET | 取引先一覧 |
-| `/unit_costs` | GET | 単価マスタ |
-| `/users/me` | GET | ログインユーザー情報 |
+| パス                  | メソッド                | 説明                                         |
+| --------------------- | ----------------------- | -------------------------------------------- |
+| `/projects`           | GET, POST               | プロジェクト一覧・作成                       |
+| `/projects/{id}`      | GET, PUT, DELETE, PATCH | プロジェクト詳細・更新・削除                 |
+| `/workloads`          | GET, POST               | 工数実績一覧・登録                           |
+| `/workload_summaries` | GET                     | 工数サマリ取得                               |
+| `/people`             | GET                     | 従業員一覧（payroll_employee_id でHR連携可） |
+| `/teams`              | GET                     | チーム一覧                                   |
+| `/partners`           | GET                     | 取引先一覧                                   |
+| `/unit_costs`         | GET                     | 単価マスタ                                   |
+| `/users/me`           | GET                     | ログインユーザー情報                         |
 
 ## 使用例
 

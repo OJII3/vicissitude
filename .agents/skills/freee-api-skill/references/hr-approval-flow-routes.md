@@ -17,11 +17,12 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| included_user_id | query | いいえ | integer | 経路に含まれるユーザーのユーザーID |
-| usage | query | いいえ | string | 申請種別（申請経路を使用できる申請種別を示します。例えば、AttendanceWorkflow の場合は、勤怠申請で使用できる申請経路です。）
+| 名前             | 位置  | 必須   | 型      | 説明                                                                                                                        |
+| ---------------- | ----- | ------ | ------- | --------------------------------------------------------------------------------------------------------------------------- |
+| company_id       | query | はい   | integer | 事業所ID                                                                                                                    |
+| included_user_id | query | いいえ | integer | 経路に含まれるユーザーのユーザーID                                                                                          |
+| usage            | query | いいえ | string  | 申請種別（申請経路を使用できる申請種別を示します。例えば、AttendanceWorkflow の場合は、勤怠申請で使用できる申請経路です。） |
+
 - `AttendanceWorkflow` - 勤怠申請
 - `PersonalDataWorkflow` - 身上変更申請 (選択肢: AttendanceWorkflow, PersonalDataWorkflow) |
 
@@ -31,13 +32,13 @@ successful operation
 
 - approval_flow_routes (必須): array[object]
   配列の要素:
-    - id (必須): integer - 申請経路ID 例: `1` (最小: 1, 最大: 2147483647)
-    - name (任意): string - 申請経路名 例: `申請経路`
-    - description (任意): string - 申請経路の説明 例: `申請経路の説明`
-    - user_id (任意): integer - 更新したユーザーのユーザーID 例: `1` (最小: 1, 最大: 2147483647)
-    - definition_system (任意): boolean - システム作成の申請経路かどうか 例: `true`
-    - first_step_id (任意): integer - 最初の承認ステップのID 例: `1` (最小: 1, 最大: 2147483647)
-    - usages (任意): array[string] - 申請種別（申請経路を使用できる申請種別を示します。例えば、AttendanceWorkflow の場合は、勤怠申請で使用できる申請経路です。）
+  - id (必須): integer - 申請経路ID 例: `1` (最小: 1, 最大: 2147483647)
+  - name (任意): string - 申請経路名 例: `申請経路`
+  - description (任意): string - 申請経路の説明 例: `申請経路の説明`
+  - user_id (任意): integer - 更新したユーザーのユーザーID 例: `1` (最小: 1, 最大: 2147483647)
+  - definition_system (任意): boolean - システム作成の申請経路かどうか 例: `true`
+  - first_step_id (任意): integer - 最初の承認ステップのID 例: `1` (最小: 1, 最大: 2147483647)
+  - usages (任意): array[string] - 申請種別（申請経路を使用できる申請種別を示します。例えば、AttendanceWorkflow の場合は、勤怠申請で使用できる申請経路です。）
 - AttendanceWorkflow - 勤怠申請
 - PersonalDataWorkflow - 身上変更申請
 
@@ -52,10 +53,10 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 申請経路ID |
-| company_id | query | はい | integer | 事業所ID |
+| 名前       | 位置  | 必須 | 型      | 説明       |
+| ---------- | ----- | ---- | ------- | ---------- |
+| id         | path  | はい | integer | 申請経路ID |
+| company_id | query | はい | integer | 事業所ID   |
 
 ### レスポンス (200)
 
@@ -72,8 +73,6 @@ successful operation
 - AttendanceWorkflow - 勤怠申請
 - PersonalDataWorkflow - 身上変更申請
   - steps (任意): array[object] - 承認ステップ（配列）
-
-
 
 ## 参考情報
 

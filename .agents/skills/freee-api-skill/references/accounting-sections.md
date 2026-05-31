@@ -14,19 +14,16 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_update_date | query | いいえ | string | 更新日で絞込：開始日(yyyy-mm-dd) |
-| end_update_date | query | いいえ | string | 更新日で絞込：終了日(yyyy-mm-dd) |
+| 名前              | 位置  | 必須   | 型             | 説明                             |
+| ----------------- | ----- | ------ | -------------- | -------------------------------- |
+| company_id        | query | はい   | integer(int64) | 事業所ID                         |
+| start_update_date | query | いいえ | string         | 更新日で絞込：開始日(yyyy-mm-dd) |
+| end_update_date   | query | いいえ | string         | 更新日で絞込：終了日(yyyy-mm-dd) |
 
 ### レスポンス (200)
 
 - sections (必須): array[object]
-  配列の要素:
-    - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1)
-    - name (必須): string - 部門名 (30文字以内) 例: `開発部門`
-    - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
+配列の要素: - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1) - name (必須): string - 部門名 (30文字以内) 例: `開発部門` - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
 <br>
 <ul>
   <li>
@@ -79,34 +76,34 @@
   - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1)
   - name (必須): string - 部門名 (30文字以内) 例: `開発部門`
   - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでsectionを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
-  </li>
-</ul> 例: `true`
+  <br>
+  <ul>
+    <li>
+      本APIでsectionを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
+    </li>
+  </ul> 例: `true`
   - long_name (任意): string - 正式名称（255文字以内） 例: `開発部門`
   - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `DEVELOPER`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `123`
   - code (任意): string - 部門コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
   - indent_count (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">部門階層</a>
-<br>
-※ indent_count が 0 のときは第一階層の親部門です。
- 例: `0` (最小: 0)
+    <br>
+    ※ indent_count が 0 のときは第一階層の親部門です。
+    例: `0` (最小: 0)
   - parent_id (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">親部門ID</a>
-<br>
-※ parent_id が null のときは第一階層の親部門です。
- 例: `1` (最小: 1)
+    <br>
+    ※ parent_id が null のときは第一階層の親部門です。
+    例: `1` (最小: 1)
   - update_date (任意): string - 更新日(yyyy-mm-dd) 例: `2020-06-15`
 
 ### GET /api/1/sections/{id}
@@ -117,9 +114,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 部門ID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | 部門ID   |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -128,34 +125,34 @@
   - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1)
   - name (必須): string - 部門名 (30文字以内) 例: `開発部門`
   - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでsectionを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
-  </li>
-</ul> 例: `true`
+  <br>
+  <ul>
+    <li>
+      本APIでsectionを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
+    </li>
+  </ul> 例: `true`
   - long_name (任意): string - 正式名称（255文字以内） 例: `開発部門`
   - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `DEVELOPER`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `123`
   - code (任意): string - 部門コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
   - indent_count (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">部門階層</a>
-<br>
-※ indent_count が 0 のときは第一階層の親部門です。
- 例: `0` (最小: 0)
+    <br>
+    ※ indent_count が 0 のときは第一階層の親部門です。
+    例: `0` (最小: 0)
   - parent_id (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">親部門ID</a>
-<br>
-※ parent_id が null のときは第一階層の親部門です。
- 例: `1` (最小: 1)
+    <br>
+    ※ parent_id が null のときは第一階層の親部門です。
+    例: `1` (最小: 1)
   - update_date (任意): string - 更新日(yyyy-mm-dd) 例: `2020-06-15`
 
 ### PUT /api/1/sections/{id}
@@ -166,9 +163,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) |  |
+| 名前 | 位置 | 必須 | 型             | 説明 |
+| ---- | ---- | ---- | -------------- | ---- |
+| id   | path | はい | integer(int64) |      |
 
 ### リクエストボディ
 
@@ -186,34 +183,34 @@
   - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1)
   - name (必須): string - 部門名 (30文字以内) 例: `開発部門`
   - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでsectionを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
-  </li>
-</ul> 例: `true`
+  <br>
+  <ul>
+    <li>
+      本APIでsectionを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
+    </li>
+  </ul> 例: `true`
   - long_name (任意): string - 正式名称（255文字以内） 例: `開発部門`
   - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `DEVELOPER`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `123`
   - code (任意): string - 部門コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
   - indent_count (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">部門階層</a>
-<br>
-※ indent_count が 0 のときは第一階層の親部門です。
- 例: `0` (最小: 0)
+    <br>
+    ※ indent_count が 0 のときは第一階層の親部門です。
+    例: `0` (最小: 0)
   - parent_id (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">親部門ID</a>
-<br>
-※ parent_id が null のときは第一階層の親部門です。
- 例: `1` (最小: 1)
+    <br>
+    ※ parent_id が null のときは第一階層の親部門です。
+    例: `1` (最小: 1)
   - update_date (任意): string - 更新日(yyyy-mm-dd) 例: `2020-06-15`
 
 ### DELETE /api/1/sections/{id}
@@ -224,9 +221,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) |  |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) |          |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (204)
@@ -251,7 +248,7 @@ codeを利用するには、事業所の設定で部門コードを使用する�
   - long_name (任意): string - 正式名称 (255文字以内) 例: `xxxx開発部門`
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `DEVELOPER`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `123`
-  - parent_code (任意): string - 親部門コード。親部門コードの値が空の場合は、codeで指定した部門が親部門になる。 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
+  - parent*code (任意): string - 親部門コード。親部門コードの値が空の場合は、codeで指定した部門が親部門になる。 例: `code001` (パターン: ^[0-9a-zA-Z*-]+$)
 
 ### レスポンス (200)
 
@@ -259,37 +256,35 @@ codeを利用するには、事業所の設定で部門コードを使用する�
   - id (必須): integer(int64) - 部門ID 例: `1` (最小: 1)
   - name (必須): string - 部門名 (30文字以内) 例: `開発部門`
   - available (必須): boolean - 部門の使用設定（true: 使用する、false: 使用しない）
-<br>
-<ul>
-  <li>
-    本APIでsectionを作成した場合はtrueになります。
-  </li>
-  <li>
-    falseにする場合はWeb画面から変更できます。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
-  </li>
-</ul> 例: `true`
+  <br>
+  <ul>
+    <li>
+      本APIでsectionを作成した場合はtrueになります。
+    </li>
+    <li>
+      falseにする場合はWeb画面から変更できます。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、部門自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの部門をパラメータに指定すれば、取引などにfalseの部門を設定できます。
+    </li>
+  </ul> 例: `true`
   - long_name (任意): string - 正式名称（255文字以内） 例: `開発部門`
   - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
   - shortcut1 (任意): string - ショートカット１ (20文字以内) 例: `DEVELOPER`
   - shortcut2 (任意): string - ショートカット２ (20文字以内) 例: `123`
   - code (任意): string - 部門コード 例: `code001` (パターン: ^[0-9a-zA-Z_-]+$)
   - indent_count (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">部門階層</a>
-<br>
-※ indent_count が 0 のときは第一階層の親部門です。
- 例: `0` (最小: 0)
+    <br>
+    ※ indent_count が 0 のときは第一階層の親部門です。
+    例: `0` (最小: 0)
   - parent_id (任意): integer(int64) - <a target="_blank" href="https://support.freee.co.jp/hc/ja/articles/209093566">親部門ID</a>
-<br>
-※ parent_id が null のときは第一階層の親部門です。
- 例: `1` (最小: 1)
+    <br>
+    ※ parent_id が null のときは第一階層の親部門です。
+    例: `1` (最小: 1)
   - update_date (任意): string - 更新日(yyyy-mm-dd) 例: `2020-06-15`
-
-
 
 ## 参考情報
 

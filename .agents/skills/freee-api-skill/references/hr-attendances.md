@@ -14,16 +14,15 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| employee_id | path | はい | integer | 従業員ID |
-| date | path | はい | string(date) | 従業員情報を取得したい年月日(YYYY-MM-DD)(例:2018-08-01) |
+| 名前        | 位置  | 必須 | 型           | 説明                                                    |
+| ----------- | ----- | ---- | ------------ | ------------------------------------------------------- |
+| company_id  | query | はい | integer      | 事業所ID                                                |
+| employee_id | path  | はい | integer      | 従業員ID                                                |
+| date        | path  | はい | string(date) | 従業員情報を取得したい年月日(YYYY-MM-DD)(例:2018-08-01) |
 
 ### レスポンス (200)
 
 successful operation
-
 
 ### PUT /api/v1/employees/{employee_id}/work_records/{date}
 
@@ -36,13 +35,12 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| employee_id | path | はい | integer | 従業員ID |
-| date | path | はい | string(date) | 更新対象年月日(YYYY-MM-DD)(例:2018-08-01) |
+| 名前        | 位置 | 必須 | 型           | 説明                                      |
+| ----------- | ---- | ---- | ------------ | ----------------------------------------- |
+| employee_id | path | はい | integer      | 従業員ID                                  |
+| date        | path | はい | string(date) | 更新対象年月日(YYYY-MM-DD)(例:2018-08-01) |
 
 ### リクエストボディ
-
 
 ### レスポンス (200)
 
@@ -50,11 +48,11 @@ successful operation
 
 - break_records (任意): array[object] - 休憩時間のリスト
   配列の要素:
-    - clock_in_at (任意): string(date-time) - 開始時刻
-    - clock_out_at (任意): string(date-time) - 終了時刻
+  - clock_in_at (任意): string(date-time) - 開始時刻
+  - clock_out_at (任意): string(date-time) - 終了時刻
 - work_record_segments (任意): array[object] - 出退勤のリスト
   - 登録されている全ての出退勤時間のリストを返します。
-  配列の要素:
+    配列の要素:
     - clock_in_at (任意): string(date-time) - 開始時刻
     - clock_out_at (任意): string(date-time) - 終了時刻
 - clock_in_at (任意): string(date-time) - 出勤時刻
@@ -84,9 +82,9 @@ successful operation
 - note (任意): string - 勤怠メモ
 - paid_holidays (任意): array[object] - 年次有給休暇の実績
   配列の要素:
-    - type (必須): string - 有給休暇の種別取得単位（full:全休、half:半休、morning_off:午前休、 afternoon_off:午後休、hourly:時間休） (選択肢: full, half, morning_off, afternoon_off, hourly) 例: `half`
-    - mins (必須): integer(int32) - 年次有給休暇の休暇時間（分単位） 例: `240`
-    - days (必須): number(float) - 年次有給休暇の消化日数（全休：1, 半日単位：0.5, 時間休：0） 例: `0.5`
+  - type (必須): string - 有給休暇の種別取得単位（full:全休、half:半休、morning_off:午前休、 afternoon_off:午後休、hourly:時間休） (選択肢: full, half, morning_off, afternoon_off, hourly) 例: `half`
+  - mins (必須): integer(int32) - 年次有給休暇の休暇時間（分単位） 例: `240`
+  - days (必須): number(float) - 年次有給休暇の消化日数（全休：1, 半日単位：0.5, 時間休：0） 例: `0.5`
 - special_holiday (任意): number(float) - この日に対する特別休暇取得日数。半休の場合は0.5が入ります。時間休の場合はhourly_special_holiday_minsを所定労働時間で割った値が入るため、実際の時間を確認するにはhourly_special_holiday_minsを参照してください。
 - special_holiday_setting_id (任意): integer(int32) - 特別休暇設定ID
 - use_attendance_deduction (任意): boolean - 欠勤・遅刻・早退を控除対象時間に算入するかどうか
@@ -110,17 +108,15 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| employee_id | path | はい | integer | 従業員ID |
-| date | path | はい | string(date) | 削除対象年月日(YYYY-MM-DD)(例:2018-08-01) |
-| company_id | query | はい | integer(int32) | 事業所ID |
+| 名前        | 位置  | 必須 | 型             | 説明                                      |
+| ----------- | ----- | ---- | -------------- | ----------------------------------------- |
+| employee_id | path  | はい | integer        | 従業員ID                                  |
+| date        | path  | はい | string(date)   | 削除対象年月日(YYYY-MM-DD)(例:2018-08-01) |
+| company_id  | query | はい | integer(int32) | 事業所ID                                  |
 
 ### レスポンス (204)
 
 successful operation
-
-
 
 ## 参考情報
 

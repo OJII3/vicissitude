@@ -16,8 +16,6 @@ Kintoneの操作
 
 - kintone_plan (必須): boolean - Kintone連携が可能か否か
 
-
-
 ## 参考情報
 
 - freee API公式ドキュメント: https://developer.freee.co.jp/docs

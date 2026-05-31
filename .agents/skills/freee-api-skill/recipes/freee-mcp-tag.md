@@ -32,10 +32,10 @@ freee_api_post {
 
 ## 各APIでの指定箇所
 
-| API | フィールド |
-|-----|-----------|
-| 取引 (deals) | `details[].tag_ids` |
-| 経費申請 (expense_applications) | `tag_ids` |
-| 振替伝票 (manual_journals) | `details[].tag_ids` |
-| 支払依頼 (payment_requests) | `payment_request_lines[].tag_ids` |
-| 請求書・見積書・納品書 (invoice) | `lines[].tag_ids` |
+| API                              | フィールド                        |
+| -------------------------------- | --------------------------------- |
+| 取引 (deals)                     | `details[].tag_ids`               |
+| 経費申請 (expense_applications)  | `tag_ids`                         |
+| 振替伝票 (manual_journals)       | `details[].tag_ids`               |
+| 支払依頼 (payment_requests)      | `payment_request_lines[].tag_ids` |
+| 請求書・見積書・納品書 (invoice) | `lines[].tag_ids`                 |

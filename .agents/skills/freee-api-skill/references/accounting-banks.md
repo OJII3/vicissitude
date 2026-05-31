@@ -17,20 +17,20 @@ type bank_account : 銀行口座 credit_card : クレジットカード wallet :
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 500) |
-| type | query | いいえ | string | サービス種別 (選択肢: bank_account, credit_card, wallet) |
+| 名前   | 位置  | 必須   | 型             | 説明                                                     |
+| ------ | ----- | ------ | -------------- | -------------------------------------------------------- |
+| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                 |
+| limit  | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 500)  |
+| type   | query | いいえ | string         | サービス種別 (選択肢: bank_account, credit_card, wallet) |
 
 ### レスポンス (200)
 
 - banks (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 連携サービスID 例: `1` (最小: 1)
-    - name (任意): string - 連携サービス名 例: `フリー銀行`
-    - type (任意): string - 連携サービス種別: (銀行口座: bank_account, クレジットカード: credit_card, 現金: wallet) (選択肢: bank_account, credit_card, wallet) 例: `bank_account`
-    - name_kana (任意): string - 連携サービス名(カナ) 例: `フリーギンコウ`
+  - id (必須): integer(int64) - 連携サービスID 例: `1` (最小: 1)
+  - name (任意): string - 連携サービス名 例: `フリー銀行`
+  - type (任意): string - 連携サービス種別: (銀行口座: bank_account, クレジットカード: credit_card, 現金: wallet) (選択肢: bank_account, credit_card, wallet) 例: `bank_account`
+  - name_kana (任意): string - 連携サービス名(カナ) 例: `フリーギンコウ`
 
 ### GET /api/1/banks/{id}
 
@@ -43,9 +43,9 @@ type bank_account : 銀行口座 credit_card : クレジットカード wallet :
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 連携サービスID |
+| 名前 | 位置 | 必須 | 型             | 説明           |
+| ---- | ---- | ---- | -------------- | -------------- |
+| id   | path | はい | integer(int64) | 連携サービスID |
 
 ### レスポンス (200)
 
@@ -54,8 +54,6 @@ type bank_account : 銀行口座 credit_card : クレジットカード wallet :
   - name (任意): string - 連携サービス名 例: `フリー銀行`
   - type (任意): string - 連携サービス種別: (銀行口座: bank_account, クレジットカード: credit_card, 現金: wallet) (選択肢: bank_account, credit_card, wallet) 例: `bank_account`
   - name_kana (任意): string - 連携サービス名(カナ) 例: `フリーギンコウ`
-
-
 
 ## 参考情報
 

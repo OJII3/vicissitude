@@ -17,9 +17,9 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
+| 名前 | 位置 | 必須 | 型             | 説明   |
+| ---- | ---- | ---- | -------------- | ------ |
+| id   | path | はい | integer(int64) | 取引ID |
 
 ### リクエストボディ
 
@@ -62,9 +62,9 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
+| 名前       | 位置 | 必須 | 型             | 説明   |
+| ---------- | ---- | ---- | -------------- | ------ |
+| id         | path | はい | integer(int64) | 取引ID |
 | payment_id | path | はい | integer(int64) | 決済ID |
 
 ### リクエストボディ
@@ -108,15 +108,13 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
-| payment_id | path | はい | integer(int64) | 決済ID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | 取引ID   |
+| payment_id | path  | はい | integer(int64) | 決済ID   |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (204)
-
-
 
 ## 参考情報
 

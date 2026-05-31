@@ -29,6 +29,7 @@
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -37,57 +38,54 @@
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### GET /v1/documents
 
@@ -97,35 +95,35 @@ falseの場合、署名・合意文書。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| page | query | いいえ | object |  |
-| per_page | query | いいえ | object |  |
-| folder_id | query | いいえ | object | フォルダID。IDで指定したフォルダに格納されている文書一覧を取得できる。 |
-| title | query | いいえ | string | 文書名に一致する一覧を取得できる（部分一致も可）。送信相手のメールアドレスに一致する一覧を取得できる（完全一致）。 |
-| ids[] | query | いいえ | array[integer] | 配列で文書IDを指定して、文書一覧を取得できる |
-| status | query | いいえ | string | ステータス毎に文書一覧を取得できる。
-  * draft - 作成中
-  * in_progress - 確認待ち
-  * awaiting_receipt - 受け取り待ち
-  * approved - 要確認
-  * concluded - 完了
-  * rejected - 却下
-  * expired - 有効期限切れ
- (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired) |
-| created_at_from | query | いいえ | object | 作成日時が指定した作成日時以降である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| created_at_to | query | いいえ | object | 作成日時が指定した作成日時より過去である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| updated_at_from | query | いいえ | object | 更新日時が指定した更新日時以降である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| updated_at_to | query | いいえ | object | 更新日時が指定した更新日時より過去である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+| 名前      | 位置  | 必須   | 型             | 説明                                                                                                               |
+| --------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------ |
+| page      | query | いいえ | object         |                                                                                                                    |
+| per_page  | query | いいえ | object         |                                                                                                                    |
+| folder_id | query | いいえ | object         | フォルダID。IDで指定したフォルダに格納されている文書一覧を取得できる。                                             |
+| title     | query | いいえ | string         | 文書名に一致する一覧を取得できる（部分一致も可）。送信相手のメールアドレスに一致する一覧を取得できる（完全一致）。 |
+| ids[]     | query | いいえ | array[integer] | 配列で文書IDを指定して、文書一覧を取得できる                                                                       |
+| status    | query | いいえ | string         | ステータス毎に文書一覧を取得できる。                                                                               |
+
+- draft - 作成中
+- in_progress - 確認待ち
+- awaiting_receipt - 受け取り待ち
+- approved - 要確認
+- concluded - 完了
+- rejected - 却下
+- expired - 有効期限切れ
+  (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired) |
+  | created_at_from | query | いいえ | object | 作成日時が指定した作成日時以降である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | created_at_to | query | いいえ | object | 作成日時が指定した作成日時より過去である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | updated_at_from | query | いいえ | object | 更新日時が指定した更新日時以降である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | updated_at_to | query | いいえ | object | 更新日時が指定した更新日時より過去である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
 
 ### レスポンス (200)
 
 取得成功
-
 
 ### POST /v1/documents/uploads
 
@@ -153,7 +151,6 @@ falseの場合、署名・合意文書。
 - false の場合、署名・合意文書
 - true の場合、配付文書
 
-
 ### レスポンス (201)
 
 成功時
@@ -163,6 +160,7 @@ falseの場合、署名・合意文書。
   - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
   - owner_id (必須): object - 文書作成者ユーザーID
   - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -176,24 +174,24 @@ falseの場合、署名・合意文書。
   - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
+    送信前は無し。
   - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+    <br>
+    入力例: 2022-01-01T00:00:00+09:00
   - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+    <br>
+    入力例: 2022-02-01T00:00:00+09:00
   - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
   - expires_at (任意): string(date-time) - 有効期限日時
   - sent_at (任意): string(date-time) - 送信日時
   - concluded_at (任意): string(date-time) - 締結完了日時
   - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+    falseの場合、署名・合意文書。
   - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+    配布文書でない場合は常にfalse。
   - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+    三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### GET /v1/documents/{document_id}
 
@@ -204,7 +202,6 @@ falseの場合、署名・合意文書。
 ### レスポンス (200)
 
 取得成功
-
 
 ### PATCH /v1/documents/{document_id}
 
@@ -226,6 +223,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -234,57 +232,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### DELETE /v1/documents/{document_id}
 
@@ -304,6 +299,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -312,57 +308,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### GET /v1/documents/{document_id}/activities
 
@@ -374,7 +367,6 @@ falseの場合、署名・合意文書。
 
 取得成功
 
-
 ### GET /v1/documents/{document_id}/attachment_files
 
 操作: 添付ファイルの一覧取得
@@ -384,7 +376,6 @@ falseの場合、署名・合意文書。
 ### レスポンス (200)
 
 取得成功
-
 
 ### GET /v1/documents/{document_id}/attachment_files/{attachment_file_id}
 
@@ -412,7 +403,7 @@ falseの場合、署名・合意文書。
 
 - signer_id (任意): object - 締結するユーザーのID (APIクライアントを利用する場合は必須)
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 ### レスポンス (200)
 
@@ -422,6 +413,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -430,57 +422,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### POST /v1/documents/{document_id}/confirmations
 
@@ -491,9 +480,9 @@ falseの場合、署名・合意文書。
 ### リクエストボディ
 
 - notification_type (任意): string - 締結の種類
-メール送信の場合は `email` 、SMS送信の場合は `sms`、署名者用URL発行の場合は `url`。 指定しない場合はメール送信として扱われます。
-送り先情報はメール送信、SMS送信のいずれか選択した締結の種類のパラメータを含めてください。 文書配付の場合は、受領者に署名を求めないため、反映されない項目がありますのでご注意ください。
-url を指定した場合はAPI実行時点で送信処理はされず、署名者用URLの発行が行われます。 発行されたURLを相手に伝え、署名依頼の手続きを進めてください。 (選択肢: email, sms, url)
+  メール送信の場合は `email` 、SMS送信の場合は `sms`、署名者用URL発行の場合は `url`。 指定しない場合はメール送信として扱われます。
+  送り先情報はメール送信、SMS送信のいずれか選択した締結の種類のパラメータを含めてください。 文書配付の場合は、受領者に署名を求めないため、反映されない項目がありますのでご注意ください。
+  url を指定した場合はAPI実行時点で送信処理はされず、署名者用URLの発行が行われます。 発行されたURLを相手に伝え、署名依頼の手続きを進めてください。 (選択肢: email, sms, url)
 - sender_id (任意): object - 送信するユーザーのID (APIクライアントを利用する場合は必須)
 - to (必須): object
 - es_type (任意): string - 署名方法
@@ -504,33 +493,39 @@ url を指定した場合はAPI実行時点で送信処理はされず、署名�
 ※ 電子署名は1通送信するごとに料金が発生します。
 
 文書配付の場合は送信内容には反映されません。 (選択肢: timestamp_only, esign)
+
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 SMSによる送信やURL発行の場合はパラメータに含めても送信内容には反映はされません。
+
 - password (任意): string - パスワード
-パスワードを使用しない場合は無し。
+  パスワードを使用しない場合は無し。
 
 ※チーム設定でパスワード必須になっている場合は必要です。
+
 - cc (任意): array[string] - CCとなるメールアドレスリスト。URL発行の場合は反映されません
 - files (任意): array[object] - 添付ファイルのリスト
   配列の要素:
-    - name (必須): string - 添付ファイル名（拡張子込み）
-    - content (必須): string - 添付ファイル内容
+  - name (必須): string - 添付ファイル名（拡張子込み）
+  - content (必須): string - 添付ファイル内容
 
 添付ファイルのバイナリをBase64エンコードした文字列を指定してください。
+
 - master_document_expiry_id (任意): integer(int64) - 有効期限の設定
-有効期限を設定しない場合は、1週間で設定されます。
+  有効期限を設定しない場合は、1週間で設定されます。
 
 1. 1週間
 2. 2週間
 3. 4週間
 
 文書配付の場合は送信内容には反映されません。 例: `1` (最小: 1)
+
 - remind_about_expiry (任意): boolean - 署名有効期間リマインドを行うかどうか。
-true のとき署名有効期限の4日前・1日前にリマインドメールが送信されます。
+  true のとき署名有効期限の4日前・1日前にリマインドメールが送信されます。
 
 文書配付の場合は送信内容には反映されません。 例: `true`
+
 - approve_on_signing (任意): boolean - 三者間以上の契約で署名と合意を同時に行う場合は、trueとしてください。
 
 文書配付の場合は送信内容には反映されません。
@@ -543,6 +538,7 @@ true のとき署名有効期限の4日前・1日前にリマインドメール�
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -551,57 +547,54 @@ true のとき署名有効期限の4日前・1日前にリマインドメール�
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### GET /v1/documents/{document_id}/contract_certificate
 
@@ -622,17 +615,17 @@ falseの場合、署名・合意文書。
   - sent_at (任意): string(date-time) - 送信日時
 - signatures (任意): array[object] - 署名情報
   配列の要素:
-    - signer (任意): string - 署名者の名前 例: `忍者一郎`
-    - email (任意): string(email) - 署名者のメールアドレス 例: `ichiro@ninja-sign.com`
-    - signed_at (任意): string(date-time) - 署名日時
+  - signer (任意): string - 署名者の名前 例: `忍者一郎`
+  - email (任意): string(email) - 署名者のメールアドレス 例: `ichiro@ninja-sign.com`
+  - signed_at (任意): string(date-time) - 署名日時
 - conclusion (任意): object - 締結情報
   - concluder (任意): string - 締結完了者 例: `忍者二郎`
   - email (任意): string(email) - 締結完了者のメールアドレス 例: `jiro@ninja-sign.com`
   - concluded_at (任意): string(date-time) - 締結完了日時
 - timestamps (任意): array[object] - タイムスタンプ情報
   配列の要素:
-    - action (任意): string - 付与時のアクション 例: `締結完了`
-    - date (任意): string(date-time) - 付与日時
+  - action (任意): string - 付与時のアクション 例: `締結完了`
+  - date (任意): string(date-time) - 付与日時
 
 ### POST /v1/documents/{document_id}/document_items
 
@@ -643,22 +636,26 @@ falseの場合、署名・合意文書。
 ### リクエストボディ
 
 - item_id (必須): integer(int64) - 入力項目の項目ID
-チームで設定されているものの中から選んで指定する。 例: `1` (最小: 1)
+  チームで設定されているものの中から選んで指定する。 例: `1` (最小: 1)
 - order (必須): integer(int64) - 入力項目を付与する署名者の値
+
 * 0 - 送信者
 * 1以降 - n番目の受領者 (最小: 0)
+
 - value (任意): string - 入力項目に設定する値
-入力タイプによっては値のフォーマットがあります。
-以下を参照して値を設定してください。
+  入力タイプによっては値のフォーマットがあります。
+  以下を参照して値を設定してください。
+
 * テキスト - 任意の文字列
 * プルダウン - 選択項目名と一致した文字列
 * 数値 - 任意の整数
 * 日付 - YYYY-MM-DD形式
 * 印鑑(文字列) - 任意の文字列
 * 印鑑(マイ印鑑) - 「マイ印鑑一覧の取得」で取得したnameを設定してください
+
 - required (任意): boolean - 必須項目かどうか
 - seal_image_id (任意): integer(int64) - 入力タイプが印鑑かつマイ印鑑を設定したい場合のみ、マイ印鑑のIDを設定してください。
-マイ印鑑のIDは「マイ印鑑一覧の取得」で取得可能です。
+  マイ印鑑のIDは「マイ印鑑一覧の取得」で取得可能です。
 
 ※ マイ印鑑のIDが指定された場合、マイ印鑑を有効にするためvalueに任意の文字列を指定してもマイ印鑑のnameが登録されます。 例: `1` (最小: 1)
 
@@ -669,20 +666,24 @@ falseの場合、署名・合意文書。
 
 - name (必須): string - 項目名
 - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
+
 - order (必須): integer(int64) - 署名の順番。以下の順で表示
+
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
+  …
+
 - required (必須): boolean - 必須項目かどうか
 - value (任意): string - 入力された値
-未入力の場合は無し。
+  未入力の場合は無し。
 - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
+  未入力の場合は無し。
 - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
 - item_id (任意): integer(int64) - 入力項目のID
 
 ### PATCH /v1/documents/{document_id}/document_items/{document_item_id}
@@ -694,8 +695,8 @@ falseの場合、署名・合意文書。
 ### リクエストボディ
 
 - value (必須): string - 入力項目に設定する値
-入力タイプによっては値のフォーマットがあります。
-以下を参照して値を設定してください。
+  入力タイプによっては値のフォーマットがあります。
+  以下を参照して値を設定してください。
 
 * テキスト - 任意の文字列
 * プルダウン - 選択項目名と一致した文字列
@@ -703,8 +704,9 @@ falseの場合、署名・合意文書。
 * 日付 - YYYY-MM-DD形式
 * 印鑑(文字列) - 任意の文字列
 * 印鑑(マイ印鑑) - 「マイ印鑑一覧の取得」で取得したnameを設定してください
+
 - seal_image_id (任意): integer(int64) - 入力タイプが印鑑かつマイ印鑑を設定したい場合のみ、マイ印鑑のIDを設定してください。
-マイ印鑑のIDは「マイ印鑑一覧の取得」で取得可能です。
+  マイ印鑑のIDは「マイ印鑑一覧の取得」で取得可能です。
 
 ※ マイ印鑑のIDが指定された場合、マイ印鑑を有効にするためvalueに任意の文字列を指定してもマイ印鑑のnameが登録されます。 例: `1` (最小: 1)
 
@@ -714,20 +716,24 @@ falseの場合、署名・合意文書。
 
 - name (必須): string - 項目名
 - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
+
 - order (必須): integer(int64) - 署名の順番。以下の順で表示
+
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
+  …
+
 - required (必須): boolean - 必須項目かどうか
 - value (任意): string - 入力された値
-未入力の場合は無し。
+  未入力の場合は無し。
 - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
+  未入力の場合は無し。
 - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
 - item_id (任意): integer(int64) - 入力項目のID
 
 ### DELETE /v1/documents/{document_id}/document_items/{document_item_id}
@@ -742,20 +748,24 @@ falseの場合、署名・合意文書。
 
 - name (必須): string - 項目名
 - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
+
 - order (必須): integer(int64) - 署名の順番。以下の順で表示
+
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
+  …
+
 - required (必須): boolean - 必須項目かどうか
 - value (任意): string - 入力された値
-未入力の場合は無し。
+  未入力の場合は無し。
 - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
+  未入力の場合は無し。
 - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
 - item_id (任意): integer(int64) - 入力項目のID
 
 ### PUT /v1/documents/{document_id}/meta
@@ -770,19 +780,16 @@ falseの場合、署名・合意文書。
 
 すべてを置き換えるため、検索項目を追加したい場合は既存項目と追加したい項目を合わせてリクエストする。
 検索項目を削除する場合は既存項目から削除したい項目を除いたものをリクエストする。
-  配列の要素:
-    - item_id (必須): object - 検索項目の項目ID
+配列の要素: - item_id (必須): object - 検索項目の項目ID
 
 チームで設定されているものの中から選んで指定する。
-検索項目以外に、文書に入力項目として設定する項目も指定可能。
-    - value (必須): string - 検索項目の値
+検索項目以外に、文書に入力項目として設定する項目も指定可能。- value (必須): string - 検索項目の値
 
 ### レスポンス (200)
 
 OK
 
 文書に設定されている検索項目が返る。
-
 
 ### GET /v1/documents/{document_id}/placeholder
 
@@ -804,7 +811,7 @@ OK
 
 - sender_id (任意): object - 送信するユーザーのID (APIクライアントを利用する場合は必須)
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 SMSによる再送信の場合はパラメータに含めても送信内容には反映はされません。
 
@@ -816,6 +823,7 @@ SMSによる再送信の場合はパラメータに含めても送信内容に�
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -824,57 +832,54 @@ SMSによる再送信の場合はパラメータに含めても送信内容に�
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### POST /v1/documents/{document_id}/rejection
 
@@ -886,7 +891,7 @@ falseの場合、署名・合意文書。
 
 - rejector_id (任意): object - 文書の送信者となるユーザーのID
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 ### レスポンス (200)
 
@@ -896,6 +901,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -904,57 +910,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### POST /v1/documents/{document_id}/send_back
 
@@ -966,7 +969,7 @@ falseの場合、署名・合意文書。
 
 - executor_id (任意): object - 文書の送信者となるユーザーのID
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 ### レスポンス (200)
 
@@ -976,6 +979,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -984,57 +988,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### PUT /v1/documents/{document_id}/signature_requests/cancel
 
@@ -1046,7 +1047,7 @@ falseの場合、署名・合意文書。
 
 - user_id (任意): integer(int64) - 承認依頼をキャンセルするユーザーのID (APIクライアントを利用する場合は必須) 例: `1` (最小: 1)
 - message (任意): string - メッセージ
-メッセージを送らない場合は無し。
+  メッセージを送らない場合は無し。
 
 ### レスポンス (200)
 
@@ -1056,6 +1057,7 @@ falseの場合、署名・合意文書。
 - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
 - owner_id (必須): object - 文書作成者ユーザーID
 - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -1064,57 +1066,54 @@ falseの場合、署名・合意文書。
 * rejected - 却下
 * expired - 有効期限切れ
 * trashed - 削除済み (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired, trashed)
+
 - folder_id (必須): object - 文書が保存されているフォルダのID
 - folder_name (必須): string - 文書が保存されているフォルダの名前
 - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   配列の要素:
-    - name (必須): string - 項目名
-    - role (必須): string - どちら側の入力項目か
+  - name (必須): string - 項目名
+  - role (必須): string - どちら側の入力項目か
+
 * owner 送信者側
 * signer 承認側 (選択肢: owner, signer)
-    - order (必須): integer(int64) - 署名の順番。以下の順で表示
+  - order (必須): integer(int64) - 署名の順番。以下の順で表示
 * ownerのアイテム群
 * signer1のアイテム群
 * signer2のアイテム群
-…
-    - required (必須): boolean - 必須項目かどうか
-    - value (任意): string - 入力された値
-未入力の場合は無し。
-    - user_id (任意): object - 文書入力項目入力ユーザーID
-未入力の場合は無し。
-    - seal_image_id (任意): integer(int64) - マイ印鑑画像のID
-入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。
-    - item_id (任意): integer(int64) - 入力項目のID
+  … - required (必須): boolean - 必須項目かどうか - value (任意): string - 入力された値
+  未入力の場合は無し。- user_id (任意): object - 文書入力項目入力ユーザーID
+  未入力の場合は無し。- seal_image_id (任意): integer(int64) - マイ印鑑画像のID
+  入力項目が印鑑でなかった場合またはマイ印鑑機能を使用していない場合は無し。- item_id (任意): integer(int64) - 入力項目のID
+
 - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   配列の要素:
-    - item_id (必須): integer(int64) - 検索項目の項目ID
-    - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
-    - name (必須): string - 検索項目の名前
-    - value (必須): string - 検索項目の値
+  - item_id (必須): integer(int64) - 検索項目の項目ID
+  - type (必須): string - 検索項目の種類 (選択肢: string, date, number, select, stamp, acceptance)
+  - name (必須): string - 検索項目の名前
+  - value (必須): string - 検索項目の値
 - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
-  配列の要素:
-    - signer_id (必須): object - 文書の署名者となるユーザーのID
+  送信前は無し。
+  配列の要素: - signer_id (必須): object - 文書の署名者となるユーザーのID
 - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - id (任意): integer(int64) - ID 例: `1` (最小: 1)
   - url (任意): string - 短縮URL
   - expires_at (任意): string(date-time) - 有効期限日時
 - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+  <br>
+  入力例: 2022-01-01T00:00:00+09:00
 - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+  <br>
+  入力例: 2022-02-01T00:00:00+09:00
 - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
 - expires_at (任意): string(date-time) - 有効期限日時
 - sent_at (任意): string(date-time) - 送信日時
 - concluded_at (任意): string(date-time) - 締結完了日時
 - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+  falseの場合、署名・合意文書。
 - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+  配布文書でない場合は常にfalse。
 - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+  三者間以上の契約で署名完了後の復路合意ステップを省略する。
 
 ### POST /v1/pdf_documents
 
@@ -1145,6 +1144,7 @@ falseの場合、署名・合意文書。
   - title (必須): string - 文書のタイトル 例: `文書 忍者太郎様`
   - owner_id (必須): object - 文書作成者ユーザーID
   - status (必須): string - 文書のステータス
+
 * draft - 作成中
 * in_progress - 確認待ち
 * awaiting_receipt - 受け取り待ち
@@ -1158,24 +1158,25 @@ falseの場合、署名・合意文書。
   - items (任意): array[object] - 入力項目 設定されていない場合は無し。
   - meta_items (任意): array[object] - 検索項目 設定されていない場合は無し。
   - signers (任意): array[object] - 文書に設定されている署名者
-送信前は無し。
+    送信前は無し。
   - signer_url (任意): object - 署名者用URLを受け取った相手は、そのURLから署名依頼の手続きを進めることができます
   - created_at (必須): string(date-time) - 作成日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-01-01T00:00:00+09:00
+    <br>
+    入力例: 2022-01-01T00:00:00+09:00
   - updated_at (必須): string(date-time) - 更新日時。 ISO8601 形式を受け入れます。<br>
-<br>
-入力例: 2022-02-01T00:00:00+09:00
+    <br>
+    入力例: 2022-02-01T00:00:00+09:00
   - timestamped (必須): boolean - タイムスタンプが付与されているかどうか
   - expires_at (任意): string(date-time) - 有効期限日時
   - sent_at (任意): string(date-time) - 送信日時
   - concluded_at (任意): string(date-time) - 締結完了日時
   - skip_approval (必須): boolean - trueの場合、配布文書（署名合意をスキップする文書）。
-falseの場合、署名・合意文書。
+    falseの場合、署名・合意文書。
   - signer_document_confirmation (必須): boolean - 配布文書の受領者が文書を確認済みかどうか。
-配布文書でない場合は常にfalse。
+    配布文書でない場合は常にfalse。
   - approve_on_signing (任意): boolean - 署名と合意を同時に行う設定が有効かどうか。
-三者間以上の契約で署名完了後の復路合意ステップを省略する。
+    三者間以上の契約で署名完了後の復路合意ステップを省略する。
+
 - message (任意): string - メッセージ
 
 ### GET /v1/users/{user_id}/documents
@@ -1186,36 +1187,34 @@ falseの場合、署名・合意文書。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| page | query | いいえ | object |  |
-| per_page | query | いいえ | object |  |
-| folder_id | query | いいえ | object | フォルダID。IDで指定したフォルダに格納されている文書一覧を取得できる。 |
-| title | query | いいえ | string | 文書名に一致する一覧を取得できる（部分一致も可）。送信相手のメールアドレスに一致する一覧を取得できる（完全一致）。 |
-| status | query | いいえ | string | ステータス毎に文書一覧を取得できる。
-  * draft - 作成中
-  * in_progress - 確認待ち
-  * awaiting_receipt - 受け取り待ち
-  * approved - 要確認
-  * concluded - 完了
-  * rejected - 却下
-  * expired - 有効期限切れ (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired) |
-| ids[] | query | いいえ | array[integer] | 配列で文書IDを指定して、文書一覧を取得できる |
-| created_at_from | query | いいえ | object | 作成日時が指定した作成日時以降である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| created_at_to | query | いいえ | object | 作成日時が指定した作成日時より過去である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| updated_at_from | query | いいえ | object | 更新日時が指定した更新日時以降である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
-| updated_at_to | query | いいえ | object | 更新日時が指定した更新日時より過去である文書を取得できます。<br>
-開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+| 名前      | 位置  | 必須   | 型     | 説明                                                                                                               |
+| --------- | ----- | ------ | ------ | ------------------------------------------------------------------------------------------------------------------ |
+| page      | query | いいえ | object |                                                                                                                    |
+| per_page  | query | いいえ | object |                                                                                                                    |
+| folder_id | query | いいえ | object | フォルダID。IDで指定したフォルダに格納されている文書一覧を取得できる。                                             |
+| title     | query | いいえ | string | 文書名に一致する一覧を取得できる（部分一致も可）。送信相手のメールアドレスに一致する一覧を取得できる（完全一致）。 |
+| status    | query | いいえ | string | ステータス毎に文書一覧を取得できる。                                                                               |
+
+- draft - 作成中
+- in_progress - 確認待ち
+- awaiting_receipt - 受け取り待ち
+- approved - 要確認
+- concluded - 完了
+- rejected - 却下
+- expired - 有効期限切れ (選択肢: draft, in_progress, awaiting_receipt, approved, concluded, rejected, expired) |
+  | ids[] | query | いいえ | array[integer] | 配列で文書IDを指定して、文書一覧を取得できる |
+  | created_at_from | query | いいえ | object | 作成日時が指定した作成日時以降である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | created_at_to | query | いいえ | object | 作成日時が指定した作成日時より過去である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | updated_at_from | query | いいえ | object | 更新日時が指定した更新日時以降である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
+  | updated_at_to | query | いいえ | object | 更新日時が指定した更新日時より過去である文書を取得できます。<br>
+  開始は区切りを含みますが、終了は区切りを含みません。(左閉右開区間) |
 
 ### レスポンス (200)
 
 取得成功
-
-
-
 
 ## 参考情報
 

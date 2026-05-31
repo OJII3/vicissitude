@@ -17,47 +17,47 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| status | query | いいえ | string | 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し)、 取引ステータス(unsettled:清算待ち, settled:精算済み) (選択肢: draft, in_progress, approved, rejected, feedback, unsettled, settled) |
-| payroll_attached | query | いいえ | boolean | true:給与連携あり、false:給与連携なし、未指定時:絞り込みなし |
-| start_transaction_date | query | いいえ | string | 発生日(経費申請項目の日付)で絞込：開始日(yyyy-mm-dd) |
-| end_transaction_date | query | いいえ | string | 発生日(経費申請項目の日付)で絞込：終了日(yyyy-mm-dd) |
-| application_number | query | いいえ | integer(int64) | 申請No. |
-| title | query | いいえ | string | 申請タイトル |
-| start_issue_date | query | いいえ | string | 申請日で絞込：開始日(yyyy-mm-dd) |
-| end_issue_date | query | いいえ | string | 申請日で絞込：終了日(yyyy-mm-dd) |
-| applicant_id | query | いいえ | integer(int64) | 申請者のユーザーID |
-| approver_id | query | いいえ | integer(int64) | 承認者のユーザーID |
-| min_amount | query | いいえ | integer(int64) | 金額で絞込 (下限金額) |
-| max_amount | query | いいえ | integer(int64) | 金額で絞込 (上限金額) |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 500) |
+| 名前                   | 位置  | 必須   | 型             | 説明                                                                                                                                                                                                                                    |
+| ---------------------- | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| company_id             | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                                                                |
+| status                 | query | いいえ | string         | 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し)、 取引ステータス(unsettled:清算待ち, settled:精算済み) (選択肢: draft, in_progress, approved, rejected, feedback, unsettled, settled) |
+| payroll_attached       | query | いいえ | boolean        | true:給与連携あり、false:給与連携なし、未指定時:絞り込みなし                                                                                                                                                                            |
+| start_transaction_date | query | いいえ | string         | 発生日(経費申請項目の日付)で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                    |
+| end_transaction_date   | query | いいえ | string         | 発生日(経費申請項目の日付)で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                    |
+| application_number     | query | いいえ | integer(int64) | 申請No.                                                                                                                                                                                                                                 |
+| title                  | query | いいえ | string         | 申請タイトル                                                                                                                                                                                                                            |
+| start_issue_date       | query | いいえ | string         | 申請日で絞込：開始日(yyyy-mm-dd)                                                                                                                                                                                                        |
+| end_issue_date         | query | いいえ | string         | 申請日で絞込：終了日(yyyy-mm-dd)                                                                                                                                                                                                        |
+| applicant_id           | query | いいえ | integer(int64) | 申請者のユーザーID                                                                                                                                                                                                                      |
+| approver_id            | query | いいえ | integer(int64) | 承認者のユーザーID                                                                                                                                                                                                                      |
+| min_amount             | query | いいえ | integer(int64) | 金額で絞込 (下限金額)                                                                                                                                                                                                                   |
+| max_amount             | query | いいえ | integer(int64) | 金額で絞込 (上限金額)                                                                                                                                                                                                                   |
+| offset                 | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                                                                                                                                                                                                |
+| limit                  | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 500)                                                                                                                                                                                 |
 
 ### レスポンス (200)
 
 - expense_applications (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 経費申請ID 例: `1` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - title (必須): string - 申請タイトル 例: `大阪出張`
-    - issue_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
-    - description (任意): string - 備考 例: `◯◯連携先ID: cx12345`
-    - total_amount (任意): integer(int64) - 合計金額 例: `30000`
-    - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
-    - section_id (任意): integer(int64) - 部門ID 例: `101` (最小: 1)
-    - tag_ids (任意): array[integer] - メモタグID
-    - purchase_lines (任意): array[object] - 経費申請の申請行一覧（配列）
-    - deal_id (必須): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
-    - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
-    - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
-    - application_number (必須): string - 申請No. 例: `2`
-    - current_step_id (任意): integer(int64) - 現在承認ステップID 例: `1` (最小: 1)
-    - current_round (任意): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
-    - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `2` (最小: 1)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `3` (最小: 1)
+  - id (必須): integer(int64) - 経費申請ID 例: `1` (最小: 1)
+  - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - title (必須): string - 申請タイトル 例: `大阪出張`
+  - issue_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
+  - description (任意): string - 備考 例: `◯◯連携先ID: cx12345`
+  - total_amount (任意): integer(int64) - 合計金額 例: `30000`
+  - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
+  - section_id (任意): integer(int64) - 部門ID 例: `101` (最小: 1)
+  - tag_ids (任意): array[integer] - メモタグID
+  - purchase_lines (任意): array[object] - 経費申請の申請行一覧（配列）
+  - deal_id (必須): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
+  - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
+  - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
+  - application_number (必須): string - 申請No. 例: `2`
+  - current_step_id (任意): integer(int64) - 現在承認ステップID 例: `1` (最小: 1)
+  - current_round (任意): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
+  - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1)
+  - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `2` (最小: 1)
+  - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `3` (最小: 1)
 
 ### POST /api/1/expense_applications
 
@@ -73,19 +73,19 @@
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - title (必須): string - 申請タイトル (250文字以内) 例: `大阪出張`
 - issue_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。
+  例: `2019-12-17`
 - description (任意): string - 備考 (10000文字以内) 例: `◯◯連携先ID: cx12345`
 - section_id (任意): integer(int64) - 部門ID 例: `101` (最小: 1)
 - tag_ids (任意): array[integer] - メモタグID
 - purchase_lines (任意): array[object] - 経費申請の申請行一覧（配列）
   配列の要素:
-    - receipt_id (任意): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `606` (最小: 1)
-    - transaction_date (必須): string - 発生日(yyyy-mm-dd) 例: `2019-12-17`
-    - sub_receipt_ids (任意): array[integer] - 補足資料（配列）
-  receipt_id（証憑ファイル）を指定してください。
-  receipt_id（証憑ファイル）は5個まで指定できます
-    - expense_application_lines (任意): array[object] - 明細行一覧（配列）
+  - receipt_id (任意): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `606` (最小: 1)
+  - transaction_date (必須): string - 発生日(yyyy-mm-dd) 例: `2019-12-17`
+  - sub_receipt_ids (任意): array[integer] - 補足資料（配列）
+    receipt_id（証憑ファイル）を指定してください。
+    receipt_id（証憑ファイル）は5個まで指定できます
+  - expense_application_lines (任意): array[object] - 明細行一覧（配列）
 - approval_flow_route_id (任意): integer(int64) - 申請経路ID<br>
 <ul>
     <li>経費申請のステータスを申請中として作成する場合は、必ず指定してください。</li>
@@ -106,14 +106,14 @@
 </ul>
  例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID<br>
-「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
-指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  「承認者を指定」の経路を申請経路として使用する場合に指定してください。<br>
+  指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - draft (任意): boolean - 経費申請のステータス<br>
-falseを指定した時は申請中（in_progress）で経費申請を作成します。<br>
-trueを指定した時は下書き（draft）で経費申請を作成します。<br>
-未指定の時は下書きとみなして経費申請を作成します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で経費申請を作成します。<br>
+  trueを指定した時は下書き（draft）で経費申請を作成します。<br>
+  未指定の時は下書きとみなして経費申請を作成します。
+  例: `true`
 - parent_id (任意): integer(int64) - 親申請ID(法人アドバンスプラン（および旧法人プロフェッショナルプラン）, 法人エンタープライズプラン)<br>
 <ul>
   <li>承認済みの既存各種申請IDのみ指定可能です。</li>
@@ -121,17 +121,17 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
 </ul>
  例: `2` (最小: 1)
 - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1)
 - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `2` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `2` (最小: 1)
 - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `3` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `3` (最小: 1)
 
 ### レスポンス (201)
 
@@ -150,10 +150,10 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 経費申請のコメント一覧（配列）
@@ -176,10 +176,10 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 経費申請ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 経費申請ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (200)
 
@@ -198,10 +198,10 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 経費申請のコメント一覧（配列）
@@ -224,29 +224,29 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 経費申請ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 経費申請ID |
 
 ### リクエストボディ
 
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - title (必須): string - 申請タイトル (250文字以内) 例: `大阪出張`
 - issue_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。
+  例: `2019-12-17`
 - description (任意): string - 備考 (10000文字以内) 例: `◯◯連携先ID: cx12345`
 - section_id (任意): integer(int64) - 部門ID 例: `101` (最小: 1)
 - tag_ids (任意): array[integer] - メモタグID
 - purchase_lines (任意): array[object] - 経費申請の申請行一覧（配列）
   配列の要素:
-    - id (任意): integer(int64) - 経費申請の申請行ID: 既存申請行を更新する場合に指定します。IDを指定しない申請行は、新規行として扱われ追加されます。また、purchase_linesに含まれない既存の申請行は削除されます。更新後も残したい行は、必ず経費申請の申請行IDを指定してpurchase_linesに含めてください。 例: `1` (最小: 1)
-    - transaction_date (必須): string - 発生日(yyyy-mm-dd) 例: `2019-12-17`
-    - receipt_id (任意): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `606` (最小: 1)
-    - sub_receipt_ids (任意): array[integer] - 補足資料（配列）
-  receipt_id（証憑ファイル）を指定してください。
-  receipt_id（証憑ファイル）は5個まで指定できます
-    - expense_application_lines (任意): array[object] - 明細行一覧（配列）
+  - id (任意): integer(int64) - 経費申請の申請行ID: 既存申請行を更新する場合に指定します。IDを指定しない申請行は、新規行として扱われ追加されます。また、purchase_linesに含まれない既存の申請行は削除されます。更新後も残したい行は、必ず経費申請の申請行IDを指定してpurchase_linesに含めてください。 例: `1` (最小: 1)
+  - transaction_date (必須): string - 発生日(yyyy-mm-dd) 例: `2019-12-17`
+  - receipt_id (任意): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `606` (最小: 1)
+  - sub_receipt_ids (任意): array[integer] - 補足資料（配列）
+    receipt_id（証憑ファイル）を指定してください。
+    receipt_id（証憑ファイル）は5個まで指定できます
+  - expense_application_lines (任意): array[object] - 明細行一覧（配列）
 - approval_flow_route_id (任意): integer(int64) - 申請経路ID<br>
 <ul>
     <li>経費申請のステータスを申請中として作成する場合は、必ず指定してください。</li>
@@ -267,13 +267,13 @@ trueを指定した時は下書き（draft）で経費申請を作成します�
 </ul>
  例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID<br>
-指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
- 例: `1` (最小: 1)
+  指定する承認者のユーザーIDは、申請経路APIを利用して取得してください。
+  例: `1` (最小: 1)
 - draft (任意): boolean - 経費申請のステータス<br>
-falseを指定した時は申請中（in_progress）で経費申請を更新します。<br>
-trueを指定した時は下書き（draft）で経費申請を更新します。<br>
-未指定の時は下書きとみなして経費申請を更新します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で経費申請を更新します。<br>
+  trueを指定した時は下書き（draft）で経費申請を更新します。<br>
+  未指定の時は下書きとみなして経費申請を更新します。
+  例: `true`
 - parent_id (任意): integer(int64) - 親申請ID(法人アドバンスプラン（および旧法人プロフェッショナルプラン）, 法人エンタープライズプラン)<br>
 <ul>
   <li>承認済みの既存各種申請IDのみ指定可能です。</li>
@@ -281,17 +281,17 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
 </ul>
  例: `2` (最小: 1)
 - segment_1_tag_id (任意): integer(int64) - セグメント１タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `1` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `1` (最小: 1)
 - segment_2_tag_id (任意): integer(int64) - セグメント２タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `2` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `2` (最小: 1)
 - segment_3_tag_id (任意): integer(int64) - セグメント３タグID<br>
-セグメントタグ一覧の取得APIを利用して取得してください。<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
- 例: `3` (最小: 1)
+  セグメントタグ一覧の取得APIを利用して取得してください。<br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定</a><br>
+  例: `3` (最小: 1)
 
 ### レスポンス (200)
 
@@ -310,10 +310,10 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 経費申請のコメント一覧（配列）
@@ -336,10 +336,10 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 経費申請ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 経費申請ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (204)
 
@@ -354,9 +354,9 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 経費申請ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 経費申請ID |
 
 ### リクエストボディ
 
@@ -385,10 +385,10 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 経費申請のコメント一覧（配列）
@@ -411,9 +411,9 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 経費申請ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 経費申請ID |
 
 ### リクエストボディ
 
@@ -425,7 +425,7 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
 - 閲覧権限のある承認済みの既存各種申請IDのみ指定ができます
 - 既に経費申請に紐付いている各種申請との関連は解除されます
 - 経費申請に紐付く各種申請を解除する場合はnullを指定してください
- 例: `1` (最小: 1)
+  例: `1` (最小: 1)
 
 ### レスポンス (200)
 
@@ -444,10 +444,10 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
   - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:精算済み, unsettled:清算待ち) (選択肢: settled, unsettled) 例: `settled`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
   - comments (必須): array[object] - 経費申請のコメント一覧（配列）
@@ -458,8 +458,6 @@ trueを指定した時は下書き（draft）で経費申請を更新します�
   - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1)
   - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `2` (最小: 1)
   - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `3` (最小: 1)
-
-
 
 ## 参考情報
 

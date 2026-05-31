@@ -14,16 +14,18 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_update_date | query | いいえ | string | 更新日で絞り込み：開始日(yyyy-mm-dd) |
-| end_update_date | query | いいえ | string | 更新日で絞り込み：終了日(yyyy-mm-dd) |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
-| keyword | query | いいえ | string | 検索キーワード<br>
+| 名前              | 位置  | 必須   | 型             | 説明                                                     |
+| ----------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id        | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_update_date | query | いいえ | string         | 更新日で絞り込み：開始日(yyyy-mm-dd)                     |
+| end_update_date   | query | いいえ | string         | 更新日で絞り込み：終了日(yyyy-mm-dd)                     |
+| offset            | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                 |
+| limit             | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
+| keyword           | query | いいえ | string         | 検索キーワード<br>                                       |
+
 取引先コード・取引先名・正式名称・カナ名称・ショートカットキー1・2のいずれかに対する部分一致。<br>
 以下のいずれかで区切って複数キーワードを指定した場合はAND検索となります。
+
 <ul>
 <li>半角スペース</li>
 <li>全角スペース</li>
@@ -34,13 +36,7 @@
 ### レスポンス (200)
 
 - partners (必須): array[object]
-  配列の要素:
-    - id (必須): integer(int64) - 取引先ID 例: `1` (最小: 1)
-    - code (必須): string - 取引先コード 例: `code001`
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - name (必須): string - 取引先名 例: `ABC商店`
-    - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
-    - available (必須): boolean - true: 使用可能、false: 使用停止
+配列の要素: - id (必須): integer(int64) - 取引先ID 例: `1` (最小: 1) - code (必須): string - 取引先コード 例: `code001` - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1) - name (必須): string - 取引先名 例: `ABC商店` - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17` - available (必須): boolean - true: 使用可能、false: 使用停止
 <br>
 <ul>
   <li>
@@ -70,11 +66,8 @@
  例: `false`
     - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
-    - address_attributes (任意): object
-    - partner_doc_setting_attributes (任意): object
-    - partner_bank_account_attributes (任意): object
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` - address_attributes (任意): object - partner_doc_setting_attributes (任意): object - partner_bank_account_attributes (任意): object
 
 ### POST /api/1/partners
 
@@ -102,12 +95,12 @@
 - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（walletableのtypeが'bank_account'のidのみ指定できます。また、未設定にする場合は、nullを指定してください。） 例: `1` (最小: 1)
 - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee)、指定しない場合payerになります。 (選択肢: payer, payee) 例: `payer`
 - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `false`
 - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
 - address_attributes (任意): object
   - zipcode (任意): string - 郵便番号（8文字以内） 例: `000-0000`
   - prefecture_code (任意): integer(int64) - 都道府県コード（-1: 設定しない、0: 北海道、1:青森、2:岩手、3:宮城、4:秋田、5:山形、6:福島、7:茨城、8:栃木、9:群馬、10:埼玉、11:千葉、12:東京、13:神奈川、14:新潟、15:富山、16:石川、17:福井、18:山梨、19:長野、20:岐阜、21:静岡、22:愛知、23:三重、24:滋賀、25:京都、26:大阪、27:兵庫、28:奈良、29:和歌山、30:鳥取、31:島根、32:岡山、33:広島、34:山口、35:徳島、36:香川、37:愛媛、38:高知、39:福岡、40:佐賀、41:長崎、42:熊本、43:大分、44:宮崎、45:鹿児島、46:沖縄 例: `4` (最小: -1, 最大: 46)
@@ -115,7 +108,7 @@
   - street_name2 (任意): string - 建物名・部屋番号など（255文字以内） 例: `ビル１Ｆ`
 - partner_doc_setting_attributes (任意): object
   - sending_method (任意): string - 請求書送付方法(email:メール、posting:郵送、email_and_posting:メールと郵送、pdf_delivery:メール（PDFファイル添付）、pdf_delivery_and_posting:メール（PDFファイル添付）と郵送、null:設定しない)
-ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
+    ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
 - partner_bank_account_attributes (任意): object
   - bank_name (任意): string - 銀行名 例: `freee銀行`
   - bank_name_kana (任意): string - 銀行名（カナ） 例: `フリーギンコウ`
@@ -145,18 +138,18 @@
   - name (必須): string - 取引先名 例: `ABC商店`
   - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - true: 使用可能、false: 使用停止
-<br>
-<ul>
-  <li>
-    本APIでpartnerを作成した場合はtrueになります。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでpartnerを作成した場合はtrueになります。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `ABC`
   - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `501`
   - org_code (任意): integer(int64) - 事業所種別（null: 未設定、1: 法人、2: 個人） 例: `1` (最小: 1, 最大: 2)
@@ -170,12 +163,12 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（未設定の場合は、nullです。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee) (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001`
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
@@ -190,9 +183,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引先ID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | 取引先ID |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -204,18 +197,18 @@
   - name (必須): string - 取引先名 例: `ABC商店`
   - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - true: 使用可能、false: 使用停止
-<br>
-<ul>
-  <li>
-    本APIでpartnerを作成した場合はtrueになります。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでpartnerを作成した場合はtrueになります。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `ABC`
   - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `501`
   - org_code (任意): integer(int64) - 事業所種別（null: 未設定、1: 法人、2: 個人） 例: `1` (最小: 1, 最大: 2)
@@ -229,12 +222,12 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（未設定の場合は、nullです。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee) (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001`
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
@@ -249,9 +242,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引先ID |
+| 名前 | 位置 | 必須 | 型             | 説明     |
+| ---- | ---- | ---- | -------------- | -------- |
+| id   | path | はい | integer(int64) | 取引先ID |
 
 ### リクエストボディ
 
@@ -273,12 +266,12 @@
 - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（walletableのtypeが'bank_account'のidのみ指定できます。また、未設定にする場合は、nullを指定してください。） 例: `1` (最小: 1)
 - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee)、指定しない場合payerになります。 (選択肢: payer, payee) 例: `payer`
 - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `false`
 - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
 - address_attributes (任意): object
   - zipcode (任意): string - 郵便番号（8文字以内） 例: `000-0000`
   - prefecture_code (任意): integer(int64) - 都道府県コード（-1: 設定しない、0: 北海道、1:青森、2:岩手、3:宮城、4:秋田、5:山形、6:福島、7:茨城、8:栃木、9:群馬、10:埼玉、11:千葉、12:東京、13:神奈川、14:新潟、15:富山、16:石川、17:福井、18:山梨、19:長野、20:岐阜、21:静岡、22:愛知、23:三重、24:滋賀、25:京都、26:大阪、27:兵庫、28:奈良、29:和歌山、30:鳥取、31:島根、32:岡山、33:広島、34:山口、35:徳島、36:香川、37:愛媛、38:高知、39:福岡、40:佐賀、41:長崎、42:熊本、43:大分、44:宮崎、45:鹿児島、46:沖縄 例: `4` (最小: -1, 最大: 46)
@@ -286,7 +279,7 @@
   - street_name2 (任意): string - 建物名・部屋番号など（255文字以内） 例: `ビル１Ｆ`
 - partner_doc_setting_attributes (任意): object
   - sending_method (任意): string - 請求書送付方法(email:メール、posting:郵送、email_and_posting:メールと郵送、pdf_delivery:メール（PDFファイル添付）、pdf_delivery_and_posting:メール（PDFファイル添付）と郵送、null:設定しない)
-ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
+    ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
 - partner_bank_account_attributes (任意): object
   - bank_name (任意): string - 銀行名 例: `freee銀行`
   - bank_name_kana (任意): string - 銀行名（カナ） 例: `フリーギンコウ`
@@ -316,18 +309,18 @@
   - name (必須): string - 取引先名 例: `ABC商店`
   - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - true: 使用可能、false: 使用停止
-<br>
-<ul>
-  <li>
-    本APIでpartnerを作成した場合はtrueになります。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでpartnerを作成した場合はtrueになります。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `ABC`
   - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `501`
   - org_code (任意): integer(int64) - 事業所種別（null: 未設定、1: 法人、2: 個人） 例: `1` (最小: 1, 最大: 2)
@@ -341,12 +334,12 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（未設定の場合は、nullです。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee) (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001`
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
@@ -361,9 +354,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引先ID |
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
+| id         | path  | はい | integer(int64) | 取引先ID |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (204)
@@ -376,8 +369,8 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前 | 位置 | 必須 | 型     | 説明         |
+| ---- | ---- | ---- | ------ | ------------ |
 | code | path | はい | string | 取引先コード |
 
 ### リクエストボディ
@@ -400,12 +393,12 @@
 - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（walletableのtypeが'bank_account'のidのみ指定できます。また、未設定にする場合は、nullを指定してください。） 例: `1` (最小: 1)
 - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee)、指定しない場合payerになります。 (選択肢: payer, payee) 例: `payer`
 - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `false`
 - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
 - address_attributes (任意): object
   - zipcode (任意): string - 郵便番号（8文字以内） 例: `000-0000`
   - prefecture_code (任意): integer(int64) - 都道府県コード（-1: 設定しない、0: 北海道、1:青森、2:岩手、3:宮城、4:秋田、5:山形、6:福島、7:茨城、8:栃木、9:群馬、10:埼玉、11:千葉、12:東京、13:神奈川、14:新潟、15:富山、16:石川、17:福井、18:山梨、19:長野、20:岐阜、21:静岡、22:愛知、23:三重、24:滋賀、25:京都、26:大阪、27:兵庫、28:奈良、29:和歌山、30:鳥取、31:島根、32:岡山、33:広島、34:山口、35:徳島、36:香川、37:愛媛、38:高知、39:福岡、40:佐賀、41:長崎、42:熊本、43:大分、44:宮崎、45:鹿児島、46:沖縄 例: `4` (最小: -1, 最大: 46)
@@ -413,7 +406,7 @@
   - street_name2 (任意): string - 建物名・部屋番号など（255文字以内） 例: `ビル１Ｆ`
 - partner_doc_setting_attributes (任意): object
   - sending_method (任意): string - 請求書送付方法(email:メール、posting:郵送、email_and_posting:メールと郵送、pdf_delivery:メール（PDFファイル添付）、pdf_delivery_and_posting:メール（PDFファイル添付）と郵送、null:設定しない)
-ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
+    ただし、pdf_delivery および pdf_delivery_and_posting は2026年5月末頃に利用可能となる予定です。 (選択肢: email, posting, email_and_posting, pdf_delivery, pdf_delivery_and_posting) 例: `posting`
 - partner_bank_account_attributes (任意): object
   - bank_name (任意): string - 銀行名 例: `freee銀行`
   - bank_name_kana (任意): string - 銀行名（カナ） 例: `フリーギンコウ`
@@ -443,18 +436,18 @@
   - name (必須): string - 取引先名 例: `ABC商店`
   - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - true: 使用可能、false: 使用停止
-<br>
-<ul>
-  <li>
-    本APIでpartnerを作成した場合はtrueになります。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでpartnerを作成した場合はtrueになります。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `ABC`
   - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `501`
   - org_code (任意): integer(int64) - 事業所種別（null: 未設定、1: 法人、2: 個人） 例: `1` (最小: 1, 最大: 2)
@@ -468,12 +461,12 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（未設定の場合は、nullです。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee) (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001`
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
@@ -508,12 +501,12 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（walletableのtypeが'bank_account'のidのみ指定できます。また、未設定にする場合は、nullを指定してください。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee)、指定しない場合payerになります。 (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
@@ -529,18 +522,18 @@
   - name (必須): string - 取引先名 例: `ABC商店`
   - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
   - available (必須): boolean - true: 使用可能、false: 使用停止
-<br>
-<ul>
-  <li>
-    本APIでpartnerを作成した場合はtrueになります。
-  </li>
-  <li>
-    trueの場合、Web画面での取引登録時などに入力候補として表示されます。
-  </li>
-  <li>
-    falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
-  </li>
-</ul>
+  <br>
+  <ul>
+    <li>
+      本APIでpartnerを作成した場合はtrueになります。
+    </li>
+    <li>
+      trueの場合、Web画面での取引登録時などに入力候補として表示されます。
+    </li>
+    <li>
+      falseの場合、取引先自体は削除せず、Web画面での取引登録時などに入力候補として表示されません。ただし取引（収入・支出）の作成APIなどでfalseの取引先をパラメータに指定すれば、取引などにfalseの取引先を設定できます。
+    </li>
+  </ul>
   - shortcut1 (任意): string - ショートカット1 (255文字以内) 例: `ABC`
   - shortcut2 (任意): string - ショートカット2 (255文字以内) 例: `501`
   - org_code (任意): integer(int64) - 事業所種別（null: 未設定、1: 法人、2: 個人） 例: `1` (最小: 1, 最大: 2)
@@ -554,19 +547,17 @@
   - payer_walletable_id (任意): integer(int64) - 振込元口座ID（一括振込ファイル用）:（未設定の場合は、nullです。） 例: `1` (最小: 1)
   - transfer_fee_handling_side (任意): string - 振込手数料負担（一括振込ファイル用）: (振込元(当方): payer, 振込先(先方): payee) (選択肢: payer, payee) 例: `payer`
   - qualified_invoice_issuer (任意): boolean - インボイス制度適格請求書発行事業者（true: 対象事業者、false: 非対象事業者）
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `false`
+    <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+    例: `false`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001`
   - address_attributes (任意): object
   - partner_doc_setting_attributes (任意): object
   - partner_bank_account_attributes (任意): object
   - payment_term_attributes (任意): object
   - invoice_payment_term_attributes (任意): object
-
-
 
 ## 参考情報
 

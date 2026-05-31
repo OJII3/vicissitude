@@ -14,37 +14,36 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_date | query | はい | string | アップロード日 (yyyy-mm-dd) |
-| end_date | query | はい | string | アップロード日 (yyyy-mm-dd) |
-| user_name | query | いいえ | string | アップロードしたユーザー名、メールアドレス |
-| number | query | いいえ | integer(int64) | アップロードファイルNo |
-| comment_type | query | いいえ | string | posted:コメントあり, raised:未解決, resolved:解決済 (選択肢: posted, raised, resolved) |
-| comment_important | query | いいえ | boolean | trueの時、お気に入りコメント付きが対象 |
-| category | query | いいえ | string | all:すべて、without_deal:未登録、with_expense_application_line:経費申請中, with_deal:登録済み、ignored:無視 (選択肢: all, without_deal, with_expense_application_line, with_deal, ignored) |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
+| 名前              | 位置  | 必須   | 型             | 説明                                                                                                                                                                                       |
+| ----------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| company_id        | query | はい   | integer(int64) | 事業所ID                                                                                                                                                                                   |
+| start_date        | query | はい   | string         | アップロード日 (yyyy-mm-dd)                                                                                                                                                                |
+| end_date          | query | はい   | string         | アップロード日 (yyyy-mm-dd)                                                                                                                                                                |
+| user_name         | query | いいえ | string         | アップロードしたユーザー名、メールアドレス                                                                                                                                                 |
+| number            | query | いいえ | integer(int64) | アップロードファイルNo                                                                                                                                                                     |
+| comment_type      | query | いいえ | string         | posted:コメントあり, raised:未解決, resolved:解決済 (選択肢: posted, raised, resolved)                                                                                                     |
+| comment_important | query | いいえ | boolean        | trueの時、お気に入りコメント付きが対象                                                                                                                                                     |
+| category          | query | いいえ | string         | all:すべて、without_deal:未登録、with_expense_application_line:経費申請中, with_deal:登録済み、ignored:無視 (選択肢: all, without_deal, with_expense_application_line, with_deal, ignored) |
+| offset            | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                                                                                                                                                   |
+| limit             | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000)                                                                                                                                   |
 
 ### レスポンス (200)
 
 - receipts (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `1` (最小: 1)
-    - status (必須): string - ステータス(confirmed:確認済み、deleted:削除済み、ignored:無視) (選択肢: confirmed, deleted, ignored) 例: `confirmed`
-    - description (任意): string - メモ 例: `タクシー利用`
-    - mime_type (必須): string - MIMEタイプ 例: `image/png`
-    - origin (必須): string - アップロード元種別 (選択肢: unknown, web, mobile_camera, mobile_album, scansnap, scannable, dropbox, mail, safety_contact_file, public_api) 例: `public_api`
-    - created_at (必須): string - アップロード日時（ISO8601形式） 例: `2019-12-17T18:30:24+09:00`
-    - user (必須): object
-    - receipt_metadatum (任意): object
-    - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択、null: OCR解析結果が保存されている時等） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
-    - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号（null: OCR解析結果が保存されている時等）
+  - id (必須): integer(int64) - ファイルボックス（証憑ファイル）ID 例: `1` (最小: 1)
+  - status (必須): string - ステータス(confirmed:確認済み、deleted:削除済み、ignored:無視) (選択肢: confirmed, deleted, ignored) 例: `confirmed`
+  - description (任意): string - メモ 例: `タクシー利用`
+  - mime_type (必須): string - MIMEタイプ 例: `image/png`
+  - origin (必須): string - アップロード元種別 (選択肢: unknown, web, mobile_camera, mobile_album, scansnap, scannable, dropbox, mail, safety_contact_file, public_api) 例: `public_api`
+  - created_at (必須): string - アップロード日時（ISO8601形式） 例: `2019-12-17T18:30:24+09:00`
+  - user (必須): object
+  - receipt_metadatum (任意): object
+  - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択、null: OCR解析結果が保存されている時等） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
+  - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号（null: OCR解析結果が保存されている時等）
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
-    - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他、null: OCR解析結果が保存されている時等） (選択肢: receipt, invoice, other) 例: `receipt`
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$) - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他、null: OCR解析結果が保存されている時等） (選択肢: receipt, invoice, other) 例: `receipt`
 
 ### POST /api/1/receipts
 
@@ -69,8 +68,8 @@
   - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択、null: OCR解析結果が保存されている時等） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号（null: OCR解析結果が保存されている時等）
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
   - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他、null: OCR解析結果が保存されている時等） (選択肢: receipt, invoice, other) 例: `receipt`
 
 ### GET /api/1/receipts/{id}
@@ -81,10 +80,10 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明                               |
+| ---------- | ----- | ---- | -------------- | ---------------------------------- |
+| id         | path  | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
+| company_id | query | はい | integer(int64) | 事業所ID                           |
 
 ### レスポンス (200)
 
@@ -100,8 +99,8 @@
   - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択、null: OCR解析結果が保存されている時等） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号（null: OCR解析結果が保存されている時等）
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
   - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他、null: OCR解析結果が保存されている時等） (選択肢: receipt, invoice, other) 例: `receipt`
 
 ### PUT /api/1/receipts/{id}
@@ -115,9 +114,9 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
+| 名前 | 位置 | 必須 | 型             | 説明                               |
+| ---- | ---- | ---- | -------------- | ---------------------------------- |
+| id   | path | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
 
 ### リクエストボディ
 
@@ -132,8 +131,8 @@
 - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
 - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T?[1-9][0-9]{12}$)
 - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他） (選択肢: receipt, invoice, other) 例: `receipt`
 
 ### レスポンス (200)
@@ -150,8 +149,8 @@
   - qualified_invoice (任意): string - 適格請求書等（qualified: 該当する、not_qualified: 該当しない、unselected: 未選択、null: OCR解析結果が保存されている時等） (選択肢: qualified, not_qualified, unselected) 例: `qualified`
   - invoice_registration_number (任意): string - インボイス制度適格請求書発行事業者登録番号（null: OCR解析結果が保存されている時等）
 - 先頭T数字13桁の固定14桁の文字列
-<a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
- 例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
+  <a target="_blank" href="https://www.invoice-kohyo.nta.go.jp/index.html">国税庁インボイス制度適格請求書発行事業者公表サイト</a>
+  例: `T1000000000001` (パターン: ^T[1-9][0-9]{12}$)
   - document_type (任意): string - 書類の種類（receipt: 領収書、invoice: 請求書、other: その他、null: OCR解析結果が保存されている時等） (選択肢: receipt, invoice, other) 例: `receipt`
 
 ### DELETE /api/1/receipts/{id}
@@ -162,10 +161,10 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明                               |
+| ---------- | ----- | ---- | -------------- | ---------------------------------- |
+| id         | path  | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
+| company_id | query | はい | integer(int64) | 事業所ID                           |
 
 ### レスポンス (204)
 
@@ -177,14 +176,12 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明                               |
+| ---------- | ----- | ---- | -------------- | ---------------------------------- |
+| id         | path  | はい | integer(int64) | ファイルボックス（証憑ファイル）ID |
+| company_id | query | はい | integer(int64) | 事業所ID                           |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

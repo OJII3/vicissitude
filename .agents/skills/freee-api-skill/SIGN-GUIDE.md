@@ -34,6 +34,7 @@ API 呼び出し:
 3. API を呼び出す: `sign_api_*` ツールを使用
 
 注意:
+
 - freee 本体の `company_id` や `freee_get_current_company` はサインでは使用しません
 - サインの API パスは `/v1/` から始まります（例: `/v1/documents`）
 

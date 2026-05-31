@@ -31,8 +31,6 @@
   - account_category_id (必須): integer(int64) - 勘定科目カテゴリID 例: `1`
   - index (必須): integer(int64) - 表示順 例: `1`
 
-
-
 ## 参考情報
 
 - freee API公式ドキュメント: https://developer.freee.co.jp/docs

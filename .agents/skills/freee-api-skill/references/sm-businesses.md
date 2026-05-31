@@ -17,18 +17,18 @@ start_business_date : 案件登録日(絞り込み開始) end_business_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| start_business_date | query | いいえ | string(date) | 案件登録日で絞込：開始日(yyyy-mm-dd) |
-| end_business_date | query | いいえ | string(date) | 案件登録日で絞込：終了日(yyyy-mm-dd) |
-| sales_progression_ids[] | query | いいえ | array[string] | 受注確度ID |
-| business_phase_ids[] | query | いいえ | array[string] | 案件フェーズID |
-| charge_employee_ids[] | query | いいえ | array[integer] | 社内担当者の従業員ID |
-| customer_ids[] | query | いいえ | array[integer] | 顧客の取引先ID |
-| canceled | query | いいえ | boolean | 取消状態 |
-| limit | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
-| offset | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0） |
+| 名前                    | 位置  | 必須   | 型             | 説明                                                     |
+| ----------------------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id              | query | はい   | integer(int64) | 事業所ID                                                 |
+| start_business_date     | query | いいえ | string(date)   | 案件登録日で絞込：開始日(yyyy-mm-dd)                     |
+| end_business_date       | query | いいえ | string(date)   | 案件登録日で絞込：終了日(yyyy-mm-dd)                     |
+| sales_progression_ids[] | query | いいえ | array[string]  | 受注確度ID                                               |
+| business_phase_ids[]    | query | いいえ | array[string]  | 案件フェーズID                                           |
+| charge_employee_ids[]   | query | いいえ | array[integer] | 社内担当者の従業員ID                                     |
+| customer_ids[]          | query | いいえ | array[integer] | 顧客の取引先ID                                           |
+| canceled                | query | いいえ | boolean        | 取消状態                                                 |
+| limit                   | query | いいえ | integer(int32) | 取得レコードの件数（デフォルト：20, 最小：1, 最大：100） |
+| offset                  | query | いいえ | integer(int32) | 取得レコードのオフセット（デフォルト：0）                |
 
 ### レスポンス (200)
 
@@ -51,10 +51,10 @@ start_business_date : 案件登録日(絞り込み開始) end_business_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | string | 案件ID |
+| id         | path  | はい | string         | 案件ID   |
 
 ### レスポンス (200)
 
@@ -69,13 +69,11 @@ start_business_date : 案件登録日(絞り込み開始) end_business_date : �
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | string | 案件ID |
+| 名前 | 位置 | 必須 | 型     | 説明   |
+| ---- | ---- | ---- | ------ | ------ |
+| id   | path | はい | string | 案件ID |
 
 ### レスポンス (200)
-
-
 
 ## 参考情報
 

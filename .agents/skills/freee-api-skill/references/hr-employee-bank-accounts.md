@@ -14,11 +14,12 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer | 事業所ID |
-| year | query | はい | integer | 従業員情報を取得したい年 |
-| month | query | はい | integer | 従業員情報を取得したい月<br>
+| 名前       | 位置  | 必須 | 型      | 説明                         |
+| ---------- | ----- | ---- | ------- | ---------------------------- |
+| company_id | query | はい | integer | 事業所ID                     |
+| year       | query | はい | integer | 従業員情報を取得したい年     |
+| month      | query | はい | integer | 従業員情報を取得したい月<br> |
+
 締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が検索結果として返します。<br>
 翌月払いの従業員の2022/01の従業員情報を取得する場合は、year=2021,month=12を指定してください。<br> |
 | employee_id | path | はい | integer | 従業員ID |
@@ -49,8 +50,8 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前        | 位置 | 必須 | 型      | 説明     |
+| ----------- | ---- | ---- | ------- | -------- |
 | employee_id | path | はい | integer | 従業員ID |
 
 ### リクエストボディ
@@ -58,8 +59,8 @@ successful operation
 - company_id (必須): integer(int32) - 更新対象事業所ID（必須） (最小: 1, 最大: 2147483647)
 - year (必須): integer(int32) - 更新対象年（必須） 例: `2021` (最小: 2000, 最大: 2100)
 - month (必須): integer(int32) - 更新対象月（必須）<br>
-締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が更新されます。<br>
-翌月払いの従業員の2022/01の従業員情報を更新する場合は、year=2021,month=12を指定してください。<br> 例: `1` (最小: 1, 最大: 12)
+  締め日支払い日設定が翌月払いの従業員情報の場合は、 指定したmonth + 1の値が更新されます。<br>
+  翌月払いの従業員の2022/01の従業員情報を更新する場合は、year=2021,month=12を指定してください。<br> 例: `1` (最小: 1, 最大: 12)
 - employee_bank_account_rule (必須): object
   - bank_name (任意): string - 金融機関名
   - bank_name_kana (任意): string - 金融機関名カナ 英字カナのみ
@@ -88,8 +89,6 @@ successful operation
   - account_number (任意): string - 口座番号
   - account_name (任意): string - 口座名義カナ
   - account_type (任意): string - 預金種類 ordinary: 普通預金, current: 当座預金, saving: 貯蓄預金
-
-
 
 ## 参考情報
 

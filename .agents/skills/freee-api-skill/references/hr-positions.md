@@ -17,8 +17,8 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型      | 説明     |
+| ---------- | ----- | ---- | ------- | -------- |
 | company_id | query | はい | integer | 事業所ID |
 
 ### レスポンス (200)
@@ -27,9 +27,9 @@ successful operation
 
 - positions (必須): array[object]
   配列の要素:
-    - id (必須): integer(int32) - 役職ID 例: `1` (最小: 1, 最大: 2147483647)
-    - code (任意): string - 役職コード 例: `position1`
-    - name (必須): string - 役職名称 例: `部長`
+  - id (必須): integer(int32) - 役職ID 例: `1` (最小: 1, 最大: 2147483647)
+  - code (任意): string - 役職コード 例: `position1`
+  - name (必須): string - 役職名称 例: `部長`
 - total_count (必須): integer(int32) - 合計件数 例: `1` (最小: 0, 最大: 2147483647)
 
 ### POST /api/v1/positions
@@ -68,9 +68,9 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 役職ID |
+| 名前 | 位置 | 必須 | 型      | 説明   |
+| ---- | ---- | ---- | ------- | ------ |
+| id   | path | はい | integer | 役職ID |
 
 ### リクエストボディ
 
@@ -99,16 +99,14 @@ successful operation
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 役職ID |
+| 名前       | 位置  | 必須 | 型      | 説明     |
+| ---------- | ----- | ---- | ------- | -------- |
+| id         | path  | はい | integer | 役職ID   |
 | company_id | query | はい | integer | 事業所ID |
 
 ### レスポンス (204)
 
 successful operation
-
-
 
 ## 参考情報
 

@@ -16,12 +16,12 @@
 
 - companies (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - name (必須): string - 事業所名 例: `freee事務所`
-    - name_kana (必須): string - 事業所名（カナ） 例: `フリージムショ`
-    - display_name (必須): string - 事業所名 例: `freee事務所`
-    - company_number (必須): string - 事業所番号（ハイフン無し)(半角英数字10桁) 例: `97e576421b`
-    - role (必須): string - ユーザーの権限
+  - id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - name (必須): string - 事業所名 例: `freee事務所`
+  - name_kana (必須): string - 事業所名（カナ） 例: `フリージムショ`
+  - display_name (必須): string - 事業所名 例: `freee事務所`
+  - company_number (必須): string - 事業所番号（ハイフン無し)(半角英数字10桁) 例: `97e576421b`
+  - role (必須): string - ユーザーの権限
 
 * admin - 管理者
 * simple_accounting - 一般（経理）
@@ -37,17 +37,17 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 事業所ID |
-| details | query | いいえ | boolean | 取得情報に勘定科目・税区分コード・品目・取引先・部門・メモタグ・口座の一覧を含める (選択肢: true) |
-| account_items | query | いいえ | boolean | 取得情報に勘定科目一覧を含める (選択肢: true) |
-| taxes | query | いいえ | boolean | 取得情報に税区分コード一覧を含める (選択肢: true) |
-| items | query | いいえ | boolean | 取得情報に品目一覧を含める (選択肢: true) |
-| partners | query | いいえ | boolean | 取得情報に取引先一覧を含める (選択肢: true) |
-| sections | query | いいえ | boolean | 取得情報に部門一覧を含める (選択肢: true) |
-| tags | query | いいえ | boolean | 取得情報にメモタグ一覧を含める (選択肢: true) |
-| walletables | query | いいえ | boolean | 取得情報に口座一覧を含める (選択肢: true) |
+| 名前          | 位置  | 必須   | 型             | 説明                                                                                              |
+| ------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------- |
+| id            | path  | はい   | integer(int64) | 事業所ID                                                                                          |
+| details       | query | いいえ | boolean        | 取得情報に勘定科目・税区分コード・品目・取引先・部門・メモタグ・口座の一覧を含める (選択肢: true) |
+| account_items | query | いいえ | boolean        | 取得情報に勘定科目一覧を含める (選択肢: true)                                                     |
+| taxes         | query | いいえ | boolean        | 取得情報に税区分コード一覧を含める (選択肢: true)                                                 |
+| items         | query | いいえ | boolean        | 取得情報に品目一覧を含める (選択肢: true)                                                         |
+| partners      | query | いいえ | boolean        | 取得情報に取引先一覧を含める (選択肢: true)                                                       |
+| sections      | query | いいえ | boolean        | 取得情報に部門一覧を含める (選択肢: true)                                                         |
+| tags          | query | いいえ | boolean        | 取得情報にメモタグ一覧を含める (選択肢: true)                                                     |
+| walletables   | query | いいえ | boolean        | 取得情報に口座一覧を含める (選択肢: true)                                                         |
 
 ### レスポンス (200)
 
@@ -206,46 +206,46 @@
   - general_incorporated_association: '一般社団法人'
   - general_incorporated_foundation: '一般財団法人'
   - other_association: 'その他組織'
-<br>
-<br>
+    <br>
+    <br>
+
 ### 業種 個人<br>
-  - '': 未選択
-  - manufacturing: 製造業
-  - education: 教育
-  - medical: 医療/福祉
-  - ict: ソフトウェア・情報サービス業
-  - food: 飲食業
-  - construction: 建設業
-  - transportation: 運送業
-  - trading: 卸売業
-  - retail: 小売業
-  - finance: 金融/保険業
-  - real_estate: 不動産業
-  - agriculture: 農業
-  - travel: 旅行・宿泊業
-  - accountant: 専門業（税理士・会計士）
-  - lawer: その他専門業（法律など）
-  - consultant: サービス業（コンサルティング）
-  - recruit: サービス業（人材）
-  - publication: サービス業（出版）
-  - design: サービス業（デザイン）
-  - barber: サービス業（理容・美容）
-  - others: その他サービス業
-  - company_employee: 会社員
-  - others_side_business: その他(副業や株取引のみなど)
-  - others_deduction: その他(医療費などの控除のみ)
-  - default: 未定 (選択肢: , agriculture, forestry, fishing_industry, mining, civil_contractors, pavement, carpenter, renovation, electrical_plumbing, grocery, machinery_manufacturing, printing, other_manufacturing, software_development, system_development, survey_analysis, server_management, website_production, online_service_management, online_advertising_agency, online_advertising_planning_production, online_media_management, portal_site_management, other_it_services, transport_delivery, delivery, other_transportation_logistics, other_wholesale, clothing_wholesale_fiber, food_wholesale, entrusted_development_wholesale, online_shop, fashion_grocery_store, food_store, entrusted_store, other_store, financial_instruments_exchange, commodity_futures_investment_advisor, other_financial, brokerage_insurance, other_insurance, real_estate_developer, real_estate_brokerage, rent_coin_parking_management, rental_office_co_working_space, rental_lease, cpa_tax_accountant, law_office, judicial_and_administrative_scrivener, labor_consultant, other_profession, business_consultant, academic_research_development, advertising_agency, advertising_planning_production, design_development, apparel_industry_design, website_design, advertising_planning_design, other_design, restaurants_coffee_shops, sale_of_lunch, bread_confectionery_manufacture_sale, delivery_catering_mobile_catering, hotel_inn, homestay, travel_agency, leisure_sports_facility_management, show_event_management, barber, beauty_salon, spa_sand_bath_sauna, este_ail_salon, bridal_planning_introduce_wedding, memorial_ceremony_funeral, moving, courier_industry, house_maid_cleaning_agency, re_tailoring_clothes, training_institute_management, tutoring_school, music_calligraphy_abacus_classroom, english_school, tennis_yoga_judo_school, culture_school, seminar_planning_management, hospital_clinic, dental_clinic, other_medical_services, nursery, nursing_home, rehabilitation_support_services, other_welfare, visit_welfare_service, recruitment_temporary_staffing, life_related_recruitment_temporary_staffing, car_maintenance_car_repair, machinery_equipment_maintenance_repair, cleaning_maintenance_building_management, security, other_services, npo, general_incorporated_association, general_incorporated_foundation, other_association, manufacturing, education, medical, ict, food, construction, transportation, trading, retail, finance, real_estate, travel, accountant, lawer, consultant, recruit, publication, design, others, company_employee, others_side_business, others_deduction, default)
-  - workflow_setting (必須): string - 仕訳承認フロー（enable: 有効、 disable: 無効） (選択肢: enable, disable) 例: `disabled`
-  - fiscal_years (必須): array[object]
-  - account_items (任意): array[object]
-  - tax_codes (任意): array[object]
-  - items (任意): array[object]
-  - partners (任意): array[object]
-  - sections (任意): array[object]
-  - tags (任意): array[object]
-  - walletables (任意): array[object]
 
-
+- '': 未選択
+- manufacturing: 製造業
+- education: 教育
+- medical: 医療/福祉
+- ict: ソフトウェア・情報サービス業
+- food: 飲食業
+- construction: 建設業
+- transportation: 運送業
+- trading: 卸売業
+- retail: 小売業
+- finance: 金融/保険業
+- real_estate: 不動産業
+- agriculture: 農業
+- travel: 旅行・宿泊業
+- accountant: 専門業（税理士・会計士）
+- lawer: その他専門業（法律など）
+- consultant: サービス業（コンサルティング）
+- recruit: サービス業（人材）
+- publication: サービス業（出版）
+- design: サービス業（デザイン）
+- barber: サービス業（理容・美容）
+- others: その他サービス業
+- company_employee: 会社員
+- others_side_business: その他(副業や株取引のみなど)
+- others_deduction: その他(医療費などの控除のみ)
+- default: 未定 (選択肢: , agriculture, forestry, fishing_industry, mining, civil_contractors, pavement, carpenter, renovation, electrical_plumbing, grocery, machinery_manufacturing, printing, other_manufacturing, software_development, system_development, survey_analysis, server_management, website_production, online_service_management, online_advertising_agency, online_advertising_planning_production, online_media_management, portal_site_management, other_it_services, transport_delivery, delivery, other_transportation_logistics, other_wholesale, clothing_wholesale_fiber, food_wholesale, entrusted_development_wholesale, online_shop, fashion_grocery_store, food_store, entrusted_store, other_store, financial_instruments_exchange, commodity_futures_investment_advisor, other_financial, brokerage_insurance, other_insurance, real_estate_developer, real_estate_brokerage, rent_coin_parking_management, rental_office_co_working_space, rental_lease, cpa_tax_accountant, law_office, judicial_and_administrative_scrivener, labor_consultant, other_profession, business_consultant, academic_research_development, advertising_agency, advertising_planning_production, design_development, apparel_industry_design, website_design, advertising_planning_design, other_design, restaurants_coffee_shops, sale_of_lunch, bread_confectionery_manufacture_sale, delivery_catering_mobile_catering, hotel_inn, homestay, travel_agency, leisure_sports_facility_management, show_event_management, barber, beauty_salon, spa_sand_bath_sauna, este_ail_salon, bridal_planning_introduce_wedding, memorial_ceremony_funeral, moving, courier_industry, house_maid_cleaning_agency, re_tailoring_clothes, training_institute_management, tutoring_school, music_calligraphy_abacus_classroom, english_school, tennis_yoga_judo_school, culture_school, seminar_planning_management, hospital_clinic, dental_clinic, other_medical_services, nursery, nursing_home, rehabilitation_support_services, other_welfare, visit_welfare_service, recruitment_temporary_staffing, life_related_recruitment_temporary_staffing, car_maintenance_car_repair, machinery_equipment_maintenance_repair, cleaning_maintenance_building_management, security, other_services, npo, general_incorporated_association, general_incorporated_foundation, other_association, manufacturing, education, medical, ict, food, construction, transportation, trading, retail, finance, real_estate, travel, accountant, lawer, consultant, recruit, publication, design, others, company_employee, others_side_business, others_deduction, default)
+- workflow_setting (必須): string - 仕訳承認フロー（enable: 有効、 disable: 無効） (選択肢: enable, disable) 例: `disabled`
+- fiscal_years (必須): array[object]
+- account_items (任意): array[object]
+- tax_codes (任意): array[object]
+- items (任意): array[object]
+- partners (任意): array[object]
+- sections (任意): array[object]
+- tags (任意): array[object]
+- walletables (任意): array[object]
 
 ## 参考情報
 

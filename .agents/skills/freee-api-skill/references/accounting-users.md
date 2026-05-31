@@ -14,22 +14,22 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
+| 名前       | 位置  | 必須   | 型             | 説明                                                     |
+| ---------- | ----- | ------ | -------------- | -------------------------------------------------------- |
+| company_id | query | はい   | integer(int64) | 事業所ID                                                 |
+| limit      | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 3000) |
 
 ### レスポンス (200)
 
 - users (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - ユーザーID 例: `1` (最小: 1)
-    - email (必須): string - メールアドレス 例: `example@freee.co.jp`
-    - display_name (任意): string - 表示名 例: `山田太郎`
-    - first_name (任意): string - 氏名（名） 例: `太郎`
-    - last_name (任意): string - 氏名（姓） 例: `山田`
-    - first_name_kana (任意): string - 氏名（カナ・名） 例: `タロウ`
-    - last_name_kana (任意): string - 氏名（カナ・姓） 例: `ヤマダ`
+  - id (必須): integer(int64) - ユーザーID 例: `1` (最小: 1)
+  - email (必須): string - メールアドレス 例: `example@freee.co.jp`
+  - display_name (任意): string - 表示名 例: `山田太郎`
+  - first_name (任意): string - 氏名（名） 例: `太郎`
+  - last_name (任意): string - 氏名（姓） 例: `山田`
+  - first_name_kana (任意): string - 氏名（カナ・名） 例: `タロウ`
+  - last_name_kana (任意): string - 氏名（カナ・姓） 例: `ヤマダ`
 
 ### GET /api/1/users/me
 
@@ -39,10 +39,10 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| companies | query | いいえ | boolean | 取得情報にユーザーが所属する事業所一覧を含める (選択肢: true, false) |
-| advisor | query | いいえ | boolean | 取得情報に事業がアドバイザー事象所の場合は事業所毎の一意なプロフィールIDを含める (選択肢: true, false) |
+| 名前      | 位置  | 必須   | 型      | 説明                                                                                                   |
+| --------- | ----- | ------ | ------- | ------------------------------------------------------------------------------------------------------ |
+| companies | query | いいえ | boolean | 取得情報にユーザーが所属する事業所一覧を含める (選択肢: true, false)                                   |
+| advisor   | query | いいえ | boolean | 取得情報に事業がアドバイザー事象所の場合は事業所毎の一意なプロフィールIDを含める (選択肢: true, false) |
 
 ### レスポンス (200)
 
@@ -89,8 +89,8 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -384,7 +384,6 @@
   </tbody>
 </table>
 
-
 - wallet_txns (必須): object
   - confirm (任意): boolean - 「自動で経理」の操作 例: `true`
   - read (任意): boolean - 「取得した明細」の閲覧 例: `true`
@@ -638,8 +637,6 @@
   - create (任意): boolean - 作成 例: `true`
   - update (任意): boolean - 更新 例: `true`
   - destroy (任意): boolean - 削除 例: `true`
-
-
 
 ## 参考情報
 

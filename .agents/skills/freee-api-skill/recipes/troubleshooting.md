@@ -198,13 +198,13 @@ freee_api_get {
 
 ```json
 {
-  "expense_application_lines": [
-    {
-      "expense_application_line_template_id": 1001,
-      "amount": 5000,
-      "transaction_date": "2025-10-19"
-    }
-  ]
+	"expense_application_lines": [
+		{
+			"expense_application_line_template_id": 1001,
+			"amount": 5000,
+			"transaction_date": "2025-10-19"
+		}
+	]
 }
 ```
 

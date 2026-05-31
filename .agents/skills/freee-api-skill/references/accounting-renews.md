@@ -20,9 +20,9 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
+| 名前 | 位置 | 必須 | 型             | 説明   |
+| ---- | ---- | ---- | -------------- | ------ |
+| id   | path | はい | integer(int64) | 取引ID |
 
 ### リクエストボディ
 
@@ -30,24 +30,12 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
-- renew_target_id (必須): integer(int64) - +更新対象行ID (details(取引の明細行), accruals(債権債務行), renewsのdetails(+更新の明細行)のIDを指定)  例: `1` (最小: 1)
+- renew_target_id (必須): integer(int64) - +更新対象行ID (details(取引の明細行), accruals(債権債務行), renewsのdetails(+更新の明細行)のIDを指定) 例: `1` (最小: 1)
 - details (必須): array[object] - +更新の明細行
-  配列の要素:
-    - account_item_id (必須): integer(int64) - 勘定科目ID 例: `1` (最小: 1)
-    - tax_code (必須): integer(int64) - 税区分コード 例: `1` (最小: 0, 最大: 2147483647)
-    - amount (必須): integer(int64) - 取引金額（税込で指定してください）<br>
-マイナスの値を指定した場合、控除・マイナス行として登録されます。<br>
-上記以外の値を指定した場合、通常行として登録されます。
- 例: `1080` (最小: -9223372036854776000, 最大: 9223372036854776000)
-    - vat (任意): integer(int64) - 消費税額（指定しない場合は自動で計算されます） 例: `80` (最小: -9223372036854776000, 最大: 9223372036854776000)
-    - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1)
-    - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1)
-    - partner_id (任意): integer(int64) - 取引先ID 例: `1` (最小: 0)
-    - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]`
-    - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `1` (最小: 1)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `1` (最小: 1)
-    - description (任意): string - 備考 例: `備考`
+  配列の要素: - account_item_id (必須): integer(int64) - 勘定科目ID 例: `1` (最小: 1) - tax_code (必須): integer(int64) - 税区分コード 例: `1` (最小: 0, 最大: 2147483647) - amount (必須): integer(int64) - 取引金額（税込で指定してください）<br>
+  マイナスの値を指定した場合、控除・マイナス行として登録されます。<br>
+  上記以外の値を指定した場合、通常行として登録されます。
+  例: `1080` (最小: -9223372036854776000, 最大: 9223372036854776000) - vat (任意): integer(int64) - 消費税額（指定しない場合は自動で計算されます） 例: `80` (最小: -9223372036854776000, 最大: 9223372036854776000) - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1) - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1) - partner_id (任意): integer(int64) - 取引先ID 例: `1` (最小: 0) - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]` - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1) - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `1` (最小: 1) - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `1` (最小: 1) - description (任意): string - 備考 例: `備考`
 
 ### レスポンス (201)
 
@@ -83,9 +71,9 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
+| 名前     | 位置 | 必須 | 型             | 説明    |
+| -------- | ---- | ---- | -------------- | ------- |
+| id       | path | はい | integer(int64) | 取引ID  |
 | renew_id | path | はい | integer(int64) | +更新ID |
 
 ### リクエストボディ
@@ -95,22 +83,10 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - update_date (必須): string - 更新日 (yyyy-mm-dd) 例: `2019-12-17`
 - details (必須): array[object] - +更新の明細行
-  配列の要素:
-    - account_item_id (必須): integer(int64) - 勘定科目ID 例: `1` (最小: 1)
-    - tax_code (必須): integer(int64) - 税区分コード 例: `1` (最小: 0, 最大: 2147483647)
-    - amount (必須): integer(int64) - 取引金額（税込で指定してください）<br>
-マイナスの値を指定した場合、控除・マイナス行として登録されます。<br>
-上記以外の値を指定した場合、通常行として登録されます。
- 例: `1080` (最小: -9223372036854776000, 最大: 9223372036854776000)
-    - vat (任意): integer(int64) - 消費税額（指定しない場合は自動で計算されます） 例: `80` (最小: -9223372036854776000, 最大: 9223372036854776000)
-    - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1)
-    - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1)
-    - partner_id (任意): integer(int64) - 取引先ID 例: `1` (最小: 0)
-    - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]`
-    - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `1` (最小: 1)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `1` (最小: 1)
-    - description (任意): string - 備考 例: `備考`
+  配列の要素: - account_item_id (必須): integer(int64) - 勘定科目ID 例: `1` (最小: 1) - tax_code (必須): integer(int64) - 税区分コード 例: `1` (最小: 0, 最大: 2147483647) - amount (必須): integer(int64) - 取引金額（税込で指定してください）<br>
+  マイナスの値を指定した場合、控除・マイナス行として登録されます。<br>
+  上記以外の値を指定した場合、通常行として登録されます。
+  例: `1080` (最小: -9223372036854776000, 最大: 9223372036854776000) - vat (任意): integer(int64) - 消費税額（指定しない場合は自動で計算されます） 例: `80` (最小: -9223372036854776000, 最大: 9223372036854776000) - item_id (任意): integer(int64) - 品目ID 例: `1` (最小: 1) - section_id (任意): integer(int64) - 部門ID 例: `1` (最小: 1) - partner_id (任意): integer(int64) - 取引先ID 例: `1` (最小: 0) - tag_ids (任意): array[integer] - メモタグID 例: `[1,2,3]` - segment_1_tag_id (任意): integer(int64) - セグメント１タグID 例: `1` (最小: 1) - segment_2_tag_id (任意): integer(int64) - セグメント２タグID 例: `1` (最小: 1) - segment_3_tag_id (任意): integer(int64) - セグメント３タグID 例: `1` (最小: 1) - description (任意): string - 備考 例: `備考`
 
 ### レスポンス (200)
 
@@ -143,10 +119,10 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 取引ID |
-| renew_id | path | はい | integer(int64) | +更新ID |
+| 名前       | 位置  | 必須 | 型              | 説明     |
+| ---------- | ----- | ---- | --------------- | -------- |
+| id         | path  | はい | integer(int64)  | 取引ID   |
+| renew_id   | path  | はい | integer(int64)  | +更新ID  |
 | company_id | query | はい | integer(int64s) | 事業所ID |
 
 ### レスポンス (200)
@@ -168,8 +144,6 @@ issue_date : 発生日 due_date : 支払期日 amount : 金額 due_amount : 支�
   - renews (任意): array[object] - 取引の+更新行
   - payments (任意): array[object] - 取引の支払行
   - receipts (任意): array[object] - ファイルボックス（証憑ファイル）
-
-
 
 ## 参考情報
 

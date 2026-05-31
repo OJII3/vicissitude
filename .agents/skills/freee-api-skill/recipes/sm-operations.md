@@ -10,11 +10,11 @@ freee販売APIを使った案件・受注の管理ガイド。
 
 ## 利用可能なパス
 
-| パス | 説明 |
-|------|------|
-| `/businesses` | 案件一覧・作成 |
-| `/businesses/{id}` | 案件詳細・更新 |
-| `/sales_orders` | 受注一覧・作成 |
+| パス                 | 説明           |
+| -------------------- | -------------- |
+| `/businesses`        | 案件一覧・作成 |
+| `/businesses/{id}`   | 案件詳細・更新 |
+| `/sales_orders`      | 受注一覧・作成 |
 | `/sales_orders/{id}` | 受注詳細・更新 |
 
 ## 使用例
@@ -108,30 +108,30 @@ freee_api_post {
 
 ### 案件の更新可能項目
 
-| 項目 | 説明 |
-|------|------|
-| `name` | 案件名称 |
-| `code` | 案件コード |
-| `business_date` | 案件登録日 |
-| `charge_employee_id` | 社内担当者の従業員ID |
-| `customer_id` | 顧客の取引先ID |
-| `prospect_sales_order` | 受注見込 |
-| `sales_progression_id` | 受注確度ID |
-| `scheduled_completion_date` | 完了予定日 |
-| `completion_date` | 完了日 |
-| `business_phase_id` | 案件フェーズID |
-| `reporting_section_id` | 担当部門ID |
-| `internal_memo` | 社内メモ |
+| 項目                        | 説明                 |
+| --------------------------- | -------------------- |
+| `name`                      | 案件名称             |
+| `code`                      | 案件コード           |
+| `business_date`             | 案件登録日           |
+| `charge_employee_id`        | 社内担当者の従業員ID |
+| `customer_id`               | 顧客の取引先ID       |
+| `prospect_sales_order`      | 受注見込             |
+| `sales_progression_id`      | 受注確度ID           |
+| `scheduled_completion_date` | 完了予定日           |
+| `completion_date`           | 完了日               |
+| `business_phase_id`         | 案件フェーズID       |
+| `reporting_section_id`      | 担当部門ID           |
+| `internal_memo`             | 社内メモ             |
 
 ### 受注の必須項目
 
-| 項目 | 説明 |
-|------|------|
-| `sales_order_date` | 受注日 |
-| `customer_id` | 顧客の取引先ID |
-| `billing_partner_id` | 請求先の取引先ID |
+| 項目                    | 説明             |
+| ----------------------- | ---------------- |
+| `sales_order_date`      | 受注日           |
+| `customer_id`           | 顧客の取引先ID   |
+| `billing_partner_id`    | 請求先の取引先ID |
 | `collecting_partner_id` | 入金元の取引先ID |
-| `lines` | 明細リスト |
+| `lines`                 | 明細リスト       |
 
 ## 関連API
 

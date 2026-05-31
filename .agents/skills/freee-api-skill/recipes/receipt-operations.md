@@ -8,11 +8,11 @@ freee会計APIとカスタムツールを使ったファイルボックスの操
 
 ## 利用可能なパス
 
-| パス | 説明 |
-|------|------|
-| `/api/1/receipts` | 証憑ファイル一覧・アップロード |
-| `/api/1/receipts/{id}` | 証憑ファイル詳細・更新・削除 |
-| `/api/1/receipts/{id}/download` | 証憑ファイルのダウンロード |
+| パス                            | 説明                           |
+| ------------------------------- | ------------------------------ |
+| `/api/1/receipts`               | 証憑ファイル一覧・アップロード |
+| `/api/1/receipts/{id}`          | 証憑ファイル詳細・更新・削除   |
+| `/api/1/receipts/{id}/download` | 証憑ファイルのダウンロード     |
 
 ## ファイルアップロード
 
@@ -37,16 +37,16 @@ freee_file_upload {
 
 パラメータ:
 
-| 名前 | 必須 | 説明 |
-|------|------|------|
-| file_path | はい | アップロードするファイルのローカルパス |
-| company_id | はい | 事業所ID（現在の事業所と一致する必要あり） |
-| document_type | いいえ | 書類の種類: receipt(領収書), invoice(請求書), other(その他) |
-| description | いいえ | メモ（最大255文字） |
-| receipt_metadatum_amount | いいえ | 金額 |
-| receipt_metadatum_issue_date | いいえ | 発行日 (yyyy-mm-dd) |
-| receipt_metadatum_partner_name | いいえ | 取引先名（最大255文字） |
-| qualified_invoice | いいえ | 適格請求書等: qualified, not_qualified, unselected |
+| 名前                           | 必須   | 説明                                                        |
+| ------------------------------ | ------ | ----------------------------------------------------------- |
+| file_path                      | はい   | アップロードするファイルのローカルパス                      |
+| company_id                     | はい   | 事業所ID（現在の事業所と一致する必要あり）                  |
+| document_type                  | いいえ | 書類の種類: receipt(領収書), invoice(請求書), other(その他) |
+| description                    | いいえ | メモ（最大255文字）                                         |
+| receipt_metadatum_amount       | いいえ | 金額                                                        |
+| receipt_metadatum_issue_date   | いいえ | 発行日 (yyyy-mm-dd)                                         |
+| receipt_metadatum_partner_name | いいえ | 取引先名（最大255文字）                                     |
+| qualified_invoice              | いいえ | 適格請求書等: qualified, not_qualified, unselected          |
 
 `company_id` は他の `freee_api_*` ツールと同じく、現在の事業所と一致しない場合はエラーになります。事業所を切り替える場合は `freee_set_current_company` を使用してください。
 

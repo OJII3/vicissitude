@@ -10,25 +10,24 @@
 
 操作: 領収書一覧の取得
 
-
 説明: 領収書の一覧を返します。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| receipt_number | query | いいえ | string | 領収書番号 |
-| subject | query | いいえ | string | 件名 |
-| partner_ids | query | いいえ | string | 取引先ID（半角数字のidを半角カンマ区切りスペースなしで指定してください。最大3件まで指定できます。） |
-| deal_status | query | いいえ | string | 取引ステータス（registered: 登録済み、 unregistered: 登録待ち） (選択肢: registered, unregistered) |
-| sending_status | query | いいえ | string | 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent) |
-| payment_status | query | いいえ | string | 決済ステータス（unsettled: 決済待ち, settled: 決済済み） (選択肢: settled, unsettled) |
-| cancel_status | query | いいえ | string | 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled) |
-| start_receipt_date | query | いいえ | string(date) | 領収日の開始日 |
-| end_receipt_date | query | いいえ | string(date) | 領収日の終了日 |
-| limit | query | いいえ | integer | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 100) |
-| offset | query | いいえ | integer | 取得レコードのオフセット (デフォルト: 0) |
+| 名前               | 位置  | 必須   | 型             | 説明                                                                                                |
+| ------------------ | ----- | ------ | -------------- | --------------------------------------------------------------------------------------------------- |
+| company_id         | query | はい   | integer(int64) | 事業所ID                                                                                            |
+| receipt_number     | query | いいえ | string         | 領収書番号                                                                                          |
+| subject            | query | いいえ | string         | 件名                                                                                                |
+| partner_ids        | query | いいえ | string         | 取引先ID（半角数字のidを半角カンマ区切りスペースなしで指定してください。最大3件まで指定できます。） |
+| deal_status        | query | いいえ | string         | 取引ステータス（registered: 登録済み、 unregistered: 登録待ち） (選択肢: registered, unregistered)  |
+| sending_status     | query | いいえ | string         | 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)                          |
+| payment_status     | query | いいえ | string         | 決済ステータス（unsettled: 決済待ち, settled: 決済済み） (選択肢: settled, unsettled)               |
+| cancel_status      | query | いいえ | string         | 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)              |
+| start_receipt_date | query | いいえ | string(date)   | 領収日の開始日                                                                                      |
+| end_receipt_date   | query | いいえ | string(date)   | 領収日の終了日                                                                                      |
+| limit              | query | いいえ | integer        | 取得レコードの件数 (デフォルト: 20, 最小: 1, 最大: 100)                                             |
+| offset             | query | いいえ | integer        | 取得レコードのオフセット (デフォルト: 0)                                                            |
 
 ### レスポンス (200)
 
@@ -36,39 +35,38 @@ The request has succeeded.
 
 - receipts (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 領収書ID (最小: 1, 最大: 9223372036854775000)
-    - company_id (必須): integer(int64) - 事業所ID (最小: 1, 最大: 9223372036854775000)
-    - receipt_number (必須): string - 領収書番号
-    - subject (必須): string - 件名
-    - template_id (任意): integer(int64) - 帳票テンプレートID (最小: 1, 最大: 9223372036854775000)
-    - receipt_date (必須): string(date) - 領収日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
-    - issue_date (任意): string(date) - 発生日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
-    - memo (必須): string - 社内メモ
-    - sending_status (必須): string - 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)
-    - payment_status (必須): string - 決済ステータス（unsettled: 決済待ち, settled: 決済済み） (選択肢: settled, unsettled)
-    - cancel_status (必須): string - 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)
-    - deal_status (必須): string - 取引ステータス（registered: 登録済み、 unregistered: 登録待ち） (選択肢: registered, unregistered)
-    - deal_id (任意): integer(int64) - 取引ID （deal_statusがunregisteredの場合、nullになります。） (最小: 1, 最大: 9223372036854775000)
-    - total_amount (必須): number(double) - 合計金額
-    - amount_withholding_tax (任意): number - 源泉所得税
-    - amount_including_tax (必須): number(double) - 税込金額
-    - amount_excluding_tax (必須): number - 小計（税別）
-    - amount_tax (必須): number - 消費税額
-    - partner_id (必須): integer(int64) - 取引先ID (最小: 1, 最大: 9223372036854775000)
-    - partner_code (任意): string - 取引先コード
-    - partner_name (任意): string - 取引先名
+  - id (必須): integer(int64) - 領収書ID (最小: 1, 最大: 9223372036854775000)
+  - company_id (必須): integer(int64) - 事業所ID (最小: 1, 最大: 9223372036854775000)
+  - receipt_number (必須): string - 領収書番号
+  - subject (必須): string - 件名
+  - template_id (任意): integer(int64) - 帳票テンプレートID (最小: 1, 最大: 9223372036854775000)
+  - receipt_date (必須): string(date) - 領収日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
+  - issue_date (任意): string(date) - 発生日 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2}$)
+  - memo (必須): string - 社内メモ
+  - sending_status (必須): string - 送付ステータス（sent: 送付済み、 unsent: 送付待ち） (選択肢: sent, unsent)
+  - payment_status (必須): string - 決済ステータス（unsettled: 決済待ち, settled: 決済済み） (選択肢: settled, unsettled)
+  - cancel_status (必須): string - 取消済み（canceled: 該当する、 uncanceled: 該当しない） (選択肢: canceled, uncanceled)
+  - deal_status (必須): string - 取引ステータス（registered: 登録済み、 unregistered: 登録待ち） (選択肢: registered, unregistered)
+  - deal_id (任意): integer(int64) - 取引ID （deal_statusがunregisteredの場合、nullになります。） (最小: 1, 最大: 9223372036854775000)
+  - total_amount (必須): number(double) - 合計金額
+  - amount_withholding_tax (任意): number - 源泉所得税
+  - amount_including_tax (必須): number(double) - 税込金額
+  - amount_excluding_tax (必須): number - 小計（税別）
+  - amount_tax (必須): number - 消費税額
+  - partner_id (必須): integer(int64) - 取引先ID (最小: 1, 最大: 9223372036854775000)
+  - partner_code (任意): string - 取引先コード
+  - partner_name (任意): string - 取引先名
 - partner_nameに空文字が戻る場合は、対象レコードをweb画面から更新するか、freee請求書APIから更新すると解消されます。
-    - partner_display_name (任意): string - 取引先宛名
+  - partner_display_name (任意): string - 取引先宛名
 - 帳票の宛名に利用されます。
-    - company_contact_name (任意): string - 自社担当者 (デフォルト: 表示ユーザー名)
-    - email_url_file_downloaded_at (任意): string(string) - URL共有で送付された送付先のメールのダウンロード時刻 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}(:[0-9]{2})?$)
-    - email_url_file_downloaded_status (任意): string - URL共有で送付された送付先のメールのダウンロードステータス (選択肢: downloaded, undownloaded)
-    - report_url (必須): string(uri) - 帳票詳細ページのURL
+  - company_contact_name (任意): string - 自社担当者 (デフォルト: 表示ユーザー名)
+  - email_url_file_downloaded_at (任意): string(string) - URL共有で送付された送付先のメールのダウンロード時刻 (パターン: ^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}(:[0-9]{2})?$)
+  - email_url_file_downloaded_status (任意): string - URL共有で送付された送付先のメールのダウンロードステータス (選択肢: downloaded, undownloaded)
+  - report_url (必須): string(uri) - 帳票詳細ページのURL
 
 ### POST /receipts
 
 操作: 領収書の作成
-
 
 説明: 領収書の作成をします。 issue_date, account_item_id, tax_code, item_id, section_id, tag_ids, segment_1_tag_id, segment_2_tag_id, segment_3_tag_id は、取引登録の下書き保存で利用されます。 tag_idsは10個まで設定可能です。
 
@@ -93,11 +91,11 @@ The request has succeeded.
 - receipt_note (任意): string - 備考
 - memo (任意): string - 社内メモ
 - partner_id (任意): integer(int64) - 取引先ID<br>
-取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 - partner_code (任意): string - 取引先コード<br>
-取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
+  取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
 - partner_title (必須): string - 敬称（御中、様、(空白)の3つから選択）
 - [非推奨]全角カッコの（空白）は削除予定です。
 - 全角カッコの（空白）を指定した場合、はレスポンスは、半角カッコの(空白)になります。 (選択肢: 御中, 様, (空白), （空白）)
@@ -121,44 +119,40 @@ The request has succeeded.
 - company_description (任意): string - 自社説明を上書きする場合に指定します。
 - lines (必須): array[object] - 領収書の明細行
   配列の要素:
-    - type (任意): string - 明細の種類
+  - type (任意): string - 明細の種類
 - item: 品目行
 - tax_rate、quantityは必須になります。
 - text: テキスト行
 - descriptionのみ入力可能です。
 - 入力がない場合、itemが利用されます。 (選択肢: item, text)
-    - description (任意): string - 摘要（品名）
-    - unit (任意): string - 明細の単位名
-    - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
-    - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
-    - tax_rate (任意): number - 税率（%）（帳票の税額計算に用います。） (選択肢: 0, 8, 10)
-    - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
-    - withholding (任意): boolean - 源泉徴収対象
-    - account_item_id (任意): integer - 勘定科目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
-    - tax_code (任意): integer - 税区分コード（取引登録の下書き保存で利用されます。） (最小: 0, 最大: 2147483647)
-    - item_id (任意): integer - 品目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
-    - section_id (任意): integer - 部門ID<br>
+  - description (任意): string - 摘要（品名）
+  - unit (任意): string - 明細の単位名
+  - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
+  - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
+  - tax_rate (任意): number - 税率（%）（帳票の税額計算に用います。） (選択肢: 0, 8, 10)
+  - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
+  - withholding (任意): boolean - 源泉徴収対象
+  - account_item_id (任意): integer - 勘定科目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
+  - tax_code (任意): integer - 税区分コード（取引登録の下書き保存で利用されます。） (最小: 0, 最大: 2147483647)
+  - item_id (任意): integer - 品目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
+  - section_id (任意): integer - 部門ID<br>
 - 取引登録の下書き保存で利用されます。
 - 親部門は利用できません。
 - グループ管理で制限された部門は利用できません。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/215225263" target="_blank">グループ管理の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 2147483647)
-    - tag_ids (任意): array[integer]
-    - segment_1_tag_id (任意): integer(int64) - セグメント１ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/215225263" target="_blank">グループ管理の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 2147483647) - tag_ids (任意): array[integer] - segment_1_tag_id (任意): integer(int64) - セグメント１ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け プロフェッショナルプラン以上で利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000) - segment_2_tag_id (任意): integer(int64) - セグメント２ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け エンタープライズプランで利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000) - segment_3_tag_id (任意): integer(int64) - セグメント３ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け エンタープライズプランで利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 
 ### レスポンス (201)
 
@@ -227,13 +221,12 @@ The request has succeeded and a new resource has been created as a result.
 
 操作: 使用可能な領収書の帳票テンプレート一覧の取得
 
-
 説明: 使用可能な領収書の帳票テンプレート一覧を返します。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
@@ -242,22 +235,21 @@ The request has succeeded.
 
 - templates (必須): array[object]
   配列の要素:
-    - id (必須): integer - 帳票テンプレートID (最小: 1, 最大: 2147483647)
-    - name (必須): string - 帳票テンプレート名
+  - id (必須): integer - 帳票テンプレートID (最小: 1, 最大: 2147483647)
+  - name (必須): string - 帳票テンプレート名
 
 ### GET /receipts/{id}
 
 操作: 領収書の取得
 
-
 説明: 指定されたIDの領収書を返します。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
-| id | path | はい | integer | 領収書ID |
+| id         | path  | はい | integer        | 領収書ID |
 
 ### レスポンス (200)
 
@@ -328,14 +320,13 @@ The request has succeeded.
 
 操作: 領収書の更新
 
-
 説明: 領収書の更新をします。 issue_date, account_item_id, tax_code, item_id, section_id, tag_ids, segment_1_tag_id, segment_2_tag_id, segment_3_tag_id は、取引登録の下書き保存で利用されます。 tag_idsは10個まで設定可能です。
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer | 領収書ID |
+| 名前 | 位置 | 必須 | 型      | 説明     |
+| ---- | ---- | ---- | ------- | -------- |
+| id   | path | はい | integer | 領収書ID |
 
 ### リクエストボディ
 
@@ -358,11 +349,11 @@ The request has succeeded.
 - receipt_note (任意): string - 備考
 - memo (任意): string - 社内メモ
 - partner_id (任意): integer(int64) - 取引先ID<br>
-取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  取引先IDと取引先コードはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 - partner_code (任意): string - 取引先コード<br>
-取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
-<a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
+  取引先コードと取引先IDはどちらか一方を必ず指定してください。<br>
+  <a href='https://support.freee.co.jp/hc/ja/articles/12515437008409-取引先を登録する#:~:text=確認ください。-,取引先役割,-種別' target='_blank'>取引先役割に関してはヘルプページを御覧ください。</a>
 - partner_title (必須): string - 敬称（御中、様、(空白)の3つから選択）
 - [非推奨]全角カッコの（空白）は削除予定です。
 - 全角カッコの（空白）を指定した場合、はレスポンスは、半角カッコの(空白)になります。 (選択肢: 御中, 様, (空白), （空白）)
@@ -386,44 +377,40 @@ The request has succeeded.
 - company_description (任意): string - 自社説明を上書きする場合に指定します。
 - lines (必須): array[object] - 領収書の明細行
   配列の要素:
-    - type (任意): string - 明細の種類
+  - type (任意): string - 明細の種類
 - item: 品目行
 - tax_rate、quantityは必須になります。
 - text: テキスト行
 - descriptionのみ入力可能です。
 - 入力がない場合、itemが利用されます。 (選択肢: item, text)
-    - description (任意): string - 摘要（品名）
-    - unit (任意): string - 明細の単位名
-    - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
-    - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
-    - tax_rate (任意): number - 税率（%）（帳票の税額計算に用います。） (選択肢: 0, 8, 10)
-    - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
-    - withholding (任意): boolean - 源泉徴収対象
-    - account_item_id (任意): integer - 勘定科目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
-    - tax_code (任意): integer - 税区分コード（取引登録の下書き保存で利用されます。） (最小: 0, 最大: 2147483647)
-    - item_id (任意): integer - 品目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
-    - section_id (任意): integer - 部門ID<br>
+  - description (任意): string - 摘要（品名）
+  - unit (任意): string - 明細の単位名
+  - quantity (任意): number - 明細の数量 (整数部は8桁まで、小数部は3桁まで) (最小: -99999999.999, 最大: 99999999.999)
+  - unit_price (任意): string - 明細の単価 (整数部は13桁まで、小数部は3桁まで) (パターン: ^-?[0-9]{0,13}(\.[0-9]{1,3})?$)
+  - tax_rate (任意): number - 税率（%）（帳票の税額計算に用います。） (選択肢: 0, 8, 10)
+  - reduced_tax_rate (任意): boolean - 軽減税率対象（true: 対象、 false: 対象外）trueはtax_rate:8の時のみ指定可能です。
+  - withholding (任意): boolean - 源泉徴収対象
+  - account_item_id (任意): integer - 勘定科目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
+  - tax_code (任意): integer - 税区分コード（取引登録の下書き保存で利用されます。） (最小: 0, 最大: 2147483647)
+  - item_id (任意): integer - 品目ID（取引登録の下書き保存で利用されます。） (最小: 1, 最大: 2147483647)
+  - section_id (任意): integer - 部門ID<br>
 - 取引登録の下書き保存で利用されます。
 - 親部門は利用できません。
 - グループ管理で制限された部門は利用できません。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/215225263" target="_blank">グループ管理の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 2147483647)
-    - tag_ids (任意): array[integer]
-    - segment_1_tag_id (任意): integer(int64) - セグメント１ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/215225263" target="_blank">グループ管理の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 2147483647) - tag_ids (任意): array[integer] - segment_1_tag_id (任意): integer(int64) - セグメント１ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け プロフェッショナルプラン以上で利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
-    - segment_2_tag_id (任意): integer(int64) - セグメント２ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000) - segment_2_tag_id (任意): integer(int64) - セグメント２ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け エンタープライズプランで利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
-    - segment_3_tag_id (任意): integer(int64) - セグメント３ID<br>
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000) - segment_3_tag_id (任意): integer(int64) - セグメント３ID<br>
 - 取引登録の下書き保存で利用されます。
 - freee会計法人向け エンタープライズプランで利用可能です。
-<br>
-<a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
+  <br>
+  <a href="https://support.freee.co.jp/hc/ja/articles/360020679611" target="_blank">セグメント（分析用タグ）の設定はヘルプページを御覧ください。</a> (最小: 1, 最大: 9223372036854775000)
 
 ### レスポンス (200)
 
@@ -487,8 +474,6 @@ The request has succeeded.
   - template (任意): object - 帳票テンプレート情報（帳票テンプレート作成の際に設定できる項目です。）
   - lines (必須): array[object] - 領収書の明細行
   - report_url (必須): string(uri) - 帳票詳細ページのURL
-
-
 
 ## 参考情報
 

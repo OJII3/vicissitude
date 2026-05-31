@@ -17,45 +17,44 @@
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| company_id | query | はい | integer(int64) | 事業所ID |
-| status | query | いいえ | string | 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し)
-承認者指定時には無効です。 (選択肢: draft, in_progress, approved, rejected, feedback) |
-| application_number | query | いいえ | integer(int64) | 申請No. |
-| title | query | いいえ | string | 申請タイトル |
-| form_id | query | いいえ | integer(int64) | 申請フォームID |
-| start_application_date | query | いいえ | string | 申請日で絞込：開始日(yyyy-mm-dd) |
-| end_application_date | query | いいえ | string | 申請日で絞込：終了日(yyyy-mm-dd) |
-| applicant_id | query | いいえ | integer(int64) | 申請者のユーザーID |
-| min_amount | query | いいえ | integer(int64) | 金額で絞込：以上 |
-| max_amount | query | いいえ | integer(int64) | 金額で絞込：以下 |
-| approver_id | query | いいえ | integer(int64) | 承認者のユーザーID
-承認者指定時には申請ステータスが申請中のものだけが取得可能です。 |
-| offset | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0) |
-| limit | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 500) |
+| 名前                                                                                  | 位置  | 必須   | 型             | 説明                                                                                              |
+| ------------------------------------------------------------------------------------- | ----- | ------ | -------------- | ------------------------------------------------------------------------------------------------- |
+| company_id                                                                            | query | はい   | integer(int64) | 事業所ID                                                                                          |
+| status                                                                                | query | いいえ | string         | 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) |
+| 承認者指定時には無効です。 (選択肢: draft, in_progress, approved, rejected, feedback) |
+| application_number                                                                    | query | いいえ | integer(int64) | 申請No.                                                                                           |
+| title                                                                                 | query | いいえ | string         | 申請タイトル                                                                                      |
+| form_id                                                                               | query | いいえ | integer(int64) | 申請フォームID                                                                                    |
+| start_application_date                                                                | query | いいえ | string         | 申請日で絞込：開始日(yyyy-mm-dd)                                                                  |
+| end_application_date                                                                  | query | いいえ | string         | 申請日で絞込：終了日(yyyy-mm-dd)                                                                  |
+| applicant_id                                                                          | query | いいえ | integer(int64) | 申請者のユーザーID                                                                                |
+| min_amount                                                                            | query | いいえ | integer(int64) | 金額で絞込：以上                                                                                  |
+| max_amount                                                                            | query | いいえ | integer(int64) | 金額で絞込：以下                                                                                  |
+| approver_id                                                                           | query | いいえ | integer(int64) | 承認者のユーザーID                                                                                |
+| 承認者指定時には申請ステータスが申請中のものだけが取得可能です。                      |
+| offset                                                                                | query | いいえ | integer(int64) | 取得レコードのオフセット (デフォルト: 0)                                                          |
+| limit                                                                                 | query | いいえ | integer(int64) | 取得レコードの件数 (デフォルト: 50, 最小: 1, 最大: 500)                                           |
 
 ### レスポンス (200)
 
 - approval_requests (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 各種申請ID 例: `1` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - application_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
-    - title (必須): string - 申請タイトル 例: `大阪出張`
-    - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
-    - application_number (必須): string - 申請No. 例: `2`
-    - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
-    - request_items (必須): array[object] - 各種申請の項目一覧（配列）
-    - form_id (必須): integer(int64) - 申請フォームID 例: `1` (最小: 1)
-    - current_step_id (必須): integer(int64) - 現在承認ステップID 例: `1`
-    - current_round (必須): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
-    - deal_id (必須): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
-    - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
+  - id (必須): integer(int64) - 各種申請ID 例: `1` (最小: 1)
+  - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - application_date (必須): string - 申請日 (yyyy-mm-dd) 例: `2019-12-17`
+  - title (必須): string - 申請タイトル 例: `大阪出張`
+  - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
+  - application_number (必須): string - 申請No. 例: `2`
+  - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
+  - request_items (必須): array[object] - 各種申請の項目一覧（配列）
+  - form_id (必須): integer(int64) - 申請フォームID 例: `1` (最小: 1)
+  - current_step_id (必須): integer(int64) - 現在承認ステップID 例: `1`
+  - current_round (必須): integer(int64) - 現在のround。差し戻し等により申請がstepの最初からやり直しになるとroundの値が増えます。 例: `1` (最小: 0, 最大: 2147483647)
+  - deal_id (必須): integer(int64) - 取引ID (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_idが表示されます) 例: `1` (最小: 1)
+  - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
 
 <a href="https://support.freee.co.jp/hc/ja/articles/115003827683-#5" target="_blank">承認された各種申請から支払依頼等を作成する</a>
- 例: `1` (最小: 1)
-    - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
+例: `1` (最小: 1) - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
 
 ### POST /api/1/approval_requests
 
@@ -70,21 +69,21 @@
 
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - application_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。
+  例: `2019-12-17`
 - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
 - form_id (必須): integer(int64) - 申請フォームID 例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID 例: `1` (最小: 1)
 - draft (必須): boolean - 各種申請のステータス<br>
-falseを指定した時は申請中（in_progress）で各種申請を作成します。<br>
-trueを指定した時は下書き（draft）で各種申請を作成します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で各種申請を作成します。<br>
+  trueを指定した時は下書き（draft）で各種申請を作成します。
+  例: `true`
 - parent_id (任意): integer(int64) - 親申請ID(既存各種申請IDのみ指定可能です。) 例: `2` (最小: 1)
 - request_items (必須): array[object]
   配列の要素:
-    - id (任意): integer(int64) - 項目ID 例: `1` (最小: 1)
-    - type (任意): string - 項目タイプ(title: 申請タイトル, single_line: 自由記述形式 1行, multi_line: 自由記述形式 複数行, select: プルダウン, date: 日付, amount: 金額, receipt: 添付ファイル, section: 部門ID, partner: 取引先ID) (選択肢: title, single_line, multi_line, select, date, amount, receipt, section, partner)
-    - value (任意): string - 項目の値 例: `申請理由`
+  - id (任意): integer(int64) - 項目ID 例: `1` (最小: 1)
+  - type (任意): string - 項目タイプ(title: 申請タイトル, single_line: 自由記述形式 1行, multi_line: 自由記述形式 複数行, select: プルダウン, date: 日付, amount: 金額, receipt: 添付ファイル, section: 部門ID, partner: 取引先ID) (選択肢: title, single_line, multi_line, select, date, amount, receipt, section, partner)
+  - value (任意): string - 項目の値 例: `申請理由`
 
 ### レスポンス (201)
 
@@ -95,10 +94,10 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
   - title (必須): string - 申請タイトル 例: `大阪出張`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
   - request_items (必須): array[object] - 各種申請の項目一覧（配列）
@@ -113,8 +112,9 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
   - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
 
 <a href="https://support.freee.co.jp/hc/ja/articles/115003827683-#5" target="_blank">承認された各種申請から支払依頼等を作成する</a>
- 例: `1` (最小: 1)
-  - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
+例: `1` (最小: 1)
+
+- deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
 
 ### GET /api/1/approval_requests/{id}
 
@@ -127,10 +127,10 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 各種申請ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 各種申請ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (200)
 
@@ -141,10 +141,10 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
   - title (必須): string - 申請タイトル 例: `大阪出張`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
   - request_items (必須): array[object] - 各種申請の項目一覧（配列）
@@ -159,8 +159,9 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
   - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
 
 <a href="https://support.freee.co.jp/hc/ja/articles/115003827683-#5" target="_blank">承認された各種申請から支払依頼等を作成する</a>
- 例: `1` (最小: 1)
-  - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
+例: `1` (最小: 1)
+
+- deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
 
 ### PUT /api/1/approval_requests/{id}
 
@@ -173,9 +174,9 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 各種申請ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 各種申請ID |
 
 ### リクエストボディ
 
@@ -183,19 +184,19 @@ trueを指定した時は下書き（draft）で各種申請を作成します�
 
 - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
 - application_date (任意): string - 申請日 (yyyy-mm-dd)<br>
-指定しない場合は当日の日付が登録されます。
- 例: `2019-12-17`
+  指定しない場合は当日の日付が登録されます。
+  例: `2019-12-17`
 - approval_flow_route_id (必須): integer(int64) - 申請経路ID 例: `1` (最小: 1)
 - approver_id (任意): integer(int64) - 承認者のユーザーID 例: `1` (最小: 1)
 - draft (必須): boolean - 各種申請のステータス<br>
-falseを指定した時は申請中（in_progress）で各種申請を更新します。<br>
-trueを指定した時は下書き（draft）で各種申請を更新します。
- 例: `true`
+  falseを指定した時は申請中（in_progress）で各種申請を更新します。<br>
+  trueを指定した時は下書き（draft）で各種申請を更新します。
+  例: `true`
 - request_items (必須): array[object]
   配列の要素:
-    - id (任意): integer(int64) - 項目ID 例: `1` (最小: 1)
-    - type (任意): string - 項目タイプ(title: 申請タイトル, single_line: 自由記述形式 1行, multi_line: 自由記述形式 複数行, select: プルダウン, date: 日付, amount: 金額, receipt: 添付ファイル, section: 部門ID, partner: 取引先ID) (選択肢: title, single_line, multi_line, select, date, amount, receipt, section, partner)
-    - value (任意): string - 項目の値 例: `申請理由`
+  - id (任意): integer(int64) - 項目ID 例: `1` (最小: 1)
+  - type (任意): string - 項目タイプ(title: 申請タイトル, single_line: 自由記述形式 1行, multi_line: 自由記述形式 複数行, select: プルダウン, date: 日付, amount: 金額, receipt: 添付ファイル, section: 部門ID, partner: 取引先ID) (選択肢: title, single_line, multi_line, select, date, amount, receipt, section, partner)
+  - value (任意): string - 項目の値 例: `申請理由`
 
 ### レスポンス (200)
 
@@ -206,10 +207,10 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
   - title (必須): string - 申請タイトル 例: `大阪出張`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
   - request_items (必須): array[object] - 各種申請の項目一覧（配列）
@@ -224,8 +225,9 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
   - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
 
 <a href="https://support.freee.co.jp/hc/ja/articles/115003827683-#5" target="_blank">承認された各種申請から支払依頼等を作成する</a>
- 例: `1` (最小: 1)
-  - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
+例: `1` (最小: 1)
+
+- deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
 
 ### DELETE /api/1/approval_requests/{id}
 
@@ -238,10 +240,10 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 各種申請ID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明       |
+| ---------- | ----- | ---- | -------------- | ---------- |
+| id         | path  | はい | integer(int64) | 各種申請ID |
+| company_id | query | はい | integer(int64) | 事業所ID   |
 
 ### レスポンス (204)
 
@@ -256,9 +258,9 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 各種申請ID |
+| 名前 | 位置 | 必須 | 型             | 説明       |
+| ---- | ---- | ---- | -------------- | ---------- |
+| id   | path | はい | integer(int64) | 各種申請ID |
 
 ### リクエストボディ
 
@@ -279,10 +281,10 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
   - title (必須): string - 申請タイトル 例: `大阪出張`
   - applicant_id (必須): integer(int64) - 申請者のユーザーID 例: `1` (最小: 1)
   - approvers (必須): array[object] - 承認者（配列）
-  承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
-  しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
-  approversはレスポンスに含まれるようになります。
-  その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
+    承認ステップのresource_typeがunspecified (指定なし)の場合はapproversはレスポンスに含まれません。
+    しかし、resource_typeがunspecifiedの承認ステップにおいて誰かが承認・却下・差し戻しのいずれかのアクションを取った後は、
+    approversはレスポンスに含まれるようになります。
+    その場合approversにはアクションを行ったステップのIDとアクションを行ったユーザーのIDが含まれます。
   - application_number (必須): string - 申請No. 例: `2`
   - status (必須): string - 申請ステータス(draft:下書き, in_progress:申請中, approved:承認済, rejected:却下, feedback:差戻し) (選択肢: draft, in_progress, approved, rejected, feedback) 例: `draft`
   - request_items (必須): array[object] - 各種申請の項目一覧（配列）
@@ -297,8 +299,9 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
   - manual_journal_id (必須): integer(int64) - 振替伝票のID (申請ステータス:statusがapprovedで、関連する振替伝票が存在する時のみmanual_journal_idが表示されます)
 
 <a href="https://support.freee.co.jp/hc/ja/articles/115003827683-#5" target="_blank">承認された各種申請から支払依頼等を作成する</a>
- 例: `1` (最小: 1)
-  - deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
+例: `1` (最小: 1)
+
+- deal_status (必須): string - 取引ステータス (申請ステータス:statusがapprovedで、取引が存在する時のみdeal_statusが表示されます settled:決済済み, unsettled:未決済) (選択肢: settled, unsettled) 例: `settled`
 
 ### GET /api/1/approval_requests/forms
 
@@ -308,22 +311,22 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
+| 名前       | 位置  | 必須 | 型             | 説明     |
+| ---------- | ----- | ---- | -------------- | -------- |
 | company_id | query | はい | integer(int64) | 事業所ID |
 
 ### レスポンス (200)
 
 - approval_request_forms (必須): array[object]
   配列の要素:
-    - id (必須): integer(int64) - 申請フォームID 例: `1` (最小: 1)
-    - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
-    - name (必須): string - 申請フォームの名前 例: `申請フォームの名前`
-    - description (必須): string - 申請フォームの説明 例: `申請フォームの説明`
-    - status (必須): string - ステータス(draft: 申請で使用しない、active: 申請で使用する) (選択肢: draft, active) 例: `active`
-    - created_date (必須): string - 作成日時 例: `2019-12-17T13:47:24+09:00`
-    - form_order (必須): integer(int64) - 表示順（申請者が選択する申請フォームの表示順を設定できます。小さい数ほど上位に表示されます。（0を除く整数のみ。マイナス不可）未入力の場合、表示順が後ろになります。同じ数字が入力された場合、登録順で表示されます。） 例: `1` (最小: 1, 最大: 1000)
-    - route_setting_count (必須): integer(int64) - 適用された経路数（ユーザーが利用できない経路を除く） 例: `1` (最小: 0, 最大: 2147483647)
+  - id (必須): integer(int64) - 申請フォームID 例: `1` (最小: 1)
+  - company_id (必須): integer(int64) - 事業所ID 例: `1` (最小: 1)
+  - name (必須): string - 申請フォームの名前 例: `申請フォームの名前`
+  - description (必須): string - 申請フォームの説明 例: `申請フォームの説明`
+  - status (必須): string - ステータス(draft: 申請で使用しない、active: 申請で使用する) (選択肢: draft, active) 例: `active`
+  - created_date (必須): string - 作成日時 例: `2019-12-17T13:47:24+09:00`
+  - form_order (必須): integer(int64) - 表示順（申請者が選択する申請フォームの表示順を設定できます。小さい数ほど上位に表示されます。（0を除く整数のみ。マイナス不可）未入力の場合、表示順が後ろになります。同じ数字が入力された場合、登録順で表示されます。） 例: `1` (最小: 1, 最大: 1000)
+  - route_setting_count (必須): integer(int64) - 適用された経路数（ユーザーが利用できない経路を除く） 例: `1` (最小: 0, 最大: 2147483647)
 
 ### GET /api/1/approval_requests/forms/{id}
 
@@ -333,10 +336,10 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
 
 ### パラメータ
 
-| 名前 | 位置 | 必須 | 型 | 説明 |
-|------|------|------|-----|------|
-| id | path | はい | integer(int64) | 申請フォームID |
-| company_id | query | はい | integer(int64) | 事業所ID |
+| 名前       | 位置  | 必須 | 型             | 説明           |
+| ---------- | ----- | ---- | -------------- | -------------- |
+| id         | path  | はい | integer(int64) | 申請フォームID |
+| company_id | query | はい | integer(int64) | 事業所ID       |
 
 ### レスポンス (200)
 
@@ -350,8 +353,6 @@ trueを指定した時は下書き（draft）で各種申請を更新します�
   - form_order (必須): integer(int64) - 表示順（申請者が選択する申請フォームの表示順を設定できます。小さい数ほど上位に表示されます。（0を除く整数のみ。マイナス不可）未入力の場合、表示順が後ろになります。同じ数字が入力された場合、登録順で表示されます。） 例: `1` (最小: 1, 最大: 1000)
   - parts (任意): array[object] - 申請フォームの項目
   - route_setting_count (必須): integer(int64) - 適用された経路数（ユーザーが利用できない経路を除く） 例: `1` (最小: 0, 最大: 2147483647)
-
-
 
 ## 参考情報
 

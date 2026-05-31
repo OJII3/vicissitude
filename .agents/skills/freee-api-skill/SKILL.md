@@ -96,13 +96,13 @@ API 呼び出し:
 
 serviceパラメータ (必須):
 
-| service | 説明 | パス例 |
-|---------|------|--------|
-| `accounting` | freee会計 (取引、勘定科目、取引先など) | `/api/1/deals` |
-| `hr` | freee人事労務 (従業員、勤怠など) | `/api/v1/employees` |
-| `invoice` | freee請求書 (請求書、見積書、納品書) | `/invoices` |
-| `pm` | freee工数管理 (プロジェクト、工数など) | `/projects` |
-| `sm` | freee販売 (見積、受注、売上など) | `/businesses` |
+| service      | 説明                                   | パス例              |
+| ------------ | -------------------------------------- | ------------------- |
+| `accounting` | freee会計 (取引、勘定科目、取引先など) | `/api/1/deals`      |
+| `hr`         | freee人事労務 (従業員、勤怠など)       | `/api/v1/employees` |
+| `invoice`    | freee請求書 (請求書、見積書、納品書)   | `/invoices`         |
+| `pm`         | freee工数管理 (プロジェクト、工数など) | `/projects`         |
+| `sm`         | freee販売 (見積、受注、売上など)       | `/businesses`       |
 
 ### 基本ワークフロー
 
@@ -117,6 +117,7 @@ serviceパラメータ (必須):
 4. API を呼び出す: `freee_api_*` ツールを使用（company_id が必要なエンドポイントでは手順1で取得した値を使う）
 
 注意:
+
 - `company_id` は現在設定されている事業所と一致している必要がある。不一致の場合はエラーになる
 - 事業所を変更する場合: 先に `freee_set_current_company` で切り替えてからリクエストを実行
 
