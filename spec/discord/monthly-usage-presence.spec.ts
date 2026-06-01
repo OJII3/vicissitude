@@ -44,6 +44,21 @@ INSERT INTO session VALUES ('next', 99, 1711929600000);
 		expect(readCurrentMonthCost(dbPath, new Date("2024-03-15T00:00:00.000Z"))).toBe(15.25);
 	});
 
+	it("OpenCode v1.15.5 の time_created で current month の session.cost を合計する", () => {
+		const dbPath = createDb(
+			"opencode-time-created.db",
+			`
+CREATE TABLE session (id TEXT PRIMARY KEY, cost REAL NOT NULL DEFAULT 0, time_created INTEGER NOT NULL, time_updated INTEGER NOT NULL);
+INSERT INTO session VALUES ('prev', 12.5, 1706745600000, 1706745600000);
+INSERT INTO session VALUES ('current-1', 10, 1709251200000, 1709251200000);
+INSERT INTO session VALUES ('current-2', 5.25, 1711843200000, 1711843200000);
+INSERT INTO session VALUES ('next', 99, 1711929600000, 1711929600000);
+`,
+		);
+
+		expect(readCurrentMonthCost(dbPath, new Date("2024-03-15T00:00:00.000Z"))).toBe(15.25);
+	});
+
 	it("current month の session.cost だけを合計する（ISO text）", () => {
 		const dbPath = createDb(
 			"iso.db",
