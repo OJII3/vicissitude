@@ -103,6 +103,8 @@ function getTableColumns(db: Database, tableName: string): SqliteColumnInfo[] {
 
 function selectDateColumn(columns: SqliteColumnInfo[]): SqliteColumnInfo | undefined {
 	const candidates = [
+		"time_created",
+		"time_updated",
 		"created_at",
 		"createdAt",
 		"updated_at",
