@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>dev.ojii3.vicissitude.bot</string>
+	<key>KeepAlive</key>
+	<true/>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/.local/bin/vicissitude-bot</string>
+	</array>
+	<key>StandardOutPath</key>
+	<string>__HOME__/.local/share/vicissitude/logs/bot.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/.local/share/vicissitude/logs/bot.log</string>
+</dict>
+</plist>

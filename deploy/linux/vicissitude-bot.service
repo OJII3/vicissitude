@@ -1,0 +1,13 @@
+[Unit]
+Description=Vicissitude Discord Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/vicissitude-bot
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
