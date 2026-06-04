@@ -6,6 +6,7 @@ import { join, resolve } from "path";
 import {
 	formatUsagePercentage,
 	readCurrentMonthCost,
+	resolveDefaultOpencodeDbPath,
 } from "../../apps/discord/src/monthly-usage-presence.ts";
 
 const tempDir = resolve(".tmp/monthly-usage-presence-spec");
@@ -76,5 +77,22 @@ INSERT INTO session VALUES ('next', 99, '2024-04-01T00:00:00.000Z');
 	it("usage percentage は低い値だけ小数 1 桁で表示する", () => {
 		expect(formatUsagePercentage(8.75)).toBe("8.8%");
 		expect(formatUsagePercentage(12.3)).toBe("12%");
+	});
+
+	it("OpenCode DB の既定 path は XDG_DATA_HOME を優先する", () => {
+		expect(
+			resolveDefaultOpencodeDbPath({
+				XDG_DATA_HOME: "/tmp/xdg-data",
+				HOME: "/tmp/home",
+			} as NodeJS.ProcessEnv),
+		).toBe("/tmp/xdg-data/opencode/opencode.db");
+	});
+
+	it("XDG_DATA_HOME が無ければ HOME 配下の .local/share を使う", () => {
+		expect(
+			resolveDefaultOpencodeDbPath({
+				HOME: "/tmp/home",
+			} as NodeJS.ProcessEnv),
+		).toBe("/tmp/home/.local/share/opencode/opencode.db");
 	});
 });
