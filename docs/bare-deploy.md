@@ -2,14 +2,14 @@
 
 ## 方針
 
-Podman compose を使わず、単一ホスト上で Vicissitude を常駐させるための運用を定義する。
+Podman compose を使わず、単一ホスト上で Vicissitude をそのまま動かすための運用を定義する。
 
 - 実行環境の固定: `flake.nix`
-- プロセス管理: Linux は systemd user service、macOS は LaunchAgent
+- プロセス起動: `nix run`
 - mutable state / auth: ホスト側の XDG path
-- 再デプロイ対象: repo checkout と build artifact
+- 再現したいもの: repo checkout、generated config、web build artifact
 
-コンテナが担っていた「再現性」と「state の分離」を、Nix とディレクトリ設計へ移す。
+bare deploy の正本は service manager ではなく Nix app に置く。`nix run .#vicissitude` が Ollama 起動、bare deploy 用 config 生成、bot 起動までをまとめて行う。
 
 ## ディレクトリ境界
 
@@ -20,82 +20,63 @@ Podman compose を使わず、単一ホスト上で Vicissitude を常駐させ�
 - `config/*.json`
 - `opencode.json`
 - runtime skill 定義
-- `deploy/`
+- `flake.nix`
 
 ### Mutable
 
 - `data/`
 - `apps/web/dist`
-- `~/.config/vicissitude/secrets.env`
-- `~/.config/vicissitude/runtime.env`
+- `~/.config/vicissitude/config.json`
 - `~/.config/opencode/opencode.json`
 - `~/.local/share/opencode/auth.json`
 - `~/.local/share/opencode/mcp-auth.json`
 
-`deploy` は `~/.config/opencode` や `~/.local/share/opencode` を作り直さない。初回認証後は service restart / update 後もそのまま維持する。
+認証ファイルと OpenCode state は repo 外に置き、`nix run` を繰り返しても維持する。
 
 ## 起動構成
 
-bare deploy ではプロセスを 2 つに分ける。
+bare deploy の基本コマンドは 2 つだけ。
 
-- `vicissitude-bot`: Discord bot 本体と gateway
-- `vicissitude-web`: `apps/web/dist` の静的配信
+- `nix run .#vicissitude`
+  - `config/default.json` を元に `~/.config/vicissitude/config.json` を生成
+  - `models.memory.ollamaBaseUrl` を `http://127.0.0.1:11434` へ差し替える
+  - `ollama serve` を子プロセスとして起動する
+  - Ollama の readiness を待ち、必要なら embedding model を pull する
+  - Discord bot を起動する
+- `nix run .#vicissitude-web`
+  - `apps/web/dist` を静的配信する
 
-`bot` は `nix run .#vicissitude`、`web` は `nix run .#vicissitude-web` を使う。Linux では headless GL 用に必要なら `Xvfb` を自動起動する。
+`nix run .#vicissitude` は `ollama` の起動失敗や readiness timeout をエラーとして扱い、その場合 bot は起動しない。
 
 ## セットアップ
 
-### Linux
+最初に依存と build を揃える。
 
 ```bash
-nix run .#install-linux
+nix run .#vicissitude-validate
+nix run .#vicissitude-build-web
 ```
 
-これにより以下を行う。
-
-- `~/.config/vicissitude/runtime.env` を生成
-- `~/.local/bin/vicissitude-{bot,web,update}` を作成
-- `~/.config/systemd/user/vicissitude-{bot,web}.service` を配置
-- `bun install --frozen-lockfile` を Nix runtime 上で実行
-- `nr validate` と `nr build:web` 相当を Nix 経由で実行
-- user service を `enable --now`
-
-ログアウト後も常駐させるには、必要に応じて別途 `sudo loginctl enable-linger <user>` を実行する。
-
-### macOS
+その後、必要なプロセスを起動する。
 
 ```bash
-nix run .#install-macos
+nix run .#vicissitude
+nix run .#vicissitude-web
 ```
 
-これにより以下を行う。
+常駐管理は repo では持たない。必要なら `tmux` や手元の process manager で包むが、Vicissitude 自体の正本はあくまで上の Nix app とする。
 
-- `~/.config/vicissitude/runtime.env` を生成
-- `~/.local/bin/vicissitude-{bot,web,update}` を作成
-- `~/Library/LaunchAgents/dev.ojii3.vicissitude.{bot,web}.plist` を配置
-- `bun install --frozen-lockfile` を Nix runtime 上で実行
-- `nr validate` と `nr build:web` 相当を Nix 経由で実行
-- LaunchAgent を `bootstrap` / `kickstart`
+## カスタマイズ
 
-## 更新
+bare deploy では次の env を読める。
 
-```bash
-~/.local/bin/vicissitude-update
-```
-
-update は次を行う。
-
-1. `main` ブランチかつ clean worktree であることを確認
-2. `git fetch` + `git pull --ff-only`
-3. `bun install --frozen-lockfile` を含む `nix run .#vicissitude-validate`
-4. `bun install --frozen-lockfile` を含む `nix run .#vicissitude-build-web`
-5. 既存 service を restart
-
-認証ファイルと `data/` は更新対象に含めない。
+- `VICISSITUDE_SOURCE_CONFIG_PATH`: 元になる profile。既定値は `config/default.json`
+- `VICISSITUDE_CONFIG_PATH`: 生成先 profile。既定値は `~/.config/vicissitude/config.json`
+- `VICISSITUDE_OLLAMA_BASE_URL`: bot が参照する Ollama base URL。既定値は `http://127.0.0.1:11434`
+- `OLLAMA_HOST`: `ollama serve` が listen する host:port。既定値は `VICISSITUDE_OLLAMA_BASE_URL` から導出
+- `VICISSITUDE_WAIT_FOR_OLLAMA_SECONDS`: readiness timeout 秒数。既定値は `60`
+- `XDG_CONFIG_HOME`, `XDG_DATA_HOME`: state / auth の配置先
 
 ## Shell Workspace について
 
-`features.shellWorkspace` は現在も Podman 前提である。Linux では Nix runtime に `podman` を含めるが、macOS では自動セットアップしない。
-
-- Linux: profile を有効化できる
-- macOS: `features.shellWorkspace` を無効化するか、別途 Podman 実行環境を用意する
+`features.shellWorkspace` は現在も Podman 前提である。bare deploy で bot を直接起動しても、この feature を使うなら Podman 実行環境は別途必要になる。

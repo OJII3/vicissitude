@@ -22,17 +22,18 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 Nix ベースの bare deploy では、state と auth を XDG path に置く。
 
-- `~/.config/vicissitude/runtime.env`: service wrapper が使う runtime 設定
-- `~/.config/vicissitude/secrets.env`: secret env
+- `~/.config/vicissitude/config.json`: bare deploy 用に生成される実行 profile
 - `~/.config/opencode/opencode.json`: OpenCode user config
 - `~/.local/share/opencode/auth.json`: OpenCode auth
 - `~/.local/share/opencode/mcp-auth.json`: MCP auth
 
-`deploy/common/update.sh` はこれらのファイルを上書きせず、repo checkout と `apps/web/dist` だけを更新する。
+`~/.config/vicissitude/config.json` は `config/default.json` を元に生成され、bare deploy では `models.memory.ollamaBaseUrl` と、必要なら `features.emotionEstimation.ollamaBaseUrl` を `http://127.0.0.1:11434` へ差し替える。
+
+secret は service 専用ファイルへ寄せず、`nix run .#vicissitude` を起動するシェル環境から渡す。
 
 ## 形式
 
-profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。`loadConfig` は profile を必須とし、旧 env 由来の非 secret 設定は読み込まない。
+profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。bare deploy では `nix run .#vicissitude` が起動前に `~/.config/vicissitude/config.json` を再生成してそれを参照する。`loadConfig` は profile を必須とし、旧 env 由来の非 secret 設定は読み込まない。
 
 disabled feature は key ごと省略する。`enabled: false`、`null`、空文字の placeholder は書かない。enabled feature は必要な値をすべて同じ section に置き、profile 内に「書いても書かなくてもよい」任意値は増やさない。
 

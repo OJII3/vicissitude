@@ -59,6 +59,7 @@
             jq
             nodejs-slim
             opencode
+            ollama
             git
             gh
             ripgrep
@@ -113,15 +114,7 @@
               '';
             };
           botApp = makeRepoShellApp "vicissitude-bot" ''
-            if [ "$(uname -s)" = "Linux" ] && [ -z "''${DISPLAY:-}" ] && command -v Xvfb >/dev/null 2>&1; then
-              XVFB_DISPLAY="''${XVFB_DISPLAY:-:99}"
-              Xvfb "$XVFB_DISPLAY" -screen 0 1280x720x24 >/tmp/vicissitude-xvfb.log 2>&1 &
-              xvfb_pid=$!
-              trap 'kill "$xvfb_pid" >/dev/null 2>&1 || true' EXIT INT TERM
-              export DISPLAY="$XVFB_DISPLAY"
-            fi
-
-            exec nr start "$@"
+            exec nr start:bare "$@"
           '';
           webApp = makeRepoShellApp "vicissitude-web" ''
             exec nr start:web "$@"
@@ -134,15 +127,6 @@
             bun install --frozen-lockfile
             exec nr validate "$@"
           '';
-          installLinuxApp = makeRepoShellApp "install-linux" ''
-            exec ./deploy/linux/install.sh "$@"
-          '';
-          installMacosApp = makeRepoShellApp "install-macos" ''
-            exec ./deploy/macos/install.sh "$@"
-          '';
-          updateApp = makeRepoShellApp "vicissitude-update" ''
-            exec ./deploy/common/update.sh "$@"
-          '';
         in
         {
           packages = {
@@ -152,9 +136,6 @@
               webApp
               buildWebApp
               validateApp
-              installLinuxApp
-              installMacosApp
-              updateApp
               ;
           };
 
@@ -162,7 +143,7 @@
             vicissitude = {
               type = "app";
               program = "${botApp}/bin/vicissitude-bot";
-              meta.description = "Run the Vicissitude Discord bot on bare metal";
+              meta.description = "Run the Vicissitude Discord bot with an embedded Ollama runtime";
             };
             vicissitude-web = {
               type = "app";
@@ -178,21 +159,6 @@
               type = "app";
               program = "${validateApp}/bin/vicissitude-validate";
               meta.description = "Validate the Vicissitude workspace under the Nix runtime";
-            };
-            install-linux = {
-              type = "app";
-              program = "${installLinuxApp}/bin/install-linux";
-              meta.description = "Install Vicissitude bare deploy as systemd user services";
-            };
-            install-macos = {
-              type = "app";
-              program = "${installMacosApp}/bin/install-macos";
-              meta.description = "Install Vicissitude bare deploy as LaunchAgents";
-            };
-            vicissitude-update = {
-              type = "app";
-              program = "${updateApp}/bin/vicissitude-update";
-              meta.description = "Update a bare-metal Vicissitude checkout and restart services";
             };
           };
 

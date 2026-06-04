@@ -10,10 +10,12 @@
 	"scripts": {
 		"postinstall": "bun scripts/link-workspaces.ts",
 		"start": "VICISSITUDE_CONFIG_PATH=${VICISSITUDE_CONFIG_PATH:-config/default.json} bun run apps/discord/src/index.ts",
+		"start:bare": "bun scripts/run-bare-bot.ts",
 		"start:web": "WEB_DIST_DIR=${WEB_DIST_DIR:-apps/web/dist} bun run scripts/serve-web.ts",
 		"dev": "VICISSITUDE_CONFIG_PATH=${VICISSITUDE_CONFIG_PATH:-config/default.json} bun --watch run apps/discord/src/index.ts",
 		"generate:routes": "cd apps/web && bunx @tanstack/router-cli generate",
 		"build:web": "cd apps/web && TANSTACK_ROUTE_GENERATION=false bun run build",
+		"prepare:bare-config": "bun scripts/prepare-bare-config.ts",
 		"check": "bun run generate:routes && tsgo --noEmit",
 		"lint": "oxlint --type-aware",
 		"lint:fix": "oxlint --type-aware --fix",
