@@ -18,6 +18,18 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 `nr deploy` は `apps/web` も compose スタック内で扱う。`installer` は Web UI の Vite build に必要な devDependencies も含めて依存関係を解決し、`builder` は bot/MCP の Bun bundle に加えて `apps/web` を build する。Web build 成果物は `web-dist` volume に出力し、`web` サービスが `WEB_PORT`（既定値 `4000`）で静的配信する。
 
+## Bare Deploy 時の state / auth
+
+Nix ベースの bare deploy では、state と auth を XDG path に置く。
+
+- `~/.config/vicissitude/runtime.env`: service wrapper が使う runtime 設定
+- `~/.config/vicissitude/secrets.env`: secret env
+- `~/.config/opencode/opencode.json`: OpenCode user config
+- `~/.local/share/opencode/auth.json`: OpenCode auth
+- `~/.local/share/opencode/mcp-auth.json`: MCP auth
+
+`deploy/common/update.sh` はこれらのファイルを上書きせず、repo checkout と `apps/web/dist` だけを更新する。
+
 ## 形式
 
 profile は `config/*.json` に置き、起動時に `VICISSITUDE_CONFIG_PATH=config/default.json` のように指定する。`loadConfig` は profile を必須とし、旧 env 由来の非 secret 設定は読み込まない。
