@@ -17,6 +17,9 @@ SECRETS_ENV="${CONFIG_DIR}/secrets.env"
 BOT_PLIST="${LAUNCH_AGENTS_DIR}/dev.ojii3.vicissitude.bot.plist"
 WEB_PLIST="${LAUNCH_AGENTS_DIR}/dev.ojii3.vicissitude.web.plist"
 
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/deploy/common/nix.sh"
+
 mkdir -p "$CONFIG_DIR" "$LAUNCH_AGENTS_DIR" "$BIN_DIR" "$DATA_DIR/logs"
 
 cat >"$RUNTIME_ENV" <<EOF
@@ -52,8 +55,9 @@ sed \
 	"${REPO_ROOT}/deploy/macos/dev.ojii3.vicissitude.web.plist.template" >"$WEB_PLIST"
 
 cd "$REPO_ROOT"
-nix run .#vicissitude-validate
-nix run .#vicissitude-build-web
+NIX_BIN="$(vicissitude_require_nix)"
+"$NIX_BIN" run .#vicissitude-validate
+"$NIX_BIN" run .#vicissitude-build-web
 
 uid="$(id -u)"
 launchctl bootout "gui/${uid}" "$BOT_PLIST" >/dev/null 2>&1 || true

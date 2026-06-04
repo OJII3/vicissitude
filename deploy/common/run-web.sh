@@ -6,6 +6,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 RUNTIME_ENV="${HOME}/.config/vicissitude/runtime.env"
 SECRETS_ENV="${HOME}/.config/vicissitude/secrets.env"
 
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/nix.sh"
+
 if [[ -f "$RUNTIME_ENV" ]]; then
 	set -a
 	# shellcheck disable=SC1090
@@ -29,8 +32,9 @@ fi
 mkdir -p "$XDG_CONFIG_HOME/vicissitude" "$XDG_DATA_HOME/vicissitude"
 
 cd "$APP_ROOT"
+NIX_BIN="$(vicissitude_require_nix)"
 if [[ ! -f "$WEB_DIST_DIR/index.html" ]]; then
-	nix run .#vicissitude-build-web
+	"$NIX_BIN" run .#vicissitude-build-web
 fi
 
-exec nix run .#vicissitude-web -- "$@"
+exec "$NIX_BIN" run .#vicissitude-web -- "$@"

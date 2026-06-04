@@ -6,6 +6,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 RUNTIME_ENV="${HOME}/.config/vicissitude/runtime.env"
 SECRETS_ENV="${HOME}/.config/vicissitude/secrets.env"
 
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/nix.sh"
+
 if [[ -f "$RUNTIME_ENV" ]]; then
 	set -a
 	# shellcheck disable=SC1090
@@ -32,4 +35,5 @@ mkdir -p \
 	"$APP_ROOT/data"
 
 cd "$APP_ROOT"
-exec nix run .#vicissitude -- "$@"
+NIX_BIN="$(vicissitude_require_nix)"
+exec "$NIX_BIN" run .#vicissitude -- "$@"

@@ -6,6 +6,9 @@ REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 RUNTIME_ENV="${HOME}/.config/vicissitude/runtime.env"
 SECRETS_ENV="${HOME}/.config/vicissitude/secrets.env"
 
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/nix.sh"
+
 if [[ -f "$RUNTIME_ENV" ]]; then
 	set -a
 	# shellcheck disable=SC1090
@@ -27,6 +30,7 @@ if [[ -f "$SECRETS_ENV" ]]; then
 fi
 
 cd "$APP_ROOT"
+NIX_BIN="$(vicissitude_require_nix)"
 
 branch="$(git branch --show-current)"
 if [[ "$branch" != "main" ]]; then
@@ -43,8 +47,8 @@ fi
 git fetch origin refs/heads/main:refs/remotes/origin/main
 git pull --ff-only origin main
 
-nix run .#vicissitude-validate
-nix run .#vicissitude-build-web
+"$NIX_BIN" run .#vicissitude-validate
+"$NIX_BIN" run .#vicissitude-build-web
 
 if command -v systemctl >/dev/null 2>&1 && systemctl --user list-unit-files >/dev/null 2>&1; then
 	systemctl --user restart vicissitude-web.service vicissitude-bot.service

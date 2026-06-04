@@ -15,6 +15,9 @@ DATA_DIR="${HOME}/.local/share/vicissitude"
 RUNTIME_ENV="${CONFIG_DIR}/runtime.env"
 SECRETS_ENV="${CONFIG_DIR}/secrets.env"
 
+# shellcheck disable=SC1091
+source "${REPO_ROOT}/deploy/common/nix.sh"
+
 mkdir -p "$CONFIG_DIR" "$SYSTEMD_USER_DIR" "$BIN_DIR" "$DATA_DIR"
 
 cat >"$RUNTIME_ENV" <<EOF
@@ -46,8 +49,9 @@ install -m 0644 "${REPO_ROOT}/deploy/linux/vicissitude-bot.service" "${SYSTEMD_U
 install -m 0644 "${REPO_ROOT}/deploy/linux/vicissitude-web.service" "${SYSTEMD_USER_DIR}/vicissitude-web.service"
 
 cd "$REPO_ROOT"
-nix run .#vicissitude-validate
-nix run .#vicissitude-build-web
+NIX_BIN="$(vicissitude_require_nix)"
+"$NIX_BIN" run .#vicissitude-validate
+"$NIX_BIN" run .#vicissitude-build-web
 
 systemctl --user daemon-reload
 systemctl --user enable --now vicissitude-bot.service vicissitude-web.service
