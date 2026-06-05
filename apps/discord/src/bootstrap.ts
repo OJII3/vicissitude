@@ -739,7 +739,7 @@ async function startMinecraftMcp(
 	if (config.minecraft.profilesFolder) mcEnv.MC_PROFILES_FOLDER = config.minecraft.profilesFolder;
 
 	const mcProcess = spawn({
-		cmd: ["bun", "run", resolve(root, "dist/minecraft-server.js")],
+		cmd: ["bun", "run", resolve(root, "packages/minecraft/src/server.ts")],
 		env: mcEnv,
 		stdout: "inherit",
 		stderr: "inherit",

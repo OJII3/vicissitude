@@ -35,6 +35,11 @@ export interface DiscordMcpConfigOptions {
 	environment: Record<string, string>;
 }
 
+function localBunCommand(appRoot: string, relativePath: string): [string, string, string] {
+	const entrypoint = String(resolve(appRoot, relativePath));
+	return ["bun", "run", entrypoint];
+}
+
 /**
  * MCP サーバー設定を返す。
  *
@@ -48,7 +53,7 @@ export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
 	const configs: Record<string, McpServerConfig> = {
 		core: {
 			type: "local",
-			command: ["bun", "run", resolve(appRoot, "dist/core-server.js")],
+			command: localBunCommand(appRoot, "packages/mcp/src/core-server.ts"),
 			environment: {
 				...coreEnvironment,
 				AGENT_ID: agentId,
@@ -59,7 +64,7 @@ export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
 	if (opts.discord) {
 		configs.discord = {
 			type: "local",
-			command: ["bun", "run", resolve(appRoot, "dist/discord-server.js")],
+			command: localBunCommand(appRoot, "packages/mcp/src/discord-server.ts"),
 			environment: {
 				...opts.discord.environment,
 				AGENT_ID: agentId,
@@ -73,7 +78,7 @@ export function mcpServerConfigs(agentId: string, opts: McpConfigOptions) {
 		}
 		configs["shell-workspace"] = {
 			type: "local",
-			command: ["bun", "run", resolve(appRoot, "dist/shell-workspace-server.js")],
+			command: localBunCommand(appRoot, "packages/mcp/src/shell-workspace-server.ts"),
 			environment: buildShellWorkspaceEnvironment(agentId, opts.shellWorkspace),
 		};
 	}
@@ -133,7 +138,7 @@ export function mcpMinecraftConfigs(
 	const configs: Record<string, McpServerConfig> = {
 		"mc-bridge": {
 			type: "local",
-			command: ["bun", "run", resolve(appRoot, "dist/mc-bridge-server.js")],
+			command: localBunCommand(appRoot, "packages/minecraft/src/mc-bridge-server.ts"),
 			environment: {
 				DATA_DIR: resolve(appRoot, "data"),
 			},
