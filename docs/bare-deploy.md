@@ -26,6 +26,7 @@ bare deploy の正本は service manager ではなく Nix app と TypeScript の
 
 - `data/`
 - `apps/web/dist`
+- `data/context/runtime.json`
 - `~/.config/vicissitude/config.json`
 - `~/.config/opencode/opencode.json`
 - `~/.local/share/opencode/auth.json`

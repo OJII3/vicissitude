@@ -28,10 +28,13 @@ Nix ベースの bare deploy では、state と auth を XDG path に置く。
 - `~/.local/share/opencode/mcp-auth.json`: MCP auth
 - `~/.local/share/vicissitude/bare-instance/state.json`: 1 インスタンス運用の状態
 - `~/.local/share/vicissitude/logs/bare.log`: background 起動時のログ
+- `data/context/runtime.json`: この checkout 固有の local overlay。Git 管理しない
 
 `~/.config/vicissitude/config.json` は `config/default.json` を元に生成され、bare deploy では `models.memory.ollamaBaseUrl` と、必要なら `features.emotionEstimation.ollamaBaseUrl` を `http://127.0.0.1:11434` へ差し替える。
 
 secret は service 専用ファイルへ寄せず、`nix run .#vicissitude` を起動するシェル環境から渡す。
+
+`data/context/runtime.json` は `data/context` オーバーレイの一部として扱い、現在は `discordDm.allowedUserIds` を local-only に上書きできる。DM 許可ユーザーのような「このマシンでは有効だがコミットしたくない」設定はここに置く。
 
 ## 形式
 

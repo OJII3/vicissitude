@@ -114,6 +114,7 @@ OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を
 ### 3.5 コンテキスト管理
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
+- `data/context/runtime.json` は local-only の運用オーバーレイ。現在は `discordDm.allowedUserIds` をここから上書きできる。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md`
 - capability 連動ツール説明: Shell workspace は `context/skills/discord/delegate-to-shell-worker/SKILL.md`、スキル追加オーケストレーションは `context/skills/discord/self-update/SKILL.md`、Discord 側 Minecraft 委譲は `context/skills/discord/minecraft/SKILL.md`、Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-playbook/SKILL.md` として管理し、該当 session で必要な skill だけを許可する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。

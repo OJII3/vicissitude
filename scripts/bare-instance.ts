@@ -77,6 +77,23 @@ export function isPidRunning(pid: number): boolean {
 	}
 }
 
+function signalBareInstanceProcessGroup(pid: number, signal: NodeJS.Signals): void {
+	try {
+		process.kill(-pid, signal);
+	} catch (error) {
+		if (
+			error &&
+			typeof error === "object" &&
+			"code" in error &&
+			(error.code === "ESRCH" || error.code === "EINVAL")
+		) {
+			process.kill(pid, signal);
+			return;
+		}
+		throw error;
+	}
+}
+
 export function readBareInstanceState(paths: BareControlPaths): BareInstanceState | null {
 	if (!existsSync(paths.stateFile)) return null;
 	const content = readFileSync(paths.stateFile, "utf8");
@@ -230,14 +247,14 @@ export async function stopBareInstance(env: NodeJS.ProcessEnv = process.env): Pr
 		return 0;
 	}
 
-	process.kill(state.pid, "SIGTERM");
+	signalBareInstanceProcessGroup(state.pid, "SIGTERM");
 	if (await waitForBareInstanceState(paths, "stopped", 10_000)) {
 		clearBareInstanceFiles(paths);
 		console.log(`[bare-instance] stopped (pid: ${String(state.pid)})`);
 		return 0;
 	}
 
-	process.kill(state.pid, "SIGKILL");
+	signalBareInstanceProcessGroup(state.pid, "SIGKILL");
 	await Bun.sleep(500);
 	clearBareInstanceFiles(paths);
 	console.log(`[bare-instance] killed (pid: ${String(state.pid)})`);
