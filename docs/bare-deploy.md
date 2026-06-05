@@ -9,7 +9,7 @@ Podman compose を使わず、単一ホスト上で Vicissitude をそのまま�
 - mutable state / auth: ホスト側の XDG path
 - 再現したいもの: repo checkout、generated config、web build artifact
 
-bare deploy の正本は service manager ではなく Nix app に置く。`nix run .#vicissitude` が Ollama 起動、bare deploy 用 config 生成、bot 起動までをまとめて行う。
+bare deploy の正本は service manager ではなく Nix app と TypeScript の管理コマンドに置く。foreground 実行は `nix run .#vicissitude`、普段の 1 インスタンス運用は `start/stop/status/restart` コマンド群で扱う。
 
 ## ディレクトリ境界
 
@@ -35,7 +35,7 @@ bare deploy の正本は service manager ではなく Nix app に置く。`nix r
 
 ## 起動構成
 
-bare deploy の基本コマンドは 2 つだけ。
+bare deploy の基本コマンドは次の通り。
 
 - `nix run .#vicissitude`
   - `config/default.json` を元に `~/.config/vicissitude/config.json` を生成
@@ -43,10 +43,19 @@ bare deploy の基本コマンドは 2 つだけ。
   - `ollama serve` を子プロセスとして起動する
   - Ollama の readiness を待ち、必要なら embedding model を pull する
   - Discord bot を起動する
+- `nix run .#vicissitude-start`
+  - bare instance をバックグラウンド起動する
+  - すでに同一 instance が動いていれば多重起動せず、そのまま終了する
+- `nix run .#vicissitude-stop`
+  - bare instance を停止する
+- `nix run .#vicissitude-status`
+  - bare instance の状態と pid / log path を表示する
+- `nix run .#vicissitude-restart`
+  - bare instance を再起動する
 - `nix run .#vicissitude-web`
   - `apps/web/dist` を静的配信する
 
-`nix run .#vicissitude` は `ollama` の起動失敗や readiness timeout をエラーとして扱い、その場合 bot は起動しない。
+`nix run .#vicissitude` と `nix run .#vicissitude-start` は 1 インスタンス制御を共有する。既存 instance が動作中なら 2 個目は起動しない。`ollama` の起動失敗や readiness timeout はエラーとして扱い、その場合 bot は起動しない。
 
 ## セットアップ
 
@@ -57,14 +66,23 @@ nix run .#vicissitude-validate
 nix run .#vicissitude-build-web
 ```
 
-その後、必要なプロセスを起動する。
+その後、通常運用では bot を background 起動する。
 
 ```bash
-nix run .#vicissitude
+nix run .#vicissitude-start
 nix run .#vicissitude-web
 ```
 
-常駐管理は repo では持たない。必要なら `tmux` や手元の process manager で包むが、Vicissitude 自体の正本はあくまで上の Nix app とする。
+状態確認と停止は次を使う。
+
+```bash
+nix run .#vicissitude-status
+nix run .#vicissitude-stop
+```
+
+`nr bare:start` / `nr bare:stop` / `nr bare:status` / `nr bare:restart` も同じ管理コマンドで、`nix develop -c` の中から使える。
+
+foreground でログを直に見ながら動かしたいときだけ `nix run .#vicissitude` を使う。
 
 ## カスタマイズ
 
@@ -76,6 +94,8 @@ bare deploy では次の env を読める。
 - `OLLAMA_HOST`: `ollama serve` が listen する host:port。既定値は `VICISSITUDE_OLLAMA_BASE_URL` から導出
 - `VICISSITUDE_WAIT_FOR_OLLAMA_SECONDS`: readiness timeout 秒数。既定値は `60`
 - `XDG_CONFIG_HOME`, `XDG_DATA_HOME`: state / auth の配置先
+
+background 起動のログは `~/.local/share/vicissitude/logs/bare.log` に追記される。
 
 ## Shell Workspace について
 

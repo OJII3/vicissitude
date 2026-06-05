@@ -26,6 +26,8 @@ Nix ベースの bare deploy では、state と auth を XDG path に置く。
 - `~/.config/opencode/opencode.json`: OpenCode user config
 - `~/.local/share/opencode/auth.json`: OpenCode auth
 - `~/.local/share/opencode/mcp-auth.json`: MCP auth
+- `~/.local/share/vicissitude/bare-instance/state.json`: 1 インスタンス運用の状態
+- `~/.local/share/vicissitude/logs/bare.log`: background 起動時のログ
 
 `~/.config/vicissitude/config.json` は `config/default.json` を元に生成され、bare deploy では `models.memory.ollamaBaseUrl` と、必要なら `features.emotionEstimation.ollamaBaseUrl` を `http://127.0.0.1:11434` へ差し替える。
 

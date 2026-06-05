@@ -10,7 +10,7 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 `nr deploy` は Discord bot と同じ compose スタック内で Web UI もビルド・配信する。`apps/web` の Vite build 成果物は `web-dist` volume に出力され、`web` サービスが `ports.web` の既定値である `4000` 番を公開して静的配信する。
 
-Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude` が `ollama` と `bot` をまとめて起動する。
+Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude-start` / `stop` / `status` / `restart` で 1 インスタンス運用し、foreground 調査時だけ `nix run .#vicissitude` を使う。
 
 ## コンセプト
 

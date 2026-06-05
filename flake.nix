@@ -114,7 +114,19 @@
               '';
             };
           botApp = makeRepoShellApp "vicissitude-bot" ''
-            exec nr start:bare "$@"
+            exec nr bare:run "$@"
+          '';
+          bareStartApp = makeRepoShellApp "vicissitude-start" ''
+            exec nr bare:start "$@"
+          '';
+          bareStopApp = makeRepoShellApp "vicissitude-stop" ''
+            exec nr bare:stop "$@"
+          '';
+          bareStatusApp = makeRepoShellApp "vicissitude-status" ''
+            exec nr bare:status "$@"
+          '';
+          bareRestartApp = makeRepoShellApp "vicissitude-restart" ''
+            exec nr bare:restart "$@"
           '';
           webApp = makeRepoShellApp "vicissitude-web" ''
             exec nr start:web "$@"
@@ -133,6 +145,10 @@
             inherit
               opencode
               botApp
+              bareStartApp
+              bareStopApp
+              bareStatusApp
+              bareRestartApp
               webApp
               buildWebApp
               validateApp
@@ -143,7 +159,27 @@
             vicissitude = {
               type = "app";
               program = "${botApp}/bin/vicissitude-bot";
-              meta.description = "Run the Vicissitude Discord bot with an embedded Ollama runtime";
+              meta.description = "Run the Vicissitude Discord bot in foreground with single-instance protection";
+            };
+            vicissitude-start = {
+              type = "app";
+              program = "${bareStartApp}/bin/vicissitude-start";
+              meta.description = "Start the Vicissitude bare instance in background";
+            };
+            vicissitude-stop = {
+              type = "app";
+              program = "${bareStopApp}/bin/vicissitude-stop";
+              meta.description = "Stop the Vicissitude bare instance";
+            };
+            vicissitude-status = {
+              type = "app";
+              program = "${bareStatusApp}/bin/vicissitude-status";
+              meta.description = "Show Vicissitude bare instance status";
+            };
+            vicissitude-restart = {
+              type = "app";
+              program = "${bareRestartApp}/bin/vicissitude-restart";
+              meta.description = "Restart the Vicissitude bare instance";
             };
             vicissitude-web = {
               type = "app";

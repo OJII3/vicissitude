@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 import { prepareBareConfig } from "./prepare-bare-config.ts";
@@ -195,6 +195,13 @@ function maybeStartXvfb(env: Record<string, string>, options: BareRuntimeOptions
 	if (env.DISPLAY?.trim()) return null;
 	const xvfb = Bun.which("Xvfb");
 	if (!xvfb) return null;
+	if (options.xvfbDisplay.startsWith(":")) {
+		const displayId = options.xvfbDisplay.slice(1);
+		if (displayId.length > 0 && existsSync(`/tmp/.X${displayId}-lock`)) {
+			env.DISPLAY = options.xvfbDisplay;
+			return null;
+		}
+	}
 
 	env.DISPLAY = options.xvfbDisplay;
 	return Bun.spawn([xvfb, options.xvfbDisplay, "-screen", "0", "1280x720x24"], {
