@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
 
 import { DISCORD_USER_ID_RE } from "@vicissitude/shared/namespace";
@@ -105,6 +105,12 @@ export const profileConfigSchema = z.strictObject({
 
 export type ProfileConfig = z.infer<typeof profileConfigSchema>;
 
+const runtimeContextOverlaySchema = z.strictObject({
+	discordDm: discordDmProfileSchema.optional(),
+});
+
+export type RuntimeContextOverlay = z.infer<typeof runtimeContextOverlaySchema>;
+
 function buildProfileShellWorkspaceConfig(
 	profile: ProfileConfig,
 	env: Record<string, string | undefined>,
@@ -160,6 +166,13 @@ export function loadProfileConfigFile(filepath: string): ProfileConfig {
 	return profileConfigSchema.parse(raw);
 }
 
+export function loadRuntimeContextOverlay(root: string): RuntimeContextOverlay | undefined {
+	const filepath = resolve(root, "data/context/runtime.json");
+	if (!existsSync(filepath)) return;
+	const raw = JSON.parse(readFileSync(filepath, "utf8")) as unknown;
+	return runtimeContextOverlaySchema.parse(raw);
+}
+
 export function loadConfigFromProfile(
 	profile: ProfileConfig,
 	env: Record<string, string | undefined> = process.env,
@@ -167,6 +180,7 @@ export function loadConfigFromProfile(
 ): AppConfig {
 	const resolvedRoot = root ?? env.APP_ROOT ?? resolve(process.cwd());
 	const dataDir = resolve(resolvedRoot, "data");
+	const runtimeOverlay = loadRuntimeContextOverlay(resolvedRoot);
 
 	const raw = {
 		discordToken: requireSecret(env, "DISCORD_TOKEN", "discord"),
@@ -204,11 +218,15 @@ export function loadConfigFromProfile(
 					repo: requireSecret(env, "GITHUB_REPO", "features.githubIssues"),
 				}
 			: undefined,
-		discordDm: profile.features.discordDm
-			? {
-					allowedUserIds: profile.features.discordDm.allowedUserIds,
-				}
-			: undefined,
+		discordDm:
+			(runtimeOverlay?.discordDm ?? profile.features.discordDm)
+				? {
+						allowedUserIds:
+							runtimeOverlay?.discordDm?.allowedUserIds ??
+							profile.features.discordDm?.allowedUserIds ??
+							[],
+					}
+				: undefined,
 		imageRecognition: profile.features.imageRecognition
 			? {
 					enabled: true,

@@ -13,6 +13,7 @@ import {
 	createWebConversationAgent,
 	createStoreLayer,
 	createMetrics,
+	resolveBootstrapRoot,
 } from "./bootstrap.ts";
 import type { AppConfig } from "./config.ts";
 
@@ -77,6 +78,27 @@ describe("createMetrics", () => {
 
 		expect(collector).toBeDefined();
 		expect(server).toBeDefined();
+	});
+});
+
+describe("resolveBootstrapRoot", () => {
+	test("APP_ROOT があればそれを優先する", () => {
+		const root = resolveBootstrapRoot(createTestConfig(), {
+			APP_ROOT: "/tmp/from-env",
+		} as NodeJS.ProcessEnv);
+
+		expect(root).toBe("/tmp/from-env");
+	});
+
+	test("APP_ROOT がなければ contextDir の親を使う", () => {
+		const root = resolveBootstrapRoot(
+			createTestConfig({
+				contextDir: "/tmp/vicissitude-root/context",
+			}),
+			{} as NodeJS.ProcessEnv,
+		);
+
+		expect(root).toBe("/tmp/vicissitude-root");
 	});
 });
 

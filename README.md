@@ -10,7 +10,7 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 `nr deploy` は Discord bot と同じ compose スタック内で Web UI もビルド・配信する。`apps/web` の Vite build 成果物は `web-dist` volume に出力され、`web` サービスが `ports.web` の既定値である `4000` 番を公開して静的配信する。
 
-Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、Linux では systemd user service、macOS では LaunchAgent で `bot` と `web` を常駐させる。
+Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude-start` / `stop` / `status` / `restart` で 1 インスタンス運用し、foreground 調査時だけ `nix run .#vicissitude` を使う。
 
 ## コンセプト
 
@@ -114,6 +114,7 @@ OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を
 ### 3.5 コンテキスト管理
 
 - オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
+- `data/context/runtime.json` は local-only の運用オーバーレイ。現在は `discordDm.allowedUserIds` をここから上書きできる。
 - 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md`
 - capability 連動ツール説明: Shell workspace は `context/skills/discord/delegate-to-shell-worker/SKILL.md`、スキル追加オーケストレーションは `context/skills/discord/self-update/SKILL.md`、Discord 側 Minecraft 委譲は `context/skills/discord/minecraft/SKILL.md`、Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-playbook/SKILL.md` として管理し、該当 session で必要な skill だけを許可する。
 - 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。

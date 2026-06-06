@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { resolve } from "path";
 
@@ -55,6 +55,14 @@ describe("loadConfig", () => {
 		const filepath = resolve(dir, "profile.json");
 		writeFileSync(filepath, JSON.stringify(profile));
 		return filepath;
+	}
+
+	function writeRootWithProfile(profile: unknown): { root: string; filepath: string } {
+		const root = mkdtempSync(resolve(tmpdir(), "vicissitude-config-root-"));
+		tempDirs.push(root);
+		const filepath = resolve(root, "profile.json");
+		writeFileSync(filepath, JSON.stringify(profile));
+		return { root, filepath };
 	}
 
 	test("VICISSITUDE_CONFIG_PATH の JSON profile から設定を読み込む", () => {
@@ -126,6 +134,32 @@ describe("loadConfig", () => {
 			providerId: "openai",
 			modelId: "gpt-5.4",
 			ollamaBaseUrl: undefined,
+		});
+	});
+
+	test("data/context/runtime.json があれば discordDm を overlay する", () => {
+		const { root, filepath } = writeRootWithProfile(BASE_PROFILE);
+		const runtimeDir = resolve(root, "data/context");
+		mkdirSync(runtimeDir, { recursive: true });
+		writeFileSync(
+			resolve(runtimeDir, "runtime.json"),
+			JSON.stringify({
+				discordDm: {
+					allowedUserIds: ["883258849254072341"],
+				},
+			}),
+		);
+
+		const config = loadConfig(
+			{
+				VICISSITUDE_CONFIG_PATH: filepath,
+				DISCORD_TOKEN: "test-token",
+			},
+			root,
+		);
+
+		expect(config.discordDm).toEqual({
+			allowedUserIds: ["883258849254072341"],
 		});
 	});
 });

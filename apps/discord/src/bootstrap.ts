@@ -1,6 +1,6 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
 import { existsSync, mkdirSync, writeFileSync } from "fs";
-import { resolve } from "path";
+import { dirname, resolve } from "path";
 
 import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
@@ -739,7 +739,7 @@ async function startMinecraftMcp(
 	if (config.minecraft.profilesFolder) mcEnv.MC_PROFILES_FOLDER = config.minecraft.profilesFolder;
 
 	const mcProcess = spawn({
-		cmd: ["bun", "run", resolve(root, "dist/minecraft-server.js")],
+		cmd: ["bun", "run", resolve(root, "packages/minecraft/src/server.ts")],
 		env: mcEnv,
 		stdout: "inherit",
 		stderr: "inherit",
@@ -773,11 +773,18 @@ function startSessionGauge(
 	return setInterval(update, 30_000);
 }
 
+export function resolveBootstrapRoot(
+	config: Pick<AppConfig, "contextDir">,
+	env: NodeJS.ProcessEnv = process.env,
+): string {
+	return env.APP_ROOT ?? dirname(config.contextDir);
+}
+
 // ─── Main Bootstrap ─────────────────────────────────────────────
 
 export async function bootstrap(): Promise<void> {
 	const config = loadConfig();
-	const root = process.env.APP_ROOT ?? resolve(import.meta.dirname, "..");
+	const root = resolveBootstrapRoot(config);
 	const logger = new ConsoleLogger();
 
 	// Migrate data/ltm → data/memory

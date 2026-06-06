@@ -1,10 +1,10 @@
 import { Database } from "bun:sqlite";
+import { resolve } from "path";
 
 import type { Logger } from "@vicissitude/shared/types";
 
 import type { DiscordGateway } from "./gateway/discord.ts";
 
-export const OPENCODE_DB_PATH = "/app/.local/share/opencode/opencode.db";
 export const OPENCODE_MONTHLY_LIMIT_USD = 60;
 export const MONTHLY_USAGE_PRESENCE_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -33,7 +33,7 @@ export class MonthlyUsagePresenceService {
 		private readonly logger: Logger,
 		options: MonthlyUsagePresenceOptions = {},
 	) {
-		this.dbPath = options.dbPath ?? OPENCODE_DB_PATH;
+		this.dbPath = options.dbPath ?? resolveDefaultOpencodeDbPath();
 		this.monthlyLimitUsd = options.monthlyLimitUsd ?? OPENCODE_MONTHLY_LIMIT_USD;
 		this.intervalMs = options.intervalMs ?? MONTHLY_USAGE_PRESENCE_INTERVAL_MS;
 		this.now = options.now ?? (() => new Date());
@@ -66,6 +66,16 @@ export function formatUsagePercentage(percentage: number): string {
 	if (!Number.isFinite(percentage) || percentage < 0) return "0%";
 	if (percentage < 10) return `${percentage.toFixed(1)}%`;
 	return `${Math.round(percentage)}%`;
+}
+
+export function resolveDefaultOpencodeDbPath(env: NodeJS.ProcessEnv = process.env): string {
+	const xdgDataHome = env.XDG_DATA_HOME?.trim();
+	if (xdgDataHome) return resolve(xdgDataHome, "opencode", "opencode.db");
+
+	const home = env.HOME?.trim();
+	if (home) return resolve(home, ".local", "share", "opencode", "opencode.db");
+
+	return resolve(".local", "share", "opencode", "opencode.db");
 }
 
 export function readCurrentMonthCost(dbPath: string, now: Date = new Date()): number {
