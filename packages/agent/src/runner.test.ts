@@ -948,6 +948,98 @@ describe("AgentRunner バックオフ・ローテーション戦略（内部ロ�
 		lastSession.resolve({ type: "cancelled" });
 	});
 
+	test("retryable 未指定でも irrecoverable な errorClass なら即時ローテーションする", async () => {
+		const lastSession = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) {
+				return Promise.resolve({
+					type: "error",
+					message: "broken image payload",
+					errorClass: "ImageInvalidDataUrlError",
+				});
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const logger = createMockLogger();
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger,
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-1");
+		expect(sleepCalls.filter((ms) => ms >= 2000)).toHaveLength(0);
+		expect(logger.warn).toHaveBeenCalledWith(
+			"[conversation:guild-1] forcing session rotation after irrecoverable session error",
+			"broken image payload",
+		);
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
+	});
+
+	test("errorClass が無くても irrecoverable なメッセージなら即時ローテーションする", async () => {
+		const lastSession = deferred<OpencodeSessionEvent>();
+		let sessionWatchCount = 0;
+		const sessionPort = createSessionPort(() => {
+			sessionWatchCount += 1;
+			if (sessionWatchCount === 1) {
+				return Promise.resolve({
+					type: "error",
+					message: "Image URL must be a base64 data URL",
+				});
+			}
+			return lastSession.promise;
+		});
+
+		const sleepCalls: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "guild-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms) => {
+			sleepCalls.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		for (let i = 0; i < 10; i++) {
+			// eslint-disable-next-line no-await-in-loop
+			await Bun.sleep(0);
+		}
+
+		expect(sessionPort.deleteSession).toHaveBeenCalledWith("session-1");
+		expect(sleepCalls.filter((ms) => ms >= 2000)).toHaveLength(0);
+
+		runner.stop();
+		lastSession.resolve({ type: "cancelled" });
+	});
+
 	test("prevSleepWasCapped リセット: idle 後の次のエラーで prevSleepWasCapped が false に戻る", async () => {
 		// idle が来た後は prevSleepWasCapped がリセットされ、
 		// cap 到達からのローテーションが再び必要な回数 error を重ねないと発動しないことを確認
