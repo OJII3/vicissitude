@@ -69,7 +69,11 @@ describe("mcpServerConfigs", () => {
 
 		expect(discordConfig?.type).toBe("local");
 		if (discordConfig?.type === "local") {
-			expect(discordConfig.command).toEqual(["bun", "run", "/test/root/dist/discord-server.js"]);
+			expect(discordConfig.command).toEqual([
+				"bun",
+				"run",
+				"/test/root/packages/mcp/src/discord-server.ts",
+			]);
 			expect(discordConfig.environment?.AGENT_ID).toBe("discord:123");
 			expect(discordConfig.environment?.DISCORD_TOKEN).toBe("test");
 		}

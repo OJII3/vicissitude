@@ -9,6 +9,7 @@
 	},
 	"dependencies": {
 		"@opencode-ai/sdk": "^1.15.5",
+		"@vicissitude/infrastructure": "workspace:*",
 		"@vicissitude/shared": "workspace:*"
 	}
 }

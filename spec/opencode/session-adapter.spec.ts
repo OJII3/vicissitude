@@ -10,6 +10,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import type { FetchedImage, ImageFetcher } from "@vicissitude/infrastructure/http/image-fetcher";
 import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
 import type { OpencodeSessionEvent } from "@vicissitude/shared/types";
@@ -53,7 +54,20 @@ function createClient(stream: AsyncGenerator<Event, void, unknown>) {
 	return client as unknown as OpencodeClient;
 }
 
-function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
+function createImageFetcher(
+	resolver: (url: string) => FetchedImage | null = () => null,
+): ImageFetcher {
+	return {
+		fetch: mock((url: string) => Promise.resolve(resolver(url))),
+	};
+}
+
+function createAdapter(
+	client: OpencodeClient,
+	options: {
+		imageFetcher?: ImageFetcher;
+	} = {},
+): OpencodeSessionAdapter {
 	return new OpencodeSessionAdapter({
 		port: 4096,
 		mcpServers: {},
@@ -65,6 +79,7 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 				server: { url: "http://localhost", close: mock(() => {}) },
 			}),
 		),
+		imageFetcher: options.imageFetcher,
 	});
 }
 
@@ -307,7 +322,12 @@ describe("promptAsync: attachments の FilePartInput 変換", () => {
 		} as unknown as AsyncGenerator<Event, void, unknown>;
 
 		const client = createClient(stream);
-		const adapter = createAdapter(client);
+		const adapter = createAdapter(client, {
+			imageFetcher: createImageFetcher(() => ({
+				base64: "cGhvdG8=",
+				mimeType: "image/png",
+			})),
+		});
 
 		await adapter.promptAsync({
 			sessionId: "session-1",
@@ -331,7 +351,7 @@ describe("promptAsync: attachments の FilePartInput 変換", () => {
 				type: "file",
 				mime: "image/png",
 				filename: "photo.png",
-				url: "https://cdn.example.com/photo.png",
+				url: "data:image/png;base64,cGhvdG8=",
 			},
 		]);
 	});
@@ -388,7 +408,13 @@ describe("promptAsync: attachments の FilePartInput 変換", () => {
 		} as unknown as AsyncGenerator<Event, void, unknown>;
 
 		const client = createClient(stream);
-		const adapter = createAdapter(client);
+		const adapter = createAdapter(client, {
+			imageFetcher: createImageFetcher((url) => {
+				if (url.endsWith(".jpg")) return { base64: "anBn", mimeType: "image/jpeg" };
+				if (url.endsWith(".webp")) return { base64: "d2VicA==", mimeType: "image/webp" };
+				return null;
+			}),
+		});
 
 		await adapter.promptAsync({
 			sessionId: "session-1",
@@ -414,13 +440,13 @@ describe("promptAsync: attachments の FilePartInput 変換", () => {
 				type: "file",
 				mime: "image/jpeg",
 				filename: "img.jpg",
-				url: "https://cdn.example.com/img.jpg",
+				url: "data:image/jpeg;base64,anBn",
 			},
 			{
 				type: "file",
 				mime: "image/webp",
 				filename: "logo.webp",
-				url: "https://cdn.example.com/logo.webp",
+				url: "data:image/webp;base64,d2VicA==",
 			},
 		]);
 	});
@@ -453,7 +479,12 @@ describe("promptAsyncAndWatchSession: attachments の FilePartInput 変換", () 
 		} as unknown as AsyncGenerator<Event, void, unknown>;
 
 		const client = createClient(stream);
-		const adapter = createAdapter(client);
+		const adapter = createAdapter(client, {
+			imageFetcher: createImageFetcher(() => ({
+				base64: "c2NyZWVu",
+				mimeType: "image/png",
+			})),
+		});
 
 		await adapter.promptAsyncAndWatchSession({
 			sessionId: "session-1",
@@ -477,7 +508,7 @@ describe("promptAsyncAndWatchSession: attachments の FilePartInput 変換", () 
 				type: "file",
 				mime: "image/png",
 				filename: "screen.png",
-				url: "https://cdn.example.com/screen.png",
+				url: "data:image/png;base64,c2NyZWVu",
 			},
 		]);
 	});

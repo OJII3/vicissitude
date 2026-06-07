@@ -2,6 +2,7 @@
 import { describe, expect, mock, test } from "bun:test";
 
 import type { Event, OpencodeClient } from "@opencode-ai/sdk/v2";
+import type { FetchedImage, ImageFetcher } from "@vicissitude/infrastructure/http/image-fetcher";
 import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import type { OpencodeSessionActivity } from "@vicissitude/shared/types";
 
@@ -85,7 +86,20 @@ function createClient(stream: AsyncGenerator<Event, void, unknown>) {
 	};
 }
 
-function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
+function createImageFetcher(
+	resolver: (url: string) => FetchedImage | null = () => null,
+): ImageFetcher & { fetch: ReturnType<typeof mock> } {
+	return {
+		fetch: mock((url: string) => Promise.resolve(resolver(url))),
+	};
+}
+
+function createAdapter(
+	client: OpencodeClient,
+	options: {
+		imageFetcher?: ImageFetcher;
+	} = {},
+): OpencodeSessionAdapter {
 	return new OpencodeSessionAdapter({
 		port: 4096,
 		mcpServers: {},
@@ -97,6 +111,7 @@ function createAdapter(client: OpencodeClient): OpencodeSessionAdapter {
 				server: { url: "http://localhost", close: mock(() => {}) },
 			}),
 		),
+		imageFetcher: options.imageFetcher,
 	});
 }
 
@@ -617,6 +632,13 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 	function createBuildPartsAdapter() {
 		const promptParts: unknown[] = [];
 		const promptAsyncParts: unknown[] = [];
+		const imageFetcher = createImageFetcher((url) => {
+			if (url.endsWith(".png")) return { base64: "cG5n", mimeType: "image/png" };
+			if (url.endsWith(".jpg")) return { base64: "anBn", mimeType: "image/jpeg" };
+			if (url.endsWith(".gif")) return { base64: "Z2lm", mimeType: "image/gif" };
+			if (url.endsWith(".webp")) return { base64: "d2VicA==", mimeType: "image/webp" };
+			return null;
+		});
 		const client = {
 			event: {
 				subscribe: mock(() =>
@@ -659,8 +681,9 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 					server: { url: "http://localhost", close: mock(() => {}) },
 				}),
 			),
+			imageFetcher,
 		});
-		return { adapter, promptParts, promptAsyncParts };
+		return { adapter, promptParts, promptAsyncParts, imageFetcher };
 	}
 
 	const baseParams = {
@@ -680,7 +703,12 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 
 		expect(promptParts).toEqual([
 			{ type: "text", text: "hello" },
-			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: "img.png",
+				url: "data:image/png;base64,cG5n",
+			},
 		]);
 	});
 
@@ -697,9 +725,14 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 
 		expect(promptParts).toEqual([
 			{ type: "text", text: "hello" },
-			{ type: "file", mime: "image/jpeg", filename: "a.jpg", url: "https://example.com/a.jpg" },
-			{ type: "file", mime: "image/gif", filename: "b.gif", url: "https://example.com/b.gif" },
-			{ type: "file", mime: "image/webp", filename: "c.webp", url: "https://example.com/c.webp" },
+			{ type: "file", mime: "image/jpeg", filename: "a.jpg", url: "data:image/jpeg;base64,anBn" },
+			{ type: "file", mime: "image/gif", filename: "b.gif", url: "data:image/gif;base64,Z2lm" },
+			{
+				type: "file",
+				mime: "image/webp",
+				filename: "c.webp",
+				url: "data:image/webp;base64,d2VicA==",
+			},
 		]);
 	});
 
@@ -754,7 +787,7 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 				type: "file",
 				mime: "image/png",
 				filename: undefined,
-				url: "https://example.com/img.png",
+				url: "data:image/png;base64,cG5n",
 			},
 		]);
 	});
@@ -792,12 +825,17 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 
 		expect(promptParts).toEqual([
 			{ type: "text", text: "hello" },
-			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: "img.png",
+				url: "data:image/png;base64,cG5n",
+			},
 			{
 				type: "file",
 				mime: "image/jpeg",
 				filename: "photo.jpg",
-				url: "https://example.com/photo.jpg",
+				url: "data:image/jpeg;base64,anBn",
 			},
 		]);
 	});
@@ -814,7 +852,28 @@ describe("OpencodeSessionAdapter buildParts（画像フィルタリング）", (
 
 		expect(promptAsyncParts).toEqual([
 			{ type: "text", text: "hello" },
-			{ type: "file", mime: "image/png", filename: "img.png", url: "https://example.com/img.png" },
+			{
+				type: "file",
+				mime: "image/png",
+				filename: "img.png",
+				url: "data:image/png;base64,cG5n",
+			},
 		]);
+	});
+
+	test("画像 fetch に失敗した添付は raw URL を渡さずスキップする", async () => {
+		const { adapter, promptParts } = createBuildPartsAdapter();
+		await adapter.prompt({
+			...baseParams,
+			attachments: [
+				{
+					url: "https://example.com/missing.avif",
+					contentType: "image/avif",
+					filename: "missing.avif",
+				},
+			],
+		});
+
+		expect(promptParts).toEqual([{ type: "text", text: "hello" }]);
 	});
 });

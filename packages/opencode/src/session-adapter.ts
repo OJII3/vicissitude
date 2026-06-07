@@ -10,6 +10,10 @@ import {
 	type McpRemoteConfig,
 	type OpencodeClient,
 } from "@opencode-ai/sdk/v2";
+import {
+	HttpImageFetcher,
+	type ImageFetcher,
+} from "@vicissitude/infrastructure/http/image-fetcher";
 import type {
 	Logger,
 	OpencodeSessionActivity,
@@ -54,16 +58,23 @@ export interface OpencodeSessionAdapterConfig {
 	environment?: Record<string, string>;
 	clientFactory?: typeof createOpencode;
 	logger?: Logger;
+	imageFetcher?: ImageFetcher;
 }
 
 export type OpencodeAgentConfig = AgentConfig;
+
+type OpencodePromptPart =
+	| { type: "text"; text: string }
+	| { type: "file"; mime: string; filename?: string; url: string };
 
 export class OpencodeSessionAdapter implements OpencodeSessionPort {
 	private client: OpencodeClient | null = null;
 	private closeServer: (() => void) | null = null;
 	private readonly logger?: Logger;
+	private readonly imageFetcher: ImageFetcher;
 	constructor(private readonly config: OpencodeSessionAdapterConfig) {
 		this.logger = config.logger;
+		this.imageFetcher = config.imageFetcher ?? new HttpImageFetcher({ logger: config.logger });
 	}
 	async createSession(title: string): Promise<string> {
 		this.logger?.info(`[opencode] creating session: ${title}`);
@@ -84,28 +95,50 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		return !result.error && !!result.data;
 	}
 
-	private buildParts(
-		params: OpencodePromptParams,
-	): Array<
-		{ type: "text"; text: string } | { type: "file"; mime: string; filename?: string; url: string }
-	> {
-		const imageAttachments: Array<{ type: "file"; mime: string; filename?: string; url: string }> =
-			[];
-		for (const a of params.attachments ?? []) {
-			if (a.contentType?.startsWith("image/")) {
-				imageAttachments.push({
-					type: "file" as const,
-					mime: a.contentType,
-					filename: a.filename,
-					url: a.url,
-				});
-			} else {
-				this.logger?.debug(
-					`[opencode] buildParts: skipping non-image attachment (contentType=${a.contentType ?? "undefined"}, filename=${a.filename ?? "undefined"})`,
-				);
-			}
-		}
+	private async buildParts(params: OpencodePromptParams): Promise<OpencodePromptPart[]> {
+		const imageAttachments = (
+			await Promise.all(
+				(params.attachments ?? []).map(async (attachment): Promise<OpencodePromptPart | null> => {
+					if (!attachment.contentType?.startsWith("image/")) {
+						this.logger?.debug(
+							`[opencode] buildParts: skipping non-image attachment (contentType=${attachment.contentType ?? "undefined"}, filename=${attachment.filename ?? "undefined"})`,
+						);
+						return null;
+					}
+					const fetched = await this.imageFetcher.fetch(attachment.url);
+					if (!fetched) {
+						this.logger?.warn(
+							`[opencode] buildParts: failed to normalize image attachment (filename=${attachment.filename ?? "undefined"}, url=${attachment.url})`,
+						);
+						return null;
+					}
+					return {
+						type: "file" as const,
+						mime: fetched.mimeType,
+						filename: attachment.filename,
+						url: `data:${fetched.mimeType};base64,${fetched.base64}`,
+					};
+				}),
+			)
+		).filter((part): part is Extract<OpencodePromptPart, { type: "file" }> => part !== null);
 		return [{ type: "text", text: params.text }, ...imageAttachments];
+	}
+
+	private async sendPromptAsync(
+		oc: OpencodeClient,
+		params: OpencodePromptParams,
+		parts: OpencodePromptPart[],
+	): Promise<void> {
+		const result = await oc.session.promptAsync({
+			sessionID: params.sessionId,
+			...this.directoryQuery(),
+			parts,
+			model: { providerID: params.model.providerId, modelID: params.model.modelId },
+			system: params.system,
+		});
+		if (result.error) {
+			throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
+		}
 	}
 
 	async prompt(params: OpencodePromptParams, signal?: AbortSignal): Promise<PromptResult> {
@@ -116,11 +149,12 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			system: params.system,
 		});
 		const oc = await this.getClient();
+		const parts = await this.buildParts(params);
 		const result = await oc.session.prompt(
 			{
 				sessionID: params.sessionId,
 				...this.directoryQuery(),
-				parts: this.buildParts(params),
+				parts,
 				model: { providerID: params.model.providerId, modelID: params.model.modelId },
 				system: params.system,
 				tools: params.tools ?? {},
@@ -142,16 +176,8 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 
 	async promptAsync(params: OpencodePromptParams): Promise<void> {
 		const oc = await this.getClient();
-		const result = await oc.session.promptAsync({
-			sessionID: params.sessionId,
-			...this.directoryQuery(),
-			parts: this.buildParts(params),
-			model: { providerID: params.model.providerId, modelID: params.model.modelId },
-			system: params.system,
-		});
-		if (result.error) {
-			throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
-		}
+		const parts = await this.buildParts(params);
+		await this.sendPromptAsync(oc, params, parts);
 	}
 
 	/**
@@ -167,20 +193,12 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 			`[opencode] promptAsyncAndWatch: session=${params.sessionId} model=${params.model.providerId}/${params.model.modelId}`,
 		);
 		const oc = await this.getClient();
+		const parts = await this.buildParts(params);
 		const { stream } = await oc.event.subscribe(this.directoryQuery());
 		this.logger?.info("[opencode] event stream subscribed");
 		const tokensByMessage = new Map<string, TokenUsage>();
 		try {
-			const result = await oc.session.promptAsync({
-				sessionID: params.sessionId,
-				...this.directoryQuery(),
-				parts: this.buildParts(params),
-				model: { providerID: params.model.providerId, modelID: params.model.modelId },
-				system: params.system,
-			});
-			if (result.error) {
-				throw new Error(`promptAsync failed: ${JSON.stringify(result.error)}`);
-			}
+			await this.sendPromptAsync(oc, params, parts);
 			this.logger?.info("[opencode] promptAsync sent, watching events...");
 
 			let unclassifiedCount = 0;

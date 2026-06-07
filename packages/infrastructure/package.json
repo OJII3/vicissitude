@@ -5,7 +5,8 @@
 		"./discord/attachment-mapper": "./src/discord/attachment-mapper.ts",
 		"./discord/fxembed": "./src/discord/fxembed.ts",
 		"./discord/url-rewriter": "./src/discord/url-rewriter.ts",
-		"./http/github-issue-adapter": "./src/http/github-issue-adapter.ts"
+		"./http/github-issue-adapter": "./src/http/github-issue-adapter.ts",
+		"./http/image-fetcher": "./src/http/image-fetcher.ts"
 	},
 	"dependencies": {
 		"zod": "^4.3.6"
