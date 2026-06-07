@@ -19,24 +19,26 @@
         let
           inherit (pkgs) lib stdenv;
           opencodeVersion = "1.15.5";
-          opencodePlatform = {
-            x86_64-linux = {
-              packageName = "opencode-linux-x64";
-              hash = "sha256-taZkHun5OsGO6VQ3ZAnnCDne+bsaRRpfPExtrerNy8Q=";
-            };
-            aarch64-linux = {
-              packageName = "opencode-linux-arm64";
-              hash = "sha256-O2hVGCK+aRHjL87VOKww6yMnzcFFJbMZoarA6vNq+V8=";
-            };
-            aarch64-darwin = {
-              packageName = "opencode-darwin-arm64";
-              hash = "sha256-B+1EjtGts6FC06aYCqKcQ5wmVnrxorA60Np15OZfqXM=";
-            };
-            x86_64-darwin = {
-              packageName = "opencode-darwin-x64";
-              hash = "sha256-+KxzBty9aCKS72WzKouy5r3LvSrAWZCOHUvwBAWrv0Y=";
-            };
-          }.${system};
+          opencodePlatform =
+            {
+              x86_64-linux = {
+                packageName = "opencode-linux-x64";
+                hash = "sha256-taZkHun5OsGO6VQ3ZAnnCDne+bsaRRpfPExtrerNy8Q=";
+              };
+              aarch64-linux = {
+                packageName = "opencode-linux-arm64";
+                hash = "sha256-O2hVGCK+aRHjL87VOKww6yMnzcFFJbMZoarA6vNq+V8=";
+              };
+              aarch64-darwin = {
+                packageName = "opencode-darwin-arm64";
+                hash = "sha256-B+1EjtGts6FC06aYCqKcQ5wmVnrxorA60Np15OZfqXM=";
+              };
+              x86_64-darwin = {
+                packageName = "opencode-darwin-x64";
+                hash = "sha256-+KxzBty9aCKS72WzKouy5r3LvSrAWZCOHUvwBAWrv0Y=";
+              };
+            }
+            .${system};
           opencode = pkgs.stdenvNoCC.mkDerivation {
             pname = "opencode";
             version = opencodeVersion;
@@ -69,7 +71,6 @@
             pkg-config
           ];
           linuxRuntimePackages = with pkgs; [
-            podman
             slirp4netns
             cairo
             pango
@@ -81,9 +82,7 @@
             xauth
             xorg-server
           ];
-          runtimePackages =
-            baseRuntimePackages
-            ++ lib.optionals stdenv.isLinux linuxRuntimePackages;
+          runtimePackages = baseRuntimePackages ++ lib.optionals stdenv.isLinux linuxRuntimePackages;
           linuxLibraryPath = lib.makeLibraryPath [
             pkgs.stdenv.cc.cc.lib
             pkgs.cairo
@@ -199,7 +198,7 @@
           };
 
           devShells.default = pkgs.mkShell {
-            packages = runtimePackages ++ lib.optionals stdenv.isLinux [ pkgs.podman-compose ];
+            packages = runtimePackages;
             shellHook = lib.optionalString stdenv.isLinux ''
               export LD_LIBRARY_PATH="${linuxLibraryPath}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
               export CXXFLAGS="-include cstdint''${CXXFLAGS:+ $CXXFLAGS}"
