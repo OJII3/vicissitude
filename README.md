@@ -84,16 +84,16 @@ Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本�
 
 MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツールに `{サーバー名}_{ツール名}` のプレフィックスを付けるため、実際の呼び出し名は下表の通り。
 
-| カテゴリ     | MCP サーバー    | 主要ツール                                                                                                                                                           |
-| ------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| チャット     | discord         | discord_send_message, discord_reply, discord_add_reaction, discord_read_messages, discord_list_channels                                                              |
-| スケジュール | core            | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                   |
-| 記憶         | core            | core_memory_retrieve, core_memory_get_facts                                                                                                                          |
-| ゲーム委譲   | discord         | discord_minecraft_delegate, discord_minecraft_status, discord_minecraft_start_session, discord_minecraft_stop_session                                                |
-| ゲーム操作   | minecraft       | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                         |
-| ゲーム通信   | mc-bridge       | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                        |
-| ゲーム記憶   | mc-bridge       | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill    |
-| メタ         | core            | core_list_tools                                                                                                                                                      |
+| カテゴリ     | MCP サーバー | 主要ツール                                                                                                                                                        |
+| ------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| チャット     | discord      | discord_send_message, discord_reply, discord_add_reaction, discord_read_messages, discord_list_channels                                                           |
+| スケジュール | core         | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                |
+| 記憶         | core         | core_memory_retrieve, core_memory_get_facts                                                                                                                       |
+| ゲーム委譲   | discord      | discord_minecraft_delegate, discord_minecraft_status, discord_minecraft_start_session, discord_minecraft_stop_session                                             |
+| ゲーム操作   | minecraft    | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                      |
+| ゲーム通信   | mc-bridge    | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                     |
+| ゲーム記憶   | mc-bridge    | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill |
+| メタ         | core         | core_list_tools                                                                                                                                                   |
 
 OpenCode SDK 組み込み: `webfetch`
 

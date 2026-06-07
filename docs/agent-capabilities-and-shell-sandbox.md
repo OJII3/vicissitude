@@ -8,12 +8,12 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## Capability
 
-| Capability           | 内容                                                                      | 既定                                 |
-| -------------------- | ------------------------------------------------------------------------- | ------------------------------------ |
-| `core`               | Discord 送信、返信、リアクション、記憶、リマインダー                      | 有効                                 |
-| `webfetch`           | OpenCode 組み込み `webfetch`                                              | 有効                                 |
-| `minecraft-bridge`   | Discord から Minecraft エージェントへの委譲                               | `features.minecraft` 設定時のみ      |
-| `minecraft-skill`    | OpenCode `minecraft` skill による Minecraft ツール説明                    | `features.minecraft` 設定時のみ      |
+| Capability           | 内容                                                                      | 既定                             |
+| -------------------- | ------------------------------------------------------------------------- | -------------------------------- |
+| `core`               | Discord 送信、返信、リアクション、記憶、リマインダー                      | 有効                             |
+| `webfetch`           | OpenCode 組み込み `webfetch`                                              | 有効                             |
+| `minecraft-bridge`   | Discord から Minecraft エージェントへの委譲                               | `features.minecraft` 設定時のみ  |
+| `minecraft-skill`    | OpenCode `minecraft` skill による Minecraft ツール説明                    | `features.minecraft` 設定時のみ  |
 | `shell-workspace`    | OpenCode `bash` を使う `shell-worker` subagent                            | `features.shellAgent` 設定時のみ |
 | `shell-worker-skill` | OpenCode `delegate-to-shell-worker` skill による shell workspace 委譲手順 | `features.shellAgent` 設定時のみ |
 
