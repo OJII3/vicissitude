@@ -182,7 +182,7 @@ guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が�
 
 ### 3.9 オブザーバビリティ
 
-AI エージェントとチャットボットのメトリクスは、複数 scope と複数種類のエージェントを同じ Prometheus/Grafana 上で比較・分解できるようにする。
+AI エージェントとチャットボットのメトリクスは、複数 scope と複数種類のエージェントを同じダッシュボード上で比較・分解できるようにする。
 
 - Discord 受信メッセージは `discord_messages_received_total` で記録する。ラベルは `guild_id`, `channel_type`, `author_type`, `is_thread`, `has_attachments` とし、ギルド別、ホーム/メンション/DM 別、人間/Bot 別に分解できるようにする。
 - LLM 実行メトリクス（`ai_requests_total`, `ai_request_duration_seconds`, `llm_*_tokens_total`, `llm_cost_dollars_total`, `llm_busy_sessions`）は、実際に OpenCode セッションへ prompt を送ってから idle/error/cancelled/deleted の終端イベントを受け取るまでを対象にする。エージェントへの enqueue 成否やラッパー呼び出し時間を AI request として扱わない。
@@ -195,7 +195,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どの scope・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
 - 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、共有 store に保存して MCP プロセス境界をまたいだ再投入を抑制する。抑制時は `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
-- アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（NixOS の Alloy）が journald ログを `job=vicissitude` として収集する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
+- アプリケーションログは journald へ出力し、ログ収集基盤へ転送する。本番環境ではホスト側のログコレクタが journald ログを `job=vicissitude` として収集する。メトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 
 ### 3.10 Web UI
 
