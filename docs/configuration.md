@@ -44,7 +44,9 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 `features.minecraft` は Minecraft MCP と Discord 側 bridge に加えて、Discord 会話 agent の `minecraft` skill 許可も切り替える。Minecraft ツール説明は system context へ直接注入せず、`context/skills/discord/minecraft/SKILL.md` を OpenCode skill として必要時に読み込む。Minecraft brain session は feature 設定とは別に `context/skills/minecraft` を渡し、`minecraft-agent-playbook` skill だけを許可する。
 
-`features.shellWorkspace` は shell-worker subagent に加えて、OpenCode の `delegate-to-shell-worker` skill 許可も切り替える。Shell workspace 委譲手順は system context へ直接注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` を OpenCode skill として必要時に読み込む。
+`features.shellAgent` は shell-worker subagent に加えて、OpenCode の `delegate-to-shell-worker` skill 許可も切り替える。Shell workspace 委譲手順は system context へ直接注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` を OpenCode skill として必要時に読み込む。
+
+shell-worker は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、Podman など OS-level isolation は前提としない。
 
 ```json
 {
@@ -88,13 +90,10 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 			"providerId": "opencode-go",
 			"modelId": "kimi-k2.6"
 		},
-		"shellWorkspace": {
-			"image": "vicissitude-code-exec",
+		"shellAgent": {
 			"agent": {
 				"providerId": "openai",
-				"modelId": "gpt-5.4",
-				"temperature": 0.4,
-				"steps": 24
+				"modelId": "gpt-5.4"
 			},
 			"environment": {
 				"GH_TOKEN": { "fromEnv": "HUA_GITHUB_TOKEN" },
@@ -104,13 +103,7 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 				"userName": "ふあ",
 				"userEmail": "282728168+agenthua@users.noreply.github.com"
 			},
-			"hostDataDir": "/home/hua/vicissitude/data/shell-workspaces",
-			"networkProfile": "open",
-			"defaultTtlMinutes": 60,
-			"maxTtlMinutes": 120,
-			"defaultTimeoutSeconds": 30,
-			"maxTimeoutSeconds": 120,
-			"maxOutputChars": 50000
+			"backgroundSubagents": true
 		}
 	}
 }
@@ -124,17 +117,15 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 | ------------- | --------------------------------------------- |
 | Discord       | `DISCORD_TOKEN`                               |
 | GitHub Issues | `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO` |
-| shell-worker  | `HUA_GITHUB_TOKEN`                            |
+| shellAgent    | `HUA_GITHUB_TOKEN`                            |
 
 feature section が存在する場合だけ、その feature の secret env を必須にする。
 
-`features.shellWorkspace.environment` は shell-worker の OpenCode server process と shell workspace 子コンテナへ渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
+`features.shellAgent.environment` は shell-worker の OpenCode server process へ渡す env 名を明示する。値は profile に書かず、`fromEnv` で実行環境の secret env を参照する。たとえば `HUA_GITHUB_TOKEN` を `GH_TOKEN` / `GITHUB_TOKEN` として渡すと、`gh` と GitHub SDK の両方が同じ bot token を利用できる。
 
-`features.shellWorkspace.hostDataDir` は shell workspace 用 MCP server が Podman mount source として使うホスト側 path を必要とする場合だけ profile に書く。OpenCode shell subagent 経路だけを使う profile では省略する。
+shell-worker の `bash` は bot プロセスの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。`GH_TOKEN` / `GITHUB_TOKEN` がある場合は Git HTTPS credential helper も同じ token を使い、`git push` できる。
 
-compose deploy では `HUA_GITHUB_TOKEN` を bot コンテナの `GH_TOKEN` に写す。OpenCode server と shell-worker の `bash` は bot コンテナの環境を継承するため、`gh` は auth file に依存せず `GH_TOKEN` で認証される。shell workspace 子コンテナでは `GH_TOKEN` / `GITHUB_TOKEN` がある場合だけ Git HTTPS credential helper を env 経由で追加し、`git push` も同じ token を使う。
-
-`features.shellWorkspace.git` を設定すると、shell workspace ごとに `.config/git/config` を生成し、OpenCode shell-worker では `GIT_CONFIG_GLOBAL` でそのファイルを参照する。ここには secret を書かず、Git author identity と `GH_TOKEN` / `GITHUB_TOKEN` を読む GitHub credential helper だけを置く。
+`features.shellAgent.git` を設定すると、shell workspace ごとに `.config/git/config` を生成し、OpenCode shell-worker では `GIT_CONFIG_GLOBAL` でそのファイルを参照する。ここには secret を書かず、Git author identity と `GH_TOKEN` / `GITHUB_TOKEN` を読む GitHub credential helper だけを置く。
 
 ## パースと検証
 

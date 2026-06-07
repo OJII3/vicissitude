@@ -9,9 +9,8 @@ import {
 	minecraftSchema,
 	safeInt,
 	safeNumber,
-	shellWorkspaceEnvironmentSchema,
-	shellWorkspaceGitSchema,
-	shellWorkspaceNetworkProfileSchema,
+	shellAgentEnvironmentSchema,
+	shellAgentGitSchema,
 	ttsSchema,
 	type AppConfig,
 } from "./config-schema.ts";
@@ -25,7 +24,7 @@ const environmentSourceSchema = z.strictObject({
 	fromEnv: z.string().min(1),
 });
 
-const shellWorkspaceProfileEnvironmentSchema = z.record(z.string().min(1), environmentSourceSchema);
+const shellAgentProfileEnvironmentSchema = z.record(z.string().min(1), environmentSourceSchema);
 
 const emotionEstimationProfileSchema = z
 	.strictObject({
@@ -70,31 +69,22 @@ export const profileConfigSchema = z.strictObject({
 			ollamaBaseUrl: z.string().min(1),
 			embeddingModel: z.string().min(1),
 		}),
-		minecraft: modelSelectionSchema.extend({
-			temperature: safeNumber.min(0).max(2),
-		}),
+		minecraft: modelSelectionSchema
+			.extend({
+				temperature: safeNumber.min(0).max(2),
+			})
+			.optional(),
 	}),
 	features: z.strictObject({
 		discordDm: discordDmProfileSchema.optional(),
 		imageRecognition: modelSelectionSchema.optional(),
 		emotionEstimation: emotionEstimationProfileSchema.optional(),
-		shellWorkspace: z
+		shellAgent: z
 			.strictObject({
-				image: z.string().min(1),
-				agent: modelSelectionSchema.extend({
-					temperature: safeNumber.min(0).max(2),
-					steps: safeInt.min(1),
-				}),
-				environment: shellWorkspaceProfileEnvironmentSchema.optional(),
-				git: shellWorkspaceGitSchema.optional(),
+				agent: modelSelectionSchema,
+				environment: shellAgentProfileEnvironmentSchema.optional(),
+				git: shellAgentGitSchema.optional(),
 				backgroundSubagents: z.literal(true).optional(),
-				hostDataDir: z.string().min(1).optional(),
-				networkProfile: shellWorkspaceNetworkProfileSchema.optional(),
-				defaultTtlMinutes: safeInt.min(1),
-				maxTtlMinutes: safeInt.min(1),
-				defaultTimeoutSeconds: safeInt.min(1),
-				maxTimeoutSeconds: safeInt.min(1),
-				maxOutputChars: safeInt.min(1),
 			})
 			.optional(),
 		minecraft: minecraftSchema.optional(),
@@ -111,33 +101,24 @@ const runtimeContextOverlaySchema = z.strictObject({
 
 export type RuntimeContextOverlay = z.infer<typeof runtimeContextOverlaySchema>;
 
-function buildProfileShellWorkspaceConfig(
+function buildProfileShellAgentConfig(
 	profile: ProfileConfig,
 	env: Record<string, string | undefined>,
 	dataDir: string,
-): AppConfig["shellWorkspace"] {
-	const shellWorkspace = profile.features.shellWorkspace;
-	if (!shellWorkspace) return;
+): AppConfig["shellAgent"] {
+	const shellAgent = profile.features.shellAgent;
+	if (!shellAgent) return;
 	return {
 		enabled: true,
-		image: shellWorkspace.image,
-		agent: shellWorkspace.agent,
-		environment: resolveShellWorkspaceEnvironment(shellWorkspace.environment, env),
-		...(shellWorkspace.git ? { git: shellWorkspace.git } : {}),
-		...(shellWorkspace.backgroundSubagents ? { backgroundSubagents: true as const } : {}),
+		agent: shellAgent.agent,
+		environment: resolveShellAgentEnvironment(shellAgent.environment, env),
+		...(shellAgent.git ? { git: shellAgent.git } : {}),
+		...(shellAgent.backgroundSubagents ? { backgroundSubagents: true as const } : {}),
 		dataDir: resolve(dataDir, "shell-workspaces"),
-		...(shellWorkspace.hostDataDir ? { hostDataDir: shellWorkspace.hostDataDir } : {}),
-		auditLogPath: resolve(dataDir, "shell-workspace-audit.jsonl"),
-		networkProfile: shellWorkspace.networkProfile ?? "open",
-		defaultTtlMinutes: shellWorkspace.defaultTtlMinutes,
-		maxTtlMinutes: shellWorkspace.maxTtlMinutes,
-		defaultTimeoutSeconds: shellWorkspace.defaultTimeoutSeconds,
-		maxTimeoutSeconds: shellWorkspace.maxTimeoutSeconds,
-		maxOutputChars: shellWorkspace.maxOutputChars,
 	};
 }
 
-function resolveShellWorkspaceEnvironment(
+function resolveShellAgentEnvironment(
 	sources: Record<string, { fromEnv: string }> | undefined,
 	env: Record<string, string | undefined>,
 ): Record<string, string> | undefined {
@@ -145,10 +126,10 @@ function resolveShellWorkspaceEnvironment(
 	const resolved = Object.fromEntries(
 		Object.entries(sources).map(([name, source]) => [
 			name,
-			requireSecret(env, source.fromEnv, `features.shellWorkspace.environment.${name}`),
+			requireSecret(env, source.fromEnv, `features.shellAgent.environment.${name}`),
 		]),
 	);
-	return shellWorkspaceEnvironmentSchema.parse(resolved);
+	return shellAgentEnvironmentSchema.parse(resolved);
 }
 
 function requireSecret(
@@ -204,11 +185,13 @@ export function loadConfigFromProfile(
 			ollamaBaseUrl: profile.models.memory.ollamaBaseUrl,
 			embeddingModel: profile.models.memory.embeddingModel,
 		},
-		mcBrain: {
-			providerId: profile.models.minecraft.providerId,
-			modelId: profile.models.minecraft.modelId,
-			temperature: profile.models.minecraft.temperature,
-		},
+		mcBrain: profile.models.minecraft
+			? {
+					providerId: profile.models.minecraft.providerId,
+					modelId: profile.models.minecraft.modelId,
+					temperature: profile.models.minecraft.temperature,
+				}
+			: undefined,
 		tts: profile.features.tts,
 		minecraft: profile.features.minecraft,
 		github: profile.features.githubIssues
@@ -242,7 +225,7 @@ export function loadConfigFromProfile(
 					ollamaBaseUrl: profile.features.emotionEstimation.ollamaBaseUrl,
 				}
 			: undefined,
-		shellWorkspace: buildProfileShellWorkspaceConfig(profile, env, dataDir),
+		shellAgent: buildProfileShellAgentConfig(profile, env, dataDir),
 		dataDir,
 		contextDir: resolve(resolvedRoot, "context"),
 	};

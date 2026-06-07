@@ -118,23 +118,13 @@ describe("createContextLayer", () => {
 		const root = createContextRoot();
 		const { contextBuilder } = createContextLayer(
 			createTestConfig({
-				shellWorkspace: {
+				shellAgent: {
 					enabled: true,
-					image: "sandbox",
 					agent: {
 						providerId: "shell-provider",
 						modelId: "shell-model",
-						temperature: 0.4,
-						steps: 16,
 					},
 					dataDir: "/tmp/shell-workspaces",
-					auditLogPath: "/tmp/shell-audit.jsonl",
-					networkProfile: "open",
-					defaultTtlMinutes: 60,
-					maxTtlMinutes: 120,
-					defaultTimeoutSeconds: 30,
-					maxTimeoutSeconds: 120,
-					maxOutputChars: 50_000,
 				},
 			}),
 			root,
@@ -294,24 +284,14 @@ describe("createDiscordAgents", () => {
 
 	test("heartbeat agent は shellWorkspace 有効時でも deps の OpenCode 設定だけを使う", () => {
 		const config = createTestConfig({
-			shellWorkspace: {
+			shellAgent: {
 				enabled: true,
-				image: "sandbox",
 				agent: {
 					providerId: "shell-provider",
 					modelId: "shell-model",
-					temperature: 0.4,
-					steps: 16,
 				},
 				backgroundSubagents: true,
 				dataDir: "/tmp/shell-workspaces",
-				auditLogPath: "/tmp/shell-audit.jsonl",
-				networkProfile: "open",
-				defaultTtlMinutes: 60,
-				maxTtlMinutes: 120,
-				defaultTimeoutSeconds: 30,
-				maxTimeoutSeconds: 120,
-				maxOutputChars: 50_000,
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
@@ -413,27 +393,17 @@ describe("createDiscordAgents", () => {
 
 	test("shellWorkspace の GitHub token は Git credential helper 付きで OpenCode に渡す", () => {
 		const config = createTestConfig({
-			shellWorkspace: {
+			shellAgent: {
 				enabled: true,
-				image: "sandbox",
 				agent: {
 					providerId: "shell-provider",
 					modelId: "shell-model",
-					temperature: 0.4,
-					steps: 16,
 				},
 				environment: {
 					GH_TOKEN: "github-token",
 					GITHUB_TOKEN: "github-token",
 				},
 				dataDir: "/tmp/shell-workspaces",
-				auditLogPath: "/tmp/shell-audit.jsonl",
-				networkProfile: "open",
-				defaultTtlMinutes: 60,
-				maxTtlMinutes: 120,
-				defaultTimeoutSeconds: 30,
-				maxTimeoutSeconds: 120,
-				maxOutputChars: 50_000,
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
@@ -466,27 +436,17 @@ describe("createDiscordAgents", () => {
 	test("shellWorkspace の Git identity は workspace 内の gitconfig として渡す", () => {
 		const dataDir = mkdtempSync(join(os.tmpdir(), "vicissitude-shell-workspace-"));
 		const config = createTestConfig({
-			shellWorkspace: {
+			shellAgent: {
 				enabled: true,
-				image: "sandbox",
 				agent: {
 					providerId: "shell-provider",
 					modelId: "shell-model",
-					temperature: 0.4,
-					steps: 16,
 				},
 				git: {
 					userName: "ふあ",
 					userEmail: "282728168+agenthua@users.noreply.github.com",
 				},
 				dataDir,
-				auditLogPath: "/tmp/shell-audit.jsonl",
-				networkProfile: "open",
-				defaultTtlMinutes: 60,
-				maxTtlMinutes: 120,
-				defaultTimeoutSeconds: 30,
-				maxTimeoutSeconds: 120,
-				maxOutputChars: 50_000,
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
@@ -524,24 +484,14 @@ describe("createDiscordAgents", () => {
 
 	test("backgroundSubagents 有効時は OpenCode 実験フラグを渡す", () => {
 		const config = createTestConfig({
-			shellWorkspace: {
+			shellAgent: {
 				enabled: true,
-				image: "sandbox",
 				agent: {
 					providerId: "shell-provider",
 					modelId: "shell-model",
-					temperature: 0.4,
-					steps: 16,
 				},
 				backgroundSubagents: true,
 				dataDir: "/tmp/shell-workspaces",
-				auditLogPath: "/tmp/shell-audit.jsonl",
-				networkProfile: "open",
-				defaultTtlMinutes: 60,
-				maxTtlMinutes: 120,
-				defaultTimeoutSeconds: 30,
-				maxTimeoutSeconds: 120,
-				maxOutputChars: 50_000,
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);
@@ -602,23 +552,13 @@ describe("createDiscordAgents", () => {
 				mcpPort: 3001,
 				viewerPort: 3007,
 			},
-			shellWorkspace: {
+			shellAgent: {
 				enabled: true,
-				image: "sandbox",
 				agent: {
 					providerId: "shell-provider",
 					modelId: "shell-model",
-					temperature: 0.4,
-					steps: 16,
 				},
 				dataDir: "/tmp/shell-workspaces",
-				auditLogPath: "/tmp/shell-audit.jsonl",
-				networkProfile: "open",
-				defaultTtlMinutes: 60,
-				maxTtlMinutes: 120,
-				defaultTimeoutSeconds: 30,
-				maxTimeoutSeconds: 120,
-				maxOutputChars: 50_000,
 			},
 		});
 		const { db, sessionStore } = createStoreLayer(config);

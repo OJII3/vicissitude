@@ -179,37 +179,35 @@ export function buildDiscordEnvironment(config: AppConfig, root: string): Record
 		env.MC_HOST = config.minecraft.host;
 	}
 
-	if (config.shellWorkspace) {
-		env.DISCORD_ATTACHMENT_ALLOWED_DIRS = config.shellWorkspace.dataDir;
+	if (config.shellAgent) {
+		env.DISCORD_ATTACHMENT_ALLOWED_DIRS = config.shellAgent.dataDir;
 	}
 
 	return env;
 }
 
-function prepareOpencodeShellWorkspaceDirectory(
+function prepareOpencodeShellAgentDirectory(
 	config: AppConfig,
 	agentId: string,
 ): string | undefined {
-	if (!config.shellWorkspace) return;
+	if (!config.shellAgent) return;
 	const safeAgentId = agentId.replaceAll(/[^A-Za-z0-9._-]/g, "_");
-	const directory = resolve(config.shellWorkspace.dataDir, "opencode", safeAgentId);
-	if (config.shellWorkspace.git) writeShellWorkspaceGitConfig(directory, config.shellWorkspace.git);
+	const directory = resolve(config.shellAgent.dataDir, "opencode", safeAgentId);
+	if (config.shellAgent.git) writeShellWorkspaceGitConfig(directory, config.shellAgent.git);
 	return directory;
 }
 
-function buildOpencodeShellWorkspaceEnvironment(
+function buildOpencodeShellAgentEnvironment(
 	config: AppConfig,
 	directory: string | undefined,
 ): Record<string, string> | undefined {
-	if (!config.shellWorkspace) return;
-	const environment = config.shellWorkspace.environment
-		? { ...config.shellWorkspace.environment }
-		: {};
+	if (!config.shellAgent) return;
+	const environment = config.shellAgent.environment ? { ...config.shellAgent.environment } : {};
 	const baseEnvironment: Record<string, string> = { ...environment };
-	if (config.shellWorkspace.git && directory) {
+	if (config.shellAgent.git && directory) {
 		baseEnvironment.GIT_CONFIG_GLOBAL = workspaceGitConfigPath(directory);
 	}
-	if (!config.shellWorkspace.backgroundSubagents)
+	if (!config.shellAgent.backgroundSubagents)
 		return addGitHubCredentialHelperEnvironment(baseEnvironment);
 	return addGitHubCredentialHelperEnvironment({
 		...baseEnvironment,
@@ -221,11 +219,11 @@ const EMOTION_OPENCODE_PORT_OFFSET = 1000;
 
 function discordOpencodeSkillPaths(
 	appRoot: string,
-	options: { shellWorkspaceEnabled: boolean },
+	options: { shellAgentEnabled: boolean },
 ): string[] {
 	return [
 		resolve(appRoot, "context/skills/discord"),
-		...(options.shellWorkspaceEnabled ? [resolve(appRoot, "context/skills/shell-worker")] : []),
+		...(options.shellAgentEnabled ? [resolve(appRoot, "context/skills/shell-worker")] : []),
 	];
 }
 
@@ -275,8 +273,8 @@ function isHeartbeatAgentId(agentId: string): boolean {
 	return agentId.startsWith("discord:heartbeat:");
 }
 
-function canUseShellWorkspace(config: AppConfig, agentId: string): boolean {
-	return !!config.shellWorkspace && !isHeartbeatAgentId(agentId);
+function canUseShellAgent(config: AppConfig, agentId: string): boolean {
+	return !!config.shellAgent && !isHeartbeatAgentId(agentId);
 }
 
 export function createDiscordAgents(
@@ -308,9 +306,9 @@ export function createDiscordAgents(
 
 	for (const [index, spec] of agentSpecs.entries()) {
 		const agentPort = config.opencode.basePort + portOffset + index;
-		const shellWorkspaceEnabled = canUseShellWorkspace(config, spec.agentId);
-		const shellWorkspaceDirectory = shellWorkspaceEnabled
-			? prepareOpencodeShellWorkspaceDirectory(config, spec.agentId)
+		const shellAgentEnabled = canUseShellAgent(config, spec.agentId);
+		const shellAgentDirectory = shellAgentEnabled
+			? prepareOpencodeShellAgentDirectory(config, spec.agentId)
 			: undefined;
 		const profile = createConversationProfile({
 			providerId: opencode.providerId,
@@ -324,9 +322,9 @@ export function createDiscordAgents(
 			}),
 			minecraftEnabled: !!config.minecraft,
 			imageRecognitionEnabled: !!config.imageRecognition,
-			shellWorkspaceSubagent: shellWorkspaceEnabled ? config.shellWorkspace?.agent : undefined,
-			shellWorkspaceBackgroundSubagents: shellWorkspaceEnabled
-				? config.shellWorkspace?.backgroundSubagents
+			shellWorkspaceSubagent: shellAgentEnabled ? config.shellAgent?.agent : undefined,
+			shellWorkspaceBackgroundSubagents: shellAgentEnabled
+				? config.shellAgent?.backgroundSubagents
 				: undefined,
 		});
 		const sessionPort = new OpencodeSessionAdapter({
@@ -334,14 +332,14 @@ export function createDiscordAgents(
 			mcpServers: profile.mcpServers,
 			builtinTools: profile.builtinTools,
 			skillPermission: profile.skillPermission,
-			skillPaths: discordOpencodeSkillPaths(deps.appRoot, { shellWorkspaceEnabled }),
+			skillPaths: discordOpencodeSkillPaths(deps.appRoot, { shellAgentEnabled }),
 			agents: profile.opencodeAgents,
 			defaultAgent: profile.defaultAgent,
 			primaryTools: profile.primaryTools,
 			temperature: opencode.temperature,
-			directory: shellWorkspaceDirectory,
-			environment: shellWorkspaceEnabled
-				? buildOpencodeShellWorkspaceEnvironment(config, shellWorkspaceDirectory)
+			directory: shellAgentDirectory,
+			environment: shellAgentEnabled
+				? buildOpencodeShellAgentEnvironment(config, shellAgentDirectory)
 				: undefined,
 			logger: deps.logger,
 		});
@@ -975,6 +973,10 @@ export async function bootstrap(): Promise<void> {
 	// Minecraft brain manager
 	let mcBrainManager: McBrainManager | undefined;
 	if (config.minecraft) {
+		// minecraft と mcBrain は同時に存在/不在 (profile に models.minecraft がある時のみ両方生成される)
+		if (!config.mcBrain) {
+			throw new Error("config.mcBrain is required when config.minecraft is set");
+		}
 		mcBrainManager = new McBrainManager({
 			db,
 			sessionStore,

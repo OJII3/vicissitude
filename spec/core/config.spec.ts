@@ -120,7 +120,7 @@ describe("loadConfig", () => {
 
 		expect(config.opencode.providerId).toBe("conversation-provider");
 		expect(config.minecraft).toBeUndefined();
-		expect(config.shellWorkspace).toBeUndefined();
+		expect(config.shellAgent).toBeUndefined();
 		expect(config.imageRecognition).toBeUndefined();
 	});
 

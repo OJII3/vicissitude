@@ -8,20 +8,20 @@ shell 実行はメイン会話 agent に直接渡さない。メイン会話 age
 
 ## Capability
 
-| Capability           | 内容                                                                      | 既定                                 |
-| -------------------- | ------------------------------------------------------------------------- | ------------------------------------ |
-| `core`               | Discord 送信、返信、リアクション、記憶、リマインダー                      | 有効                                 |
-| `webfetch`           | OpenCode 組み込み `webfetch`                                              | 有効                                 |
-| `minecraft-bridge`   | Discord から Minecraft エージェントへの委譲                               | `features.minecraft` 設定時のみ      |
-| `minecraft-skill`    | OpenCode `minecraft` skill による Minecraft ツール説明                    | `features.minecraft` 設定時のみ      |
-| `shell-workspace`    | OpenCode `bash` を使う `shell-worker` subagent                            | `features.shellWorkspace` 設定時のみ |
-| `shell-worker-skill` | OpenCode `delegate-to-shell-worker` skill による shell workspace 委譲手順 | `features.shellWorkspace` 設定時のみ |
+| Capability           | 内容                                                                      | 既定                             |
+| -------------------- | ------------------------------------------------------------------------- | -------------------------------- |
+| `core`               | Discord 送信、返信、リアクション、記憶、リマインダー                      | 有効                             |
+| `webfetch`           | OpenCode 組み込み `webfetch`                                              | 有効                             |
+| `minecraft-bridge`   | Discord から Minecraft エージェントへの委譲                               | `features.minecraft` 設定時のみ  |
+| `minecraft-skill`    | OpenCode `minecraft` skill による Minecraft ツール説明                    | `features.minecraft` 設定時のみ  |
+| `shell-workspace`    | OpenCode `bash` を使う `shell-worker` subagent                            | `features.shellAgent` 設定時のみ |
+| `shell-worker-skill` | OpenCode `delegate-to-shell-worker` skill による shell workspace 委譲手順 | `features.shellAgent` 設定時のみ |
 
 `shell-workspace` が無効な profile では、`task`、`bash`、shell ツール説明を有効化しない。有効な profile では、メイン会話 agent は `task` と `skill` を primary tool として持ち、`build` primary agent の permission は `bash: deny`、`skill.delegate-to-shell-worker: allow` にする。
 
 Minecraft ツール説明は `TOOLS-MINECRAFT.md` を system context に注入せず、`context/skills/discord/minecraft/SKILL.md` に置く。`features.minecraft` が存在する profile では Discord 会話 agent と heartbeat agent に `minecraft` skill を許可する。shell workspace と併用する場合、`build` primary agent に許可する skill は `delegate-to-shell-worker` / `minecraft` のみにし、`shell-worker` の `debug` / `skill-creator` 許可とは分離する。
 
-Shell workspace 委譲手順は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` に置く。`features.shellWorkspace` が存在する通常会話 profile では `build` primary agent に `delegate-to-shell-worker` skill を許可する。heartbeat agent は shell workspace を持たないため `delegate-to-shell-worker` skill も許可しない。
+Shell workspace 委譲手順は `TOOLS-CODE.md` を system context に注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` に置く。`features.shellAgent` が存在する通常会話 profile では `build` primary agent に `delegate-to-shell-worker` skill を許可する。heartbeat agent は shell workspace を持たないため `delegate-to-shell-worker` skill も許可しない。
 
 Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-playbook/SKILL.md` に置く。Minecraft brain session では `context/skills/minecraft` を渡し、`minecraft-agent-playbook` skill だけを許可する。`context/minecraft/MINECRAFT-GOALS.md` / `MINECRAFT-PROGRESS.md` / `MINECRAFT-SKILLS.md` はワールド状態・学習メモとして残し、OpenCode Agent Skill とは分離する。
 
@@ -44,7 +44,7 @@ OpenCode では agent ごとの permission で MCP tool wildcard を deny でき
 - メイン会話 agent:
   - Discord 送信、返信、添付、リアクション、メッセージ取得は primary agent が担当する
   - `task: allow`
-  - `features.shellWorkspace` 設定時のみ `skill.delegate-to-shell-worker: allow`
+  - `features.shellAgent` 設定時のみ `skill.delegate-to-shell-worker: allow`
   - `features.minecraft` 設定時のみ `skill.minecraft: allow`
   - `bash: deny`
   - `external_directory: deny`
@@ -59,7 +59,6 @@ OpenCode では agent ごとの permission で MCP tool wildcard を deny でき
   - `core_*: deny`
   - `minecraft_*: deny`
   - `mc-bridge_*: deny`
-  - `shell-workspace_*: deny`
   - その他の MCP tool wildcard も既定で `deny`
 - Minecraft brain session:
   - Minecraft 操作と mc-bridge の状態更新を担当する
@@ -68,23 +67,21 @@ OpenCode では agent ごとの permission で MCP tool wildcard を deny でき
 - `primary_tools` は shell workspace 有効時に `["task", "skill"]` を基本とし、background subagent 有効時は `task_status` を追加する。Minecraft 有効時は許可 skill に `minecraft` を追加する。
 - `shell-worker` prompt では workspace 外の読み書き、host secrets、auth files、環境変数 dump、権限昇格を禁止する。
 
-これは OpenCode permission と作業ディレクトリによる制御であり、Podman sandbox のような OS-level isolation ではない。OpenCode `bash` を使う以上、実行プロセスは bot コンテナのユーザー権限と network の範囲で動く。
+これは OpenCode permission と作業ディレクトリによる制御であり、OS-level isolation ではない。shell-worker は bot プロセス環境（実マシン）で組み込み `bash` を動かすため、実行プロセスは bot を起動したユーザー権限と network の範囲でそのまま動く。コンテナ隔離は無い。
 
 ## 設定
 
-shell workspace は JSON profile の `features.shellWorkspace` が存在する場合だけ有効になる。モデル、image、TTL、timeout、network profile は同じ section に書く。disabled profile では section ごと省略する。
+shell workspace は JSON profile の `features.shellAgent` が存在する場合だけ有効になる。委譲先 subagent のモデル（`agent`）は同じ section に書く。disabled profile では section ごと省略する。
 
-`shell-workspace` 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
+`shell-workspace` capability 有効時、core MCP には `DISCORD_ATTACHMENT_ALLOWED_DIRS` として `data/shell-workspaces` を渡す。これにより workspace 配下の生成ファイルを Discord に添付できる。
 
-JSON profile の `features.shellWorkspace.environment` には shell-worker と shell workspace 子コンテナへ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot コンテナの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。`GH_TOKEN` / `GITHUB_TOKEN` を渡すと、子コンテナ内の `gh` と Git HTTPS credential helper が同じ token を使う。
+JSON profile の `features.shellAgent.environment` には shell-worker の OpenCode server process へ渡す env 名を宣言できる。secret の実値は profile に書かず、`{ "fromEnv": "HUA_GITHUB_TOKEN" }` のように bot プロセスの環境変数を参照する。参照元 env が未設定の場合は起動時にエラーにする。`GH_TOKEN` / `GITHUB_TOKEN` を渡すと、`gh` と Git HTTPS credential helper が同じ token を使う。
 
-`features.shellWorkspace.git` には shell workspace 用の Git author identity を書く。起動時に workspace 内の `.config/git/config` が生成され、OpenCode shell-worker は `GIT_CONFIG_GLOBAL` でそのファイルを参照する。これにより host の `ojii3` Git config ではなく、ふあ用の Git account で commit できる。
-
-Podman mount source としてホスト側 path が必要な profile では `features.shellWorkspace.hostDataDir` に書く。OpenCode shell subagent 経路だけなら省略する。
+`features.shellAgent.git` には shell workspace 用の Git author identity を書く。起動時に workspace 内の `.config/git/config` が生成され、OpenCode shell-worker は `GIT_CONFIG_GLOBAL` でそのファイルを参照する。これにより host の `ojii3` Git config ではなく、ふあ用の Git account で commit できる。
 
 ## Background Task Failure Handling
 
-`features.shellWorkspace.backgroundSubagents: true` では、メイン会話 agent が OpenCode `task(background=true)` と `task_status` を使える。OpenCode が返す `task` / `task_status` 出力、または `Background task completed` synthetic text に次のどちらかが含まれる場合、Vicissitude は shell-worker の失敗として扱う。
+`features.shellAgent.backgroundSubagents: true` では、メイン会話 agent が OpenCode `task(background=true)` と `task_status` を使える。OpenCode が返す `task` / `task_status` 出力、または `Background task completed` synthetic text に次のどちらかが含まれる場合、Vicissitude は shell-worker の失敗として扱う。
 
 - `state: error` または `<task_error>...</task_error>`
 - `<task_result></task_result>` が空
@@ -96,4 +93,4 @@ Podman mount source としてホスト側 path が必要な profile では `feat
 - メイン会話 agent への builtin `bash` 直接許可。
 - host HOME や auth files の調査、編集、添付。
 - ユーザー本人の認証情報を使った GitHub、SSH 操作。
-- OpenCode `bash` を Podman sandbox 相当の隔離境界として扱うこと。
+- OpenCode `bash` をコンテナ相当の隔離境界として扱うこと。

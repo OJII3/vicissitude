@@ -18,7 +18,6 @@ const SHELL_WORKSPACE_DENIED_MCP_TOOLS = {
 	"discord_*": "deny",
 	"mc-bridge_*": "deny",
 	"minecraft_*": "deny",
-	"shell-workspace_*": "deny",
 } as const;
 
 const T = {
@@ -76,8 +75,6 @@ const SHELL_WORKSPACE_BACKGROUND_PROMPT_SECTION = `
 export interface ShellWorkspaceSubagentConfig {
 	providerId: string;
 	modelId: string;
-	temperature: number;
-	steps: number;
 }
 
 function buildShellWorkspaceAgents(
@@ -113,8 +110,6 @@ function buildShellWorkspaceAgents(
 			description:
 				"Use the shell workspace to run commands, inspect files, install packages, test, investigate, transform data, and prepare generated files.",
 			model: `${shellWorkspaceSubagent.providerId}/${shellWorkspaceSubagent.modelId}`,
-			temperature: shellWorkspaceSubagent.temperature,
-			steps: shellWorkspaceSubagent.steps,
 			tools: {
 				task: false,
 				...(backgroundSubagents ? { task_status: false } : {}),
@@ -134,7 +129,7 @@ function buildShellWorkspaceAgents(
 			},
 			prompt: `You are ${SHELL_WORKSPACE_AGENT_NAME}, a subagent dedicated to shell workspace work.
 Use the OpenCode builtin bash, Read, and Write tools for command execution and workspace file access.
-Do not use Discord, core, Minecraft, mc-bridge, or shell-workspace MCP tools. Return results to the primary agent; the primary agent handles Discord messages and other MCP-side effects.
+Do not use Discord, core, Minecraft, or mc-bridge MCP tools. Return results to the primary agent; the primary agent handles Discord messages and other MCP-side effects.
 Keep all work inside the current workspace directory. Do not read or write outside the workspace, do not inspect host secrets, auth files, or environment dumps, and do not attempt privilege escalation.
 Network access is allowed when needed for package install, builds, and research.
 When a generated file must be sent to Discord, save it under the workspace directory and include its absolute path in your final response.
