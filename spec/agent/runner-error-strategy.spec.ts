@@ -10,16 +10,24 @@
  * - `retryable:false`:
  *   backoff せず即座に session rotation。
  *
+ * - irrecoverable (破損セッション系 errorClass):
+ *   `event.errorClass` が破損系クラス（現状 `ImageInvalidDataUrlError`）に一致する場合、
+ *   `retryable` が未指定でも backoff せず即座に session rotation（サマリ生成スキップ）。
+ *   判定は errorClass のみで行い、message 文字列には依存しない。
+ *   ただし `retryable:false` の場合は retryable:false 判定が優先され reason は
+ *   `error_non_retryable_rotation` になる。
+ *
  * - rotation 後も同じロジックを再度回す（ランナー停止はしない）。
  * - 正常復帰 (idle) 後は delay をリセット。
  *
  * ## SESSION_RESTARTS reason ラベル
  *
- * | reason                      | 意味                                              |
- * | --------------------------- | ------------------------------------------------- |
- * | error_retryable_backoff     | retryable:true でバックオフ中の再起動             |
- * | error_retryable_rotation    | retryable:true で cap 到達後のローテーション      |
- * | error_non_retryable_rotation| retryable:false の即時ローテーション              |
+ * | reason                       | 意味                                               |
+ * | ---------------------------- | -------------------------------------------------- |
+ * | error_retryable_backoff      | retryable:true でバックオフ中の再起動              |
+ * | error_retryable_rotation     | retryable:true で cap 到達後のローテーション       |
+ * | error_non_retryable_rotation | retryable:false の即時ローテーション               |
+ * | error_irrecoverable_rotation | 破損セッション系 errorClass の即時ローテーション   |
  */
 /* oxlint-disable max-lines, max-lines-per-function, no-await-in-loop -- テストファイルはケース数に応じて長くなるため許容 */
 import { afterEach, describe, expect, mock, test } from "bun:test";
@@ -421,6 +429,186 @@ describe("retryable:false の即時ローテーション戦略", () => {
 
 		runner.stop();
 		sessions[2]?.resolve({ type: "cancelled" });
+	});
+});
+
+describe("irrecoverable (破損セッション系 errorClass) の即時ローテーション戦略", () => {
+	test("errorClass=ImageInvalidDataUrlError のエラーで sleep なく即座に rotation が発動する", async () => {
+		const session1 = deferred<OpencodeSessionEvent>();
+		const session2 = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
+
+		const sleepValues: number[] = [];
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		runner.sleepSpy = (ms: number) => {
+			sleepValues.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// errorClass が破損系 → retryable 未指定でも即時ローテーション
+		session1.resolve({
+			type: "error",
+			message: "some error message",
+			errorClass: "ImageInvalidDataUrlError",
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// deleteSession が呼ばれた（ローテーション発動）
+		expect(sessionPort.deleteSession).toHaveBeenCalled();
+		// 2s 以上の sleep (バックオフ) は発生していない
+		const longSleeps = sleepValues.filter((ms) => ms >= 2000);
+		expect(longSleeps.length).toBe(0);
+
+		runner.stop();
+		session2.resolve({ type: "cancelled" });
+	});
+
+	test("errorClass=ImageInvalidDataUrlError の即時 rotation は reason=error_irrecoverable_rotation", async () => {
+		const session1 = deferred<OpencodeSessionEvent>();
+		const session2 = deferred<OpencodeSessionEvent>();
+		const sessionPort = createSessionPortWithSessions([session1.promise, session2.promise]);
+		const metrics = createMockMetrics();
+
+		const runner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: sessionPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+			metrics,
+		});
+		runner.sleepSpy = () => Promise.resolve();
+		activeRunners.add(runner);
+
+		await runner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		session1.resolve({
+			type: "error",
+			message: "irrecoverable",
+			errorClass: "ImageInvalidDataUrlError",
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		const incrementCalls = (metrics.incrementCounter as ReturnType<typeof mock>).mock.calls;
+		const restartCalls = incrementCalls.filter(
+			(call: unknown[]) => call[0] === METRIC.SESSION_RESTARTS,
+		);
+		const irrecoverableRotations = restartCalls.filter(
+			(call: unknown[]) =>
+				(call[1] as Record<string, string> | undefined)?.reason === "error_irrecoverable_rotation",
+		);
+		expect(irrecoverableRotations.length).toBeGreaterThanOrEqual(1);
+
+		runner.stop();
+		session2.resolve({ type: "cancelled" });
+	});
+
+	test("判定は errorClass のみで行い message 文字列には依存しない（同一 message でも errorClass の有無で挙動が分かれる）", async () => {
+		// errorClass なし・message のみのケース: 即時ローテーションしない（retryable:true 扱いでバックオフ）
+		const noClassSession1 = deferred<OpencodeSessionEvent>();
+		const noClassSession2 = deferred<OpencodeSessionEvent>();
+		const noClassPort = createSessionPortWithSessions([
+			noClassSession1.promise,
+			noClassSession2.promise,
+		]);
+		const noClassSleeps: number[] = [];
+		const noClassRunner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: noClassPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		noClassRunner.sleepSpy = (ms: number) => {
+			noClassSleeps.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(noClassRunner);
+
+		await noClassRunner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// errorClass なし・同一 message → 破損系判定されずバックオフ
+		noClassSession1.resolve({ type: "error", message: "Image is invalid" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(noClassSleeps.filter((ms) => ms >= 2000).length).toBeGreaterThanOrEqual(1);
+		expect((noClassPort.deleteSession as ReturnType<typeof mock>).mock.calls.length).toBe(0);
+
+		noClassRunner.stop();
+		noClassSession2.resolve({ type: "cancelled" });
+
+		// errorClass あり・同一 message のケース: 即時ローテーションする
+		const withClassSession1 = deferred<OpencodeSessionEvent>();
+		const withClassSession2 = deferred<OpencodeSessionEvent>();
+		const withClassPort = createSessionPortWithSessions([
+			withClassSession1.promise,
+			withClassSession2.promise,
+		]);
+		const withClassSleeps: number[] = [];
+		const withClassRunner = new TestAgent({
+			profile: createProfile(),
+			agentId: "agent-1",
+			sessionStore: createSessionStore() as never,
+			contextBuilder: createContextBuilder(),
+			logger: createMockLogger(),
+			sessionPort: withClassPort as unknown as OpencodeSessionPort,
+			sessionMaxAgeMs: 3_600_000,
+		});
+		withClassRunner.sleepSpy = (ms: number) => {
+			withClassSleeps.push(ms);
+			return Promise.resolve();
+		};
+		activeRunners.add(withClassRunner);
+
+		await withClassRunner.send({ sessionKey: "k", message: "test" });
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		// 同一 message だが errorClass が破損系 → 即時ローテーション
+		withClassSession1.resolve({
+			type: "error",
+			message: "Image is invalid",
+			errorClass: "ImageInvalidDataUrlError",
+		});
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+		await Bun.sleep(0);
+
+		expect(withClassPort.deleteSession).toHaveBeenCalled();
+		expect(withClassSleeps.filter((ms) => ms >= 2000).length).toBe(0);
+
+		withClassRunner.stop();
+		withClassSession2.resolve({ type: "cancelled" });
 	});
 });
 

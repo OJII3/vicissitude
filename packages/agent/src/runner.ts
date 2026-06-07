@@ -35,10 +35,6 @@ const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
 const UNINTERRUPTIBLE_DISCORD_TOOLS = new Set(["discord_send_message", "discord_reply"]);
 const IRRECOVERABLE_SESSION_ERROR_CLASSES = new Set(["ImageInvalidDataUrlError"]);
-const IRRECOVERABLE_SESSION_ERROR_MESSAGE_PATTERNS = [
-	"imageinvaliddataurlerror",
-	"image url must be a base64 data url",
-];
 
 interface PendingMessage {
 	text: string;
@@ -74,12 +70,8 @@ function formatErrorMessage(error: unknown): string {
 function isIrrecoverableSessionError(
 	event: Extract<OpencodeSessionEvent, { type: "error" }>,
 ): boolean {
-	if (event.errorClass && IRRECOVERABLE_SESSION_ERROR_CLASSES.has(event.errorClass)) {
-		return true;
-	}
-	const normalizedMessage = event.message.toLowerCase();
-	return IRRECOVERABLE_SESSION_ERROR_MESSAGE_PATTERNS.some((pattern) =>
-		normalizedMessage.includes(pattern),
+	return (
+		event.errorClass !== undefined && IRRECOVERABLE_SESSION_ERROR_CLASSES.has(event.errorClass)
 	);
 }
 
@@ -364,19 +356,16 @@ export class AgentRunner implements AiAgent {
 				const irrecoverableSessionError = isIrrecoverableSessionError(event);
 				if (event.retryable === false || irrecoverableSessionError) {
 					// retryable:false / session 破損系エラー: 即時ローテーション（バックオフなし）
-					this.metrics?.incrementCounter(
-						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
-							reason:
-								event.retryable === false
-									? "error_non_retryable_rotation"
-									: "error_irrecoverable_rotation",
-						}),
-					);
+					// retryable:false 判定を優先し、それ以外で irrecoverable なら破損系 reason を使う
+					const reason =
+						event.retryable === false
+							? "error_non_retryable_rotation"
+							: "error_irrecoverable_rotation";
+					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, this.metricLabels({ reason }));
 					this.finalizePromptMetrics("error");
 					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
-					if (irrecoverableSessionError && event.retryable !== false) {
+					if (reason === "error_irrecoverable_rotation") {
 						this.logger.warn(
 							`[${this.profile.name}:${this.agentId}] forcing session rotation after irrecoverable session error`,
 							event.message,
