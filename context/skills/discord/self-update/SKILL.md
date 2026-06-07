@@ -4,7 +4,7 @@ description: "Use when a Discord user asks to modify ふあ's own behavior, conf
 ---
 
 あなたは Discord 会話 primary agent から、ふあ自身の振る舞い・設定・プロンプト・スキルを変更するための手順を参照している。
-このスキルは `features.shellWorkspace` 設定時だけ利用可能で、実作業はすべて `shell-worker` に委譲する。
+このスキルは `features.shellAgent` 設定時だけ利用可能で、実作業はすべて `shell-worker` に委譲する。
 
 ## 発火判定
 

@@ -7,7 +7,7 @@ description: "Delegate to shell-worker whenever a Discord user asks for work tha
 
 ## 位置づけ
 
-`features.shellWorkspace` 設定時だけ利用可能。これはコード専用 skill ではない。shell-worker は OpenCode 組み込み `bash` / Read / Write を使えるため、実行・調査・生成・変換・検証を引き受ける汎用作業 worker として扱う。
+`features.shellAgent` 設定時だけ利用可能。これはコード専用 skill ではない。shell-worker は OpenCode 組み込み `bash` / Read / Write を使えるため、実行・調査・生成・変換・検証を引き受ける汎用作業 worker として扱う。
 
 メイン会話 agent は自分で shell やファイル操作をせず、`task` で `shell-worker` サブエージェントに委譲する。
 

@@ -95,7 +95,6 @@ describe("createConversationProfile shell workspace subagent", () => {
 			"discord_*": "deny",
 			"mc-bridge_*": "deny",
 			"minecraft_*": "deny",
-			"shell-workspace_*": "deny",
 		});
 		expect(worker?.prompt).toContain("Return results to the primary agent");
 	});
