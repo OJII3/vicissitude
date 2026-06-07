@@ -35,8 +35,6 @@ describe("createConversationProfile shell workspace subagent", () => {
 			shellWorkspaceSubagent: {
 				providerId: "worker-provider",
 				modelId: "worker-model",
-				temperature: 0.4,
-				steps: 12,
 			},
 		});
 
@@ -73,8 +71,6 @@ describe("createConversationProfile shell workspace subagent", () => {
 		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
 		expect(worker?.model).toBe("worker-provider/worker-model");
-		expect(worker?.temperature).toBe(0.4);
-		expect(worker?.steps).toBe(12);
 		const workerTools = (worker as { tools?: Record<string, boolean> } | undefined)?.tools;
 		expect(workerTools?.bash).toBe(true);
 		expect(workerTools?.read).toBe(true);
@@ -112,8 +108,6 @@ describe("createConversationProfile shell workspace subagent", () => {
 			shellWorkspaceSubagent: {
 				providerId: "worker-provider",
 				modelId: "worker-model",
-				temperature: 0.4,
-				steps: 12,
 			},
 			shellWorkspaceBackgroundSubagents: true,
 		});
@@ -177,8 +171,6 @@ describe("createConversationProfile shell workspace subagent", () => {
 			shellWorkspaceSubagent: {
 				providerId: "worker-provider",
 				modelId: "worker-model",
-				temperature: 0.4,
-				steps: 12,
 			},
 			shellWorkspaceBackgroundSubagents: true,
 		});

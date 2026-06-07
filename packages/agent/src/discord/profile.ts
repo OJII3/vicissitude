@@ -76,8 +76,6 @@ const SHELL_WORKSPACE_BACKGROUND_PROMPT_SECTION = `
 export interface ShellWorkspaceSubagentConfig {
 	providerId: string;
 	modelId: string;
-	temperature: number;
-	steps: number;
 }
 
 function buildShellWorkspaceAgents(
@@ -113,8 +111,6 @@ function buildShellWorkspaceAgents(
 			description:
 				"Use the shell workspace to run commands, inspect files, install packages, test, investigate, transform data, and prepare generated files.",
 			model: `${shellWorkspaceSubagent.providerId}/${shellWorkspaceSubagent.modelId}`,
-			temperature: shellWorkspaceSubagent.temperature,
-			steps: shellWorkspaceSubagent.steps,
 			tools: {
 				task: false,
 				...(backgroundSubagents ? { task_status: false } : {}),
