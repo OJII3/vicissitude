@@ -34,6 +34,7 @@ const MESSAGE_DEBOUNCE_MS = 500;
 const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
 const UNINTERRUPTIBLE_DISCORD_TOOLS = new Set(["discord_send_message", "discord_reply"]);
+const IRRECOVERABLE_SESSION_ERROR_CLASSES = new Set(["ImageInvalidDataUrlError"]);
 
 interface PendingMessage {
 	text: string;
@@ -64,6 +65,14 @@ function formatErrorMessage(error: unknown): string {
 	} catch {
 		return String(error);
 	}
+}
+
+function isIrrecoverableSessionError(
+	event: Extract<OpencodeSessionEvent, { type: "error" }>,
+): boolean {
+	return (
+		event.errorClass !== undefined && IRRECOVERABLE_SESSION_ERROR_CLASSES.has(event.errorClass)
+	);
 }
 
 export interface RunnerDeps {
@@ -344,18 +353,25 @@ export class AgentRunner implements AiAgent {
 				}
 
 				// --- error イベントのエラー戦略 ---
-				if (event.retryable === false) {
-					// retryable:false: 即時ローテーション（バックオフなし）
-					this.metrics?.incrementCounter(
-						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
-							reason: "error_non_retryable_rotation",
-						}),
-					);
+				const irrecoverableSessionError = isIrrecoverableSessionError(event);
+				if (event.retryable === false || irrecoverableSessionError) {
+					// retryable:false / session 破損系エラー: 即時ローテーション（バックオフなし）
+					// retryable:false 判定を優先し、それ以外で irrecoverable なら破損系 reason を使う
+					const reason =
+						event.retryable === false
+							? "error_non_retryable_rotation"
+							: "error_irrecoverable_rotation";
+					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, this.metricLabels({ reason }));
 					this.finalizePromptMetrics("error");
 					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
-					// eslint-disable-next-line no-await-in-loop -- rotation after non-retryable error
+					if (reason === "error_irrecoverable_rotation") {
+						this.logger.warn(
+							`[${this.profile.name}:${this.agentId}] forcing session rotation after irrecoverable session error`,
+							event.message,
+						);
+					}
+					// eslint-disable-next-line no-await-in-loop -- rotation after irrecoverable error
 					await this.forceSessionRotation({ skipSummary: true });
 					resetBackoffState();
 					continue;
