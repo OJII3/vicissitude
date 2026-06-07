@@ -531,7 +531,6 @@ describe("createDiscordAgents", () => {
 			"discord_*": "deny",
 			"mc-bridge_*": "deny",
 			"minecraft_*": "deny",
-			"shell-workspace_*": "deny",
 		});
 		expect(agent.sessionPort.config.skillPaths).toEqual([
 			"/app/context/skills/discord",
