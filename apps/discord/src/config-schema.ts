@@ -59,57 +59,35 @@ export const emotionEstimationSchema = z
 		}
 	});
 
-export const shellWorkspaceNetworkProfileSchema = z.enum(["open", "none"]);
-
-export const shellWorkspaceAgentSchema = z.object({
-	providerId: z.string().min(1, "shellWorkspace.agent.providerId is required"),
-	modelId: z.string().min(1, "shellWorkspace.agent.modelId is required"),
-	temperature: safeNumber.min(0).max(2),
-	steps: safeInt.min(1),
+export const shellAgentAgentSchema = z.object({
+	providerId: z.string().min(1, "shellAgent.agent.providerId is required"),
+	modelId: z.string().min(1, "shellAgent.agent.modelId is required"),
 });
 
-export const shellWorkspaceEnvironmentSchema = z.record(z.string().min(1), z.string().min(1));
+export const shellAgentEnvironmentSchema = z.record(z.string().min(1), z.string().min(1));
 
-export const shellWorkspaceGitSchema = z.object({
+export const shellAgentGitSchema = z.object({
 	userName: z
 		.string()
-		.min(1, "shellWorkspace.git.userName is required")
-		.refine(isSingleLineGitConfigValue, "shellWorkspace.git.userName is invalid"),
+		.min(1, "shellAgent.git.userName is required")
+		.refine(isSingleLineGitConfigValue, "shellAgent.git.userName is invalid"),
 	userEmail: z
-		.email("shellWorkspace.git.userEmail must be an email address")
-		.refine(isSingleLineGitConfigValue, "shellWorkspace.git.userEmail is invalid"),
+		.email("shellAgent.git.userEmail must be an email address")
+		.refine(isSingleLineGitConfigValue, "shellAgent.git.userEmail is invalid"),
 });
 
 function isSingleLineGitConfigValue(value: string): boolean {
 	return !value.includes("\0") && !value.includes("\r") && !value.includes("\n");
 }
 
-export const shellWorkspaceSchema = z
-	.object({
-		enabled: z.literal(true),
-		image: z.string().min(1, "shellWorkspace.image is required"),
-		agent: shellWorkspaceAgentSchema,
-		environment: shellWorkspaceEnvironmentSchema.optional(),
-		git: shellWorkspaceGitSchema.optional(),
-		backgroundSubagents: z.literal(true).optional(),
-		dataDir: z.string(),
-		hostDataDir: z.string().optional(),
-		auditLogPath: z.string(),
-		networkProfile: shellWorkspaceNetworkProfileSchema,
-		defaultTtlMinutes: safeInt.min(1),
-		maxTtlMinutes: safeInt.min(1),
-		defaultTimeoutSeconds: safeInt.min(1),
-		maxTimeoutSeconds: safeInt.min(1),
-		maxOutputChars: safeInt.min(1),
-	})
-	.refine((v) => v.defaultTtlMinutes <= v.maxTtlMinutes, {
-		message: "shellWorkspace.defaultTtlMinutes must be <= shellWorkspace.maxTtlMinutes",
-		path: ["defaultTtlMinutes"],
-	})
-	.refine((v) => v.defaultTimeoutSeconds <= v.maxTimeoutSeconds, {
-		message: "shellWorkspace.defaultTimeoutSeconds must be <= shellWorkspace.maxTimeoutSeconds",
-		path: ["defaultTimeoutSeconds"],
-	});
+export const shellAgentSchema = z.object({
+	enabled: z.literal(true),
+	agent: shellAgentAgentSchema,
+	environment: shellAgentEnvironmentSchema.optional(),
+	git: shellAgentGitSchema.optional(),
+	backgroundSubagents: z.literal(true).optional(),
+	dataDir: z.string(),
+});
 
 export const appConfigSchema = z.object({
 	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
@@ -133,18 +111,20 @@ export const appConfigSchema = z.object({
 		ollamaBaseUrl: z.string(),
 		embeddingModel: z.string(),
 	}),
-	mcBrain: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		temperature: safeNumber.min(0).max(2),
-	}),
+	mcBrain: z
+		.object({
+			providerId: z.string(),
+			modelId: z.string(),
+			temperature: safeNumber.min(0).max(2),
+		})
+		.optional(),
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
 	discordDm: discordDmSchema.optional(),
 	imageRecognition: imageRecognitionSchema.optional(),
 	emotionEstimation: emotionEstimationSchema.optional(),
-	shellWorkspace: shellWorkspaceSchema.optional(),
+	shellAgent: shellAgentSchema.optional(),
 	dataDir: z.string(),
 	contextDir: z.string(),
 });

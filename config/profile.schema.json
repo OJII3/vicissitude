@@ -126,7 +126,7 @@
 					"additionalProperties": false
 				}
 			},
-			"required": ["conversation", "heartbeat", "memory", "minecraft"],
+			"required": ["conversation", "heartbeat", "memory"],
 			"additionalProperties": false
 		},
 		"features": {
@@ -181,13 +181,9 @@
 					"required": ["providerId", "modelId"],
 					"additionalProperties": false
 				},
-				"shellWorkspace": {
+				"shellAgent": {
 					"type": "object",
 					"properties": {
-						"image": {
-							"type": "string",
-							"minLength": 1
-						},
 						"agent": {
 							"type": "object",
 							"properties": {
@@ -198,19 +194,9 @@
 								"modelId": {
 									"type": "string",
 									"minLength": 1
-								},
-								"temperature": {
-									"type": "number",
-									"minimum": 0,
-									"maximum": 2
-								},
-								"steps": {
-									"type": "integer",
-									"minimum": 1,
-									"maximum": 9007199254740991
 								}
 							},
-							"required": ["providerId", "modelId", "temperature", "steps"],
+							"required": ["providerId", "modelId"],
 							"additionalProperties": false
 						},
 						"environment": {
@@ -250,50 +236,9 @@
 						"backgroundSubagents": {
 							"type": "boolean",
 							"const": true
-						},
-						"hostDataDir": {
-							"type": "string",
-							"minLength": 1
-						},
-						"networkProfile": {
-							"type": "string",
-							"enum": ["open", "none"]
-						},
-						"defaultTtlMinutes": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 9007199254740991
-						},
-						"maxTtlMinutes": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 9007199254740991
-						},
-						"defaultTimeoutSeconds": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 9007199254740991
-						},
-						"maxTimeoutSeconds": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 9007199254740991
-						},
-						"maxOutputChars": {
-							"type": "integer",
-							"minimum": 1,
-							"maximum": 9007199254740991
 						}
 					},
-					"required": [
-						"image",
-						"agent",
-						"defaultTtlMinutes",
-						"maxTtlMinutes",
-						"defaultTimeoutSeconds",
-						"maxTimeoutSeconds",
-						"maxOutputChars"
-					],
+					"required": ["agent"],
 					"additionalProperties": false
 				},
 				"minecraft": {

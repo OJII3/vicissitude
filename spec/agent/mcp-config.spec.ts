@@ -12,17 +12,6 @@ describe("mcpServerConfigs", () => {
 	const discord = {
 		environment: { DISCORD_TOKEN: "test", DATA_DIR: "/data" },
 	};
-	const shellWorkspace = {
-		image: "sandbox-image",
-		dataDir: "/data/shell-workspaces",
-		auditLogPath: "/data/shell-workspace-audit.jsonl",
-		networkProfile: "open" as const,
-		defaultTtlMinutes: 60,
-		maxTtlMinutes: 120,
-		defaultTimeoutSeconds: 30,
-		maxTimeoutSeconds: 120,
-		maxOutputChars: 50_000,
-	};
 
 	it("デフォルトでは core のみ返す", () => {
 		const configs = mcpServerConfigs("discord:123", defaultOpts);
@@ -90,62 +79,6 @@ describe("mcpServerConfigs", () => {
 			expect(discordConfig.environment?.DATA_DIR).toBe("/data");
 			expect(discordConfig.environment?.MEMORY_DATA_DIR).toBeUndefined();
 		}
-	});
-
-	it("shell-workspace capability が有効な場合だけ shell-workspace を返す", () => {
-		const configs = mcpServerConfigs("discord:123", {
-			...defaultOpts,
-			capabilities: ["shell-workspace"],
-			shellWorkspace,
-		});
-
-		expect(Object.keys(configs).toSorted()).toEqual(["core", "shell-workspace"]);
-	});
-
-	it("shell-workspace の environment は専用設定のみを含む", () => {
-		const configs = mcpServerConfigs("discord:123", {
-			...defaultOpts,
-			capabilities: ["shell-workspace"],
-			shellWorkspace: {
-				...shellWorkspace,
-				hostDataDir: "/host/data/shell-workspaces",
-				environment: {
-					GH_TOKEN: "github-token",
-					GITHUB_TOKEN: "github-token",
-				},
-				git: {
-					userName: "ふあ",
-					userEmail: "282728168+agenthua@users.noreply.github.com",
-				},
-			},
-		});
-		const shell = configs["shell-workspace"];
-
-		expect(shell?.type).toBe("local");
-		if (shell?.type === "local") {
-			expect(shell.environment?.SHELL_WORKSPACE_AGENT_ID).toBe("discord:123");
-			expect(shell.environment?.SHELL_WORKSPACE_IMAGE).toBe("sandbox-image");
-			expect(shell.environment?.SHELL_WORKSPACE_DATA_DIR).toBe("/data/shell-workspaces");
-			expect(shell.environment?.SHELL_WORKSPACE_HOST_DATA_DIR).toBe("/host/data/shell-workspaces");
-			expect(shell.environment?.SHELL_WORKSPACE_NETWORK_PROFILE).toBe("open");
-			expect(shell.environment?.SHELL_WORKSPACE_FORWARD_ENV).toBe("GH_TOKEN,GITHUB_TOKEN");
-			expect(shell.environment?.SHELL_WORKSPACE_GIT_USER_NAME).toBe("ふあ");
-			expect(shell.environment?.SHELL_WORKSPACE_GIT_USER_EMAIL).toBe(
-				"282728168+agenthua@users.noreply.github.com",
-			);
-			expect(shell.environment?.GH_TOKEN).toBe("github-token");
-			expect(shell.environment?.GITHUB_TOKEN).toBe("github-token");
-			expect(shell.environment?.DISCORD_TOKEN).toBeUndefined();
-		}
-	});
-
-	it("shell-workspace capability 有効時に設定がなければエラーにする", () => {
-		expect(() =>
-			mcpServerConfigs("discord:123", {
-				...defaultOpts,
-				capabilities: ["shell-workspace"],
-			}),
-		).toThrow("shellWorkspace config is required");
 	});
 });
 

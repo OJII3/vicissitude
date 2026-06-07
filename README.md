@@ -87,7 +87,6 @@ MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツー�
 | カテゴリ     | MCP サーバー    | 主要ツール                                                                                                                                                           |
 | ------------ | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | チャット     | discord         | discord_send_message, discord_reply, discord_add_reaction, discord_read_messages, discord_list_channels                                                              |
-| Shell 作業   | shell-workspace | shell-workspace_shell_start_session, shell-workspace_shell_exec, shell-workspace_shell_status, shell-workspace_shell_export_file, shell-workspace_shell_stop_session |
 | スケジュール | core            | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                   |
 | 記憶         | core            | core_memory_retrieve, core_memory_get_facts                                                                                                                          |
 | ゲーム委譲   | discord         | discord_minecraft_delegate, discord_minecraft_status, discord_minecraft_start_session, discord_minecraft_stop_session                                                |
@@ -98,7 +97,7 @@ MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツー�
 
 OpenCode SDK 組み込み: `webfetch`
 
-OpenCode agent ごとに MCP tool permission を分ける。Discord 会話 primary agent は Discord 送信、返信、添付、リアクション、Core 記憶・リマインダー、必要な Minecraft 委譲を担当する。`shell-worker` subagent は OpenCode builtin `bash` / Read / Write で作業し、`*_*` / `discord_*` / `core_*` / `minecraft_*` / `mc-bridge_*` / `shell-workspace_*` などの MCP tool wildcard は agent permission で `deny` する。`shell-worker` が生成した本文やファイルを Discord に出す場合も、`shell-worker` は送信せず、primary agent が Discord ツールを呼ぶ。
+OpenCode agent ごとに MCP tool permission を分ける。Discord 会話 primary agent は Discord 送信、返信、添付、リアクション、Core 記憶・リマインダー、必要な Minecraft 委譲を担当する。`shell-worker` subagent は OpenCode builtin `bash` / Read / Write で作業し、`*_*` / `discord_*` / `core_*` / `minecraft_*` / `mc-bridge_*` などの MCP tool wildcard は agent permission で `deny` する。shell-worker は bot プロセス環境（実マシン）で組み込み `bash` を固定ディレクトリ上で動かし、コンテナ隔離は無い。`shell-worker` が生成した本文やファイルを Discord に出す場合も、`shell-worker` は送信せず、primary agent が Discord ツールを呼ぶ。
 
 ### 3.4.1 Agent Skills
 
@@ -230,9 +229,9 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `VICISSITUDE_CONFIG_PATH`: 必須。例: `config/default.json`
 - `DISCORD_TOKEN`: 必須
 - `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
-- `HUA_GITHUB_TOKEN`: `features.shellWorkspace.environment` など profile の `fromEnv` 参照で指定した場合に必須
+- `HUA_GITHUB_TOKEN`: `features.shellAgent.environment` など profile の `fromEnv` 参照で指定した場合に必須
 
-`features.shellWorkspace.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
+`features.shellAgent.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
 background shell task が `state:error` を返した場合、または `state:completed` でも `<task_result>` が空の場合は shell-worker の失敗として扱う。会話 agent はその turn を中断できる場合は中断し、内部メッセージとして失敗を再プロンプトして、Discord へ成功・開始済みとして誤報告しない。
 
 `features.discordDm.allowedUserIds` を設定すると、指定した Discord user ID からの DM に応答する。未設定の場合、DM は無視する。
@@ -253,7 +252,7 @@ background shell task が `state:error` を返した場合、または `state:co
 2. Bot 自身のメッセージには反応しない。
 3. セッション管理が永続化され、再起動後も継続できる。
 4. ブートストラップコンテキストが毎回 system prompt として注入される。
-5. MCP サーバー経由で Discord 操作が可能。`features.shellWorkspace` を持つ profile では隔離 shell workspace 操作も可能。
+5. MCP サーバー経由で Discord 操作が可能。`features.shellAgent` を持つ profile では shell-worker への委譲による shell 操作も可能。
 6. AI がメッセージ駆動プロンプトにより、自律的に応答を判断・送信する。
 7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
 8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。

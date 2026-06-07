@@ -43,8 +43,6 @@ describe("createConversationProfile", () => {
 			shellWorkspaceSubagent: {
 				providerId: "worker-provider",
 				modelId: "worker-model",
-				temperature: 0.4,
-				steps: 12,
 			},
 		});
 
@@ -139,8 +137,6 @@ describe("createConversationProfile", () => {
 			shellWorkspaceSubagent: {
 				providerId: "worker-provider",
 				modelId: "worker-model",
-				temperature: 0.4,
-				steps: 12,
 			},
 		});
 

@@ -100,4 +100,4 @@ background 起動のログは `~/.local/share/vicissitude/logs/bare.log` に追�
 
 ## Shell Workspace について
 
-`features.shellWorkspace` は現在も Podman 前提である。bare deploy で bot を直接起動しても、この feature を使うなら Podman 実行環境は別途必要になる。
+`features.shellAgent` は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、Podman など追加の実行環境も不要なので、bare deploy でそのまま動く。

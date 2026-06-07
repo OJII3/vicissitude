@@ -10,7 +10,7 @@ import type { AppConfig } from "../../apps/discord/src/config.ts";
 
 function makeConfig(
 	overrides: {
-		shellWorkspace?: AppConfig["shellWorkspace"];
+		shellAgent?: AppConfig["shellAgent"];
 		emotionEstimation?: AppConfig["emotionEstimation"];
 		minecraft?: AppConfig["minecraft"];
 	} = {},
@@ -223,26 +223,16 @@ describe("buildDiscordEnvironment", () => {
 		});
 	});
 
-	describe("Shell workspace 環境変数", () => {
-		it("config.shellWorkspace が存在する場合は添付許可ディレクトリを含む", () => {
+	describe("Shell agent 環境変数", () => {
+		it("config.shellAgent が存在する場合は添付許可ディレクトリを含む", () => {
 			const config = makeConfig({
-				shellWorkspace: {
+				shellAgent: {
 					enabled: true,
-					image: "sandbox",
 					agent: {
 						providerId: "shell-provider",
 						modelId: "shell-model",
-						temperature: 0.4,
-						steps: 16,
 					},
 					dataDir: "/tmp/shell-workspaces",
-					auditLogPath: "/tmp/shell-audit.jsonl",
-					networkProfile: "open",
-					defaultTtlMinutes: 60,
-					maxTtlMinutes: 120,
-					defaultTimeoutSeconds: 30,
-					maxTimeoutSeconds: 120,
-					maxOutputChars: 50_000,
 				},
 			});
 			const result = buildDiscordEnvironment(config, ROOT);
@@ -250,7 +240,7 @@ describe("buildDiscordEnvironment", () => {
 			expect(result.DISCORD_ATTACHMENT_ALLOWED_DIRS).toBe("/tmp/shell-workspaces");
 		});
 
-		it("config.shellWorkspace が存在しない場合は添付許可ディレクトリを追加しない", () => {
+		it("config.shellAgent が存在しない場合は添付許可ディレクトリを追加しない", () => {
 			const result = buildDiscordEnvironment(makeConfig(), ROOT);
 
 			expect(result).not.toHaveProperty("DISCORD_ATTACHMENT_ALLOWED_DIRS");

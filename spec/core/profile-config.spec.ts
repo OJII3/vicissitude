@@ -133,8 +133,19 @@ describe("JSON profile config", () => {
 
 		expect(config.imageRecognition).toBeUndefined();
 		expect(config.emotionEstimation).toBeUndefined();
-		expect(config.shellWorkspace).toBeUndefined();
+		expect(config.shellAgent).toBeUndefined();
 		expect(config.minecraft).toBeUndefined();
+	});
+
+	it("models.minecraft 未設定の profile でも AppConfig を構築でき mcBrain は undefined になる", () => {
+		const { minecraft: _omit, ...modelsWithoutMinecraft } = baseProfile.models;
+		const config = loadConfigFromProfile(
+			{ ...baseProfile, models: modelsWithoutMinecraft },
+			baseEnv(),
+			root,
+		);
+
+		expect(config.mcBrain).toBeUndefined();
 	});
 
 	it("profile に feature section がある場合だけ機能設定を作る", () => {
@@ -153,13 +164,10 @@ describe("JSON profile config", () => {
 						providerId: "openai",
 						modelId: "gpt-5.4",
 					},
-					shellWorkspace: {
-						image: "shell-image",
+					shellAgent: {
 						agent: {
 							providerId: "shell-provider",
 							modelId: "shell-model",
-							temperature: 0.3,
-							steps: 16,
 						},
 						environment: {
 							GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
@@ -170,12 +178,6 @@ describe("JSON profile config", () => {
 							userEmail: "282728168+agenthua@users.noreply.github.com",
 						},
 						backgroundSubagents: true,
-						hostDataDir: "/host/project/data/shell-workspaces",
-						defaultTtlMinutes: 15,
-						maxTtlMinutes: 30,
-						defaultTimeoutSeconds: 5,
-						maxTimeoutSeconds: 10,
-						maxOutputChars: 12345,
 					},
 				},
 			},
@@ -197,14 +199,11 @@ describe("JSON profile config", () => {
 			modelId: "gpt-5.4",
 			ollamaBaseUrl: undefined,
 		});
-		expect(config.shellWorkspace).toEqual({
+		expect(config.shellAgent).toEqual({
 			enabled: true,
-			image: "shell-image",
 			agent: {
 				providerId: "shell-provider",
 				modelId: "shell-model",
-				temperature: 0.3,
-				steps: 16,
 			},
 			environment: {
 				GH_TOKEN: "test-github-token",
@@ -216,39 +215,23 @@ describe("JSON profile config", () => {
 			},
 			backgroundSubagents: true,
 			dataDir: "/tmp/test-vicissitude/data/shell-workspaces",
-			hostDataDir: "/host/project/data/shell-workspaces",
-			auditLogPath: "/tmp/test-vicissitude/data/shell-workspace-audit.jsonl",
-			networkProfile: "open",
-			defaultTtlMinutes: 15,
-			maxTtlMinutes: 30,
-			defaultTimeoutSeconds: 5,
-			maxTimeoutSeconds: 10,
-			maxOutputChars: 12345,
 		});
 	});
 
-	it("shellWorkspace.environment の参照元 env が未設定ならエラーにする", () => {
+	it("shellAgent.environment の参照元 env が未設定ならエラーにする", () => {
 		expect(() =>
 			loadConfigFromProfile(
 				{
 					...baseProfile,
 					features: {
-						shellWorkspace: {
-							image: "shell-image",
+						shellAgent: {
 							agent: {
 								providerId: "shell-provider",
 								modelId: "shell-model",
-								temperature: 0.3,
-								steps: 16,
 							},
 							environment: {
 								GH_TOKEN: { fromEnv: "HUA_GITHUB_TOKEN" },
 							},
-							defaultTtlMinutes: 15,
-							maxTtlMinutes: 30,
-							defaultTimeoutSeconds: 5,
-							maxTimeoutSeconds: 10,
-							maxOutputChars: 12345,
 						},
 					},
 				},
