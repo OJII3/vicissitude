@@ -20,7 +20,7 @@ Discord bot「ふあ(hua)」のプロジェクト。Bun, TypeScript, OpenCode �
 - `nr auto-triage:codex:once` — Codex 版 auto-triage を 1 回だけ実行
 - `nr auto-triage:claude` — Claude 版 auto-triage ループ
 - `nr auto-triage:claude:once` — Claude 版 auto-triage を 1 回だけ実行
-- `nr deploy` — コンテナを再作成してデプロイ（install → build → 起動）
+- `nr deploy` — 依存インストール・Web UIビルド・インスタンス再起動を一括実行
 
 ## デプロイ
 

@@ -2,7 +2,7 @@
 
 ## 方針
 
-Podman compose を使わず、単一ホスト上で Vicissitude をそのまま動かすための運用を定義する。
+単一ホスト上で Vicissitude をそのまま動かすための運用を定義する。
 
 - 実行環境の固定: `flake.nix`
 - プロセス起動: `nix run`
@@ -100,4 +100,4 @@ background 起動のログは `~/.local/share/vicissitude/logs/bare.log` に追�
 
 ## Shell Workspace について
 
-`features.shellAgent` は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、Podman など追加の実行環境も不要なので、bare deploy でそのまま動く。
+`features.shellAgent` は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、追加の実行環境も不要なので、そのまま動く。

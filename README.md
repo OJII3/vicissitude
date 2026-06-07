@@ -6,11 +6,9 @@ TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用す
 
 ## デプロイ
 
-`nr deploy` は本番 checkout の stale deploy を防ぐため、実行前に `origin/main` を更新し、現在のブランチが `main` で、`HEAD` が `origin/main` と一致しており、作業ツリーが clean であることを検証する。一致しない場合や未コミット変更がある場合は deploy を中止する。
+bare deploy で運用する。詳細は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude-start` / `stop` / `status` / `restart` で 1 インスタンス運用し、foreground 調査時だけ `nix run .#vicissitude` を使う。
 
-`nr deploy` は Discord bot と同じ compose スタック内で Web UI もビルド・配信する。`apps/web` の Vite build 成果物は `web-dist` volume に出力され、`web` サービスが `ports.web` の既定値である `4000` 番を公開して静的配信する。
-
-Podman を使わないベアボーン運用は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude-start` / `stop` / `status` / `restart` で 1 インスタンス運用し、foreground 調査時だけ `nix run .#vicissitude` を使う。
+`nr deploy` は依存インストール・Web UI ビルド・インスタンス再起動を一括で行う。
 
 ## コンセプト
 
@@ -197,7 +195,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どの scope・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
 - 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、共有 store に保存して MCP プロセス境界をまたいだ再投入を抑制する。抑制時は `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
 - `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
-- アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（現状は NixOS の Alloy）が `container_tag=vicissitude` の journald ログを `job=vicissitude` として収集し、standalone の monitoring profile では Promtail が同じ `job=vicissitude` へ揃えて転送する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
+- アプリケーションログは journald へ出力し、Loki へ転送する。本番環境ではホスト側のログコレクタ（NixOS の Alloy）が journald ログを `job=vicissitude` として収集する。Grafana ではメトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
 
 ### 3.10 Web UI
 
@@ -209,7 +207,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
 - Web アバターの既定 idle モーションは Project AIRI の `idle_loop.vrma` をローカル配信し、VRM 読み込み後にループ再生する。
 - チャット UI は VRM 表示の上に重ねる透明オーバーレイとし、背景を遮らない半透明のヘッダー・吹き出し・入力欄で構成する。
-- 本番 deploy では `nr deploy` の compose スタックに含まれる `web` サービスで静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
+- 本番 deploy では bare deploy 環境で Web UI を静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
 - Web チャットは gateway の `chat_input` を Web 専用 LLM agent に渡して応答する。入力文を gateway 内でエコーするダミー応答は使わない。
 - Web チャット入力は gateway で最大 4,000 文字、接続ごとに同時 1 応答、1 秒 1 件までに制限し、Web LLM prompt は 120 秒でタイムアウトさせる。
 - Web 専用 LLM agent は Discord 会話 agent と同じ `IDENTITY.md` / `SOUL.md` 由来の人格を使う。ただし Discord 送信ツールや Discord 固有の行動コンテキストは持たず、最終テキストをそのまま Web UI の `chat_message` として返す。

@@ -8,17 +8,7 @@ YAML は採用しない。人間には短く書けるが、暗黙の型変換、
 
 `.env` は secret とデプロイ環境の入口だけに薄く保つ。非 secret の機能設定、モデル選択、ポート、タイムアウト、feature の有効化は profile に置く。
 
-## Deploy 時の OpenCode 設定
-
-`nr deploy` は `~/.config/opencode/opencode.json` が regular file として存在する場合だけ、生成 compose override 経由で `/app/.config/opencode/opencode.json` に read-only bind mount する。存在しないホストでは mount を追加しない。
-
-`opencode.json` の位置に directory など regular file 以外がある場合は、誤った bind mount を避けるため deploy を中止する。
-
-生成 compose override は root `package.json` の workspaces から各 workspace の `node_modules` volume も生成する。`installer` が isolated linker 用 symlink を書き込み、`builder` と `bot` は同じ volume を read-only で読む。これにより `packages` / `apps` の source bind mount は read-only のまま維持し、deploy 時にホストの workspace 配下を更新しない。
-
-`nr deploy` は `apps/web` も compose スタック内で扱う。`installer` は Web UI の Vite build に必要な devDependencies も含めて依存関係を解決し、`builder` は bot/MCP の Bun bundle に加えて `apps/web` を build する。Web build 成果物は `web-dist` volume に出力し、`web` サービスが `WEB_PORT`（既定値 `4000`）で静的配信する。
-
-## Bare Deploy 時の state / auth
+## State / Auth
 
 Nix ベースの bare deploy では、state と auth を XDG path に置く。
 
@@ -46,7 +36,7 @@ disabled feature は key ごと省略する。`enabled: false`、`null`、空文
 
 `features.shellAgent` は shell-worker subagent に加えて、OpenCode の `delegate-to-shell-worker` skill 許可も切り替える。Shell workspace 委譲手順は system context へ直接注入せず、`context/skills/discord/delegate-to-shell-worker/SKILL.md` を OpenCode skill として必要時に読み込む。
 
-shell-worker は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、Podman など OS-level isolation は前提としない。
+shell-worker は bot プロセス環境（実マシン）で OpenCode 組み込み `bash` を固定ディレクトリ上で動かす。コンテナ隔離は無く、OS-level isolation は前提としない。
 
 ```json
 {
