@@ -24,7 +24,6 @@ Discord bot「ふあ(hua)」のプロジェクト。Bun, TypeScript, OpenCode �
 
 ## デプロイ
 
-- デプロイ前に `hostname` でホストが `Feixiao` であることを確認する。`Feixiao` 以外ではデプロイしない。
 - ソースコード・依存変更後: `nr deploy` で再デプロイ
 
 ## 計画フェーズ（Plan サブエージェント）
