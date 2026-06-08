@@ -3,7 +3,7 @@ import type { Logger } from "@vicissitude/shared/types";
 export interface ShutdownDeps {
 	logger: Logger;
 	sessionGaugeTimer: ReturnType<typeof setInterval>;
-	monthlyUsagePresence?: { stop(): void };
+	moodNickname?: { stop(): void };
 	consolidationScheduler?: { stop(): void };
 	heartbeatScheduler: { stop(): void };
 	gateway: { stop(): void };
@@ -40,7 +40,7 @@ export function createShutdown(deps: ShutdownDeps): () => Promise<void> {
 		};
 
 		await safe("sessionGauge", () => clearInterval(deps.sessionGaugeTimer));
-		await safe("monthlyUsagePresence", () => deps.monthlyUsagePresence?.stop());
+		await safe("moodNickname", () => deps.moodNickname?.stop());
 		await safe("consolidation", () => deps.consolidationScheduler?.stop());
 		await safe("heartbeatScheduler", () => deps.heartbeatScheduler.stop());
 		await safe("gateway", () => deps.gateway.stop());
