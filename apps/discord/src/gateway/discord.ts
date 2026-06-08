@@ -113,6 +113,16 @@ export class DiscordGateway {
 		user.setActivity(name, { type: ActivityType.Watching });
 	}
 
+	async setGuildNickname(guildId: string, nickname: string | null): Promise<void> {
+		if (!this.client) return;
+		try {
+			const guild = await this.client.guilds.fetch(guildId);
+			await guild.members.me?.setNickname(nickname);
+		} catch (error) {
+			this.logger.warn(`[discord] failed to set nickname for guild ${guildId}:`, error);
+		}
+	}
+
 	private isHomeMessage(message: Message): boolean {
 		if (this.homeChannelIds.has(message.channel.id)) return true;
 		return (

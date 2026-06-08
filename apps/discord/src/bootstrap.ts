@@ -83,7 +83,7 @@ import {
 	removeLegacyConsolidateReminder,
 	syncMcCheckReminder,
 } from "./migrations.ts";
-import { MoodPresenceService } from "./mood-presence.ts";
+import { MoodNicknameService } from "./mood-nickname.ts";
 import { createPortLayout } from "./port-allocator.ts";
 import { createShutdown } from "./shutdown.ts";
 
@@ -965,9 +965,7 @@ export async function bootstrap(): Promise<void> {
 
 	// Session gauge
 	const sessionGaugeTimer = startSessionGauge(sessionStore, metrics.collector);
-	const moodPresence = new MoodPresenceService(gateway, moodStore, logger, {
-		agentIds: guildIds.map((id) => `discord:${id}`),
-	});
+	const moodNickname = new MoodNicknameService(gateway, moodStore, logger, guildIds);
 
 	// MCP processes (Minecraft のみ HTTP、core は stdio で OpenCode が管理)
 	const mcProcess = await mcReady;
@@ -1000,7 +998,7 @@ export async function bootstrap(): Promise<void> {
 	const shutdown = createShutdown({
 		logger,
 		sessionGaugeTimer,
-		moodPresence,
+		moodNickname,
 		consolidationScheduler: memoryResources?.consolidationScheduler,
 		heartbeatScheduler,
 		gateway,
@@ -1025,7 +1023,7 @@ export async function bootstrap(): Promise<void> {
 		`[bootstrap] Polling mode for ${guildIds.length} guild(s), ${dmUserIds.length} DM user(s): ${guildIds.join(", ")}`,
 	);
 	await gateway.start();
-	moodPresence.start();
+	moodNickname.start();
 	heartbeatScheduler.start();
 	memoryResources?.consolidationScheduler.start();
 	// DiscordAgent は lazy start: 最初の send() 呼び出しで自動的にポーリングループが起動する

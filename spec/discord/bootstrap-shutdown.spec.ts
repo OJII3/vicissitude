@@ -23,7 +23,7 @@ function makeDeps(overrides: Partial<ShutdownDeps> = {}): ShutdownDeps & { callO
 			return l;
 		})(),
 		sessionGaugeTimer: setInterval(() => {}, 100_000),
-		moodPresence: { stop: mock(track("moodPresence")) },
+		moodNickname: { stop: mock(track("moodNickname")) },
 		consolidationScheduler: { stop: mock(track("consolidation")) },
 		heartbeatScheduler: { stop: mock(track("heartbeatScheduler")) },
 		gateway: { stop: mock(track("gateway")) },
@@ -85,7 +85,7 @@ describe("createShutdown()", () => {
 
 			expect(deps.callOrder).toEqual([
 				"sessionGauge",
-				"moodPresence",
+				"moodNickname",
 				"consolidation",
 				"heartbeatScheduler",
 				"gateway",
@@ -222,7 +222,7 @@ describe("createShutdown()", () => {
 
 		it("全オプショナル依存が undefined でも正常にシャットダウンされる", async () => {
 			const deps = makeDeps({
-				moodPresence: undefined,
+				moodNickname: undefined,
 				consolidationScheduler: undefined,
 				webAgent: undefined,
 				mcBrainManager: undefined,
