@@ -2,6 +2,7 @@
 	"name": "@vicissitude/application",
 	"private": true,
 	"exports": {
+		"./email-fetcher": "./src/email-fetcher.ts",
 		"./heartbeat-service": "./src/heartbeat-service.ts",
 		"./message-ingestion-service": "./src/message-ingestion-service.ts",
 		"./resume-context-service": "./src/resume-context-service.ts",

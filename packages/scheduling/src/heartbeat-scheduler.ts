@@ -20,6 +20,7 @@ export interface HeartbeatSchedulerDeps {
 	heartbeatService: { execute(dueReminders: DueReminder[]): Promise<Set<string>> };
 	logger: Logger;
 	metrics?: MetricsCollector;
+	preFilter?: (dueReminders: DueReminder[]) => Promise<DueReminder[]>;
 }
 
 export class HeartbeatScheduler {
@@ -120,8 +121,17 @@ export class HeartbeatScheduler {
 	}
 
 	private async executeHeartbeat(config: HeartbeatConfig): Promise<boolean> {
-		const dueReminders = evaluateDueReminders(config, new Date());
+		let dueReminders = evaluateDueReminders(config, new Date());
 		if (dueReminders.length === 0) return false;
+
+		if (this.deps.preFilter) {
+			dueReminders = await this.deps.preFilter(dueReminders);
+			if (dueReminders.length === 0) {
+				this.deps.logger.info("[heartbeat] all reminders filtered out, skipping execution");
+				return false;
+			}
+		}
+
 		this.deps.logger.info(
 			`[heartbeat] ${String(dueReminders.length)} due reminder(s): ${dueReminders.map((d) => d.reminder.id).join(", ")}`,
 		);

@@ -60,6 +60,7 @@ export interface HeartbeatConfig {
 export interface DueReminder {
 	reminder: HeartbeatReminder;
 	overdueMinutes: number;
+	context?: string;
 }
 
 // ─── Incoming Message & Message Channel ──────────────────────────

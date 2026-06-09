@@ -13,6 +13,7 @@ import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { createWebConversationProfile } from "@vicissitude/agent/web/profile";
 import { WEB_AGENT_ID, WEB_SCOPE_ID, WebConversationAgent } from "@vicissitude/agent/web/web-agent";
+import { fetchNewEmails, formatEmailContext } from "@vicissitude/application/email-fetcher";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { ResumeContextService } from "@vicissitude/application/resume-context-service";
@@ -58,6 +59,7 @@ import type {
 	AiAgent,
 	ConversationRecorder,
 	ContextBuilderPort,
+	DueReminder,
 	Logger,
 	MemoryFactReader,
 	MetricsCollector,
@@ -778,6 +780,36 @@ export function resolveBootstrapRoot(
 	return env.APP_ROOT ?? dirname(config.contextDir);
 }
 
+// ─── Email Check PreFilter ──────────────────────────────────────
+
+function buildEmailCheckPreFilter(
+	logger: Logger,
+): ((dueReminders: DueReminder[]) => Promise<DueReminder[]>) | undefined {
+	const endpoint = process.env.GAS_EMAIL_ENDPOINT;
+	const token = process.env.GAS_EMAIL_TOKEN;
+	if (!endpoint || !token) return undefined;
+
+	return async (dueReminders: DueReminder[]): Promise<DueReminder[]> => {
+		const emailReminders = dueReminders.filter((d) => d.reminder.id === "email-check");
+		const otherReminders = dueReminders.filter((d) => d.reminder.id !== "email-check");
+
+		if (emailReminders.length === 0) return dueReminders;
+
+		try {
+			const result = await fetchNewEmails(endpoint, token);
+			if (!result.hasNewMail) {
+				return otherReminders;
+			}
+			const context = formatEmailContext(result);
+			const enriched = emailReminders.map((d) => Object.assign({}, d, { context }));
+			return [...otherReminders, ...enriched];
+		} catch (error) {
+			logger.error("[heartbeat] email check failed:", error);
+			return otherReminders;
+		}
+	};
+}
+
 // ─── Main Bootstrap ─────────────────────────────────────────────
 
 export async function bootstrap(): Promise<void> {
@@ -961,6 +993,7 @@ export async function bootstrap(): Promise<void> {
 		heartbeatService: new HeartbeatService({ agent: heartbeatRouter, logger }),
 		logger,
 		metrics: metrics.collector,
+		preFilter: buildEmailCheckPreFilter(logger),
 	});
 
 	// Session gauge
