@@ -26,6 +26,29 @@ export function syncMcCheckReminder(
 	}
 }
 
+/** config.emailCheck の有無に応じて email-check リマインダーの enabled を同期する */
+export function syncEmailCheckReminder(
+	configPath: string,
+	emailCheckEnabled: boolean,
+	logger: Logger,
+): void {
+	if (!existsSync(configPath)) return;
+	try {
+		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
+			reminders?: { id: string; enabled: boolean }[];
+		};
+		const emailCheck = raw.reminders?.find((r) => r.id === "email-check");
+		if (!emailCheck || emailCheck.enabled === emailCheckEnabled) return;
+		emailCheck.enabled = emailCheckEnabled;
+		writeFileSync(configPath, JSON.stringify(raw, null, 2));
+		logger.info(
+			`[bootstrap] email-check reminder ${emailCheckEnabled ? "enabled" : "disabled"} (synced with config.emailCheck)`,
+		);
+	} catch {
+		// パース失敗時はスキップ（HeartbeatScheduler がデフォルト設定で初期化する）
+	}
+}
+
 /** ltm-consolidate リマインダーを削除する（MCP ツール廃止に伴う移行） */
 export function removeLegacyConsolidateReminder(configPath: string, logger: Logger): void {
 	if (!existsSync(configPath)) return;

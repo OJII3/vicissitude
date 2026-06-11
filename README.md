@@ -42,6 +42,9 @@ bare deploy で運用する。詳細は `docs/bare-deploy.md` を正本とする
 - 外部環境の状態は要約して AI に渡す（コンテキスト過負荷防止）。生データ（座標列、視界詳細等）は直接投入しない。
 - 意思決定はイベント駆動を基本とし、危険時は即応を優先する。
 - 低レベル操作は専用ライブラリに委譲し、AI は高レベル判断に集中する。
+- heartbeat scheduler は定期 tick で due リマインダーを評価し、実行前に preFilter を通す。preFilter は実行する reminder 群を返すと同時に、実行はしないが「実行済み」として interval を尊重させたい reminder id 群（`markExecutedIds`）を返せる。
+- `email-check` heartbeat（`features.emailCheck` 設定時に有効）は due になると Google Apps Script (GAS) エンドポイントへ問い合わせて新着メールを確認する。新着があればメール要約を reminder の context として AI へ渡す。新着が無い場合や GAS 取得に失敗した場合は、AI を起動せず `email-check` を `markExecutedIds` で実行済み扱いにし、interval（既定 5 分）が経過するまで毎 tick のポーリングを防ぐ。
+- GAS から渡されるメール本文抜粋は 200 文字でトランケートし、メール要約全体を `<email_context>...</email_context>` デリミタで囲んでプロンプトインジェクションを抑止する。
 
 ### 3.3 エージェントアーキテクチャ
 
@@ -227,6 +230,7 @@ AI エージェントとチャットボットのメトリクスは、複数 scop
 - `VICISSITUDE_CONFIG_PATH`: 必須。例: `config/default.json`
 - `DISCORD_TOKEN`: 必須
 - `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
+- `GAS_EMAIL_ENDPOINT`, `GAS_EMAIL_TOKEN`: `features.emailCheck` 設定時に必須。`email-check` heartbeat が問い合わせる GAS エンドポイントとアクセストークン
 - `HUA_GITHUB_TOKEN`: `features.shellAgent.environment` など profile の `fromEnv` 参照で指定した場合に必須
 
 `features.shellAgent.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。

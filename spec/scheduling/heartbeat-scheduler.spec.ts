@@ -69,6 +69,118 @@ describe("HeartbeatScheduler", () => {
 		expect(intervalMs.at(-1)).toBe(5 * 60_000);
 	});
 
+	test("preFilter が返した reminders を heartbeatService.execute に渡す", async () => {
+		const configRepo = createMockConfigRepo({
+			baseIntervalMinutes: 1,
+			reminders: [
+				{
+					id: "email-check",
+					description: "メール確認",
+					schedule: { type: "interval", minutes: 5 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+			],
+		});
+		const enriched = {
+			reminder: {
+				id: "email-check",
+				description: "メール確認",
+				schedule: { type: "interval" as const, minutes: 5 },
+				lastExecutedAt: null,
+				enabled: true,
+			},
+			overdueMinutes: 0,
+			context: "<email_context>新着</email_context>",
+		};
+		const heartbeatService = {
+			execute: mock((reminders: { context?: string }[]) => {
+				capturedContext = reminders[0]?.context;
+				return Promise.resolve(new Set(["email-check"]));
+			}),
+		};
+		let capturedContext: string | undefined;
+		const scheduler = new HeartbeatScheduler({
+			configRepo,
+			heartbeatService,
+			logger: createMockLogger(),
+			preFilter: mock(() => Promise.resolve({ reminders: [enriched] })),
+		});
+		const tick = scheduler as unknown as { tick(): Promise<void> };
+
+		await tick.tick();
+
+		expect(heartbeatService.execute).toHaveBeenCalledTimes(1);
+		expect(capturedContext).toBe("<email_context>新着</email_context>");
+		expect(configRepo.markRemindersExecuted).toHaveBeenCalledWith(
+			["email-check"],
+			expect.any(String),
+		);
+	});
+
+	test("preFilter の reminders が空でも markExecutedIds があれば markRemindersExecuted を呼び execute はしない", async () => {
+		const configRepo = createMockConfigRepo({
+			baseIntervalMinutes: 1,
+			reminders: [
+				{
+					id: "email-check",
+					description: "メール確認",
+					schedule: { type: "interval", minutes: 5 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+			],
+		});
+		const heartbeatService = {
+			execute: mock(() => Promise.resolve(new Set<string>())),
+		};
+		const scheduler = new HeartbeatScheduler({
+			configRepo,
+			heartbeatService,
+			logger: createMockLogger(),
+			preFilter: mock(() => Promise.resolve({ reminders: [], markExecutedIds: ["email-check"] })),
+		});
+		const tick = scheduler as unknown as { tick(): Promise<void> };
+
+		await tick.tick();
+
+		expect(heartbeatService.execute).not.toHaveBeenCalled();
+		expect(configRepo.markRemindersExecuted).toHaveBeenCalledWith(
+			["email-check"],
+			expect.any(String),
+		);
+	});
+
+	test("preFilter の reminders が空で markExecutedIds も無ければ何もしない", async () => {
+		const configRepo = createMockConfigRepo({
+			baseIntervalMinutes: 1,
+			reminders: [
+				{
+					id: "email-check",
+					description: "メール確認",
+					schedule: { type: "interval", minutes: 5 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+			],
+		});
+		const heartbeatService = {
+			execute: mock(() => Promise.resolve(new Set<string>())),
+		};
+		const scheduler = new HeartbeatScheduler({
+			configRepo,
+			heartbeatService,
+			logger: createMockLogger(),
+			preFilter: mock(() => Promise.resolve({ reminders: [] })),
+		});
+		const tick = scheduler as unknown as { tick(): Promise<void> };
+
+		await tick.tick();
+
+		expect(heartbeatService.execute).not.toHaveBeenCalled();
+		expect(configRepo.markRemindersExecuted).not.toHaveBeenCalled();
+	});
+
 	test("tick timeout 後も実処理が継続中なら次 tick を開始しない", async () => {
 		restoreSetTimeout = accelerateTimeout(HEARTBEAT_TIMEOUT_MS);
 		let resolveExecute!: () => void;

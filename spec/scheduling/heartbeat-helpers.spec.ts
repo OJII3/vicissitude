@@ -1,7 +1,27 @@
 import { describe, expect, test } from "bun:test";
 
-import { evaluateDueReminders } from "@vicissitude/scheduling/heartbeat-helpers";
+import {
+	createDefaultHeartbeatConfig,
+	evaluateDueReminders,
+} from "@vicissitude/scheduling/heartbeat-helpers";
 import type { HeartbeatConfig } from "@vicissitude/shared/types";
+
+describe("createDefaultHeartbeatConfig", () => {
+	test("email-check リマインダーをデフォルト無効で含む", () => {
+		const config = createDefaultHeartbeatConfig();
+		const emailCheck = config.reminders.find((r) => r.id === "email-check");
+
+		expect(emailCheck).toBeDefined();
+		expect(emailCheck?.enabled).toBe(false);
+	});
+
+	test("email-check は 5 分間隔の interval スケジュール", () => {
+		const config = createDefaultHeartbeatConfig();
+		const emailCheck = config.reminders.find((r) => r.id === "email-check");
+
+		expect(emailCheck?.schedule).toEqual({ type: "interval", minutes: 5 });
+	});
+});
 
 describe("evaluateDueReminders", () => {
 	test("due reminder は config 内 reminder 参照ではなく immutable DTO として返す", () => {

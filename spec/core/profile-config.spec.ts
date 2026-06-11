@@ -218,6 +218,51 @@ describe("JSON profile config", () => {
 		});
 	});
 
+	it("features.emailCheck 設定時に endpoint/token を env から解決する", () => {
+		const config = loadConfigFromProfile(
+			{
+				...baseProfile,
+				features: { emailCheck: {} },
+			},
+			baseEnv({
+				GAS_EMAIL_ENDPOINT: "https://script.google.com/exec",
+				GAS_EMAIL_TOKEN: "test-email-token",
+			}),
+			root,
+		);
+
+		expect(config.emailCheck).toEqual({
+			endpoint: "https://script.google.com/exec",
+			token: "test-email-token",
+		});
+	});
+
+	it("features.emailCheck 未設定なら emailCheck は undefined になる", () => {
+		const config = loadConfigFromProfile(baseProfile, baseEnv(), root);
+
+		expect(config.emailCheck).toBeUndefined();
+	});
+
+	it("features.emailCheck 設定時に GAS_EMAIL_ENDPOINT が無ければエラーにする", () => {
+		expect(() =>
+			loadConfigFromProfile(
+				{ ...baseProfile, features: { emailCheck: {} } },
+				baseEnv({ GAS_EMAIL_TOKEN: "test-email-token" }),
+				root,
+			),
+		).toThrow("GAS_EMAIL_ENDPOINT is required");
+	});
+
+	it("features.emailCheck 設定時に GAS_EMAIL_TOKEN が無ければエラーにする", () => {
+		expect(() =>
+			loadConfigFromProfile(
+				{ ...baseProfile, features: { emailCheck: {} } },
+				baseEnv({ GAS_EMAIL_ENDPOINT: "https://script.google.com/exec" }),
+				root,
+			),
+		).toThrow("GAS_EMAIL_TOKEN is required");
+	});
+
 	it("shellAgent.environment の参照元 env が未設定ならエラーにする", () => {
 		expect(() =>
 			loadConfigFromProfile(

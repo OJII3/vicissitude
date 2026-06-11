@@ -30,6 +30,11 @@ export const githubSchema = z.object({
 	repo: z.string(),
 });
 
+export const emailCheckSchema = z.object({
+	endpoint: z.string().min(1, "GAS_EMAIL_ENDPOINT is required"),
+	token: z.string().min(1, "GAS_EMAIL_TOKEN is required"),
+});
+
 export const discordDmSchema = z.object({
 	allowedUserIds: z
 		.array(z.string().regex(DISCORD_USER_ID_RE, "Discord user ID must be numeric"))
@@ -121,6 +126,7 @@ export const appConfigSchema = z.object({
 	tts: ttsSchema.optional(),
 	minecraft: minecraftSchema.optional(),
 	github: githubSchema.optional(),
+	emailCheck: emailCheckSchema.optional(),
 	discordDm: discordDmSchema.optional(),
 	imageRecognition: imageRecognitionSchema.optional(),
 	emotionEstimation: emotionEstimationSchema.optional(),

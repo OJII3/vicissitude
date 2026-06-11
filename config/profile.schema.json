@@ -298,6 +298,11 @@
 					"type": "object",
 					"properties": {},
 					"additionalProperties": false
+				},
+				"emailCheck": {
+					"type": "object",
+					"properties": {},
+					"additionalProperties": false
 				}
 			},
 			"additionalProperties": false

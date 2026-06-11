@@ -28,6 +28,41 @@ describe("buildHeartbeatPrompt", () => {
 		expect(prompt).toContain("水やり");
 		expect(prompt).toContain("every 30min");
 	});
+
+	test("DueReminder.context を prompt に反映する", () => {
+		const prompt = buildHeartbeatPrompt([
+			{
+				reminder: {
+					id: "email-check",
+					description: "メール確認",
+					schedule: { type: "interval", minutes: 5 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+				overdueMinutes: 0,
+				context: "<email_context>新着メール 1 件: 「件名」</email_context>",
+			},
+		]);
+
+		expect(prompt).toContain("<email_context>新着メール 1 件: 「件名」</email_context>");
+	});
+
+	test("context が無い DueReminder は context を出力しない", () => {
+		const prompt = buildHeartbeatPrompt([
+			{
+				reminder: {
+					id: "home-check",
+					description: "様子見",
+					schedule: { type: "interval", minutes: 60 },
+					lastExecutedAt: null,
+					enabled: true,
+				},
+				overdueMinutes: 0,
+			},
+		]);
+
+		expect(prompt).not.toContain("<email_context>");
+	});
 });
 
 describe("groupByScope", () => {

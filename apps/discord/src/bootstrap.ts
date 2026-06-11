@@ -13,6 +13,7 @@ import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { SessionStore } from "@vicissitude/agent/session-store";
 import { createWebConversationProfile } from "@vicissitude/agent/web/profile";
 import { WEB_AGENT_ID, WEB_SCOPE_ID, WebConversationAgent } from "@vicissitude/agent/web/web-agent";
+import { fetchNewEmails, formatEmailContext } from "@vicissitude/application/email-fetcher";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { ResumeContextService } from "@vicissitude/application/resume-context-service";
@@ -51,6 +52,7 @@ import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-sc
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
+import type { PreFilterResult } from "@vicissitude/scheduling/heartbeat-scheduler";
 import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
 import type { MemoryNamespace } from "@vicissitude/shared/namespace";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
@@ -58,6 +60,7 @@ import type {
 	AiAgent,
 	ConversationRecorder,
 	ContextBuilderPort,
+	DueReminder,
 	Logger,
 	MemoryFactReader,
 	MetricsCollector,
@@ -81,6 +84,7 @@ import { DiscordGateway } from "./gateway/discord.ts";
 import {
 	migrateMemoryDir,
 	removeLegacyConsolidateReminder,
+	syncEmailCheckReminder,
 	syncMcCheckReminder,
 } from "./migrations.ts";
 import { MoodNicknameService } from "./mood-nickname.ts";
@@ -778,6 +782,36 @@ export function resolveBootstrapRoot(
 	return env.APP_ROOT ?? dirname(config.contextDir);
 }
 
+// ─── Email Check PreFilter ──────────────────────────────────────
+
+export function buildEmailCheckPreFilter(
+	logger: Logger,
+	emailConfig?: AppConfig["emailCheck"],
+): ((dueReminders: DueReminder[]) => Promise<PreFilterResult>) | undefined {
+	if (!emailConfig) return undefined;
+	const { endpoint, token } = emailConfig;
+
+	return async (dueReminders: DueReminder[]): Promise<PreFilterResult> => {
+		const emailReminders = dueReminders.filter((d) => d.reminder.id === "email-check");
+		const otherReminders = dueReminders.filter((d) => d.reminder.id !== "email-check");
+
+		if (emailReminders.length === 0) return { reminders: dueReminders };
+
+		try {
+			const result = await fetchNewEmails(endpoint, token);
+			if (!result.hasNewMail) {
+				return { reminders: otherReminders, markExecutedIds: ["email-check"] };
+			}
+			const context = formatEmailContext(result);
+			const enriched = emailReminders.map((d) => Object.assign({}, d, { context }));
+			return { reminders: [...otherReminders, ...enriched] };
+		} catch (error) {
+			logger.error("[heartbeat] email check failed:", error);
+			return { reminders: otherReminders, markExecutedIds: ["email-check"] };
+		}
+	};
+}
+
 // ─── Main Bootstrap ─────────────────────────────────────────────
 
 export async function bootstrap(): Promise<void> {
@@ -955,12 +989,14 @@ export async function bootstrap(): Promise<void> {
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
 	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
+	syncEmailCheckReminder(heartbeatConfigPath, !!config.emailCheck, logger);
 	removeLegacyConsolidateReminder(heartbeatConfigPath, logger);
 	const heartbeatScheduler = new HeartbeatScheduler({
 		configRepo: new JsonHeartbeatConfigRepository(heartbeatConfigPath),
 		heartbeatService: new HeartbeatService({ agent: heartbeatRouter, logger }),
 		logger,
 		metrics: metrics.collector,
+		preFilter: buildEmailCheckPreFilter(logger, config.emailCheck),
 	});
 
 	// Session gauge
