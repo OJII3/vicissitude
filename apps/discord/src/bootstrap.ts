@@ -604,6 +604,10 @@ function setupEventHandlers(deps: {
 	trustedUserIds: string[];
 }): void {
 	const { gateway, ingestionService, metricsCollector, agents, logger, trustedUserIds } = deps;
+	gateway.onResume(() => {
+		logger.info(`[bootstrap] Discord Gateway resumed; ensuring ${agents.size} conversation loops`);
+		for (const agent of agents.values()) agent.ensurePolling();
+	});
 	gateway.onHomeChannelMessage(async (msg) => {
 		const selfUserId = gateway.getClient()?.user?.id;
 		const scopeId = msg.scopeId ?? (msg.guildId ? discordScopeId(msg.guildId) : undefined);

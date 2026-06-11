@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- Discord Gateway integration is kept in one adapter */
 import { mapAttachments } from "@vicissitude/infrastructure/discord/attachment-mapper";
 import { rewriteTwitterUrls } from "@vicissitude/infrastructure/discord/url-rewriter";
 import { discordDmScopeId, discordScopeId } from "@vicissitude/shared/namespace";
@@ -13,6 +14,7 @@ import {
 
 type MessageHandler = (msg: IncomingMessage, ch: MessageChannel) => Promise<void>;
 type EmojiUsedHandler = (guildId: string, emojiName: string) => void;
+type ResumeHandler = () => void;
 
 /** カスタム絵文字パターン: <:name:id> or <a:name:id> */
 const CUSTOM_EMOJI_RE = /<a?:(\w+):\d+>/g;
@@ -25,6 +27,8 @@ export class DiscordGateway {
 	private homeChannelIds: Set<string> = new Set();
 	private allowedDirectMessageUserIds: Set<string> = new Set();
 	private emojiUsedHandler: EmojiUsedHandler | null = null;
+	private resumeHandler: ResumeHandler | null = null;
+	private readyShardIds: Set<number> = new Set();
 
 	constructor(
 		private readonly token: string,
@@ -45,6 +49,10 @@ export class DiscordGateway {
 
 	onEmojiUsed(handler: EmojiUsedHandler): void {
 		this.emojiUsedHandler = handler;
+	}
+
+	onResume(handler: ResumeHandler): void {
+		this.resumeHandler = handler;
 	}
 
 	/**
@@ -83,6 +91,7 @@ export class DiscordGateway {
 			this.logger.info(`[discord] Logged in as ${readyClient.user.tag}`);
 		});
 
+		this.registerLifecycleHandlers(client);
 		this.registerMessageHandler(client);
 		this.registerReactionHandler(client);
 		this.registerThreadUpdateHandler(client);
@@ -94,6 +103,30 @@ export class DiscordGateway {
 		this.client = client;
 
 		this.joinHomeThreads(client);
+	}
+
+	private registerLifecycleHandlers(client: Client): void {
+		client.on(Events.ShardDisconnect, (event, shardId) => {
+			this.logger.warn(`[discord] shard ${shardId} disconnected (code=${event.code})`);
+		});
+		client.on(Events.ShardError, (error, shardId) => {
+			this.logger.error(`[discord] shard ${shardId} error`, error);
+		});
+		client.on(Events.ShardReconnecting, (shardId) => {
+			this.logger.warn(`[discord] shard ${shardId} reconnecting`);
+		});
+		client.on(Events.ShardReady, (shardId, unavailableGuilds) => {
+			const reconnected = this.readyShardIds.has(shardId);
+			this.readyShardIds.add(shardId);
+			this.logger.info(
+				`[discord] shard ${shardId} ready (unavailableGuilds=${unavailableGuilds?.size ?? 0}, reconnected=${reconnected})`,
+			);
+			if (reconnected) this.resumeHandler?.();
+		});
+		client.on(Events.ShardResume, (shardId, replayedEvents) => {
+			this.logger.info(`[discord] shard ${shardId} resumed (replayedEvents=${replayedEvents})`);
+			this.resumeHandler?.();
+		});
 	}
 
 	stop(): void {
