@@ -31,11 +31,6 @@ const BASE_PROFILE = {
 			ollamaBaseUrl: "http://localhost:11434",
 			embeddingModel: "embedding-model",
 		},
-		minecraft: {
-			providerId: "mc-provider",
-			modelId: "mc-model",
-			temperature: 0.4,
-		},
 	},
 	features: {},
 };

@@ -52,7 +52,16 @@ const baseProfile = {
 			temperature: 0.4,
 		},
 	},
-	features: {},
+	features: {
+		minecraft: {
+			host: "localhost",
+			port: 25565,
+			username: "hua",
+			authMode: "offline" as const,
+			mcpPort: 3001,
+			viewerPort: 3002,
+		},
+	},
 };
 
 describe("JSON profile config", () => {
@@ -76,6 +85,29 @@ describe("JSON profile config", () => {
 		const parsed = profileConfigSchema.parse(baseProfile);
 
 		expect(parsed.ports.web).toBe(4100);
+	});
+
+	it("models.minecraft と features.minecraft が両方存在する profile を受理する", () => {
+		expect(profileConfigSchema.safeParse(baseProfile).success).toBe(true);
+	});
+
+	it("models.minecraft と features.minecraft が両方不在の profile を受理する", () => {
+		const { minecraft: _model, ...models } = baseProfile.models;
+		const { minecraft: _feature, ...features } = baseProfile.features;
+
+		expect(profileConfigSchema.safeParse({ ...baseProfile, models, features }).success).toBe(true);
+	});
+
+	it("models.minecraft だけが存在する profile を reject する", () => {
+		const { minecraft: _omit, ...features } = baseProfile.features;
+
+		expect(profileConfigSchema.safeParse({ ...baseProfile, features }).success).toBe(false);
+	});
+
+	it("features.minecraft だけが存在する profile を reject する", () => {
+		const { minecraft: _omit, ...models } = baseProfile.models;
+
+		expect(profileConfigSchema.safeParse({ ...baseProfile, models }).success).toBe(false);
 	});
 
 	it("$schema metadata を含む profile も読み込める", () => {
@@ -129,7 +161,9 @@ describe("JSON profile config", () => {
 	});
 
 	it("profile の disabled feature は key ごと省略する", () => {
-		const config = loadConfigFromProfile(baseProfile, baseEnv(), root);
+		const { minecraft: _model, ...models } = baseProfile.models;
+		const { minecraft: _feature, ...features } = baseProfile.features;
+		const config = loadConfigFromProfile({ ...baseProfile, models, features }, baseEnv(), root);
 
 		expect(config.imageRecognition).toBeUndefined();
 		expect(config.emotionEstimation).toBeUndefined();
@@ -137,15 +171,13 @@ describe("JSON profile config", () => {
 		expect(config.minecraft).toBeUndefined();
 	});
 
-	it("models.minecraft 未設定の profile でも AppConfig を構築でき mcBrain は undefined になる", () => {
-		const { minecraft: _omit, ...modelsWithoutMinecraft } = baseProfile.models;
-		const config = loadConfigFromProfile(
-			{ ...baseProfile, models: modelsWithoutMinecraft },
-			baseEnv(),
-			root,
-		);
+	it("minecraft 未設定の profile でも AppConfig を構築でき mcBrain と minecraft は undefined になる", () => {
+		const { minecraft: _model, ...models } = baseProfile.models;
+		const { minecraft: _feature, ...features } = baseProfile.features;
+		const config = loadConfigFromProfile({ ...baseProfile, models, features }, baseEnv(), root);
 
 		expect(config.mcBrain).toBeUndefined();
+		expect(config.minecraft).toBeUndefined();
 	});
 
 	it("profile に feature section がある場合だけ機能設定を作る", () => {
@@ -153,6 +185,7 @@ describe("JSON profile config", () => {
 			{
 				...baseProfile,
 				features: {
+					...baseProfile.features,
 					imageRecognition: {
 						providerId: "vision-provider",
 						modelId: "vision-model",
@@ -222,7 +255,7 @@ describe("JSON profile config", () => {
 		const config = loadConfigFromProfile(
 			{
 				...baseProfile,
-				features: { emailCheck: {} },
+				features: { ...baseProfile.features, emailCheck: {} },
 			},
 			baseEnv({
 				GAS_EMAIL_ENDPOINT: "https://script.google.com/exec",
@@ -246,7 +279,7 @@ describe("JSON profile config", () => {
 	it("features.emailCheck 設定時に GAS_EMAIL_ENDPOINT が無ければエラーにする", () => {
 		expect(() =>
 			loadConfigFromProfile(
-				{ ...baseProfile, features: { emailCheck: {} } },
+				{ ...baseProfile, features: { ...baseProfile.features, emailCheck: {} } },
 				baseEnv({ GAS_EMAIL_TOKEN: "test-email-token" }),
 				root,
 			),
@@ -256,7 +289,7 @@ describe("JSON profile config", () => {
 	it("features.emailCheck 設定時に GAS_EMAIL_TOKEN が無ければエラーにする", () => {
 		expect(() =>
 			loadConfigFromProfile(
-				{ ...baseProfile, features: { emailCheck: {} } },
+				{ ...baseProfile, features: { ...baseProfile.features, emailCheck: {} } },
 				baseEnv({ GAS_EMAIL_ENDPOINT: "https://script.google.com/exec" }),
 				root,
 			),
@@ -269,6 +302,7 @@ describe("JSON profile config", () => {
 				{
 					...baseProfile,
 					features: {
+						...baseProfile.features,
 						shellAgent: {
 							agent: {
 								providerId: "shell-provider",

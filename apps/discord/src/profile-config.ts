@@ -48,51 +48,59 @@ const discordDmProfileSchema = z.strictObject({
 		.min(1),
 });
 
-export const profileConfigSchema = z.strictObject({
-	$schema: z.string().min(1).optional(),
-	ports: z.strictObject({
-		web: safeInt,
-		gateway: safeInt,
-		opencodeBase: safeInt,
-	}),
-	session: z.strictObject({
-		maxAgeHours: safeNumber,
-	}),
-	models: z.strictObject({
-		conversation: modelSelectionSchema.extend({
-			temperature: safeNumber.min(0).max(2),
+export const profileConfigSchema = z
+	.strictObject({
+		$schema: z.string().min(1).optional(),
+		ports: z.strictObject({
+			web: safeInt,
+			gateway: safeInt,
+			opencodeBase: safeInt,
 		}),
-		heartbeat: modelSelectionSchema.extend({
-			temperature: safeNumber.min(0).max(2),
+		session: z.strictObject({
+			maxAgeHours: safeNumber,
 		}),
-		memory: modelSelectionSchema.extend({
-			ollamaBaseUrl: z.string().min(1),
-			embeddingModel: z.string().min(1),
-		}),
-		minecraft: modelSelectionSchema
-			.extend({
+		models: z.strictObject({
+			conversation: modelSelectionSchema.extend({
 				temperature: safeNumber.min(0).max(2),
-			})
-			.optional(),
-	}),
-	features: z.strictObject({
-		discordDm: discordDmProfileSchema.optional(),
-		imageRecognition: modelSelectionSchema.optional(),
-		emotionEstimation: emotionEstimationProfileSchema.optional(),
-		shellAgent: z
-			.strictObject({
-				agent: modelSelectionSchema,
-				environment: shellAgentProfileEnvironmentSchema.optional(),
-				git: shellAgentGitSchema.optional(),
-				backgroundSubagents: z.literal(true).optional(),
-			})
-			.optional(),
-		minecraft: minecraftSchema.optional(),
-		tts: ttsSchema.optional(),
-		githubIssues: z.strictObject({}).optional(),
-		emailCheck: z.strictObject({}).optional(),
-	}),
-});
+			}),
+			heartbeat: modelSelectionSchema.extend({
+				temperature: safeNumber.min(0).max(2),
+			}),
+			memory: modelSelectionSchema.extend({
+				ollamaBaseUrl: z.string().min(1),
+				embeddingModel: z.string().min(1),
+			}),
+			minecraft: modelSelectionSchema
+				.extend({
+					temperature: safeNumber.min(0).max(2),
+				})
+				.optional(),
+		}),
+		features: z.strictObject({
+			discordDm: discordDmProfileSchema.optional(),
+			imageRecognition: modelSelectionSchema.optional(),
+			emotionEstimation: emotionEstimationProfileSchema.optional(),
+			shellAgent: z
+				.strictObject({
+					agent: modelSelectionSchema,
+					environment: shellAgentProfileEnvironmentSchema.optional(),
+					git: shellAgentGitSchema.optional(),
+					backgroundSubagents: z.literal(true).optional(),
+				})
+				.optional(),
+			minecraft: minecraftSchema.optional(),
+			tts: ttsSchema.optional(),
+			githubIssues: z.strictObject({}).optional(),
+			emailCheck: z.strictObject({}).optional(),
+		}),
+	})
+	.superRefine((profile, ctx) => {
+		if (Boolean(profile.models.minecraft) === Boolean(profile.features.minecraft)) return;
+		ctx.addIssue({
+			code: "custom",
+			message: "models.minecraft and features.minecraft must be configured together",
+		});
+	});
 
 export type ProfileConfig = z.infer<typeof profileConfigSchema>;
 

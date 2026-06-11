@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { resolve } from "path";
 
+import { appConfigSchema } from "../../apps/discord/src/config-schema.ts";
 import { loadConfig } from "../../apps/discord/src/config.ts";
 
 const root = "/tmp/test-vicissitude";
@@ -38,7 +39,42 @@ const baseProfile = {
 			temperature: 0.4,
 		},
 	},
-	features: {},
+	features: {
+		minecraft: {
+			host: "localhost",
+			port: 25565,
+			username: "hua",
+			authMode: "offline" as const,
+			mcpPort: 3001,
+			viewerPort: 3002,
+		},
+	},
+};
+
+const baseAppConfig = {
+	discordToken: "test-token",
+	webPort: 4100,
+	gatewayPort: 4101,
+	opencode: {
+		providerId: "conversation-provider",
+		modelId: "conversation-model",
+		basePort: 5000,
+		sessionMaxAgeHours: 24,
+		temperature: 0.8,
+	},
+	heartbeatOpencode: {
+		providerId: "heartbeat-provider",
+		modelId: "heartbeat-model",
+		temperature: 0.3,
+	},
+	memory: {
+		providerId: "memory-provider",
+		modelId: "memory-model",
+		ollamaBaseUrl: "http://localhost:11434",
+		embeddingModel: "embedding-model",
+	},
+	dataDir: "/tmp/test-vicissitude/data",
+	contextDir: "/tmp/test-vicissitude/context",
 };
 
 function env(filepath: string, overrides: Record<string, string> = {}): Record<string, string> {
@@ -48,6 +84,38 @@ function env(filepath: string, overrides: Record<string, string> = {}): Record<s
 		...overrides,
 	};
 }
+
+describe("appConfigSchema", () => {
+	const minecraft = {
+		host: "localhost",
+		port: 25565,
+		username: "hua",
+		authMode: "offline" as const,
+		mcpPort: 3001,
+		viewerPort: 3002,
+	};
+	const mcBrain = {
+		providerId: "mc-provider",
+		modelId: "mc-model",
+		temperature: 0.4,
+	};
+
+	it("minecraft と mcBrain が両方存在する設定を受理する", () => {
+		expect(appConfigSchema.safeParse({ ...baseAppConfig, minecraft, mcBrain }).success).toBe(true);
+	});
+
+	it("minecraft と mcBrain が両方不在の設定を受理する", () => {
+		expect(appConfigSchema.safeParse(baseAppConfig).success).toBe(true);
+	});
+
+	it("minecraft だけが存在する設定を reject する", () => {
+		expect(appConfigSchema.safeParse({ ...baseAppConfig, minecraft }).success).toBe(false);
+	});
+
+	it("mcBrain だけが存在する設定を reject する", () => {
+		expect(appConfigSchema.safeParse({ ...baseAppConfig, mcBrain }).success).toBe(false);
+	});
+});
 
 describe("loadConfig", () => {
 	const tempDirs: string[] = [];
@@ -107,7 +175,9 @@ describe("loadConfig", () => {
 	});
 
 	it("旧 env loader の非 secret 設定は読み込まない", () => {
-		const filepath = writeProfileFile(baseProfile);
+		const { minecraft: _model, ...models } = baseProfile.models;
+		const { minecraft: _feature, ...features } = baseProfile.features;
+		const filepath = writeProfileFile({ ...baseProfile, models, features });
 		const config = loadConfig(
 			env(filepath, {
 				OPENCODE_PROVIDER_ID: "env-provider",
