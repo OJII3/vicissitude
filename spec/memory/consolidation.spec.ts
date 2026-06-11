@@ -948,7 +948,33 @@ describe("ConsolidationPipeline — schema validation", () => {
 		expect(facts[0]?.fact).toBe("Some fact");
 	});
 
-	test("rejects fact with non-array keywords", async () => {
+	test("normalizes comma-separated string keywords by trimming and removing empty entries", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const pipeline = new ConsolidationPipeline(
+			createMockLLM({
+				structuredResponse: {
+					facts: [
+						{
+							action: "new",
+							category: "preference",
+							fact: "Some fact",
+							keywords: " typescript, , programming, memory,  ",
+						},
+					],
+				},
+			}),
+			storage,
+		);
+		const result = await pipeline.consolidate(userId);
+
+		expect(result.newFacts).toBe(1);
+		const facts = await storage.getFacts(userId);
+		expect(facts[0]?.keywords).toEqual(["typescript", "programming", "memory"]);
+	});
+
+	test("rejects comma-separated string keywords exceeding the keyword count limit", async () => {
 		const episode = makeEpisode();
 		await storage.saveEpisode(userId, episode);
 
@@ -959,7 +985,28 @@ describe("ConsolidationPipeline — schema validation", () => {
 						action: "new",
 						category: "preference",
 						fact: "Some fact",
-						keywords: "not-an-array",
+						keywords: "one,two,three,four,five,six,seven,eight,nine,ten,eleven",
+					},
+				],
+			}),
+			storage,
+		);
+
+		expect(pipeline.consolidate(userId)).rejects.toThrow("too many keywords");
+	});
+
+	test("rejects keywords that are neither an array nor a string", async () => {
+		const episode = makeEpisode();
+		await storage.saveEpisode(userId, episode);
+
+		const pipeline = new ConsolidationPipeline(
+			createInvalidLLM({
+				facts: [
+					{
+						action: "new",
+						category: "preference",
+						fact: "Some fact",
+						keywords: 123,
 					},
 				],
 			}),

@@ -77,8 +77,14 @@ function validateFactFields(obj: Record<string, unknown>, i: number): void {
 }
 
 function validateKeywords(obj: Record<string, unknown>, i: number): void {
-	if (!Array.isArray(obj["keywords"])) {
-		throw new TypeError(`facts[${i}].keywords: expected array`);
+	const rawKeywords = obj["keywords"];
+	if (typeof rawKeywords === "string") {
+		obj["keywords"] = rawKeywords
+			.split(",")
+			.map((keyword) => keyword.trim())
+			.filter((keyword) => keyword !== "");
+	} else if (!Array.isArray(rawKeywords)) {
+		throw new TypeError(`facts[${i}].keywords: expected array or string`);
 	}
 	const keywords = obj["keywords"] as unknown[];
 	if (keywords.length > MAX_KEYWORDS_PER_FACT) {

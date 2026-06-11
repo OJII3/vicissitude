@@ -94,46 +94,51 @@ export const shellAgentSchema = z.object({
 	dataDir: z.string(),
 });
 
-export const appConfigSchema = z.object({
-	discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
-	webPort: safeInt,
-	gatewayPort: safeInt,
-	opencode: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		basePort: safeInt,
-		sessionMaxAgeHours: safeNumber,
-		temperature: safeNumber.min(0).max(2),
-	}),
-	heartbeatOpencode: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		temperature: safeNumber.min(0).max(2),
-	}),
-	memory: z.object({
-		providerId: z.string(),
-		modelId: z.string(),
-		ollamaBaseUrl: z.string(),
-		embeddingModel: z.string(),
-	}),
-	mcBrain: z
-		.object({
+export const appConfigSchema = z
+	.object({
+		discordToken: z.string().min(1, "DISCORD_TOKEN is required"),
+		webPort: safeInt,
+		gatewayPort: safeInt,
+		opencode: z.object({
+			providerId: z.string(),
+			modelId: z.string(),
+			basePort: safeInt,
+			sessionMaxAgeHours: safeNumber,
+			temperature: safeNumber.min(0).max(2),
+		}),
+		heartbeatOpencode: z.object({
 			providerId: z.string(),
 			modelId: z.string(),
 			temperature: safeNumber.min(0).max(2),
-		})
-		.optional(),
-	tts: ttsSchema.optional(),
-	minecraft: minecraftSchema.optional(),
-	github: githubSchema.optional(),
-	emailCheck: emailCheckSchema.optional(),
-	discordDm: discordDmSchema.optional(),
-	imageRecognition: imageRecognitionSchema.optional(),
-	emotionEstimation: emotionEstimationSchema.optional(),
-	shellAgent: shellAgentSchema.optional(),
-	dataDir: z.string(),
-	contextDir: z.string(),
-});
+		}),
+		memory: z.object({
+			providerId: z.string(),
+			modelId: z.string(),
+			ollamaBaseUrl: z.string(),
+			embeddingModel: z.string(),
+		}),
+		mcBrain: z
+			.object({
+				providerId: z.string(),
+				modelId: z.string(),
+				temperature: safeNumber.min(0).max(2),
+			})
+			.optional(),
+		tts: ttsSchema.optional(),
+		minecraft: minecraftSchema.optional(),
+		github: githubSchema.optional(),
+		emailCheck: emailCheckSchema.optional(),
+		discordDm: discordDmSchema.optional(),
+		imageRecognition: imageRecognitionSchema.optional(),
+		emotionEstimation: emotionEstimationSchema.optional(),
+		shellAgent: shellAgentSchema.optional(),
+		dataDir: z.string(),
+		contextDir: z.string(),
+	})
+	.refine((config) => Boolean(config.minecraft) === Boolean(config.mcBrain), {
+		message: "minecraft and mcBrain must both be configured or both be absent",
+		path: ["minecraft"],
+	});
 
 export type TtsConfig = z.infer<typeof ttsSchema>;
 export type MinecraftConfig = z.infer<typeof minecraftSchema>;
