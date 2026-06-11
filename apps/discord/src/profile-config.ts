@@ -90,6 +90,7 @@ export const profileConfigSchema = z.strictObject({
 		minecraft: minecraftSchema.optional(),
 		tts: ttsSchema.optional(),
 		githubIssues: z.strictObject({}).optional(),
+		emailCheck: z.strictObject({}).optional(),
 	}),
 });
 
@@ -140,6 +141,17 @@ function requireSecret(
 	const value = env[name];
 	if (value && value.trim()) return value;
 	throw new Error(`${name} is required when ${featureName} is configured`);
+}
+
+function buildEmailCheckConfig(
+	profile: ProfileConfig,
+	env: Record<string, string | undefined>,
+): AppConfig["emailCheck"] {
+	if (!profile.features.emailCheck) return undefined;
+	return {
+		endpoint: requireSecret(env, "GAS_EMAIL_ENDPOINT", "features.emailCheck"),
+		token: requireSecret(env, "GAS_EMAIL_TOKEN", "features.emailCheck"),
+	};
 }
 
 export function loadProfileConfigFile(filepath: string): ProfileConfig {
@@ -201,6 +213,7 @@ export function loadConfigFromProfile(
 					repo: requireSecret(env, "GITHUB_REPO", "features.githubIssues"),
 				}
 			: undefined,
+		emailCheck: buildEmailCheckConfig(profile, env),
 		discordDm:
 			(runtimeOverlay?.discordDm ?? profile.features.discordDm)
 				? {

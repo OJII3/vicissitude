@@ -7,6 +7,7 @@ import type { Logger } from "@vicissitude/shared/types";
 import {
 	migrateMemoryDir,
 	removeLegacyConsolidateReminder,
+	syncEmailCheckReminder,
 	syncMcCheckReminder,
 } from "../../apps/discord/src/migrations.ts";
 
@@ -76,6 +77,73 @@ describe("syncMcCheckReminder", () => {
 		writeFileSync(configPath, "not json");
 		const logger = makeLogger();
 		expect(() => syncMcCheckReminder(configPath, true, logger)).not.toThrow();
+	});
+});
+
+describe("syncEmailCheckReminder", () => {
+	const TEST_DIR = resolve(import.meta.dirname, "../../.test-migrations-email-sync");
+	const configPath = resolve(TEST_DIR, "heartbeat.json");
+
+	beforeEach(() => {
+		mkdirSync(TEST_DIR, { recursive: true });
+	});
+
+	afterEach(() => {
+		rmSync(TEST_DIR, { recursive: true, force: true });
+	});
+
+	it("ファイルが存在しない場合は何もしない", () => {
+		const logger = makeLogger();
+		syncEmailCheckReminder(resolve(TEST_DIR, "nonexistent.json"), true, logger);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it("email-check リマインダーが存在しない場合は何もしない", () => {
+		writeFileSync(configPath, JSON.stringify({ reminders: [] }));
+		const logger = makeLogger();
+		syncEmailCheckReminder(configPath, true, logger);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it("email-check の enabled が既に一致している場合は何もしない", () => {
+		writeFileSync(
+			configPath,
+			JSON.stringify({ reminders: [{ id: "email-check", enabled: true }] }),
+		);
+		const logger = makeLogger();
+		syncEmailCheckReminder(configPath, true, logger);
+		expect(logger.info).not.toHaveBeenCalled();
+	});
+
+	it("emailCheckEnabled=true のとき email-check を enabled にする", () => {
+		writeFileSync(
+			configPath,
+			JSON.stringify({ reminders: [{ id: "email-check", enabled: false }] }),
+		);
+		const logger = makeLogger();
+		syncEmailCheckReminder(configPath, true, logger);
+
+		const result = JSON.parse(readFileSync(configPath, "utf-8"));
+		expect(result.reminders[0].enabled).toBe(true);
+		expect(logger.info).toHaveBeenCalled();
+	});
+
+	it("emailCheckEnabled=false のとき email-check を disabled にする", () => {
+		writeFileSync(
+			configPath,
+			JSON.stringify({ reminders: [{ id: "email-check", enabled: true }] }),
+		);
+		const logger = makeLogger();
+		syncEmailCheckReminder(configPath, false, logger);
+
+		const result = JSON.parse(readFileSync(configPath, "utf-8"));
+		expect(result.reminders[0].enabled).toBe(false);
+	});
+
+	it("不正な JSON の場合は例外をスローせずスキップする", () => {
+		writeFileSync(configPath, "not json");
+		const logger = makeLogger();
+		expect(() => syncEmailCheckReminder(configPath, true, logger)).not.toThrow();
 	});
 });
 

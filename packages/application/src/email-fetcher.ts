@@ -25,11 +25,13 @@ export async function fetchNewEmails(
 	return (await response.json()) as EmailCheckResult;
 }
 
+const EMAIL_BODY_EXCERPT_MAX_LENGTH = 200;
+
 export function formatEmailContext(result: EmailCheckResult): string {
 	if (!result.hasNewMail || result.emails.length === 0) return "";
 	const lines = result.emails.map(
 		(email, i) =>
-			`${String(i + 1)}. 「${email.subject}」from ${email.from} (${email.date})\n   ${email.bodyExcerpt}`,
+			`${String(i + 1)}. 「${email.subject}」from ${email.from} (${email.date})\n   ${email.bodyExcerpt.slice(0, EMAIL_BODY_EXCERPT_MAX_LENGTH)}`,
 	);
-	return `新着メール ${String(result.count)} 件:\n${lines.join("\n")}`;
+	return `<email_context>\n新着メール ${String(result.count)} 件:\n${lines.join("\n")}\n</email_context>`;
 }

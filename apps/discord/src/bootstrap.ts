@@ -52,6 +52,7 @@ import { ConsolidationScheduler } from "@vicissitude/scheduling/consolidation-sc
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
+import type { PreFilterResult } from "@vicissitude/scheduling/heartbeat-scheduler";
 import { addGitHubCredentialHelperEnvironment } from "@vicissitude/shared/github-auth-env";
 import type { MemoryNamespace } from "@vicissitude/shared/namespace";
 import type { CriticAuditorPort } from "@vicissitude/shared/ports";
@@ -83,6 +84,7 @@ import { DiscordGateway } from "./gateway/discord.ts";
 import {
 	migrateMemoryDir,
 	removeLegacyConsolidateReminder,
+	syncEmailCheckReminder,
 	syncMcCheckReminder,
 } from "./migrations.ts";
 import { MoodNicknameService } from "./mood-nickname.ts";
@@ -782,30 +784,30 @@ export function resolveBootstrapRoot(
 
 // ─── Email Check PreFilter ──────────────────────────────────────
 
-function buildEmailCheckPreFilter(
+export function buildEmailCheckPreFilter(
 	logger: Logger,
-): ((dueReminders: DueReminder[]) => Promise<DueReminder[]>) | undefined {
-	const endpoint = process.env.GAS_EMAIL_ENDPOINT;
-	const token = process.env.GAS_EMAIL_TOKEN;
-	if (!endpoint || !token) return undefined;
+	emailConfig?: AppConfig["emailCheck"],
+): ((dueReminders: DueReminder[]) => Promise<PreFilterResult>) | undefined {
+	if (!emailConfig) return undefined;
+	const { endpoint, token } = emailConfig;
 
-	return async (dueReminders: DueReminder[]): Promise<DueReminder[]> => {
+	return async (dueReminders: DueReminder[]): Promise<PreFilterResult> => {
 		const emailReminders = dueReminders.filter((d) => d.reminder.id === "email-check");
 		const otherReminders = dueReminders.filter((d) => d.reminder.id !== "email-check");
 
-		if (emailReminders.length === 0) return dueReminders;
+		if (emailReminders.length === 0) return { reminders: dueReminders };
 
 		try {
 			const result = await fetchNewEmails(endpoint, token);
 			if (!result.hasNewMail) {
-				return otherReminders;
+				return { reminders: otherReminders, markExecutedIds: ["email-check"] };
 			}
 			const context = formatEmailContext(result);
 			const enriched = emailReminders.map((d) => Object.assign({}, d, { context }));
-			return [...otherReminders, ...enriched];
+			return { reminders: [...otherReminders, ...enriched] };
 		} catch (error) {
 			logger.error("[heartbeat] email check failed:", error);
-			return otherReminders;
+			return { reminders: otherReminders, markExecutedIds: ["email-check"] };
 		}
 	};
 }
@@ -987,13 +989,14 @@ export async function bootstrap(): Promise<void> {
 	// Heartbeat — リマインダー同期
 	const heartbeatConfigPath = resolve(root, HEARTBEAT_CONFIG_RELATIVE_PATH);
 	syncMcCheckReminder(heartbeatConfigPath, !!config.minecraft, logger);
+	syncEmailCheckReminder(heartbeatConfigPath, !!config.emailCheck, logger);
 	removeLegacyConsolidateReminder(heartbeatConfigPath, logger);
 	const heartbeatScheduler = new HeartbeatScheduler({
 		configRepo: new JsonHeartbeatConfigRepository(heartbeatConfigPath),
 		heartbeatService: new HeartbeatService({ agent: heartbeatRouter, logger }),
 		logger,
 		metrics: metrics.collector,
-		preFilter: buildEmailCheckPreFilter(logger),
+		preFilter: buildEmailCheckPreFilter(logger, config.emailCheck),
 	});
 
 	// Session gauge

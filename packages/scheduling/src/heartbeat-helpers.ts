@@ -46,6 +46,15 @@ export function createDefaultHeartbeatConfig(): HeartbeatConfig {
 				lastExecutedAt: null,
 				enabled: false,
 			},
+			// config.emailCheck 未設定時でも含める（heartbeat-config.json に永続化されるため条件付き追加は不整合を招く）。
+			// デフォルト無効。config.emailCheck 設定時に有効化される想定。
+			{
+				id: "email-check",
+				description: "新着メールを確認する",
+				schedule: { type: "interval", minutes: 5 },
+				lastExecutedAt: null,
+				enabled: false,
+			},
 		],
 	};
 }
