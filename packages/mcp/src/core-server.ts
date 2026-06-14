@@ -4,7 +4,6 @@ import { resolve } from "path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { MemoryReadServices } from "@vicissitude/memory";
-import { EpisodicMemory } from "@vicissitude/memory/episodic";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
 	migrateLegacyGuildMemoryNamespaces,
@@ -78,9 +77,8 @@ async function main(): Promise<void> {
 		const dbDir = resolveMemoryDbDir(MEMORY_DATA_DIR, namespace);
 		mkdirSync(dbDir, { recursive: true });
 		const storage = new MemoryStorage(resolveMemoryDbPath(MEMORY_DATA_DIR, namespace));
-		const episodic = new EpisodicMemory(storage);
 		const instance: MemoryReadServices = {
-			retrieval: new Retrieval(embedOnlyLlm, storage, episodic),
+			retrieval: new Retrieval(embedOnlyLlm, storage),
 			semantic: new SemanticMemory(storage),
 		};
 		return { instance, storage };

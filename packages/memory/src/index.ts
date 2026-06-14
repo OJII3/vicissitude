@@ -98,7 +98,7 @@ export function createMemory(opts: CreateMemoryOptions): Memory {
 	const segmenter = new Segmenter(llm, storage);
 	const consolidation = new ConsolidationPipeline(llm, storage, episodic);
 	const semantic = new SemanticMemory(storage);
-	const retrieval = new Retrieval(llm, storage, episodic);
+	const retrieval = new Retrieval(llm, storage);
 	const retrievalReview = new RetrievalReviewCommand(episodic);
 	const read: MemoryReadServices = { retrieval, semantic };
 	const commands: MemoryCommandServices = {
