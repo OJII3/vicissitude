@@ -1,11 +1,9 @@
-/* oxlint-disable max-lines -- OpenCode SDK adapter keeps session operations and stream handling in one cohesive boundary */
 import { mkdirSync } from "fs";
 
 import {
 	createOpencode,
 	type AgentConfig,
 	type Config as OpencodeConfig,
-	type Event,
 	type McpLocalConfig,
 	type McpRemoteConfig,
 	type OpencodeClient,
@@ -26,17 +24,8 @@ import type {
 	TokenUsage,
 } from "@vicissitude/shared/types";
 
-import {
-	abortSession,
-	classifyEvent,
-	extractPartActivity,
-	extractText,
-	extractTokens,
-	logPartActivity,
-	nextStreamEvent,
-	returnStreamOnce,
-	sumTokens,
-} from "./stream-helpers.ts";
+import { consumeSessionEventStream } from "./session-event-stream.ts";
+import { abortSession, extractText, extractTokens, returnStreamOnce } from "./stream-helpers.ts";
 
 /** OpenCode Go バイナリが MCP ツール呼び出しに適用するタイムアウト（1時間） */
 const MCP_REQUEST_TIMEOUT_MS = 60 * 60 * 1000;
@@ -200,67 +189,19 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		try {
 			await this.sendPromptAsync(oc, params, parts);
 			this.logger?.info("[opencode] promptAsync sent, watching events...");
-
-			let unclassifiedCount = 0;
-			while (true) {
-				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
-				const event = await nextStreamEvent(stream, signal, () =>
-					abortSession(oc, params.sessionId, this.config.directory),
-				);
-				if (event.type === "aborted") {
-					this.logger?.info("[opencode] event stream aborted");
-					return { type: "cancelled" };
-				}
-				if (event.type === "done") {
-					this.logger?.info("[opencode] event stream done (idle)");
-					return { type: "idle", tokens: sumTokens(tokensByMessage) };
-				}
-				if (event.type === "streamTimeout") {
-					this.logger?.warn(`[opencode] SSE stream disconnected: ${event.reason ?? "unknown"}`);
-					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
-				}
-				if (event.type === "streamError") {
-					this.logger?.error(`[opencode] SSE stream error: ${event.reason}`);
-					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
-				}
-				const typed = event.value as Event;
-				const rawType = (event.value as { type: string }).type;
-
-				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
-				const eventSessionId = props?.sessionID as string | undefined;
-				const msg = `[opencode] stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${params.sessionId}`;
-				if (rawType === "session.status" || rawType === "session.updated") {
-					this.logger?.info(`${msg} props=${JSON.stringify(props)}`);
-				} else {
-					this.logger?.debug(msg);
-				}
-
-				logPartActivity(typed, params.sessionId, this.logger);
-				const activity = extractPartActivity(typed, params.sessionId);
-				if (activity) params.onActivity?.(activity);
-
-				const classified = classifyEvent(typed, params.sessionId, tokensByMessage);
-				if (classified) {
-					if (classified.type === "error") {
-						this.logger?.error(
-							`[opencode] session.error event: ${classified.message ?? "unknown"}`,
-						);
-					} else {
-						this.logger?.info(`[opencode] session event: ${classified.type}`);
-					}
-					return classified;
-				}
-				unclassifiedCount++;
-				if (unclassifiedCount % 50 === 0) {
-					this.logger?.info(
-						`[opencode] ${unclassifiedCount} unclassified events so far (last: type=${typed.type} session=${eventSessionId ?? "?"})`,
-					);
-				}
-			}
+			return await consumeSessionEventStream({
+				stream,
+				signal,
+				sessionId: params.sessionId,
+				onAbort: () => abortSession(oc, params.sessionId, this.config.directory),
+				tokensByMessage,
+				onActivity: params.onActivity,
+				logger: this.logger,
+				log: { prefix: "", logClassifiedSuccess: true },
+			});
 		} finally {
 			await returnStreamOnce(stream);
 		}
-		return { type: "idle" };
 	}
 	async waitForSessionIdle(
 		sessionId: string,
@@ -270,58 +211,20 @@ export class OpencodeSessionAdapter implements OpencodeSessionPort {
 		const oc = await this.getClient();
 		const { stream } = await oc.event.subscribe(this.directoryQuery());
 		const tokensByMessage = new Map<string, TokenUsage>();
-		let unclassifiedCount = 0;
 		try {
-			while (true) {
-				// eslint-disable-next-line no-await-in-loop -- event stream must be consumed sequentially
-				const event = await nextStreamEvent(stream, signal, () =>
-					abortSession(oc, sessionId, this.config.directory),
-				);
-				if (event.type === "aborted") return { type: "cancelled" };
-				if (event.type === "done") return { type: "idle", tokens: sumTokens(tokensByMessage) };
-				if (event.type === "streamTimeout") {
-					this.logger?.warn(
-						`[opencode] waitIdle: SSE stream disconnected: ${event.reason ?? "unknown"}`,
-					);
-					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
-				}
-				if (event.type === "streamError") {
-					this.logger?.error(`[opencode] waitIdle: SSE stream error: ${event.reason}`);
-					return { type: "streamDisconnected", tokens: sumTokens(tokensByMessage) };
-				}
-				const typed = event.value as Event;
-				const rawType = (event.value as { type: string }).type;
-				const props = "properties" in typed ? (typed.properties as Record<string, unknown>) : {};
-				const eventSessionId = props?.sessionID as string | undefined;
-				this.logger?.debug(
-					`[opencode] waitIdle stream event: type=${rawType} eventSession=${eventSessionId ?? "?"} targetSession=${sessionId}`,
-				);
-				if (rawType === "session.status" || rawType === "session.updated") {
-					this.logger?.info(`[opencode] waitIdle: type=${rawType} props=${JSON.stringify(props)}`);
-				}
-				logPartActivity(typed, sessionId, this.logger);
-				const activity = extractPartActivity(typed, sessionId);
-				if (activity) onActivity?.(activity);
-				const result = classifyEvent(typed, sessionId, tokensByMessage);
-				if (result) {
-					if (result.type === "error") {
-						this.logger?.error(
-							`[opencode] waitIdle: session.error event: ${result.message ?? "unknown"}`,
-						);
-					}
-					return result;
-				}
-				unclassifiedCount++;
-				if (unclassifiedCount % 50 === 0) {
-					this.logger?.info(
-						`[opencode] waitIdle: ${unclassifiedCount} unclassified events (last: type=${rawType} session=${eventSessionId ?? "?"})`,
-					);
-				}
-			}
+			return await consumeSessionEventStream({
+				stream,
+				signal,
+				sessionId,
+				onAbort: () => abortSession(oc, sessionId, this.config.directory),
+				tokensByMessage,
+				onActivity,
+				logger: this.logger,
+				log: { prefix: "waitIdle: ", logClassifiedSuccess: false },
+			});
 		} finally {
 			await returnStreamOnce(stream);
 		}
-		return { type: "idle" };
 	}
 	async summarizeSession(sessionId: string, model: OpencodeModel): Promise<void> {
 		this.logger?.info(`[opencode] summarizing session: ${sessionId}`);
