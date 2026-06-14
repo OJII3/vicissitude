@@ -3,6 +3,7 @@
 	"private": true,
 	"exports": {
 		"./core-server": "./src/core-server.ts",
+		"./run-stdio-mcp-server": "./src/run-stdio-mcp-server.ts",
 		"./discord-server": "./src/discord-server.ts",
 		"./http-server": "./src/http-server.ts",
 		"./memory-cache": "./src/memory-cache.ts",
