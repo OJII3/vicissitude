@@ -1,8 +1,7 @@
+import { type FetchLike, fetchJsonWithTimeout } from "@vicissitude/shared/http";
 import { z } from "zod";
 
 const FXTWITTER_API_BASE = "https://api.fxtwitter.com";
-
-type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export const FxEmbedPhotoSchema = z.object({
 	id: z.string(),
@@ -145,37 +144,23 @@ export class HttpFxEmbedClient implements FxEmbedClient {
 
 	async getStatus(statusId: string): Promise<FxEmbedStatus | null> {
 		const url = `${FXTWITTER_API_BASE}/2/status/${encodeURIComponent(statusId)}`;
-		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-		try {
-			const res = await this.fetchFn(url, { signal: controller.signal });
-			if (!res.ok) return null;
-			const json = await res.json();
-			const parsed = FxEmbedStatusResponseSchema.safeParse(json);
-			if (!parsed.success) return null;
-			return parsed.data.status;
-		} catch {
-			return null;
-		} finally {
-			clearTimeout(timer);
-		}
+		const r = await fetchJsonWithTimeout(
+			this.fetchFn,
+			url,
+			FxEmbedStatusResponseSchema,
+			this.timeoutMs,
+		);
+		return r?.status ?? null;
 	}
 
 	async getProfile(handle: string): Promise<FxEmbedUser | null> {
 		const url = `${FXTWITTER_API_BASE}/2/profile/${encodeURIComponent(handle)}`;
-		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), this.timeoutMs);
-		try {
-			const res = await this.fetchFn(url, { signal: controller.signal });
-			if (!res.ok) return null;
-			const json = await res.json();
-			const parsed = FxEmbedProfileResponseSchema.safeParse(json);
-			if (!parsed.success) return null;
-			return parsed.data.user;
-		} catch {
-			return null;
-		} finally {
-			clearTimeout(timer);
-		}
+		const r = await fetchJsonWithTimeout(
+			this.fetchFn,
+			url,
+			FxEmbedProfileResponseSchema,
+			this.timeoutMs,
+		);
+		return r?.user ?? null;
 	}
 }
