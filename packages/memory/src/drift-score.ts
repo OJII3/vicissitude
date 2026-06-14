@@ -143,31 +143,45 @@ export class DriftScoreCalculator {
 		this.referenceEmbeddings = await Promise.all(examples.map((ex) => this.llm.embed(ex)));
 	}
 
-	/** 旧 computeFromMessages のリネーム。同期版、テキスト特徴量のみ */
-	computeTextScore(messages: ChatMessage[]): DriftScore {
-		const assistantMessages = messages.filter((m) => m.role === "assistant");
+	/** assistant 発話が空のときの基準スコア（全特徴量ゼロ） */
+	private zeroDriftScore(): DriftScore {
+		return {
+			score: 0.0,
+			textFeatureScore: 0.0,
+			semanticScore: 0.0,
+			features: { ...ZERO_FEATURES },
+			computedAt: new Date(),
+		};
+	}
 
-		if (assistantMessages.length === 0) {
-			return {
-				score: 0.0,
-				textFeatureScore: 0.0,
-				semanticScore: 0.0,
-				features: { ...ZERO_FEATURES },
-				computedAt: new Date(),
-			};
-		}
+	/**
+	 * assistant 発話を結合してテキスト特徴量とスコアを算出する共有前処理。
+	 * assistant 発話が無い場合は null を返し、呼び出し側が zeroDriftScore() を返す。
+	 */
+	private computeTextResult(
+		messages: ChatMessage[],
+	): { features: DriftFeatures; textFeatureScore: number } | null {
+		const assistantMessages = messages.filter((m) => m.role === "assistant");
+		if (assistantMessages.length === 0) return null;
 
 		const combinedText = assistantMessages.map((m) => m.content).join("\n");
 		const features = this.computeTextFeatures(combinedText);
 		features.messageCount = assistantMessages.length;
 
 		const textFeatureScore = clamp(computeScore(features), 0.0, 1.0);
+		return { features, textFeatureScore };
+	}
+
+	/** テキスト特徴量のみで同期的にスコア算出 */
+	computeTextScore(messages: ChatMessage[]): DriftScore {
+		const result = this.computeTextResult(messages);
+		if (result === null) return this.zeroDriftScore();
 
 		return {
-			score: textFeatureScore,
-			textFeatureScore,
+			score: result.textFeatureScore,
+			textFeatureScore: result.textFeatureScore,
 			semanticScore: 0.0,
-			features,
+			features: result.features,
 			computedAt: new Date(),
 		};
 	}
@@ -201,29 +215,16 @@ export class DriftScoreCalculator {
 		return clamp(1.0 - avgSimilarity, 0.0, 1.0);
 	}
 
-	/** 総合スコア（async）。init() 前に呼ぶとエラー */
+	/** テキスト特徴量とセマンティックスコアを合成した総合スコア（async）。init() 前に呼ぶとエラー */
 	async computeFromMessages(messages: ChatMessage[]): Promise<DriftScore> {
 		if (this.referenceEmbeddings === null) {
 			throw new Error("init() must be called before computeFromMessages()");
 		}
 
-		const assistantMessages = messages.filter((m) => m.role === "assistant");
+		const result = this.computeTextResult(messages);
+		if (result === null) return this.zeroDriftScore();
 
-		if (assistantMessages.length === 0) {
-			return {
-				score: 0.0,
-				textFeatureScore: 0.0,
-				semanticScore: 0.0,
-				features: { ...ZERO_FEATURES },
-				computedAt: new Date(),
-			};
-		}
-
-		const combinedText = assistantMessages.map((m) => m.content).join("\n");
-		const features = this.computeTextFeatures(combinedText);
-		features.messageCount = assistantMessages.length;
-
-		const textFeatureScore = clamp(computeScore(features), 0.0, 1.0);
+		const { features, textFeatureScore } = result;
 		const semanticScore = await this.computeSemanticScore(messages);
 		const score = clamp(0.6 * textFeatureScore + 0.4 * semanticScore, 0.0, 1.0);
 
