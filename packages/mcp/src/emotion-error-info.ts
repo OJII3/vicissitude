@@ -1,3 +1,5 @@
+import { isRecord } from "@vicissitude/shared/functions";
+
 export interface EmotionPromptErrorInfo {
 	status?: number;
 	retryable?: boolean;
@@ -67,10 +69,6 @@ function parseEmbeddedJson(text: string): unknown[] {
 	} catch {
 		return [];
 	}
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null;
 }
 
 function findNumberField(nodes: unknown[], keys: string[]): number | undefined {
