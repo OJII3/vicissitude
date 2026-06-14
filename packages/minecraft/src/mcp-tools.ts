@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { wrapServerWithMetrics } from "@vicissitude/mcp/tool-metrics";
 import { METRIC } from "@vicissitude/observability/metrics";
 import type { Logger, MetricsCollector } from "@vicissitude/shared/types";
 import { z } from "zod/v4";
@@ -201,30 +202,6 @@ function registerViewerUrlTool(server: McpServer, ctx: BotContext, viewerPort: n
 	);
 }
 
-/**
- * server.registerTool() 呼び出しをインターセプトし、各ツールのハンドラ実行時にメトリクスを記録する
- * Proxy を使って McpServer を薄くラップすることで、個々のツール登録関数を変更せずに全ツールを計測できる
- */
-function wrapServerWithMetrics(server: McpServer, metrics: MetricsCollector): McpServer {
-	return new Proxy(server, {
-		get(target, prop, receiver) {
-			// oxlint-disable-next-line typescript/no-unsafe-return -- Proxy の get トラップは any を返す
-			if (prop !== "registerTool") return Reflect.get(target, prop, receiver);
-			// oxlint-disable-next-line no-explicit-any -- McpServer.registerTool() のコールバック型を正確に表現できないため any で受ける
-			return (name: string, config: any, cb: (...handlerArgs: any[]) => any) => {
-				// oxlint-disable-next-line no-explicit-any -- handler の引数型はツールごとに異なる
-				const wrappedCb = (...handlerArgs: any[]) => {
-					metrics.incrementCounter(METRIC.MC_MCP_TOOL_CALLS, { tool: name });
-					// oxlint-disable-next-line typescript/no-unsafe-return, typescript/no-unsafe-argument -- cb の引数・戻り値は any 型で透過的に渡す
-					return cb(...handlerArgs);
-				};
-				// oxlint-disable-next-line typescript/no-unsafe-argument -- config は McpServer.registerTool の第2引数で any 型
-				return target.registerTool(name, config, wrappedCb);
-			};
-		},
-	});
-}
-
 interface MinecraftToolsOptions {
 	metrics?: MetricsCollector;
 	logger: Logger;
@@ -246,7 +223,13 @@ interface RegisterMinecraftToolsParams {
 
 export function registerMinecraftTools(params: RegisterMinecraftToolsParams): void {
 	const { server, ctx, jobManager, viewerPort, options } = params;
-	const s = options.metrics ? wrapServerWithMetrics(server, options.metrics) : server;
+	const s = options.metrics
+		? wrapServerWithMetrics(server, {
+				metrics: options.metrics,
+				logger: options.logger,
+				metricName: METRIC.MC_MCP_TOOL_CALLS,
+			})
+		: server;
 	registerObserveStateTool(s, ctx, jobManager);
 	registerRecoverStateTool(s, ctx, jobManager, options.stuckRecovery);
 	registerRecentEventsTool(s, ctx);

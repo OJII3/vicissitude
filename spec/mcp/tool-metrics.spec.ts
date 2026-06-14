@@ -217,6 +217,85 @@ describe("wrapServerWithMetrics", () => {
 	});
 
 	// -----------------------------------------------------------------------
+	// 3b. metricName による記録先カウンタの切り替え
+	// -----------------------------------------------------------------------
+	describe("metricName 指定時", () => {
+		it("成功時に指定したカウンタへ outcome ラベル付きで記録される", () => {
+			const metrics = createMockMetrics() as MockMetrics;
+			const { server, handlers } = createFakeServer();
+			const wrapped = wrapServerWithMetrics(server, {
+				metrics,
+				metricName: METRIC.MC_MCP_TOOL_CALLS,
+			});
+
+			wrapped.registerTool("observe_state", { description: "x" }, () => ({
+				content: [{ type: "text" as const, text: "ok" }],
+			}));
+
+			call(handlers, "observe_state", {});
+
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MC_MCP_TOOL_CALLS, {
+				tool: "observe_state",
+				outcome: "success",
+			});
+		});
+
+		it("エラー時に指定したカウンタへ outcome:error で記録される", () => {
+			const metrics = createMockMetrics() as MockMetrics;
+			const { server, handlers } = createFakeServer();
+			const wrapped = wrapServerWithMetrics(server, {
+				metrics,
+				metricName: METRIC.MC_MCP_TOOL_CALLS,
+			});
+
+			wrapped.registerTool("recover_state", { description: "x" }, () => {
+				throw new Error("boom");
+			});
+
+			expect(() => call(handlers, "recover_state", {})).toThrow("boom");
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MC_MCP_TOOL_CALLS, {
+				tool: "recover_state",
+				outcome: "error",
+			});
+		});
+
+		it("metricName 省略時は MCP_TOOL_CALLS に記録される", () => {
+			const metrics = createMockMetrics() as MockMetrics;
+			const { server, handlers } = createFakeServer();
+			const wrapped = wrapServerWithMetrics(server, { metrics });
+
+			wrapped.registerTool("ping", { description: "x" }, () => ({
+				content: [{ type: "text" as const, text: "pong" }],
+			}));
+
+			call(handlers, "ping", {});
+
+			expect(metrics.incrementCounter).toHaveBeenCalledWith(METRIC.MCP_TOOL_CALLS, {
+				tool: "ping",
+				outcome: "success",
+			});
+		});
+	});
+
+	// -----------------------------------------------------------------------
+	// 3c. toolDescriptions への説明記録
+	// -----------------------------------------------------------------------
+	describe("toolDescriptions 指定時", () => {
+		it("登録したツールの説明が toolDescriptions に記録される", () => {
+			const metrics = createMockMetrics() as MockMetrics;
+			const { server } = createFakeServer();
+			const toolDescriptions = new Map<string, string | undefined>();
+			const wrapped = wrapServerWithMetrics(server, { metrics, toolDescriptions });
+
+			wrapped.registerTool("ping", { description: "ping tool" }, () => ({
+				content: [{ type: "text" as const, text: "pong" }],
+			}));
+
+			expect(toolDescriptions.get("ping")).toBe("ping tool");
+		});
+	});
+
+	// -----------------------------------------------------------------------
 	// 4. logger 省略時
 	// -----------------------------------------------------------------------
 	describe("logger 省略時", () => {
