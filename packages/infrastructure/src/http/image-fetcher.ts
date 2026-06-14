@@ -1,4 +1,7 @@
+import { type FetchLike, fetchWithTimeout } from "@vicissitude/shared/http";
 import type { Logger } from "@vicissitude/shared/types";
+
+export type { FetchLike };
 
 /** 取得成功時の画像データ */
 export interface FetchedImage {
@@ -20,12 +23,6 @@ export const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 export const DEFAULT_FETCH_TIMEOUT_MS = 5_000;
 
 const IMAGE_MIME_PREFIX = "image/";
-
-/**
- * `typeof fetch` には Bun/Node 固有の `preconnect` 等が含まれ、
- * テスト用スタブの型付けが煩雑になるので、本ファイルが実際に呼び出す形だけに限定する。
- */
-export type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<Response>;
 
 export interface HttpImageFetcherOptions {
 	logger?: Logger;
@@ -55,10 +52,8 @@ export class HttpImageFetcher implements ImageFetcher {
 	}
 
 	async fetch(url: string): Promise<FetchedImage | null> {
-		const controller = new AbortController();
-		const timer = setTimeout(() => controller.abort(), this.timeoutMs);
 		try {
-			const res = await this.fetchFn(url, { signal: controller.signal });
+			const res = await fetchWithTimeout(this.fetchFn, url, this.timeoutMs);
 			if (!res.ok) {
 				this.logger?.warn(`[image-fetcher] HTTP ${res.status} for ${url}`);
 				return null;
@@ -90,8 +85,6 @@ export class HttpImageFetcher implements ImageFetcher {
 		} catch (err) {
 			this.logger?.warn(`[image-fetcher] fetch failed: ${url}`, err);
 			return null;
-		} finally {
-			clearTimeout(timer);
 		}
 	}
 }
