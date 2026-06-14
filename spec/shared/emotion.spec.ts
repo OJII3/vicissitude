@@ -12,6 +12,8 @@ import {
 	type VrmExpressionWeight,
 	VrmExpressionWeightSchema,
 	classifyEmotion,
+	computeEmotionWeight,
+	computeNeutralWeight,
 	createEmotion,
 } from "@vicissitude/shared/emotion";
 import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
@@ -187,6 +189,93 @@ describe("VrmExpressionWeightSchema", () => {
 
 	it("rejects invalid expression label", () => {
 		expect(() => VrmExpressionWeightSchema.parse({ expression: "unknown", weight: 0.5 })).toThrow();
+	});
+});
+
+// ─── computeEmotionWeight ───────────────────────────────────────
+
+describe("computeEmotionWeight", () => {
+	it("returns the average of the given values", () => {
+		expect(computeEmotionWeight(0.2, 0.4, 0.6)).toBeCloseTo(0.4);
+	});
+
+	it("returns the single value when given one argument", () => {
+		expect(computeEmotionWeight(0.7)).toBeCloseTo(0.7);
+	});
+
+	it("clamps an average above 1 down to 1", () => {
+		expect(computeEmotionWeight(1, 1, 2)).toBe(1);
+	});
+
+	it("clamps a negative average up to 0", () => {
+		expect(computeEmotionWeight(-0.5, -0.5)).toBe(0);
+	});
+
+	it("returns 0 for all-zero inputs", () => {
+		expect(computeEmotionWeight(0, 0, 0)).toBe(0);
+	});
+
+	it("returns 1 for all-one inputs", () => {
+		expect(computeEmotionWeight(1, 1, 1)).toBe(1);
+	});
+});
+
+// ─── computeNeutralWeight ───────────────────────────────────────
+
+describe("computeNeutralWeight", () => {
+	it("returns 1 at the origin (perfect neutral)", () => {
+		expect(computeNeutralWeight(NEUTRAL_EMOTION)).toBeCloseTo(1);
+	});
+
+	it("returns a higher weight closer to the origin", () => {
+		const veryNeutral = computeNeutralWeight(createEmotion(0.01, 0.01, 0.01));
+		const barelyNeutral = computeNeutralWeight(createEmotion(0.15, 0.15, 0.15));
+		expect(veryNeutral).toBeGreaterThan(barelyNeutral);
+	});
+
+	it("returns a value within [0, 1] across the VAD space", () => {
+		const cases: Emotion[] = [
+			createEmotion(0, 0, 0),
+			createEmotion(0.1, -0.1, 0.05),
+			createEmotion(1, 1, 1),
+			createEmotion(-1, -1, -1),
+		];
+		for (const emotion of cases) {
+			const weight = computeNeutralWeight(emotion);
+			expect(weight).toBeGreaterThanOrEqual(0);
+			expect(weight).toBeLessThanOrEqual(1);
+		}
+	});
+
+	it("reaches 0 at the neutral threshold boundary on a single axis", () => {
+		// distance = THRESHOLD, maxDistance = THRESHOLD * √3 → 1 - 1/√3 ≈ 0.4226
+		const onAxis = computeNeutralWeight(createEmotion(NEUTRAL_EMOTION_THRESHOLD, 0, 0));
+		expect(onAxis).toBeCloseTo(1 - 1 / Math.sqrt(3));
+	});
+
+	it("returns 0 once the VAD distance exceeds maxDistance", () => {
+		// 全軸が THRESHOLD → distance = THRESHOLD*√3 = maxDistance → weight = 0
+		const atMax = computeNeutralWeight(
+			createEmotion(
+				NEUTRAL_EMOTION_THRESHOLD,
+				NEUTRAL_EMOTION_THRESHOLD,
+				NEUTRAL_EMOTION_THRESHOLD,
+			),
+		);
+		expect(atMax).toBeCloseTo(0);
+
+		const beyondMax = computeNeutralWeight(createEmotion(1, 1, 1));
+		expect(beyondMax).toBe(0);
+	});
+
+	it("uses NEUTRAL_EMOTION_THRESHOLD for the max distance (0.2 hardcode equivalence)", () => {
+		// tts が 0.2 ハードコード、avatar が定数参照だったものを統一。
+		// THRESHOLD = 0.2 のとき両者は同値であることを担保する。
+		const emotion = createEmotion(0.1, -0.05, 0.08);
+		const distance = Math.sqrt(0.1 * 0.1 + 0.05 * 0.05 + 0.08 * 0.08);
+		const maxDistanceFromHardcode = Math.sqrt(0.2 * 0.2 * 3);
+		const expected = Math.max(0, Math.min(1, 1 - distance / maxDistanceFromHardcode));
+		expect(computeNeutralWeight(emotion)).toBeCloseTo(expected);
 	});
 });
 

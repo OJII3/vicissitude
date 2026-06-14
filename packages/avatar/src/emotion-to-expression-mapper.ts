@@ -1,10 +1,11 @@
 import {
 	type Emotion,
 	type EmotionCategory,
-	NEUTRAL_EMOTION_THRESHOLD,
 	type VrmExpression,
 	type VrmExpressionWeight,
 	classifyEmotion,
+	computeEmotionWeight,
+	computeNeutralWeight,
 } from "@vicissitude/shared/emotion";
 import type { EmotionToExpressionMapper } from "@vicissitude/shared/ports";
 
@@ -24,16 +25,10 @@ function mapToExpression(emotion: Emotion): VrmExpressionWeight {
 	const expression = classifyEmotion(emotion);
 
 	if (expression === "neutral") {
-		return mapNeutral(v, a, d);
+		return { expression: "neutral", weight: computeNeutralWeight(emotion) };
 	}
 
 	return { expression, weight: computeWeightForCategory(expression, v, a, d) };
-}
-
-function mapNeutral(v: number, a: number, d: number): VrmExpressionWeight {
-	const distance = Math.sqrt(v * v + a * a + d * d);
-	const maxDistance = Math.sqrt(NEUTRAL_EMOTION_THRESHOLD * NEUTRAL_EMOTION_THRESHOLD * 3);
-	return { expression: "neutral", weight: clampWeight(1 - distance / maxDistance) };
 }
 
 function computeWeightForCategory(
@@ -44,30 +39,20 @@ function computeWeightForCategory(
 ): number {
 	switch (category) {
 		case "surprised":
-			return computeWeight(a, Math.abs(d));
+			return computeEmotionWeight(a, Math.abs(d));
 		case "happy":
-			return computeWeight(v, a, Math.abs(d));
+			return computeEmotionWeight(v, a, Math.abs(d));
 		case "relaxed":
-			return computeWeight(v, Math.abs(a), Math.abs(d));
+			return computeEmotionWeight(v, Math.abs(a), Math.abs(d));
 		case "angry":
-			return computeWeight(Math.abs(v), Math.abs(a), Math.abs(d));
+			return computeEmotionWeight(Math.abs(v), Math.abs(a), Math.abs(d));
 		case "fear":
-			return computeWeight(Math.abs(v), Math.abs(a), Math.abs(d));
+			return computeEmotionWeight(Math.abs(v), Math.abs(a), Math.abs(d));
 		case "sad":
-			return computeWeight(Math.abs(v), Math.abs(a), Math.abs(d));
+			return computeEmotionWeight(Math.abs(v), Math.abs(a), Math.abs(d));
 		default:
 			return assertNever(category);
 	}
-}
-
-/** 関連する軸の絶対値の平均を [0, 1] に clamp して weight を算出する */
-function computeWeight(...values: number[]): number {
-	const sum = values.reduce((acc, val) => acc + val, 0);
-	return clampWeight(sum / values.length);
-}
-
-function clampWeight(value: number): number {
-	return Math.max(0, Math.min(1, value));
 }
 
 function assertNever(_value: never): never {
