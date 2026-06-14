@@ -3,10 +3,11 @@ import { resolve } from "path";
 
 import type { Logger } from "@vicissitude/shared/types";
 
-/** config.minecraft の有無に応じて mc-check リマインダーの enabled を同期する */
-export function syncMcCheckReminder(
+/** config 値に応じて指定 id のリマインダーの enabled を同期する */
+function syncReminderEnabled(
 	configPath: string,
-	minecraftEnabled: boolean,
+	target: { id: string; configField: string },
+	enabled: boolean,
 	logger: Logger,
 ): void {
 	if (!existsSync(configPath)) return;
@@ -14,16 +15,30 @@ export function syncMcCheckReminder(
 		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
 			reminders?: { id: string; enabled: boolean }[];
 		};
-		const mcCheck = raw.reminders?.find((r) => r.id === "mc-check");
-		if (!mcCheck || mcCheck.enabled === minecraftEnabled) return;
-		mcCheck.enabled = minecraftEnabled;
+		const reminder = raw.reminders?.find((r) => r.id === target.id);
+		if (!reminder || reminder.enabled === enabled) return;
+		reminder.enabled = enabled;
 		writeFileSync(configPath, JSON.stringify(raw, null, 2));
 		logger.info(
-			`[bootstrap] mc-check reminder ${minecraftEnabled ? "enabled" : "disabled"} (synced with config.minecraft)`,
+			`[bootstrap] ${target.id} reminder ${enabled ? "enabled" : "disabled"} (synced with config.${target.configField})`,
 		);
 	} catch {
 		// パース失敗時はスキップ（HeartbeatScheduler がデフォルト設定で初期化する）
 	}
+}
+
+/** config.minecraft の有無に応じて mc-check リマインダーの enabled を同期する */
+export function syncMcCheckReminder(
+	configPath: string,
+	minecraftEnabled: boolean,
+	logger: Logger,
+): void {
+	syncReminderEnabled(
+		configPath,
+		{ id: "mc-check", configField: "minecraft" },
+		minecraftEnabled,
+		logger,
+	);
 }
 
 /** config.emailCheck の有無に応じて email-check リマインダーの enabled を同期する */
@@ -32,21 +47,12 @@ export function syncEmailCheckReminder(
 	emailCheckEnabled: boolean,
 	logger: Logger,
 ): void {
-	if (!existsSync(configPath)) return;
-	try {
-		const raw = JSON.parse(readFileSync(configPath, "utf-8")) as {
-			reminders?: { id: string; enabled: boolean }[];
-		};
-		const emailCheck = raw.reminders?.find((r) => r.id === "email-check");
-		if (!emailCheck || emailCheck.enabled === emailCheckEnabled) return;
-		emailCheck.enabled = emailCheckEnabled;
-		writeFileSync(configPath, JSON.stringify(raw, null, 2));
-		logger.info(
-			`[bootstrap] email-check reminder ${emailCheckEnabled ? "enabled" : "disabled"} (synced with config.emailCheck)`,
-		);
-	} catch {
-		// パース失敗時はスキップ（HeartbeatScheduler がデフォルト設定で初期化する）
-	}
+	syncReminderEnabled(
+		configPath,
+		{ id: "email-check", configField: "emailCheck" },
+		emailCheckEnabled,
+		logger,
+	);
 }
 
 /** ltm-consolidate リマインダーを削除する（MCP ツール廃止に伴う移行） */
