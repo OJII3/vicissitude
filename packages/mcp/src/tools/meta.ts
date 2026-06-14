@@ -1,5 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { textContent } from "./result.ts";
+
 type ToolDescriptionMap = Map<string, string | undefined>;
 
 interface RegisterToolLike {
@@ -36,7 +38,7 @@ export function registerMetaTools(
 				.map(([name, desc]) => {
 					return desc ? `${name}: ${desc}` : name;
 				});
-			return { content: [{ type: "text" as const, text: entries.join("\n") }] };
+			return textContent(entries.join("\n"));
 		},
 	);
 }

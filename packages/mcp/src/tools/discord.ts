@@ -9,6 +9,8 @@ import type { Logger } from "@vicissitude/shared/types";
 import { ChannelType, type Client, type TextChannel } from "discord.js";
 import { z } from "zod/v4";
 
+import { errorContent, resolveBoundScope, textContent } from "./result.ts";
+
 const DEFAULT_ALLOWED_FILE_DIRS = ["/tmp/vicissitude-screenshots"];
 const ATTACHMENT_ALLOWED_DIRS_ENV = "DISCORD_ATTACHMENT_ALLOWED_DIRS";
 
@@ -149,7 +151,7 @@ export function registerDiscordTools(
 			}
 			const msg = await channel.send(options);
 			triggerEmotionEstimation(content);
-			return { content: [{ type: "text", text: `Sent message ${msg.id}` }] };
+			return textContent(`Sent message ${msg.id}`);
 		},
 	);
 
@@ -190,7 +192,7 @@ export function registerDiscordTools(
 			}
 			const msg = await target.reply(options);
 			triggerEmotionEstimation(content);
-			return { content: [{ type: "text", text: `Replied with message ${msg.id}` }] };
+			return textContent(`Replied with message ${msg.id}`);
 		},
 	);
 
@@ -212,7 +214,7 @@ export function registerDiscordTools(
 			const channel = await getSendableChannel(channel_id);
 			const target = await channel.messages.fetch(message_id);
 			await target.react(emoji);
-			return { content: [{ type: "text", text: `Reacted with ${emoji}` }] };
+			return textContent(`Reacted with ${emoji}`);
 		},
 	);
 
@@ -230,7 +232,7 @@ export function registerDiscordTools(
 				const imageText = imageUrls.length > 0 ? ` [images: ${imageUrls.join(", ")}]` : "";
 				return `[${m.author.tag}] ${m.content}${imageText}`;
 			});
-			return { content: [{ type: "text", text: formatted.join("\n") }] };
+			return textContent(formatted.join("\n"));
 		},
 	);
 
@@ -243,26 +245,16 @@ export function registerDiscordTools(
 		},
 		async ({ guild_id }: { guild_id?: string }) => {
 			if (boundDmUserId) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "Error: list_channels is not available in DM scope",
-						},
-					],
-					isError: true,
-				};
+				return errorContent("Error: list_channels is not available in DM scope", true);
 			}
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
-			}
-			const guild = await discordClient.guilds.fetch(gid);
+			const resolved = resolveBoundScope(boundGuildId, guild_id, "Error: guild_id is required");
+			if (!resolved.ok) return resolved.result;
+			const guild = await discordClient.guilds.fetch(resolved.value);
 			const channels = await guild.channels.fetch();
 			const textChannels = channels
 				.filter((c): c is NonNullable<typeof c> => c?.isTextBased() ?? false)
 				.map((c) => `${c.name} (${c.id})`);
-			return { content: [{ type: "text" as const, text: textChannels.join("\n") }] };
+			return textContent(textChannels.join("\n"));
 		},
 	);
 

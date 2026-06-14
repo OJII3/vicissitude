@@ -9,6 +9,7 @@ import { appendEvent } from "@vicissitude/store/queries";
 import { z } from "zod/v4";
 
 import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
+import { errorContent, resolveBoundScope, textContent } from "./result.ts";
 
 export interface McBridgeDeps {
 	db: StoreDb;
@@ -46,9 +47,7 @@ export function registerDiscordBridgeTools(
 				metadata: { type: "command" },
 			};
 			appendEvent(db, MINECRAFT_AGENT_ID, JSON.stringify(event));
-			return {
-				content: [{ type: "text" as const, text: "指示を出した。あとでやっとく。" }],
-			};
+			return textContent("指示を出した。あとでやっとく。");
 		},
 	);
 
@@ -60,9 +59,7 @@ export function registerDiscordBridgeTools(
 			const label = status.connected ? "connected" : "disconnected";
 			const text = `Connection status: ${label}${status.since ? ` (${status.since})` : ""}`;
 
-			return {
-				content: [{ type: "text" as const, text }],
-			};
+			return textContent(text);
 		},
 	);
 
@@ -75,29 +72,13 @@ export function registerDiscordBridgeTools(
 				: { guild_id: z.string().min(1).describe("Caller's guild ID") },
 		},
 		({ guild_id }: { guild_id?: string }) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
-			}
-			const lock = tryAcquireSessionLock(db, gid);
+			const resolved = resolveBoundScope(boundGuildId, guild_id, "Error: guild_id is required");
+			if (!resolved.ok) return resolved.result;
+			const lock = tryAcquireSessionLock(db, resolved.value);
 			if (!lock.ok) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "セッション開始に失敗した。別のセッションが動いてる。",
-						},
-					],
-				};
+				return errorContent("セッション開始に失敗した。別のセッションが動いてる。");
 			}
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: "マイクラ起動するね。ちょっと待って。",
-					},
-				],
-			};
+			return textContent("マイクラ起動するね。ちょっと待って。");
 		},
 	);
 
@@ -110,29 +91,13 @@ export function registerDiscordBridgeTools(
 				: { guild_id: z.string().min(1).describe("Caller's guild ID") },
 		},
 		({ guild_id }: { guild_id?: string }) => {
-			const gid = boundGuildId ?? guild_id;
-			if (!gid) {
-				return { content: [{ type: "text" as const, text: "Error: guild_id is required" }] };
-			}
-			const released = releaseSessionLock(db, gid);
+			const resolved = resolveBoundScope(boundGuildId, guild_id, "Error: guild_id is required");
+			if (!resolved.ok) return resolved.result;
+			const released = releaseSessionLock(db, resolved.value);
 			if (!released) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "停止に失敗した。セッションが動いてないみたい。",
-						},
-					],
-				};
+				return errorContent("停止に失敗した。セッションが動いてないみたい。");
 			}
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: "マイクラ止めた。",
-					},
-				],
-			};
+			return textContent("マイクラ止めた。");
 		},
 	);
 }

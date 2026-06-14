@@ -13,6 +13,7 @@ import {
 	parseEvents,
 } from "./event-helpers.ts";
 import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
+import { errorContent, textContent } from "./result.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 type ReportImportance = "low" | "medium" | "high" | "critical";
@@ -79,14 +80,7 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 		}) => {
 			const guildId = getSessionLockGuildId(db);
 			if (!guildId) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: "セッションが見つからない。レポートを送信できなかった。",
-						},
-					],
-				};
+				return errorContent("セッションが見つからない。レポートを送信できなかった。");
 			}
 			const targetAgentId = `discord:${guildId}`;
 			const event = {
@@ -98,9 +92,7 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 				metadata: { type: "mc_report", importance, category },
 			};
 			appendEvent(db, targetAgentId, JSON.stringify(event));
-			return {
-				content: [{ type: "text" as const, text: "レポートを Discord 側に送信しました。" }],
-			};
+			return textContent("レポートを Discord 側に送信しました。");
 		},
 	);
 
@@ -113,7 +105,7 @@ export function registerMinecraftBridgeTools(server: McpServer, deps: { db: Stor
 		() => {
 			const rows = consumeEvents(db, MINECRAFT_AGENT_ID, MAX_BATCH_SIZE);
 			const text = rows.length > 0 ? formatCommands(parseEvents(rows)) : "新しい指示はありません";
-			return { content: [{ type: "text" as const, text }] };
+			return textContent(text);
 		},
 	);
 }

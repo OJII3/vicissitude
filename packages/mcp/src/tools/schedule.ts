@@ -5,6 +5,8 @@ import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type { HeartbeatReminder } from "@vicissitude/shared/types";
 import { z } from "zod/v4";
 
+import { errorContent, resolveBoundScope, textContent } from "./result.ts";
+
 const scopeIdSchema = z.string().regex(AGENT_SCOPE_ID_RE).describe("Agent scope ID");
 
 export function filterRemindersByScope(
@@ -28,7 +30,7 @@ function registerReadTools(
 		{ description: "Show current heartbeat configuration" },
 		async () => {
 			const config = await configPort.load();
-			return { content: [{ type: "text", text: JSON.stringify(config, null, 2) }] };
+			return textContent(JSON.stringify(config, null, 2));
 		},
 	);
 
@@ -39,12 +41,10 @@ function registerReadTools(
 			inputSchema: boundScopeId ? {} : { scope_id: scopeIdSchema },
 		},
 		async ({ scope_id }: { scope_id?: string }) => {
-			const scopeId = boundScopeId ?? scope_id;
-			if (!scopeId) {
-				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
-			}
+			const resolved = resolveBoundScope(boundScopeId, scope_id, "Error: scope_id is required");
+			if (!resolved.ok) return resolved.result;
 			const config = await configPort.load();
-			const visible = filterRemindersByScope(config.reminders, scopeId);
+			const visible = filterRemindersByScope(config.reminders, resolved.value);
 			const lines = visible.map((r) => {
 				const schedule =
 					r.schedule.type === "interval"
@@ -55,7 +55,7 @@ function registerReadTools(
 				const scope = r.scopeId ? `scope:${r.scopeId}` : "global";
 				return `- [${r.id}] ${r.description} (${schedule}, ${status}, ${scope}, last: ${last})`;
 			});
-			return { content: [{ type: "text" as const, text: lines.join("\n") || "No reminders" }] };
+			return textContent(lines.join("\n") || "No reminders");
 		},
 	);
 
@@ -69,14 +69,7 @@ function registerReadTools(
 			const config = await configPort.load();
 			config.baseIntervalMinutes = minutes;
 			await configPort.save(config);
-			return {
-				content: [
-					{
-						type: "text",
-						text: `Base interval set to ${String(minutes)} minutes`,
-					},
-				],
-			};
+			return textContent(`Base interval set to ${String(minutes)} minutes`);
 		},
 	);
 }
@@ -127,26 +120,20 @@ function registerAddReminder(
 			daily_minute?: number;
 			global?: boolean;
 		}) => {
-			const resolvedScopeId = boundScopeId ?? scope_id;
-			if (!resolvedScopeId) {
-				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
-			}
+			const resolved = resolveBoundScope(boundScopeId, scope_id, "Error: scope_id is required");
+			if (!resolved.ok) return resolved.result;
 			const config = await configPort.load();
 
 			if (config.reminders.some((r) => r.id === id)) {
-				return {
-					content: [{ type: "text" as const, text: `Error: ID "${id}" already exists` }],
-				};
+				return errorContent(`Error: ID "${id}" already exists`);
 			}
 
-			const scopeId = isGlobal ? undefined : resolvedScopeId;
+			const scopeId = isGlobal ? undefined : resolved.value;
 
 			let reminder: HeartbeatReminder;
 			if (schedule_type === "interval") {
 				if (interval_minutes === undefined) {
-					return {
-						content: [{ type: "text" as const, text: "Error: interval_minutes is required" }],
-					};
+					return errorContent("Error: interval_minutes is required");
 				}
 				reminder = {
 					id,
@@ -173,9 +160,7 @@ function registerAddReminder(
 
 			config.reminders.push(reminder);
 			await configPort.save(config);
-			return {
-				content: [{ type: "text" as const, text: `Reminder "${id}" added` }],
-			};
+			return textContent(`Reminder "${id}" added`);
 		},
 	);
 }
@@ -223,28 +208,19 @@ function registerModifyReminders(
 			daily_hour?: number;
 			daily_minute?: number;
 		}) => {
-			const scopeId = boundScopeId ?? scope_id;
-			if (!scopeId) {
-				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
-			}
+			const resolved = resolveBoundScope(boundScopeId, scope_id, "Error: scope_id is required");
+			if (!resolved.ok) return resolved.result;
 			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
-				return {
-					content: [{ type: "text" as const, text: `Error: ID "${id}" not found` }],
-				};
+				return errorContent(`Error: ID "${id}" not found`);
 			}
 
-			if (!checkScope(reminder, scopeId)) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Error: reminder "${id}" belongs to another scope and cannot be updated`,
-						},
-					],
-				};
+			if (!checkScope(reminder, resolved.value)) {
+				return errorContent(
+					`Error: reminder "${id}" belongs to another scope and cannot be updated`,
+				);
 			}
 
 			if (description !== undefined) reminder.description = description;
@@ -261,9 +237,7 @@ function registerModifyReminders(
 			}
 
 			await configPort.save(config);
-			return {
-				content: [{ type: "text" as const, text: `Reminder "${id}" updated` }],
-			};
+			return textContent(`Reminder "${id}" updated`);
 		},
 	);
 
@@ -277,35 +251,24 @@ function registerModifyReminders(
 			},
 		},
 		async ({ scope_id, id }: { scope_id?: string; id: string }) => {
-			const scopeId = boundScopeId ?? scope_id;
-			if (!scopeId) {
-				return { content: [{ type: "text" as const, text: "Error: scope_id is required" }] };
-			}
+			const resolved = resolveBoundScope(boundScopeId, scope_id, "Error: scope_id is required");
+			if (!resolved.ok) return resolved.result;
 			const config = await configPort.load();
 			const reminder = config.reminders.find((r) => r.id === id);
 
 			if (!reminder) {
-				return {
-					content: [{ type: "text" as const, text: `Error: ID "${id}" not found` }],
-				};
+				return errorContent(`Error: ID "${id}" not found`);
 			}
 
-			if (!checkScope(reminder, scopeId)) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `Error: reminder "${id}" belongs to another scope and cannot be removed`,
-						},
-					],
-				};
+			if (!checkScope(reminder, resolved.value)) {
+				return errorContent(
+					`Error: reminder "${id}" belongs to another scope and cannot be removed`,
+				);
 			}
 
 			config.reminders.splice(config.reminders.indexOf(reminder), 1);
 			await configPort.save(config);
-			return {
-				content: [{ type: "text" as const, text: `Reminder "${id}" removed` }],
-			};
+			return textContent(`Reminder "${id}" removed`);
 		},
 	);
 }
