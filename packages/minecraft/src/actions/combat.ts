@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { sleep } from "@vicissitude/shared/functions";
 import type mineflayer from "mineflayer";
 import pathfinderPkg from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
@@ -35,12 +36,6 @@ const ATTACK_RANGE = 3;
 
 /** 攻撃クールダウン（ms） */
 const ATTACK_COOLDOWN_MS = 600;
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
-}
 
 /** インベントリから最適な武器を見つけて装備する */
 async function equipBestWeapon(bot: mineflayer.Bot): Promise<string> {

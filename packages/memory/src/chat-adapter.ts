@@ -1,3 +1,4 @@
+import { sleep } from "@vicissitude/shared/functions";
 import type { Logger, OpencodeSessionPort } from "@vicissitude/shared/types";
 
 import type { ChatMessage } from "./types.ts";
@@ -117,12 +118,6 @@ export function appendJsonInstruction(messages: ChatMessage[]): ChatMessage[] {
 		augmented[lastIdx] = { ...lastMsg, content: `${lastMsg.content}\n\n${JSON_INSTRUCTION}` };
 	}
 	return augmented;
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
 }
 
 export function cleanJsonResponse(text: string): string {

@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { filterImageUrls } from "@vicissitude/infrastructure/discord/attachment-mapper";
+import { sleep } from "@vicissitude/shared/functions";
 import type { EmotionAnalyzer, MoodWriter } from "@vicissitude/shared/ports";
 import type { Logger } from "@vicissitude/shared/types";
 import { ChannelType, type Client, type TextChannel } from "discord.js";
@@ -50,12 +51,6 @@ export interface DiscordDeps {
 export interface DiscordToolBounds {
 	guildId?: string;
 	dmUserId?: string;
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise<void>((resolve) => {
-		setTimeout(resolve, ms);
-	});
 }
 
 /** 文字数に応じた typing 遅延（2〜5秒） */

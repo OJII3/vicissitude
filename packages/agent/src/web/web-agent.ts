@@ -1,4 +1,4 @@
-import { escapeUserMessageTag } from "@vicissitude/shared/functions";
+import { abortReasonToError, escapeUserMessageTag, raceAbort } from "@vicissitude/shared/functions";
 import { agentScopeNamespace } from "@vicissitude/shared/namespace";
 import type {
 	AgentResponse,
@@ -131,7 +131,7 @@ export class WebConversationAgent {
 
 		this.logger.info(`[${this.profile.name}:${this.agentId}] prompting Web session ${sessionId}`);
 		const promptSignal = createPromptSignal(request.signal, this.promptTimeoutMs);
-		if (promptSignal.aborted) throw abortReasonToError(promptSignal.reason);
+		if (promptSignal.aborted) throw abortReasonToError(promptSignal);
 		const result = await raceAbort(
 			this.sessionPort.prompt(
 				{
@@ -199,21 +199,4 @@ export class WebConversationAgent {
 function createPromptSignal(parentSignal: AbortSignal | undefined, timeoutMs: number): AbortSignal {
 	const timeoutSignal = AbortSignal.timeout(timeoutMs);
 	return parentSignal ? AbortSignal.any([parentSignal, timeoutSignal]) : timeoutSignal;
-}
-
-function abortReasonToError(reason: unknown): Error {
-	if (reason instanceof Error) return reason;
-	return new DOMException("Web conversation request aborted", "AbortError");
-}
-
-function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
-	if (signal.aborted) return Promise.reject(abortReasonToError(signal.reason));
-
-	return new Promise<T>((resolve, reject) => {
-		const onAbort = () => reject(abortReasonToError(signal.reason));
-		signal.addEventListener("abort", onAbort, { once: true });
-		void promise.then(resolve, reject).finally(() => {
-			signal.removeEventListener("abort", onAbort);
-		});
-	});
 }

@@ -75,4 +75,57 @@ describe("extractEmotionPromptErrorInfo", () => {
 		expect(info.retryAfterSeconds).toBe(120);
 		expect(info.reason).toBe("quota_exceeded");
 	});
+
+	test("探索キーの値が配列の場合は配列自身を展開せず要素のエラー情報も抽出しない", () => {
+		// isRecord の厳格化(配列除外)により、配列はノードとして展開されず、
+		// その要素も再帰探索の対象にならない。
+		const error = {
+			details: [{ message: "inner array message", statusCode: 429, name: "InnerError" }],
+		};
+		const info = extractEmotionPromptErrorInfo(error);
+
+		expect(info.status).toBeUndefined();
+		expect(info.message).toBeUndefined();
+		expect(info.errorClass).toBe("Object");
+		expect(info.reason).toBe("unknown");
+	});
+
+	test("cause が配列の場合も配列要素のエラー情報は抽出されない", () => {
+		const error = {
+			cause: [
+				Object.assign(new Error("cause array message"), {
+					statusCode: 503,
+					name: "CauseError",
+				}),
+			],
+		};
+		const info = extractEmotionPromptErrorInfo(error);
+
+		expect(info.status).toBeUndefined();
+		expect(info.retryable).toBeUndefined();
+		expect(info.message).toBeUndefined();
+		expect(info.errorClass).toBe("Object");
+	});
+
+	test("トップレベルが配列でも要素を展開せず errorClass は Array になる", () => {
+		const error = [{ message: "element message", statusCode: 418, name: "ElementError" }];
+		const info = extractEmotionPromptErrorInfo(error);
+
+		expect(info.status).toBeUndefined();
+		expect(info.message).toBeUndefined();
+		expect(info.errorClass).toBe("Array");
+		expect(info.reason).toBe("unknown");
+	});
+
+	test("探索キーの値が単一レコードなら従来どおりエラー情報を抽出する", () => {
+		// 配列ではなく直接レコードを置いた場合は再帰探索でき、回帰の対照となる。
+		const error = {
+			details: { message: "nested record message", statusCode: 500, name: "NestedError" },
+		};
+		const info = extractEmotionPromptErrorInfo(error);
+
+		expect(info.status).toBe(500);
+		expect(info.message).toBe("nested record message");
+		expect(info.errorClass).toBe("NestedError");
+	});
 });

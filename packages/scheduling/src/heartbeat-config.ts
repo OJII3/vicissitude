@@ -10,6 +10,7 @@ import {
 } from "fs";
 import { dirname, resolve as resolvePath } from "path";
 
+import { isRecord, sleep } from "@vicissitude/shared/functions";
 import { discordScopeId } from "@vicissitude/shared/namespace";
 import type {
 	HeartbeatConfig,
@@ -323,10 +324,6 @@ function migrateLegacyHeartbeatConfigJson(value: unknown): { value: unknown; cha
 	return { value: { ...value, reminders }, changed };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 function cloneSchedule(schedule: ReminderSchedule): ReminderSchedule {
 	if (schedule.type === "interval") {
 		return { type: "interval", minutes: schedule.minutes };
@@ -351,10 +348,4 @@ function isFileExistsError(error: unknown): boolean {
 
 function isNotFoundError(error: unknown): boolean {
 	return error instanceof Error && "code" in error && error.code === "ENOENT";
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => {
-		setTimeout(resolve, ms);
-	});
 }

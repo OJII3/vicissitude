@@ -2,7 +2,15 @@ import { describe, expect, it, test } from "bun:test";
 
 import { splitMessage } from "@vicissitude/application/split-message";
 import { evaluateDueReminders } from "@vicissitude/scheduling/heartbeat-helpers";
-import { formatTime, formatTimestamp, withTimeout } from "@vicissitude/shared/functions";
+import {
+	abortReasonToError,
+	formatTime,
+	formatTimestamp,
+	isRecord,
+	raceAbort,
+	sleep,
+	withTimeout,
+} from "@vicissitude/shared/functions";
 import type { HeartbeatConfig } from "@vicissitude/shared/types";
 
 // ─── splitMessage ────────────────────────────────────────────────
@@ -289,5 +297,168 @@ describe("withTimeout", () => {
 	test("propagates original error when promise rejects before timeout", () => {
 		const failing = Promise.reject(new Error("original"));
 		expect(withTimeout(failing, 1000, "timed out")).rejects.toThrow("original");
+	});
+});
+
+// ─── sleep ───────────────────────────────────────────────────────
+
+describe("sleep", () => {
+	test("指定ミリ秒後に resolve する", async () => {
+		const start = Date.now();
+		await sleep(20);
+		expect(Date.now() - start).toBeGreaterThanOrEqual(15);
+	});
+
+	test("void に解決する（値を返さない）", async () => {
+		const result = await sleep(1);
+		expect(result).toBeUndefined();
+	});
+
+	test("signal 省略時は時間どおり待機して resolve する", async () => {
+		expect(await sleep(1)).toBeUndefined();
+	});
+
+	test("待機中に abort されたら setTimeout を待たず即座に resolve する（reject しない）", async () => {
+		const controller = new AbortController();
+		const start = Date.now();
+		const promise = sleep(10_000, controller.signal);
+		controller.abort();
+		expect(await promise).toBeUndefined();
+		expect(Date.now() - start).toBeLessThan(1000);
+	});
+
+	test("すでに abort 済みの signal を渡すと即座に resolve する", async () => {
+		const controller = new AbortController();
+		controller.abort();
+		expect(await sleep(10_000, controller.signal)).toBeUndefined();
+	});
+
+	test("abort されなければ通常どおり時間待機して resolve する", async () => {
+		const controller = new AbortController();
+		expect(await sleep(5, controller.signal)).toBeUndefined();
+	});
+});
+
+// ─── isRecord ────────────────────────────────────────────────────
+
+describe("isRecord", () => {
+	test("プレーンオブジェクトは true", () => {
+		expect(isRecord({ a: 1 })).toBe(true);
+	});
+
+	test("空オブジェクトは true", () => {
+		expect(isRecord({})).toBe(true);
+	});
+
+	test("配列は false（レコードとして扱わない）", () => {
+		expect(isRecord([1, 2, 3])).toBe(false);
+	});
+
+	test("空配列も false", () => {
+		expect(isRecord([])).toBe(false);
+	});
+
+	test("null は false", () => {
+		expect(isRecord(null)).toBe(false);
+	});
+
+	test("undefined は false", () => {
+		const value: unknown = undefined;
+		expect(isRecord(value)).toBe(false);
+	});
+
+	test("文字列は false", () => {
+		expect(isRecord("str")).toBe(false);
+	});
+
+	test("数値は false", () => {
+		expect(isRecord(42)).toBe(false);
+	});
+
+	test("型ガードとして value.key へ安全にアクセスできる", () => {
+		const value: unknown = { message: "hello" };
+		if (isRecord(value)) {
+			expect(value.message).toBe("hello");
+		} else {
+			throw new Error("expected isRecord to narrow");
+		}
+	});
+});
+
+// ─── abortReasonToError ──────────────────────────────────────────
+
+describe("abortReasonToError", () => {
+	test("reason が Error ならそのまま返す", () => {
+		const controller = new AbortController();
+		const original = new Error("custom abort");
+		controller.abort(original);
+		expect(abortReasonToError(controller.signal)).toBe(original);
+	});
+
+	test("reason が非 Error なら AbortError(DOMException) に正規化する", () => {
+		const controller = new AbortController();
+		controller.abort("string reason");
+		const error = abortReasonToError(controller.signal);
+		expect(error).toBeInstanceOf(Error);
+		expect(error.name).toBe("AbortError");
+	});
+
+	test("reason 未指定（abort()）でも AbortError に正規化する", () => {
+		const controller = new AbortController();
+		controller.abort();
+		const error = abortReasonToError(controller.signal);
+		expect(error.name).toBe("AbortError");
+	});
+
+	test("AbortSignal.timeout 由来の TimeoutError をそのまま返す", async () => {
+		const signal = AbortSignal.timeout(1);
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 10);
+		});
+		const error = abortReasonToError(signal);
+		expect(error).toBeInstanceOf(Error);
+		expect(error.name).toBe("TimeoutError");
+	});
+});
+
+// ─── raceAbort ───────────────────────────────────────────────────
+
+describe("raceAbort", () => {
+	test("promise が先に解決したらその値を返す", async () => {
+		const controller = new AbortController();
+		const result = await raceAbort(Promise.resolve("ok"), controller.signal);
+		expect(result).toBe("ok");
+	});
+
+	test("promise が先に reject したらその error を伝播する", () => {
+		const controller = new AbortController();
+		const failing = Promise.reject(new Error("inner failure"));
+		expect(raceAbort(failing, controller.signal)).rejects.toThrow("inner failure");
+	});
+
+	test("signal が先に abort したら abortReasonToError 正規化済み Error で reject する", () => {
+		const controller = new AbortController();
+		const reason = new Error("aborted by signal");
+		// 永久 pending
+		const pending = new Promise<string>(() => {});
+		const promise = raceAbort(pending, controller.signal);
+		controller.abort(reason);
+		expect(promise).rejects.toBe(reason);
+	});
+
+	test("すでに abort 済みの signal なら即座に reject する", () => {
+		const controller = new AbortController();
+		controller.abort();
+		const pending = new Promise<string>(() => {});
+		const promise = raceAbort(pending, controller.signal);
+		expect(promise).rejects.toThrow();
+	});
+
+	test("非 Error reason での abort は AbortError に正規化して reject する", () => {
+		const controller = new AbortController();
+		const pending = new Promise<string>(() => {});
+		const promise = raceAbort(pending, controller.signal);
+		controller.abort("nope");
+		expect(promise).rejects.toMatchObject({ name: "AbortError" });
 	});
 });

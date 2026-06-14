@@ -7,7 +7,7 @@ import {
 	METRIC,
 	recordTokenMetrics,
 } from "@vicissitude/observability/metrics";
-import { JST_OFFSET_MS, raceAbort } from "@vicissitude/shared/functions";
+import { JST_OFFSET_MS, raceAbort, sleep } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -1026,23 +1026,6 @@ detail: ${activity.message}
 	}
 
 	protected sleep(ms: number): Promise<void> {
-		if (this.abortController?.signal.aborted) return Promise.resolve();
-		return new Promise((resolve) => {
-			let resolved = false;
-			const done = () => {
-				if (resolved) return;
-				resolved = true;
-				resolve();
-			};
-			const timer = setTimeout(done, ms);
-			this.abortController?.signal.addEventListener(
-				"abort",
-				() => {
-					clearTimeout(timer);
-					done();
-				},
-				{ once: true },
-			);
-		});
+		return sleep(ms, this.abortController?.signal);
 	}
 }

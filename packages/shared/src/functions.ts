@@ -24,13 +24,48 @@ export function formatTime(date: Date): string {
 	return `${h}:${mi}`;
 }
 
-// ─── delayResolve ────────────────────────────────────────────────
+// ─── sleep ───────────────────────────────────────────────────────
 
-/** 指定ミリ秒後に値を返す Promise を生成する */
-export function delayResolve<T>(ms: number, value: T): Promise<T> {
-	return new Promise((_resolve) => {
-		setTimeout(() => _resolve(value), ms);
+/**
+ * 指定ミリ秒だけ待機する Promise を返す。
+ *
+ * `signal` が渡され、かつ待機中に abort された場合は、`setTimeout` を待たず
+ * 即座に **resolve** する（reject しない）。すでに abort 済みの signal を渡した
+ * 場合も即座に resolve する。`signal` 省略時は単純な時間待機。
+ *
+ * abort を「エラー」として扱いたい（reject させたい）場合は `sleep` ではなく
+ * `raceAbort` を使うこと。`sleep` は協調的キャンセル（早期復帰）のみを提供する。
+ */
+export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	if (signal?.aborted) return Promise.resolve();
+	return new Promise<void>((resolve) => {
+		let settled = false;
+		const done = () => {
+			if (settled) return;
+			settled = true;
+			resolve();
+		};
+		const timer = setTimeout(done, ms);
+		signal?.addEventListener(
+			"abort",
+			() => {
+				clearTimeout(timer);
+				done();
+			},
+			{ once: true },
+		);
 	});
+}
+
+// ─── isRecord ────────────────────────────────────────────────────
+
+/**
+ * 値が「プレーンなレコード」(非 null のオブジェクトで配列でない) かを判定する型ガード。
+ *
+ * 配列は `false` を返す。任意キーへ安全にアクセスするための前提条件として使う。
+ */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 // ─── withTimeout / raceAbort ─────────────────────────────────────
@@ -56,11 +91,14 @@ export async function withTimeout<T>(promise: Promise<T>, ms: number, message: s
 }
 
 /**
- * AbortSignal.reason を Error に正規化する。
- * `AbortSignal.timeout` 由来は `TimeoutError` (DOMException)、
- * `AbortController.abort()` は reason 自体（Error でなければ `AbortError` に正規化）。
+ * AbortSignal を理由つき Error に正規化する。
+ *
+ * `signal.reason` が Error（`AbortSignal.timeout` 由来の `TimeoutError` DOMException 等）
+ * ならそれをそのまま返す。Error でなければ `AbortError`（name="AbortError" の DOMException）に
+ * 正規化する。`signal` 引数を受け取り、内部で `.reason` を読む契約に統一する
+ * （reason を直接受け取る私製版は廃止）。
  */
-function abortReasonToError(signal: AbortSignal): Error {
+export function abortReasonToError(signal: AbortSignal): Error {
 	const reason = signal.reason;
 	if (reason instanceof Error) return reason;
 	return new DOMException("Aborted", "AbortError");
