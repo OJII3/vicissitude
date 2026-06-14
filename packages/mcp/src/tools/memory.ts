@@ -12,6 +12,7 @@ import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import { z } from "zod/v4";
 
 import type { LruCache } from "../lru-cache";
+import { errorContent, textContent } from "./result.ts";
 
 const scopeIdSchema = z.string().regex(AGENT_SCOPE_ID_RE).describe("Agent scope ID");
 
@@ -50,10 +51,7 @@ export function registerMemoryTools(
 			try {
 				const ns = resolveNamespace(scope_id);
 				if (!ns) {
-					return {
-						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],
-						isError: true,
-					};
+					return errorContent("Error: namespace could not be resolved", true);
 				}
 
 				const effectiveLimit = limit ?? 10;
@@ -123,19 +121,14 @@ export function registerMemoryTools(
 					parts.push("No relevant memories found.");
 				}
 
-				const result = { content: [{ type: "text" as const, text: parts.join("\n") }] };
+				const result = textContent(parts.join("\n"));
 				cache?.set(cacheKey, result);
 				return result;
 			} catch (error) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `memory_retrieve error: ${error instanceof Error ? error.message : String(error)}`,
-						},
-					],
-					isError: true,
-				};
+				return errorContent(
+					`memory_retrieve error: ${error instanceof Error ? error.message : String(error)}`,
+					true,
+				);
 			}
 		},
 	);
@@ -179,10 +172,7 @@ export function registerMemoryTools(
 			try {
 				const ns = resolveNamespace(scope_id);
 				if (!ns) {
-					return {
-						content: [{ type: "text" as const, text: "Error: namespace could not be resolved" }],
-						isError: true,
-					};
+					return errorContent("Error: namespace could not be resolved", true);
 				}
 				const mem = getOrCreateMemory(ns);
 				const subject = defaultSubject(ns);
@@ -201,9 +191,7 @@ export function registerMemoryTools(
 				const [facts, internalFacts] = await Promise.all([factsPromise, internalFactsPromise]);
 
 				if (facts.length === 0 && (!internalFacts || internalFacts.length === 0)) {
-					return {
-						content: [{ type: "text", text: "No facts yet." }],
-					};
+					return textContent("No facts yet.");
 				}
 
 				const parts: string[] = [];
@@ -216,19 +204,12 @@ export function registerMemoryTools(
 					parts.push(...formatFacts(internalFacts));
 				}
 
-				return {
-					content: [{ type: "text", text: parts.join("\n") }],
-				};
+				return textContent(parts.join("\n"));
 			} catch (error) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: `memory_get_facts error: ${error instanceof Error ? error.message : String(error)}`,
-						},
-					],
-					isError: true,
-				};
+				return errorContent(
+					`memory_get_facts error: ${error instanceof Error ? error.message : String(error)}`,
+					true,
+				);
 			}
 		},
 	);

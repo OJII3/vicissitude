@@ -17,6 +17,7 @@
 		"./tools/mc-bridge-minecraft": "./src/tools/mc-bridge-minecraft.ts",
 		"./tools/mc-memory": "./src/tools/mc-memory.ts",
 		"./tools/memory": "./src/tools/memory.ts",
+		"./tools/result": "./src/tools/result.ts",
 		"./tools/schedule": "./src/tools/schedule.ts",
 		"./tools/meta": "./src/tools/meta.ts",
 		"./tools/meta-test-helpers": "./src/tools/meta-test-helpers.ts"

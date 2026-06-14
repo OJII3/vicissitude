@@ -5,6 +5,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 
 import { createBackup, ensureDir, readWithFallbackFrom } from "../memory-helpers.ts";
+import { errorContent, textContent } from "./result.ts";
 
 const MAX_GOALS_CHARS = 20_000;
 const MAX_PROGRESS_CHARS = 20_000;
@@ -70,9 +71,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		{ description: "Minecraft 目標ファイルを読む（現在の目標のみ）" },
 		() => {
 			const content = readOverlay(dataDir, GOALS_FILENAME, baseContextDir);
-			return {
-				content: [{ type: "text" as const, text: content || "(目標ファイルは空です)" }],
-			};
+			return textContent(content || "(目標ファイルは空です)");
 		},
 	);
 
@@ -91,14 +90,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		({ content }: { content: string }) => {
 			writeOverlay(dataDir, GOALS_FILENAME, content);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`,
-					},
-				],
-			};
+			return textContent(`MINECRAFT-GOALS.md を更新しました（${String(content.length)} 文字）`);
 		},
 	);
 
@@ -112,9 +104,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		() => {
 			const content = readOverlay(dataDir, PROGRESS_FILENAME, baseContextDir);
-			return {
-				content: [{ type: "text" as const, text: content || "(進捗ファイルは空です)" }],
-			};
+			return textContent(content || "(進捗ファイルは空です)");
 		},
 	);
 
@@ -133,14 +123,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 		},
 		({ content }: { content: string }) => {
 			writeOverlay(dataDir, PROGRESS_FILENAME, content);
-			return {
-				content: [
-					{
-						type: "text" as const,
-						text: `MINECRAFT-PROGRESS.md を更新しました（${String(content.length)} 文字）`,
-					},
-				],
-			};
+			return textContent(`MINECRAFT-PROGRESS.md を更新しました（${String(content.length)} 文字）`);
 		},
 	);
 
@@ -148,9 +131,7 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 
 	server.registerTool("mc_read_skills", { description: "Minecraft スキルライブラリを読む" }, () => {
 		const content = readOverlay(dataDir, SKILLS_FILENAME, baseContextDir);
-		return {
-			content: [{ type: "text" as const, text: content || "(スキルライブラリは空です)" }],
-		};
+		return textContent(content || "(スキルライブラリは空です)");
 	});
 
 	server.registerTool(
@@ -199,19 +180,12 @@ export function registerMcMemoryTools(server: McpServer, deps: McMemoryDeps): vo
 			const entry = `${lines.join("")}\n`;
 			const updated = existing ? existing + entry : `# Minecraft スキルライブラリ\n${entry}`;
 			if (updated.length > MAX_SKILLS_CHARS) {
-				return {
-					content: [
-						{
-							type: "text" as const,
-							text: `スキルライブラリのサイズ上限（${String(MAX_SKILLS_CHARS)} 文字）に達しました。不要なスキルを整理してください。`,
-						},
-					],
-				};
+				return errorContent(
+					`スキルライブラリのサイズ上限（${String(MAX_SKILLS_CHARS)} 文字）に達しました。不要なスキルを整理してください。`,
+				);
 			}
 			writeOverlay(dataDir, SKILLS_FILENAME, updated);
-			return {
-				content: [{ type: "text" as const, text: `スキル「${name}」を記録しました` }],
-			};
+			return textContent(`スキル「${name}」を記録しました`);
 		},
 	);
 }
