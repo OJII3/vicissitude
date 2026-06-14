@@ -1,8 +1,6 @@
 import { mkdirSync } from "fs";
 import { resolve } from "path";
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { MemoryReadServices } from "@vicissitude/memory";
 import type { MemoryLlmPort } from "@vicissitude/memory/llm-port";
 import {
@@ -10,17 +8,16 @@ import {
 	type MemoryNamespace,
 	resolveMemoryDbDir,
 	resolveMemoryDbPath,
-	resolveNamespaceFromAgentId,
 } from "@vicissitude/memory/namespace";
 import { Retrieval } from "@vicissitude/memory/retrieval";
 import { SemanticMemory } from "@vicissitude/memory/semantic-memory";
 import { MemoryStorage } from "@vicissitude/memory/storage";
-import { ConsoleLogger } from "@vicissitude/observability/logger";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 
 import { LruCache } from "./lru-cache.ts";
 import { MemoryInstanceCache } from "./memory-cache.ts";
+import { runStdioMcpServer, type StdioMcpServerContext } from "./run-stdio-mcp-server.ts";
 import { registerMemoryTools } from "./tools/memory.ts";
 import { createToolDescriptionRecorder, registerMetaTools } from "./tools/meta.ts";
 import { registerScheduleTools } from "./tools/schedule.ts";
@@ -33,16 +30,8 @@ import { registerScheduleTools } from "./tools/schedule.ts";
  * 自分がどの agentId にバインドされているかを知る。
  *
  */
-async function main(): Promise<void> {
-	const logger = new ConsoleLogger({ destination: "stderr" });
-
+function setup(ctx: StdioMcpServerContext): () => void {
 	// --- Configuration from environment ---
-
-	const AGENT_ID = process.env.AGENT_ID;
-	if (!AGENT_ID) {
-		logger.error("[core-server] AGENT_ID environment variable is required");
-		process.exit(1);
-	}
 
 	const MEMORY_OLLAMA_BASE_URL =
 		process.env.MEMORY_OLLAMA_BASE_URL ?? process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
@@ -90,47 +79,31 @@ async function main(): Promise<void> {
 
 	// --- MCP Server ---
 
-	const server = new McpServer({ name: "core", version: "1.0.0" });
-	const { server: toolServer, toolDescriptions } = createToolDescriptionRecorder(server);
+	const { server: toolServer, toolDescriptions } = createToolDescriptionRecorder(ctx.server);
 
-	const boundNamespace: MemoryNamespace | undefined =
-		resolveNamespaceFromAgentId(AGENT_ID) ?? undefined;
-	if (!boundNamespace) {
-		logger.warn(
-			`[core-server] AGENT_ID=${AGENT_ID} did not resolve to a known namespace — tools require explicit scope_id`,
-		);
-	}
-	const boundScopeId =
-		boundNamespace?.surface === "agent-scope" ? boundNamespace.scopeId : undefined;
-
-	registerScheduleTools(toolServer, configRepo, boundScopeId);
+	registerScheduleTools(toolServer, configRepo, ctx.boundScopeId);
 
 	const retrieveCache = new LruCache<{ content: Array<{ type: "text"; text: string }> }>({
 		ttlMs: 30 * 60 * 1_000,
 		maxSize: 100,
 	});
-	registerMemoryTools(toolServer, { getOrCreateMemory, cache: retrieveCache }, boundNamespace);
+	registerMemoryTools(toolServer, { getOrCreateMemory, cache: retrieveCache }, ctx.boundNamespace);
 
 	registerMetaTools(toolServer, toolDescriptions);
 
-	// --- Graceful Shutdown ---
+	// --- Graceful Shutdown (helper calls this after server.close()) ---
 
-	async function shutdown() {
-		await server.close();
+	return () => {
 		retrieveCache.dispose();
 		memoryCache.closeAll();
-		process.exit(0);
-	}
-
-	process.on("SIGINT", () => void shutdown());
-	process.on("SIGTERM", () => void shutdown());
-
-	// --- Start server (stdio) ---
-
-	const transport = new StdioServerTransport();
-	await server.connect(transport);
+	};
 }
 
 if (import.meta.main) {
-	void main();
+	void runStdioMcpServer({
+		name: "core",
+		version: "1.0.0",
+		missingScopeHint: "scope_id",
+		setup,
+	});
 }
