@@ -135,6 +135,43 @@ export function classifyEmotion(emotion: Emotion): EmotionCategory {
 	return "neutral";
 }
 
+// ─── Weight 計算ユーティリティ ─────────────────────────────────
+//
+// VAD 感情値から適用強度 (weight) を算出する純粋関数。
+// TTS スタイル・VRM Expression など複数のマッパーで共通利用する。
+
+/**
+ * 関連する軸の値の平均を [0, 1] に clamp して weight を算出する。
+ *
+ * non-neutral カテゴリの強度算出に使う。各カテゴリは「そのカテゴリに
+ * 寄与する軸（必要なら絶対値）」を引数に渡す。
+ *
+ * @example computeEmotionWeight(Math.abs(v), Math.abs(a), Math.abs(d))
+ */
+export function computeEmotionWeight(...values: number[]): number {
+	const sum = values.reduce((acc, val) => acc + val, 0);
+	return clamp01(sum / values.length);
+}
+
+/**
+ * neutral カテゴリの weight を算出する。
+ *
+ * 原点 (NEUTRAL_EMOTION) に近いほど 1 に、neutral 閾値の境界
+ * (maxDistance = √(THRESHOLD² × 3)) で 0 に近づくよう線形に減衰する。
+ * 結果は [0, 1] に clamp される。
+ */
+export function computeNeutralWeight(emotion: Emotion): number {
+	const { valence: v, arousal: a, dominance: d } = emotion;
+	const distance = Math.sqrt(v * v + a * a + d * d);
+	const maxDistance = Math.sqrt(NEUTRAL_EMOTION_THRESHOLD * NEUTRAL_EMOTION_THRESHOLD * 3);
+	return clamp01(1 - distance / maxDistance);
+}
+
+/** 値を [0, 1] に clamp する */
+function clamp01(value: number): number {
+	return Math.max(0, Math.min(1, value));
+}
+
 // ─── describeEmotion ───────────────────────────────────────────
 //
 // VAD 感情値を日本語の自然言語記述に変換する純粋関数。

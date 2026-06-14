@@ -1,4 +1,9 @@
-import { type Emotion, classifyEmotion } from "@vicissitude/shared/emotion";
+import {
+	type Emotion,
+	classifyEmotion,
+	computeEmotionWeight,
+	computeNeutralWeight,
+} from "@vicissitude/shared/emotion";
 import type { EmotionToTtsStyleMapper } from "@vicissitude/shared/ports";
 import { type TtsStyleParams, createTtsStyleParams } from "@vicissitude/shared/tts";
 
@@ -12,32 +17,24 @@ export function createEmotionToTtsStyleMapper(): EmotionToTtsStyleMapper {
 }
 
 function mapToStyle(emotion: Emotion): TtsStyleParams {
-	const { valence: v, arousal: a, dominance: d } = emotion;
-
 	const style = classifyEmotion(emotion);
-	const styleWeight = computeStyleWeight(style, v, a, d);
-	const speed = computeSpeed(a);
+	const styleWeight = computeStyleWeight(emotion, style);
+	const speed = computeSpeed(emotion.arousal);
 
 	return createTtsStyleParams(style, styleWeight, speed);
 }
 
-function computeStyleWeight(style: string, v: number, a: number, d: number): number {
+function computeStyleWeight(emotion: Emotion, style: string): number {
 	if (style === "neutral") {
-		const distance = Math.sqrt(v * v + a * a + d * d);
-		const maxDistance = Math.sqrt(0.2 * 0.2 * 3);
-		return clamp(1 - distance / maxDistance, 0, 1);
+		return computeNeutralWeight(emotion);
 	}
-	return computeWeight(Math.abs(v), Math.abs(a), Math.abs(d));
+	const { valence: v, arousal: a, dominance: d } = emotion;
+	return computeEmotionWeight(Math.abs(v), Math.abs(a), Math.abs(d));
 }
 
 function computeSpeed(arousal: number): number {
 	const raw = 1.0 + arousal * 0.3;
 	return clamp(raw, 0.5, 2.0);
-}
-
-function computeWeight(...values: number[]): number {
-	const sum = values.reduce((acc, val) => acc + val, 0);
-	return clamp(sum / values.length, 0, 1);
 }
 
 function clamp(value: number, min: number, max: number): number {
