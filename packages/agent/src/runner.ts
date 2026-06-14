@@ -7,7 +7,7 @@ import {
 	METRIC,
 	recordTokenMetrics,
 } from "@vicissitude/observability/metrics";
-import { JST_OFFSET_MS, raceAbort, sleep } from "@vicissitude/shared/functions";
+import { formatErrorMessage, JST_OFFSET_MS, raceAbort, sleep } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -55,16 +55,6 @@ function mergeMetricLabel(values: Array<string | undefined>, fallback: string): 
 	if (unique.length === 0) return fallback;
 	if (unique.length === 1) return unique[0] ?? fallback;
 	return "mixed";
-}
-
-function formatErrorMessage(error: unknown): string {
-	if (error instanceof Error) return error.message;
-	if (typeof error === "string") return error;
-	try {
-		return JSON.stringify(error) ?? String(error);
-	} catch {
-		return String(error);
-	}
 }
 
 function isIrrecoverableSessionError(

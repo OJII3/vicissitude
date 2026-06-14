@@ -4,6 +4,7 @@ import { splitMessage } from "@vicissitude/application/split-message";
 import { evaluateDueReminders } from "@vicissitude/scheduling/heartbeat-helpers";
 import {
 	abortReasonToError,
+	formatErrorMessage,
 	formatTime,
 	formatTimestamp,
 	isRecord,
@@ -460,5 +461,52 @@ describe("raceAbort", () => {
 		const promise = raceAbort(pending, controller.signal);
 		controller.abort("nope");
 		expect(promise).rejects.toMatchObject({ name: "AbortError" });
+	});
+});
+
+// ─── formatErrorMessage ──────────────────────────────────────────
+
+describe("formatErrorMessage", () => {
+	test("Error は message のみを返す（name プレフィックスを付けない）", () => {
+		expect(formatErrorMessage(new Error("boom"))).toBe("boom");
+	});
+
+	test("Error サブクラスでも name を付けず message のみ返す", () => {
+		expect(formatErrorMessage(new TypeError("bad type"))).toBe("bad type");
+	});
+
+	test("message が空文字の Error は空文字を返す", () => {
+		expect(formatErrorMessage(new Error(""))).toBe("");
+	});
+
+	test("string はそのまま返す", () => {
+		expect(formatErrorMessage("plain string error")).toBe("plain string error");
+	});
+
+	test("空文字列はそのまま返す", () => {
+		expect(formatErrorMessage("")).toBe("");
+	});
+
+	test("プレーンオブジェクトは JSON.stringify した文字列を返す", () => {
+		expect(formatErrorMessage({ code: 500, reason: "oops" })).toBe('{"code":500,"reason":"oops"}');
+	});
+
+	test("数値は JSON.stringify した文字列を返す", () => {
+		expect(formatErrorMessage(42)).toBe("42");
+	});
+
+	test("null は JSON.stringify した文字列を返す", () => {
+		expect(formatErrorMessage(null)).toBe("null");
+	});
+
+	test("undefined は JSON.stringify が undefined を返すため String フォールバックする", () => {
+		const value: unknown = undefined;
+		expect(formatErrorMessage(value)).toBe("undefined");
+	});
+
+	test("循環参照オブジェクトは JSON.stringify が throw するため String フォールバックする", () => {
+		const circular: Record<string, unknown> = {};
+		circular.self = circular;
+		expect(formatErrorMessage(circular)).toBe("[object Object]");
 	});
 });

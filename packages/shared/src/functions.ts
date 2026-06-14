@@ -127,6 +127,32 @@ export async function raceAbort<T>(promise: Promise<T>, signal: AbortSignal): Pr
 	}
 }
 
+// ─── formatErrorMessage ─────────────────────────────────────────
+
+/**
+ * 任意の throw 値を、人間可読な 1 行メッセージへ正規化する。
+ *
+ * - `Error`: `error.message` を返す（`name` プレフィックスは付けない。
+ *   会話 context やユーザー可視文言に `TypeError:` 等の技術的接頭辞を
+ *   混入させないため）。
+ * - `string`: そのまま返す。
+ * - それ以外（オブジェクト・数値・null 等）: `JSON.stringify` で文字列化する。
+ *   `JSON.stringify` が `undefined` を返す（`undefined` 値など）場合や
+ *   循環参照で例外を投げる場合は `String(error)` にフォールバックする。
+ *
+ * ログ・内部メッセージ・添付説明文など、例外を文字列として埋め込む全ての
+ * 箇所で使う単一の正準ヘルパー。
+ */
+export function formatErrorMessage(error: unknown): string {
+	if (error instanceof Error) return error.message;
+	if (typeof error === "string") return error;
+	try {
+		return JSON.stringify(error) ?? String(error);
+	} catch {
+		return String(error);
+	}
+}
+
 // ─── escapeUserMessageTag ───────────────────────────────────────
 
 /** ユーザーメッセージ内の `<user_message>` / `</user_message>` タグをエスケープし、タグインジェクションを防ぐ */

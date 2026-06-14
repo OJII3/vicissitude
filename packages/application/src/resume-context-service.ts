@@ -13,6 +13,7 @@ import {
 } from "@vicissitude/memory/namespace";
 import type { SemanticFact } from "@vicissitude/memory/semantic-fact";
 import { MemoryStorage } from "@vicissitude/memory/storage";
+import { formatErrorMessage } from "@vicissitude/shared/functions";
 import type { Logger } from "@vicissitude/shared/types";
 
 const DEFAULT_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
@@ -257,9 +258,4 @@ function trimLine(text: string, maxLength: number): string {
 	const normalized = normalizeInline(text);
 	if (normalized.length <= maxLength) return normalized;
 	return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
-}
-
-function formatErrorMessage(error: unknown): string {
-	if (error instanceof Error && error.message) return error.message;
-	return String(error);
 }
