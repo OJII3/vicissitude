@@ -1,4 +1,4 @@
-import { raceAbort } from "@vicissitude/shared/functions";
+import { formatErrorMessage, raceAbort } from "@vicissitude/shared/functions";
 import type {
 	Attachment,
 	AttachmentProcessor,
@@ -58,16 +58,6 @@ function appendDescriptionFailure(text: string, reason: string): string {
 
 function isAbortLike(error: unknown): boolean {
 	return error instanceof Error && (error.name === "AbortError" || error.name === "TimeoutError");
-}
-
-function formatErrorMessage(error: unknown): string {
-	if (error instanceof Error) return `${error.name}: ${error.message}`;
-	if (typeof error === "string") return error;
-	try {
-		return JSON.stringify(error) ?? String(error);
-	} catch {
-		return String(error);
-	}
 }
 
 export interface ImageAttachmentDescriberOptions {
