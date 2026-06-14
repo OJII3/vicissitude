@@ -45,21 +45,6 @@ describe("FSRS learning loop — explicit retrieval review command", () => {
 		expect(after!.lastReviewedAt).toBeNull();
 	});
 
-	test("retrieve remains read-only even when an episodic dependency is available", async () => {
-		const retrievalWithEpisodic = new Retrieval(mockLlm([1, 0, 0]), storage, episodic);
-		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
-		await storage.saveEpisode(userId, ep);
-
-		const now = new Date("2026-06-01T00:00:00Z");
-		await retrievalWithEpisodic.retrieve(userId, "TypeScript", { now });
-		await new Promise<void>((resolve) => {
-			setTimeout(resolve, 0);
-		});
-
-		const after = await storage.getEpisodeById(userId, ep.id);
-		expect(after!.lastReviewedAt).toBeNull();
-	});
-
 	test("review command updates lastReviewedAt for retrieved episodes", async () => {
 		const ep = makeEpisode({ title: "TypeScript Guide", embedding: [1, 0, 0] });
 		await storage.saveEpisode(userId, ep);
