@@ -31,7 +31,12 @@ describe("ConsolidationScheduler critic audit skip logging", () => {
 		const auditor: CriticAuditorPort = {
 			audit: mock(() => Promise.resolve({ status: "skipped", reason: "no_messages" } as const)),
 		};
-		const scheduler = new ConsolidationScheduler(createConsolidator(), logger, metrics, auditor);
+		const scheduler = new ConsolidationScheduler({
+			consolidator: createConsolidator(),
+			logger,
+			metrics,
+			criticAuditor: auditor,
+		});
 
 		await (scheduler as unknown as TickFn).tick();
 		await (scheduler as unknown as TickFn).tick();

@@ -1,5 +1,4 @@
 import { METRIC } from "@vicissitude/observability/metrics";
-import { withTimeout } from "@vicissitude/shared/functions";
 import type { HeartbeatConfigPort } from "@vicissitude/shared/ports";
 import type {
 	DueReminder,
@@ -9,11 +8,20 @@ import type {
 } from "@vicissitude/shared/types";
 
 import { evaluateDueReminders } from "./heartbeat-helpers.ts";
+import { type PeriodicTickConfig, PeriodicTickScheduler } from "./periodic-tick-scheduler.ts";
 
 // ─── HeartbeatScheduler ─────────────────────────────────────────
 
 const HEARTBEAT_TICK_INTERVAL_MS = 60_000;
 const HEARTBEAT_TICK_TIMEOUT_MS = 180_000;
+
+const tickConfig: PeriodicTickConfig = {
+	logPrefix: "[heartbeat]",
+	tickTimeoutMs: HEARTBEAT_TICK_TIMEOUT_MS,
+	timeoutMessage: "heartbeat tick timed out",
+	tickCounterMetric: METRIC.HEARTBEAT_TICKS,
+	tickDurationMetric: METRIC.HEARTBEAT_TICK_DURATION,
+};
 
 /**
  * preFilter の戻り値。
@@ -34,13 +42,13 @@ export interface HeartbeatSchedulerDeps {
 	preFilter?: (dueReminders: DueReminder[]) => Promise<PreFilterResult>;
 }
 
-export class HeartbeatScheduler {
+export class HeartbeatScheduler extends PeriodicTickScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
-	private running = false;
-	private executePromise: Promise<void> | null = null;
 	private tickIntervalMs = HEARTBEAT_TICK_INTERVAL_MS;
 
-	constructor(private readonly deps: HeartbeatSchedulerDeps) {}
+	constructor(private readonly deps: HeartbeatSchedulerDeps) {
+		super(tickConfig, deps.logger, deps.metrics);
+	}
 
 	start(): void {
 		if (this.timer) return;
@@ -57,47 +65,7 @@ export class HeartbeatScheduler {
 		this.deps.logger.info("[heartbeat] scheduler stopped");
 	}
 
-	private async tick(): Promise<void> {
-		if (this.running) {
-			this.deps.logger.info("[heartbeat] previous tick still running, skipping");
-			return;
-		}
-
-		this.running = true;
-		const start = performance.now();
-		const execution = this.executeTick();
-		this.executePromise = execution;
-		let executionSettled = false;
-		void execution.then(
-			() => {
-				executionSettled = true;
-				return null;
-			},
-			() => {
-				executionSettled = true;
-				return null;
-			},
-		);
-		try {
-			await withTimeout(execution, HEARTBEAT_TICK_TIMEOUT_MS, "heartbeat tick timed out");
-			this.deps.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "success" });
-		} catch (error) {
-			this.deps.metrics?.incrementCounter(METRIC.HEARTBEAT_TICKS, { outcome: "error" });
-			this.deps.logger.error("[heartbeat] tick error:", error);
-		} finally {
-			const duration = (performance.now() - start) / 1000;
-			this.deps.metrics?.observeHistogram(METRIC.HEARTBEAT_TICK_DURATION, duration);
-		}
-
-		if (executionSettled) {
-			this.releaseExecution(execution);
-			return;
-		}
-
-		void this.releaseExecutionWhenSettled(execution);
-	}
-
-	private async executeTick(): Promise<void> {
+	protected async runTick(): Promise<void> {
 		const config = await this.deps.configRepo.load();
 		this.applyBaseInterval(config.baseIntervalMinutes);
 		const executed = await this.executeHeartbeat(config);
@@ -118,17 +86,6 @@ export class HeartbeatScheduler {
 		this.deps.logger.info(
 			`[heartbeat] scheduler interval updated (${String(baseIntervalMinutes)}min interval)`,
 		);
-	}
-
-	private releaseExecution(execution: Promise<void>): void {
-		if (this.executePromise !== execution) return;
-		this.executePromise = null;
-		this.running = false;
-	}
-
-	private async releaseExecutionWhenSettled(execution: Promise<void>): Promise<void> {
-		await execution.catch(() => {});
-		this.releaseExecution(execution);
 	}
 
 	private async executeHeartbeat(config: HeartbeatConfig): Promise<boolean> {

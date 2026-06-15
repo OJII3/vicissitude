@@ -1,5 +1,4 @@
 import { METRIC } from "@vicissitude/observability/metrics";
-import { withTimeout } from "@vicissitude/shared/functions";
 import { defaultSubject, namespaceKey } from "@vicissitude/shared/namespace";
 import type {
 	CriticAuditSkipReason,
@@ -8,6 +7,8 @@ import type {
 } from "@vicissitude/shared/ports";
 import type { Logger, MemoryConsolidator, MetricsCollector } from "@vicissitude/shared/types";
 
+import { type PeriodicTickConfig, PeriodicTickScheduler } from "./periodic-tick-scheduler.ts";
+
 /** 30 minutes */
 const CONSOLIDATION_TICK_INTERVAL_MS = 30 * 60_000;
 /** 10 minutes (LLM calls are slow) */
@@ -15,21 +16,36 @@ const CONSOLIDATION_TICK_TIMEOUT_MS = 10 * 60_000;
 /** 5 minutes delay before first tick */
 const CONSOLIDATION_INITIAL_DELAY_MS = 5 * 60_000;
 
-export class ConsolidationScheduler {
+const tickConfig: PeriodicTickConfig = {
+	logPrefix: "[memory-consolidation]",
+	tickTimeoutMs: CONSOLIDATION_TICK_TIMEOUT_MS,
+	timeoutMessage: "memory consolidation tick timed out",
+	tickCounterMetric: METRIC.MEMORY_CONSOLIDATION_TICKS,
+	tickDurationMetric: METRIC.MEMORY_CONSOLIDATION_TICK_DURATION,
+};
+
+export interface ConsolidationSchedulerDeps {
+	consolidator: MemoryConsolidator;
+	logger: Logger;
+	metrics?: MetricsCollector;
+	criticAuditor?: CriticAuditorPort;
+	issueReporter?: GitHubIssuePort;
+}
+
+export class ConsolidationScheduler extends PeriodicTickScheduler {
 	private timer: ReturnType<typeof setInterval> | null = null;
 	private initialTimer: ReturnType<typeof setTimeout> | null = null;
-	private running = false;
-	private executePromise: Promise<void> | null = null;
+	private readonly consolidator: MemoryConsolidator;
+	private readonly criticAuditor?: CriticAuditorPort;
+	private readonly issueReporter?: GitHubIssuePort;
 	private readonly lastCriticAuditSkipReasons = new Map<string, CriticAuditSkipReason>();
 
-	/* oxlint-disable-next-line max-params -- DI: all dependencies are required ports */
-	constructor(
-		private readonly consolidator: MemoryConsolidator,
-		private readonly logger: Logger,
-		private readonly metrics?: MetricsCollector,
-		private readonly criticAuditor?: CriticAuditorPort,
-		private readonly issueReporter?: GitHubIssuePort,
-	) {}
+	constructor(deps: ConsolidationSchedulerDeps) {
+		super(tickConfig, deps.logger, deps.metrics);
+		this.consolidator = deps.consolidator;
+		this.criticAuditor = deps.criticAuditor;
+		this.issueReporter = deps.issueReporter;
+	}
 
 	start(): void {
 		if (this.timer || this.initialTimer) return;
@@ -58,63 +74,8 @@ export class ConsolidationScheduler {
 		this.logger.info("[memory-consolidation] scheduler stopped");
 	}
 
-	private async tick(): Promise<void> {
-		if (this.running) {
-			this.logger.info("[memory-consolidation] previous tick still running, skipping");
-			return;
-		}
-
-		this.running = true;
-		const start = performance.now();
-		const execution = this.executeConsolidation();
-		this.executePromise = execution;
-		let executionSettled = false;
-		void execution.then(
-			() => {
-				executionSettled = true;
-				return null;
-			},
-			() => {
-				executionSettled = true;
-				return null;
-			},
-		);
-		try {
-			await withTimeout(
-				execution,
-				CONSOLIDATION_TICK_TIMEOUT_MS,
-				"memory consolidation tick timed out",
-			);
-			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "success" });
-		} catch (error) {
-			this.metrics?.incrementCounter(METRIC.MEMORY_CONSOLIDATION_TICKS, { outcome: "error" });
-			this.logger.error("[memory-consolidation] tick error:", error);
-		} finally {
-			const duration = (performance.now() - start) / 1000;
-			this.metrics?.observeHistogram(METRIC.MEMORY_CONSOLIDATION_TICK_DURATION, duration);
-		}
-
-		if (executionSettled) {
-			this.releaseExecution(execution);
-			return;
-		}
-
-		void this.releaseExecutionWhenSettled(execution);
-	}
-
-	private releaseExecution(execution: Promise<void>): void {
-		if (this.executePromise !== execution) return;
-		this.executePromise = null;
-		this.running = false;
-	}
-
-	private async releaseExecutionWhenSettled(execution: Promise<void>): Promise<void> {
-		await execution.catch(() => {});
-		this.releaseExecution(execution);
-	}
-
 	/** Inlined ConsolidateMemoryUseCase.execute */
-	private async executeConsolidation(): Promise<void> {
+	protected async runTick(): Promise<void> {
 		const namespaces = this.consolidator.getActiveNamespaces();
 		if (namespaces.length === 0) {
 			this.logger.info("[memory-consolidation] no active namespaces, skipping");
