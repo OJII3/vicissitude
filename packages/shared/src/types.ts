@@ -207,6 +207,7 @@ export interface SessionStorePort {
 	): { sessionId: string; createdAt: number } | undefined;
 	save(agentName: string, sessionKey: string, sessionId: string): void;
 	delete(agentName: string, sessionKey: string): void;
+	count(): number;
 }
 
 // ─── Context Builder Port ────────────────────────────────────────
