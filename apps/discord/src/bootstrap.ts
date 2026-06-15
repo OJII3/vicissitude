@@ -10,7 +10,6 @@ import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { mcpServerConfigs } from "@vicissitude/agent/mcp-config";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
-import { SessionStore } from "@vicissitude/agent/session-store";
 import { createWebConversationProfile } from "@vicissitude/agent/web/profile";
 import { WEB_AGENT_ID, WEB_SCOPE_ID, WebConversationAgent } from "@vicissitude/agent/web/web-agent";
 import { fetchNewEmails, formatEmailContext } from "@vicissitude/application/email-fetcher";
@@ -75,6 +74,7 @@ import type { StoreDb } from "@vicissitude/store/db";
 import { closeDb, createDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
+import { createSqliteSessionStore } from "@vicissitude/store/session-store";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
@@ -95,7 +95,7 @@ import { createShutdown } from "./shutdown.ts";
 
 export function createStoreLayer(config: AppConfig) {
 	const db = createDb(config.dataDir);
-	const sessionStore = new SessionStore(db);
+	const sessionStore = createSqliteSessionStore(db);
 	return { db, sessionStore };
 }
 
@@ -771,7 +771,7 @@ async function startMinecraftMcp(
 // ─── Session Gauge ──────────────────────────────────────────────
 
 function startSessionGauge(
-	sessionStore: SessionStore,
+	sessionStore: SessionStorePort,
 	metricsCollector: PrometheusCollector,
 ): ReturnType<typeof setInterval> {
 	const update = () => metricsCollector.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessionStore.count());

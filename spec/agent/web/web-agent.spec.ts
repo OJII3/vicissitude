@@ -32,6 +32,9 @@ function createSessionStore(): SessionStorePort {
 		delete(agentName, sessionKey) {
 			rows.delete(sessionStoreKey(agentName, sessionKey));
 		},
+		count() {
+			return rows.size;
+		},
 	};
 }
 
