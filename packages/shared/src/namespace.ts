@@ -115,6 +115,33 @@ export function namespaceKey(namespace: MemoryNamespace): string {
 	}
 }
 
+/**
+ * heartbeat 実行の session-key プレフィックス。
+ * heartbeat-service が `${HEARTBEAT_SESSION_PREFIX}${scopeKey}` で session-key を生成し、
+ * observability が同じプレフィックスで scope を解析する。両者の単一ソース。
+ */
+export const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
+
+/**
+ * heartbeat の scopeKey から session-key を生成する。
+ * scopeKey は canonical scopeId（例 `discord:guild:111`）または
+ * グローバル heartbeat の `_autonomous` を取り得るため、ここでは検証しない
+ * （生成側 heartbeat-service の規約に委ねる）。
+ */
+export function heartbeatSessionKey(scopeKey: string): string {
+	return `${HEARTBEAT_SESSION_PREFIX}${scopeKey}`;
+}
+
+/**
+ * session-key が heartbeat のものなら、プレフィックスを除いた scopeKey を返す。
+ * heartbeat session-key でなければ null。
+ * 戻り値の scopeKey は scopeId とは限らない（`_autonomous` 等を含む生の残余文字列）。
+ */
+export function scopeKeyFromHeartbeatSessionKey(sessionKey: string): string | null {
+	if (!sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) return null;
+	return sessionKey.slice(HEARTBEAT_SESSION_PREFIX.length);
+}
+
 /** Discord agentId のエージェント種別 */
 export type DiscordAgentRole = "polling" | "heartbeat";
 

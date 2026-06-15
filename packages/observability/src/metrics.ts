@@ -1,4 +1,8 @@
 /* oxlint-disable max-classes-per-file, max-lines -- metrics module consolidates related classes */
+import {
+	HEARTBEAT_SESSION_PREFIX,
+	scopeKeyFromHeartbeatSessionKey,
+} from "@vicissitude/shared/namespace";
 import type { Logger, MetricsCollector, TokenUsage } from "@vicissitude/shared/types";
 
 import { calculateCost, getModelPricing } from "./model-pricing.ts";
@@ -89,8 +93,6 @@ export function recordTokenMetrics(
 
 // ─── Agent Metric Labels ────────────────────────────────────────
 
-const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
-
 export interface AgentMetricLabelOptions {
 	agentId: string;
 	scopeId?: string;
@@ -118,9 +120,8 @@ export function inferTrigger(sessionKey: string): string {
 }
 
 export function inferScopeId(sessionKey: string): string | undefined {
-	if (sessionKey.startsWith(HEARTBEAT_SESSION_PREFIX)) {
-		return sessionKey.slice(HEARTBEAT_SESSION_PREFIX.length);
-	}
+	const heartbeatScopeKey = scopeKeyFromHeartbeatSessionKey(sessionKey);
+	if (heartbeatScopeKey !== null) return heartbeatScopeKey;
 
 	if (sessionKey.startsWith("discord:guild:")) {
 		return sessionKey;
