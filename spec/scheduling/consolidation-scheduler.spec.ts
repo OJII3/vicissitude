@@ -62,7 +62,7 @@ describe("ConsolidationScheduler", () => {
 		const metrics = createMockMetrics();
 		const consolidator = createMockConsolidator();
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics);
+		const scheduler = new ConsolidationScheduler({ consolidator, logger, metrics });
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(consolidator.consolidate).not.toHaveBeenCalled();
@@ -86,7 +86,7 @@ describe("ConsolidationScheduler", () => {
 			),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics);
+		const scheduler = new ConsolidationScheduler({ consolidator, logger, metrics });
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(consolidator.consolidate).toHaveBeenCalledWith(ns);
@@ -117,7 +117,7 @@ describe("ConsolidationScheduler", () => {
 			}),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics);
+		const scheduler = new ConsolidationScheduler({ consolidator, logger, metrics });
 		await (scheduler as unknown as TickFn).tick();
 
 		expect(logger.error).toHaveBeenCalledWith(
@@ -150,7 +150,7 @@ describe("ConsolidationScheduler", () => {
 			),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics);
+		const scheduler = new ConsolidationScheduler({ consolidator, logger, metrics });
 		const tick = scheduler as unknown as TickFn;
 
 		// 1 回目の tick を開始（未完了のまま保留）
@@ -189,7 +189,7 @@ describe("ConsolidationScheduler", () => {
 			),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger);
+		const scheduler = new ConsolidationScheduler({ consolidator, logger });
 		const tick = scheduler as unknown as TickFn;
 
 		// tick を開始
@@ -223,7 +223,7 @@ describe("ConsolidationScheduler", () => {
 			});
 
 			// 第4引数を省略
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics);
+			const scheduler = new ConsolidationScheduler({ consolidator, logger, metrics });
 			await (scheduler as unknown as TickFn).tick();
 
 			// consolidate は呼ばれるが audit は呼ばれない（そもそも auditor がない）
@@ -245,7 +245,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			// audit が agent-scope の default subject（scopeId）で呼ばれる
@@ -266,7 +271,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(metrics.incrementCounter).toHaveBeenCalledWith("drift_audits_total", {
@@ -288,7 +298,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("MAJOR drift detected"));
@@ -308,7 +323,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(auditor.audit).toHaveBeenCalledTimes(1);
@@ -340,7 +360,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			// ns1 の audit 失敗で error ログが出る
@@ -371,7 +396,12 @@ describe("ConsolidationScheduler", () => {
 				consolidate: mock(() => Promise.resolve(successResult)),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			expect(metrics.setGauge).toHaveBeenCalledWith("drift_score", 0.42, {
@@ -397,7 +427,12 @@ describe("ConsolidationScheduler", () => {
 				}),
 			});
 
-			const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+			const scheduler = new ConsolidationScheduler({
+				consolidator,
+				logger,
+				metrics,
+				criticAuditor: auditor,
+			});
 			await (scheduler as unknown as TickFn).tick();
 
 			// ns1 で consolidate が失敗 → audit はスキップされる
@@ -439,7 +474,13 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		const scheduler = new ConsolidationScheduler({
+			consolidator,
+			logger,
+			metrics,
+			criticAuditor: auditor,
+			issueReporter: issuePort,
+		});
 		await (scheduler as unknown as TickFn).tick();
 
 		// findRecentIssues で重複チェックが行われる
@@ -484,7 +525,13 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		const scheduler = new ConsolidationScheduler({
+			consolidator,
+			logger,
+			metrics,
+			criticAuditor: auditor,
+			issueReporter: issuePort,
+		});
 		await (scheduler as unknown as TickFn).tick();
 
 		// findRecentIssues は呼ばれるが、同タイトルが見つかるので createIssue はスキップ
@@ -514,7 +561,13 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		const scheduler = new ConsolidationScheduler({
+			consolidator,
+			logger,
+			metrics,
+			criticAuditor: auditor,
+			issueReporter: issuePort,
+		});
 		await (scheduler as unknown as TickFn).tick();
 
 		// issueTitle がないので Issue 関連の呼び出しは一切行われない
@@ -543,7 +596,12 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 		});
 
 		// 第5引数（issueReporter）を省略
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor);
+		const scheduler = new ConsolidationScheduler({
+			consolidator,
+			logger,
+			metrics,
+			criticAuditor: auditor,
+		});
 		await (scheduler as unknown as TickFn).tick();
 
 		// warn ログは出る（既存動作）がクラッシュしない
@@ -575,7 +633,13 @@ describe("ConsolidationScheduler - GitHub Issue 自動起票 (severity major)", 
 			consolidate: mock(() => Promise.resolve(successResult)),
 		});
 
-		const scheduler = new ConsolidationScheduler(consolidator, logger, metrics, auditor, issuePort);
+		const scheduler = new ConsolidationScheduler({
+			consolidator,
+			logger,
+			metrics,
+			criticAuditor: auditor,
+			issueReporter: issuePort,
+		});
 
 		// クラッシュせずに完了する
 		await (scheduler as unknown as TickFn).tick();

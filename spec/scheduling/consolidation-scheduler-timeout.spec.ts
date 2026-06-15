@@ -48,7 +48,7 @@ describe("ConsolidationScheduler timeout exclusivity", () => {
 						}),
 				),
 			};
-			const scheduler = new ConsolidationScheduler(consolidator, createMockLogger());
+			const scheduler = new ConsolidationScheduler({ consolidator, logger: createMockLogger() });
 			const tick = scheduler as unknown as { tick(): Promise<void> };
 
 			await tick.tick();

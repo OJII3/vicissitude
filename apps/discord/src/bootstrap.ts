@@ -576,13 +576,13 @@ export async function setupMemoryRecording(
 			: undefined;
 
 		const recorder = new MemoryConversationRecorder(llm, dataDir);
-		const consolidationScheduler = new ConsolidationScheduler(
-			recorder,
+		const consolidationScheduler = new ConsolidationScheduler({
+			consolidator: recorder,
 			logger,
-			opts.metricsCollector,
+			metrics: opts.metricsCollector,
 			criticAuditor,
-			githubIssuePort,
-		);
+			issueReporter: githubIssuePort,
+		});
 
 		logger.info(`[bootstrap] Memory auto-recording enabled (port=${opts.memoryPort})`);
 		return { chatAdapter, recorder, consolidationScheduler };

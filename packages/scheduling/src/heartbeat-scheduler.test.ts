@@ -32,7 +32,7 @@ describe("HeartbeatScheduler", () => {
 			metrics,
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(metrics.incrementCounter).not.toHaveBeenCalledWith("heartbeat_reminders_executed_total");
 	});
@@ -58,7 +58,7 @@ describe("HeartbeatScheduler", () => {
 			metrics,
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(metrics.incrementCounter).toHaveBeenCalledWith("heartbeat_reminders_executed_total");
 	});
@@ -85,7 +85,7 @@ describe("HeartbeatScheduler", () => {
 			logger: createMockLogger(),
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(configRepo.save).not.toHaveBeenCalled();
 		expect(configRepo.markRemindersExecuted).toHaveBeenCalledTimes(1);
@@ -115,7 +115,7 @@ describe("HeartbeatScheduler", () => {
 		});
 
 		// executed=true（execute は呼ばれた）だが succeededIds が空なので config 更新は無し
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(heartbeatService.execute).toHaveBeenCalledTimes(1);
 		expect(configRepo.markRemindersExecuted).not.toHaveBeenCalled();
@@ -147,7 +147,7 @@ describe("HeartbeatScheduler", () => {
 			logger: createMockLogger(),
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(receivedIds).toEqual(["due-1"]);
 	});
@@ -176,7 +176,7 @@ describe("HeartbeatScheduler", () => {
 			preFilter: mock(() => Promise.resolve({ reminders: [], markExecutedIds: [] })),
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(heartbeatService.execute).not.toHaveBeenCalled();
 		expect(configRepo.markRemindersExecuted).not.toHaveBeenCalled();
@@ -191,7 +191,7 @@ describe("HeartbeatScheduler", () => {
 			preFilter,
 		});
 
-		await (scheduler as unknown as { executeTick(): Promise<void> }).executeTick();
+		await (scheduler as unknown as { runTick(): Promise<void> }).runTick();
 
 		expect(preFilter).not.toHaveBeenCalled();
 	});

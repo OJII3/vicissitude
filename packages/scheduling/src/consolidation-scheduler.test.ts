@@ -26,9 +26,9 @@ function createConsolidator(): MemoryConsolidator {
 async function executeConsolidation(scheduler: ConsolidationScheduler): Promise<void> {
 	await (
 		scheduler as unknown as {
-			executeConsolidation(): Promise<void>;
+			runTick(): Promise<void>;
 		}
-	).executeConsolidation();
+	).runTick();
 }
 
 describe("ConsolidationScheduler critic audit observability", () => {
@@ -38,12 +38,12 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		const criticAuditor: CriticAuditorPort = {
 			audit: mock(() => Promise.resolve({ status: "skipped", reason: "no_bot_id" } as const)),
 		};
-		const scheduler = new ConsolidationScheduler(
-			createConsolidator(),
+		const scheduler = new ConsolidationScheduler({
+			consolidator: createConsolidator(),
 			logger,
 			metrics,
 			criticAuditor,
-		);
+		});
 
 		await executeConsolidation(scheduler);
 
@@ -64,12 +64,12 @@ describe("ConsolidationScheduler critic audit observability", () => {
 				Promise.resolve({ status: "skipped", reason: "low_drift", driftScore: 0.01 } as const),
 			),
 		};
-		const scheduler = new ConsolidationScheduler(
-			createConsolidator(),
+		const scheduler = new ConsolidationScheduler({
+			consolidator: createConsolidator(),
 			logger,
 			metrics,
 			criticAuditor,
-		);
+		});
 
 		await executeConsolidation(scheduler);
 
@@ -89,12 +89,12 @@ describe("ConsolidationScheduler critic audit observability", () => {
 		const criticAuditor: CriticAuditorPort = {
 			audit: mock(() => Promise.resolve({ status: "skipped", reason: "no_messages" } as const)),
 		};
-		const scheduler = new ConsolidationScheduler(
-			createConsolidator(),
+		const scheduler = new ConsolidationScheduler({
+			consolidator: createConsolidator(),
 			logger,
 			metrics,
 			criticAuditor,
-		);
+		});
 
 		await executeConsolidation(scheduler);
 		await executeConsolidation(scheduler);
