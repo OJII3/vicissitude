@@ -1,6 +1,5 @@
+import { heartbeatSessionKey } from "@vicissitude/shared/namespace";
 import type { AiAgent, DueReminder, Logger } from "@vicissitude/shared/types";
-
-const HEARTBEAT_SESSION_PREFIX = "system:heartbeat:";
 
 export function buildHeartbeatPrompt(dueReminders: DueReminder[]): string {
 	const now = new Date();
@@ -60,7 +59,7 @@ export class HeartbeatService {
 		const results = await Promise.all(
 			[...grouped.entries()].map(async ([scopeKey, reminders]) => {
 				const scopeId = scopeKey === "_autonomous" ? undefined : scopeKey;
-				const sessionKey = `${HEARTBEAT_SESSION_PREFIX}${scopeKey}`;
+				const sessionKey = heartbeatSessionKey(scopeKey);
 				const prompt = buildHeartbeatPrompt(reminders);
 				this.deps.logger.info(
 					`[heartbeat] scope=${scopeKey}: executing ${reminders.length} due reminder(s)`,
