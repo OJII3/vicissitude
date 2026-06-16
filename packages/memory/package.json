@@ -10,6 +10,7 @@
 		"./storage": "./src/storage.ts",
 		"./episodic": "./src/episodic.ts",
 		"./retrieval": "./src/retrieval.ts",
+		"./search-core": "./src/search-core.ts",
 		"./semantic-memory": "./src/semantic-memory.ts",
 		"./semantic-fact": "./src/semantic-fact.ts",
 		"./llm-port": "./src/llm-port.ts",
