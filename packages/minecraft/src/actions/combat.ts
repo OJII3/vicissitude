@@ -13,6 +13,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "./shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -178,23 +179,23 @@ export function registerAttackEntity(
 					.describe("最大攻撃回数（デフォルト: 20、安全弁）"),
 			},
 		},
-		async ({ entityName, maxHits }: { entityName: string; maxHits: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			async (bot, { entityName, maxHits }: { entityName: string; maxHits: number }) => {
+				const target = await findPerceivedEntityByName(bot, entityName);
+				if (!target) {
+					return textResult(`"${entityName}" が近距離または視界内に見つかりません`);
+				}
 
-			const target = await findPerceivedEntityByName(bot, entityName);
-			if (!target) {
-				return textResult(`"${entityName}" が近距離または視界内に見つかりません`);
-			}
+				const started = tryStartJob(jobManager, "attacking", entityName, (signal, updateProgress) =>
+					executeAttack({ bot, target, maxHits, signal, updateProgress }),
+				);
+				if (!started.ok) return started.result;
 
-			const started = tryStartJob(jobManager, "attacking", entityName, (signal, updateProgress) =>
-				executeAttack({ bot, target, maxHits, signal, updateProgress }),
-			);
-			if (!started.ok) return started.result;
-
-			return textResult(
-				`${entityName} への攻撃を開始しました（jobId: ${started.jobId}, 最大攻撃回数: ${String(maxHits)}）`,
-			);
-		},
+				return textResult(
+					`${entityName} への攻撃を開始しました（jobId: ${started.jobId}, 最大攻撃回数: ${String(maxHits)}）`,
+				);
+			},
+		),
 	);
 }

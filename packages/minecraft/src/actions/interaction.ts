@@ -3,7 +3,7 @@ import type mineflayer from "mineflayer";
 import { Vec3 } from "vec3";
 import { z } from "zod/v4";
 
-import { type GetBot, textResult } from "./shared.ts";
+import { type GetBot, textResult, withConnectedBot } from "./shared.ts";
 
 const MAX_CHAT_LENGTH = 256;
 type EquipmentDestination = "hand" | "head" | "torso" | "legs" | "feet" | "off-hand";
@@ -51,13 +51,11 @@ export function registerSendChat(server: McpServer, getBot: GetBot): void {
 					.describe(`送信するメッセージ（最大 ${String(MAX_CHAT_LENGTH)} 文字、"/" 始まり禁止）`),
 			},
 		},
-		({ message }: { message: string }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(getBot, (bot, { message }: { message: string }) => {
 			if (message.startsWith("/")) return textResult("コマンド送信は許可されていません");
 			bot.chat(message);
 			return textResult(`チャット送信: "${message}"`);
-		},
+		}),
 	);
 }
 
@@ -74,16 +72,19 @@ export function registerEquipItem(server: McpServer, getBot: GetBot): void {
 					.describe("装備先（デフォルト: hand）"),
 			},
 		},
-		async ({ itemName, destination }: { itemName: string; destination: EquipmentDestination }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			async (
+				bot,
+				{ itemName, destination }: { itemName: string; destination: EquipmentDestination },
+			) => {
+				const item = bot.inventory.items().find((i) => i.name === itemName);
+				if (!item) return textResult(`インベントリに "${itemName}" がありません`);
 
-			const item = bot.inventory.items().find((i) => i.name === itemName);
-			if (!item) return textResult(`インベントリに "${itemName}" がありません`);
-
-			await bot.equip(item, destination);
-			return textResult(`${itemName} を ${destination} に装備しました`);
-		},
+				await bot.equip(item, destination);
+				return textResult(`${itemName} を ${destination} に装備しました`);
+			},
+		),
 	);
 }
 
@@ -101,35 +102,38 @@ export function registerPlaceBlock(server: McpServer, getBot: GetBot): void {
 				z: z.number().int().describe("設置先の Z 座標"),
 			},
 		},
-		async ({
-			blockName,
-			x,
-			y,
-			z: zCoord,
-		}: {
-			blockName: string;
-			x: number;
-			y: number;
-			z: number;
-		}) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			async (
+				bot,
+				{
+					blockName,
+					x,
+					y,
+					z: zCoord,
+				}: {
+					blockName: string;
+					x: number;
+					y: number;
+					z: number;
+				},
+			) => {
+				const item = bot.inventory.items().find((i) => i.name === blockName);
+				if (!item) return textResult(`インベントリに "${blockName}" がありません`);
 
-			const item = bot.inventory.items().find((i) => i.name === blockName);
-			if (!item) return textResult(`インベントリに "${blockName}" がありません`);
+				await bot.equip(item, "hand");
 
-			await bot.equip(item, "hand");
+				const targetPos = new Vec3(x, y, zCoord);
+				const targetBlock = bot.blockAt(targetPos);
+				if (targetBlock && targetBlock.name !== "air" && targetBlock.name !== "cave_air") {
+					return textResult(
+						`(${String(x)}, ${String(y)}, ${String(zCoord)}) は ${targetBlock.name} で埋まっています`,
+					);
+				}
 
-			const targetPos = new Vec3(x, y, zCoord);
-			const targetBlock = bot.blockAt(targetPos);
-			if (targetBlock && targetBlock.name !== "air" && targetBlock.name !== "cave_air") {
-				return textResult(
-					`(${String(x)}, ${String(y)}, ${String(zCoord)}) は ${targetBlock.name} で埋まっています`,
-				);
-			}
-
-			const result = await placeOnAdjacentBlock(bot, targetPos, blockName);
-			return textResult(result);
-		},
+				const result = await placeOnAdjacentBlock(bot, targetPos, blockName);
+				return textResult(result);
+			},
+		),
 	);
 }

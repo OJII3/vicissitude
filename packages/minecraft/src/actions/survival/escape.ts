@@ -1,18 +1,17 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import pathfinderPkg from "mineflayer-pathfinder";
 import { z } from "zod/v4";
 
 import { findPerceivedEntityByName } from "../../bot-queries.ts";
 import type { JobManager } from "../../job-manager.ts";
 import {
 	type GetBot,
+	createFleeGoal,
 	ensureMovements,
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "../shared.ts";
-
-const { goals } = pathfinderPkg;
 
 export function registerFleeFromEntity(
 	server: McpServer,
@@ -37,27 +36,27 @@ export function registerFleeFromEntity(
 					.describe("逃走距離（デフォルト: 32ブロック）"),
 			},
 		},
-		async ({ entityName, distance }: { entityName: string; distance: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			async (bot, { entityName, distance }: { entityName: string; distance: number }) => {
+				const target = await findPerceivedEntityByName(bot, entityName, distance + 16);
+				if (!target) {
+					return textResult(
+						`"${entityName}" が近距離または視界内に見つかりません。すでに安全かもしれません`,
+					);
+				}
 
-			const target = await findPerceivedEntityByName(bot, entityName, distance + 16);
-			if (!target) {
+				const started = tryStartJob(jobManager, "fleeing", entityName, async (signal) => {
+					ensureMovements(bot);
+					registerAbortHandler(bot, signal);
+					await bot.pathfinder.goto(createFleeGoal(target, distance));
+				});
+				if (!started.ok) return started.result;
+
 				return textResult(
-					`"${entityName}" が近距離または視界内に見つかりません。すでに安全かもしれません`,
+					`${entityName} からの逃走を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
 				);
-			}
-
-			const started = tryStartJob(jobManager, "fleeing", entityName, async (signal) => {
-				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
-				await bot.pathfinder.goto(new goals.GoalInvert(new goals.GoalFollow(target, distance)));
-			});
-			if (!started.ok) return started.result;
-
-			return textResult(
-				`${entityName} からの逃走を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
-			);
-		},
+			},
+		),
 	);
 }

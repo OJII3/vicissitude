@@ -10,6 +10,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "./shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -61,28 +62,34 @@ export function registerSearchForBlock(
 					.describe("最大探索半径（デフォルト: 128）"),
 			},
 		},
-		({ blockName, maxRadius }: { blockName: string; maxRadius: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-			const blockType = bot.registry.blocksByName[blockName];
-			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
+		withConnectedBot(
+			getBot,
+			(bot, { blockName, maxRadius }: { blockName: string; maxRadius: number }) => {
+				const blockType = bot.registry.blocksByName[blockName];
+				if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
-			const started = tryStartJob(jobManager, "searching", blockName, (signal, updateProgress) => {
-				searchForBlockSync({
-					bot,
-					blockId: blockType.id,
+				const started = tryStartJob(
+					jobManager,
+					"searching",
 					blockName,
-					maxRadius,
-					signal,
-					updateProgress,
-				});
-				return Promise.resolve();
-			});
-			if (!started.ok) return started.result;
-			return textResult(
-				`${blockName} の探索を開始しました（jobId: ${started.jobId}, 最大半径: ${String(maxRadius)}）`,
-			);
-		},
+					(signal, updateProgress) => {
+						searchForBlockSync({
+							bot,
+							blockId: blockType.id,
+							blockName,
+							maxRadius,
+							signal,
+							updateProgress,
+						});
+						return Promise.resolve();
+					},
+				);
+				if (!started.ok) return started.result;
+				return textResult(
+					`${blockName} の探索を開始しました（jobId: ${started.jobId}, 最大半径: ${String(maxRadius)}）`,
+				);
+			},
+		),
 	);
 }
 
@@ -111,32 +118,37 @@ export function registerExploreDirection(
 				distance: z.number().min(16).max(256).default(100).describe("移動距離（デフォルト: 100）"),
 			},
 		},
-		({
-			direction,
-			distance,
-		}: {
-			direction?: "north" | "south" | "east" | "west";
-			distance: number;
-		}) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			(
+				bot,
+				{
+					direction,
+					distance,
+				}: {
+					direction?: "north" | "south" | "east" | "west";
+					distance: number;
+				},
+			) => {
+				const dir =
+					direction ??
+					DIRECTION_NAMES[Math.floor(Math.random() * DIRECTION_NAMES.length)] ??
+					"north";
+				const offset = DIRECTION_OFFSETS[dir] ?? { x: 0, z: -1 };
 
-			const dir =
-				direction ?? DIRECTION_NAMES[Math.floor(Math.random() * DIRECTION_NAMES.length)] ?? "north";
-			const offset = DIRECTION_OFFSETS[dir] ?? { x: 0, z: -1 };
-
-			const started = tryStartJob(jobManager, "exploring", dir, async (signal) => {
-				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
-				const pos = bot.entity.position;
-				const targetX = pos.x + offset.x * distance;
-				const targetZ = pos.z + offset.z * distance;
-				await bot.pathfinder.goto(new goals.GoalNear(targetX, pos.y, targetZ, 3));
-			});
-			if (!started.ok) return started.result;
-			return textResult(
-				`${dir} 方面への探検を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
-			);
-		},
+				const started = tryStartJob(jobManager, "exploring", dir, async (signal) => {
+					ensureMovements(bot);
+					registerAbortHandler(bot, signal);
+					const pos = bot.entity.position;
+					const targetX = pos.x + offset.x * distance;
+					const targetZ = pos.z + offset.z * distance;
+					await bot.pathfinder.goto(new goals.GoalNear(targetX, pos.y, targetZ, 3));
+				});
+				if (!started.ok) return started.result;
+				return textResult(
+					`${dir} 方面への探検を開始しました（jobId: ${started.jobId}, 距離: ${String(distance)}）`,
+				);
+			},
+		),
 	);
 }
