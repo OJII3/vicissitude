@@ -13,6 +13,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "./shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -126,24 +127,24 @@ export function registerFollowPlayer(
 				range: z.number().min(1).default(3).describe("何ブロック以内に接近するか（デフォルト: 3）"),
 			},
 		},
-		async ({ username, range }: { username: string; range: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			async (bot, { username, range }: { username: string; range: number }) => {
+				const entity = bot.players[username]?.entity;
+				if (!entity || !(await canPerceiveEntity(bot, entity))) {
+					return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
+				}
 
-			const entity = bot.players[username]?.entity;
-			if (!entity || !(await canPerceiveEntity(bot, entity))) {
-				return textResult(`プレイヤー "${username}" が見つからないか、視界内にいません`);
-			}
+				const started = tryStartJob(jobManager, "following", username, (signal) =>
+					executeFollow({ bot, entity, username, range, signal }),
+				);
+				if (!started.ok) return started.result;
 
-			const started = tryStartJob(jobManager, "following", username, (signal) =>
-				executeFollow({ bot, entity, username, range, signal }),
-			);
-			if (!started.ok) return started.result;
-
-			return textResult(
-				`${username} への追従を開始しました（jobId: ${started.jobId}, range: ${String(range)}）`,
-			);
-		},
+				return textResult(
+					`${username} への追従を開始しました（jobId: ${started.jobId}, range: ${String(range)}）`,
+				);
+			},
+		),
 	);
 }
 
@@ -159,27 +160,27 @@ export function registerGoTo(server: McpServer, getBot: GetBot, jobManager: JobM
 				range: z.number().min(0).default(2).describe("目標地点からの許容距離（デフォルト: 2）"),
 			},
 		},
-		({ x, y, z: zCoord, range }: { x: number; y: number; z: number; range: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			(bot, { x, y, z: zCoord, range }: { x: number; y: number; z: number; range: number }) => {
+				const coord = `(${String(x)}, ${String(y)}, ${String(zCoord)})`;
 
-			const coord = `(${String(x)}, ${String(y)}, ${String(zCoord)})`;
+				const started = tryStartJob(jobManager, "moving", coord, async (signal) => {
+					ensureMovements(bot);
+					registerAbortHandler(bot, signal);
+					try {
+						await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
+					} catch (err) {
+						const context = buildGoToContext(bot, { x, y, z: zCoord });
+						const msg = err instanceof Error ? err.message : String(err);
+						throw new Error(`${msg}\n${context}`, { cause: err });
+					}
+				});
+				if (!started.ok) return started.result;
 
-			const started = tryStartJob(jobManager, "moving", coord, async (signal) => {
-				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
-				try {
-					await bot.pathfinder.goto(new goals.GoalNear(x, y, zCoord, range));
-				} catch (err) {
-					const context = buildGoToContext(bot, { x, y, z: zCoord });
-					const msg = err instanceof Error ? err.message : String(err);
-					throw new Error(`${msg}\n${context}`, { cause: err });
-				}
-			});
-			if (!started.ok) return started.result;
-
-			return textResult(`${coord} への移動を開始しました（jobId: ${started.jobId}）`);
-		},
+				return textResult(`${coord} への移動を開始しました（jobId: ${started.jobId}）`);
+			},
+		),
 	);
 }
 
@@ -205,38 +206,41 @@ export function registerCollectBlock(
 				maxDistance: z.number().min(1).default(32).describe("検索範囲（デフォルト: 32）"),
 			},
 		},
-		({
-			blockName,
-			count,
-			maxDistance,
-		}: {
-			blockName: string;
-			count: number;
-			maxDistance: number;
-		}) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
-			const blockType = bot.registry.blocksByName[blockName];
-			if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
-
-			const started = tryStartJob(jobManager, "collecting", blockName, (signal, updateProgress) =>
-				executeCollectBlock({
-					bot,
-					blockId: blockType.id,
+		withConnectedBot(
+			getBot,
+			(
+				bot,
+				{
 					blockName,
 					count,
 					maxDistance,
-					signal,
-					updateProgress,
-				}),
-			);
-			if (!started.ok) return started.result;
+				}: {
+					blockName: string;
+					count: number;
+					maxDistance: number;
+				},
+			) => {
+				const blockType = bot.registry.blocksByName[blockName];
+				if (!blockType) return textResult(`不明なブロック名: "${blockName}"`);
 
-			return textResult(
-				`${blockName} の採集を開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個）`,
-			);
-		},
+				const started = tryStartJob(jobManager, "collecting", blockName, (signal, updateProgress) =>
+					executeCollectBlock({
+						bot,
+						blockId: blockType.id,
+						blockName,
+						count,
+						maxDistance,
+						signal,
+						updateProgress,
+					}),
+				);
+				if (!started.ok) return started.result;
+
+				return textResult(
+					`${blockName} の採集を開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個）`,
+				);
+			},
+		),
 	);
 }
 

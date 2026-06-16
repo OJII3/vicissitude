@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod/v4";
 
 import { getNearbyBlockCounts } from "../bot-queries.ts";
-import { type GetBot, textResult } from "./shared.ts";
+import { type GetBot, textResult, withConnectedBot } from "./shared.ts";
 
 const MAX_NEARBY_DISTANCE = 32;
 
@@ -20,15 +20,12 @@ export function registerNearbyBlocks(server: McpServer, getBot: GetBot): void {
 					.describe("探索範囲（デフォルト: 16、最大: 32）"),
 			},
 		},
-		({ maxDistance }: { maxDistance: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, (bot, { maxDistance }: { maxDistance: number }) => {
 			const counts = getNearbyBlockCounts(bot, maxDistance);
 			if (counts.size === 0) return textResult("周辺にブロックが見つかりません");
 			const lines = [...counts.entries()].map(([name, count]) => `${name}: ${String(count)}`);
 			return textResult(lines.join("\n"));
-		},
+		}),
 	);
 }
 
@@ -36,10 +33,7 @@ export function registerCraftableItems(server: McpServer, getBot: GetBot): void 
 	server.registerTool(
 		"craftable_items",
 		{ description: "現在のインベントリでクラフト可能なアイテム一覧を返す" },
-		() => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, (bot) => {
 			const craftable: { name: string; needsTable: boolean }[] = [];
 			for (const item of bot.registry.itemsArray) {
 				const withoutTable = bot.recipesFor(item.id, null, null, false);
@@ -57,18 +51,19 @@ export function registerCraftableItems(server: McpServer, getBot: GetBot): void 
 
 			const lines = craftable.map((c) => (c.needsTable ? `${c.name} (要作業台)` : c.name));
 			return textResult(`クラフト可能: ${lines.join(", ")}`);
-		},
+		}),
 	);
 }
 
 export function registerGetBiome(server: McpServer, getBot: GetBot): void {
-	server.registerTool("get_biome", { description: "現在のバイオーム名を返す" }, () => {
-		const bot = getBot();
-		if (!bot?.entity) return textResult("ボット未接続");
-
-		const pos = bot.entity.position;
-		const biomeId = bot.world.getBiome(pos);
-		const biome = bot.registry.biomes?.[biomeId];
-		return textResult(biome?.name ?? `不明なバイオーム (ID: ${String(biomeId)})`);
-	});
+	server.registerTool(
+		"get_biome",
+		{ description: "現在のバイオーム名を返す" },
+		withConnectedBot(getBot, (bot) => {
+			const pos = bot.entity.position;
+			const biomeId = bot.world.getBiome(pos);
+			const biome = bot.registry.biomes?.[biomeId];
+			return textResult(biome?.name ?? `不明なバイオーム (ID: ${String(biomeId)})`);
+		}),
+	);
 }

@@ -1,13 +1,10 @@
 import type mineflayer from "mineflayer";
-import pathfinderModule from "mineflayer-pathfinder";
 import type { Entity } from "prismarine-entity";
 
+import { createFleeGoal } from "./actions/shared.ts";
 import { listEdibleFoods } from "./actions/survival/food.ts";
 import type { BotContext } from "./bot-context.ts";
 import { isHostileMob } from "./helpers.ts";
-
-const { goals } = pathfinderModule;
-const { GoalInvert, GoalFollow } = goals;
 
 /** クリーパー/ウォーデンの逃走距離閾値 */
 const EXTENDED_FLEE_DISTANCE = 16;
@@ -175,7 +172,7 @@ export class ReactiveLayer {
 		this.ctx.setActionState({ type: "fleeing", target: hostile.entity.name });
 
 		try {
-			const goal = new GoalInvert(new GoalFollow(hostile.entity as unknown as Entity, 1));
+			const goal = createFleeGoal(hostile.entity as unknown as Entity, 1);
 			await bot.pathfinder.goto(goal);
 			this.ctx.pushEvent(
 				"reactive_flee",

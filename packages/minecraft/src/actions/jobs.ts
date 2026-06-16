@@ -14,6 +14,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "./shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -147,10 +148,7 @@ export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager:
 					.describe(`クラフト個数（デフォルト: 1、最大: ${String(MAX_CRAFT_COUNT)}）`),
 			},
 		},
-		({ itemName, count }: { itemName: string; count: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, (bot, { itemName, count }: { itemName: string; count: number }) => {
 			const itemType = bot.registry.itemsByName[itemName];
 			if (!itemType) return textResult(`不明なアイテム名: "${itemName}"`);
 
@@ -164,7 +162,7 @@ export function registerCraftItem(server: McpServer, getBot: GetBot, jobManager:
 			return textResult(
 				`${itemName} のクラフトを開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個）`,
 			);
-		},
+		}),
 	);
 }
 
@@ -187,10 +185,7 @@ export function registerSleepInBed(
 					.describe("ベッド検索範囲（デフォルト: 32、最大: 64）"),
 			},
 		},
-		({ maxDistance }: { maxDistance: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, (bot, { maxDistance }: { maxDistance: number }) => {
 			const bedIds = collectBedIds(bot);
 			if (bedIds.length === 0) return textResult("ベッドブロックの定義が見つかりません");
 
@@ -202,6 +197,6 @@ export function registerSleepInBed(
 			if (!started.ok) return started.result;
 
 			return textResult(`就寝を開始しました（jobId: ${started.jobId}）`);
-		},
+		}),
 	);
 }

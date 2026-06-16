@@ -3,7 +3,7 @@ import type mineflayer from "mineflayer";
 import { z } from "zod/v4";
 
 import type { GetBot } from "../shared.ts";
-import { textResult } from "../shared.ts";
+import { textResult, withConnectedBot } from "../shared.ts";
 
 export interface FoodInfo {
 	name: string;
@@ -63,10 +63,7 @@ export function registerEatFood(server: McpServer, getBot: GetBot): void {
 					.describe("緊急時のみ true（golden_apple の使用を許可）"),
 			},
 		},
-		async ({ emergency }: { emergency: boolean }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, async (bot, { emergency }: { emergency: boolean }) => {
 			if (bot.food >= 20) return textResult("空腹度は満タンです。食べる必要はありません");
 
 			const inventory = bot.inventory.items();
@@ -89,6 +86,6 @@ export function registerEatFood(server: McpServer, getBot: GetBot): void {
 			}
 
 			return textResult("インベントリに食料がありません");
-		},
+		}),
 	);
 }

@@ -12,6 +12,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "../shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -128,10 +129,7 @@ export function registerFindShelter(
 					.describe("ベッド検索範囲（デフォルト: 48）"),
 			},
 		},
-		({ maxDistance }: { maxDistance: number }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
-
+		withConnectedBot(getBot, (bot, { maxDistance }: { maxDistance: number }) => {
 			const started = tryStartJob(jobManager, "sheltering", "避難場所", async (signal) => {
 				ensureMovements(bot);
 				registerAbortHandler(bot, signal);
@@ -156,6 +154,6 @@ export function registerFindShelter(
 			if (!started.ok) return started.result;
 
 			return textResult(`避難場所の検索を開始しました（jobId: ${started.jobId}）`);
-		},
+		}),
 	);
 }

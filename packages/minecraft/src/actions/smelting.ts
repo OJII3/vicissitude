@@ -11,6 +11,7 @@ import {
 	registerAbortHandler,
 	textResult,
 	tryStartJob,
+	withConnectedBot,
 } from "./shared.ts";
 
 const { goals } = pathfinderPkg;
@@ -155,36 +156,39 @@ export function registerSmeltItem(server: McpServer, getBot: GetBot, jobManager:
 					.describe('燃料アイテム名（デフォルト: "coal"、例: "charcoal", "oak_planks"）'),
 			},
 		},
-		({ itemName, count, fuelName }: { itemName: string; count: number; fuelName: string }) => {
-			const bot = getBot();
-			if (!bot?.entity) return textResult("ボット未接続");
+		withConnectedBot(
+			getBot,
+			(
+				bot,
+				{ itemName, count, fuelName }: { itemName: string; count: number; fuelName: string },
+			) => {
+				const itemType = bot.registry.itemsByName[itemName];
+				if (!itemType) return textResult(`不明なアイテム名: "${itemName}"`);
 
-			const itemType = bot.registry.itemsByName[itemName];
-			if (!itemType) return textResult(`不明なアイテム名: "${itemName}"`);
+				const fuelType = bot.registry.itemsByName[fuelName];
+				if (!fuelType) return textResult(`不明な燃料名: "${fuelName}"`);
 
-			const fuelType = bot.registry.itemsByName[fuelName];
-			if (!fuelType) return textResult(`不明な燃料名: "${fuelName}"`);
+				const itemInInventory = bot.inventory.items().find((i) => i.name === itemName);
+				if (!itemInInventory) return textResult(`インベントリに "${itemName}" がありません`);
 
-			const itemInInventory = bot.inventory.items().find((i) => i.name === itemName);
-			if (!itemInInventory) return textResult(`インベントリに "${itemName}" がありません`);
-
-			const started = tryStartJob(jobManager, "smelting", itemName, async (signal) => {
-				ensureMovements(bot);
-				registerAbortHandler(bot, signal);
-				await executeSmelt({
-					bot,
-					itemId: itemType.id,
-					fuelId: fuelType.id,
-					fuelName,
-					count,
-					signal,
+				const started = tryStartJob(jobManager, "smelting", itemName, async (signal) => {
+					ensureMovements(bot);
+					registerAbortHandler(bot, signal);
+					await executeSmelt({
+						bot,
+						itemId: itemType.id,
+						fuelId: fuelType.id,
+						fuelName,
+						count,
+						signal,
+					});
 				});
-			});
-			if (!started.ok) return started.result;
+				if (!started.ok) return started.result;
 
-			return textResult(
-				`${itemName} の精錬を開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個, 燃料: ${fuelName}）`,
-			);
-		},
+				return textResult(
+					`${itemName} の精錬を開始しました（jobId: ${started.jobId}, 目標: ${String(count)} 個, 燃料: ${fuelName}）`,
+				);
+			},
+		),
 	);
 }

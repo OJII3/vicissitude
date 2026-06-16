@@ -1,5 +1,6 @@
 import type mineflayer from "mineflayer";
-import pathfinderPkg from "mineflayer-pathfinder";
+import pathfinderPkg, { type goals as GoalsNamespace } from "mineflayer-pathfinder";
+import type { Entity } from "prismarine-entity";
 
 import type { JobExecutor, JobManager } from "../job-manager.ts";
 
@@ -10,6 +11,38 @@ export type TextResult = { content: { type: "text"; text: string }[] };
 
 export function textResult(text: string): TextResult {
 	return { content: [{ type: "text", text }] };
+}
+
+/**
+ * bot 未接続ガードの高階ラッパ。
+ *
+ * `getBot()` が `null`、または `bot.entity` を持たない場合は接続前とみなし、
+ * `textResult("ボット未接続")` を返す。接続済みの場合のみ `handler` を呼び出す。
+ *
+ * 各 registerTool の callback を `withConnectedBot(getBot, async (bot, args) => {...})`
+ * の形へ置換するために使う。args は MCP SDK が callback へ渡す入力をそのまま受け渡す。
+ */
+export function withConnectedBot<Args>(
+	getBot: GetBot,
+	handler: (bot: mineflayer.Bot, args: Args) => TextResult | Promise<TextResult>,
+): (args: Args) => TextResult | Promise<TextResult> {
+	return (args: Args) => {
+		const bot = getBot();
+		if (!bot?.entity) return textResult("ボット未接続");
+		return handler(bot, args);
+	};
+}
+
+/**
+ * 逃走ゴール（対象から離れる pathfinder ゴール）を構築する。
+ *
+ * `GoalFollow`（対象へ近づくゴール）を `GoalInvert` で反転させることで
+ * 「対象から `distance` ブロック分離れる」挙動になる。
+ * `actions/survival/escape.ts` と `reactive-layer.ts` の双方で共有する。
+ */
+export function createFleeGoal(target: Entity, distance: number): GoalsNamespace.Goal {
+	const { goals } = pathfinderPkg;
+	return new goals.GoalInvert(new goals.GoalFollow(target, distance));
 }
 
 export function ensureMovements(b: mineflayer.Bot): void {
