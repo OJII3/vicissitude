@@ -1,12 +1,15 @@
 import type { Episode } from "./episode.ts";
 import { retrievability } from "./fsrs.ts";
 import type { MemoryLlmPort } from "./llm-port.ts";
+import { CANDIDATE_LIMIT, reciprocalRankFusion } from "./search-core.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import type { MemoryStorage } from "./storage.ts";
 import { validateUserId } from "./utils.ts";
 
 export { RetrievalReviewCommand } from "./retrieval-review-command.ts";
 export type { RetrievalReviewOptions } from "./retrieval-review-command.ts";
+// reciprocalRankFusion / CANDIDATE_LIMIT は search-core を正本とし、後方互換で再エクスポートする
+export { reciprocalRankFusion };
 
 /** Options for configuring retrieval behavior */
 export interface RetrievalOptions {
@@ -41,34 +44,6 @@ export interface ScoredFact {
 export interface RetrievalResult {
 	episodes: ScoredEpisode[];
 	facts: ScoredFact[];
-}
-
-/** RRF constant (TREC standard) */
-const RRF_K = 60;
-
-/**
- * Reciprocal Rank Fusion — merge multiple ranked lists into a single score map.
- *
- * @param rankedLists Array of { items, weight } where items are in rank order (best first)
- * @param getId Function to extract a unique key from each item
- * @returns Map of id → fused score
- */
-export function reciprocalRankFusion<T>(
-	rankedLists: { items: T[]; weight: number }[],
-	getId: (item: T) => string,
-): Map<string, number> {
-	const scores = new Map<string, number>();
-	for (const { items, weight } of rankedLists) {
-		for (let rank = 0; rank < items.length; rank++) {
-			const item = items[rank];
-			if (item !== undefined) {
-				const id = getId(item);
-				const prev = scores.get(id) ?? 0;
-				scores.set(id, prev + weight / (RRF_K + rank + 1));
-			}
-		}
-	}
-	return scores;
 }
 
 /** Build an id → item lookup map from multiple arrays */
@@ -123,9 +98,6 @@ function scoreFacts(
 	}
 	return scored.toSorted((a, b) => b.score - a.score);
 }
-
-/** Default candidate limit for search queries */
-const CANDIDATE_LIMIT = 50;
 
 interface ResolvedOptions {
 	limit: number;

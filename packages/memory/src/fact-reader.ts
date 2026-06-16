@@ -9,12 +9,9 @@ import {
 	namespaceKey,
 	resolveMemoryDbPath,
 } from "./namespace.ts";
-import { reciprocalRankFusion } from "./retrieval.ts";
+import { CANDIDATE_LIMIT, hybridSearchFactsRRF } from "./search-core.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
 import { MemoryStorage } from "./storage.ts";
-
-/** Candidate limit for text/vector search before RRF ranking */
-const CANDIDATE_LIMIT = 50;
 
 /** Maximum number of guideline facts to reserve in results */
 const MAX_GUIDELINES = 3;
@@ -113,20 +110,7 @@ export class MemoryFactReaderImpl implements MemoryFactReader {
 			CANDIDATE_LIMIT,
 		);
 
-		const rrfScores = reciprocalRankFusion(
-			[
-				{ items: textFacts, weight: 1.0 },
-				{ items: vectorFacts, weight: 1.0 },
-			],
-			(f) => f.id,
-		);
-
-		const factMap = new Map([...textFacts, ...vectorFacts].map((f) => [f.id, f]));
-
-		return [...rrfScores.entries()]
-			.map(([id, score]) => ({ fact: factMap.get(id), score }))
-			.filter((s): s is { fact: SemanticFact; score: number } => s.fact !== undefined)
-			.toSorted((a, b) => b.score - a.score);
+		return hybridSearchFactsRRF(textFacts, vectorFacts);
 	}
 
 	private getOrCreate(namespace: MemoryNamespace, dbPath: string): MemoryStorage {
