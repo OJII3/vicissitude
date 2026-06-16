@@ -52,30 +52,24 @@ Phase 3 に進む。
 
 ## Phase 3: 実装
 
-AGENTS.md のワークフローに従って実装する。
+superpowers ハーネスのワークフローに従って実装する（AGENTS.md 参照）。Codex 環境でも superpowers スキルが利用可能。
 
 1. 専用 worktree または作業ブランチで実行されている場合は、そのブランチをそのまま使う。main の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
-2. 関連する仕様・ドキュメント・既存実装を確認し、作業計画を立てる
-3. AGENTS.md と Codex の委譲ルールに従って実装する:
-   - 新機能: 仕様確認・必要な仕様更新 → 実装 → テスト追加 → 検証
-   - バグ修正: 根本原因調査 → 再現テストまたは確認手順作成 → 修正 → 検証
-   - リファクタ: 既存挙動確認 → リファクタ → 仕様・テスト検証
-4. 作業ブランチではこまめにコミット
-
-### サブエージェント利用時の情報境界
-
-Codex のサブエージェントを使う場合は、担当範囲・読み取り対象・編集対象を明確にし、不要な実装詳細を渡しすぎない。
+2. `writing-plans` スキルでタスク分解・スコープ特定・計画策定
+3. `subagent-driven-development` スキルに従って計画をタスク単位で実装する。各タスクは TDD（`test-driven-development`）で進め、`*.spec.ts` / `*.test.ts` の配置規約を守る
+4. デバッグが必要になったら `systematic-debugging` スキルを使う
 
 ### コミット責務
 
-サブエージェントはコミットしない。コミットは auto-triage を実行している Codex エージェント自身が行う。各作業単位の完了後にまとめてコミットすること。
+実装フェーズのコミットは superpowers のフローに従う（タスクごとに実装担当がコミットする）。auto-triage を実行している Codex エージェントは最終的な検証・push・PR 作成・マージを担う。
 
 ## Phase 4: レビューとマージ
 
-1. `/review-pr` スキルを実行
-2. レビューで指摘された即修正項目を修正
-3. push して PR 作成: `gh pr create`
-4. PR をスカッシュマージ: `gh pr merge <number> --squash --delete-branch`
+1. `requesting-code-review` スキルでコードレビューを実施する。ふあのキャラクター・エージェント設計に関わる変更なら `.claude/agents/agent-architecture-reviewer.md` の観点でキャラクター品質も検証する
+2. レビューで指摘された即修正項目を修正し、`receiving-code-review` の指針で取り込む
+3. 修正のスコープが大きい指摘は GitHub Issue に起票する（1 Issue = 1 トピック、判断が必要なものは `help wanted`）
+4. push して PR 作成: `gh pr create`
+5. PR をスカッシュマージ: `gh pr merge <number> --squash --delete-branch`
 
 ## Phase 5: 報告
 
@@ -93,7 +87,7 @@ Codex のサブエージェントを使う場合は、担当範囲・読み取�
 ### 作成した PR
 - #<number>: <title> → merged
 
-### 起票した Issue（/review-pr で発見）
+### 起票した Issue（レビューで発見）
 - #<number>: <title>
 ```
 

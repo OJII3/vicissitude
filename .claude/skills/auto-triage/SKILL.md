@@ -52,33 +52,24 @@ Phase 3 に進む。
 
 ## Phase 3: 実装
 
-CLAUDE.md のワークフローに従って実装する。
+superpowers ハーネスのワークフローに従って実装する（CLAUDE.md / AGENTS.md 参照）。
 
 1. `--worktree` モードで起動されている場合、worktree のブランチをそのまま使う。手動実行の場合は `git switch -c auto/<issue-number>-<short-description>` で作業ブランチを作成
-2. Plan サブエージェントでタスク分解・スコープ特定
-3. CLAUDE.md の「タスク別の呼び出しパターン」に従い、役割サブエージェント（`spec-agent` / `impl-agent` / `test-agent` / `verify-agent`）を順次呼び出して実装:
-   - 新機能: `spec-agent` → `verify-agent` → `impl-agent` → `test-agent` → `verify-agent`
-   - バグ修正: `spec-agent` → `impl-agent` → `verify-agent`
-   - リファクタ: `verify-agent` → `impl-agent` → `verify-agent`
-
-   各呼び出しは `Agent(subagent_type: "...-agent", ...)` のブロッキング形式で行う。
-
-4. こまめにコミット
-
-### サブエージェント呼び出し時の情報境界
-
-CLAUDE.md の「サブエージェントの情報境界」に従い、各サブエージェントのプロンプトに含める情報を制限する。
+2. `writing-plans` スキルでタスク分解・スコープ特定・計画策定
+3. `subagent-driven-development` スキルに従って計画をタスク単位で実装する。各タスクは TDD（`test-driven-development`）で進め、`*.spec.ts` / `*.test.ts` の配置規約を守る
+4. デバッグが必要になったら `systematic-debugging` スキルを使う
 
 ### コミット責務
 
-サブエージェントはコミットしない。コミットは auto-triage エージェント自身が行う。各サブエージェントの作業完了後にまとめてコミットすること。
+実装フェーズのコミットは superpowers のフローに従う（タスクごとに実装担当がコミットする）。auto-triage エージェントは最終的な検証・push・PR 作成・マージを担う。
 
 ## Phase 4: レビューとマージ
 
-1. `/review-pr` スキルを実行
-2. レビューで指摘された即修正項目を修正
-3. push して PR 作成: `gh pr create`
-4. PR をスカッシュマージ: `gh pr merge <number> --squash --delete-branch`
+1. `requesting-code-review` スキルでコードレビューを実施する。ふあのキャラクター・エージェント設計に関わる変更なら `agent-architecture-reviewer` サブエージェントも起動する
+2. レビューで指摘された即修正項目を修正し、`receiving-code-review` の指針で取り込む
+3. 修正のスコープが大きい指摘は GitHub Issue に起票する（1 Issue = 1 トピック、判断が必要なものは `help wanted`）
+4. push して PR 作成: `gh pr create`
+5. PR をスカッシュマージ: `gh pr merge <number> --squash --delete-branch`
 
 ## Phase 5: 報告
 
@@ -96,7 +87,7 @@ CLAUDE.md の「サブエージェントの情報境界」に従い、各サブ�
 ### 作成した PR
 - #<number>: <title> → merged
 
-### 起票した Issue（/review-pr で発見）
+### 起票した Issue（レビューで発見）
 - #<number>: <title>
 ```
 
