@@ -6,7 +6,7 @@ import {
 	METRIC,
 	recordTokenMetrics,
 } from "@vicissitude/observability/metrics";
-import { formatErrorMessage, JST_OFFSET_MS, raceAbort, sleep } from "@vicissitude/shared/functions";
+import { formatErrorMessage, raceAbort, sleep } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -24,6 +24,7 @@ import type {
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "./profile.ts";
+import { evaluateProactiveCompaction, isCompactionOnCooldown } from "./runner-compaction.ts";
 import { PromptMetricsTracker } from "./runner-prompt-metrics.ts";
 
 const MAX_RECONNECT_DELAY_MS = 10_000;
@@ -799,7 +800,7 @@ detail: ${activity.message}
 	/** 会話ブレイクによる compaction を試行する */
 	protected async triggerCompaction(): Promise<void> {
 		const now = this.nowProvider();
-		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
+		if (isCompactionOnCooldown(now, this.lastCompactionAt, this.compactionCooldownMs)) {
 			return;
 		}
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
@@ -820,7 +821,22 @@ detail: ${activity.message}
 
 	/** proactive compaction を試行し、成功した場合は次回プロンプトで system prompt を再注入する */
 	private async tryProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): Promise<void> {
-		if (!this.shouldProactiveCompact(event)) return;
+		const decision = evaluateProactiveCompaction({
+			compactionTokenThreshold: this.compactionTokenThreshold,
+			now: this.nowProvider(),
+			lastCompactionAt: this.lastCompactionAt,
+			compactionCooldownMs: this.compactionCooldownMs,
+			sessionCreatedAt: this.sessionCreatedAt,
+			sessionMaxAgeMs: this.sessionMaxAgeMs,
+			tokens: event.tokens,
+		});
+		if (decision === "cooldown") {
+			this.logger.debug(
+				`[${this.profile.name}:${this.agentId}] proactive compaction skipped: cooldown`,
+			);
+			return;
+		}
+		if (decision === "none") return;
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 		try {
@@ -833,39 +849,6 @@ detail: ${activity.message}
 				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally: ${formatErrorMessage(err)}`,
 			);
 		}
-	}
-
-	private shouldProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): boolean {
-		if (this.compactionTokenThreshold === undefined) return false;
-
-		// クールダウンチェック
-		const now = this.nowProvider();
-		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
-			this.logger.debug(
-				`[${this.profile.name}:${this.agentId}] proactive compaction skipped: cooldown`,
-			);
-			return false;
-		}
-
-		// トークン閾値チェック
-		if (event.tokens) {
-			const total = event.tokens.input + event.tokens.output;
-			if (total >= this.compactionTokenThreshold) {
-				return true;
-			}
-		}
-
-		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過かつトークンが閾値の半分以上
-		const jstHour = new Date(now + JST_OFFSET_MS).getUTCHours();
-		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null && event.tokens) {
-			const total = event.tokens.input + event.tokens.output;
-			const age = now - this.sessionCreatedAt;
-			if (age >= this.sessionMaxAgeMs / 2 && total >= this.compactionTokenThreshold / 2) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	private async resolveSessionId(): Promise<string> {
