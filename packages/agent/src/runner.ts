@@ -1,6 +1,5 @@
 /* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のメッセージ駆動ループ・セッション管理が密結合のため分割困難 */
 import {
-	buildAgentMetricLabels,
 	classifyErrorType,
 	inferScopeId,
 	inferTrigger,
@@ -25,6 +24,7 @@ import type {
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "./profile.ts";
+import { PromptMetricsTracker } from "./runner-prompt-metrics.ts";
 
 const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
@@ -42,13 +42,6 @@ interface PendingMessage {
 	trigger: string;
 	scopeId?: string;
 }
-
-interface ActivePromptMetrics {
-	labels: Record<string, string>;
-	startedAt: number;
-}
-
-type PromptOutcome = "success" | "error" | "cancelled" | "deleted";
 
 function mergeMetricLabel(values: Array<string | undefined>, fallback: string): string {
 	const unique = [...new Set(values.filter((value): value is string => !!value))];
@@ -110,8 +103,6 @@ export class AgentRunner implements AiAgent {
 	private pendingDebounceResolve: (() => void) | null = null;
 	private hasBotPending = false;
 	private promptHasUninterruptibleSideEffect = false;
-	private activePromptMetrics: ActivePromptMetrics | null = null;
-	private lastPromptMetricLabels: Record<string, string> | null = null;
 	private reportedBackgroundTaskFailures = new Set<string>();
 
 	private readonly profile: AgentProfile;
@@ -122,6 +113,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionPort: OpencodeSessionPort;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
+	private readonly promptMetrics: PromptMetricsTracker;
 	private readonly contextScopeId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
 	private readonly summaryTimeoutMs: number;
@@ -154,6 +146,12 @@ export class AgentRunner implements AiAgent {
 		this.compactionCooldownMs = deps.compactionCooldownMs ?? 1_800_000;
 		this.attachmentProcessor = deps.attachmentProcessor;
 		this.nowProvider = deps.nowProvider ?? Date.now;
+		this.promptMetrics = new PromptMetricsTracker({
+			metrics: deps.metrics,
+			agentId: deps.agentId,
+			contextScopeId: deps.contextScopeId,
+			model: deps.profile.model,
+		});
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
@@ -202,49 +200,6 @@ export class AgentRunner implements AiAgent {
 		});
 	}
 
-	private buildMetricLabels(
-		options: { trigger?: string; scopeId?: string } = {},
-	): Record<string, string> {
-		return buildAgentMetricLabels({
-			agentId: this.agentId,
-			scopeId: options.scopeId ?? this.contextScopeId,
-			trigger: options.trigger ?? "session",
-			providerId: this.profile.model.providerId,
-			modelId: this.profile.model.modelId,
-		});
-	}
-
-	private metricLabels(extra: Record<string, string> = {}): Record<string, string> {
-		return {
-			...(this.activePromptMetrics?.labels ??
-				this.lastPromptMetricLabels ??
-				this.buildMetricLabels()),
-			...extra,
-		};
-	}
-
-	private startPromptMetrics(trigger: string, scopeId: string | undefined): void {
-		const labels = this.buildMetricLabels({ trigger, scopeId });
-		this.activePromptMetrics = { labels, startedAt: performance.now() };
-		this.lastPromptMetricLabels = null;
-		this.metrics?.incrementGauge(METRIC.LLM_BUSY_SESSIONS, labels);
-	}
-
-	private finalizePromptMetrics(outcome: PromptOutcome): void {
-		const active = this.activePromptMetrics;
-		if (!active) return;
-
-		this.lastPromptMetricLabels = active.labels;
-		if (this.metrics) {
-			const labels = { ...active.labels, outcome };
-			const duration = (performance.now() - active.startedAt) / 1000;
-			this.metrics.incrementCounter(METRIC.AI_REQUESTS, labels);
-			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration, labels);
-			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS, active.labels);
-		}
-		this.activePromptMetrics = null;
-	}
-
 	protected async startPollingLoop(): Promise<void> {
 		if (this.running) return;
 		this.running = true;
@@ -286,7 +241,7 @@ export class AgentRunner implements AiAgent {
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") {
-					this.finalizePromptMetrics("cancelled");
+					this.promptMetrics.finalize("cancelled");
 					// runner stop による中断
 					if (signal.aborted) return;
 					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
@@ -300,11 +255,11 @@ export class AgentRunner implements AiAgent {
 				if (event.type === "deleted") {
 					this.metrics?.incrementCounter(
 						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
+						this.promptMetrics.labels({
 							reason: "session_deleted_rotation",
 						}),
 					);
-					this.finalizePromptMetrics("deleted");
+					this.promptMetrics.finalize("deleted");
 					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
@@ -325,7 +280,7 @@ export class AgentRunner implements AiAgent {
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
 				if (event.type === "idle") {
-					this.finalizePromptMetrics("success");
+					this.promptMetrics.finalize("success");
 					// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
 					await this.tryProactiveCompact(event);
 				}
@@ -351,8 +306,11 @@ export class AgentRunner implements AiAgent {
 						event.retryable === false
 							? "error_non_retryable_rotation"
 							: "error_irrecoverable_rotation";
-					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, this.metricLabels({ reason }));
-					this.finalizePromptMetrics("error");
+					this.metrics?.incrementCounter(
+						METRIC.SESSION_RESTARTS,
+						this.promptMetrics.labels({ reason }),
+					);
+					this.promptMetrics.finalize("error");
 					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					if (reason === "error_irrecoverable_rotation") {
@@ -368,7 +326,7 @@ export class AgentRunner implements AiAgent {
 				}
 
 				if (this.promptHasUninterruptibleSideEffect) {
-					this.finalizePromptMetrics("error");
+					this.promptMetrics.finalize("error");
 					this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
@@ -381,11 +339,11 @@ export class AgentRunner implements AiAgent {
 				if (prevSleepWasCapped) {
 					this.metrics?.incrementCounter(
 						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
+						this.promptMetrics.labels({
 							reason: "error_retryable_rotation",
 						}),
 					);
-					this.finalizePromptMetrics("error");
+					this.promptMetrics.finalize("error");
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
 					await this.forceSessionRotation();
 					resetBackoffState();
@@ -394,18 +352,18 @@ export class AgentRunner implements AiAgent {
 				this.retryAttempt += 1;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RETRIES,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						error_type: classifyErrorType(event),
 						attempt: String(this.retryAttempt),
 					}),
 				);
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RESTARTS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						reason: "error_retryable_backoff",
 					}),
 				);
-				this.finalizePromptMetrics("error");
+				this.promptMetrics.finalize("error");
 			} catch (err) {
 				if (signal.aborted) return;
 				this.logger.error(
@@ -415,7 +373,7 @@ export class AgentRunner implements AiAgent {
 				this.sessionWatch = null;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_ERRORS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						source: "runner_exception",
 						error_type: "session_error",
 						http_status: "unknown",
@@ -423,7 +381,7 @@ export class AgentRunner implements AiAgent {
 						error_class: err instanceof Error ? err.name : "unknown",
 					}),
 				);
-				this.finalizePromptMetrics("error");
+				this.promptMetrics.finalize("error");
 				if (this.promptHasUninterruptibleSideEffect) {
 					this.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
@@ -436,14 +394,14 @@ export class AgentRunner implements AiAgent {
 				this.retryAttempt += 1;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RETRIES,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						error_type: "session_error",
 						attempt: String(this.retryAttempt),
 					}),
 				);
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RESTARTS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						reason: "error_retryable_backoff",
 					}),
 				);
@@ -498,7 +456,7 @@ export class AgentRunner implements AiAgent {
 
 	stop(): void {
 		this.running = false;
-		this.finalizePromptMetrics("cancelled");
+		this.promptMetrics.finalize("cancelled");
 		this.sessionAbortController?.abort();
 		this.sessionAbortController = null;
 		this.abortController?.abort();
@@ -547,7 +505,7 @@ export class AgentRunner implements AiAgent {
 		);
 		this.metrics?.incrementCounter(
 			METRIC.SESSION_ERRORS,
-			this.metricLabels({
+			this.promptMetrics.labels({
 				source: "background_task",
 				error_type: activity.reason,
 				http_status: "unknown",
@@ -640,7 +598,7 @@ detail: ${activity.message}
 			);
 		}
 
-		this.lastPromptMetricLabels = this.buildMetricLabels({ trigger, scopeId });
+		this.promptMetrics.setPendingLabels(trigger, scopeId);
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
 		if (this.attachmentProcessor) {
@@ -674,7 +632,7 @@ detail: ${activity.message}
 		this.sessionAbortController = new AbortController();
 		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
 		this.promptHasUninterruptibleSideEffect = false;
-		this.startPromptMetrics(trigger, scopeId);
+		this.promptMetrics.start(trigger, scopeId);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
@@ -785,7 +743,7 @@ detail: ${activity.message}
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					this.metricLabels(),
+					this.promptMetrics.labels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -801,7 +759,7 @@ detail: ${activity.message}
 			);
 			this.metrics?.incrementCounter(
 				METRIC.SESSION_ERRORS,
-				this.metricLabels({
+				this.promptMetrics.labels({
 					source: "session_event",
 					error_type: "stream_disconnected",
 					http_status: "unknown",
@@ -813,7 +771,7 @@ detail: ${activity.message}
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					this.metricLabels(),
+					this.promptMetrics.labels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -828,7 +786,7 @@ detail: ${activity.message}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
 		this.metrics?.incrementCounter(
 			METRIC.SESSION_ERRORS,
-			this.metricLabels({
+			this.promptMetrics.labels({
 				source: "session_event",
 				error_type: classifyErrorType(event),
 				http_status: typeof event.status === "number" ? String(event.status) : "unknown",
