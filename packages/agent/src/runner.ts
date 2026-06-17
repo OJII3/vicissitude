@@ -25,6 +25,7 @@ import type {
 
 import type { AgentProfile } from "./profile.ts";
 import { evaluateProactiveCompaction, isCompactionOnCooldown } from "./runner-compaction.ts";
+import { MessageBuffer } from "./runner-message-buffer.ts";
 import { PromptMetricsTracker } from "./runner-prompt-metrics.ts";
 
 const MAX_RECONNECT_DELAY_MS = 10_000;
@@ -36,20 +37,6 @@ const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
 const UNINTERRUPTIBLE_DISCORD_TOOLS = new Set(["discord_send_message", "discord_reply"]);
 const IRRECOVERABLE_SESSION_ERROR_CLASSES = new Set(["ImageInvalidDataUrlError"]);
-
-interface PendingMessage {
-	text: string;
-	attachments?: Attachment[];
-	trigger: string;
-	scopeId?: string;
-}
-
-function mergeMetricLabel(values: Array<string | undefined>, fallback: string): string {
-	const unique = [...new Set(values.filter((value): value is string => !!value))];
-	if (unique.length === 0) return fallback;
-	if (unique.length === 1) return unique[0] ?? fallback;
-	return "mixed";
-}
 
 function isIrrecoverableSessionError(
 	event: Extract<OpencodeSessionEvent, { type: "error" }>,
@@ -94,15 +81,13 @@ export class AgentRunner implements AiAgent {
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
 	private retryAttempt = 0;
-	private pendingMessages: PendingMessage[] = [];
+	private readonly messages = new MessageBuffer();
+	/** @internal ホワイトボックステスト用シーム。外部から直接参照しないこと */
+	private get hasBotPending(): boolean {
+		return this.messages.hasBotPending;
+	}
 	private pendingResolve: (() => void) | null = null;
-	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
-	private lastPromptText: string | null = null;
-	private lastPromptAttachments: Attachment[] | null = null;
-	private lastPromptTrigger: string | null = null;
-	private lastPromptScopeId: string | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
-	private hasBotPending = false;
 	private promptHasUninterruptibleSideEffect = false;
 	private reportedBackgroundTaskFailures = new Set<string>();
 
@@ -156,13 +141,15 @@ export class AgentRunner implements AiAgent {
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		this.pendingMessages.push({
-			text: options.message,
-			attachments: options.attachments,
-			trigger: inferTrigger(options.sessionKey),
-			scopeId: options.scopeId ?? inferScopeId(options.sessionKey) ?? this.contextScopeId,
-		});
-		if (options.isBot) this.hasBotPending = true;
+		this.messages.enqueue(
+			{
+				text: options.message,
+				attachments: options.attachments,
+				trigger: inferTrigger(options.sessionKey),
+				scopeId: options.scopeId ?? inferScopeId(options.sessionKey) ?? this.contextScopeId,
+			},
+			options.isBot ?? false,
+		);
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 
@@ -174,15 +161,8 @@ export class AgentRunner implements AiAgent {
 				this.ensurePolling();
 				return Promise.resolve({ text: "", sessionId: "queued" });
 			}
-			if (this.lastPromptText !== null) {
-				this.pendingMessages.unshift({
-					text: this.lastPromptText,
-					attachments: this.lastPromptAttachments ?? undefined,
-					trigger: this.lastPromptTrigger ?? "unknown",
-					scopeId: this.lastPromptScopeId ?? undefined,
-				});
-			}
-			this.clearLastPrompt();
+			this.messages.requeueLastPrompt();
+			this.messages.clearLastPrompt();
 			this.sessionAbortController?.abort();
 		}
 
@@ -246,7 +226,7 @@ export class AgentRunner implements AiAgent {
 					// runner stop による中断
 					if (signal.aborted) return;
 					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					this.sessionAbortController = null;
 					resetBackoffState();
@@ -261,7 +241,7 @@ export class AgentRunner implements AiAgent {
 						}),
 					);
 					this.promptMetrics.finalize("deleted");
-					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					if (this.promptHasUninterruptibleSideEffect) this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
@@ -290,7 +270,7 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
@@ -312,7 +292,7 @@ export class AgentRunner implements AiAgent {
 						this.promptMetrics.labels({ reason }),
 					);
 					this.promptMetrics.finalize("error");
-					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					if (this.promptHasUninterruptibleSideEffect) this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					if (reason === "error_irrecoverable_rotation") {
 						this.logger.warn(
@@ -328,7 +308,7 @@ export class AgentRunner implements AiAgent {
 
 				if (this.promptHasUninterruptibleSideEffect) {
 					this.promptMetrics.finalize("error");
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
@@ -384,7 +364,7 @@ export class AgentRunner implements AiAgent {
 				);
 				this.promptMetrics.finalize("error");
 				if (this.promptHasUninterruptibleSideEffect) {
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
@@ -514,8 +494,9 @@ export class AgentRunner implements AiAgent {
 				error_class: "BackgroundTaskFailure",
 			}),
 		);
-		this.pendingMessages.push({
-			text: `<internal_message>
+		this.messages.enqueue(
+			{
+				text: `<internal_message>
 shell-worker background task failed.
 task_id: ${activity.taskId ?? "unknown"}
 state: ${activity.state ?? "unknown"}
@@ -524,9 +505,11 @@ detail: ${activity.message}
 
 この shell-worker 作業を成功・開始済みとして報告してはいけません。Discord には失敗として短く報告してください。
 </internal_message>`,
-			trigger: "internal",
-			scopeId: this.contextScopeId,
-		});
+				trigger: "internal",
+				scopeId: this.contextScopeId,
+			},
+			false,
+		);
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 
@@ -534,23 +517,9 @@ detail: ${activity.message}
 			this.ensurePolling();
 			return;
 		}
-		if (this.lastPromptText !== null) {
-			this.pendingMessages.unshift({
-				text: this.lastPromptText,
-				attachments: this.lastPromptAttachments ?? undefined,
-				trigger: this.lastPromptTrigger ?? "unknown",
-				scopeId: this.lastPromptScopeId ?? undefined,
-			});
-		}
-		this.clearLastPrompt();
+		this.messages.requeueLastPrompt();
+		this.messages.clearLastPrompt();
 		this.sessionAbortController?.abort();
-	}
-
-	private clearLastPrompt(): void {
-		this.lastPromptText = null;
-		this.lastPromptAttachments = null;
-		this.lastPromptTrigger = null;
-		this.lastPromptScopeId = null;
 	}
 
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
@@ -566,7 +535,14 @@ detail: ${activity.message}
 		let attachments: Attachment[];
 		let trigger: string;
 		let scopeId: string | undefined;
-		if (this.lastPromptText === null) {
+		if (this.messages.hasLastPrompt) {
+			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
+			const drained = this.messages.drainForRetry(this.contextScopeId);
+			text = drained.text;
+			attachments = drained.attachments;
+			trigger = drained.trigger;
+			scopeId = drained.scopeId;
+		} else {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
 			);
@@ -577,26 +553,12 @@ detail: ${activity.message}
 			}
 			await this.waitForDebounce(signal);
 			if (signal.aborted) return;
-			const drained = this.drainMessages();
+			const drained = this.messages.drain(this.contextScopeId);
 			if (!drained.text && drained.attachments.length === 0) return;
 			text = drained.text;
 			attachments = drained.attachments;
 			trigger = drained.trigger;
 			scopeId = drained.scopeId;
-		} else {
-			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
-			const drained = this.drainMessages();
-			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
-			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
-			const hasDrainedMessage = drained.text.length > 0 || drained.attachments.length > 0;
-			trigger = mergeMetricLabel(
-				[this.lastPromptTrigger ?? undefined, hasDrainedMessage ? drained.trigger : undefined],
-				"unknown",
-			);
-			scopeId = mergeMetricLabel(
-				[this.lastPromptScopeId ?? undefined, hasDrainedMessage ? drained.scopeId : undefined],
-				this.contextScopeId ?? "none",
-			);
 		}
 
 		this.promptMetrics.setPendingLabels(trigger, scopeId);
@@ -609,11 +571,8 @@ detail: ${activity.message}
 			attachments = processed.attachments;
 		}
 
-		// lastPromptText / lastPromptAttachments にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
-		this.lastPromptText = text;
-		this.lastPromptAttachments = attachments;
-		this.lastPromptTrigger = trigger;
-		this.lastPromptScopeId = scopeId ?? null;
+		// lastPrompt にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
+		this.messages.setLastPrompt(text, attachments, trigger, scopeId);
 
 		const turnPromptPrefix = await this.contextBuilder.buildTurnPromptPrefix?.();
 		if (signal.aborted) return;
@@ -653,7 +612,7 @@ detail: ${activity.message}
 	}
 
 	private waitForMessages(signal: AbortSignal): Promise<void> {
-		if (this.pendingMessages.length > 0) return Promise.resolve();
+		if (this.messages.size > 0) return Promise.resolve();
 		return new Promise<void>((resolve) => {
 			const done = () => {
 				this.pendingResolve = null;
@@ -667,8 +626,8 @@ detail: ${activity.message}
 	// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
 	protected async waitForDebounce(signal: AbortSignal): Promise<void> {
 		const deadline =
-			this.nowProvider() + (this.hasBotPending ? BOT_MAX_DEBOUNCE_MS : MAX_DEBOUNCE_MS);
-		let messageCountBefore = this.pendingMessages.length;
+			this.nowProvider() + (this.messages.hasBotPending ? BOT_MAX_DEBOUNCE_MS : MAX_DEBOUNCE_MS);
+		let messageCountBefore = this.messages.size;
 
 		while (!signal.aborted) {
 			const remaining = deadline - this.nowProvider();
@@ -685,9 +644,9 @@ detail: ${activity.message}
 			// 新メッセージが来ていなければデバウンス完了
 			// bot メッセージが含まれる場合は deadline まで待機し続ける
 			// （bot 応答は連続到着が多いため、短い silence で打ち切らない）
-			if (!arrived && this.pendingMessages.length === messageCountBefore && !this.hasBotPending)
+			if (!arrived && this.messages.size === messageCountBefore && !this.messages.hasBotPending)
 				break;
-			messageCountBefore = this.pendingMessages.length;
+			messageCountBefore = this.messages.size;
 		}
 	}
 
@@ -708,28 +667,6 @@ detail: ${activity.message}
 		this.pendingDebounceResolve = null;
 		if (onAbort) signal.removeEventListener("abort", onAbort);
 		return winner === MESSAGE;
-	}
-
-	private drainMessages(): {
-		text: string;
-		attachments: Attachment[];
-		trigger: string;
-		scopeId?: string;
-	} {
-		const items = this.pendingMessages.splice(0);
-		this.hasBotPending = false;
-		return {
-			text: items.map((m) => m.text).join("\n---\n"),
-			attachments: items.flatMap((m) => m.attachments ?? []),
-			trigger: mergeMetricLabel(
-				items.map((m) => m.trigger),
-				"unknown",
-			),
-			scopeId: mergeMetricLabel(
-				items.map((m) => m.scopeId),
-				this.contextScopeId ?? "none",
-			),
-		};
 	}
 
 	private handleSessionEnd(event: OpencodeSessionEvent): void {
