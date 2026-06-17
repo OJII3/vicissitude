@@ -1,4 +1,4 @@
-/* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のメッセージ駆動ループ・セッション管理が密結合のため分割困難 */
+/* oxlint-disable max-lines, max-lines-per-function -- startPollingLoop のエラー戦略分岐とセッションライフサイクルが密結合のため分割困難（メトリクス・compaction 判定・メッセージキューは別モジュールへ抽出済み） */
 import {
 	classifyErrorType,
 	inferScopeId,
