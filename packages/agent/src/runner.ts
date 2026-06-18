@@ -1,13 +1,12 @@
-/* oxlint-disable max-lines, max-lines-per-function -- AgentRunner のメッセージ駆動ループ・セッション管理が密結合のため分割困難 */
+/* oxlint-disable max-lines, max-lines-per-function -- startPollingLoop のエラー戦略分岐とセッションライフサイクルが密結合のため分割困難（メトリクス・compaction 判定・メッセージキューは別モジュールへ抽出済み） */
 import {
-	buildAgentMetricLabels,
 	classifyErrorType,
 	inferScopeId,
 	inferTrigger,
 	METRIC,
 	recordTokenMetrics,
 } from "@vicissitude/observability/metrics";
-import { formatErrorMessage, JST_OFFSET_MS, raceAbort, sleep } from "@vicissitude/shared/functions";
+import { formatErrorMessage, raceAbort, sleep } from "@vicissitude/shared/functions";
 import type {
 	AgentResponse,
 	AiAgent,
@@ -25,6 +24,9 @@ import type {
 } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "./profile.ts";
+import { evaluateProactiveCompaction, isCompactionOnCooldown } from "./runner-compaction.ts";
+import { MessageBuffer } from "./runner-message-buffer.ts";
+import { PromptMetricsTracker } from "./runner-prompt-metrics.ts";
 
 const MAX_RECONNECT_DELAY_MS = 10_000;
 const INITIAL_RECONNECT_DELAY_MS = 2_000;
@@ -35,27 +37,6 @@ const MAX_DEBOUNCE_MS = 10_000;
 const BOT_MAX_DEBOUNCE_MS = 30_000;
 const UNINTERRUPTIBLE_DISCORD_TOOLS = new Set(["discord_send_message", "discord_reply"]);
 const IRRECOVERABLE_SESSION_ERROR_CLASSES = new Set(["ImageInvalidDataUrlError"]);
-
-interface PendingMessage {
-	text: string;
-	attachments?: Attachment[];
-	trigger: string;
-	scopeId?: string;
-}
-
-interface ActivePromptMetrics {
-	labels: Record<string, string>;
-	startedAt: number;
-}
-
-type PromptOutcome = "success" | "error" | "cancelled" | "deleted";
-
-function mergeMetricLabel(values: Array<string | undefined>, fallback: string): string {
-	const unique = [...new Set(values.filter((value): value is string => !!value))];
-	if (unique.length === 0) return fallback;
-	if (unique.length === 1) return unique[0] ?? fallback;
-	return "mixed";
-}
 
 function isIrrecoverableSessionError(
 	event: Extract<OpencodeSessionEvent, { type: "error" }>,
@@ -100,18 +81,14 @@ export class AgentRunner implements AiAgent {
 	private lastRotationRequestAt: number | null = null;
 	private readonly minRotationIntervalMs = 300_000;
 	private retryAttempt = 0;
-	private pendingMessages: PendingMessage[] = [];
+	private readonly messages = new MessageBuffer();
+	/** @internal ホワイトボックステスト用シーム。外部から直接参照しないこと */
+	private get hasBotPending(): boolean {
+		return this.messages.hasBotPending;
+	}
 	private pendingResolve: (() => void) | null = null;
-	/** エラー時にリトライするために直前のプロンプトテキストを保持する */
-	private lastPromptText: string | null = null;
-	private lastPromptAttachments: Attachment[] | null = null;
-	private lastPromptTrigger: string | null = null;
-	private lastPromptScopeId: string | null = null;
 	private pendingDebounceResolve: (() => void) | null = null;
-	private hasBotPending = false;
 	private promptHasUninterruptibleSideEffect = false;
-	private activePromptMetrics: ActivePromptMetrics | null = null;
-	private lastPromptMetricLabels: Record<string, string> | null = null;
 	private reportedBackgroundTaskFailures = new Set<string>();
 
 	private readonly profile: AgentProfile;
@@ -122,6 +99,7 @@ export class AgentRunner implements AiAgent {
 	private readonly sessionPort: OpencodeSessionPort;
 	private readonly sessionMaxAgeMs: number;
 	private readonly metrics?: MetricsCollector;
+	private readonly promptMetrics: PromptMetricsTracker;
 	private readonly contextScopeId?: string;
 	private readonly summaryWriter?: SessionSummaryWriter;
 	private readonly summaryTimeoutMs: number;
@@ -154,16 +132,24 @@ export class AgentRunner implements AiAgent {
 		this.compactionCooldownMs = deps.compactionCooldownMs ?? 1_800_000;
 		this.attachmentProcessor = deps.attachmentProcessor;
 		this.nowProvider = deps.nowProvider ?? Date.now;
+		this.promptMetrics = new PromptMetricsTracker({
+			metrics: deps.metrics,
+			agentId: deps.agentId,
+			contextScopeId: deps.contextScopeId,
+			model: deps.profile.model,
+		});
 	}
 
 	send(options: SendOptions): Promise<AgentResponse> {
-		this.pendingMessages.push({
-			text: options.message,
-			attachments: options.attachments,
-			trigger: inferTrigger(options.sessionKey),
-			scopeId: options.scopeId ?? inferScopeId(options.sessionKey) ?? this.contextScopeId,
-		});
-		if (options.isBot) this.hasBotPending = true;
+		this.messages.enqueue(
+			{
+				text: options.message,
+				attachments: options.attachments,
+				trigger: inferTrigger(options.sessionKey),
+				scopeId: options.scopeId ?? inferScopeId(options.sessionKey) ?? this.contextScopeId,
+			},
+			options.isBot ?? false,
+		);
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 
@@ -175,15 +161,8 @@ export class AgentRunner implements AiAgent {
 				this.ensurePolling();
 				return Promise.resolve({ text: "", sessionId: "queued" });
 			}
-			if (this.lastPromptText !== null) {
-				this.pendingMessages.unshift({
-					text: this.lastPromptText,
-					attachments: this.lastPromptAttachments ?? undefined,
-					trigger: this.lastPromptTrigger ?? "unknown",
-					scopeId: this.lastPromptScopeId ?? undefined,
-				});
-			}
-			this.clearLastPrompt();
+			this.messages.requeueLastPrompt();
+			this.messages.clearLastPrompt();
 			this.sessionAbortController?.abort();
 		}
 
@@ -200,49 +179,6 @@ export class AgentRunner implements AiAgent {
 				err,
 			);
 		});
-	}
-
-	private buildMetricLabels(
-		options: { trigger?: string; scopeId?: string } = {},
-	): Record<string, string> {
-		return buildAgentMetricLabels({
-			agentId: this.agentId,
-			scopeId: options.scopeId ?? this.contextScopeId,
-			trigger: options.trigger ?? "session",
-			providerId: this.profile.model.providerId,
-			modelId: this.profile.model.modelId,
-		});
-	}
-
-	private metricLabels(extra: Record<string, string> = {}): Record<string, string> {
-		return {
-			...(this.activePromptMetrics?.labels ??
-				this.lastPromptMetricLabels ??
-				this.buildMetricLabels()),
-			...extra,
-		};
-	}
-
-	private startPromptMetrics(trigger: string, scopeId: string | undefined): void {
-		const labels = this.buildMetricLabels({ trigger, scopeId });
-		this.activePromptMetrics = { labels, startedAt: performance.now() };
-		this.lastPromptMetricLabels = null;
-		this.metrics?.incrementGauge(METRIC.LLM_BUSY_SESSIONS, labels);
-	}
-
-	private finalizePromptMetrics(outcome: PromptOutcome): void {
-		const active = this.activePromptMetrics;
-		if (!active) return;
-
-		this.lastPromptMetricLabels = active.labels;
-		if (this.metrics) {
-			const labels = { ...active.labels, outcome };
-			const duration = (performance.now() - active.startedAt) / 1000;
-			this.metrics.incrementCounter(METRIC.AI_REQUESTS, labels);
-			this.metrics.observeHistogram(METRIC.AI_REQUEST_DURATION, duration, labels);
-			this.metrics.decrementGauge(METRIC.LLM_BUSY_SESSIONS, active.labels);
-		}
-		this.activePromptMetrics = null;
 	}
 
 	protected async startPollingLoop(): Promise<void> {
@@ -286,11 +222,11 @@ export class AgentRunner implements AiAgent {
 				if (signal.aborted) return;
 				this.handleSessionEnd(event);
 				if (event.type === "cancelled") {
-					this.finalizePromptMetrics("cancelled");
+					this.promptMetrics.finalize("cancelled");
 					// runner stop による中断
 					if (signal.aborted) return;
 					// 追いメッセージによるセッション中断 → 旧+新メッセージをまとめて再プロンプト
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					this.sessionAbortController = null;
 					resetBackoffState();
@@ -300,12 +236,12 @@ export class AgentRunner implements AiAgent {
 				if (event.type === "deleted") {
 					this.metrics?.incrementCounter(
 						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
+						this.promptMetrics.labels({
 							reason: "session_deleted_rotation",
 						}),
 					);
-					this.finalizePromptMetrics("deleted");
-					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					this.promptMetrics.finalize("deleted");
+					if (this.promptHasUninterruptibleSideEffect) this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					// eslint-disable-next-line no-await-in-loop -- rotation after external deletion
 					await this.forceSessionRotation();
@@ -325,7 +261,7 @@ export class AgentRunner implements AiAgent {
 
 				// proactive compaction: idle イベント後にトークン閾値 or 深夜帯判定
 				if (event.type === "idle") {
-					this.finalizePromptMetrics("success");
+					this.promptMetrics.finalize("success");
 					// eslint-disable-next-line no-await-in-loop -- best-effort compaction before rotation
 					await this.tryProactiveCompact(event);
 				}
@@ -334,7 +270,7 @@ export class AgentRunner implements AiAgent {
 				await this.rotateSessionIfExpired();
 
 				if (event.type !== "error") {
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- cooldown after idle to prevent busy loop
@@ -351,9 +287,12 @@ export class AgentRunner implements AiAgent {
 						event.retryable === false
 							? "error_non_retryable_rotation"
 							: "error_irrecoverable_rotation";
-					this.metrics?.incrementCounter(METRIC.SESSION_RESTARTS, this.metricLabels({ reason }));
-					this.finalizePromptMetrics("error");
-					if (this.promptHasUninterruptibleSideEffect) this.clearLastPrompt();
+					this.metrics?.incrementCounter(
+						METRIC.SESSION_RESTARTS,
+						this.promptMetrics.labels({ reason }),
+					);
+					this.promptMetrics.finalize("error");
+					if (this.promptHasUninterruptibleSideEffect) this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					if (reason === "error_irrecoverable_rotation") {
 						this.logger.warn(
@@ -368,8 +307,8 @@ export class AgentRunner implements AiAgent {
 				}
 
 				if (this.promptHasUninterruptibleSideEffect) {
-					this.finalizePromptMetrics("error");
-					this.clearLastPrompt();
+					this.promptMetrics.finalize("error");
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
@@ -381,11 +320,11 @@ export class AgentRunner implements AiAgent {
 				if (prevSleepWasCapped) {
 					this.metrics?.incrementCounter(
 						METRIC.SESSION_RESTARTS,
-						this.metricLabels({
+						this.promptMetrics.labels({
 							reason: "error_retryable_rotation",
 						}),
 					);
-					this.finalizePromptMetrics("error");
+					this.promptMetrics.finalize("error");
 					// eslint-disable-next-line no-await-in-loop -- rotation after cap escalation
 					await this.forceSessionRotation();
 					resetBackoffState();
@@ -394,18 +333,18 @@ export class AgentRunner implements AiAgent {
 				this.retryAttempt += 1;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RETRIES,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						error_type: classifyErrorType(event),
 						attempt: String(this.retryAttempt),
 					}),
 				);
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RESTARTS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						reason: "error_retryable_backoff",
 					}),
 				);
-				this.finalizePromptMetrics("error");
+				this.promptMetrics.finalize("error");
 			} catch (err) {
 				if (signal.aborted) return;
 				this.logger.error(
@@ -415,7 +354,7 @@ export class AgentRunner implements AiAgent {
 				this.sessionWatch = null;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_ERRORS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						source: "runner_exception",
 						error_type: "session_error",
 						http_status: "unknown",
@@ -423,9 +362,9 @@ export class AgentRunner implements AiAgent {
 						error_class: err instanceof Error ? err.name : "unknown",
 					}),
 				);
-				this.finalizePromptMetrics("error");
+				this.promptMetrics.finalize("error");
 				if (this.promptHasUninterruptibleSideEffect) {
-					this.clearLastPrompt();
+					this.messages.clearLastPrompt();
 					this.promptHasUninterruptibleSideEffect = false;
 					resetBackoffState();
 					// eslint-disable-next-line no-await-in-loop -- avoid retrying a prompt that may have sent Discord messages
@@ -436,14 +375,14 @@ export class AgentRunner implements AiAgent {
 				this.retryAttempt += 1;
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RETRIES,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						error_type: "session_error",
 						attempt: String(this.retryAttempt),
 					}),
 				);
 				this.metrics?.incrementCounter(
 					METRIC.SESSION_RESTARTS,
-					this.metricLabels({
+					this.promptMetrics.labels({
 						reason: "error_retryable_backoff",
 					}),
 				);
@@ -498,7 +437,7 @@ export class AgentRunner implements AiAgent {
 
 	stop(): void {
 		this.running = false;
-		this.finalizePromptMetrics("cancelled");
+		this.promptMetrics.finalize("cancelled");
 		this.sessionAbortController?.abort();
 		this.sessionAbortController = null;
 		this.abortController?.abort();
@@ -547,7 +486,7 @@ export class AgentRunner implements AiAgent {
 		);
 		this.metrics?.incrementCounter(
 			METRIC.SESSION_ERRORS,
-			this.metricLabels({
+			this.promptMetrics.labels({
 				source: "background_task",
 				error_type: activity.reason,
 				http_status: "unknown",
@@ -555,8 +494,9 @@ export class AgentRunner implements AiAgent {
 				error_class: "BackgroundTaskFailure",
 			}),
 		);
-		this.pendingMessages.push({
-			text: `<internal_message>
+		this.messages.enqueue(
+			{
+				text: `<internal_message>
 shell-worker background task failed.
 task_id: ${activity.taskId ?? "unknown"}
 state: ${activity.state ?? "unknown"}
@@ -565,9 +505,11 @@ detail: ${activity.message}
 
 この shell-worker 作業を成功・開始済みとして報告してはいけません。Discord には失敗として短く報告してください。
 </internal_message>`,
-			trigger: "internal",
-			scopeId: this.contextScopeId,
-		});
+				trigger: "internal",
+				scopeId: this.contextScopeId,
+			},
+			false,
+		);
 		this.pendingResolve?.();
 		this.pendingDebounceResolve?.();
 
@@ -575,23 +517,9 @@ detail: ${activity.message}
 			this.ensurePolling();
 			return;
 		}
-		if (this.lastPromptText !== null) {
-			this.pendingMessages.unshift({
-				text: this.lastPromptText,
-				attachments: this.lastPromptAttachments ?? undefined,
-				trigger: this.lastPromptTrigger ?? "unknown",
-				scopeId: this.lastPromptScopeId ?? undefined,
-			});
-		}
-		this.clearLastPrompt();
+		this.messages.requeueLastPrompt();
+		this.messages.clearLastPrompt();
 		this.sessionAbortController?.abort();
-	}
-
-	private clearLastPrompt(): void {
-		this.lastPromptText = null;
-		this.lastPromptAttachments = null;
-		this.lastPromptTrigger = null;
-		this.lastPromptScopeId = null;
 	}
 
 	private async ensureSessionStarted(signal: AbortSignal): Promise<void> {
@@ -607,7 +535,14 @@ detail: ${activity.message}
 		let attachments: Attachment[];
 		let trigger: string;
 		let scopeId: string | undefined;
-		if (this.lastPromptText === null) {
+		if (this.messages.hasLastPrompt) {
+			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
+			const drained = this.messages.drainForRetry(this.contextScopeId);
+			text = drained.text;
+			attachments = drained.attachments;
+			trigger = drained.trigger;
+			scopeId = drained.scopeId;
+		} else {
 			this.logger.info(
 				`[${this.profile.name}:${this.agentId}] waiting for messages... (hasStartedSession=${this.hasStartedSession})`,
 			);
@@ -618,29 +553,15 @@ detail: ${activity.message}
 			}
 			await this.waitForDebounce(signal);
 			if (signal.aborted) return;
-			const drained = this.drainMessages();
+			const drained = this.messages.drain(this.contextScopeId);
 			if (!drained.text && drained.attachments.length === 0) return;
 			text = drained.text;
 			attachments = drained.attachments;
 			trigger = drained.trigger;
 			scopeId = drained.scopeId;
-		} else {
-			// リトライ: 前回のテキストを再利用し、新着メッセージがあれば追加
-			const drained = this.drainMessages();
-			text = drained.text ? `${this.lastPromptText}\n---\n${drained.text}` : this.lastPromptText;
-			attachments = [...(this.lastPromptAttachments ?? []), ...drained.attachments];
-			const hasDrainedMessage = drained.text.length > 0 || drained.attachments.length > 0;
-			trigger = mergeMetricLabel(
-				[this.lastPromptTrigger ?? undefined, hasDrainedMessage ? drained.trigger : undefined],
-				"unknown",
-			);
-			scopeId = mergeMetricLabel(
-				[this.lastPromptScopeId ?? undefined, hasDrainedMessage ? drained.scopeId : undefined],
-				this.contextScopeId ?? "none",
-			);
 		}
 
-		this.lastPromptMetricLabels = this.buildMetricLabels({ trigger, scopeId });
+		this.promptMetrics.setPendingLabels(trigger, scopeId);
 		this.logger.info(`[${this.profile.name}:${this.agentId}] messages received, sending prompt`);
 
 		if (this.attachmentProcessor) {
@@ -650,11 +571,8 @@ detail: ${activity.message}
 			attachments = processed.attachments;
 		}
 
-		// lastPromptText / lastPromptAttachments にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
-		this.lastPromptText = text;
-		this.lastPromptAttachments = attachments;
-		this.lastPromptTrigger = trigger;
-		this.lastPromptScopeId = scopeId ?? null;
+		// lastPrompt にはメッセージ本文のみを保存し、リトライ時の二重注入を防ぐ
+		this.messages.setLastPrompt(text, attachments, trigger, scopeId);
 
 		const turnPromptPrefix = await this.contextBuilder.buildTurnPromptPrefix?.();
 		if (signal.aborted) return;
@@ -674,7 +592,7 @@ detail: ${activity.message}
 		this.sessionAbortController = new AbortController();
 		const combinedSignal = AbortSignal.any([signal, this.sessionAbortController.signal]);
 		this.promptHasUninterruptibleSideEffect = false;
-		this.startPromptMetrics(trigger, scopeId);
+		this.promptMetrics.start(trigger, scopeId);
 		this.sessionWatch = this.sessionPort.promptAsyncAndWatchSession(
 			{
 				sessionId,
@@ -694,7 +612,7 @@ detail: ${activity.message}
 	}
 
 	private waitForMessages(signal: AbortSignal): Promise<void> {
-		if (this.pendingMessages.length > 0) return Promise.resolve();
+		if (this.messages.size > 0) return Promise.resolve();
 		return new Promise<void>((resolve) => {
 			const done = () => {
 				this.pendingResolve = null;
@@ -708,8 +626,8 @@ detail: ${activity.message}
 	// oxlint-disable-next-line no-await-in-loop -- デバウンスループは意図的に逐次待機する
 	protected async waitForDebounce(signal: AbortSignal): Promise<void> {
 		const deadline =
-			this.nowProvider() + (this.hasBotPending ? BOT_MAX_DEBOUNCE_MS : MAX_DEBOUNCE_MS);
-		let messageCountBefore = this.pendingMessages.length;
+			this.nowProvider() + (this.messages.hasBotPending ? BOT_MAX_DEBOUNCE_MS : MAX_DEBOUNCE_MS);
+		let messageCountBefore = this.messages.size;
 
 		while (!signal.aborted) {
 			const remaining = deadline - this.nowProvider();
@@ -726,9 +644,9 @@ detail: ${activity.message}
 			// 新メッセージが来ていなければデバウンス完了
 			// bot メッセージが含まれる場合は deadline まで待機し続ける
 			// （bot 応答は連続到着が多いため、短い silence で打ち切らない）
-			if (!arrived && this.pendingMessages.length === messageCountBefore && !this.hasBotPending)
+			if (!arrived && this.messages.size === messageCountBefore && !this.messages.hasBotPending)
 				break;
-			messageCountBefore = this.pendingMessages.length;
+			messageCountBefore = this.messages.size;
 		}
 	}
 
@@ -751,28 +669,6 @@ detail: ${activity.message}
 		return winner === MESSAGE;
 	}
 
-	private drainMessages(): {
-		text: string;
-		attachments: Attachment[];
-		trigger: string;
-		scopeId?: string;
-	} {
-		const items = this.pendingMessages.splice(0);
-		this.hasBotPending = false;
-		return {
-			text: items.map((m) => m.text).join("\n---\n"),
-			attachments: items.flatMap((m) => m.attachments ?? []),
-			trigger: mergeMetricLabel(
-				items.map((m) => m.trigger),
-				"unknown",
-			),
-			scopeId: mergeMetricLabel(
-				items.map((m) => m.scopeId),
-				this.contextScopeId ?? "none",
-			),
-		};
-	}
-
 	private handleSessionEnd(event: OpencodeSessionEvent): void {
 		if (event.type === "cancelled") {
 			return;
@@ -785,7 +681,7 @@ detail: ${activity.message}
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					this.metricLabels(),
+					this.promptMetrics.labels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -801,7 +697,7 @@ detail: ${activity.message}
 			);
 			this.metrics?.incrementCounter(
 				METRIC.SESSION_ERRORS,
-				this.metricLabels({
+				this.promptMetrics.labels({
 					source: "session_event",
 					error_type: "stream_disconnected",
 					http_status: "unknown",
@@ -813,7 +709,7 @@ detail: ${activity.message}
 				recordTokenMetrics(
 					this.metrics,
 					event.tokens,
-					this.metricLabels(),
+					this.promptMetrics.labels(),
 					this.profile.model.modelId,
 				);
 			}
@@ -828,7 +724,7 @@ detail: ${activity.message}
 		this.logger.error(`[${this.profile.name}:${this.agentId}] session error event`, event.message);
 		this.metrics?.incrementCounter(
 			METRIC.SESSION_ERRORS,
-			this.metricLabels({
+			this.promptMetrics.labels({
 				source: "session_event",
 				error_type: classifyErrorType(event),
 				http_status: typeof event.status === "number" ? String(event.status) : "unknown",
@@ -841,7 +737,7 @@ detail: ${activity.message}
 	/** 会話ブレイクによる compaction を試行する */
 	protected async triggerCompaction(): Promise<void> {
 		const now = this.nowProvider();
-		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
+		if (isCompactionOnCooldown(now, this.lastCompactionAt, this.compactionCooldownMs)) {
 			return;
 		}
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
@@ -862,7 +758,22 @@ detail: ${activity.message}
 
 	/** proactive compaction を試行し、成功した場合は次回プロンプトで system prompt を再注入する */
 	private async tryProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): Promise<void> {
-		if (!this.shouldProactiveCompact(event)) return;
+		const decision = evaluateProactiveCompaction({
+			compactionTokenThreshold: this.compactionTokenThreshold,
+			now: this.nowProvider(),
+			lastCompactionAt: this.lastCompactionAt,
+			compactionCooldownMs: this.compactionCooldownMs,
+			sessionCreatedAt: this.sessionCreatedAt,
+			sessionMaxAgeMs: this.sessionMaxAgeMs,
+			tokens: event.tokens,
+		});
+		if (decision === "cooldown") {
+			this.logger.debug(
+				`[${this.profile.name}:${this.agentId}] proactive compaction skipped: cooldown`,
+			);
+			return;
+		}
+		if (decision === "none") return;
 		const sessionId = this.sessionStore.get(this.profile.name, this.sessionKey);
 		if (!sessionId) return;
 		try {
@@ -875,39 +786,6 @@ detail: ${activity.message}
 				`[${this.profile.name}:${this.agentId}] proactive compaction failed, continuing normally: ${formatErrorMessage(err)}`,
 			);
 		}
-	}
-
-	private shouldProactiveCompact(event: OpencodeSessionEvent & { type: "idle" }): boolean {
-		if (this.compactionTokenThreshold === undefined) return false;
-
-		// クールダウンチェック
-		const now = this.nowProvider();
-		if (this.lastCompactionAt !== null && now - this.lastCompactionAt < this.compactionCooldownMs) {
-			this.logger.debug(
-				`[${this.profile.name}:${this.agentId}] proactive compaction skipped: cooldown`,
-			);
-			return false;
-		}
-
-		// トークン閾値チェック
-		if (event.tokens) {
-			const total = event.tokens.input + event.tokens.output;
-			if (total >= this.compactionTokenThreshold) {
-				return true;
-			}
-		}
-
-		// 深夜帯（2:00-5:00 JST）かつセッションが sessionMaxAgeMs の半分以上経過かつトークンが閾値の半分以上
-		const jstHour = new Date(now + JST_OFFSET_MS).getUTCHours();
-		if (jstHour >= 2 && jstHour < 5 && this.sessionCreatedAt !== null && event.tokens) {
-			const total = event.tokens.input + event.tokens.output;
-			const age = now - this.sessionCreatedAt;
-			if (age >= this.sessionMaxAgeMs / 2 && total >= this.compactionTokenThreshold / 2) {
-				return true;
-			}
-		}
-
-		return false;
 	}
 
 	private async resolveSessionId(): Promise<string> {
