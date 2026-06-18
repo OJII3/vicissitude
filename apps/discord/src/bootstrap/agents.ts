@@ -14,7 +14,6 @@ import type {
 	SessionStorePort,
 	SessionSummaryWriter,
 } from "@vicissitude/shared/types";
-import type { StoreDb } from "@vicissitude/store/db";
 
 import type { AppConfig } from "../config.ts";
 import {
@@ -64,7 +63,6 @@ export function createDiscordAgents(
 	config: AppConfig,
 	agentSpecs: DiscordAgentSpec[],
 	deps: {
-		db: StoreDb;
 		sessionStore: SessionStorePort;
 		contextBuilder: ContextBuilderPort;
 		logger: Logger;

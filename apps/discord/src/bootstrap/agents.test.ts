@@ -47,12 +47,11 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 describe("createDiscordAgents", () => {
 	test("Discord guild agent に core と discord MCP を渡す", () => {
 		const config = createTestConfig();
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -88,12 +87,11 @@ describe("createDiscordAgents", () => {
 				viewerPort: 3007,
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -120,12 +118,11 @@ describe("createDiscordAgents", () => {
 
 	test("Discord DM agent は DM scopeId と agentId で作成される", () => {
 		const config = createTestConfig();
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:dm:999888777", scopeId: "discord:dm:999888777" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -156,12 +153,11 @@ describe("createDiscordAgents", () => {
 				dataDir: "/tmp/shell-workspaces",
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:heartbeat:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -218,12 +214,11 @@ describe("createDiscordAgents", () => {
 				viewerPort: 3007,
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:heartbeat:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -268,12 +263,11 @@ describe("createDiscordAgents", () => {
 				dataDir: "/tmp/shell-workspaces",
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -311,12 +305,11 @@ describe("createDiscordAgents", () => {
 				dataDir,
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -356,12 +349,11 @@ describe("createDiscordAgents", () => {
 				dataDir: "/tmp/shell-workspaces",
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),
@@ -422,12 +414,11 @@ describe("createDiscordAgents", () => {
 				dataDir: "/tmp/shell-workspaces",
 			},
 		});
-		const { db, sessionStore } = createStoreLayer(config);
+		const { sessionStore } = createStoreLayer(config);
 		const agents = createDiscordAgents(
 			config,
 			[{ agentId: "discord:123456789", scopeId: "discord:guild:123456789" }],
 			{
-				db,
 				sessionStore,
 				contextBuilder: { build: () => Promise.resolve("context") },
 				logger: createMockLogger(),

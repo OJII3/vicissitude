@@ -170,7 +170,6 @@ export async function bootstrap(): Promise<void> {
 	);
 	const conversationAgentSpecs = createConversationAgentSpecs(guildIds, dmUserIds);
 	const agents = createDiscordAgents(config, conversationAgentSpecs, {
-		db,
 		sessionStore,
 		contextBuilder,
 		logger,
@@ -210,7 +209,6 @@ export async function bootstrap(): Promise<void> {
 	// Heartbeat 専用エージェント（ユーザーメッセージとセッションを分離し、遅延を防ぐ）
 	const heartbeatAgentSpecs = createHeartbeatAgentSpecs(guildIds);
 	const heartbeatAgents = createDiscordAgents(config, heartbeatAgentSpecs, {
-		db,
 		sessionStore,
 		contextBuilder,
 		logger,
