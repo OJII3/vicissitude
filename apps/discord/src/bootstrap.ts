@@ -1,8 +1,7 @@
 /* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { dirname, resolve } from "path";
 
-import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { DiscordAgent } from "@vicissitude/agent/discord/discord-agent";
 import { ImageAttachmentDescriber } from "@vicissitude/agent/discord/image-attachment-describer";
 import { formatDiscordMessage } from "@vicissitude/agent/discord/message-formatter";
@@ -31,7 +30,6 @@ import {
 	agentScopeNamespace,
 	discordDmScopeId,
 	discordDmUserIdFromScopeId,
-	discordGuildIdFromScopeId,
 	discordScopeId,
 	HUA_SELF_SUBJECT,
 	INTERNAL_NAMESPACE,
@@ -61,7 +59,6 @@ import type {
 	ContextBuilderPort,
 	DueReminder,
 	Logger,
-	MemoryFactReader,
 	MetricsCollector,
 	SessionStorePort,
 	SessionSummaryWriter,
@@ -71,13 +68,18 @@ import {
 	writeShellWorkspaceGitConfig,
 } from "@vicissitude/shared/workspace-gitconfig";
 import type { StoreDb } from "@vicissitude/store/db";
-import { closeDb, createDb } from "@vicissitude/store/db";
+import { closeDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
-import { createSqliteSessionStore } from "@vicissitude/store/session-store";
 import { AivisSpeechSynthesizer, createEmotionToTtsStyleMapper } from "@vicissitude/tts";
 import { spawn, type Subprocess } from "bun";
 
+import {
+	createContextLayer,
+	createFileSessionSummaryWriter,
+	createStoreLayer,
+	createWebContextLayer,
+} from "./bootstrap/layers.ts";
 import { type AppConfig, loadConfig } from "./config.ts";
 import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
@@ -90,63 +92,6 @@ import {
 import { MoodNicknameService } from "./mood-nickname.ts";
 import { createPortLayout } from "./port-allocator.ts";
 import { createShutdown } from "./shutdown.ts";
-
-// ─── Store Layer ────────────────────────────────────────────────
-
-export function createStoreLayer(config: AppConfig) {
-	const db = createDb(config.dataDir);
-	const sessionStore = createSqliteSessionStore(db);
-	return { db, sessionStore };
-}
-
-// ─── Context Layer ──────────────────────────────────────────────
-
-export function createContextLayer(
-	_config: AppConfig,
-	root: string,
-	factReader?: MemoryFactReader,
-) {
-	const contextBuilder = new ContextBuilder(
-		resolve(root, "data/context"),
-		resolve(root, "context"),
-		factReader,
-	);
-	return { contextBuilder };
-}
-
-export function createWebContextLayer(
-	config: AppConfig,
-	root: string,
-	factReader?: MemoryFactReader,
-) {
-	const excludeFiles = new Set<ContextFileName>(["DISCORD.md", "HEARTBEAT.md", "TOOLS-DISCORD.md"]);
-	const contextBuilder = new ContextBuilder(
-		resolve(root, "data/context"),
-		resolve(root, "context"),
-		factReader,
-		excludeFiles,
-	);
-	return { contextBuilder };
-}
-
-// ─── Guild Agents ───────────────────────────────────────────────
-
-function createFileSessionSummaryWriter(
-	overlayDir: string,
-	onWrite?: (guildId: string) => Promise<void>,
-): SessionSummaryWriter {
-	return {
-		async write(scopeId: string, content: string): Promise<void> {
-			const guildId = discordGuildIdFromScopeId(scopeId);
-			const dir = guildId
-				? resolve(overlayDir, `guilds/${guildId}`)
-				: resolve(overlayDir, `scopes/${encodeURIComponent(scopeId)}`);
-			mkdirSync(dir, { recursive: true });
-			writeFileSync(resolve(dir, "SESSION-SUMMARY.md"), content);
-			if (guildId) await onWrite?.(guildId);
-		},
-	};
-}
 
 /** core MCP stdio プロセスに渡す環境変数を組み立てる */
 export function buildCoreEnvironment(config: AppConfig, root: string): Record<string, string> {
