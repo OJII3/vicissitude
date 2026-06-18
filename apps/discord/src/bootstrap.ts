@@ -1,10 +1,8 @@
-/* oxlint-disable max-dependencies, max-lines -- bootstrap file naturally requires many imports and lines for DI wiring */
-import { dirname, resolve } from "path";
+import { resolve } from "path";
 
 import { GuildRouter } from "@vicissitude/agent/discord/router";
 import { McBrainManager } from "@vicissitude/agent/minecraft/brain-manager";
 import { WEB_AGENT_ID } from "@vicissitude/agent/web/web-agent";
-import { fetchNewEmails, formatEmailContext } from "@vicissitude/application/email-fetcher";
 import { HeartbeatService } from "@vicissitude/application/heartbeat-service";
 import { MessageIngestionService } from "@vicissitude/application/message-ingestion-service";
 import { ResumeContextService } from "@vicissitude/application/resume-context-service";
@@ -13,13 +11,11 @@ import { createGatewayApp, listenGatewayServer } from "@vicissitude/gateway/serv
 import { WsConnectionManager } from "@vicissitude/gateway/ws-handler";
 import { MemoryFactReaderImpl } from "@vicissitude/memory/fact-reader";
 import { ConsoleLogger } from "@vicissitude/observability/logger";
-import { METRIC, type PrometheusCollector } from "@vicissitude/observability/metrics";
 import { OllamaEmbeddingAdapter } from "@vicissitude/ollama";
 import { JsonHeartbeatConfigRepository } from "@vicissitude/scheduling/heartbeat-config";
 import { HEARTBEAT_CONFIG_RELATIVE_PATH } from "@vicissitude/scheduling/heartbeat-helpers";
 import { HeartbeatScheduler } from "@vicissitude/scheduling/heartbeat-scheduler";
-import type { PreFilterResult } from "@vicissitude/scheduling/heartbeat-scheduler";
-import type { AiAgent, DueReminder, Logger, SessionStorePort } from "@vicissitude/shared/types";
+import type { AiAgent } from "@vicissitude/shared/types";
 import { closeDb } from "@vicissitude/store/db";
 import { SqliteMoodStore } from "@vicissitude/store/mood-store";
 import { incrementEmoji } from "@vicissitude/store/queries";
@@ -43,7 +39,12 @@ import {
 import { setupMemoryRecording } from "./bootstrap/memory-recording.ts";
 import { createMetrics } from "./bootstrap/metrics.ts";
 import { startMinecraftMcp } from "./bootstrap/minecraft-mcp.ts";
-import { type AppConfig, loadConfig } from "./config.ts";
+import {
+	buildEmailCheckPreFilter,
+	resolveBootstrapRoot,
+	startSessionGauge,
+} from "./bootstrap/runtime.ts";
+import { loadConfig } from "./config.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import {
 	migrateMemoryDir,
@@ -54,54 +55,6 @@ import {
 import { MoodNicknameService } from "./mood-nickname.ts";
 import { createPortLayout } from "./port-allocator.ts";
 import { createShutdown } from "./shutdown.ts";
-
-// ─── Session Gauge ──────────────────────────────────────────────
-
-function startSessionGauge(
-	sessionStore: SessionStorePort,
-	metricsCollector: PrometheusCollector,
-): ReturnType<typeof setInterval> {
-	const update = () => metricsCollector.setGauge(METRIC.LLM_ACTIVE_SESSIONS, sessionStore.count());
-	update();
-	return setInterval(update, 30_000);
-}
-
-export function resolveBootstrapRoot(
-	config: Pick<AppConfig, "contextDir">,
-	env: NodeJS.ProcessEnv = process.env,
-): string {
-	return env.APP_ROOT ?? dirname(config.contextDir);
-}
-
-// ─── Email Check PreFilter ──────────────────────────────────────
-
-export function buildEmailCheckPreFilter(
-	logger: Logger,
-	emailConfig?: AppConfig["emailCheck"],
-): ((dueReminders: DueReminder[]) => Promise<PreFilterResult>) | undefined {
-	if (!emailConfig) return undefined;
-	const { endpoint, token } = emailConfig;
-
-	return async (dueReminders: DueReminder[]): Promise<PreFilterResult> => {
-		const emailReminders = dueReminders.filter((d) => d.reminder.id === "email-check");
-		const otherReminders = dueReminders.filter((d) => d.reminder.id !== "email-check");
-
-		if (emailReminders.length === 0) return { reminders: dueReminders };
-
-		try {
-			const result = await fetchNewEmails(endpoint, token);
-			if (!result.hasNewMail) {
-				return { reminders: otherReminders, markExecutedIds: ["email-check"] };
-			}
-			const context = formatEmailContext(result);
-			const enriched = emailReminders.map((d) => Object.assign({}, d, { context }));
-			return { reminders: [...otherReminders, ...enriched] };
-		} catch (error) {
-			logger.error("[heartbeat] email check failed:", error);
-			return { reminders: otherReminders, markExecutedIds: ["email-check"] };
-		}
-	};
-}
 
 // ─── Main Bootstrap ─────────────────────────────────────────────
 

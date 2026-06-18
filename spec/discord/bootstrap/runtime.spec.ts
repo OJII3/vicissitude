@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it, mock } from "bun:test";
 
 import type { DueReminder } from "@vicissitude/shared/types";
 
-import { buildEmailCheckPreFilter } from "../../apps/discord/src/bootstrap.ts";
-import type { AppConfig } from "../../apps/discord/src/config.ts";
-import { createMockLogger } from "../test-helpers.ts";
+import { buildEmailCheckPreFilter } from "../../../apps/discord/src/bootstrap/runtime.ts";
+import type { AppConfig } from "../../../apps/discord/src/config.ts";
+import { createMockLogger } from "../../test-helpers.ts";
 
 function emailCheckDue(): DueReminder {
 	return {

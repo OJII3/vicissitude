@@ -6,7 +6,7 @@ import {
 	writeShellWorkspaceGitConfig,
 } from "@vicissitude/shared/workspace-gitconfig";
 
-import { type AppConfig } from "../config.ts";
+import type { AppConfig } from "../config.ts";
 
 /** core MCP stdio プロセスに渡す環境変数を組み立てる */
 export function buildCoreEnvironment(config: AppConfig, root: string): Record<string, string> {

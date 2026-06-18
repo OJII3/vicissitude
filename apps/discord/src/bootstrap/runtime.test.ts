@@ -4,8 +4,8 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import type { DueReminder } from "@vicissitude/shared/types";
 
-import { buildEmailCheckPreFilter, resolveBootstrapRoot } from "./bootstrap.ts";
-import type { AppConfig } from "./config.ts";
+import type { AppConfig } from "../config.ts";
+import { buildEmailCheckPreFilter, resolveBootstrapRoot } from "./runtime.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 	return {
