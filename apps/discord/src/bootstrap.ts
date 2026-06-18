@@ -60,6 +60,7 @@ import {
 	createHeartbeatAgentSpecs,
 	createWebConversationAgent,
 } from "./bootstrap/agents.ts";
+import { loadChannelConfig } from "./bootstrap/channel-config.ts";
 import { buildCoreEnvironment, buildDiscordEnvironment } from "./bootstrap/environment.ts";
 import {
 	createContextLayer,
@@ -69,7 +70,6 @@ import {
 } from "./bootstrap/layers.ts";
 import { createMetrics } from "./bootstrap/metrics.ts";
 import { type AppConfig, loadConfig } from "./config.ts";
-import { ChannelConfigLoader, type ChannelConfigData } from "./gateway/channel-config-loader.ts";
 import { DiscordGateway } from "./gateway/discord.ts";
 import {
 	migrateMemoryDir,
@@ -80,17 +80,6 @@ import {
 import { MoodNicknameService } from "./mood-nickname.ts";
 import { createPortLayout } from "./port-allocator.ts";
 import { createShutdown } from "./shutdown.ts";
-
-// ─── Channel Config ─────────────────────────────────────────────
-
-async function loadChannelConfig(root: string): Promise<ChannelConfigLoader> {
-	const overlayChannels = resolve(root, "data/context/channels.json");
-	const baseChannels = resolve(root, "context/channels.json");
-	const channelsJson = existsSync(overlayChannels)
-		? await Bun.file(overlayChannels).json()
-		: await Bun.file(baseChannels).json();
-	return new ChannelConfigLoader(channelsJson as ChannelConfigData);
-}
 
 // ─── Memory Recording ───────────────────────────────────────────
 
