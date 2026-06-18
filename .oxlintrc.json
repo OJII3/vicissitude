@@ -78,7 +78,7 @@
 			}
 		},
 		{
-			"files": ["**/bootstrap.ts"],
+			"files": ["**/bootstrap.ts", "**/bootstrap/*.ts"],
 			"rules": {
 				"import/max-dependencies": "off",
 				"eslint/max-lines": ["warn", { "max": 600, "skipBlankLines": true, "skipComments": true }],
