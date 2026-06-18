@@ -285,25 +285,33 @@ JSON で以下を返してください:
 
 // ─── Schema validation ──────────────────────────────────────────
 
+/**
+ * LLM 出力の optional フィールドを寛容に扱う: 値が不正（型不一致）なら例外ではなく
+ * undefined にフォールバックする。LLM の崩れた出力で CriticResult 全体が parse 失敗
+ * するのを防ぐため意図的。`.catch(undefined)` は zod のフォールバック値であり無意味な
+ * undefined ではない。
+ */
+function lenientOptional<T extends z.ZodType>(schema: T) {
+	// oxlint-disable-next-line unicorn/no-useless-undefined -- zod fallback value, intentional
+	return schema.optional().catch(undefined);
+}
+
+/** 配列から非 string 要素を捨てて string[] にする（lenient フィルタ） */
+const stringArrayLenient = z
+	.array(z.unknown())
+	.transform((arr) => arr.filter((v): v is string => typeof v === "string"));
+
 const criticResultSchema: Schema<CriticResult> = z.object({
 	severity: z.enum(["none", "minor", "major"]),
 	summary: z.string().min(1),
-	guidelineFact: z.string().optional().catch(undefined),
-	guidelineKeywords: z
-		.array(z.unknown())
-		.transform((arr) => arr.filter((v): v is string => typeof v === "string"))
-		.optional()
-		.catch(undefined),
-	issueTitle: z.string().optional().catch(undefined),
-	issueBody: z.string().optional().catch(undefined),
+	guidelineFact: lenientOptional(z.string()),
+	guidelineKeywords: lenientOptional(stringArrayLenient),
+	issueTitle: lenientOptional(z.string()),
+	issueBody: lenientOptional(z.string()),
 });
 
 const guidelineResolutionSchema: Schema<GuidelineResolution> = z.object({
 	action: z.enum(["save", "discard", "replace"]),
 	reason: z.string().min(1),
-	targetGuidelineIds: z
-		.array(z.unknown())
-		.transform((arr) => arr.filter((v): v is string => typeof v === "string"))
-		.optional()
-		.catch(undefined),
+	targetGuidelineIds: lenientOptional(stringArrayLenient),
 });
