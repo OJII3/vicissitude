@@ -14,14 +14,15 @@
 
 ## 対象スキーマ（4箇所）
 
-| ファイル | シンボル | 出力型 | 難度 | 主な parity 注意点 |
-|---|---|---|---|---|
-| `critic-auditor.ts` | `criticResultSchema` | `CriticResult` | 易 | optional フィールドは型不一致時 reject せず undefined（lenient）。keywords は非 string を filter。 |
-| `critic-auditor.ts` | `guidelineResolutionSchema` | `GuidelineResolution` | 易 | action enum。targetGuidelineIds は非 string を filter。 |
-| `consolidation-contract.ts` | `consolidationSchema` | `ConsolidationOutput` | 中 | keywords は string(カンマ区切り)→array に coerce。action による discriminated union（reinforce/update/invalidate は existingFactId 必須）。各種上限。 |
-| `segmenter.ts` | `createSegmentationSchema()` が返す `Schema<SegmentationOutput>` | `SegmentationOutput` | 難 | runtime 引数 `messageCount` 依存の境界。`validateSegmentSequence` による cross-field 検証。 |
+| ファイル                    | シンボル                                                         | 出力型                | 難度 | 主な parity 注意点                                                                                                                                    |
+| --------------------------- | ---------------------------------------------------------------- | --------------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `critic-auditor.ts`         | `criticResultSchema`                                             | `CriticResult`        | 易   | optional フィールドは型不一致時 reject せず undefined（lenient）。keywords は非 string を filter。                                                    |
+| `critic-auditor.ts`         | `guidelineResolutionSchema`                                      | `GuidelineResolution` | 易   | action enum。targetGuidelineIds は非 string を filter。                                                                                               |
+| `consolidation-contract.ts` | `consolidationSchema`                                            | `ConsolidationOutput` | 中   | keywords は string(カンマ区切り)→array に coerce。action による discriminated union（reinforce/update/invalidate は existingFactId 必須）。各種上限。 |
+| `segmenter.ts`              | `createSegmentationSchema()` が返す `Schema<SegmentationOutput>` | `SegmentationOutput`  | 難   | runtime 引数 `messageCount` 依存の境界。`validateSegmentSequence` による cross-field 検証。                                                           |
 
 **重要な parity 原則:** zod スキーマの `.parse()` 出力は、現行手書き `parse()` の出力と**同一**でなければならない（`toEqual` レベル）。特に:
+
 - 現行が「型不一致の optional を undefined にして**キーを残す**」(`field: cond ? x : undefined`) のに対し、zod の `.optional()` は欠損キーを省く。`toEqual` はこの差を検出しうるため、テストが落ちたら zod 側を `.transform` で現行の出力形に合わせる（または現行 .test.ts の期待を観測挙動に合わせて更新する。`*.test.ts` は実装詳細なので更新可、`*.spec.ts` は契約なので不可）。
 - lenient フィルタ（非 string 要素を捨てる）は `z.array(z.unknown()).transform(a => a.filter(v => typeof v === "string"))` 等で再現。
 
@@ -30,6 +31,7 @@
 ## Task 0: ブランチ作成 + zod 依存追加
 
 **Files:**
+
 - Modify: `packages/memory/package.json`
 
 - [ ] **Step 1: 作業ブランチを切る**
@@ -71,10 +73,12 @@ git commit -m "build(memory): zod を依存に追加する"
 ## Task 1: critic-auditor の2スキーマを zod 化
 
 **Files:**
+
 - Modify: `packages/memory/src/critic-auditor.ts`
 - Test (guard): `spec/memory/critic-auditor.spec.ts`, `packages/memory/src/critic-auditor.test.ts`
 
 現行（参考、`critic-auditor.ts` 末尾付近）:
+
 - `criticResultSchema.parse` は severity(enum none/minor/major) と summary(非空) を必須検証し、`guidelineFact`/`guidelineKeywords`/`issueTitle`/`issueBody` を lenient に取り込む（型不一致は undefined / keywords は非 string を filter）。`driftScore`・`guidelineResolution` は LLM 出力からは parse しない（後段ロジックが付与）。
 - `guidelineResolutionSchema.parse` は action(enum save/discard/replace) と reason(非空) 必須、`targetGuidelineIds` を lenient 取り込み（非 string filter）。
 
@@ -148,10 +152,12 @@ git commit -m "refactor(memory): critic-auditor の構造出力スキーマを z
 ## Task 2: consolidationSchema を zod 化
 
 **Files:**
+
 - Modify: `packages/memory/src/consolidation-contract.ts`
 - Test (guard): `spec/memory/consolidation.spec.ts`, `packages/memory/src/consolidation.test.ts`
 
 現行 parity 要件（`consolidation-contract.ts`）:
+
 - `facts` は配列必須、要素数上限 `MAX_FACTS_PER_EPISODE = 30`。
 - 各 fact: `action`(enum: CONSOLIDATION_ACTIONS), `category`(enum: FACT_CATEGORIES), `fact`(非空・`MAX_FACT_LENGTH = 1000` 以下)。
 - `keywords`: **string ならカンマ区切りを split→trim→空除去で配列化**、array ならそのまま。要素数上限 `MAX_KEYWORDS_PER_FACT = 10`、各要素 string・`MAX_KEYWORD_LENGTH = 100` 以下。
@@ -232,10 +238,12 @@ git commit -m "refactor(memory): consolidation の抽出スキーマを zod 化�
 ## Task 3: segmenter スキーマを zod 化
 
 **Files:**
+
 - Modify: `packages/memory/src/segmenter.ts`
 - Test (guard): `spec/memory/` の segmenter 関連 spec（`grep -rl segment spec/memory`)・`packages/memory/src/segmenter` 関連 test（存在すれば）
 
 現行 parity 要件（`segmenter.ts` の `createSegmentationSchema(messageCount, options)`）:
+
 - `segments` 配列必須。各 segment は `parseSegment(s, i, messageCount)` で検証:
   - `startIndex`/`endIndex`: 非負整数、endIndex > startIndex、endIndex <= messageCount。
   - `title`(string・`MAX_TITLE_LENGTH = 200` 以下)、`summary`(string・`MAX_SUMMARY_LENGTH = 2000` 以下)。
@@ -285,15 +293,16 @@ function createSegmentationSchema(
 	messageCount: number,
 	options: SegmentationValidationOptions,
 ): Schema<SegmentationOutput> {
-	return z
-		.object({ segments: z.array(segmentSchema(messageCount)) })
-		.superRefine((output, ctx) => {
-			try {
-				validateSegmentSequence(output.segments, options);
-			} catch (err) {
-				ctx.addIssue({ code: "custom", message: err instanceof Error ? err.message : "invalid segment sequence" });
-			}
-		});
+	return z.object({ segments: z.array(segmentSchema(messageCount)) }).superRefine((output, ctx) => {
+		try {
+			validateSegmentSequence(output.segments, options);
+		} catch (err) {
+			ctx.addIssue({
+				code: "custom",
+				message: err instanceof Error ? err.message : "invalid segment sequence",
+			});
+		}
+	});
 }
 ```
 
