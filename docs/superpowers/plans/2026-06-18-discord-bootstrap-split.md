@@ -14,35 +14,36 @@
 
 新規ディレクトリ `apps/discord/src/bootstrap/` を作り、以下へ抽出する。括弧内は現 `bootstrap.ts` の行範囲（抽出元）。
 
-| 新モジュール | 含む関数 / 型 | 抽出元行 |
-|---|---|---|
-| `bootstrap/layers.ts` | `createStoreLayer`, `createContextLayer`, `createWebContextLayer`, `createFileSessionSummaryWriter` | 96–151 |
-| `bootstrap/environment.ts` | `buildCoreEnvironment`, `buildDiscordEnvironment`, `prepareOpencodeShellAgentDirectory`, `buildOpencodeShellAgentEnvironment`, `discordOpencodeSkillPaths`, `buildAgentDiscordEnvironment` | 152–247 |
-| `bootstrap/agents.ts` | `DiscordAgentSpec`(型), `createConversationAgentSpecs`, `createHeartbeatAgentSpecs`, `isHeartbeatAgentId`, `canUseShellAgent`, `createDiscordAgents`, `createWebConversationAgent` | 248–424 |
-| `bootstrap/metrics.ts` | `createMetrics` | 425–466 |
-| `bootstrap/channel-config.ts` | `loadChannelConfig` | 467–483 |
-| `bootstrap/memory-recording.ts` | `buildCriticAuditorAdapter`, `setupMemoryRecording` | 484–596 |
-| `bootstrap/event-handlers.ts` | `setupEventHandlers` | 597–702 |
-| `bootstrap/minecraft-mcp.ts` | `waitForMcpReady`, `startMinecraftMcp` | 703–772 |
-| `bootstrap/runtime.ts` | `startSessionGauge`, `resolveBootstrapRoot`, `buildEmailCheckPreFilter` | 773–820 |
-| `bootstrap.ts`（残置） | `bootstrap()` のみ + 新モジュールからの import | 1–95(import), 821–1071 |
+| 新モジュール                    | 含む関数 / 型                                                                                                                                                                              | 抽出元行               |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| `bootstrap/layers.ts`           | `createStoreLayer`, `createContextLayer`, `createWebContextLayer`, `createFileSessionSummaryWriter`                                                                                        | 96–151                 |
+| `bootstrap/environment.ts`      | `buildCoreEnvironment`, `buildDiscordEnvironment`, `prepareOpencodeShellAgentDirectory`, `buildOpencodeShellAgentEnvironment`, `discordOpencodeSkillPaths`, `buildAgentDiscordEnvironment` | 152–247                |
+| `bootstrap/agents.ts`           | `DiscordAgentSpec`(型), `createConversationAgentSpecs`, `createHeartbeatAgentSpecs`, `isHeartbeatAgentId`, `canUseShellAgent`, `createDiscordAgents`, `createWebConversationAgent`         | 248–424                |
+| `bootstrap/metrics.ts`          | `createMetrics`                                                                                                                                                                            | 425–466                |
+| `bootstrap/channel-config.ts`   | `loadChannelConfig`                                                                                                                                                                        | 467–483                |
+| `bootstrap/memory-recording.ts` | `buildCriticAuditorAdapter`, `setupMemoryRecording`                                                                                                                                        | 484–596                |
+| `bootstrap/event-handlers.ts`   | `setupEventHandlers`                                                                                                                                                                       | 597–702                |
+| `bootstrap/minecraft-mcp.ts`    | `waitForMcpReady`, `startMinecraftMcp`                                                                                                                                                     | 703–772                |
+| `bootstrap/runtime.ts`          | `startSessionGauge`, `resolveBootstrapRoot`, `buildEmailCheckPreFilter`                                                                                                                    | 773–820                |
+| `bootstrap.ts`（残置）          | `bootstrap()` のみ + 新モジュールからの import                                                                                                                                             | 1–95(import), 821–1071 |
 
 **モジュール間依存（import 方向）:**
+
 - `bootstrap/agents.ts` → `bootstrap/environment.ts`（`createDiscordAgents` が `buildAgentDiscordEnvironment` / `buildOpencodeShellAgentEnvironment` / `prepareOpencodeShellAgentDirectory` / `discordOpencodeSkillPaths` を内部利用）
 - 他モジュールは相互依存なし。`bootstrap.ts` が全モジュールを import。
 - `createFileSessionSummaryWriter`（現 private）は `bootstrap()` から使うため **export 化**。
 
 **テスト配置（規約: spec は src 構造をミラー、unit は co-locate）:**
 
-| 新テストファイル | 対象 | 元ファイル / 行 |
-|---|---|---|
-| `spec/discord/bootstrap/environment.spec.ts` | `buildAgentDiscordEnvironment` / `buildCoreEnvironment` / `buildDiscordEnvironment` | `spec/discord/bootstrap.spec.ts` の該当 describe |
-| `spec/discord/bootstrap/runtime.spec.ts` | `buildEmailCheckPreFilter` | `spec/discord/bootstrap.spec.ts` の該当 describe |
-| `spec/discord/bootstrap/memory-recording.spec.ts` | `buildCriticAuditorAdapter` / `setupMemoryRecording` | `spec/discord/bootstrap-memory.spec.ts`（全体リネーム） |
-| `apps/discord/src/bootstrap/layers.test.ts` | `createStoreLayer` / `createContextLayer` / `createWebContextLayer` | `bootstrap.test.ts` 66–75, 107–186 |
-| `apps/discord/src/bootstrap/metrics.test.ts` | `createMetrics` | `bootstrap.test.ts` 76–85 |
-| `apps/discord/src/bootstrap/agents.test.ts` | `createDiscordAgents` / `createWebConversationAgent` | `bootstrap.test.ts` 187–649, 761–788 |
-| `apps/discord/src/bootstrap/runtime.test.ts` | `resolveBootstrapRoot` / `buildEmailCheckPreFilter` | `bootstrap.test.ts` 86–106, 650–760 |
+| 新テストファイル                                  | 対象                                                                                | 元ファイル / 行                                         |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `spec/discord/bootstrap/environment.spec.ts`      | `buildAgentDiscordEnvironment` / `buildCoreEnvironment` / `buildDiscordEnvironment` | `spec/discord/bootstrap.spec.ts` の該当 describe        |
+| `spec/discord/bootstrap/runtime.spec.ts`          | `buildEmailCheckPreFilter`                                                          | `spec/discord/bootstrap.spec.ts` の該当 describe        |
+| `spec/discord/bootstrap/memory-recording.spec.ts` | `buildCriticAuditorAdapter` / `setupMemoryRecording`                                | `spec/discord/bootstrap-memory.spec.ts`（全体リネーム） |
+| `apps/discord/src/bootstrap/layers.test.ts`       | `createStoreLayer` / `createContextLayer` / `createWebContextLayer`                 | `bootstrap.test.ts` 66–75, 107–186                      |
+| `apps/discord/src/bootstrap/metrics.test.ts`      | `createMetrics`                                                                     | `bootstrap.test.ts` 76–85                               |
+| `apps/discord/src/bootstrap/agents.test.ts`       | `createDiscordAgents` / `createWebConversationAgent`                                | `bootstrap.test.ts` 187–649, 761–788                    |
+| `apps/discord/src/bootstrap/runtime.test.ts`      | `resolveBootstrapRoot` / `buildEmailCheckPreFilter`                                 | `bootstrap.test.ts` 86–106, 650–760                     |
 
 > 旧 `spec/discord/bootstrap.spec.ts`・`spec/discord/bootstrap-memory.spec.ts`・`apps/discord/src/bootstrap.test.ts` は分割後に削除する。
 
@@ -76,6 +77,7 @@ mkdir -p apps/discord/src/bootstrap spec/discord/bootstrap
 ## Task 1: layers.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/layers.ts`
 - Create: `apps/discord/src/bootstrap/layers.test.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
@@ -91,7 +93,12 @@ import { resolve } from "path";
 import { ContextBuilder, type ContextFileName } from "@vicissitude/agent/discord/context-builder";
 import { createConversationProfile } from "@vicissitude/agent/discord/profile";
 import { createWebConversationProfile } from "@vicissitude/agent/web/profile";
-import type { ContextBuilderPort, MemoryFactReader, SessionStorePort, SessionSummaryWriter } from "@vicissitude/shared/types";
+import type {
+	ContextBuilderPort,
+	MemoryFactReader,
+	SessionStorePort,
+	SessionSummaryWriter,
+} from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { createDb } from "@vicissitude/store/db";
 import { createSqliteSessionStore } from "@vicissitude/store/session-store";
@@ -143,6 +150,7 @@ git commit -m "refactor(discord): bootstrap の store/context レイヤ生成を
 ## Task 2: environment.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/environment.ts`
 - Create: `spec/discord/bootstrap/environment.spec.ts`
 - Modify: `apps/discord/src/bootstrap.ts`, `spec/discord/bootstrap.spec.ts`
@@ -190,6 +198,7 @@ git commit -m "refactor(discord): bootstrap の MCP/OpenCode 環境変数構築�
 ## Task 3: agents.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/agents.ts`
 - Create: `apps/discord/src/bootstrap/agents.test.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
@@ -250,6 +259,7 @@ git commit -m "refactor(discord): bootstrap の agent 生成ロジックを agen
 ## Task 4: metrics.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/metrics.ts`
 - Create: `apps/discord/src/bootstrap/metrics.test.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
@@ -290,6 +300,7 @@ git commit -m "refactor(discord): bootstrap の Prometheus メトリクス生成
 ## Task 5: channel-config.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/channel-config.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
 
@@ -322,6 +333,7 @@ git commit -m "refactor(discord): bootstrap の channel config ロードを chan
 ## Task 6: memory-recording.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/memory-recording.ts`
 - Create: `spec/discord/bootstrap/memory-recording.spec.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
@@ -368,6 +380,7 @@ git commit -m "refactor(discord): bootstrap の memory 記録セットアップ�
 ## Task 7: event-handlers.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/event-handlers.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
 
@@ -400,6 +413,7 @@ git commit -m "refactor(discord): bootstrap の gateway イベントハンドラ
 ## Task 8: minecraft-mcp.ts 抽出
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/minecraft-mcp.ts`
 - Modify: `apps/discord/src/bootstrap.ts`
 
@@ -432,6 +446,7 @@ git commit -m "refactor(discord): bootstrap の Minecraft MCP 起動を minecraf
 ## Task 9: runtime.ts 抽出 + 旧テスト削除
 
 **Files:**
+
 - Create: `apps/discord/src/bootstrap/runtime.ts`
 - Create: `apps/discord/src/bootstrap/runtime.test.ts`
 - Create: `spec/discord/bootstrap/runtime.spec.ts`
@@ -491,6 +506,7 @@ git commit -m "refactor(discord): bootstrap のランタイムヘルパを runti
 ## Task 10: oxlint disable コメント整理
 
 **Files:**
+
 - Modify: `apps/discord/src/bootstrap.ts`
 
 - [ ] **Step 1: 行頭の lint disable を見直す**
