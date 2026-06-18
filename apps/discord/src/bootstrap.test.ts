@@ -4,7 +4,7 @@ import { afterEach, describe, expect, mock, test } from "bun:test";
 import { createMockLogger } from "@vicissitude/shared/test-helpers";
 import type { DueReminder } from "@vicissitude/shared/types";
 
-import { buildEmailCheckPreFilter, createMetrics, resolveBootstrapRoot } from "./bootstrap.ts";
+import { buildEmailCheckPreFilter, resolveBootstrapRoot } from "./bootstrap.ts";
 import type { AppConfig } from "./config.ts";
 
 function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
@@ -40,16 +40,6 @@ function createTestConfig(overrides?: Partial<AppConfig>): AppConfig {
 		...overrides,
 	};
 }
-
-describe("createMetrics", () => {
-	test("collector と server を返す", () => {
-		const logger = createMockLogger();
-		const { collector, server } = createMetrics(logger, 0);
-
-		expect(collector).toBeDefined();
-		expect(server).toBeDefined();
-	});
-});
 
 describe("resolveBootstrapRoot", () => {
 	test("APP_ROOT があればそれを優先する", () => {
