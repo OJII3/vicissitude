@@ -24,6 +24,7 @@
 		"./critic-auditor": "./src/critic-auditor.ts"
 	},
 	"dependencies": {
-		"@vicissitude/shared": "workspace:*"
+		"@vicissitude/shared": "workspace:*",
+		"zod": "^4.3.6"
 	}
 }
