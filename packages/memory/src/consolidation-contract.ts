@@ -1,6 +1,8 @@
+import { z } from "zod";
+
 import type { Schema } from "./llm-port.ts";
-import type { ConsolidationAction, FactCategory } from "./types.ts";
-import { CONSOLIDATION_ACTIONS, FACT_CATEGORIES } from "./types.ts";
+import { FACT_CATEGORIES } from "./types.ts";
+import type { FactCategory } from "./types.ts";
 
 export interface BaseExtractedFact {
 	category: FactCategory;
@@ -35,14 +37,6 @@ export type ExistingExtractedFact =
 
 export type ExtractedFact = NewExtractedFact | ExistingExtractedFact;
 
-export interface RawExtractedFact {
-	action: ConsolidationAction;
-	category: FactCategory;
-	fact: string;
-	keywords: string[];
-	existingFactId?: string;
-}
-
 export interface ConsolidationOutput {
 	facts: ExtractedFact[];
 }
@@ -51,109 +45,79 @@ const MAX_FACTS_PER_EPISODE = 30;
 const MAX_KEYWORDS_PER_FACT = 10;
 const MAX_FACT_LENGTH = 1000;
 const MAX_KEYWORD_LENGTH = 100;
-const VALID_ACTIONS = new Set<string>(CONSOLIDATION_ACTIONS);
-const VALID_CATEGORIES = new Set<string>(FACT_CATEGORIES);
-const ACTIONS_REQUIRING_EXISTING_FACT_ID: ReadonlySet<ConsolidationAction> = new Set([
-	"reinforce",
-	"update",
-	"invalidate",
-]);
 
-function validateFactFields(obj: Record<string, unknown>, i: number): void {
-	if (typeof obj["action"] !== "string" || !VALID_ACTIONS.has(obj["action"])) {
-		throw new TypeError(`facts[${i}].action: expected one of ${[...VALID_ACTIONS].join(", ")}`);
-	}
-	if (typeof obj["category"] !== "string" || !VALID_CATEGORIES.has(obj["category"])) {
-		throw new TypeError(
-			`facts[${i}].category: expected one of ${[...VALID_CATEGORIES].join(", ")}`,
-		);
-	}
-	if (typeof obj["fact"] !== "string" || obj["fact"] === "") {
-		throw new TypeError(`facts[${i}].fact: expected non-empty string`);
-	}
-	if (obj["fact"].length > MAX_FACT_LENGTH) {
-		throw new RangeError(`facts[${i}].fact: too long (${obj["fact"].length} > ${MAX_FACT_LENGTH})`);
-	}
-}
+const keywordsSchema = z
+	.union(
+		[
+			z.string().transform((s) =>
+				s
+					.split(",")
+					.map((k) => k.trim())
+					.filter((k) => k !== ""),
+			),
+			z.array(
+				z
+					.string({ error: (i) => `keywords[${String(i.path?.[0] ?? 0)}]: expected string` })
+					.max(MAX_KEYWORD_LENGTH),
+			),
+		],
+		{ error: () => "keywords: expected array or string" },
+	)
+	.pipe(
+		z
+			.array(z.string().max(MAX_KEYWORD_LENGTH))
+			.max(MAX_KEYWORDS_PER_FACT, { error: () => "keywords: too many keywords" }),
+	);
 
-function validateKeywords(obj: Record<string, unknown>, i: number): void {
-	const rawKeywords = obj["keywords"];
-	if (typeof rawKeywords === "string") {
-		obj["keywords"] = rawKeywords
-			.split(",")
-			.map((keyword) => keyword.trim())
-			.filter((keyword) => keyword !== "");
-	} else if (!Array.isArray(rawKeywords)) {
-		throw new TypeError(`facts[${i}].keywords: expected array or string`);
-	}
-	const keywords = obj["keywords"] as unknown[];
-	if (keywords.length > MAX_KEYWORDS_PER_FACT) {
-		throw new RangeError(
-			`facts[${i}].keywords: too many keywords (${keywords.length}), maximum ${MAX_KEYWORDS_PER_FACT}`,
-		);
-	}
-	for (let k = 0; k < keywords.length; k++) {
-		if (typeof keywords[k] !== "string") {
-			throw new TypeError(`facts[${i}].keywords[${k}]: expected string`);
+const baseFactFields = {
+	category: z.enum([...FACT_CATEGORIES] as [string, ...string[]], {
+		error: () => "category: invalid value",
+	}),
+	fact: z
+		.string()
+		.min(1, { error: () => "fact: expected non-empty string" })
+		.max(MAX_FACT_LENGTH),
+	keywords: keywordsSchema,
+};
+
+const extractedFactSchema = z.discriminatedUnion(
+	"action",
+	[
+		z.object({ action: z.literal("new"), ...baseFactFields }),
+		z.object({
+			action: z.literal("reinforce"),
+			existingFactId: z.string({ error: () => 'existingFactId: required for action "reinforce"' }),
+			...baseFactFields,
+		}),
+		z.object({
+			action: z.literal("update"),
+			existingFactId: z.string({ error: () => 'existingFactId: required for action "update"' }),
+			...baseFactFields,
+		}),
+		z.object({
+			action: z.literal("invalidate"),
+			existingFactId: z.string({ error: () => 'existingFactId: required for action "invalidate"' }),
+			...baseFactFields,
+		}),
+	],
+	{ error: () => "action: invalid discriminator" },
+);
+
+const factsElementSchema = z
+	.any()
+	.superRefine((val, ctx) => {
+		if (typeof val !== "object" || val === null) {
+			ctx.addIssue({
+				code: "custom",
+				message: `expected object, received ${val === null ? "null" : typeof val}`,
+			});
+			return z.NEVER;
 		}
-		if ((keywords[k] as string).length > MAX_KEYWORD_LENGTH) {
-			throw new RangeError(
-				`facts[${i}].keywords[${k}]: too long (${(keywords[k] as string).length} > ${MAX_KEYWORD_LENGTH})`,
-			);
-		}
-	}
-}
+	})
+	.pipe(extractedFactSchema);
 
-function validateExistingFactId(obj: Record<string, unknown>, i: number): void {
-	const action = obj["action"] as ConsolidationAction;
-	if (ACTIONS_REQUIRING_EXISTING_FACT_ID.has(action) && typeof obj["existingFactId"] !== "string") {
-		throw new TypeError(`facts[${i}].existingFactId: required for action "${action}"`);
-	}
-}
-
-function validateExtractedFact(f: unknown, i: number): ExtractedFact {
-	if (typeof f !== "object" || f === null) {
-		throw new TypeError(`facts[${i}]: expected object`);
-	}
-	const obj = f as Record<string, unknown>;
-	validateFactFields(obj, i);
-	validateKeywords(obj, i);
-	validateExistingFactId(obj, i);
-	return toExtractedFact({
-		action: obj["action"] as ConsolidationAction,
-		category: obj["category"] as FactCategory,
-		fact: obj["fact"] as string,
-		keywords: obj["keywords"] as string[],
-		existingFactId: typeof obj["existingFactId"] === "string" ? obj["existingFactId"] : undefined,
-	});
-}
-
-function toExtractedFact(fact: RawExtractedFact): ExtractedFact {
-	switch (fact.action) {
-		case "new": {
-			return {
-				action: fact.action,
-				category: fact.category,
-				fact: fact.fact,
-				keywords: fact.keywords,
-			};
-		}
-		case "reinforce":
-		case "update":
-		case "invalidate": {
-			return {
-				action: fact.action,
-				category: fact.category,
-				fact: fact.fact,
-				keywords: fact.keywords,
-				existingFactId: fact.existingFactId as string,
-			};
-		}
-	}
-}
-
-export const consolidationSchema: Schema<ConsolidationOutput> = {
-	parse(data: unknown): ConsolidationOutput {
+export const consolidationSchema: Schema<ConsolidationOutput> = z.preprocess(
+	(data) => {
 		if (typeof data !== "object" || data === null) {
 			throw new TypeError("Expected object");
 		}
@@ -161,12 +125,9 @@ export const consolidationSchema: Schema<ConsolidationOutput> = {
 		if (!Array.isArray(obj["facts"])) {
 			throw new TypeError("Expected facts array");
 		}
-		const raw = obj["facts"] as unknown[];
-		if (raw.length > MAX_FACTS_PER_EPISODE) {
-			throw new RangeError(
-				`facts: too many facts (${raw.length}), maximum ${MAX_FACTS_PER_EPISODE}`,
-			);
-		}
-		return { facts: raw.map((f, i) => validateExtractedFact(f, i)) };
+		return data;
 	},
-};
+	z.object({
+		facts: z.array(factsElementSchema).max(MAX_FACTS_PER_EPISODE),
+	}),
+) as Schema<ConsolidationOutput>;

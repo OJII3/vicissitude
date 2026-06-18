@@ -1,4 +1,6 @@
 /* oxlint-disable max-lines, require-await, no-await-in-loop -- sequential processing required */
+import { z } from "zod";
+
 import type { Episode } from "./episode.ts";
 import { createEpisode } from "./episode.ts";
 import type { MemoryLlmPort, Schema } from "./llm-port.ts";
@@ -230,13 +232,53 @@ interface SegmentationValidationOptions {
 	minMessages: number;
 }
 
+const MAX_TITLE_LENGTH = 200;
+const MAX_SUMMARY_LENGTH = 2000;
+
+function segmentSchema(messageCount: number, index: number) {
+	const i = index;
+	return z
+		.object({
+			startIndex: z
+				.number({ error: () => `segments[${i}].startIndex: expected number` })
+				.int({ error: () => `segments[${i}].startIndex: expected non-negative integer` })
+				.nonnegative({ error: () => `segments[${i}].startIndex: expected non-negative integer` }),
+			endIndex: z
+				.number({ error: () => `segments[${i}].endIndex: expected number` })
+				.int({ error: () => `segments[${i}].endIndex: expected integer` }),
+			title: z
+				.string({ error: () => `segments[${i}].title: expected string` })
+				.max(MAX_TITLE_LENGTH, { error: () => `segments[${i}].title: too long` }),
+			summary: z
+				.string({ error: () => `segments[${i}].summary: expected string` })
+				.max(MAX_SUMMARY_LENGTH, { error: () => `segments[${i}].summary: too long` }),
+			surprise: z.enum(["low", "high", "extremely_high"], {
+				error: () => `segments[${i}].surprise: expected one of low, high, extremely_high`,
+			}),
+		})
+		.superRefine((seg, ctx) => {
+			if (seg.endIndex <= seg.startIndex) {
+				ctx.addIssue({
+					code: "custom",
+					message: `segments[${i}].endIndex: must be greater than startIndex`,
+				});
+			}
+			if (seg.endIndex > messageCount) {
+				ctx.addIssue({
+					code: "custom",
+					message: `segments[${i}].endIndex: ${seg.endIndex} exceeds message count ${messageCount}`,
+				});
+			}
+		});
+}
+
 /** Create a schema validator for SegmentationOutput with message count bounds checking */
 function createSegmentationSchema(
 	messageCount: number,
 	options: SegmentationValidationOptions,
 ): Schema<SegmentationOutput> {
-	return {
-		parse(data: unknown): SegmentationOutput {
+	return z.preprocess(
+		(data) => {
 			if (typeof data !== "object" || data === null) {
 				throw new TypeError("Expected object");
 			}
@@ -244,77 +286,30 @@ function createSegmentationSchema(
 			if (!Array.isArray(obj["segments"])) {
 				throw new TypeError("Expected segments array");
 			}
-
-			const segments = (obj["segments"] as unknown[]).map((s, i) =>
-				parseSegment(s, i, messageCount),
-			);
-			validateSegmentSequence(segments, options);
-			return { segments };
+			return data;
 		},
-	};
-}
-
-const VALID_SURPRISE = new Set<string>(["low", "high", "extremely_high"]);
-const MAX_TITLE_LENGTH = 200;
-const MAX_SUMMARY_LENGTH = 2000;
-
-function validateIndexBounds(
-	startIndex: number,
-	endIndex: number,
-	i: number,
-	messageCount: number,
-): void {
-	if (!Number.isInteger(startIndex) || startIndex < 0) {
-		throw new RangeError(`segments[${i}].startIndex: expected non-negative integer`);
-	}
-	if (!Number.isInteger(endIndex) || endIndex <= startIndex) {
-		throw new RangeError(`segments[${i}].endIndex: expected integer greater than startIndex`);
-	}
-	if (endIndex > messageCount) {
-		throw new RangeError(
-			`segments[${i}].endIndex: ${endIndex} exceeds message count ${messageCount}`,
-		);
-	}
-}
-
-function validateSegmentFields(
-	seg: Record<string, unknown>,
-	i: number,
-	messageCount: number,
-): void {
-	const required = [
-		["startIndex", "number"],
-		["endIndex", "number"],
-		["title", "string"],
-		["summary", "string"],
-		["surprise", "string"],
-	] as const;
-
-	for (const [key, expectedType] of required) {
-		if (typeof seg[key] !== expectedType) {
-			throw new TypeError(`segments[${i}].${key}: expected ${expectedType}`);
-		}
-	}
-
-	validateIndexBounds(seg["startIndex"] as number, seg["endIndex"] as number, i, messageCount);
-
-	const title = seg["title"] as string;
-	if (title.length > MAX_TITLE_LENGTH) {
-		throw new RangeError(`segments[${i}].title: too long (${title.length} > ${MAX_TITLE_LENGTH})`);
-	}
-	const summary = seg["summary"] as string;
-	if (summary.length > MAX_SUMMARY_LENGTH) {
-		throw new RangeError(
-			`segments[${i}].summary: too long (${summary.length} > ${MAX_SUMMARY_LENGTH})`,
-		);
-	}
-}
-
-function validateSurprise(value: string, i: number): SurpriseLevel {
-	if (VALID_SURPRISE.has(value)) {
-		return value as SurpriseLevel;
-	}
-	throw new TypeError(`segments[${i}].surprise: expected one of low, high, extremely_high`);
+		z
+			.object({
+				segments: z.array(z.unknown()),
+			})
+			.superRefine((obj, ctx) => {
+				for (const [i, item] of obj.segments.entries()) {
+					const result = segmentSchema(messageCount, i).safeParse(item);
+					if (!result.success) {
+						for (const issue of result.error.issues) {
+							ctx.addIssue({ code: "custom", message: issue.message });
+						}
+					}
+				}
+			})
+			.transform((obj) => {
+				const segments = obj.segments.map(
+					(item, i) => segmentSchema(messageCount, i).parse(item) as SegmentResult,
+				);
+				validateSegmentSequence(segments, options);
+				return { segments };
+			}),
+	) as Schema<SegmentationOutput>;
 }
 
 function validateSegmentSequence(
@@ -342,20 +337,4 @@ function validateSegmentSequence(
 		}
 		expectedStartIndex = segment.endIndex;
 	}
-}
-
-function parseSegment(s: unknown, i: number, messageCount: number): SegmentResult {
-	if (typeof s !== "object" || s === null) {
-		throw new TypeError(`segments[${i}]: expected object`);
-	}
-	const seg = s as Record<string, unknown>;
-	validateSegmentFields(seg, i, messageCount);
-
-	return {
-		startIndex: seg["startIndex"] as number,
-		endIndex: seg["endIndex"] as number,
-		title: seg["title"] as string,
-		summary: seg["summary"] as string,
-		surprise: validateSurprise(seg["surprise"] as string, i),
-	};
 }

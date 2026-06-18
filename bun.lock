@@ -118,6 +118,7 @@
       "name": "@vicissitude/memory",
       "dependencies": {
         "@vicissitude/shared": "workspace:*",
+        "zod": "^4.3.6",
       },
     },
     "packages/minecraft": {
@@ -153,6 +154,7 @@
       "name": "@vicissitude/opencode",
       "dependencies": {
         "@opencode-ai/sdk": "^1.15.5",
+        "@vicissitude/infrastructure": "workspace:*",
         "@vicissitude/shared": "workspace:*",
       },
     },
@@ -1304,6 +1306,8 @@
     "@vicissitude/infrastructure/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@vicissitude/mcp/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
+
+    "@vicissitude/memory/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@vicissitude/minecraft/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 

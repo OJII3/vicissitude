@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 import type { DriftScore, DriftScoreCalculator } from "./drift-score.ts";
 import type { MemoryLlmPort, Schema } from "./llm-port.ts";
 import type { SemanticFact } from "./semantic-fact.ts";
@@ -52,8 +54,6 @@ const NINETY_MINUTES_MS = 90 * 60_000;
 const RECENT_EPISODE_LIMIT = 20;
 const DRIFT_SKIP_THRESHOLD = 0.03;
 const MIN_EPISODES_FOR_CHEAP_SKIP = 3;
-
-const VALID_SEVERITIES = new Set<string>(["none", "minor", "major"]);
 
 // ─── CriticAuditor ──────────────────────────────────────────────
 
@@ -285,56 +285,33 @@ JSON で以下を返してください:
 
 // ─── Schema validation ──────────────────────────────────────────
 
-const criticResultSchema: Schema<CriticResult> = {
-	parse(data: unknown): CriticResult {
-		if (typeof data !== "object" || data === null) {
-			throw new TypeError("Expected object");
-		}
-		const obj = data as Record<string, unknown>;
+/**
+ * LLM 出力の optional フィールドを寛容に扱う: 値が不正（型不一致）なら例外ではなく
+ * undefined にフォールバックする。LLM の崩れた出力で CriticResult 全体が parse 失敗
+ * するのを防ぐため意図的。`.catch(undefined)` は zod のフォールバック値であり無意味な
+ * undefined ではない。
+ */
+function lenientOptional<T extends z.ZodType>(schema: T) {
+	// oxlint-disable-next-line unicorn/no-useless-undefined -- zod fallback value, intentional
+	return schema.optional().catch(undefined);
+}
 
-		if (typeof obj["severity"] !== "string" || !VALID_SEVERITIES.has(obj["severity"])) {
-			throw new TypeError(`severity: expected one of none, minor, major`);
-		}
-		if (typeof obj["summary"] !== "string" || obj["summary"] === "") {
-			throw new TypeError("summary: expected non-empty string");
-		}
+/** 配列から非 string 要素を捨てて string[] にする（lenient フィルタ） */
+const stringArrayLenient = z
+	.array(z.unknown())
+	.transform((arr) => arr.filter((v): v is string => typeof v === "string"));
 
-		return {
-			severity: obj["severity"] as CriticSeverity,
-			summary: obj["summary"],
-			guidelineFact: typeof obj["guidelineFact"] === "string" ? obj["guidelineFact"] : undefined,
-			guidelineKeywords: Array.isArray(obj["guidelineKeywords"])
-				? obj["guidelineKeywords"].filter((value): value is string => typeof value === "string")
-				: undefined,
-			issueTitle: typeof obj["issueTitle"] === "string" ? obj["issueTitle"] : undefined,
-			issueBody: typeof obj["issueBody"] === "string" ? obj["issueBody"] : undefined,
-		};
-	},
-};
+const criticResultSchema: Schema<CriticResult> = z.object({
+	severity: z.enum(["none", "minor", "major"]),
+	summary: z.string().min(1),
+	guidelineFact: lenientOptional(z.string()),
+	guidelineKeywords: lenientOptional(stringArrayLenient),
+	issueTitle: lenientOptional(z.string()),
+	issueBody: lenientOptional(z.string()),
+});
 
-const VALID_GUIDELINE_RESOLUTION_ACTIONS = new Set<string>(["save", "discard", "replace"]);
-
-const guidelineResolutionSchema: Schema<GuidelineResolution> = {
-	parse(data: unknown): GuidelineResolution {
-		if (typeof data !== "object" || data === null) {
-			throw new TypeError("Expected object");
-		}
-		const obj = data as Record<string, unknown>;
-		if (
-			typeof obj["action"] !== "string" ||
-			!VALID_GUIDELINE_RESOLUTION_ACTIONS.has(obj["action"])
-		) {
-			throw new TypeError(`action: expected one of save, discard, replace`);
-		}
-		if (typeof obj["reason"] !== "string" || obj["reason"] === "") {
-			throw new TypeError("reason: expected non-empty string");
-		}
-		return {
-			action: obj["action"] as GuidelineResolutionAction,
-			reason: obj["reason"],
-			targetGuidelineIds: Array.isArray(obj["targetGuidelineIds"])
-				? obj["targetGuidelineIds"].filter((value): value is string => typeof value === "string")
-				: undefined,
-		};
-	},
-};
+const guidelineResolutionSchema: Schema<GuidelineResolution> = z.object({
+	action: z.enum(["save", "discard", "replace"]),
+	reason: z.string().min(1),
+	targetGuidelineIds: lenientOptional(stringArrayLenient),
+});
