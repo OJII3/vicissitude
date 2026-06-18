@@ -28,10 +28,10 @@ import type { ChatMessage } from "@vicissitude/memory/types";
 import {
 	buildCriticAuditorAdapter,
 	setupMemoryRecording,
-} from "../../apps/discord/src/bootstrap.ts";
-import type { AppConfig } from "../../apps/discord/src/config.ts";
-import { makeEpisode } from "../memory/test-helpers.ts";
-import { createMockLogger } from "../test-helpers.ts";
+} from "../../../apps/discord/src/bootstrap/memory-recording.ts";
+import type { AppConfig } from "../../../apps/discord/src/config.ts";
+import { makeEpisode } from "../../memory/test-helpers.ts";
+import { createMockLogger } from "../../test-helpers.ts";
 
 // ─── Test fixtures ──────────────────────────────────────────────
 
