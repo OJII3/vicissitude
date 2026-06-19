@@ -1,4 +1,5 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { errorContent, textContent } from "@vicissitude/mcp/tools/result";
 import { formatTimestamp } from "@vicissitude/shared/functions";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/namespace";
 import type { StoreDb } from "@vicissitude/store/db";
@@ -13,7 +14,6 @@ import {
 	isErrorEvent,
 	parseEvents,
 } from "./event-helpers.ts";
-import { errorContent, textContent } from "./result.ts";
 
 const MAX_REPORT_CHARS = 10_000;
 type ReportImportance = "low" | "medium" | "high" | "critical";

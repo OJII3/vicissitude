@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MAX_BATCH_SIZE } from "@vicissitude/mcp/tools/event-helpers";
-import { registerMinecraftBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-minecraft";
+import { MAX_BATCH_SIZE } from "@vicissitude/minecraft/event-helpers";
+import { registerMinecraftBridgeTools } from "@vicissitude/minecraft/mc-bridge-tools";
 import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/namespace";
 import {
 	getSessionLockGuildId,

@@ -7,7 +7,7 @@ import { registerDiscordBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-dis
 import { tryAcquireSessionLock, setMcConnectionStatus } from "@vicissitude/store/mc-bridge";
 import { createTestDb } from "@vicissitude/store/test-helpers";
 
-import { stubLogger } from "../minecraft/stub-logger.ts";
+import { stubLogger } from "../../minecraft/stub-logger.ts";
 
 let baseUrl: string;
 

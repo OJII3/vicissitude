@@ -102,7 +102,13 @@
 			}
 		},
 		{
-			"files": ["**/mcp/**/tools/*.ts", "**/mcp/**/core-server.ts", "**/minecraft/**/mcp-tools.ts"],
+			"files": [
+				"**/mcp/**/tools/*.ts",
+				"**/mcp/**/core-server.ts",
+				"**/minecraft/**/mcp-tools.ts",
+				"**/minecraft/**/mc-bridge-tools.ts",
+				"**/minecraft/**/mc-memory.ts"
+			],
 			"rules": {
 				"eslint/max-lines-per-function": [
 					"warn",
