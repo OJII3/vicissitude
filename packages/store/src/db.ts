@@ -5,6 +5,7 @@ import { join } from "path";
 import { hasColumn } from "@vicissitude/shared/sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 
+import { buildCreateTablesSql } from "./ddl.ts";
 import * as schema from "./schema.ts";
 
 export type StoreDb = ReturnType<typeof drizzle<typeof schema>>;
@@ -30,62 +31,10 @@ export function closeDb(db: StoreDb): void {
 }
 
 /**
- * NOTE: この SQL と store/schema.ts の Drizzle スキーマ定義は常に同期させること。
- * カラム追加・変更時は両方を更新する必要がある。
+ * テーブル作成 DDL。schema.ts（Drizzle 定義）から生成される唯一のソース。
+ * migrateDb() の後に実行され、未作成テーブルのみ作成する（既存 DB では no-op）。
  */
-export const CREATE_TABLES_SQL = `
-CREATE TABLE IF NOT EXISTS sessions (
-	key TEXT PRIMARY KEY,
-	session_id TEXT NOT NULL,
-	created_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS emoji_usage (
-	guild_id TEXT NOT NULL,
-	emoji_name TEXT NOT NULL,
-	count INTEGER NOT NULL DEFAULT 0,
-	PRIMARY KEY (guild_id, emoji_name)
-);
-
-CREATE TABLE IF NOT EXISTS event_buffer (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	agent_id TEXT NOT NULL,
-	payload TEXT NOT NULL,
-	created_at INTEGER NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_event_buffer_agent ON event_buffer(agent_id);
-
-CREATE TABLE IF NOT EXISTS mood_state (
-	agent_id TEXT PRIMARY KEY,
-	valence REAL NOT NULL,
-	arousal REAL NOT NULL,
-	dominance REAL NOT NULL,
-	updated_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS emotion_provider_cooldown (
-	provider_id TEXT NOT NULL,
-	model_id TEXT NOT NULL,
-	until_ms INTEGER NOT NULL,
-	reason TEXT NOT NULL,
-	updated_at INTEGER NOT NULL,
-	PRIMARY KEY (provider_id, model_id)
-);
-
-CREATE TABLE IF NOT EXISTS agent_heartbeat (
-	agent_id TEXT PRIMARY KEY,
-	last_seen_at INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS mc_session_lock (
-	id INTEGER PRIMARY KEY CHECK (id = 1),
-	guild_id TEXT NOT NULL,
-	acquired_at INTEGER NOT NULL,
-	connected INTEGER NOT NULL DEFAULT 0,
-	connected_at INTEGER
-);
-`;
+export const CREATE_TABLES_SQL = buildCreateTablesSql();
 
 /** テーブルが存在するかチェック */
 function hasTable(sqlite: Database, tableName: string): boolean {
