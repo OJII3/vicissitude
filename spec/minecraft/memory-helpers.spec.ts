@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
 import { resolve } from "path";
 
-import { readWithFallbackFrom } from "@vicissitude/mcp/memory-helpers";
+import { readWithFallbackFrom } from "@vicissitude/minecraft/memory-helpers";
 
 describe("readWithFallbackFrom", () => {
 	const TEST_ROOT = resolve(import.meta.dirname, "../../.test-fallback");

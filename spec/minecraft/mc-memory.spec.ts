@@ -9,9 +9,9 @@ import {
 	sanitizeSkillDescription,
 	sanitizeSkillName,
 	writeOverlay,
-} from "@vicissitude/mcp/tools/mc-memory";
+} from "@vicissitude/minecraft/mc-memory";
 
-const BASE_CONTEXT_DIR = resolve(import.meta.dirname, "../../../context");
+const BASE_CONTEXT_DIR = resolve(import.meta.dirname, "../../context");
 
 function createTmpDir(): string {
 	return mkdtempSync(join(os.tmpdir(), "mc-mem-"));

@@ -1,4 +1,4 @@
-import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/namespace";
 import type {
 	ContextBuilderPort,
 	Logger,

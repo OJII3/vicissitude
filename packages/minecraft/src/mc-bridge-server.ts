@@ -2,9 +2,10 @@ import { resolve } from "path";
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { registerMinecraftBridgeTools } from "@vicissitude/mcp/tools/mc-bridge-minecraft";
-import { registerMcMemoryTools } from "@vicissitude/mcp/tools/mc-memory";
 import { closeDb, createDb } from "@vicissitude/store/db";
+
+import { registerMinecraftBridgeTools } from "./mc-bridge-tools.ts";
+import { registerMcMemoryTools } from "./mc-memory.ts";
 
 export async function main(): Promise<void> {
 	// --- Configuration from environment ---

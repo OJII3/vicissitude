@@ -2,10 +2,10 @@ import { writeFileSync } from "fs";
 import { resolve } from "path";
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { errorContent, textContent } from "@vicissitude/mcp/tools/result";
 import { z } from "zod/v4";
 
-import { createBackup, ensureDir, readWithFallbackFrom } from "../memory-helpers.ts";
-import { errorContent, textContent } from "./result.ts";
+import { createBackup, ensureDir, readWithFallbackFrom } from "./memory-helpers.ts";
 
 const MAX_GOALS_CHARS = 20_000;
 const MAX_PROGRESS_CHARS = 20_000;

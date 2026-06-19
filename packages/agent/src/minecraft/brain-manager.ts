@@ -1,8 +1,8 @@
 /* oxlint-disable max-dependencies -- brain-manager creates MinecraftAgent with all DI dependencies */
 import { resolve } from "path";
 
-import { MINECRAFT_AGENT_ID } from "@vicissitude/minecraft/constants";
 import { OpencodeSessionAdapter } from "@vicissitude/opencode/session-adapter";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/namespace";
 import type { Logger, MetricsCollector, SessionStorePort } from "@vicissitude/shared/types";
 import type { StoreDb } from "@vicissitude/store/db";
 import { clearSessionLock, hasSessionLock } from "@vicissitude/store/mc-bridge";
