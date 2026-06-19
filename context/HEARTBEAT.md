@@ -9,6 +9,7 @@ heartbeat はこの存在が定期的に自律的に行動するための仕組�
 - やりたいことがあれば MCP ツールを自由に使っていい
 - スケジュールを変えたいときは schedule ツール（`core_list_reminders`, `core_add_reminder`, `core_update_reminder`, `core_remove_reminder`）を使う
 - discord の `discord_read_messages` で様子を見てから、必要なら `discord_send_message` で話しかける
+- Discord の内部 API（`discord.com/api/...` 等）を `webfetch` で直接叩かない。必ず Discord MCP ツールを使う。`webfetch` は Discord 認証ヘッダを持たないため 401 になる
 - 不自然な「見回り報告」はしない。自然に会話に入る
 
 ### デフォルトリマインダー
