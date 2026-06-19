@@ -7,7 +7,6 @@
 import { mock } from "bun:test";
 
 import { AgentRunner, type RunnerDeps } from "@vicissitude/agent/runner";
-import { denyAllSkillPermission } from "@vicissitude/opencode/constants";
 import type { ContextBuilderPort } from "@vicissitude/shared/types";
 
 import type { AgentProfile } from "../../packages/agent/src/profile.ts";
@@ -52,8 +51,6 @@ export function createProfile(overrides: Partial<AgentProfile> = {}): AgentProfi
 	return {
 		name: "conversation",
 		mcpServers: {},
-		builtinTools: {},
-		skillPermission: denyAllSkillPermission(),
 		pollingPrompt: "loop forever",
 		model: { providerId: "test-provider", modelId: "test-model" },
 		...overrides,

@@ -4,7 +4,7 @@ import { createConversationProfile, SHELL_WORKSPACE_AGENT_NAME } from "./profile
 
 describe("createConversationProfile image recognition prompt", () => {
 	test("画像認識が無効なら補助プロンプトを含めない", () => {
-		const profile = createConversationProfile({
+		const { profile } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -14,7 +14,7 @@ describe("createConversationProfile image recognition prompt", () => {
 	});
 
 	test("画像認識が有効なら添付画像の観察結果に関する指示を含める", () => {
-		const profile = createConversationProfile({
+		const { profile } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -28,7 +28,7 @@ describe("createConversationProfile image recognition prompt", () => {
 
 describe("createConversationProfile shell workspace subagent", () => {
 	test("shell workspace 有効時は task を開き shell-worker agent を定義する", () => {
-		const profile = createConversationProfile({
+		const { profile, opencode } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -38,24 +38,24 @@ describe("createConversationProfile shell workspace subagent", () => {
 			},
 		});
 
-		expect(profile.builtinTools.task).toBe(true);
-		expect(profile.builtinTools.bash).toBe(true);
-		expect(profile.builtinTools.read).toBe(true);
-		expect(profile.builtinTools.write).toBe(true);
-		expect(profile.builtinTools.skill).toBe(true);
-		expect(profile.builtinTools.task_status).toBe(false);
-		expect(profile.skillPermission).toEqual({
+		expect(opencode.builtinTools.task).toBe(true);
+		expect(opencode.builtinTools.bash).toBe(true);
+		expect(opencode.builtinTools.read).toBe(true);
+		expect(opencode.builtinTools.write).toBe(true);
+		expect(opencode.builtinTools.skill).toBe(true);
+		expect(opencode.builtinTools.task_status).toBe(false);
+		expect(opencode.skillPermission).toEqual({
 			"*": "deny",
 			"delegate-to-shell-worker": "allow",
 			"self-update": "allow",
 		});
-		expect(profile.defaultAgent).toBe("build");
-		expect(profile.primaryTools).toEqual(["task", "skill"]);
+		expect(opencode.defaultAgent).toBe("build");
+		expect(opencode.primaryTools).toEqual(["task", "skill"]);
 		expect(profile.pollingPrompt).toContain(SHELL_WORKSPACE_AGENT_NAME);
 		expect(profile.pollingPrompt).toContain("OpenCode skill `delegate-to-shell-worker`");
 		expect(profile.pollingPrompt).not.toContain("background=true");
 
-		const build = profile.opencodeAgents?.build;
+		const build = opencode.opencodeAgents?.build;
 		const buildTools = (build as { tools?: Record<string, boolean> } | undefined)?.tools;
 		expect(buildTools?.read).toBe(false);
 		expect(buildTools?.write).toBe(false);
@@ -68,7 +68,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 			"self-update": "allow",
 		});
 
-		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
+		const worker = opencode.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		expect(worker?.mode).toBe("subagent");
 		expect(worker?.model).toBe("worker-provider/worker-model");
 		const workerTools = (worker as { tools?: Record<string, boolean> } | undefined)?.tools;
@@ -100,7 +100,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 	});
 
 	test("background subagent 有効時は task_status を開き background 指示を含める", () => {
-		const profile = createConversationProfile({
+		const { profile, opencode } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -111,58 +111,58 @@ describe("createConversationProfile shell workspace subagent", () => {
 			shellWorkspaceBackgroundSubagents: true,
 		});
 
-		expect(profile.builtinTools.task).toBe(true);
-		expect(profile.builtinTools.task_status).toBe(true);
-		expect(profile.primaryTools).toEqual(["task", "task_status", "skill"]);
+		expect(opencode.builtinTools.task).toBe(true);
+		expect(opencode.builtinTools.task_status).toBe(true);
+		expect(opencode.primaryTools).toEqual(["task", "task_status", "skill"]);
 		expect(profile.pollingPrompt).toContain("background=true");
 		expect(profile.pollingPrompt).toContain("task_status(task_id=..., wait=false)");
 
-		const build = profile.opencodeAgents?.build;
+		const build = opencode.opencodeAgents?.build;
 		const buildPermission = (build as { permission?: Record<string, string> } | undefined)
 			?.permission;
 		expect(buildPermission?.task_status).toBe("allow");
 
-		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
+		const worker = opencode.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		const workerTools = (worker as { tools?: Record<string, boolean> } | undefined)?.tools;
 		expect(workerTools?.task_status).toBe(false);
 	});
 
 	test("shell workspace 無効時は task と subagent 設定を追加しない", () => {
-		const profile = createConversationProfile({
+		const { opencode } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
 		});
 
-		expect(profile.builtinTools.task).toBe(false);
-		expect(profile.builtinTools.task_status).toBe(false);
-		expect(profile.builtinTools.bash).toBe(false);
-		expect(profile.builtinTools.skill).toBe(false);
-		expect(profile.skillPermission).toEqual({ "*": "deny" });
-		expect(profile.opencodeAgents).toBeUndefined();
-		expect(profile.defaultAgent).toBeUndefined();
-		expect(profile.primaryTools).toBeUndefined();
+		expect(opencode.builtinTools.task).toBe(false);
+		expect(opencode.builtinTools.task_status).toBe(false);
+		expect(opencode.builtinTools.bash).toBe(false);
+		expect(opencode.builtinTools.skill).toBe(false);
+		expect(opencode.skillPermission).toEqual({ "*": "deny" });
+		expect(opencode.opencodeAgents).toBeUndefined();
+		expect(opencode.defaultAgent).toBeUndefined();
+		expect(opencode.primaryTools).toBeUndefined();
 	});
 
 	test("Minecraft 有効時は primary agent で minecraft skill を使える", () => {
-		const profile = createConversationProfile({
+		const { opencode } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
 			minecraftEnabled: true,
 		});
 
-		expect(profile.builtinTools.skill).toBe(true);
-		expect(profile.skillPermission).toEqual({
+		expect(opencode.builtinTools.skill).toBe(true);
+		expect(opencode.skillPermission).toEqual({
 			"*": "deny",
 			minecraft: "allow",
 		});
-		expect(profile.opencodeAgents).toBeUndefined();
-		expect(profile.primaryTools).toBeUndefined();
+		expect(opencode.opencodeAgents).toBeUndefined();
+		expect(opencode.primaryTools).toBeUndefined();
 	});
 
 	test("shell workspace と Minecraft の併用時は primary_tools に skill を追加する", () => {
-		const profile = createConversationProfile({
+		const { opencode } = createConversationProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -174,9 +174,9 @@ describe("createConversationProfile shell workspace subagent", () => {
 			shellWorkspaceBackgroundSubagents: true,
 		});
 
-		expect(profile.primaryTools).toEqual(["task", "task_status", "skill"]);
+		expect(opencode.primaryTools).toEqual(["task", "task_status", "skill"]);
 
-		const build = profile.opencodeAgents?.build;
+		const build = opencode.opencodeAgents?.build;
 		const buildTools = (build as { tools?: Record<string, boolean> } | undefined)?.tools;
 		const buildPermission = (build as { permission?: Record<string, unknown> } | undefined)
 			?.permission;
@@ -188,7 +188,7 @@ describe("createConversationProfile shell workspace subagent", () => {
 			"self-update": "allow",
 			minecraft: "allow",
 		});
-		const worker = profile.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
+		const worker = opencode.opencodeAgents?.[SHELL_WORKSPACE_AGENT_NAME];
 		const workerPermission = (worker as { permission?: Record<string, unknown> } | undefined)
 			?.permission;
 		expect(workerPermission).toMatchObject({

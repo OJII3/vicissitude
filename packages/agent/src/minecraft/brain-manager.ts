@@ -93,7 +93,7 @@ export class McBrainManager {
 		if (this.agent || this.stopping) return;
 
 		const { deps } = this;
-		const profile = createMinecraftProfile({
+		const { profile, opencode } = createMinecraftProfile({
 			providerId: deps.providerId,
 			modelId: deps.modelId,
 			mcpServers: mcpMinecraftConfigs({
@@ -105,8 +105,8 @@ export class McBrainManager {
 		const sessionPort = new OpencodeSessionAdapter({
 			port: deps.opencodePort,
 			mcpServers: profile.mcpServers,
-			builtinTools: profile.builtinTools,
-			skillPermission: profile.skillPermission,
+			builtinTools: opencode.builtinTools,
+			skillPermission: opencode.skillPermission,
 			skillPaths: [resolve(deps.root, "context/skills/minecraft")],
 			temperature: deps.temperature,
 			logger: deps.logger,

@@ -7,14 +7,14 @@ import {
 
 describe("createMinecraftProfile", () => {
 	test("Minecraft brain 用 skill を許可する", () => {
-		const profile = createMinecraftProfile({
+		const { profile, opencode } = createMinecraftProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
 		});
 
-		expect(profile.builtinTools.skill).toBe(true);
-		expect(profile.skillPermission).toEqual({
+		expect(opencode.builtinTools.skill).toBe(true);
+		expect(opencode.skillPermission).toEqual({
 			"*": "deny",
 			[MINECRAFT_AGENT_PLAYBOOK_SKILL_NAME]: "allow",
 		});
@@ -24,7 +24,7 @@ describe("createMinecraftProfile", () => {
 	});
 
 	test("pollingPrompt に常駐ループ用のプレフィックス付きツール名が含まれる", () => {
-		const profile = createMinecraftProfile({
+		const { profile } = createMinecraftProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
@@ -42,7 +42,7 @@ describe("createMinecraftProfile", () => {
 	});
 
 	test("pollingPrompt にプレフィックスなしのツール名が残っていない", () => {
-		const profile = createMinecraftProfile({
+		const { profile } = createMinecraftProfile({
 			providerId: "provider",
 			modelId: "model",
 			mcpServers: {},
