@@ -5,7 +5,12 @@ import {
 } from "@vicissitude/opencode/constants";
 import type { SkillPermissionConfig } from "@vicissitude/shared/types";
 
-import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
+import {
+	SECURITY_PROMPT_LINES,
+	type AgentProfile,
+	type McpServerConfig,
+	type OpencodeProfile,
+} from "../profile.ts";
 
 export const SHELL_WORKSPACE_AGENT_NAME = "shell-worker";
 const DEFAULT_SHELL_WORKSPACE_ALLOWED_SKILLS = ["debug", "skill-creator"] as const;
@@ -172,7 +177,7 @@ export function createConversationProfile(options: {
 	imageRecognitionEnabled?: boolean;
 	shellWorkspaceSubagent?: ShellWorkspaceSubagentConfig;
 	shellWorkspaceBackgroundSubagents?: boolean;
-}): AgentProfile {
+}): { profile: AgentProfile; opencode: OpencodeProfile } {
 	const shellWorkspaceBackgroundSubagents = options.shellWorkspaceBackgroundSubagents === true;
 	const conversationSkillPermission = buildConversationSkillPermission({
 		shellWorkspaceEnabled: !!options.shellWorkspaceSubagent,
@@ -197,9 +202,24 @@ export function createConversationProfile(options: {
 		shellWorkspaceBackgroundSubagents,
 		conversationSkillPermission,
 	);
-	return {
+	const profile: AgentProfile = {
 		name: "conversation",
 		mcpServers: options.mcpServers,
+		pollingPrompt,
+		model: { providerId: options.providerId, modelId: options.modelId },
+		summaryPrompt: `あなたはセッション要約アシスタントです。
+この会話セッションの内容を、次のセッションに引き継ぐための要約を日本語で作成してください。
+
+以下の情報を含めてください:
+- 主要な話題・やりとりの流れ
+- ユーザーの感情状態・トーンの傾向
+- 未解決の話題や継続中の文脈
+- 重要な約束や決定事項
+
+簡潔かつ情報密度の高い要約にしてください（500文字以内）。
+ツールは使用しないでください。`,
+	};
+	const opencode: OpencodeProfile = {
 		builtinTools: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			webfetch: true,
@@ -218,18 +238,6 @@ export function createConversationProfile(options: {
 			skillEnabled: conversationSkillEnabled,
 		}),
 		defaultAgent: opencodeAgents ? "build" : undefined,
-		pollingPrompt,
-		model: { providerId: options.providerId, modelId: options.modelId },
-		summaryPrompt: `あなたはセッション要約アシスタントです。
-この会話セッションの内容を、次のセッションに引き継ぐための要約を日本語で作成してください。
-
-以下の情報を含めてください:
-- 主要な話題・やりとりの流れ
-- ユーザーの感情状態・トーンの傾向
-- 未解決の話題や継続中の文脈
-- 重要な約束や決定事項
-
-簡潔かつ情報密度の高い要約にしてください（500文字以内）。
-ツールは使用しないでください。`,
 	};
+	return { profile, opencode };
 }

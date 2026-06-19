@@ -3,7 +3,12 @@ import {
 	OPENCODE_ALL_TOOLS_DISABLED,
 } from "@vicissitude/opencode/constants";
 
-import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
+import {
+	SECURITY_PROMPT_LINES,
+	type AgentProfile,
+	type McpServerConfig,
+	type OpencodeProfile,
+} from "../profile.ts";
 
 export const MINECRAFT_AGENT_PLAYBOOK_SKILL_NAME = "minecraft-agent-playbook";
 
@@ -41,16 +46,19 @@ export function createMinecraftProfile(options: {
 	providerId: string;
 	modelId: string;
 	mcpServers: Record<string, McpServerConfig>;
-}): AgentProfile {
-	return {
+}): { profile: AgentProfile; opencode: OpencodeProfile } {
+	const profile: AgentProfile = {
 		name: "minecraft",
 		mcpServers: options.mcpServers,
+		pollingPrompt: POLLING_PROMPT,
+		model: { providerId: options.providerId, modelId: options.modelId },
+	};
+	const opencode: OpencodeProfile = {
 		builtinTools: {
 			...OPENCODE_ALL_TOOLS_DISABLED,
 			skill: true,
 		},
 		skillPermission: createSkillPermission([MINECRAFT_AGENT_PLAYBOOK_SKILL_NAME]),
-		pollingPrompt: POLLING_PROMPT,
-		model: { providerId: options.providerId, modelId: options.modelId },
 	};
+	return { profile, opencode };
 }
