@@ -20,12 +20,12 @@
 
 **ファイル構成:**
 
-| ファイル | 責務 |
-| --- | --- |
-| `packages/store/src/schema.ts` | Drizzle スキーマ（唯一のソース）。index/check を追加 |
-| `packages/store/src/ddl.ts` | **新規**。`buildCreateTablesSql()` — schema から DDL 生成 |
-| `packages/store/src/db.ts` | `CREATE_TABLES_SQL` を生成結果に置換。`migrateDb` は不変 |
-| `spec/store/ddl.spec.ts` | **新規**。スキーマ契約（カラム/制約/index）の公開契約テスト |
+| ファイル                       | 責務                                                        |
+| ------------------------------ | ----------------------------------------------------------- |
+| `packages/store/src/schema.ts` | Drizzle スキーマ（唯一のソース）。index/check を追加        |
+| `packages/store/src/ddl.ts`    | **新規**。`buildCreateTablesSql()` — schema から DDL 生成   |
+| `packages/store/src/db.ts`     | `CREATE_TABLES_SQL` を生成結果に置換。`migrateDb` は不変    |
+| `spec/store/ddl.spec.ts`       | **新規**。スキーマ契約（カラム/制約/index）の公開契約テスト |
 
 ---
 
@@ -34,6 +34,7 @@
 このタスクは**現行の legacy `CREATE_TABLES_SQL` 実装に対して green になる**契約テストを先に用意する。Task 2 のリファクタ後も同じ spec が green であることで「スキーマが変わっていない」ことを保証する（プロジェクト規約: `*.spec.ts` は公開契約・リファクタで壊れてはいけない）。
 
 **Files:**
+
 - Create: `spec/store/ddl.spec.ts`
 
 - [ ] **Step 1: 契約 spec を作成**
@@ -84,9 +85,7 @@ describe("store schema (DDL)", () => {
 
 	test("event_buffer に idx_event_buffer_agent インデックスが存在する", () => {
 		const db = createTestDb();
-		const idxs = db.$client
-			.prepare(`PRAGMA index_list(event_buffer)`)
-			.all() as { name: string }[];
+		const idxs = db.$client.prepare(`PRAGMA index_list(event_buffer)`).all() as { name: string }[];
 		expect(idxs.some((i) => i.name === "idx_event_buffer_agent")).toBe(true);
 	});
 
@@ -108,9 +107,9 @@ describe("store schema (DDL)", () => {
 		const db = createTestDb();
 		appendEvent(db, "agent-1", "{}");
 		appendEvent(db, "agent-1", "{}");
-		const rows = db.$client
-			.prepare("SELECT id FROM event_buffer ORDER BY id")
-			.all() as { id: number }[];
+		const rows = db.$client.prepare("SELECT id FROM event_buffer ORDER BY id").all() as {
+			id: number;
+		}[];
 		expect(rows).toHaveLength(2);
 		expect(rows[1]!.id).toBeGreaterThan(rows[0]!.id);
 	});
@@ -151,6 +150,7 @@ git commit -m "test(store): スキーマ契約を固定する ddl spec を追加
 ## Task 2: Drizzle から DDL を生成し、手書き CREATE_TABLES_SQL を廃止
 
 **Files:**
+
 - Modify: `packages/store/src/schema.ts`（index/check 追加）
 - Create: `packages/store/src/ddl.ts`（生成器）
 - Modify: `packages/store/src/db.ts`（生成結果へ置換、`migrateDb` は不変）
@@ -164,7 +164,15 @@ git commit -m "test(store): スキーマ契約を固定する ddl spec を追加
 import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 // after
 import { sql } from "drizzle-orm";
-import { check, index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+	check,
+	index,
+	integer,
+	primaryKey,
+	real,
+	sqliteTable,
+	text,
+} from "drizzle-orm/sqlite-core";
 ```
 
 `eventBuffer` 定義に第3引数（index）を追加:
