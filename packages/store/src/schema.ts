@@ -1,4 +1,13 @@
-import { integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import {
+	check,
+	index,
+	integer,
+	primaryKey,
+	real,
+	sqliteTable,
+	text,
+} from "drizzle-orm/sqlite-core";
 
 /** セッション管理テーブル */
 export const sessions = sqliteTable("sessions", {
@@ -19,12 +28,16 @@ export const emojiUsage = sqliteTable(
 );
 
 /** イベントバッファテーブル（MC ブリッジのエージェント間メッセージキューとして使用） */
-export const eventBuffer = sqliteTable("event_buffer", {
-	id: integer("id").primaryKey({ autoIncrement: true }),
-	agentId: text("agent_id").notNull(),
-	payload: text("payload").notNull(),
-	createdAt: integer("created_at").notNull(),
-});
+export const eventBuffer = sqliteTable(
+	"event_buffer",
+	{
+		id: integer("id").primaryKey({ autoIncrement: true }),
+		agentId: text("agent_id").notNull(),
+		payload: text("payload").notNull(),
+		createdAt: integer("created_at").notNull(),
+	},
+	(table) => [index("idx_event_buffer_agent").on(table.agentId)],
+);
 
 /** 感情状態テーブル */
 export const moodState = sqliteTable("mood_state", {
@@ -55,10 +68,14 @@ export const agentHeartbeat = sqliteTable("agent_heartbeat", {
 });
 
 /** MC セッション排他ロックテーブル（最大1行） */
-export const mcSessionLock = sqliteTable("mc_session_lock", {
-	id: integer("id").primaryKey(),
-	guildId: text("guild_id").notNull(),
-	acquiredAt: integer("acquired_at").notNull(),
-	connected: integer("connected").notNull().default(0),
-	connectedAt: integer("connected_at"),
-});
+export const mcSessionLock = sqliteTable(
+	"mc_session_lock",
+	{
+		id: integer("id").primaryKey(),
+		guildId: text("guild_id").notNull(),
+		acquiredAt: integer("acquired_at").notNull(),
+		connected: integer("connected").notNull().default(0),
+		connectedAt: integer("connected_at"),
+	},
+	(table) => [check("mc_session_lock_single_row", sql`${table.id} = 1`)],
+);
