@@ -91,7 +91,7 @@ export function createDiscordAgents(
 		const shellAgentDirectory = shellAgentEnabled
 			? prepareOpencodeShellAgentDirectory(config, spec.agentId)
 			: undefined;
-		const profile = createConversationProfile({
+		const { profile, opencode: opencodeProfile } = createConversationProfile({
 			providerId: opencode.providerId,
 			modelId: opencode.modelId,
 			mcpServers: mcpServerConfigs(spec.agentId, {
@@ -111,12 +111,12 @@ export function createDiscordAgents(
 		const sessionPort = new OpencodeSessionAdapter({
 			port: agentPort,
 			mcpServers: profile.mcpServers,
-			builtinTools: profile.builtinTools,
-			skillPermission: profile.skillPermission,
+			builtinTools: opencodeProfile.builtinTools,
+			skillPermission: opencodeProfile.skillPermission,
 			skillPaths: discordOpencodeSkillPaths(deps.appRoot, { shellAgentEnabled }),
-			agents: profile.opencodeAgents,
-			defaultAgent: profile.defaultAgent,
-			primaryTools: profile.primaryTools,
+			agents: opencodeProfile.opencodeAgents,
+			defaultAgent: opencodeProfile.defaultAgent,
+			primaryTools: opencodeProfile.primaryTools,
 			temperature: opencode.temperature,
 			directory: shellAgentDirectory,
 			environment: shellAgentEnabled
@@ -167,7 +167,7 @@ export function createWebConversationAgent(
 		opencodePort: number;
 	},
 ): WebConversationAgent {
-	const profile = createWebConversationProfile({
+	const { profile, opencode: opencodeProfile } = createWebConversationProfile({
 		providerId: config.opencode.providerId,
 		modelId: config.opencode.modelId,
 		mcpServers: mcpServerConfigs(WEB_AGENT_ID, {
@@ -178,8 +178,8 @@ export function createWebConversationAgent(
 	const sessionPort = new OpencodeSessionAdapter({
 		port: deps.opencodePort,
 		mcpServers: profile.mcpServers,
-		builtinTools: profile.builtinTools,
-		skillPermission: profile.skillPermission,
+		builtinTools: opencodeProfile.builtinTools,
+		skillPermission: opencodeProfile.skillPermission,
 		temperature: config.opencode.temperature,
 		logger: deps.logger,
 	});

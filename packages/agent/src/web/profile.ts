@@ -3,7 +3,12 @@ import {
 	OPENCODE_ALL_TOOLS_DISABLED,
 } from "@vicissitude/opencode/constants";
 
-import { SECURITY_PROMPT_LINES, type AgentProfile, type McpServerConfig } from "../profile.ts";
+import {
+	SECURITY_PROMPT_LINES,
+	type AgentProfile,
+	type McpServerConfig,
+	type OpencodeProfile,
+} from "../profile.ts";
 
 const WEB_PROMPT_INSTRUCTIONS = `あなたは Web UI 上でユーザーと直接会話しています。
 名前・自己認識・人格・口調・会話規則は、このセッション冒頭に埋め込まれたシステム文脈の定義に従ってください。
@@ -19,15 +24,10 @@ export function createWebConversationProfile(options: {
 	providerId: string;
 	modelId: string;
 	mcpServers: Record<string, McpServerConfig>;
-}): AgentProfile {
-	return {
+}): { profile: AgentProfile; opencode: OpencodeProfile } {
+	const profile: AgentProfile = {
 		name: "web-conversation",
 		mcpServers: options.mcpServers,
-		builtinTools: {
-			...OPENCODE_ALL_TOOLS_DISABLED,
-			webfetch: true,
-		},
-		skillPermission: denyAllSkillPermission(),
 		pollingPrompt: WEB_PROMPT_INSTRUCTIONS,
 		model: { providerId: options.providerId, modelId: options.modelId },
 		summaryPrompt: `あなたは Web 会話セッション要約アシスタントです。
@@ -42,4 +42,12 @@ export function createWebConversationProfile(options: {
 簡潔かつ情報密度の高い要約にしてください（500文字以内）。
 ツールは使用しないでください。`,
 	};
+	const opencode: OpencodeProfile = {
+		builtinTools: {
+			...OPENCODE_ALL_TOOLS_DISABLED,
+			webfetch: true,
+		},
+		skillPermission: denyAllSkillPermission(),
+	};
+	return { profile, opencode };
 }

@@ -63,16 +63,15 @@ describe("createDiscordAgents", () => {
 		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: {
 				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
-				skillPermission: Record<string, string>;
 			};
-			sessionPort: { config: { skillPaths?: string[] } };
+			sessionPort: { config: { skillPaths?: string[]; skillPermission: Record<string, string> } };
 		};
 
 		expect(Object.keys(agent.profile.mcpServers).toSorted()).toEqual(["core", "discord"]);
 		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.AGENT_ID).toBe("discord:123456789");
 		expect(agent.profile.mcpServers.discord?.environment?.DISCORD_TOKEN).toBe("token");
-		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.sessionPort.config.skillPermission).toEqual({ "*": "deny" });
 		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/context/skills/discord"]);
 	});
 
@@ -101,15 +100,17 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: {
-				builtinTools: Record<string, boolean>;
-				skillPermission: Record<string, string>;
+			sessionPort: {
+				config: {
+					skillPaths?: string[];
+					builtinTools: Record<string, boolean>;
+					skillPermission: Record<string, string>;
+				};
 			};
-			sessionPort: { config: { skillPaths?: string[] } };
 		};
 
-		expect(agent.profile.builtinTools.skill).toBe(true);
-		expect(agent.profile.skillPermission).toEqual({
+		expect(agent.sessionPort.config.builtinTools.skill).toBe(true);
+		expect(agent.sessionPort.config.skillPermission).toEqual({
 			"*": "deny",
 			minecraft: "allow",
 		});
@@ -174,9 +175,6 @@ describe("createDiscordAgents", () => {
 		const agent = agents.get("discord:guild:123456789") as unknown as {
 			profile: {
 				model: { providerId: string; modelId: string };
-				builtinTools: Record<string, boolean>;
-				skillPermission: Record<string, string>;
-				opencodeAgents?: unknown;
 			};
 			sessionPort: {
 				config: {
@@ -184,6 +182,9 @@ describe("createDiscordAgents", () => {
 					skillPaths?: string[];
 					directory?: string;
 					environment?: Record<string, string>;
+					builtinTools: Record<string, boolean>;
+					skillPermission: Record<string, string>;
+					agents?: unknown;
 				};
 			};
 		};
@@ -193,11 +194,11 @@ describe("createDiscordAgents", () => {
 			modelId: "heartbeat-model",
 		});
 		expect(agent.sessionPort.config.temperature).toBe(0.2);
-		expect(agent.profile.builtinTools.skill).toBe(false);
-		expect(agent.profile.builtinTools.bash).toBe(false);
-		expect(agent.profile.builtinTools.task).toBe(false);
-		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
-		expect(agent.profile.opencodeAgents).toBeUndefined();
+		expect(agent.sessionPort.config.builtinTools.skill).toBe(false);
+		expect(agent.sessionPort.config.builtinTools.bash).toBe(false);
+		expect(agent.sessionPort.config.builtinTools.task).toBe(false);
+		expect(agent.sessionPort.config.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.sessionPort.config.agents).toBeUndefined();
 		expect(agent.sessionPort.config.skillPaths).toEqual(["/app/context/skills/discord"]);
 		expect(agent.sessionPort.config.directory).toBeUndefined();
 		expect(agent.sessionPort.config.environment).toBeUndefined();
@@ -233,19 +234,21 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: {
-				builtinTools: Record<string, boolean>;
-				skillPermission: Record<string, string>;
-				opencodeAgents?: unknown;
+			sessionPort: {
+				config: {
+					builtinTools: Record<string, boolean>;
+					skillPermission: Record<string, string>;
+					agents?: unknown;
+				};
 			};
 		};
 
-		expect(agent.profile.builtinTools.skill).toBe(true);
-		expect(agent.profile.skillPermission).toEqual({
+		expect(agent.sessionPort.config.builtinTools.skill).toBe(true);
+		expect(agent.sessionPort.config.skillPermission).toEqual({
 			"*": "deny",
 			minecraft: "allow",
 		});
-		expect(agent.profile.opencodeAgents).toBeUndefined();
+		expect(agent.sessionPort.config.agents).toBeUndefined();
 	});
 
 	test("shellWorkspace の GitHub token は Git credential helper 付きで OpenCode に渡す", () => {
@@ -363,23 +366,26 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: {
-				primaryTools?: string[];
-				builtinTools: Record<string, boolean>;
-				opencodeAgents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+			sessionPort: {
+				config: {
+					environment?: Record<string, string>;
+					skillPaths?: string[];
+					builtinTools: Record<string, boolean>;
+					primaryTools?: string[];
+					agents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+				};
 			};
-			sessionPort: { config: { environment?: Record<string, string>; skillPaths?: string[] } };
 		};
 
-		expect(agent.profile.builtinTools.skill).toBe(true);
-		expect(agent.profile.builtinTools.task_status).toBe(true);
-		expect(agent.profile.primaryTools).toEqual(["task", "task_status", "skill"]);
-		expect(agent.profile.opencodeAgents?.build?.tools?.skill).toBe(true);
-		expect(agent.profile.opencodeAgents?.build?.permission).toMatchObject({
+		expect(agent.sessionPort.config.builtinTools.skill).toBe(true);
+		expect(agent.sessionPort.config.builtinTools.task_status).toBe(true);
+		expect(agent.sessionPort.config.primaryTools).toEqual(["task", "task_status", "skill"]);
+		expect(agent.sessionPort.config.agents?.build?.tools?.skill).toBe(true);
+		expect(agent.sessionPort.config.agents?.build?.permission).toMatchObject({
 			skill: { "*": "deny", "delegate-to-shell-worker": "allow", "self-update": "allow" },
 		});
-		expect(agent.profile.opencodeAgents?.["shell-worker"]?.tools?.skill).toBe(true);
-		expect(agent.profile.opencodeAgents?.["shell-worker"]?.permission).toMatchObject({
+		expect(agent.sessionPort.config.agents?.["shell-worker"]?.tools?.skill).toBe(true);
+		expect(agent.sessionPort.config.agents?.["shell-worker"]?.permission).toMatchObject({
 			"*_*": "deny",
 			"core_*": "deny",
 			"discord_*": "deny",
@@ -428,20 +434,22 @@ describe("createDiscordAgents", () => {
 			},
 		);
 		const agent = agents.get("discord:guild:123456789") as unknown as {
-			profile: {
-				primaryTools?: string[];
-				opencodeAgents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+			sessionPort: {
+				config: {
+					primaryTools?: string[];
+					agents?: Record<string, { tools?: Record<string, boolean>; permission?: unknown }>;
+				};
 			};
 		};
 
-		const build = agent.profile.opencodeAgents?.build as
+		const build = agent.sessionPort.config.agents?.build as
 			| { tools?: Record<string, boolean>; permission?: { skill?: Record<string, string> } }
 			| undefined;
-		const worker = agent.profile.opencodeAgents?.["shell-worker"] as
+		const worker = agent.sessionPort.config.agents?.["shell-worker"] as
 			| { tools?: Record<string, boolean>; permission?: { skill?: Record<string, string> } }
 			| undefined;
 
-		expect(agent.profile.primaryTools).toEqual(["task", "skill"]);
+		expect(agent.sessionPort.config.primaryTools).toEqual(["task", "skill"]);
 		expect(build?.tools?.skill).toBe(true);
 		expect(build?.permission?.skill).toEqual({
 			"*": "deny",
@@ -476,16 +484,21 @@ describe("createWebConversationAgent", () => {
 		}) as unknown as {
 			profile: {
 				mcpServers: Record<string, { type: string; environment?: Record<string, string> }>;
-				builtinTools: Record<string, boolean>;
-				skillPermission: Record<string, string>;
 			};
-			sessionPort: { config: { port: number; skillPaths?: string[] } };
+			sessionPort: {
+				config: {
+					port: number;
+					skillPaths?: string[];
+					builtinTools: Record<string, boolean>;
+					skillPermission: Record<string, string>;
+				};
+			};
 		};
 
 		expect(Object.keys(agent.profile.mcpServers)).toEqual(["core"]);
 		expect(agent.profile.mcpServers.core?.environment?.AGENT_ID).toBe("web:local");
-		expect(agent.profile.builtinTools.skill).toBe(false);
-		expect(agent.profile.skillPermission).toEqual({ "*": "deny" });
+		expect(agent.sessionPort.config.builtinTools.skill).toBe(false);
+		expect(agent.sessionPort.config.skillPermission).toEqual({ "*": "deny" });
 		expect(agent.sessionPort.config.port).toBe(4103);
 		expect(agent.sessionPort.config.skillPaths).toBeUndefined();
 	});
