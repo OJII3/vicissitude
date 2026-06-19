@@ -30,6 +30,9 @@ export const DISCORD_USER_ID_RE = /^\d+$/;
 /** Discord adapter 用の guild ID バリデーション。core schema では使わない。 */
 export const GUILD_ID_RE = DISCORD_GUILD_ID_RE;
 
+/** Minecraft エージェントの agentId。minecraft brain の単一ルーティングキー。 */
+export const MINECRAFT_AGENT_ID = "minecraft:brain";
+
 /** agent-scope namespace を生成する（scopeId のバリデーション付き） */
 export function agentScopeNamespace(scopeId: string): MemoryNamespace {
 	assertAgentScopeId(scopeId);

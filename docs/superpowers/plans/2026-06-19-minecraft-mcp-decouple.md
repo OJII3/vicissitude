@@ -9,6 +9,7 @@
 **Tech Stack:** Bun, TypeScript, zod v4, `@modelcontextprotocol/sdk`。テストは `*.spec.ts`（公開契約）。検証は `nr validate`（fmt:check + lint + check）と `nr test`。
 
 **前提（調査済みの事実）:**
+
 - `MINECRAFT_AGENT_ID = "minecraft:brain"` は `packages/mcp/src/tools/mc-bridge-constants.ts` と `packages/minecraft/src/constants.ts` に**重複定義**。agent パッケージは `@vicissitude/minecraft/constants` 側を使用中。
 - `mc-bridge-constants.ts` は mcp の package.json exports に**含まれない**（相対 import のみ）。
 - `event-helpers.ts` は packages 内で `mc-bridge-minecraft.ts` のみが使用。`memory-helpers.ts` は `mc-memory.ts` のみが使用。両者とも mcp 内の他モジュールに依存しない（fs/shared のみ）。
@@ -31,6 +32,7 @@
 ## Task 1: `MINECRAFT_AGENT_ID` を `@vicissitude/shared/namespace` に単一ソース化
 
 **Files:**
+
 - Modify: `packages/shared/src/namespace.ts`（定数追加）
 - Modify: `packages/minecraft/src/constants.ts`（重複定義を削除）
 - Delete: `packages/mcp/src/tools/mc-bridge-constants.ts`
@@ -133,6 +135,7 @@ git commit -m "refactor(shared): MINECRAFT_AGENT_ID を namespace に単一ソ�
 ## Task 2: Minecraft 側ブリッジ／メモリツールを minecraft パッケージへ移動
 
 **Files:**
+
 - Move: `packages/mcp/src/tools/mc-bridge-minecraft.ts` → `packages/minecraft/src/mc-bridge-tools.ts`
 - Move: `packages/mcp/src/tools/mc-memory.ts` → `packages/minecraft/src/mc-memory.ts`
 - Move: `packages/mcp/src/tools/event-helpers.ts` → `packages/minecraft/src/event-helpers.ts`
@@ -228,6 +231,7 @@ Expected: 0 error。（この時点で `spec/mcp/tools/*` や `spec/mcp/memory-h
 - [ ] **Step 9: spec 由来の型エラーが出る場合は Task 3 と統合**
 
 Run: `nr check`
+
 - spec の旧 import に起因する型エラーが出る場合、Task 2 と Task 3 を**1 コミットに統合**する（spec を直してから一括 commit）。その場合 Step 10 のコミットはスキップし、Task 3 完了後にまとめてコミットする。
 - 型エラーが出ない（spec が緩く解決される）場合のみ Step 10 を実行。
 
@@ -243,6 +247,7 @@ git commit -m "refactor(minecraft): ブリッジ／メモリツールを mcp か
 ## Task 3: 誤配置された minecraft spec を `spec/minecraft/` へ集約
 
 **Files:**
+
 - Move: `spec/mcp/minecraft/` ツリー全体 → `spec/minecraft/`（22 spec + `stub-logger.ts` + `reactive-layer-helpers.ts` + `actions/` サブツリー）
 - Move + Modify: `spec/mcp/tools/mc-bridge-integration.spec.ts` → `spec/minecraft/mc-bridge-integration.spec.ts`
 - Move + Modify: `spec/mcp/tools/mc-bridge-format-commands.spec.ts` → `spec/minecraft/mc-bridge-format-commands.spec.ts`

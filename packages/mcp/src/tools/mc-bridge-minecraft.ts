@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { formatTimestamp } from "@vicissitude/shared/functions";
+import { MINECRAFT_AGENT_ID } from "@vicissitude/shared/namespace";
 import type { StoreDb } from "@vicissitude/store/db";
 import { getSessionLockGuildId } from "@vicissitude/store/mc-bridge";
 import { appendEvent, consumeEvents } from "@vicissitude/store/queries";
@@ -12,7 +13,6 @@ import {
 	isErrorEvent,
 	parseEvents,
 } from "./event-helpers.ts";
-import { MINECRAFT_AGENT_ID } from "./mc-bridge-constants.ts";
 import { errorContent, textContent } from "./result.ts";
 
 const MAX_REPORT_CHARS = 10_000;

@@ -1,8 +1,5 @@
 import { z } from "zod";
 
-/** Minecraft エージェントの agentId */
-export const MINECRAFT_AGENT_ID = "minecraft:brain";
-
 // ─── McAuthMode ──────────────────────────────────────────────────
 
 const mcAuthModeSchema = z.enum(["offline", "microsoft"]);
