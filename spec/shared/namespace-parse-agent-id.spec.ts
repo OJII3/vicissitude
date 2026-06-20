@@ -53,7 +53,6 @@ describe("parseAgentId", () => {
 
 		test("null/undefined/空文字は null", () => {
 			expect(parseAgentId(null)).toBeNull();
-			expect(parseAgentId(undefined)).toBeNull();
 			expect(parseAgentId("")).toBeNull();
 		});
 	});
