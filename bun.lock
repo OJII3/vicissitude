@@ -6,7 +6,7 @@
       "name": "vicissitude",
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.27.1",
-        "@opencode-ai/sdk": "^1.15.5",
+        "@opencode-ai/sdk": "^1.17.8",
         "canvas": "^3.2.1",
         "discord.js": "^14.25.1",
         "drizzle-orm": "^0.45.1",
@@ -153,7 +153,7 @@
     "packages/opencode": {
       "name": "@vicissitude/opencode",
       "dependencies": {
-        "@opencode-ai/sdk": "^1.15.5",
+        "@opencode-ai/sdk": "^1.17.8",
         "@vicissitude/infrastructure": "workspace:*",
         "@vicissitude/shared": "workspace:*",
       },
@@ -273,7 +273,7 @@
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.1.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.1" }, "peerDependencies": { "@emnapi/core": "^1.7.1", "@emnapi/runtime": "^1.7.1" } }, "sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow=="],
 
-    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.15.5", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-ozJuEmXzrOvia5n0L1KAuvpyf9ESGmTk1FiPhn0RK5X1whbzjlTXL0NAxqNCEkqETxL35jS1KHArEiTpvtJ6FQ=="],
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.17.8", "", { "dependencies": { "cross-spawn": "7.0.6" } }, "sha512-6MKmsj2ujZyL44jy+12dpwWYDYKPS9fUr+0wVQxaIlPYQ/eAt8T8T3QrybplJ5ZtHfZUX+esXZ02x2UYYm7oEw=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 
