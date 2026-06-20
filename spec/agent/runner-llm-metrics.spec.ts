@@ -65,7 +65,7 @@ describe("AgentRunner LLM metrics", () => {
 		const collector = createCollector();
 		const runner = new TestAgent({
 			profile: createProfile(),
-			agentId: "discord:guild-1",
+			agentId: "discord:111",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
@@ -86,9 +86,9 @@ describe("AgentRunner LLM metrics", () => {
 
 		const output = collector.serialize();
 		const requestLabels =
-			'{agent_id="discord:guild-1",agent_kind="discord",model="test-model",outcome="success",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
+			'{agent_id="discord:111",agent_kind="discord",model="test-model",outcome="success",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
 		const commonLabels =
-			'{agent_id="discord:guild-1",agent_kind="discord",model="test-model",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
+			'{agent_id="discord:111",agent_kind="discord",model="test-model",provider="test-provider",scope_id="discord:guild:111",trigger="home"}';
 		expect(output).toContain(`ai_requests_total${requestLabels} 1`);
 		expect(output).toContain(`ai_request_duration_seconds_count${requestLabels} 1`);
 		expect(output).toContain(`llm_busy_sessions${commonLabels} 0`);
@@ -102,7 +102,7 @@ describe("AgentRunner LLM metrics", () => {
 		const collector = createCollector();
 		const runner = new TestAgent({
 			profile: createProfile(),
-			agentId: "discord:heartbeat:guild-1",
+			agentId: "discord:heartbeat:111",
 			sessionStore: createSessionStore() as never,
 			contextBuilder: createContextBuilder(),
 			logger: createMockLogger(),
@@ -127,7 +127,7 @@ describe("AgentRunner LLM metrics", () => {
 
 		const output = collector.serialize();
 		expect(output).toContain(
-			'session_errors_total{agent_id="discord:heartbeat:guild-1",agent_kind="discord_heartbeat",error_class="unknown",error_type="timeout",http_status="unknown",model="test-model",provider="test-provider",retryable="true",scope_id="discord:guild:111",source="session_event",trigger="heartbeat"} 1',
+			'session_errors_total{agent_id="discord:heartbeat:111",agent_kind="discord_heartbeat",error_class="unknown",error_type="timeout",http_status="unknown",model="test-model",provider="test-provider",retryable="true",scope_id="discord:guild:111",source="session_event",trigger="heartbeat"} 1',
 		);
 	});
 });
