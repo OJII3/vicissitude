@@ -2,6 +2,13 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
     flake-parts.url = "github:hercules-ci/flake-parts";
+    # llm-agents.nix は upstream の nixpkgs-unstable で electron 等の評価が
+    # 壊れるため、26.05 stable を別途ピン留めして使う。
+    llm-agents-nixpkgs.url = "github:NixOS/nixpkgs/26.05";
+    llm-agents = {
+      url = "github:numtide/llm-agents.nix";
+      inputs.nixpkgs.follows = "llm-agents-nixpkgs";
+    };
   };
 
   outputs =
@@ -18,43 +25,7 @@
         { pkgs, system, ... }:
         let
           inherit (pkgs) lib stdenv;
-          opencodeVersion = "1.15.5";
-          opencodePlatform =
-            {
-              x86_64-linux = {
-                packageName = "opencode-linux-x64";
-                hash = "sha256-taZkHun5OsGO6VQ3ZAnnCDne+bsaRRpfPExtrerNy8Q=";
-              };
-              aarch64-linux = {
-                packageName = "opencode-linux-arm64";
-                hash = "sha256-O2hVGCK+aRHjL87VOKww6yMnzcFFJbMZoarA6vNq+V8=";
-              };
-              aarch64-darwin = {
-                packageName = "opencode-darwin-arm64";
-                hash = "sha256-B+1EjtGts6FC06aYCqKcQ5wmVnrxorA60Np15OZfqXM=";
-              };
-              x86_64-darwin = {
-                packageName = "opencode-darwin-x64";
-                hash = "sha256-+KxzBty9aCKS72WzKouy5r3LvSrAWZCOHUvwBAWrv0Y=";
-              };
-            }
-            .${system};
-          opencode = pkgs.stdenvNoCC.mkDerivation {
-            pname = "opencode";
-            version = opencodeVersion;
-            src = pkgs.fetchurl {
-              url = "https://registry.npmjs.org/${opencodePlatform.packageName}/-/${opencodePlatform.packageName}-${opencodeVersion}.tgz";
-              hash = opencodePlatform.hash;
-            };
-            dontBuild = true;
-            unpackPhase = "tar -xzf $src";
-            installPhase = ''
-              runHook preInstall
-              mkdir -p $out/bin
-              install -m 755 package/bin/opencode $out/bin/opencode
-              runHook postInstall
-            '';
-          };
+          opencode = inputs.llm-agents.packages.${system}.opencode;
           baseRuntimePackages = with pkgs; [
             bun
             ni

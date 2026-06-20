@@ -10,7 +10,9 @@ import type {
 import { extractBackgroundTaskFailure } from "./background-task-activity.ts";
 
 export type AbortableAsyncStream<T> = AsyncIterator<T> & {
-	return?: (value?: unknown) => Promise<IteratorResult<T>>;
+	// SDK 側 (AsyncGenerator) の `return` は値を読み取らないため、ジェネリクスの
+	// 衝突を避ける目的で引数型を void に緩める。実装は値を yield 側に渡さない。
+	return?: (value?: void) => Promise<IteratorResult<T>>;
 };
 const STREAM_RETURNED = Symbol("streamReturned"),
 	STREAM_RETURN_PROMISE = Symbol("streamReturnPromise");
