@@ -155,25 +155,50 @@ export type ParsedAgentId =
 	| { readonly platform: "internal" }
 	| null;
 
+export interface ParseAgentIdOptions {
+	/** true なら guildId / userId / web-scope 部を正規表現で厳格検証する。デフォルト true。 */
+	readonly strict?: boolean;
+}
+
 /**
  * agentId を解析してプラットフォーム・ロール・scopeId を返す。
  * 未知のプレフィックス・null/undefined/空文字・不正形式は null を返す。
+ *
+ * `strict: true`（デフォルト）は Discord guildId / userId が数字であることを
+ * 必須とし、`discordScopeId` / `discordDmScopeId` と同じ canonical scopeId を返す。
+ *
+ * `strict: false` は数値以外の ID も受理し、scopeId としてそのまま `discord:guild:{id}`
+ * 形式に整形して返す。観測的なパス（observability 等）で `inferAgentKind` などが
+ * 緩い agentId 表記を扱うために使う。
  */
-export function parseAgentId(agentId: string | null | undefined): ParsedAgentId {
+export function parseAgentId(
+	agentId: string | null | undefined,
+	options: ParseAgentIdOptions = {},
+): ParsedAgentId {
+	const strict = options.strict ?? true;
 	if (!agentId) return null;
 	if (/^internal(?::.+)?$/.test(agentId)) {
 		return { platform: "internal" };
 	}
-	const dm = agentId.match(/^discord:dm:(\d+)$/);
+	const dm = agentId.match(/^discord:dm:([^:]+)$/);
 	if (dm?.[1]) {
-		return { platform: "discord", role: "polling", scopeId: discordDmScopeId(dm[1]) };
+		const userId = dm[1];
+		if (strict && !DISCORD_USER_ID_RE.test(userId)) return null;
+		return { platform: "discord", role: "polling", scopeId: `discord:dm:${userId}` };
 	}
-	const m = agentId.match(/^discord:(?:(heartbeat):)?(.+)$/);
-	if (m?.[2] && DISCORD_GUILD_ID_RE.test(m[2])) {
+	const m = agentId.match(/^discord:(?:(heartbeat):)?([^:]+)$/);
+	if (m?.[2]) {
 		const role = (m[1] ?? "polling") as DiscordAgentRole;
-		return { platform: "discord", role, scopeId: discordScopeId(m[2]) };
+		const guildId = m[2];
+		if (strict && !DISCORD_GUILD_ID_RE.test(guildId)) return null;
+		if (strict) {
+			return { platform: "discord", role, scopeId: discordScopeId(guildId) };
+		}
+		// 緩いモードでは discordScopeId() を使うと DISCORD_GUILD_ID_RE 検証で例外になるため、整形だけ行う。
+		return { platform: "discord", role, scopeId: `discord:guild:${guildId}` };
 	}
-	if (/^web:.+$/.test(agentId) && AGENT_SCOPE_ID_RE.test(agentId)) {
+	const web = agentId.match(/^web:(.+)$/);
+	if (web?.[1] && (!strict || AGENT_SCOPE_ID_RE.test(agentId))) {
 		return { platform: "web", scopeId: agentId };
 	}
 	return null;
