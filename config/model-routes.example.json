@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "routes": {
+    "mention_response": {
+      "deadlineMs": 25000,
+      "targets": [{ "provider": "openai", "model": "gpt-5-mini", "thinkingLevel": "minimal", "timeoutMs": 20000 }]
+    }
+  }
+}

@@ -1,1 +1,8 @@
 .worktrees/
+.env
+dist/
+node_modules/
+result
+coverage/
+*.log
+.tmp/

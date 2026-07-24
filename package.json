@@ -1,0 +1,40 @@
+{
+  "name": "vicissitude",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint --type-aware --deny-warnings .",
+    "test:unit": "vitest run src",
+    "test:spec": "node scripts/test-with-postgres.mjs",
+    "test": "pnpm test:unit && pnpm test:spec",
+    "validate": "pnpm format:check && pnpm lint && pnpm check && pnpm test",
+    "start:gateway": "node dist/apps/discord-gateway.js",
+    "start:worker": "node dist/apps/cognition-worker.js",
+    "admin": "node dist/apps/admin-cli.js"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.81.1",
+    "@earendil-works/pi-ai": "0.81.1",
+    "discord.js": "14.27.0",
+    "pino": "10.3.1",
+    "postgres": "3.4.9",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.12.0",
+    "oxfmt": "0.60.0",
+    "oxlint": "1.75.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "typescript": "5.9.3",
+    "vitest": "4.1.10"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@11.16.0"
+}
