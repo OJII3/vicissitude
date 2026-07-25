@@ -31,15 +31,15 @@
           formatter = pkgs.nixfmt-rfc-style;
           packages.default = pkgs.callPackage ./nix/package.nix { };
           apps = {
-            gateway = {
+            vicissitude-gateway = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-gateway";
             };
-            worker = {
+            vicissitude-worker = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-worker";
             };
-            admin = {
+            vicissitude-admin = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-admin";
             };
