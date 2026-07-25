@@ -17,10 +17,7 @@
       perSystem =
         {
           config,
-          self',
-          inputs',
           pkgs,
-          system,
           ...
         }:
         {
@@ -32,6 +29,21 @@
             ];
           };
           formatter = pkgs.nixfmt-rfc-style;
+          packages.default = pkgs.callPackage ./nix/package.nix { };
+          apps = {
+            gateway = {
+              type = "app";
+              program = "${config.packages.default}/bin/vicissitude-gateway";
+            };
+            worker = {
+              type = "app";
+              program = "${config.packages.default}/bin/vicissitude-worker";
+            };
+            admin = {
+              type = "app";
+              program = "${config.packages.default}/bin/vicissitude-admin";
+            };
+          };
         };
     };
 }
