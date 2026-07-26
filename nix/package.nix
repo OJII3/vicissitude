@@ -39,6 +39,7 @@ stdenv.mkDerivation (finalAttrs: {
     runHook preBuild
     pnpm build
     pnpm prune --prod --ignore-scripts
+    rm -f node_modules/.modules.yaml node_modules/.pnpm-workspace-state-v1.json
     runHook postBuild
   '';
 
@@ -79,6 +80,8 @@ stdenv.mkDerivation (finalAttrs: {
     done
     test ! -e $out/lib/vicissitude/node_modules/typescript
     test ! -e $out/lib/vicissitude/node_modules/vitest
+    test ! -e $out/lib/vicissitude/node_modules/.modules.yaml
+    test ! -e $out/lib/vicissitude/node_modules/.pnpm-workspace-state-v1.json
     cd $TMPDIR
     node --input-type=module -e "await import('$out/lib/vicissitude/dist/apps/discord-gateway.js'); await import('$out/lib/vicissitude/dist/apps/cognition-worker.js'); await import('$out/lib/vicissitude/dist/apps/admin-cli.js')"
     runHook postInstallCheck
