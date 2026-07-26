@@ -6,7 +6,6 @@
   pnpm_11,
   nodejs_24,
   makeWrapper,
-  runCommand,
 }:
 
 let
@@ -64,36 +63,31 @@ stdenv.mkDerivation (finalAttrs: {
     runHook postInstall
   '';
 
+  doInstallCheck = true;
+  installCheckPhase = ''
+    runHook preInstallCheck
+    test -x $out/bin/vicissitude-gateway
+    test -x $out/bin/vicissitude-worker
+    test -x $out/bin/vicissitude-admin
+    test -f $out/lib/vicissitude/config/model-routes.json
+    test -d $out/lib/vicissitude/migrations
+    for wrapper in gateway worker admin; do
+      grep -F -- $out/lib/vicissitude/migrations $out/bin/vicissitude-$wrapper
+      grep -F -- $out/lib/vicissitude/config/model-routes.json $out/bin/vicissitude-$wrapper
+      grep -F -- 'VICISSITUDE_MIGRATIONS_DIR-' $out/bin/vicissitude-$wrapper
+      grep -F -- 'VICISSITUDE_MODEL_ROUTES_PATH-' $out/bin/vicissitude-$wrapper
+    done
+    test ! -e $out/lib/vicissitude/node_modules/typescript
+    test ! -e $out/lib/vicissitude/node_modules/vitest
+    cd $TMPDIR
+    node --input-type=module -e "await import('$out/lib/vicissitude/dist/apps/discord-gateway.js'); await import('$out/lib/vicissitude/dist/apps/cognition-worker.js'); await import('$out/lib/vicissitude/dist/apps/admin-cli.js')"
+    runHook postInstallCheck
+  '';
+
   meta = {
     description = "Vicissitude AI character platform";
     license = lib.licenses.mit;
     mainProgram = "vicissitude-gateway";
   };
-
-  passthru.tests.package-contract =
-    runCommand "vicissitude-package-contract"
-      {
-        package = finalAttrs.finalPackage;
-        nativeBuildInputs = [ nodejs_24 ];
-      }
-      ''
-        set -eu
-        test -x "$package/bin/vicissitude-gateway"
-        test -x "$package/bin/vicissitude-worker"
-        test -x "$package/bin/vicissitude-admin"
-        test -f "$package/lib/vicissitude/config/model-routes.json"
-        test -d "$package/lib/vicissitude/migrations"
-        for wrapper in gateway worker admin; do
-          grep -F -- "$package/lib/vicissitude/migrations" "$package/bin/vicissitude-$wrapper"
-          grep -F -- "$package/lib/vicissitude/config/model-routes.json" "$package/bin/vicissitude-$wrapper"
-          grep -F -- 'VICISSITUDE_MIGRATIONS_DIR-' "$package/bin/vicissitude-$wrapper"
-          grep -F -- 'VICISSITUDE_MODEL_ROUTES_PATH-' "$package/bin/vicissitude-$wrapper"
-        done
-        test ! -e "$package/lib/vicissitude/node_modules/typescript"
-        test ! -e "$package/lib/vicissitude/node_modules/vitest"
-        cd "$TMPDIR"
-        node --input-type=module -e "import('$package/lib/vicissitude/dist/config/runtime-config.js')"
-        touch "$out"
-      '';
 
 })
