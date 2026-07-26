@@ -1,10 +1,12 @@
-# Vicissitude Phase 1
+# Vicissitude
 
-Phase 1 は、Discord の明示的な mention を PostgreSQL を唯一の真実として受信、判定、効果実行する durable spine です。Gateway、cognition worker、effect worker の境界と lease、deduplication、audit、redaction を含みます。会話クラスタリング、暗黙の宛先推定、memory、autonomy、adaptation は後続フェーズです。
+Vicissitude は、Discord コミュニティ内で継続的に動作する AI キャラクター基盤です。
 
-## Prerequisites
+現在の実装は、Discord の明示的な mention を PostgreSQL を唯一の真実として受信し、応答を判断して Discord へ返す durable spine を提供します。受信、判断、外部作用を別の状態として永続化し、lease、deduplication、audit、redaction によって障害時も処理を追跡できる構成です。
 
-Node.js 24、pnpm 11.16、Nix、PostgreSQL 17 が必要です。開発用の全体セットアップとビルド、テストは次のとおりです。
+## Development
+
+Node.js 24、pnpm 11.16、Nix、PostgreSQL 17 が必要です。開発 shell に入り、依存関係の取得、build、test を実行します。
 
 ```bash
 nix develop
@@ -18,7 +20,17 @@ pnpm build
 pnpm test
 ```
 
-`.env.example` は自動ロードされません。各executableに必要な環境変数だけを、foreground起動時または外部deployment adapterから明示的に渡してください。このrepositoryはprocess managerやsecret配布方式を固定しません。
+`.env.example` は自動ロードされません。各 executable に必要な環境変数だけを、foreground 起動時または外部 deployment adapter から明示的に渡してください。このリポジトリは process manager や secret 配布方式を固定しません。
+
+## Architecture
+
+PostgreSQL が event、job、decision、effect、character definition、channel capability、audit entry の正本です。実行単位は次の3つです。
+
+- `discord-gateway`: Discord event の受信と永続化、管理 command の受付、永続化済み Discord effect の実行を担当します。Discord token を持つ唯一の process です。
+- `cognition-worker`: job を claim し、production CharacterDefinition と model route を使って mention への応答を判断し、effect を永続化します。
+- `admin-cli`: migration、CharacterDefinition、channel capability、drain、effect recovery を操作します。
+
+Gateway と cognition worker は別 process として動かします。provider credential は cognition worker だけに、Discord token は Gateway だけに渡します。
 
 ## Initial Setup
 
@@ -56,7 +68,9 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 独立レビューで placeholder を本番定義に置き換え、その reviewed file を import、activate してから運用します。
 
-## Operator Environment
+## Operations
+
+### Operator Environment
 
 各operator terminalの開始時に、対象executableと同じ値をこのblockで設定します。`GUILD_ID`と`CHANNEL_ID`は実行processから継承されないため、対象を明示してください。health portはGatewayとworkerの起動設定と一致させます。
 
@@ -76,9 +90,11 @@ export VICISSITUDE_WORKER_HEALTH_PORT=8081
 
 値は実際の service 設定に置き換え、各 terminal で実行します。
 
-## Go-live
+### Go-Live
 
-Gateway、worker、operatorの3端末を使います。Gatewayとcognition workerは別processとして起動します。手動ならterminal 1でGateway、terminal 2でworkerをforeground起動し、terminal 3をoperator用にします。外部deployment adapterを使う場合も、このprocess境界を維持します。
+本番用の CharacterDefinition はリポジトリに同梱しません。運用者が独立レビューした定義を import、activate してから Gateway と worker を起動します。
+
+Gateway、worker、operator の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を operator 用にします。外部 deployment adapter を使う場合も、この process 境界を維持します。
 
 ```bash
 set -euo pipefail
@@ -94,9 +110,9 @@ curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
 pnpm admin -- channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
 ```
 
-両方の readiness check が成功しなければ channel capability を有効にしません。独立レビュー済みの production CharacterDefinition を import、activate する前に mention capability を有効にしないでください。
+両方の readiness check が成功しなければ channel capability を有効にしません。
 
-## Daily Operations
+### Deploy
 
 ```bash
 set -euo pipefail
@@ -161,14 +177,11 @@ pnpm admin -- system resume --actor admin-id --reason "deploy complete"
 
 `system drain` は新しい job claim だけを止め、effect claim は止めず、すぐに戻ります。in-flight または完了済み job が作った planned effect は drain 中も claim、実行されます。上の count が 0 になるまで Gateway と cognition worker を停止しないでください。この手順で effect pipeline も drain します。0 にならない場合は強制停止せず、running job、planned または executing effect、stale lease を調べます。期限切れ lease は fencing の対象ですが、外部 effect が実行済みか不明になると recovery の確認が必要です。
 
-```bash
-set -euo pipefail
-: "${DATABASE_URL:?run Operator Environment first}"
-pnpm admin -- effect inspect effect-id
-pnpm admin -- effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
-```
+## Recovery
 
-Unknown effects are not retried automatically. Discover them with their target and update fields:
+### Effect Recovery
+
+外部呼び出し後に状態が不明な effect は自動 retry しません。`unknown` の effect を一覧し、各 ID を `pnpm admin -- effect inspect effect-id` で確認します。Discord に message が存在すると確認できた場合だけ `succeeded` と external resource ID を付け、存在しないと確認できた場合だけ external resource ID なしの `failed` に reconcile します。結果が不明なら `unknown` のままにします。
 
 ```bash
 set -euo pipefail
@@ -176,41 +189,18 @@ set -euo pipefail
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT id, run_id, guild_id, capability_channel_id, target_channel_id, target_message_id, updated_at FROM effects WHERE state = 'unknown' ORDER BY updated_at;"
 ```
 
-Run `pnpm admin -- effect inspect effect-id` for each ID. After checking Discord, reconcile a confirmed message with `--state succeeded --external-resource-id discord-message-id`, or reconcile a proven absence with `--state failed` and no external resource ID. If the outcome is uncertain, leave the effect `unknown`. Never auto retry an unknown effect.
+```bash
+set -euo pipefail
+: "${DATABASE_URL:?run Operator Environment first}"
+pnpm admin -- effect inspect effect-id
+pnpm admin -- effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
+```
 
-## Discord Setup
-
-Guilds、Guild Messages、Message Content intents を有効にします。`VICISSITUDE_GUILD_ID` は対象を単一 guild に限定し、`VICISSITUDE_ADMIN_USER_IDS` は管理者 allowlist をカンマ区切りで指定します。DM は対象外です。Gateway は singleton として動かします。
-
-## Model Setup
-
-`config/model-routes.example.json` を `VICISSITUDE_MODEL_ROUTES_PATH` が指す場所へコピーします。provider credentials は `@earendil-works/pi-ai` の環境変数を使い、`cognition-worker` にだけ渡します。`discord-gateway` には渡しません。
-
-## Database Changes
-
-起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証済みですが、本番backup artifactのrestoreは本番前に別途確認してください。
-
-## Health
-
-長時間プロセスは localhost の設定ポートで `GET /live` と `GET /ready` を公開します。`/live` はプロセス生存を返します。Gateway の `/ready` は DB migration preflight、system singleton と recovery、Discord login、command registration の完了を確認します。Gateway は production CharacterDefinition を確認しません。Worker の `/ready` は migration、production CharacterDefinition、model routes の起動 preflight が完了した時点で true になります。iteration が失敗すると false に戻り、次に成功した iteration で true に戻ります。`draining` と `stopped` は readiness を直接変えず、job claim を止めます。`/health` は使用しません。
-
-## Credential Boundary
-
-Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
-
-Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
-
-offline staging checkはdatabase role/ACLを検証しますが、実運用のcredential注入、environment isolation、process isolationは検証しません。
-
-## Effect Recovery
-
-外部呼び出し後に状態が不明な effect は自動 retry しません。Discord に存在すると確認できた場合だけ succeeded と external resource ID を付け、存在しないと確認できた場合だけ failed と external resource ID なしで reconcile します。結果が不明なら `unknown` のままにします。
-
-## Shutdown And Drain
+### Shutdown And Drain
 
 `system drain` は新しい job claim だけを止め、effect claim は止めません。実行中 lease を待つ機能もありません。停止前に PostgreSQL の running job と planned または executing effect が 0 になるまで待ち、この手順で effect pipeline を drain します。0 にならない場合は強制停止せず、原因を調べます。期限切れ lease は fencing の対象です。外部 effect の実行結果が不明な場合は、Discord 側を確認してから reconcile します。
 
-## Lease Recovery
+### Lease Recovery
 
 単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。`GUILD_ID` と `CHANNEL_ID` は対象を固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
 
@@ -286,9 +276,31 @@ done
 
 queued job は deploy 後に処理できるため、drain-to-zero の count には含めません。active count が消えない場合は強制停止や migration をせず、原因を調べます。capability は recovery 中も変更しません。unknown effect は active drain count に含めず、Discord の結果を確認して別途 reconcile します。recovery と deploy が終わり、再起動後の readiness が成功してから `system resume`、最後に mentions enable を実行します。
 
-## Production Go-Live
+## Configuration Reference
 
-production persona はリポジトリに同梱しません。運用者が独立レビューした CharacterDefinition を import、activate し、対象 channel の mention capability を有効化してから Discord reply を有効にします。
+### Discord
+
+Guilds、Guild Messages、Message Content intents を有効にします。`VICISSITUDE_GUILD_ID` は対象を単一 guild に限定し、`VICISSITUDE_ADMIN_USER_IDS` は管理者 allowlist をカンマ区切りで指定します。DM は対象外です。Gateway は singleton として動かします。
+
+### Model
+
+`config/model-routes.example.json` を `VICISSITUDE_MODEL_ROUTES_PATH` が指す場所へコピーします。provider credentials は `@earendil-works/pi-ai` の環境変数を使い、`cognition-worker` にだけ渡します。`discord-gateway` には渡しません。
+
+### Database
+
+起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証済みですが、本番backup artifactのrestoreは本番前に別途確認してください。
+
+### Health
+
+長時間プロセスは localhost の設定ポートで `GET /live` と `GET /ready` を公開します。`/live` はプロセス生存を返します。Gateway の `/ready` は DB migration preflight、system singleton と recovery、Discord login、command registration の完了を確認します。Gateway は production CharacterDefinition を確認しません。Worker の `/ready` は migration、production CharacterDefinition、model routes の起動 preflight が完了した時点で true になります。iteration が失敗すると false に戻り、次に成功した iteration で true に戻ります。`draining` と `stopped` は readiness を直接変えず、job claim を止めます。`/health` は使用しません。
+
+### Credential Boundary
+
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
+
+Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
+
+offline staging checkはdatabase role/ACLを検証しますが、実運用のcredential注入、environment isolation、process isolationは検証しません。
 
 ## Tests And Layout
 
