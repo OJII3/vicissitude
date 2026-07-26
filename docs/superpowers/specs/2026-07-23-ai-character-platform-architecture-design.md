@@ -36,7 +36,7 @@
 | 人格設計 | 具体的人格は別工程とする |
 | agent runtime | `@earendil-works/pi-agent-core` を最初のadapterにする |
 | model runtime | `@earendil-works/pi-ai` を最初のadapterにする |
-| shell | 専用非特権Unixユーザーとしてホスト上で実行する |
+| shell | Phase 4で専用workspaceと権限境界を別途設計する |
 | shell承認 | 個別承認を要求せず、Unix権限内では自動実行する |
 | リリース | 段階化する。Phase 1完了後、production CharacterDefinition登録済みならメンション応答を稼働可能にする |
 | shadow | 実装するが、初回投稿前の必須gateにはしない |
@@ -89,7 +89,7 @@ discord-gateway ----- PostgreSQL ----- cognition-worker ----- pi agent / LLM pro
   |                       |                    |
   |                       |                    v
   |                       |               shell-worker
-  v                       v               dedicated Unix user
+  v                       v               deployment isolation contract
 Discord effects       admin CLI
 ```
 
@@ -114,7 +114,7 @@ Discord effects       admin CLI
 
 #### shell-worker
 
-- 専用非特権Unixユーザーで動作する。
+- 専用workspaceと権限境界の設計に従って動作する。
 - 専用workspaceを持つ。
 - cognition-workerからの型付きrequestをlocal IPCで受け取る。
 - Discord token、LLM credential、管理DB権限を持たない。
@@ -501,7 +501,7 @@ shell invocationは開始前にeffect ledgerへ記録する。同じeffectの自
 実行時には次を適用する。
 
 - `cwd` を専用workspace配下に限定する。
-- `ProtectSystem=strict`、`ProtectHome=true`、`NoNewPrivileges=true`、`PrivateTmp=true` 相当のsystemd sandboxを適用する。
+- filesystem、process、network制約の契約を適用する。
 - 書き込みをworkspaceとartifact stagingだけに限定する。
 - application data、credential、他serviceのstate directoryをfilesystem namespaceから隠す。
 - Nixで固定したPATHだけを渡し、利用可能なcommand classをdeployment manifestで監査できるようにする。
@@ -662,11 +662,11 @@ availabilityによる睡眠・不在とsystem failureを別状態として扱う
 
 ## 17. Deployとmigration
 
-### 17.1 Nixとsystemd
+### 17.1 Nix packageと実行境界
 
-NixでNode.js、依存、build、migration CLI、systemd unitを固定する。
+NixでNode.js、依存、build、migration CLIを固定し、Gateway、cognition worker、admin CLIの3 executableを単一packageとして配布する。packageは外部の起動管理方式に依存しない。
 
-Gateway、cognition、shellには別Unix userと別credentialを与える。credentialは必要なprocessだけが読めるようにする。shell unitには12.4のfilesystem・process・network制約を適用する。
+各executableは必要な設定名、database role、credential境界をruntime contractとして定義する。起動、restart、sandbox、OS identity、secret、filesystem・process・network制約は別の運用設計で扱い、本体architectureやoffline stagingの前提にしない。Phase 1 packageは現状`vicissitude-gateway`、`vicissitude-worker`、`vicissitude-admin`の3 executableを提供し、adminはone-shot CLIである。Phase 4ではshell-worker executableを同じpackageへ追加する。
 
 ### 17.2 Update
 
@@ -800,7 +800,7 @@ sampling、予算上限、cache、途中停止を設定できるようにする�
 - admin CLI
 - feedback、adaptation、rollback
 - shadowと週次report
-- NixOS serviceとmigration運用
+- Nix packageとruntime contractによるmigration運用
 
 ## 20. 段階ロードマップ
 
@@ -868,7 +868,7 @@ Phase 1のfixtureはruntime契約を検証するための最小定義であり�
 | --- | --- | --- |
 | P-01からP-03 | 認知pipeline、CharacterDefinition、内部分析と発話生成の分離 | 2 |
 | P-04からP-06 | action enum、自律活動の非投稿目的、engagement非最適化 | 2、4 |
-| P-07 | capability、effect ledger、別process・別Unix user | 1、4 |
+| P-07 | capability、effect ledger、別process・runtime credential contract | 1、4 |
 | P-08 | canonical memory、provenance、forgetting、rebuildable index | 3 |
 | P-09、P-10 | admin CLI、feedback candidate、versioned adaptation、rollback | 4 |
 | P-11 | thinking非保存、effect追跡 | 1 |
@@ -895,7 +895,7 @@ Phase 1のfixtureはruntime契約を検証するための最小定義であり�
 | AC-01からAC-11 | awareness、conversation、memory、発話、mention、error response | 1から3 |
 | AC-12からAC-14 | memory audit・repair、runtime非依存state | 3 |
 | AC-15 | shadow | 5 |
-| NFR-01からNFR-08 | systemd、latency、cost、adapter、audit、module boundary、canonical memory、日本語専用 | 全Phase |
+| NFR-01からNFR-08 | package、latency、cost、audit、module boundary、canonical memory、日本語専用 | 全Phase |
 
 各Phaseの詳細設計では、このgroup mappingを個別要求ID、公開contract、仕様testへ展開する。
 
@@ -911,7 +911,7 @@ Phase 1のfixtureはruntime契約を検証するための最小定義であり�
 - pi sessionと検索索引を永続状態の正本にしないこと
 - provenance付きcanonical memoryと30日のraw event retention
 - channel capabilityと管理操作の権限分離
-- shell credential分離、network egress禁止、Web tool分離
+- shell credential分離、network egress禁止、Web tool分離をruntime contractへ要求する
 - 生のLLM thinkingを保存しないこと
 - 5段階の実装依存順
 
@@ -947,8 +947,10 @@ Phase 1のfixtureはruntime契約を検証するための最小定義であり�
 - Phase 1の詳細設計へ移行できる。
 ## Implementation Status
 
-- Phase 1 Task1-13: implementation complete; automated unit tests, real PostgreSQL E2E, deterministic lease-expiry/run-creation race and Gateway `system_state` singleton preflight coverage, flake, and build checks pass
-- Implementation plan: `docs/superpowers/plans/2026-07-23-phase-1-durable-spine.md`
-- Not verified: backup restore rehearsal, live Discord/provider credential deployment, and production CharacterDefinition go-live
+- Phase 1 Task1-13: implementation complete; automated unit tests, real PostgreSQL E2E, deterministic lease-expiry/run-creation race and Gateway `system_state` singleton preflight coverage pass
+- Supervisor-independent Nix package: Gateway、worker、adminの3 executable、production dependency closure、store内runtime default、rebuild再現性を確認済み
+- Offline staging: PostgreSQL 17の3 cluster backup/restore、runtime role/ACL、migration checksum、audit linkageを`checks.x86_64-linux.staging-db-rehearsal`で確認済み
+- Implementation plans: `docs/superpowers/plans/2026-07-23-phase-1-durable-spine.md`、`docs/superpowers/plans/2026-07-25-staging-validation.md`
+- Not verified: live Discord/provider、本番backup artifact、本番hostのcredential/process境界、production CharacterDefinition go-live
 - Production go-live gate: an independently reviewed production CharacterDefinition must be imported and activated before enabling Discord replies
 - Deferred behavior: conversation clustering, implicit addressee inference, memory, autonomy, and adaptation remain assigned to later phases

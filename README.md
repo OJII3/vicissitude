@@ -18,7 +18,7 @@ pnpm build
 pnpm test
 ```
 
-`.env.example` は自動ロードされません。環境変数を `export` するか、systemd の `EnvironmentFile` で明示的に渡してください。
+`.env.example` は自動ロードされません。各executableに必要な環境変数だけを、foreground起動時または外部deployment adapterから明示的に渡してください。このrepositoryはprocess managerやsecret配布方式を固定しません。
 
 ## Initial Setup
 
@@ -38,7 +38,7 @@ pnpm admin -- character import ./character-reviewed.json --actor admin-id
 pnpm admin -- character activate primary 1 --actor admin-id
 ```
 
-`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。backup restore rehearsal は未実施なので、本番利用前に実施し、復元結果を確認してください。
+`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
 
 CharacterDefinition は次の形を満たす JSON を用意します。これは placeholder であり、本番人格ではありません。
 
@@ -58,7 +58,7 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 ## Operator Environment
 
-各 operator terminal の開始時に、対象 service と同じ値をこの block で設定します。`GUILD_ID` と `CHANNEL_ID` は service から継承されないため、対象を明示してください。health port は Gateway と worker の service 設定と一致させます。
+各operator terminalの開始時に、対象executableと同じ値をこのblockで設定します。`GUILD_ID`と`CHANNEL_ID`は実行processから継承されないため、対象を明示してください。health portはGatewayとworkerの起動設定と一致させます。
 
 ```bash
 set -euo pipefail
@@ -78,7 +78,7 @@ export VICISSITUDE_WORKER_HEALTH_PORT=8081
 
 ## Go-live
 
-Gateway、worker、operator の3端末を使います。service manager を使う場合は Gateway と cognition worker を別 service として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を operator 用にします。
+Gateway、worker、operatorの3端末を使います。Gatewayとcognition workerは別processとして起動します。手動ならterminal 1でGateway、terminal 2でworkerをforeground起動し、terminal 3をoperator用にします。外部deployment adapterを使う場合も、このprocess境界を維持します。
 
 ```bash
 set -euo pipefail
@@ -88,7 +88,7 @@ set -euo pipefail
 : "${CHANNEL_ID:?run Operator Environment first}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
-# terminal 3: Gateway と worker は terminal 1、2 または service manager で起動済みとする。
+# terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
 pnpm admin -- channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
@@ -121,7 +121,7 @@ while true; do
   esac
   sleep 5
 done
-# Stop Gateway and cognition worker with the service manager used by this deployment.
+# Stop Gateway and cognition worker with the external deployment adapter used by this deployment.
 # Do not stop either process while the count is non-zero.
 # If the count does not clear because a worker crashed or a lease expired, do not stop processes or migrate.
 # Investigate first. Unknown effects are handled separately below.
@@ -134,7 +134,7 @@ pnpm admin -- migration status
 pnpm admin -- migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
 ```
 
-上の block が成功終了するまで deploy を続けません。migration 後、service manager で Gateway と cognition worker の両方を起動します。手動運用では Go-live と同じく、次の二つを別 terminal で実行します。
+上のblockが成功終了するまでdeployを続けません。migration後、外部deployment adapterまたは別terminalでGatewayとcognition workerの両方を起動します。手動運用ではGo-liveと同じく、次の二つを別terminalで実行します。
 
 ```bash
 set -euo pipefail
@@ -188,7 +188,7 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ## Database Changes
 
-起動時に migration は実行しません。直近24時間以内に作成し、`pg_restore --list` で確認した backup または snapshot の完了時刻を `BACKUP_CONFIRMED_AT` に渡します。`audit_entries` と適用済み migration version を確認します。復元 rehearsal は未実施のため、本番前に必ず実施してください。
+起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証済みですが、本番backup artifactのrestoreは本番前に別途確認してください。
 
 ## Health
 
@@ -196,7 +196,11 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ## Credential Boundary
 
-サービスごとに別の systemd `EnvironmentFile` を使い、共有ファイルは作りません。Gateway の allowlist は `DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL` です。Gateway に `OPENAI_API_KEY` や他の provider credential は渡しません。Worker の allowlist は `DATABASE_URL`、`OPENAI_API_KEY`、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL` です。Worker に `DISCORD_TOKEN` は渡しません。別 provider を使う場合は、model routes に設定した provider が pi-ai で指定する環境変数だけを worker に渡します。message content、prompt、response、token、connection string、provider の raw error はログに出しません。
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
+
+Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
+
+offline staging checkはdatabase role/ACLを検証しますが、実運用のcredential注入、environment isolation、process isolationは検証しません。
 
 ## Effect Recovery
 
@@ -233,7 +237,7 @@ case "$violations" in
     ;;
 esac
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$GUILD_ID" -v channel_id="$CHANNEL_ID" -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
-# 同じ build の cognition worker を再起動する。service manager または別 terminal を使う。
+# 同じbuildのcognition workerを外部deployment adapterまたは別terminalで再起動する。
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND leased_until > clock_timestamp();")" || {
     printf '%s\n' "failed to query lease expiry" >&2
@@ -288,4 +292,4 @@ production persona はリポジトリに同梱しません。運用者が独立�
 
 ## Tests And Layout
 
-CI は format、lint、型検査、unit、実 PostgreSQL の `spec`、build を実行します。外部 credential と provider network は不要です。主要ディレクトリは `src/apps`、`src/modules`、`src/adapters`、`migrations`、`spec`、`config` です。
+CIはformat、lint、型検査、unit、実PostgreSQLの`spec`、buildに加え、Nix packageと`staging-db-rehearsal`を実行します。外部credentialとprovider networkは不要です。主要ディレクトリは`src/apps`、`src/modules`、`src/adapters`、`migrations`、`spec`、`config`、`nix`です。

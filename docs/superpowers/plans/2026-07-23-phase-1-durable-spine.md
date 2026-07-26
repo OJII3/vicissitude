@@ -7281,7 +7281,7 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`)
   });
 ```
 
-Do not place pi/provider credentials in the Gateway process environment. In the systemd deployment, provide only `DISCORD_TOKEN` and database credentials to this process.
+Do not place pi/provider credentials in the Gateway process environment. The external deployment adapter must provide only `DISCORD_TOKEN` and the Gateway database credential to this process.
 
 `src/apps/discord-gateway.test.ts`:
 
@@ -7679,7 +7679,7 @@ pnpm build
 pnpm test
 ```
 
-`.env.example` は自動ロードされません。環境変数を `export` するか、systemd の `EnvironmentFile` で明示的に渡してください。
+`.env.example`は自動ロードされません。環境変数をforeground起動時または外部deployment adapterから明示的に渡してください。
 
 ## Initial Setup
 
@@ -7699,7 +7699,7 @@ pnpm admin -- character import ./character-reviewed.json --actor admin-id
 pnpm admin -- character activate primary 1 --actor admin-id
 ```
 
-`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。backup restore rehearsal は未実施なので、本番利用前に実施し、復元結果を確認してください。
+`BACKUP_CONFIRMED_AT`は`pg_restore --list`が成功したbackup fileのmtimeを指定します。snapshotを使う場合は、providerが記録したsnapshot完了時刻をoperatorが`export BACKUP_CONFIRMED_AT=...`で設定してください。現在時刻をそのまま指定しないでください。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証しますが、本番backup artifact自体のrestoreは本番前に別途確認してください。
 
 CharacterDefinition は次の形を満たす JSON を用意します。これは placeholder であり、本番人格ではありません。
 
@@ -7849,7 +7849,7 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ## Database Changes
 
-起動時に migration は実行しません。直近24時間以内に作成し、`pg_restore --list` で確認した backup または snapshot の完了時刻を `BACKUP_CONFIRMED_AT` に渡します。`audit_entries` と適用済み migration version を確認します。復元 rehearsal は未実施のため、本番前に必ず実施してください。
+起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalの成功とは別に、本番backup artifactのrestoreを本番前に確認してください。
 
 ## Health
 
@@ -7857,7 +7857,7 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ## Credential Boundary
 
-サービスごとに別の systemd `EnvironmentFile` を使い、共有ファイルは作りません。Gateway の allowlist は `DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL` です。Gateway に `OPENAI_API_KEY` や他の provider credential は渡しません。Worker の allowlist は `DATABASE_URL`、`OPENAI_API_KEY`、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL` です。Worker に `DISCORD_TOKEN` は渡しません。別 provider を使う場合は、model routes に設定した provider が pi-ai で指定する環境変数だけを worker に渡します。message content、prompt、response、token、connection string、provider の raw error はログに出しません。
+Nix packageはprocess managerやsecret配布方式を固定しません。外部deployment adapterはprocessごとに別のcredential setを使い、共有setを作りません。Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`を渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
 
 ## Effect Recovery
 

@@ -49,3 +49,14 @@ jobs:
       - run: pnpm test:unit
       - run: pnpm exec vitest run spec
       - run: pnpm build
+
+  staging-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - run: nix build .#default
+      - run: nix build .#checks.x86_64-linux.staging-db-rehearsal
