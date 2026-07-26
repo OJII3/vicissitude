@@ -40,14 +40,17 @@
             vicissitude-gateway = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-gateway";
+              meta.description = "Run the Vicissitude Discord gateway";
             };
             vicissitude-worker = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-worker";
+              meta.description = "Run the Vicissitude cognition worker";
             };
             vicissitude-admin = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-admin";
+              meta.description = "Run the Vicissitude administration CLI";
             };
           };
         };
