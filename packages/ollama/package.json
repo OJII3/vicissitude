@@ -1,8 +1,0 @@
-{
-	"name": "@vicissitude/ollama",
-	"private": true,
-	"exports": {
-		".": "./src/ollama-embedding-adapter.ts",
-		"./ollama-chat-adapter": "./src/ollama-chat-adapter.ts"
-	}
-}

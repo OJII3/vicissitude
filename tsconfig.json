@@ -1,14 +1,15 @@
 {
-	"extends": "./tsconfig.base.json",
-	"compilerOptions": {
-		"jsx": "react-jsx",
-		"allowJs": true,
-		"paths": {
-			"fenghuang": ["./node_modules/fenghuang/src/index.ts"]
-		},
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false
-	},
-	"exclude": ["data/shell-workspaces"]
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*.ts", "spec/**/*.ts", "vitest.config.ts"]
 }

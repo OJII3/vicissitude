@@ -1,260 +1,295 @@
-# Vicissitude
+# Vicissitude Phase 1
 
-AIキャラクター「ふあ」
+Phase 1 は、Discord の明示的な mention を PostgreSQL を唯一の真実として受信、判定、効果実行する durable spine です。Gateway、cognition worker、effect worker の境界と lease、deduplication、audit、redaction を含みます。会話クラスタリング、暗黙の宛先推定、memory、autonomy、adaptation は後続フェーズです。
 
-TypeScript + Bun で動作し、OpenCode を推論エンジンとして使用する。
+## Prerequisites
 
-## デプロイ
+Node.js 24、pnpm 11.16、Nix、PostgreSQL 17 が必要です。開発用の全体セットアップとビルド、テストは次のとおりです。
 
-bare deploy で運用する。詳細は `docs/bare-deploy.md` を正本とする。Nix flake で runtime を固定し、`nix run .#vicissitude-start` / `stop` / `status` / `restart` で 1 インスタンス運用し、foreground 調査時だけ `nix run .#vicissitude` を使う。
+```bash
+nix develop
+```
 
-`nr deploy` は依存インストール・Web UI ビルド・インスタンス再起動を一括で行う。
+上のコマンドで開発 shell に入り、以降のコマンドはその shell で実行します。
 
-## コンセプト
+```bash
+pnpm install
+pnpm build
+pnpm test
+```
 
-そこで生きているかような自然な存在、AITuber もどきを作る。ただし、特段バーチャルにこだわらない。当面はDiscordが本拠地。
+`.env.example` は自動ロードされません。各executableに必要な環境変数だけを、foreground起動時または外部deployment adapterから明示的に渡してください。このrepositoryはprocess managerやsecret配布方式を固定しません。
 
-## 1. 目的
+## Initial Setup
 
-最重要目標は次の 3 点の両立
+```bash
+set -euo pipefail
+pnpm install
+pnpm build
+export DATABASE_URL=postgresql://user:password@host:5432/database
+export VICISSITUDE_MIGRATIONS_DIR=migrations
+export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
+pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
+pg_restore --list "$BACKUP_PATH" >/dev/null
+export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
+pnpm admin -- migration status
+pnpm admin -- migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+pnpm admin -- character import ./character-reviewed.json --actor admin-id
+pnpm admin -- character activate primary 1 --actor admin-id
+```
 
-1. 自然に雑談できる。感情を持ち、怒ったり喜んだり、空気を読んで無視したりできる。
-2. チャットコミュニケーションを保ちながら、チャット外で自立行動できる(e.g. Minecraftをプレイ)。
-3. 情報過多でエージェントがパンクしない。マルチエージェントやツールを駆使して、コンテキストやタスクを適切に分割・管理する。
+`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
 
-## 2. 対象ユーザー
-
-- 開発者本人
-- 開発者の身内コミュニティ
-
-## 3. プロダクト要件
-
-### 3.1 会話
-
-- メッセージ駆動プロンプト方式で、AI が自律的に応答を判断・送信する。
-- 感情表現・空気読み・無視の判断ができる。
-- マルチモーダル対応（画像認識・画像送信）。
-- Bot 自身のメッセージには反応しない。他 Bot のメッセージには応答要否を AI が判断する。
-
-### 3.2 自律行動
-
-- チャットと並行して外部環境（Minecraft 等）で自律行動する。
-- 外部環境の状態は要約して AI に渡す（コンテキスト過負荷防止）。生データ（座標列、視界詳細等）は直接投入しない。
-- 意思決定はイベント駆動を基本とし、危険時は即応を優先する。
-- 低レベル操作は専用ライブラリに委譲し、AI は高レベル判断に集中する。
-- heartbeat scheduler は定期 tick で due リマインダーを評価し、実行前に preFilter を通す。preFilter は実行する reminder 群を返すと同時に、実行はしないが「実行済み」として interval を尊重させたい reminder id 群（`markExecutedIds`）を返せる。
-- `email-check` heartbeat（`features.emailCheck` 設定時に有効）は due になると Google Apps Script (GAS) エンドポイントへ問い合わせて新着メールを確認する。新着があればメール要約を reminder の context として AI へ渡す。新着が無い場合や GAS 取得に失敗した場合は、AI を起動せず `email-check` を `markExecutedIds` で実行済み扱いにし、interval（既定 5 分）が経過するまで毎 tick のポーリングを防ぐ。
-- GAS から渡されるメール本文抜粋は 200 文字でトランケートし、メール要約全体を `<email_context>...</email_context>` デリミタで囲んでプロンプトインジェクションを抑止する。
-
-### 3.3 エージェントアーキテクチャ
-
-- OpenCode SDK で推論。
-- メッセージ駆動プロンプト方式。メッセージ受信時にデバウンスで蓄積し、`promptAsyncAndWatchSession()` でプロンプトを送信する。
-  - **デバウンス**: 最後のメッセージ到着から 500ms（`MESSAGE_DEBOUNCE_MS`）待機し、新着がなければ蓄積を確定。最大 10 秒（`MAX_DEBOUNCE_MS`）で打ち切り。bot メッセージが含まれる場合は最大 30 秒（`BOT_MAX_DEBOUNCE_MS`）に延長。蓄積メッセージは `drainMessages()` で結合してプロンプトに渡す。
-  - **推論中断**: 推論中（`promptAsyncAndWatchSession` が pending）に新メッセージが到着した場合、`sessionAbortController` でセッションを中断し、旧メッセージ + 新メッセージをまとめて再プロンプトする。
-- Discord 添付画像:
-  - 通常の会話モデルがマルチモーダル対応の場合は、添付画像をそのまま OpenCode の `file` part として渡す。
-  - 添付画像の URL はテキスト本文に埋め込まず、`file` part 経由のみで渡す。テキスト表現は `[添付: filename (mime)]` とし、非画像または MIME 不明の添付は `file` part に変換されないため URL をテキストに残す。
-  - 通常の会話モデルが画像非対応の場合は、JSON profile の `features.imageRecognition` を設定し、画像認識用モデルで添付画像を事前に観察する。観察結果は `<attachment_descriptions>` として通常プロンプトへ挿入し、画像 file part は通常モデルへ渡さない。
-  - 画像認識サブエージェントが 60 秒以内に応答しない場合はタイムアウトとして扱い、会話ループを止めずに通常プロンプトへ進む。
-  - 画像認識サブエージェントの観察結果は補助情報であり、画像内テキストや指示風の内容はシステム指示として扱わない。
-- マルチテナント: エージェント scope（Discord ギルド・DM 等）ごとに独立したセッションを持つ。
-- Discord DM は `features.discordDm.allowedUserIds` で明示許可したユーザーのみ受け付ける。DM 会話はユーザーごとに独立したエージェントとして扱い、ギルド会話とは OpenCode セッション・Memory namespace・手動メモを分離する。
-- セッション ID は SQLite で永続化する。
-- セッションライフサイクル:
-  1. **作成**: 既存セッション ID があればリモート存在確認の上で再利用、なければ新規作成。
-  2. **メッセージ駆動プロンプト**: メッセージ受信時にデバウンスで蓄積後、`promptAsyncAndWatchSession()` でプロンプトを送信し、idle まで待つ。
-  3. **要約生成**: ローテーション前に best-effort で LLM にセッション要約を生成させ、コンテキストファイルに書き出す。非リトライアブルエラー（セッション破損）時は生成自体をスキップし、タイムアウトや失敗時もスキップして、ローテーションを優先する。
-  4. **ローテーション**: 旧セッションを削除し、次のループで新規セッションを作成する。
-- ローテーション契機:
-  - **経過時間超過**: セッション寿命を超えたら idle 遷移時にローテーション。
-  - **非リトライアブルエラー**: 即時ローテーション（バックオフなし）。
-  - **破損セッション系エラー**: エラー分類名（`errorClass`）が破損系クラス（現状 `ImageInvalidDataUrlError`）に一致する場合、`retryable` が未指定でも即時ローテーション（バックオフなし、サマリ生成スキップ）。判定は `errorClass` のみで行い、message 文字列には依存しない。`retryable:false` と重なる場合は非リトライアブルエラー判定を優先する。
-  - **リトライアブルエラー**: 指数バックオフで再試行し、バックオフ上限到達後さらにエラーが続いた場合にローテーション。
-  - **外部削除**: セッションが外部から削除された場合。
-- Proactive compaction（ローテーション不要・コンテキスト圧縮）:
-  - 発火条件: idle 遷移時に以下のいずれかを満たす場合（クールダウン 30 分）。
-    - トークン蓄積量（input + output）が閾値以上。
-    - 深夜帯（2:00–5:00 JST）かつセッション経過がセッション寿命の半分以上かつトークン蓄積が閾値の半分以上。
-  - 明示的に `summarizeSession` を呼ぶ経路では、API の正常終了を compaction 完了として扱う。OpenCode は `session.compacted` / `session.idle` を HTTP 応答前に発火しうるため、応答後に rewatch してそれらのイベントを待たない。
-  - compaction 成功後はセッションを維持し、次回プロンプトで system prompt を再注入する。
-  - 失敗時はスキップし、通常のメッセージ待機ループを継続する。
-- リカバリ（ローテーション不要）: 監視中イベントストリームから受け取った compacted / streamDisconnected はセッション存続中のため、イベントストリームの再購読のみ行う。
-
-### 3.4 ツール構成
-
-MCP サーバー経由で各種操作を提供する。OpenCode は MCP ツールに `{サーバー名}_{ツール名}` のプレフィックスを付けるため、実際の呼び出し名は下表の通り。
-
-| カテゴリ     | MCP サーバー | 主要ツール                                                                                                                                                        |
-| ------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| チャット     | discord      | discord_send_message, discord_reply, discord_add_reaction, discord_read_messages, discord_list_channels                                                           |
-| スケジュール | core         | core_list_reminders, core_add_reminder, core_update_reminder, core_remove_reminder                                                                                |
-| 記憶         | core         | core_memory_retrieve, core_memory_get_facts                                                                                                                       |
-| ゲーム委譲   | discord      | discord_minecraft_delegate, discord_minecraft_status, discord_minecraft_start_session, discord_minecraft_stop_session                                             |
-| ゲーム操作   | minecraft    | minecraft_observe_state, minecraft_follow_player, minecraft_go_to, minecraft_collect_block, minecraft_attack_entity, minecraft_craft_item 等                      |
-| ゲーム通信   | mc-bridge    | mc-bridge_mc_report, mc-bridge_check_commands                                                                                                                     |
-| ゲーム記憶   | mc-bridge    | mc-bridge_mc_read_goals, mc-bridge_mc_update_goals, mc-bridge_mc_read_progress, mc-bridge_mc_update_progress, mc-bridge_mc_read_skills, mc-bridge_mc_record_skill |
-| メタ         | core         | core_list_tools                                                                                                                                                   |
-
-OpenCode SDK 組み込み: `webfetch`
-
-OpenCode agent ごとに MCP tool permission を分ける。Discord 会話 primary agent は Discord 送信、返信、添付、リアクション、Core 記憶・リマインダー、必要な Minecraft 委譲を担当する。`shell-worker` subagent は OpenCode builtin `bash` / Read / Write で作業し、`*_*` / `discord_*` / `core_*` / `minecraft_*` / `mc-bridge_*` などの MCP tool wildcard は agent permission で `deny` する。shell-worker は bot プロセス環境（実マシン）で組み込み `bash` を固定ディレクトリ上で動かし、コンテナ隔離は無い。`shell-worker` が生成した本文やファイルを Discord に出す場合も、`shell-worker` は送信せず、primary agent が Discord ツールを呼ぶ。
-
-### 3.4.1 Agent Skills
-
-OpenCode Agent Skills は runtime 用の `context/skills/{agent}/*/SKILL.md` を discovery 対象にする。`.agents/skills` はこのリポジトリを開発する Codex 用 skill 置き場であり、bot runtime には渡さない。各セッションでは `permission.skill` を既定で `{"*":"deny"}` にし、必要な agent だけ個別に許可する。
-
-- `features.minecraft` 設定時は Discord 会話 primary と heartbeat で `minecraft` skill を許可する。Minecraft ツール説明は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
-- shell workspace 有効時は Discord 会話 primary に `delegate-to-shell-worker` / `self-update` skill を許可し、`shell-worker` subagent には `debug` / `skill-creator` skill を許可する。Shell workspace 委譲手順は system context へ常時注入せず、OpenCode skill として必要時に読み込ませる。
-- `self-update` skill はスキル追加のオーケストレーション。ユーザーの明示依頼（「これスキルにして」）または曖昧発話（「こういう機能欲しくない?」）で発火し、`shell-worker` に委譲して SKILL.md 生成 → PR 作成まで自走する。自動マージはガードレール（diff が `context/skills/**` のみ・非破壊的追加/編集・CI green）を全て満たすときだけ行い、外れたら人間レビュー待ちで停止する。primary は `bash` / `gh` / `git` を直接叩かず、すべて `shell-worker` に委ねる。`README.md` 本体やコードを含む変更は自動マージ対象外（人間レビュー扱い）。
-- shell workspace と `features.minecraft` の併用時は、primary `build` agent に `delegate-to-shell-worker` / `self-update` / `minecraft` skill だけを許可し、`shell-worker` の許可 skill とは分離する。
-- Discord 会話 / heartbeat session の `skills.paths` は `context/skills/discord` を指す。shell workspace 有効時だけ同じ session に `context/skills/shell-worker` も追加し、`shell-worker` subagent 用 skill を discovery できるようにする。Minecraft brain session は `context/skills/minecraft` を指し、`minecraft-agent-playbook` skill だけを許可する。Web、画像認識、emotion、memory 補助セッションは OpenCode Skills を全拒否し、runtime skill path も渡さない。
-- `skill-creator` は OpenAI Skills の `skills/.system/skill-creator` を、開発用は `.agents/skills/skill-creator`、runtime shell-worker 用は `context/skills/shell-worker/skill-creator` に vendoring する。
-- Minecraft の `mc_read_skills` / `mc_record_skill` は Minecraft MCP のワールド記憶であり、OpenCode Agent Skills とは別系統として扱う。
-
-### 3.5 コンテキスト管理
-
-- オーバーレイ方式: `context/`（git 管理・ベース）と `data/context/`（gitignore・オーバーレイ）の二層構成。読み込みは `data/context/` → `context/` のフォールバック、書き込みは常に `data/context/`。
-- `data/context/runtime.json` は local-only の運用オーバーレイ。現在は `discordDm.allowedUserIds` をここから上書きできる。
-- 静的ファイル: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md`
-- capability 連動ツール説明: Shell workspace は `context/skills/discord/delegate-to-shell-worker/SKILL.md`、スキル追加オーケストレーションは `context/skills/discord/self-update/SKILL.md`、Discord 側 Minecraft 委譲は `context/skills/discord/minecraft/SKILL.md`、Minecraft brain の運用手順は `context/skills/minecraft/minecraft-agent-playbook/SKILL.md` として管理し、該当 session で必要な skill だけを許可する。
-- 毎ターンの自己認識補助: Discord 会話プロンプトの先頭に `あなたは{name}です。` を注入する。`VICISSITUDE_IDENTITY_NAME` を優先し、未設定時は `data/context/IDENTITY.md` → `context/IDENTITY.md` の順に `name:` / `full_name:` から抽出する。
-- Memory ファクト注入: 起動時に長期記憶から蓄積済みファクトをシステムプロンプトに注入。
-- サイズ制約: ファイル毎最大 20,000 文字、合計最大 150,000 文字。
-
-### 3.6 マルチテナント分離
-
-- 人格共通: `IDENTITY.md`, `SOUL.md`, `DISCORD.md`, `HEARTBEAT.md`, `TOOLS-DISCORD.md`, `TOOLS-CORE.md` は全テナントで共有。Shell workspace と Minecraft のツール説明は OpenCode skill として profile feature に連動して許可する。
-- 記憶分離: `MEMORY.md`, `LESSONS.md` はテナントごとに分離（オーバーレイ方式）。
-- Memory 分離: `MemoryNamespace` により namespace 単位で独立した DB を持つ。
-  - `agent-scope`: エージェントの実行・記憶 scope ごとの記憶。Discord guild では `discord:guild:{guildId}`、Discord DM では `discord:dm:{userId}` を使う。DB パス: `scopes/{encodedScopeId}/memory.db`
-  - `internal`: ふあ本人の内部記憶（ギルドに属さない自己の気づき等）。DB パス: `internal/memory.db`
-- テナント間で会話内容・メンバー情報・教訓が漏洩しない。許可済み DM ユーザー同士も別 scope として扱い、互いの会話・記憶を共有しない。
-
-### 3.7 記憶システム
-
-ファイルベースメモリと Memory パッケージを併用し、情報の種類に応じて担当を分離する。
-
-#### Memory パッケージ (`packages/memory`)
-
-会話から自動的に記憶を構築・検索するシステム。以下の 5 コンポーネントで構成される。
-
-| コンポーネント        | 役割                                                                |
-| --------------------- | ------------------------------------------------------------------- |
-| Segmenter             | メッセージ列をエピソード単位に分割                                  |
-| EpisodicMemory        | エピソード（会話の要約・メッセージ群）を保存。FSRS で復習管理       |
-| ConsolidationPipeline | 未統合エピソードから SemanticFact を抽出（Predict-Calibrate-Learn） |
-| SemanticMemory        | 意味記憶（ファクト）の保存・検索・無効化                            |
-| Retrieval             | テキスト + ベクトル + FSRS のハイブリッド検索（RRF でマージ）       |
-
-CriticAuditor は直近 90 分の Bot 応答を監査し、キャラクタードリフトを検出する。監査を実行しなかった場合も silent stop と区別できるよう、スキップ理由（`no_bot_id` / `no_messages` / `low_drift`）を返し、`critic_auditor_skip_total{reason=...}` で観測できるようにする。`no_bot_id` / `no_messages` は警告ログにも出力する。
-
-キャラクター一貫性の経路は責務を分ける。
-
-- `character-reinforce` heartbeat: ふあ本人の自己点検・再アンカー。`SOUL.md` と既存 guideline を読み、必要なければ何もしない。新しい guideline を直接増やす主体ではない。
-- `CriticAuditor`: 外部監査。minor drift の guideline 候補は、保存前に既存 guideline と `SOUL.md` との整合性解決を通す。重複・矛盾する候補は破棄し、既存 guideline をより正確に置換する場合のみ対象を無効化してから保存する。
-
-guideline の優先順位は `SOUL.md` / 静的コンテキスト → 人間が明示した guideline → review 済み guideline → `CriticAuditor` の audit-candidate とする。低優先度の guideline は高優先度の人格定義を上書きしてはいけない。
-
-#### ストレージ (`packages/store`)
-
-| コンポーネント     | 役割                                                                                                                        |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| SqliteSessionStore | OpenCode セッション ID の永続化。agent は `SessionStorePort` として受け取り、SQLite / StoreDb の詳細は store 側に閉じ込める |
-| SqliteMoodStore    | 感情状態（VAD）の一時保存（TTL 15 分）                                                                                      |
-
-#### 情報の種類と担当
-
-| 情報の種類                         | 担当                | 備考                         |
-| ---------------------------------- | ------------------- | ---------------------------- |
-| ユーザー情報（名前、特徴、関係性） | Memory SemanticFact | 会話から自動抽出             |
-| メンバーの性格・好み               | Memory SemanticFact | 会話から自動抽出             |
-| 会話内容の要約                     | Memory Episodes     | 会話から自動生成             |
-| 個別の行動ガイドライン             | Memory guideline    | 会話から自動抽出。状況固有   |
-| 会話中の自省・気づき               | Memory Episodes     | consolidation で抽出         |
-| チャンネル設定メモ                 | MEMORY.md           | 運用固有、自動抽出不適       |
-| 行動ルール                         | MEMORY.md           | AI の自己指示、構造化が必要  |
-| 週次目標・運用メモ                 | MEMORY.md           | 時限的、手動管理が適切       |
-| 運用ルール                         | MEMORY.md           | 開発者が設定する行動指示     |
-| 精選教訓（原則）                   | LESSONS.md          | 複数経験から一般化。手動管理 |
-
-### 3.8 エラー応答
-
-- AI 呼び出し失敗時は、エラーメッセージを reply で返す。
-- 失敗内容はログに記録する。
-
-### 3.9 オブザーバビリティ
-
-AI エージェントとチャットボットのメトリクスは、複数 scope と複数種類のエージェントを同じダッシュボード上で比較・分解できるようにする。
-
-- Discord 受信メッセージは `discord_messages_received_total` で記録する。ラベルは `guild_id`, `channel_type`, `author_type`, `is_thread`, `has_attachments` とし、ギルド別、ホーム/メンション/DM 別、人間/Bot 別に分解できるようにする。
-- LLM 実行メトリクス（`ai_requests_total`, `ai_request_duration_seconds`, `llm_*_tokens_total`, `llm_cost_dollars_total`, `llm_busy_sessions`）は、実際に OpenCode セッションへ prompt を送ってから idle/error/cancelled/deleted の終端イベントを受け取るまでを対象にする。エージェントへの enqueue 成否やラッパー呼び出し時間を AI request として扱わない。
-- LLM 実行メトリクスには共通ラベル `agent_kind`, `agent_id`, `scope_id`, `trigger`, `provider`, `model` を付与する。
-  - `agent_kind`: `discord`, `discord_heartbeat`, `minecraft` などのエージェント種別。
-  - `agent_id`: `discord:{guildId}`, `discord:dm:{userId}`, `discord:heartbeat:{guildId}`, `minecraft:brain` などの実行主体。
-  - `scope_id`: エージェントの実行・記憶 scope。Discord guild では `discord:guild:{guildId}`、Discord DM では `discord:dm:{userId}`、scope に属さない実行は `none`、グローバル heartbeat は `_autonomous`。
-  - `trigger`: `home`, `mention`, `dm`, `heartbeat`, `minecraft`, `mixed`, `unknown`。
-  - `provider`, `model`: 使用した LLM provider/model。
-- セッション信頼性メトリクス（`session_errors_total`, `session_retries_total`, `session_restarts_total`）にも同じ共通ラベルを付与し、どの scope・エージェント種別・モデルで問題が起きているかを切り分けられるようにする。
-- 感情推定は会話本体とは別の補助推論として扱い、失敗しても会話送信を止めない。失敗時は `emotion_estimation_errors_total` に `provider`, `model`, `error_type`, `http_status`, `retryable`, `error_class`, `retry_after`, `reason` を付けて記録し、warn ログにも provider/model/status/retry-after/reason を出力する。429 かつ長期 `retry-after` の場合は provider/model 単位でクールダウンし、共有 store に保存して MCP プロセス境界をまたいだ再投入を抑制する。抑制時は `emotion_estimation_skips_total{reason="provider_cooldown"}` として記録する。
-- `llm_busy_sessions` は enqueue 中ではなく、実際に LLM prompt が処理中の間だけ増減する。
-- アプリケーションログは journald へ出力し、ログ収集基盤へ転送する。本番環境ではホスト側のログコレクタが journald ログを `job=vicissitude` として収集する。メトリクスと同じダッシュボード内の Logs セクションで、ログ量と warn/error ログを確認できるようにする。
-
-### 3.10 Web UI
-
-`apps/web` はローカルのアバター表示・チャット操作 UI とし、React + Vite で構築する。
-
-- ルーティングは TanStack Router の file-based routing を使い、`apps/web/src/routes/` を正本にする。
-- `apps/web/src/routeTree.gen.ts` は生成物として扱い、手編集せず `generate:routes` で更新する。
-- Vite plugin は TanStack Router plugin を React plugin より前に配置し、ルート生成とコード分割を bundler 側で扱う。
-- 3D 表示は React Three Fiber / drei / three-vrm を使い、VRM モデルの読み込みと表情反映を Web UI 内に閉じ込める。
-- Web アバターの既定 idle モーションは Project AIRI の `idle_loop.vrma` をローカル配信し、VRM 読み込み後にループ再生する。
-- チャット UI は VRM 表示の上に重ねる透明オーバーレイとし、背景を遮らない半透明のヘッダー・吹き出し・入力欄で構成する。
-- 本番 deploy では bare deploy 環境で Web UI を静的配信する。Web UI はブラウザから同一ホストの gateway WebSocket (`4001`) に接続する。
-- Web チャットは gateway の `chat_input` を Web 専用 LLM agent に渡して応答する。入力文を gateway 内でエコーするダミー応答は使わない。
-- Web チャット入力は gateway で最大 4,000 文字、接続ごとに同時 1 応答、1 秒 1 件までに制限し、Web LLM prompt は 120 秒でタイムアウトさせる。
-- Web 専用 LLM agent は Discord 会話 agent と同じ `IDENTITY.md` / `SOUL.md` 由来の人格を使う。ただし Discord 送信ツールや Discord 固有の行動コンテキストは持たず、最終テキストをそのまま Web UI の `chat_message` として返す。
-- Web 会話の実行主体と記憶 scope は `web:local` とし、Discord guild scope とは OpenCode セッション、`SessionStore` キー、Memory namespace を分離する。Web 用の手動メモは `data/context/scopes/web%3Alocal/` に置く。
-
-## 4. 非機能要件
-
-- 実行環境はローカル常駐（Bun ランタイム）。
-- 秘密情報（トークンなど）はログに平文出力しない。
-
-## 5. 設定要件
-
-設定の正本は `config/*.json` の JSON profile とし、起動時に `VICISSITUDE_CONFIG_PATH` で指定する。モデル、ポート、feature 有効化、Minecraft、TTS などの非 secret 設定は profile に書く。
-
-`.env` は secret と profile path だけに薄く保つ。
-
-- `VICISSITUDE_CONFIG_PATH`: 必須。例: `config/default.json`
-- `DISCORD_TOKEN`: 必須
-- `GITHUB_TOKEN`, `GITHUB_OWNER`, `GITHUB_REPO`: `features.githubIssues` 設定時に必須
-- `GAS_EMAIL_ENDPOINT`, `GAS_EMAIL_TOKEN`: `features.emailCheck` 設定時に必須。`email-check` heartbeat が問い合わせる GAS エンドポイントとアクセストークン
-- `HUA_GITHUB_TOKEN`: `features.shellAgent.environment` など profile の `fromEnv` 参照で指定した場合に必須
-
-`features.shellAgent.backgroundSubagents: true` を設定すると、OpenCode の `task(background=true)` / `task_status` を有効化するために `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS=true` を OpenCode server process へ渡す。
-background shell task が `state:error` を返した場合、または `state:completed` でも `<task_result>` が空の場合は shell-worker の失敗として扱う。会話 agent はその turn を中断できる場合は中断し、内部メッセージとして失敗を再プロンプトして、Discord へ成功・開始済みとして誤報告しない。
-
-`features.discordDm.allowedUserIds` を設定すると、指定した Discord user ID からの DM に応答する。未設定の場合、DM は無視する。
+CharacterDefinition は次の形を満たす JSON を用意します。これは placeholder であり、本番人格ではありません。
 
 ```json
 {
-	"features": {
-		"discordDm": {
-			"allowedUserIds": ["123456789012345678"]
-		}
-	}
+  "schemaVersion": 1,
+  "characterId": "primary",
+  "version": 1,
+  "name": "レビュー済みキャラクター",
+  "language": "ja",
+  "systemPrompt": "レビュー済みの system prompt",
+  "failureMessages": ["今ちょっとうまく考えられない。"]
 }
 ```
 
-## 6. 受け入れ条件
+独立レビューで placeholder を本番定義に置き換え、その reviewed file を import、activate してから運用します。
 
-1. Bot メンションで AI 応答が返る。
-2. Bot 自身のメッセージには反応しない。
-3. セッション管理が永続化され、再起動後も継続できる。
-4. ブートストラップコンテキストが毎回 system prompt として注入される。
-5. MCP サーバー経由で Discord 操作が可能。`features.shellAgent` を持つ profile では shell-worker への委譲による shell 操作も可能。
-6. AI がメッセージ駆動プロンプトにより、自律的に応答を判断・送信する。
-7. `minecraft` MCP サーバー経由で、接続・状態取得・追従/移動・基本採集の最小フローが動作する。
-8. AI が Minecraft 状況を簡潔に要約して Discord 上で説明できる。
+## Operator Environment
+
+各operator terminalの開始時に、対象executableと同じ値をこのblockで設定します。`GUILD_ID`と`CHANNEL_ID`は実行processから継承されないため、対象を明示してください。health portはGatewayとworkerの起動設定と一致させます。
+
+```bash
+set -euo pipefail
+export DATABASE_URL=postgresql://user:password@host:5432/database
+export GUILD_ID=guild-id
+export CHANNEL_ID=channel-id
+export VICISSITUDE_GATEWAY_HEALTH_PORT=8080
+export VICISSITUDE_WORKER_HEALTH_PORT=8081
+: "${DATABASE_URL:?replace DATABASE_URL}"
+: "${GUILD_ID:?replace GUILD_ID}"
+: "${CHANNEL_ID:?replace CHANNEL_ID}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?replace gateway health port}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?replace worker health port}"
+```
+
+値は実際の service 設定に置き換え、各 terminal で実行します。
+
+## Go-live
+
+Gateway、worker、operatorの3端末を使います。Gatewayとcognition workerは別processとして起動します。手動ならterminal 1でGateway、terminal 2でworkerをforeground起動し、terminal 3をoperator用にします。外部deployment adapterを使う場合も、このprocess境界を維持します。
+
+```bash
+set -euo pipefail
+# Operator Environment をこの terminal で設定済みであることを確認する。
+: "${DATABASE_URL:?run Operator Environment first}"
+: "${GUILD_ID:?run Operator Environment first}"
+: "${CHANNEL_ID:?run Operator Environment first}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
+# terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
+curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
+curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
+pnpm admin -- channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+```
+
+両方の readiness check が成功しなければ channel capability を有効にしません。独立レビュー済みの production CharacterDefinition を import、activate する前に mention capability を有効にしないでください。
+
+## Daily Operations
+
+```bash
+set -euo pipefail
+# Operator Environment をこの terminal で設定済みであることを確認する。
+: "${DATABASE_URL:?run Operator Environment first}"
+: "${GUILD_ID:?run Operator Environment first}"
+: "${CHANNEL_ID:?run Operator Environment first}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
+pnpm admin -- system drain --actor admin-id --reason "deploy"
+while true; do
+  active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
+    printf '%s\n' "failed to query active leases" >&2
+    exit 1
+  }
+  case "$active" in
+    0) break ;;
+    ''|*[!0-9]*)
+      printf 'invalid active lease count: %s\n' "$active" >&2
+      exit 1
+      ;;
+  esac
+  sleep 5
+done
+# Stop Gateway and cognition worker with the external deployment adapter used by this deployment.
+# Do not stop either process while the count is non-zero.
+# If the count does not clear because a worker crashed or a lease expired, do not stop processes or migrate.
+# Investigate first. Unknown effects are handled separately below.
+pnpm build
+export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
+pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
+pg_restore --list "$BACKUP_PATH" >/dev/null
+export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
+pnpm admin -- migration status
+pnpm admin -- migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+```
+
+上のblockが成功終了するまでdeployを続けません。migration後、外部deployment adapterまたは別terminalでGatewayとcognition workerの両方を起動します。手動運用ではGo-liveと同じく、次の二つを別terminalで実行します。
+
+```bash
+set -euo pipefail
+pnpm start:gateway
+```
+
+terminal 1 で Gateway を foreground 起動します。
+
+```bash
+set -euo pipefail
+pnpm start:worker
+```
+
+terminal 2 で cognition worker を foreground 起動します。operator は terminal 3 で次を実行します。
+
+```bash
+set -euo pipefail
+curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
+curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
+pnpm admin -- system resume --actor admin-id --reason "deploy complete"
+```
+
+両方の readiness check が成功しなければ resume や mentions enable を実行しません。
+
+`system drain` は新しい job claim だけを止め、effect claim は止めず、すぐに戻ります。in-flight または完了済み job が作った planned effect は drain 中も claim、実行されます。上の count が 0 になるまで Gateway と cognition worker を停止しないでください。この手順で effect pipeline も drain します。0 にならない場合は強制停止せず、running job、planned または executing effect、stale lease を調べます。期限切れ lease は fencing の対象ですが、外部 effect が実行済みか不明になると recovery の確認が必要です。
+
+```bash
+set -euo pipefail
+: "${DATABASE_URL:?run Operator Environment first}"
+pnpm admin -- effect inspect effect-id
+pnpm admin -- effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
+```
+
+Unknown effects are not retried automatically. Discover them with their target and update fields:
+
+```bash
+set -euo pipefail
+: "${DATABASE_URL:?run Operator Environment first}"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT id, run_id, guild_id, capability_channel_id, target_channel_id, target_message_id, updated_at FROM effects WHERE state = 'unknown' ORDER BY updated_at;"
+```
+
+Run `pnpm admin -- effect inspect effect-id` for each ID. After checking Discord, reconcile a confirmed message with `--state succeeded --external-resource-id discord-message-id`, or reconcile a proven absence with `--state failed` and no external resource ID. If the outcome is uncertain, leave the effect `unknown`. Never auto retry an unknown effect.
+
+## Discord Setup
+
+Guilds、Guild Messages、Message Content intents を有効にします。`VICISSITUDE_GUILD_ID` は対象を単一 guild に限定し、`VICISSITUDE_ADMIN_USER_IDS` は管理者 allowlist をカンマ区切りで指定します。DM は対象外です。Gateway は singleton として動かします。
+
+## Model Setup
+
+`config/model-routes.example.json` を `VICISSITUDE_MODEL_ROUTES_PATH` が指す場所へコピーします。provider credentials は `@earendil-works/pi-ai` の環境変数を使い、`cognition-worker` にだけ渡します。`discord-gateway` には渡しません。
+
+## Database Changes
+
+起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証済みですが、本番backup artifactのrestoreは本番前に別途確認してください。
+
+## Health
+
+長時間プロセスは localhost の設定ポートで `GET /live` と `GET /ready` を公開します。`/live` はプロセス生存を返します。Gateway の `/ready` は DB migration preflight、system singleton と recovery、Discord login、command registration の完了を確認します。Gateway は production CharacterDefinition を確認しません。Worker の `/ready` は migration、production CharacterDefinition、model routes の起動 preflight が完了した時点で true になります。iteration が失敗すると false に戻り、次に成功した iteration で true に戻ります。`draining` と `stopped` は readiness を直接変えず、job claim を止めます。`/health` は使用しません。
+
+## Credential Boundary
+
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
+
+Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
+
+offline staging checkはdatabase role/ACLを検証しますが、実運用のcredential注入、environment isolation、process isolationは検証しません。
+
+## Effect Recovery
+
+外部呼び出し後に状態が不明な effect は自動 retry しません。Discord に存在すると確認できた場合だけ succeeded と external resource ID を付け、存在しないと確認できた場合だけ failed と external resource ID なしで reconcile します。結果が不明なら `unknown` のままにします。
+
+## Shutdown And Drain
+
+`system drain` は新しい job claim だけを止め、effect claim は止めません。実行中 lease を待つ機能もありません。停止前に PostgreSQL の running job と planned または executing effect が 0 になるまで待ち、この手順で effect pipeline を drain します。0 にならない場合は強制停止せず、原因を調べます。期限切れ lease は fencing の対象です。外部 effect の実行結果が不明な場合は、Discord 側を確認してから reconcile します。
+
+## Lease Recovery
+
+単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。`GUILD_ID` と `CHANNEL_ID` は対象を固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
+
+```bash
+set -euo pipefail
+export GUILD_ID=guild-id
+export CHANNEL_ID=channel-id
+: "${DATABASE_URL:?run Operator Environment first}"
+: "${GUILD_ID:?replace GUILD_ID}"
+: "${CHANNEL_ID:?replace CHANNEL_ID}"
+violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$GUILD_ID" -v channel_id="$CHANNEL_ID" -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
+  printf '%s\n' "failed to verify recovery scope" >&2
+  exit 1
+}
+case "$violations" in
+  0) ;;
+  ''|*[!0-9]*)
+    printf 'invalid recovery scope violation count: %s\n' "$violations" >&2
+    exit 1
+    ;;
+  *)
+    printf 'recovery scope has %s violations; do not resume\n' "$violations" >&2
+    exit 1
+    ;;
+esac
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$GUILD_ID" -v channel_id="$CHANNEL_ID" -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
+# 同じbuildのcognition workerを外部deployment adapterまたは別terminalで再起動する。
+while true; do
+  active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND leased_until > clock_timestamp();")" || {
+    printf '%s\n' "failed to query lease expiry" >&2
+    exit 1
+  }
+  case "$active" in
+    0) break ;;
+    ''|*[!0-9]*)
+      printf 'invalid unexpired lease count: %s\n' "$active" >&2
+      exit 1
+      ;;
+  esac
+  sleep 5
+done
+pnpm admin -- system resume --actor admin-id --reason "allow worker reclaim"
+while true; do
+  active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND (leased_until IS NULL OR leased_until <= clock_timestamp());")" || {
+    printf '%s\n' "failed to query recovery state" >&2
+    exit 1
+  }
+  case "$active" in
+    0) break ;;
+    ''|*[!0-9]*)
+      printf 'invalid recovery count: %s\n' "$active" >&2
+      exit 1
+      ;;
+  esac
+  sleep 5
+done
+pnpm admin -- system drain --actor admin-id --reason "prepare deploy after recovery"
+while true; do
+  active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
+    printf '%s\n' "failed to query active pipeline" >&2
+    exit 1
+  }
+  case "$active" in
+    0) break ;;
+    ''|*[!0-9]*)
+      printf 'invalid active pipeline count: %s\n' "$active" >&2
+      exit 1
+      ;;
+  esac
+  sleep 5
+done
+```
+
+queued job は deploy 後に処理できるため、drain-to-zero の count には含めません。active count が消えない場合は強制停止や migration をせず、原因を調べます。capability は recovery 中も変更しません。unknown effect は active drain count に含めず、Discord の結果を確認して別途 reconcile します。recovery と deploy が終わり、再起動後の readiness が成功してから `system resume`、最後に mentions enable を実行します。
+
+## Production Go-Live
+
+production persona はリポジトリに同梱しません。運用者が独立レビューした CharacterDefinition を import、activate し、対象 channel の mention capability を有効化してから Discord reply を有効にします。
+
+## Tests And Layout
+
+CIはformat、lint、型検査、unit、実PostgreSQLの`spec`、buildに加え、Nix packageと`staging-db-rehearsal`を実行します。外部credentialとprovider networkは不要です。主要ディレクトリは`src/apps`、`src/modules`、`src/adapters`、`migrations`、`spec`、`config`、`nix`です。
