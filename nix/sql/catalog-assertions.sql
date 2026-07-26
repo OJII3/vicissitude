@@ -1,0 +1,1 @@
+DO $$ DECLARE n text; BEGIN FOREACH n IN ARRAY ARRAY['one_production_character_version','events_expires_at_idx','events_scope_time_idx','jobs_claim_idx','effects_claim_idx','audit_entries_run_idx','audit_entries_effect_idx'] LOOP IF to_regclass('public.' || n) IS NULL THEN RAISE EXCEPTION 'missing index'; END IF; END LOOP; END $$;
