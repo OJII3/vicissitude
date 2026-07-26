@@ -124,12 +124,12 @@ git diff --check
 
 ## Task 5: Final verification
 
-- [ ] focused contract testsを実行する。
-- [ ] unit、real PostgreSQL spec/E2E、format、lint、typecheck、buildを実行する。
-- [ ] package、database rehearsal、flake checkを実行する。
-- [ ] actionlintと文書のsupervisor非依存性を確認する。
-- [ ] migration `0001`が不変であることを確認する。
-- [ ] final code/spec reviewを完了する。
+- [x] focused contract testsを実行する。
+- [x] unit 133件、real PostgreSQL spec/E2E 61件、format、lint、typecheck、buildを実行する。
+- [x] package、database rehearsal、flake checkを実行する。
+- [x] actionlintと文書のsupervisor非依存性を確認する。
+- [x] migration `0001`が不変であることを確認する。
+- [x] final code/spec reviewを完了する。
 - [ ] commit、push後にGitHub Actionsを確認する。
 
 Commands:
