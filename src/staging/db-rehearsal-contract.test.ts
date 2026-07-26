@@ -14,7 +14,8 @@ describe("staging database rehearsal contract", () => {
       "nix/sql/fixture.sql",
       "nix/sql/privilege-matrix.sql",
       "nix/sql/catalog-assertions.sql",
-    ]) expect(existsSync(resolve(root, path)), path).toBe(true);
+    ])
+      expect(existsSync(resolve(root, path)), path).toBe(true);
   });
 
   it("declares isolated PostgreSQL 17 clusters and the exact success marker", () => {
