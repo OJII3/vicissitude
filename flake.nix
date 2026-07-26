@@ -27,6 +27,7 @@
               nodejs_24
               pnpm
               postgresql_17
+              pi-coding-agent
             ];
           };
           formatter = pkgs.nixfmt;
