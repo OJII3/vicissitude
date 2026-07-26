@@ -130,7 +130,7 @@ git diff --check
 - [x] actionlintと文書のsupervisor非依存性を確認する。
 - [x] migration `0001`が不変であることを確認する。
 - [x] final code/spec reviewを完了する。
-- [ ] commit、push後にGitHub Actionsを確認する。
+- [x] commit、push後にGitHub Actionsの`quality`と`staging-validation`が成功することを確認する。
 
 Commands:
 
