@@ -18,6 +18,7 @@
         {
           config,
           pkgs,
+          system,
           ...
         }:
         {
@@ -28,14 +29,14 @@
               postgresql_17
             ];
           };
-          formatter = pkgs.nixfmt-rfc-style;
-           packages.default = pkgs.callPackage ./nix/package.nix { };
-           checks = pkgs.lib.optionalAttrs (pkgs.system == "x86_64-linux") {
-             staging-db-rehearsal = pkgs.callPackage ./nix/db-rehearsal.nix {
-               package = config.packages.default;
-             };
-           };
-           apps = {
+          formatter = pkgs.nixfmt;
+          packages.default = pkgs.callPackage ./nix/package.nix { };
+          checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
+            staging-db-rehearsal = pkgs.callPackage ./nix/db-rehearsal.nix {
+              package = config.packages.default;
+            };
+          };
+          apps = {
             vicissitude-gateway = {
               type = "app";
               program = "${config.packages.default}/bin/vicissitude-gateway";
