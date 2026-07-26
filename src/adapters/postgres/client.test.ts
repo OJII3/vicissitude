@@ -15,4 +15,12 @@ describe("PostgreSQL Unix socket URL boundary", () => {
 
     await sql.end();
   });
+
+  it("accepts lowercase percent encoding for a socket authority", async () => {
+    const sql = createPostgresClient("postgresql://role@%2ftmp%2fvicissitude%2fsocket/db");
+
+    expect(sql.options.host).toEqual(["/tmp/vicissitude/socket"]);
+
+    await sql.end();
+  });
 });

@@ -2,7 +2,7 @@ import postgres, { type Sql } from "postgres";
 
 export function createPostgresClient(databaseUrl: string): Sql {
   const parsed = new URL(databaseUrl);
-  const socket = parsed.hostname.startsWith("%2F") ? decodeURIComponent(parsed.hostname) : undefined;
+  const socket = parsed.hostname.toLowerCase().startsWith("%2f") ? decodeURIComponent(parsed.hostname) : undefined;
   const socketPort = Number(parsed.searchParams.get("port") ?? 5432);
   if (socket !== undefined) {
     parsed.hostname = "localhost";
