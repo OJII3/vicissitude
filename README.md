@@ -44,10 +44,10 @@ export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
 pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
 export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
-pnpm admin -- migration status
-pnpm admin -- migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
-pnpm admin -- character import ./character-reviewed.json --actor admin-id
-pnpm admin -- character activate primary 1 --actor admin-id
+pnpm admin migration status
+pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+pnpm admin character import ./character-reviewed.json --actor admin-id
+pnpm admin character activate primary 1 --actor admin-id
 ```
 
 `BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
@@ -107,7 +107,7 @@ set -euo pipefail
 # terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin -- channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+pnpm admin channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
 ```
 
 両方の readiness check が成功しなければ channel capability を有効にしません。
@@ -122,7 +122,7 @@ set -euo pipefail
 : "${CHANNEL_ID:?run Operator Environment first}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
-pnpm admin -- system drain --actor admin-id --reason "deploy"
+pnpm admin system drain --actor admin-id --reason "deploy"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
     printf '%s\n' "failed to query active leases" >&2
@@ -146,8 +146,8 @@ export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
 pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
 export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
-pnpm admin -- migration status
-pnpm admin -- migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+pnpm admin migration status
+pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
 ```
 
 上のblockが成功終了するまでdeployを続けません。migration後、外部deployment adapterまたは別terminalでGatewayとcognition workerの両方を起動します。手動運用ではGo-liveと同じく、次の二つを別terminalで実行します。
@@ -170,7 +170,7 @@ terminal 2 で cognition worker を foreground 起動します。operator は te
 set -euo pipefail
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin -- system resume --actor admin-id --reason "deploy complete"
+pnpm admin system resume --actor admin-id --reason "deploy complete"
 ```
 
 両方の readiness check が成功しなければ resume や mentions enable を実行しません。
@@ -181,7 +181,7 @@ pnpm admin -- system resume --actor admin-id --reason "deploy complete"
 
 ### Effect Recovery
 
-外部呼び出し後に状態が不明な effect は自動 retry しません。`unknown` の effect を一覧し、各 ID を `pnpm admin -- effect inspect effect-id` で確認します。Discord に message が存在すると確認できた場合だけ `succeeded` と external resource ID を付け、存在しないと確認できた場合だけ external resource ID なしの `failed` に reconcile します。結果が不明なら `unknown` のままにします。
+外部呼び出し後に状態が不明な effect は自動 retry しません。`unknown` の effect を一覧し、各 ID を `pnpm admin effect inspect effect-id` で確認します。Discord に message が存在すると確認できた場合だけ `succeeded` と external resource ID を付け、存在しないと確認できた場合だけ external resource ID なしの `failed` に reconcile します。結果が不明なら `unknown` のままにします。
 
 ```bash
 set -euo pipefail
@@ -192,8 +192,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT id, run_id, guild_id, capab
 ```bash
 set -euo pipefail
 : "${DATABASE_URL:?run Operator Environment first}"
-pnpm admin -- effect inspect effect-id
-pnpm admin -- effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
+pnpm admin effect inspect effect-id
+pnpm admin effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
 ```
 
 ### Shutdown And Drain
@@ -242,7 +242,7 @@ while true; do
   esac
   sleep 5
 done
-pnpm admin -- system resume --actor admin-id --reason "allow worker reclaim"
+pnpm admin system resume --actor admin-id --reason "allow worker reclaim"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND (leased_until IS NULL OR leased_until <= clock_timestamp());")" || {
     printf '%s\n' "failed to query recovery state" >&2
@@ -257,7 +257,7 @@ while true; do
   esac
   sleep 5
 done
-pnpm admin -- system drain --actor admin-id --reason "prepare deploy after recovery"
+pnpm admin system drain --actor admin-id --reason "prepare deploy after recovery"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
     printf '%s\n' "failed to query active pipeline" >&2
