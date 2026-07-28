@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { denyAllCapabilities } from "../../modules/channels/channel-capability.js";
 import { FixedClock } from "../../shared/clock.js";
-import { handleChannelCommand } from "./channel-command.js";
+import { channelCommand, handleChannelCommand } from "./channel-command.js";
 
 function interaction(input: Record<string, unknown> = {}) {
   const values = input as {
@@ -29,6 +29,25 @@ function interaction(input: Record<string, unknown> = {}) {
 }
 
 describe("handleChannelCommand", () => {
+  it("places required subcommand options before optional options", () => {
+    const command = channelCommand.toJSON();
+    const setSubcommand = command.options?.find((option) => option.name === "set");
+    if (!setSubcommand || !("options" in setSubcommand)) throw new Error("set subcommand options are missing");
+    const options = setSubcommand.options as Array<{ name: string; required?: boolean }>;
+    expect(options.map((option) => [option.name, option.required])).toEqual([
+      ["channel", true],
+      ["reason", true],
+      ["observe", false],
+      ["mentions", false],
+      ["join", false],
+      ["topics", false],
+      ["reactions", false],
+      ["threads", false],
+      ["files", false],
+      ["links", false],
+    ]);
+  });
+
   it("does not read for DM or non-admin", async () => {
     const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn() };
     await handleChannelCommand(
