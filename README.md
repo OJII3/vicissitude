@@ -20,7 +20,7 @@ pnpm build
 pnpm test
 ```
 
-`.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
+`.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_ACTOR`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
 
 process 固有の secret や credential は `.env.gateway.local`、`.env.worker.local` などに分け、起動する process の terminal でだけ追加で読み込みます。例えば Gateway は Discord credential だけ、worker は model provider credential だけを読み込みます。このリポジトリは process manager や secret 配布方式を固定しませんが、foreground 起動時も外部 deployment adapter も同じ境界を維持してください。
 
@@ -84,6 +84,7 @@ pnpm install
 pnpm build
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_MIGRATIONS_DIR:?set VICISSITUDE_MIGRATIONS_DIR in .env}"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;'
 BACKUP_DIR=${BACKUP_DIR:-./backups}
 mkdir -p "$BACKUP_DIR"
@@ -92,9 +93,9 @@ pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
 BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
 pnpm admin migration status
-pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
-pnpm admin character import ./character-reviewed.json --actor admin-id
-pnpm admin character activate primary 1 --actor admin-id
+pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor "$VICISSITUDE_ADMIN_ACTOR"
+pnpm admin character import ./character-reviewed.json --actor "$VICISSITUDE_ADMIN_ACTOR"
+pnpm admin character activate primary 1 --actor "$VICISSITUDE_ADMIN_ACTOR"
 SH
 ```
 
@@ -157,10 +158,11 @@ set -euo pipefail
 : "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
 # terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin channel set "$VICISSITUDE_GUILD_ID" <discord-channel-id> --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+pnpm admin channel set "$VICISSITUDE_GUILD_ID" <discord-channel-id> --observe true --mentions true --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "enable reviewed target channel"
 SH
 ```
 
@@ -174,7 +176,8 @@ set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
-pnpm admin system drain --actor admin-id --reason "deploy"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
+pnpm admin system drain --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "deploy"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
     printf '%s\n' "failed to query active leases" >&2
@@ -201,7 +204,7 @@ pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
 BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
 pnpm admin migration status
-pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor "$VICISSITUDE_ADMIN_ACTOR"
 SH
 ```
 
@@ -237,9 +240,10 @@ set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin system resume --actor admin-id --reason "deploy complete"
+pnpm admin system resume --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "deploy complete"
 SH
 ```
 
@@ -265,8 +269,9 @@ SH
 bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
 pnpm admin effect inspect effect-id
-pnpm admin effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
+pnpm admin effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "verified in Discord"
 SH
 ```
 
@@ -283,6 +288,7 @@ bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
+: "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
 violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$VICISSITUDE_GUILD_ID" -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
   printf '%s\n' "failed to verify recovery scope" >&2
   exit 1
@@ -314,7 +320,7 @@ while true; do
   esac
   sleep 5
 done
-pnpm admin system resume --actor admin-id --reason "allow worker reclaim"
+pnpm admin system resume --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "allow worker reclaim"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND (leased_until IS NULL OR leased_until <= clock_timestamp());")" || {
     printf '%s\n' "failed to query recovery state" >&2
@@ -329,7 +335,7 @@ while true; do
   esac
   sleep 5
 done
-pnpm admin system drain --actor admin-id --reason "prepare deploy after recovery"
+pnpm admin system drain --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "prepare deploy after recovery"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
     printf '%s\n' "failed to query active pipeline" >&2
@@ -354,6 +360,12 @@ queued job は deploy 後に処理できるため、drain-to-zero の count に�
 ### Discord
 
 Guilds、Guild Messages、Message Content intents を有効にします。`VICISSITUDE_GUILD_ID` は対象を単一 guild に限定し、`VICISSITUDE_ADMIN_USER_IDS` は管理者 allowlist をカンマ区切りで指定します。DM は対象外です。Gateway は singleton として動かします。
+
+### Admin Actor
+
+admin-cli の `--actor` には操作者自身の Discord user ID を渡します。`audit_entries.summary.actor` には Discord のスラッシュコマンド経由の操作も `interaction.user.id` として記録されるため、両経路を同じ値空間に揃えないと監査記録を actor で追えません。admin-cli は `--actor` が17〜20桁の数字であることを検証し、`admin-id` のような placeholder を拒否します。
+
+`VICISSITUDE_ADMIN_ACTOR` は操作者ごとに自分の ID を設定する変数で、`.env` に置きます。`VICISSITUDE_ADMIN_USER_IDS` を流用しないでください。あれは「誰が操作してよいか」を示す Gateway 専用の allowlist で、複数の ID を持ちうるため「誰が操作したか」の記録には使えません。
 
 ### Model
 

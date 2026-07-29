@@ -34,8 +34,14 @@ const booleanValue = (value: unknown, name: string): boolean => {
   if (normalized === "false") return false;
   throw new Error(`${name} must be true or false`);
 };
+const snowflake = /^[0-9]{17,20}$/u;
+const actorId = (value: unknown): string => {
+  const normalized = text(value, "actor");
+  if (!snowflake.test(normalized)) throw new Error("actor must be a Discord user ID");
+  return normalized;
+};
 const actorReason = (values: Record<string, unknown>): ActorReason => ({
-  actor: text(values.actor, "actor"),
+  actor: actorId(values.actor),
   reason: text(values.reason, "reason"),
 });
 const isoDatetime = z.iso.datetime({ offset: true });
@@ -87,7 +93,7 @@ export function parseAdminCommand(argv: string[]): AdminCommand {
     return {
       kind: "migration.apply",
       backupConfirmedAt: new Date(validValue.data),
-      actor: text(result.values.actor, "actor"),
+      actor: actorId(result.values.actor),
     };
   }
   if (command === "channel.set") {
@@ -116,7 +122,7 @@ export function parseAdminCommand(argv: string[]): AdminCommand {
     return {
       kind: "character.import",
       path: text(result.positionals[0], "path"),
-      actor: text(result.values.actor, "actor"),
+      actor: actorId(result.values.actor),
     };
   }
   if (command === "character.activate") {
@@ -127,7 +133,7 @@ export function parseAdminCommand(argv: string[]): AdminCommand {
       kind: "character.activate",
       characterId: text(result.positionals[0], "characterId"),
       version,
-      actor: text(result.values.actor, "actor"),
+      actor: actorId(result.values.actor),
     };
   }
   if (command === "effect.inspect") {
