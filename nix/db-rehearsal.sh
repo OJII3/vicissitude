@@ -223,7 +223,7 @@ encoded_socket=$(printf '%s' "$(socket_dir source)" | sed 's#/#%2F#g')
 database_url="postgresql://vicissitude_migrator@$encoded_socket/vicissitude?port=$port"
 DATABASE_URL="$database_url" VICISSITUDE_MIGRATIONS_DIR="$package/lib/vicissitude/migrations" \
   "$package/bin/vicissitude-admin" migration apply --backup-confirmed-at "$backup_confirmed_at" \
-  --actor staging-validation >/dev/null
+  --actor 100000000000000001 >/dev/null
 
 run_sql_file source vicissitude_migrator "$sql_dir/runtime-acl.sql"
 run_sql_file source vicissitude_migrator "$sql_dir/fixture.sql"
