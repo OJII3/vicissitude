@@ -54,6 +54,9 @@ describe("PostgresThreadCapabilityRepository", () => {
       addReactions: null,
     });
     await expect(repository.get("guild-1", "channel-1", "thread-1")).resolves.toEqual(result);
+    await expect(sql`select updated_by, reason, updated_at from thread_capability_overrides`).resolves.toEqual([
+      { updated_by: "operator-1", reason: "watch this thread", updated_at: now },
+    ]);
     const rows = await sql<{ category: string; summary: Record<string, unknown>; created_at: Date }[]>`
       select category, summary, created_at from audit_entries
     `;

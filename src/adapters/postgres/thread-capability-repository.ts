@@ -6,11 +6,13 @@ import {
   THREAD_OVERRIDABLE_CAPABILITIES,
   type ThreadCapabilityOverride,
 } from "../../modules/channels/thread-capability.js";
+import { validateMetadata } from "./capability-metadata.js";
 
 export type ThreadCapabilityPatch = Partial<
   Pick<ThreadCapabilityOverride, "observeEvents" | "respondToMentions" | "addReactions">
 >;
 
+// Channel scopes lock on 84623817; thread scopes need a namespace of their own.
 const LOCK_NAMESPACE = 84623818;
 
 function mapRow(row: Record<string, unknown>): ThreadCapabilityOverride {
@@ -27,11 +29,6 @@ function mapRow(row: Record<string, unknown>): ThreadCapabilityOverride {
 function auditValue(override: ThreadCapabilityOverride | null): Record<string, boolean | null> | null {
   if (!override) return null;
   return Object.fromEntries(THREAD_OVERRIDABLE_CAPABILITIES.map((key) => [key, override[key]]));
-}
-
-function validateMetadata(actor: string, reason: string, now: Date): void {
-  if (!actor.trim() || !reason.trim()) throw new Error("actor and reason must be nonblank");
-  if (!(now instanceof Date) || Number.isNaN(now.getTime())) throw new Error("now must be a valid Date");
 }
 
 export class PostgresThreadCapabilityRepository {

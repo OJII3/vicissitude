@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from "postgres";
 import { newId } from "../../shared/ids.js";
 import { denyAllCapabilities, type ChannelCapabilities } from "../../modules/channels/channel-capability.js";
+import { validateMetadata } from "./capability-metadata.js";
 
 type CapabilityRow = ChannelCapabilities & { updatedAt: Date; updatedBy: string; reason: string };
 
@@ -73,11 +74,6 @@ export class PostgresChannelCapabilityRepository {
       return next;
     });
   }
-}
-
-function validateMetadata(actor: string, reason: string, now: Date): void {
-  if (!actor.trim() || !reason.trim()) throw new Error("actor and reason must be nonblank");
-  if (!(now instanceof Date) || Number.isNaN(now.getTime())) throw new Error("now must be a valid Date");
 }
 
 async function persist(
