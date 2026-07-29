@@ -119,7 +119,18 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
       const input = toDiscordMessageInput(snapshot, client.user!.id);
       const capability = await capabilities.get(config.guildId, input.channelId);
       const mode = await system.get();
-      await ingestDiscordMessage(input, capability, mode.mode, ingestion, SystemClock);
+      const result = await ingestDiscordMessage(input, capability, mode.mode, ingestion, SystemClock);
+      logger.debug(
+        {
+          channelId: input.channelId,
+          threadId: input.threadId,
+          mode: mode.mode,
+          ...(result.kind === "ignored"
+            ? { reason: result.reason }
+            : { duplicate: result.duplicate, jobQueued: result.jobQueued }),
+        },
+        result.kind === "ignored" ? "Discord message ignored" : "Discord message ingested",
+      );
     })().catch((error) => {
       handleGatewayFatal(accepting, health, rejectFatal, error);
       logger.error({ err: error }, "Discord ingestion failed");

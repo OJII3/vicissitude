@@ -361,6 +361,14 @@ queued job は deploy 後に処理できるため、drain-to-zero の count に�
 
 Guilds、Guild Messages、Message Content intents を有効にします。`VICISSITUDE_GUILD_ID` は対象を単一 guild に限定し、`VICISSITUDE_ADMIN_USER_IDS` は管理者 allowlist をカンマ区切りで指定します。DM は対象外です。Gateway は singleton として動かします。
 
+### Channel And Thread
+
+channel capability の主キーは `(guild_id, channel_id)` です。thread に投稿された message は親 channel の ID に正規化して扱い、thread ID は event の `thread_id` に入ります。thread を対象にするには **親 channel の ID** を `channel set` に渡します。thread ID を渡した行は照合されず、message は `channel_not_allowed` として無視され、event も残りません。
+
+有効化の粒度は親 channel 単位です。forum や text channel を有効にすると、その配下の thread はすべて対象になります。thread 単位で絞る機能はありません。
+
+対象 channel の ID が thread のものかどうかは Discord 側で確認します。`channel set` は capability 行を作るだけで、渡された ID が実在するか、thread かどうかは検証しません。
+
 ### Admin Actor
 
 admin-cli の `--actor` には操作者自身の Discord user ID を渡します。`audit_entries.summary.actor` には Discord のスラッシュコマンド経由の操作も `interaction.user.id` として記録されるため、両経路を同じ値空間に揃えないと監査記録を actor で追えません。admin-cli は `--actor` が17〜20桁の数字であることを検証し、`admin-id` のような placeholder を拒否します。
@@ -378,6 +386,8 @@ admin-cli の `--actor` には操作者自身の Discord user ID を渡します
 ### Health
 
 長時間プロセスは localhost の設定ポートで `GET /live` と `GET /ready` を公開します。`/live` はプロセス生存を返します。Gateway の `/ready` は DB migration preflight、system singleton と recovery、Discord login、command registration の完了を確認します。Gateway は production CharacterDefinition を確認しません。Worker の `/ready` は migration、production CharacterDefinition、model routes の起動 preflight が完了した時点で true になります。iteration が失敗すると false に戻り、次に成功した iteration で true に戻ります。`draining` と `stopped` は readiness を直接変えず、job claim を止めます。`/health` は使用しません。
+
+readiness は message が取り込まれることを保証しません。両 process が ready でも、channel capability が対象 channel と一致しなければ message は無視されます。`LOG_LEVEL=debug` で Gateway を起動すると、message ごとに取り込んだか無視したかと、無視した理由、照合に使った channel ID と thread ID が出ます。message 本文は出しません。mention しても何も起きない場合は、まずこれで capability の照合先を確認します。
 
 ### Credential Boundary
 

@@ -3,6 +3,20 @@ import type { Sql } from "postgres";
 import { createPostgresClient } from "../../src/adapters/postgres/client.js";
 import { runMigrations } from "../../src/adapters/postgres/migrations.js";
 import { runGateway } from "../../src/apps/discord-gateway.js";
+import { createInFlightTracker } from "../../src/apps/app-lifecycle.js";
+
+const threadMessage = (parentChannelId: string) => ({
+  id: "message-1",
+  guildId: "guild",
+  channelId: "thread-1",
+  channel: { isThread: () => true, parentId: parentChannelId },
+  author: { id: "human-1", bot: false },
+  createdTimestamp: Date.now(),
+  content: "mention",
+  mentions: { users: new Map([["bot", {}]]) },
+  reference: null,
+  attachments: new Map(),
+});
 
 const url = process.env.TEST_DATABASE_URL;
 let sql: Sql;
@@ -70,5 +84,51 @@ describe("runGateway", () => {
     } finally {
       await sql`insert into system_state (singleton, mode, updated_at, updated_by, reason) values (${saved.singleton}, ${saved.mode}, ${saved.updatedAt}, ${saved.updatedBy}, ${saved.reason})`;
     }
+  });
+
+  it("logs why a message was ignored, keyed on the parent channel of a thread", async () => {
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    const logger = { error: vi.fn(), debug: vi.fn() };
+    const inflight = createInFlightTracker();
+    const accepting = { value: false };
+    let release!: (signal: AbortSignal) => void;
+    const shutdown = new Promise<AbortSignal>((resolve) => {
+      release = resolve;
+    });
+
+    const run = runGateway({
+      sql,
+      client: {
+        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+          handlers[event] = handler;
+        }),
+        user: { id: "bot" },
+      } as never,
+      config: { migrationsDir: "migrations", guildId: "guild", adminIds: ["admin"], discordToken: "token" } as never,
+      health: { setReady: vi.fn() } as never,
+      logger: logger as never,
+      shutdown,
+      prepared: true,
+      startClient: async () => undefined,
+      registerCommands: async () => undefined,
+      accepting,
+      inflight,
+    });
+
+    await vi.waitFor(() => expect(handlers.messageCreate).toBeTypeOf("function"));
+    handlers.messageCreate!(threadMessage("parent-without-capability"));
+    await inflight.drain();
+    release(new AbortController().signal);
+    await run;
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: "parent-without-capability",
+        threadId: "thread-1",
+        reason: "channel_not_allowed",
+      }),
+      "Discord message ignored",
+    );
+    expect(logger.debug.mock.calls.flat()).not.toContain("mention");
   });
 });
