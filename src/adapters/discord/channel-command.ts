@@ -5,22 +5,35 @@ import {
   type SlashCommandChannelOption,
 } from "discord.js";
 import type { ChannelCapabilities } from "../../modules/channels/channel-capability.js";
+import { inheritAllOverride, type ThreadCapabilityOverride } from "../../modules/channels/thread-capability.js";
+import type { ThreadCapabilityPatch } from "../postgres/thread-capability-repository.js";
 import type { Clock } from "../../shared/clock.js";
 
-const channelTypes = [
-  ChannelType.GuildText,
-  ChannelType.GuildAnnouncement,
-  ChannelType.GuildForum,
+const nonThreadChannelTypes = [ChannelType.GuildText, ChannelType.GuildAnnouncement, ChannelType.GuildForum] as const;
+const threadTypes = [
   ChannelType.GuildPublicThread,
   ChannelType.GuildPrivateThread,
   ChannelType.GuildNewsThread,
 ] as const;
+const channelTypes = [...nonThreadChannelTypes, ...threadTypes] as const;
 const channelOption = (option: SlashCommandChannelOption) =>
   option
     .setName("channel")
     .setDescription("対象チャンネル")
     .addChannelTypes(...channelTypes)
     .setRequired(true);
+
+const threadOption = (option: SlashCommandChannelOption) =>
+  option
+    .setName("channel")
+    .setDescription("対象スレッド")
+    .addChannelTypes(...threadTypes)
+    .setRequired(true);
+const overrideChoices = [
+  { name: "allow", value: "allow" },
+  { name: "deny", value: "deny" },
+  { name: "inherit", value: "inherit" },
+] as const;
 
 export const channelCommand = new SlashCommandBuilder()
   .setName("vicissitude-channel")
@@ -43,6 +56,36 @@ export const channelCommand = new SlashCommandBuilder()
       .addBooleanOption((o) => o.setName("threads").setDescription("threadを作成する"))
       .addBooleanOption((o) => o.setName("files").setDescription("fileを共有する"))
       .addBooleanOption((o) => o.setName("links").setDescription("外部linkを共有する")),
+  )
+  .addSubcommand((sub) =>
+    sub.setName("thread-show").setDescription("スレッドの権限overrideを表示します").addChannelOption(threadOption),
+  )
+  .addSubcommand((sub) =>
+    sub
+      .setName("thread-set")
+      .setDescription("スレッド単位の権限overrideを設定します")
+      .addChannelOption(threadOption)
+      .addStringOption((o) =>
+        o.setName("reason").setDescription("変更理由").setMinLength(1).setMaxLength(500).setRequired(true),
+      )
+      .addStringOption((o) =>
+        o
+          .setName("observe")
+          .setDescription("イベントを観察する")
+          .addChoices(...overrideChoices),
+      )
+      .addStringOption((o) =>
+        o
+          .setName("mentions")
+          .setDescription("mentionへ応答する")
+          .addChoices(...overrideChoices),
+      )
+      .addStringOption((o) =>
+        o
+          .setName("reactions")
+          .setDescription("reactionを追加する")
+          .addChoices(...overrideChoices),
+      ),
   );
 
 interface Repository {
@@ -51,6 +94,16 @@ interface Repository {
     guildId: string,
     channelId: string,
     patch: ChannelCapabilitiesPatch,
+    actor: string,
+    reason: string,
+    now: Date,
+  ): Promise<void>;
+  getThread(guildId: string, channelId: string, threadId: string): Promise<ThreadCapabilityOverride | null>;
+  patchThread(
+    guildId: string,
+    channelId: string,
+    threadId: string,
+    patch: ThreadCapabilityPatch,
     actor: string,
     reason: string,
     now: Date,
@@ -70,6 +123,54 @@ export type ChannelCapabilitiesPatch = Partial<
     | "shareExternalLinks"
   >
 >;
+
+function overrideValue(raw: string | null): boolean | null | undefined {
+  if (raw === null) return undefined;
+  if (raw === "allow") return true;
+  if (raw === "deny") return false;
+  if (raw === "inherit") return null;
+  throw new Error(`Unsupported override value: ${raw}`);
+}
+
+async function handleThreadSubcommand(
+  interaction: ChatInputCommandInteraction<"cached">,
+  channel: NonNullable<ReturnType<ChatInputCommandInteraction<"cached">["options"]["getChannel"]>>,
+  subcommand: "thread-show" | "thread-set",
+  repository: Repository,
+  clock: Clock,
+): Promise<void> {
+  if (!channel.isThread()) throw new Error("Thread subcommands require a thread channel");
+  if (!channel.parentId) throw new Error("Thread has no parent channel");
+  const parentId = channel.parentId;
+  if (subcommand === "thread-show") {
+    const override = await repository.getThread(interaction.guildId, parentId, channel.id);
+    const shown = override ?? inheritAllOverride(interaction.guildId, parentId, channel.id);
+    await interaction.editReply({ content: `\`\`\`json\n${JSON.stringify(shown, null, 2)}\n\`\`\`` });
+    return;
+  }
+  const threadPatch: ThreadCapabilityPatch = {};
+  const threadOptions: Array<[string, keyof ThreadCapabilityPatch]> = [
+    ["observe", "observeEvents"],
+    ["mentions", "respondToMentions"],
+    ["reactions", "addReactions"],
+  ];
+  for (const [option, property] of threadOptions) {
+    const value = overrideValue(interaction.options.getString(option));
+    if (value !== undefined) threadPatch[property] = value;
+  }
+  const threadReason = interaction.options.getString("reason", true).trim();
+  if (!threadReason) throw new Error("Reason is required");
+  await repository.patchThread(
+    interaction.guildId,
+    parentId,
+    channel.id,
+    threadPatch,
+    interaction.user.id,
+    threadReason,
+    clock.now(),
+  );
+  await interaction.editReply({ content: "スレッド権限を更新しました。" });
+}
 
 export async function handleChannelCommand(
   interaction: ChatInputCommandInteraction<"cached">,
@@ -93,9 +194,13 @@ export async function handleChannelCommand(
   await interaction.deferReply({ ephemeral: true });
   try {
     const channel = interaction.options.getChannel("channel", true);
+    const subcommand = interaction.options.getSubcommand();
+    if (subcommand === "thread-show" || subcommand === "thread-set") {
+      await handleThreadSubcommand(interaction, channel, subcommand, repository, clock);
+      return;
+    }
     const capabilityChannelId = channel.isThread() ? channel.parentId : channel.id;
     if (!capabilityChannelId) throw new Error("Thread has no parent channel");
-    const subcommand = interaction.options.getSubcommand();
     if (subcommand === "set") {
       const patch: ChannelCapabilitiesPatch = {};
       const options: Array<[string, keyof ChannelCapabilitiesPatch]> = [

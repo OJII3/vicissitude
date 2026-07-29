@@ -156,6 +156,10 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
       patch: async (...args: Parameters<typeof channelCapabilities.patch>) => {
         await channelCapabilities.patch(...args);
       },
+      getThread: threadCapabilities.get.bind(threadCapabilities),
+      patchThread: async (...args: Parameters<typeof threadCapabilities.patch>) => {
+        await threadCapabilities.patch(...args);
+      },
     };
     inflight
       .track(

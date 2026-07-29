@@ -49,7 +49,7 @@ describe("handleChannelCommand", () => {
   });
 
   it("does not read for DM or non-admin", async () => {
-    const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn() };
+    const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn(), getThread: vi.fn(), patchThread: vi.fn() };
     await handleChannelCommand(
       interaction({ guildId: null }),
       "g",
@@ -70,7 +70,13 @@ describe("handleChannelCommand", () => {
 
   it("shows current parent capability and preserves omitted values", async () => {
     const current = { ...denyAllCapabilities("g", "parent"), spontaneousJoin: true };
-    const repo = { get: vi.fn().mockResolvedValue(current), set: vi.fn(), patch: vi.fn() };
+    const repo = {
+      get: vi.fn().mockResolvedValue(current),
+      set: vi.fn(),
+      patch: vi.fn(),
+      getThread: vi.fn(),
+      patchThread: vi.fn(),
+    };
     await handleChannelCommand(
       interaction({ subcommand: "show" }),
       "g",
@@ -82,7 +88,13 @@ describe("handleChannelCommand", () => {
   });
 
   it("updates every independent flag and rejects blank or orphan reasons/threads", async () => {
-    const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn().mockResolvedValue(undefined) };
+    const repo = {
+      get: vi.fn(),
+      set: vi.fn(),
+      patch: vi.fn().mockResolvedValue(undefined),
+      getThread: vi.fn(),
+      patchThread: vi.fn(),
+    };
     await handleChannelCommand(
       interaction({
         channel: { id: "c", isThread: () => false },
@@ -137,7 +149,7 @@ describe("handleChannelCommand", () => {
 
   it("rejects another guild before admin, options, or repository work", async () => {
     const events: string[] = [];
-    const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn() };
+    const repo = { get: vi.fn(), set: vi.fn(), patch: vi.fn(), getThread: vi.fn(), patchThread: vi.fn() };
     const value = interaction({ guildId: "other", events });
     await handleChannelCommand(value, "g", new Set(["admin"]), repo, new FixedClock(new Date()));
     expect(repo.get).not.toHaveBeenCalled();
@@ -157,6 +169,8 @@ describe("handleChannelCommand", () => {
       ),
       set: vi.fn(),
       patch: vi.fn(),
+      getThread: vi.fn(),
+      patchThread: vi.fn(),
     };
     const value = interaction({ events, subcommand: "show" });
     const pending = handleChannelCommand(value, "g", new Set(["admin"]), repo, new FixedClock(new Date()));
@@ -171,13 +185,168 @@ describe("handleChannelCommand", () => {
     const events: string[] = [];
     const value = interaction({ events });
     const error = new Error("raw database secret");
-    const repo = { get: vi.fn(), patch: vi.fn().mockRejectedValue(error) };
+    const repo = { get: vi.fn(), patch: vi.fn().mockRejectedValue(error), getThread: vi.fn(), patchThread: vi.fn() };
     await expect(handleChannelCommand(value, "g", new Set(["admin"]), repo, new FixedClock(new Date()))).rejects.toBe(
       error,
     );
     expect(events).toEqual(["defer", "edit"]);
     expect((value as { editReply: ReturnType<typeof vi.fn> }).editReply.mock.calls[0]?.[0].content).not.toContain(
       "raw database secret",
+    );
+  });
+});
+
+function interactionFor(subcommand: string, options: Record<string, string | boolean | null>, channel: unknown) {
+  return {
+    guildId: "guild-1",
+    user: { id: "admin-1" },
+    options: {
+      getSubcommand: () => subcommand,
+      getChannel: () => channel,
+      getString: (name: string, required?: boolean) => {
+        const value = options[name];
+        if (typeof value === "string") return value;
+        if (required) throw new Error(`missing ${name}`);
+        return null;
+      },
+      getBoolean: (name: string) => {
+        const value = options[name];
+        return typeof value === "boolean" ? value : null;
+      },
+    },
+    reply: vi.fn().mockResolvedValue(undefined),
+    deferReply: vi.fn().mockResolvedValue(undefined),
+    editReply: vi.fn().mockResolvedValue(undefined),
+  } as never;
+}
+
+const thread = { id: "thread-1", parentId: "channel-1", isThread: () => true };
+const clock = { now: () => new Date("2026-01-02T03:04:05.000Z") };
+
+describe("handleChannelCommand thread subcommands", () => {
+  it("translates allow, deny and inherit into an override patch", async () => {
+    const repository = {
+      get: vi.fn(),
+      patch: vi.fn().mockResolvedValue(undefined),
+      getThread: vi.fn().mockResolvedValue(null),
+      patchThread: vi.fn().mockResolvedValue(undefined),
+    };
+    const interaction = interactionFor(
+      "thread-set",
+      { observe: "allow", mentions: "deny", reactions: "inherit", reason: "tune thread" },
+      thread,
+    );
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.patchThread).toHaveBeenCalledWith(
+      "guild-1",
+      "channel-1",
+      "thread-1",
+      { observeEvents: true, respondToMentions: false, addReactions: null },
+      "admin-1",
+      "tune thread",
+      clock.now(),
+    );
+  });
+
+  it("omits capabilities that were not supplied", async () => {
+    const repository = {
+      get: vi.fn(),
+      patch: vi.fn(),
+      getThread: vi.fn().mockResolvedValue(null),
+      patchThread: vi.fn().mockResolvedValue(undefined),
+    };
+    const interaction = interactionFor("thread-set", { observe: "deny", reason: "quiet" }, thread);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.patchThread).toHaveBeenCalledWith(
+      "guild-1",
+      "channel-1",
+      "thread-1",
+      { observeEvents: false },
+      "admin-1",
+      "quiet",
+      clock.now(),
+    );
+  });
+
+  it("passes an empty patch through when reason is supplied but no capability is set", async () => {
+    const repository = {
+      get: vi.fn(),
+      patch: vi.fn(),
+      getThread: vi.fn().mockResolvedValue(null),
+      patchThread: vi.fn().mockResolvedValue(undefined),
+    };
+    const interaction = interactionFor("thread-set", { reason: "no-op audit" }, thread);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.patchThread).toHaveBeenCalledWith(
+      "guild-1",
+      "channel-1",
+      "thread-1",
+      {},
+      "admin-1",
+      "no-op audit",
+      clock.now(),
+    );
+  });
+
+  it("rejects a thread subcommand on a non-thread channel", async () => {
+    const repository = { get: vi.fn(), patch: vi.fn(), getThread: vi.fn(), patchThread: vi.fn() };
+    const channel = { id: "channel-1", parentId: null, isThread: () => false };
+    const interaction = interactionFor("thread-set", { observe: "allow", reason: "nope" }, channel);
+
+    await expect(handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock)).rejects.toThrow(
+      "Thread subcommands require a thread channel",
+    );
+    expect(repository.patchThread).not.toHaveBeenCalled();
+  });
+
+  it("rejects a thread subcommand on an orphaned thread with a distinct message", async () => {
+    const repository = { get: vi.fn(), patch: vi.fn(), getThread: vi.fn(), patchThread: vi.fn() };
+    const orphan = { id: "thread-1", parentId: null, isThread: () => true };
+    const interaction = interactionFor("thread-set", { observe: "allow", reason: "nope" }, orphan);
+
+    await expect(handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock)).rejects.toThrow(
+      "Thread has no parent channel",
+    );
+    expect(repository.patchThread).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unsupported override value", async () => {
+    const repository = { get: vi.fn(), patch: vi.fn(), getThread: vi.fn(), patchThread: vi.fn() };
+    const interaction = interactionFor("thread-set", { observe: "maybe", reason: "typo" }, thread);
+
+    await expect(handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock)).rejects.toThrow(
+      "Unsupported override value: maybe",
+    );
+    expect(repository.patchThread).not.toHaveBeenCalled();
+  });
+
+  it("shows the current override for a thread", async () => {
+    const repository = {
+      get: vi.fn(),
+      patch: vi.fn(),
+      getThread: vi.fn().mockResolvedValue({
+        guildId: "guild-1",
+        channelId: "channel-1",
+        threadId: "thread-1",
+        observeEvents: true,
+        respondToMentions: null,
+        addReactions: null,
+      }),
+      patchThread: vi.fn(),
+    };
+    const interaction = interactionFor("thread-show", {}, thread);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.getThread).toHaveBeenCalledWith("guild-1", "channel-1", "thread-1");
+    expect((interaction as { editReply: ReturnType<typeof vi.fn> }).editReply).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining("observeEvents") }),
     );
   });
 });
