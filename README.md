@@ -281,7 +281,7 @@ SH
 
 ### Lease Recovery
 
-単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。recovery 対象の guild id と channel id は下の `psql -v` 引数で固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
+単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability も thread override も変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。recovery 対象の guild id と channel id は下の `psql -v` 引数で固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel や thread override を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。この assertion は `channel_capabilities` と `thread_capability_overrides` の両方を見て、recovery 対象以外の channel で `respond_to_mentions` が有効になっていないかを確認します。
 
 ```bash
 bash <<'SH'
@@ -289,7 +289,7 @@ set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
 : "${VICISSITUDE_ADMIN_ACTOR:?set VICISSITUDE_ADMIN_ACTOR in .env}"
-violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$VICISSITUDE_GUILD_ID" -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
+violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$VICISSITUDE_GUILD_ID" -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM thread_capability_overrides WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
   printf '%s\n' "failed to verify recovery scope" >&2
   exit 1
 }
@@ -365,7 +365,13 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 channel capability の主キーは `(guild_id, channel_id)` です。thread に投稿された message は親 channel の ID に正規化して扱い、thread ID は event の `thread_id` に入ります。thread を対象にするには **親 channel の ID** を `channel set` に渡します。thread ID を渡した行は照合されず、message は `channel_not_allowed` として無視され、event も残りません。
 
-有効化の粒度は親 channel 単位です。forum や text channel を有効にすると、その配下の thread はすべて対象になります。thread 単位で絞る機能はありません。
+有効化の粒度は基本的に親 channel 単位です。forum や text channel を有効にすると、その配下の thread はすべて対象になります。ただし `observeEvents` / `respondToMentions` / `addReactions` の3項目に限り、thread 単位で上書きできます。上書きは `thread_capability_overrides` table（主キーは `(guild_id, channel_id, thread_id)`）に保持し、各項目は「継承」「明示的に許可」「明示的に拒否」の3状態を取ります。既定は継承で、親 channel の設定がそのまま使われます。それ以外の capability は thread 単位で上書きできず、親 channel 単位のままです。
+
+許可側の上書き（親 channel は拒否のまま、特定 thread だけ許可）と拒否側の上書き（親 channel は許可のまま、特定 thread だけ拒否）の両方ができます。forum のように「基本は入らないが指定 thread にだけ入る」運用は、親 channel を無効のままにして対象 thread だけ許可すれば実現できます。
+
+thread override の設定と確認は Discord のスラッシュコマンド `/vicissitude-channel thread-set` と `/vicissitude-channel thread-show` で行います。`thread-set` の `observe` / `mentions` / `reactions` の各オプションは `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。全項目を `inherit` に戻すと上書き行は削除されます。admin-cli の `pnpm admin channel set` は親 channel の capability だけを操作し、thread override を操作する subcommand はありません。thread 単位の上書きは現状 Discord のスラッシュコマンドからのみ設定できます。
+
+capability は message 取り込み時と effect 実行直前の両方で再評価します。thread override を拒否側に変えると、すでに queued になっている返信も effect 実行時に `capability_revoked` として止まります。
 
 対象 channel の ID が thread のものかどうかは Discord 側で確認します。`channel set` は capability 行を作るだけで、渡された ID が実在するか、thread かどうかは検証しません。
 
