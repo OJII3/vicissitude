@@ -5,7 +5,11 @@ import {
   type SlashCommandChannelOption,
 } from "discord.js";
 import type { ChannelCapabilities } from "../../modules/channels/channel-capability.js";
-import { inheritAllOverride, type ThreadCapabilityOverride } from "../../modules/channels/thread-capability.js";
+import {
+  inheritAllOverride,
+  resolveEffectiveCapabilities,
+  type ThreadCapabilityOverride,
+} from "../../modules/channels/thread-capability.js";
 import type { ThreadCapabilityPatch } from "../postgres/thread-capability-repository.js";
 import type { Clock } from "../../shared/clock.js";
 
@@ -225,6 +229,13 @@ export async function handleChannelCommand(
     }
     const current = await repository.get(interaction.guildId, capabilityChannelId);
     if (subcommand === "show") {
+      if (channel.isThread()) {
+        const override = await repository.getThread(interaction.guildId, capabilityChannelId, channel.id);
+        const effective = resolveEffectiveCapabilities(current, override);
+        const shown = { channel: current, threadOverride: override, effective };
+        await interaction.editReply({ content: `\`\`\`json\n${JSON.stringify(shown, null, 2)}\n\`\`\`` });
+        return;
+      }
       await interaction.editReply({ content: `\`\`\`json\n${JSON.stringify(current, null, 2)}\n\`\`\`` });
       return;
     }

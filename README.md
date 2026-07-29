@@ -369,7 +369,7 @@ channel capability の主キーは `(guild_id, channel_id)` です。thread に�
 
 許可側の上書き（親 channel は拒否のまま、特定 thread だけ許可）と拒否側の上書き（親 channel は許可のまま、特定 thread だけ拒否）の両方ができます。forum のように「基本は入らないが指定 thread にだけ入る」運用は、親 channel を無効のままにして対象 thread だけ許可すれば実現できます。
 
-thread override の設定と確認は Discord のスラッシュコマンド `/vicissitude-channel thread-set` と `/vicissitude-channel thread-show` で行います。`thread-set` の `observe` / `mentions` / `reactions` の各オプションは `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。全項目を `inherit` に戻すと上書き行は削除されます。admin-cli の `pnpm admin channel set` は親 channel の capability だけを操作し、thread override を操作する subcommand はありません。thread 単位の上書きは現状 Discord のスラッシュコマンドからのみ設定できます。
+thread override の設定と確認は Discord のスラッシュコマンド `/vicissitude-channel thread-set` と `/vicissitude-channel thread-show` で行います。`thread-set` の `observe` / `mentions` / `reactions` の各オプションは `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。全項目を `inherit` に戻すと上書き行は削除されます。admin-cli の `pnpm admin channel set` は親 channel の capability だけを操作し、thread override を操作する subcommand はありません。thread 単位の上書きは現状 Discord のスラッシュコマンドからのみ設定できます。`/vicissitude-channel show` に thread の ID を渡すと、親 channel の capability だけでなく、その thread の override と結果として実効になる capability も併せて返します。
 
 capability は message 取り込み時と effect 実行直前の両方で再評価します。thread override を拒否側に変えると、すでに queued になっている返信も effect 実行時に `capability_revoked` として止まります。
 

@@ -350,3 +350,75 @@ describe("handleChannelCommand thread subcommands", () => {
     );
   });
 });
+
+describe("handleChannelCommand show on a thread channel", () => {
+  function jsonContent(interactionValue: unknown): unknown {
+    const content = (interactionValue as { editReply: ReturnType<typeof vi.fn> }).editReply.mock.calls[0]?.[0].content;
+    return JSON.parse(content.replace(/^```json\n|\n```$/g, ""));
+  }
+
+  it("reports the parent channel, the thread override, and the resolved effective capabilities", async () => {
+    const parentCapabilities = { ...denyAllCapabilities("guild-1", "channel-1"), spontaneousJoin: true };
+    const override = {
+      guildId: "guild-1",
+      channelId: "channel-1",
+      threadId: "thread-1",
+      observeEvents: true,
+      respondToMentions: null,
+      addReactions: null,
+    };
+    const repository = {
+      get: vi.fn().mockResolvedValue(parentCapabilities),
+      patch: vi.fn(),
+      getThread: vi.fn().mockResolvedValue(override),
+      patchThread: vi.fn(),
+    };
+    const interaction = interactionFor("show", {}, thread);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.get).toHaveBeenCalledWith("guild-1", "channel-1");
+    expect(repository.getThread).toHaveBeenCalledWith("guild-1", "channel-1", "thread-1");
+    expect(jsonContent(interaction)).toEqual({
+      channel: parentCapabilities,
+      threadOverride: override,
+      effective: { ...parentCapabilities, observeEvents: true },
+    });
+  });
+
+  it("reports a null thread override when no override exists", async () => {
+    const parentCapabilities = denyAllCapabilities("guild-1", "channel-1");
+    const repository = {
+      get: vi.fn().mockResolvedValue(parentCapabilities),
+      patch: vi.fn(),
+      getThread: vi.fn().mockResolvedValue(null),
+      patchThread: vi.fn(),
+    };
+    const interaction = interactionFor("show", {}, thread);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(jsonContent(interaction)).toEqual({
+      channel: parentCapabilities,
+      threadOverride: null,
+      effective: parentCapabilities,
+    });
+  });
+
+  it("keeps the plain channel-capabilities JSON shape for a non-thread channel", async () => {
+    const capabilities = denyAllCapabilities("guild-1", "channel-1");
+    const nonThreadChannel = { id: "channel-1", parentId: null, isThread: () => false };
+    const repository = {
+      get: vi.fn().mockResolvedValue(capabilities),
+      patch: vi.fn(),
+      getThread: vi.fn(),
+      patchThread: vi.fn(),
+    };
+    const interaction = interactionFor("show", {}, nonThreadChannel);
+
+    await handleChannelCommand(interaction, "guild-1", new Set(["admin-1"]), repository, clock);
+
+    expect(repository.getThread).not.toHaveBeenCalled();
+    expect(jsonContent(interaction)).toEqual(capabilities);
+  });
+});
