@@ -20,7 +20,7 @@ pnpm build
 pnpm test
 ```
 
-`.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
+`.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
 
 process 固有の secret や credential は `.env.gateway.local`、`.env.worker.local` などに分け、起動する process の terminal でだけ追加で読み込みます。例えば Gateway は Discord credential だけ、worker は model provider credential だけを読み込みます。このリポジトリは process manager や secret 配布方式を固定しませんが、foreground 起動時も外部 deployment adapter も同じ境界を維持してください。
 
@@ -48,7 +48,6 @@ direnv allow
 
 ```dotenv
 DISCORD_TOKEN=...
-VICISSITUDE_GUILD_ID=...
 VICISSITUDE_ADMIN_USER_IDS=admin-discord-user-id
 ```
 
@@ -144,12 +143,13 @@ terminal 2 で cognition worker を foreground 起動します。admin-cli は t
 ```bash
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
 : "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
 # terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin channel set discord-guild-id discord-channel-id --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+pnpm admin channel set "$VICISSITUDE_GUILD_ID" <discord-channel-id> --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
 ```
 
 両方の readiness check が成功しなければ channel capability を有効にしません。
@@ -257,7 +257,8 @@ pnpm admin effect reconcile effect-id --state succeeded --external-resource-id d
 ```bash
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
-violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id=discord-guild-id -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
+: "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
+violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$VICISSITUDE_GUILD_ID" -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
   printf '%s\n' "failed to verify recovery scope" >&2
   exit 1
 }
@@ -272,7 +273,7 @@ case "$violations" in
     exit 1
     ;;
 esac
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id=discord-guild-id -v channel_id=discord-channel-id -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$VICISSITUDE_GUILD_ID" -v channel_id=discord-channel-id -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
 # 同じbuildのcognition workerを外部deployment adapterまたは別terminalで再起動する。
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND leased_until > clock_timestamp();")" || {
