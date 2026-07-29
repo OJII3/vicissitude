@@ -4,6 +4,8 @@ import { createPostgresClient } from "../adapters/postgres/client.js";
 import { migrationStatus } from "../adapters/postgres/migrations.js";
 import { PostgresIngestionStore } from "../adapters/postgres/ingestion-store.js";
 import { PostgresChannelCapabilityRepository } from "../adapters/postgres/channel-capability-repository.js";
+import { PostgresThreadCapabilityRepository } from "../adapters/postgres/thread-capability-repository.js";
+import { PostgresEffectiveCapabilityRepository } from "../adapters/postgres/effective-capability-repository.js";
 import { PostgresSystemControlRepository } from "../adapters/postgres/system-control-repository.js";
 import { PostgresEffectQueue } from "../adapters/postgres/effect-queue.js";
 import { DiscordClientMessenger, snapshotDiscordMessage } from "../adapters/discord/discord-client.js";
@@ -92,7 +94,9 @@ export function handleGatewayFatal(
 export async function runGateway(d: GatewayDependencies): Promise<void> {
   const { sql, client, config, health, logger } = d;
   if (!d.prepared) requireNoPendingMigrations(await migrationStatus(sql, config.migrationsDir));
-  const capabilities = new PostgresChannelCapabilityRepository(sql);
+  const channelCapabilities = new PostgresChannelCapabilityRepository(sql);
+  const threadCapabilities = new PostgresThreadCapabilityRepository(sql);
+  const effectiveCapabilities = new PostgresEffectiveCapabilityRepository(channelCapabilities, threadCapabilities);
   const system = new PostgresSystemControlRepository(sql);
   await system.get();
   const ingestion = new PostgresIngestionStore(sql);
@@ -117,7 +121,7 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
     const task = (async () => {
       const snapshot = snapshotDiscordMessage(message);
       const input = toDiscordMessageInput(snapshot, client.user!.id);
-      const capability = await capabilities.get(config.guildId, input.channelId);
+      const capability = await effectiveCapabilities.get(config.guildId, input.channelId, input.threadId);
       const mode = await system.get();
       const result = await ingestDiscordMessage(input, capability, mode.mode, ingestion, SystemClock);
       logger.debug(
@@ -148,9 +152,9 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
     )
       return;
     const commandRepository = {
-      get: capabilities.get.bind(capabilities),
-      patch: async (...args: Parameters<typeof capabilities.patch>) => {
-        await capabilities.patch(...args);
+      get: channelCapabilities.get.bind(channelCapabilities),
+      patch: async (...args: Parameters<typeof channelCapabilities.patch>) => {
+        await channelCapabilities.patch(...args);
       },
     };
     inflight
@@ -165,7 +169,8 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
   await d.registerCommands?.();
   health.setReady(true);
   const controller = new AbortController();
-  const effectLoop = runEffectLoop(effects, capabilities, executor, controller.signal, logger, rejectFatal);
+  // runOneEffect still resolves capability without a thread; Task 7 widens it and switches this over.
+  const effectLoop = runEffectLoop(effects, channelCapabilities, executor, controller.signal, logger, rejectFatal);
   let fatalError: unknown;
   try {
     await Promise.race([d.shutdown, fatal]);
