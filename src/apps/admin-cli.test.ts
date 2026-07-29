@@ -244,6 +244,26 @@ describe("admin dispatch", () => {
     error.mockRestore();
   });
 
+  it("reports success separately from a close failure after a successful dispatch", async () => {
+    const end = vi.fn(async () => {
+      throw new Error("connection reset");
+    });
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await main(
+      ["migration", "status"],
+      { DATABASE_URL: "postgres://db", MIGRATIONS_DIR: "migrations" },
+      {
+        createClient: () => ({ end }) as never,
+        migrationStatus: vi.fn(async () => []) as never,
+        output: out(),
+      },
+    );
+    expect(error).toHaveBeenCalledWith("Admin command succeeded, but closing the database connection failed");
+    expect(process.exitCode).toBe(1);
+    error.mockRestore();
+    process.exitCode = undefined;
+  });
+
   it("does not expose dependency or close errors", async () => {
     const secret = "postgres://secret\nTOKEN";
     const end = vi.fn(async () => {
