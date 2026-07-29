@@ -13,7 +13,9 @@ const channel: ChannelCapabilities = {
   createThreads: true,
 };
 
-function override(patch: Partial<Pick<ThreadCapabilityOverride, ThreadOverridableCapability>>): ThreadCapabilityOverride {
+function override(
+  patch: Partial<Pick<ThreadCapabilityOverride, ThreadOverridableCapability>>,
+): ThreadCapabilityOverride {
   return {
     guildId: "guild-1",
     channelId: "channel-1",
