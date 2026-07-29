@@ -63,6 +63,7 @@ VICISSITUDE_ADMIN_USER_IDS=admin-discord-user-id
 PostgreSQL server は OS の daemon または managed service として起動済みである前提です。`DATABASE_URL` が指す PostgreSQL database を用意してから migration を適用します。app database が未作成の場合は、`postgres` などの既存 maintenance database に接続して app database を作成します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 DATABASE_NAME="$(node -e 'const url = new URL(process.env.DATABASE_URL); process.stdout.write(decodeURIComponent(url.pathname.slice(1)));')"
@@ -71,11 +72,13 @@ SELECT format('CREATE DATABASE %I', :'db')
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db')
 \gexec
 SQL
+SH
 ```
 
 空の database であっても、migration apply は backup または snapshot の確認時刻を要求します。既存 database に適用する場合は、必ず実データの backup を作成して restore 可能性を確認してください。新規作成直後の空 database では、その空 database の dump を作成して `pg_restore --list` で確認し、その dump の mtime を `BACKUP_CONFIRMED_AT` に使います。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 pnpm install
 pnpm build
@@ -92,6 +95,7 @@ pnpm admin migration status
 pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
 pnpm admin character import ./character-reviewed.json --actor admin-id
 pnpm admin character activate primary 1 --actor admin-id
+SH
 ```
 
 `BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を admin-cli 実行時に `BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
@@ -120,27 +124,34 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 Gateway、worker、admin-cli の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を admin-cli 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。Gateway terminal では `.env.gateway.local`、worker terminal では `.env.worker.local` だけを追加で読み込みます。admin-cli terminal は process 固有 secret を追加で読み込みません。外部 deployment adapter を使う場合も、この process 境界を維持します。
 
+以降の block は `bash <<'SH'` で子 shell に閉じ込めてあります。この形を崩さないでください。`set -euo pipefail` や `: "${VAR:?...}"` を対話 shell へ直接貼ると、guard の失敗や foreground process への Ctrl+C が errexit で対話 shell 自体を終了させ、terminal ごと消えます。子 shell に閉じ込めれば、中断も guard の失敗も子 shell だけで完結し、Gateway と worker は SIGINT を受けて graceful shutdown します。process 固有の secret が対話 shell の環境に残らない利点もあります。
+
 ```bash
+bash <<'SH'
 set -euo pipefail
 set -a
 . ./.env.gateway.local
 set +a
-pnpm start:gateway
+exec pnpm start:gateway
+SH
 ```
 
 terminal 1 で Gateway を foreground 起動します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 set -a
 . ./.env.worker.local
 set +a
-pnpm start:worker
+exec pnpm start:worker
+SH
 ```
 
 terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
@@ -150,6 +161,7 @@ set -euo pipefail
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
 pnpm admin channel set "$VICISSITUDE_GUILD_ID" <discord-channel-id> --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+SH
 ```
 
 両方の readiness check が成功しなければ channel capability を有効にしません。
@@ -157,6 +169,7 @@ pnpm admin channel set "$VICISSITUDE_GUILD_ID" <discord-channel-id> --observe tr
 ### Deploy
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
@@ -189,31 +202,37 @@ pg_restore --list "$BACKUP_PATH" >/dev/null
 BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
 pnpm admin migration status
 pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
+SH
 ```
 
 上のblockが成功終了するまでdeployを続けません。migration後、外部deployment adapterまたは別terminalでGatewayとcognition workerの両方を起動します。手動運用ではGo-liveと同じく、次の二つを別terminalで実行します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 set -a
 . ./.env.gateway.local
 set +a
-pnpm start:gateway
+exec pnpm start:gateway
+SH
 ```
 
 terminal 1 で Gateway を foreground 起動します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 set -a
 . ./.env.worker.local
 set +a
-pnpm start:worker
+exec pnpm start:worker
+SH
 ```
 
 terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
@@ -221,6 +240,7 @@ set -euo pipefail
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
 pnpm admin system resume --actor admin-id --reason "deploy complete"
+SH
 ```
 
 両方の readiness check が成功しなければ resume や mentions enable を実行しません。
@@ -234,16 +254,20 @@ pnpm admin system resume --actor admin-id --reason "deploy complete"
 外部呼び出し後に状態が不明な effect は自動 retry しません。`unknown` の effect を一覧し、各 ID を `pnpm admin effect inspect effect-id` で確認します。Discord に message が存在すると確認できた場合だけ `succeeded` と external resource ID を付け、存在しないと確認できた場合だけ external resource ID なしの `failed` に reconcile します。結果が不明なら `unknown` のままにします。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT id, run_id, guild_id, capability_channel_id, target_channel_id, target_message_id, updated_at FROM effects WHERE state = 'unknown' ORDER BY updated_at;"
+SH
 ```
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 pnpm admin effect inspect effect-id
 pnpm admin effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
+SH
 ```
 
 ### Shutdown And Drain
@@ -255,6 +279,7 @@ pnpm admin effect reconcile effect-id --state succeeded --external-resource-id d
 単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。recovery 対象の guild id と channel id は下の `psql -v` 引数で固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
 
 ```bash
+bash <<'SH'
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_GUILD_ID:?set VICISSITUDE_GUILD_ID in .env}"
@@ -319,6 +344,7 @@ while true; do
   esac
   sleep 5
 done
+SH
 ```
 
 queued job は deploy 後に処理できるため、drain-to-zero の count には含めません。active count が消えない場合は強制停止や migration をせず、原因を調べます。capability は recovery 中も変更しません。unknown effect は active drain count に含めず、Discord の結果を確認して別途 reconcile します。recovery と deploy が終わり、再起動後の readiness が成功してから `system resume`、最後に mentions enable を実行します。
