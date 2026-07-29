@@ -6,13 +6,13 @@ Vicissitude は、Discord コミュニティ内で継続的に動作する AI �
 
 ## Development
 
-Node.js 24、pnpm 11.16、Nix、PostgreSQL 17 が必要です。開発 shell に入り、依存関係の取得、build、test を実行します。
+Node.js 24、pnpm 11.16、Nix、PostgreSQL 17、direnv が必要です。開発 shell に入り、依存関係の取得、build、test を実行します。
 
 ```bash
 nix develop
 ```
 
-上のコマンドで開発 shell に入り、以降のコマンドはその shell で実行します。
+上のコマンドで開発 shell に入れます。direnv を使う場合は、`.envrc` が `use flake` と `dotenv` を実行するため、repository directory へ入った時点で Nix shell と `.env` の共通環境変数が読み込まれます。
 
 ```bash
 pnpm install
@@ -20,7 +20,9 @@ pnpm build
 pnpm test
 ```
 
-`.env.example` は自動ロードされません。各 executable に必要な環境変数だけを、foreground 起動時または外部 deployment adapter から明示的に渡してください。このリポジトリは process manager や secret 配布方式を固定しません。
+`.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
+
+process 固有の secret や credential は `.env.gateway.local`、`.env.worker.local` などに分け、起動する process の terminal でだけ追加で読み込みます。例えば Gateway は Discord credential だけ、worker は model provider credential だけを読み込みます。このリポジトリは process manager や secret 配布方式を固定しませんが、foreground 起動時も外部 deployment adapter も同じ境界を維持してください。
 
 ## Architecture
 
@@ -34,13 +36,57 @@ Gateway と cognition worker は別 process として動かします。provider 
 
 ## Initial Setup
 
+まず共通環境変数を `.env` に置き、direnv で常時読み込ませます。`.env.example` は全体の変数一覧です。実運用ではこの内容をそのまま一つの secret set にせず、共通値だけを `.env` に残し、process 固有値を `.env.gateway.local` や `.env.worker.local` へ移します。
+
+```bash
+test -f .env || cp .env.example .env
+touch .env.gateway.local .env.worker.local
+direnv allow
+```
+
+`.env.gateway.local` には Gateway だけが必要な値を置きます。
+
+```dotenv
+DISCORD_TOKEN=...
+VICISSITUDE_GUILD_ID=...
+VICISSITUDE_ADMIN_USER_IDS=admin-discord-user-id
+```
+
+`.env.worker.local` には選択した model provider の credential だけを置きます。必要な変数名は `@earendil-works/pi-ai` と `config/model-routes.json` の provider 設定に合わせます。Discord token は worker に渡しません。
+
+```dotenv
+# 例: 選択した provider に必要な credential
+# PROVIDER_API_KEY=...
+```
+
+### Database And Migration
+
+PostgreSQL server は OS の daemon または managed service として起動済みである前提です。`DATABASE_URL` が指す PostgreSQL database を用意してから migration を適用します。app database が未作成の場合は、`MAINTENANCE_DATABASE_URL` で `postgres` などの既存 maintenance database に接続して app database を作成します。
+
+```bash
+set -euo pipefail
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+export MAINTENANCE_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres
+export DATABASE_NAME="$(node -e 'const url = new URL(process.env.DATABASE_URL); process.stdout.write(decodeURIComponent(url.pathname.slice(1)));')"
+psql "$MAINTENANCE_DATABASE_URL" -v ON_ERROR_STOP=1 -v db="$DATABASE_NAME" <<'SQL'
+SELECT format('CREATE DATABASE %I', :'db')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db')
+\gexec
+SQL
+```
+
+空の database であっても、migration apply は backup または snapshot の確認時刻を要求します。既存 database に適用する場合は、必ず実データの backup を作成して restore 可能性を確認してください。新規作成直後の空 database では、その空 database の dump を作成して `pg_restore --list` で確認し、その dump の mtime を `BACKUP_CONFIRMED_AT` に使います。
+
 ```bash
 set -euo pipefail
 pnpm install
 pnpm build
-export DATABASE_URL=postgresql://user:password@host:5432/database
-export VICISSITUDE_MIGRATIONS_DIR=migrations
-export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_MIGRATIONS_DIR:?set VICISSITUDE_MIGRATIONS_DIR in .env}"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;'
+export BACKUP_DIR=${BACKUP_DIR:-./backups}
+mkdir -p "$BACKUP_DIR"
+export BACKUP_PATH=$BACKUP_DIR/vicissitude-$(date +%Y%m%d-%H%M%S).dump
 pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
 export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
@@ -72,29 +118,46 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 ### Operator Environment
 
-各operator terminalの開始時に、対象executableと同じ値をこのblockで設定します。`GUILD_ID`と`CHANNEL_ID`は実行processから継承されないため、対象を明示してください。health portはGatewayとworkerの起動設定と一致させます。
+operator terminal でも `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。`GUILD_ID` と `CHANNEL_ID` は Gateway/worker の設定とは別に、操作対象を明示するため operator terminal で設定します。health port は `.env` の共通値を使い、Gateway と worker の起動設定と一致させます。
 
 ```bash
 set -euo pipefail
-export DATABASE_URL=postgresql://user:password@host:5432/database
 export GUILD_ID=guild-id
 export CHANNEL_ID=channel-id
-export VICISSITUDE_GATEWAY_HEALTH_PORT=8080
-export VICISSITUDE_WORKER_HEALTH_PORT=8081
-: "${DATABASE_URL:?replace DATABASE_URL}"
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${GUILD_ID:?replace GUILD_ID}"
 : "${CHANNEL_ID:?replace CHANNEL_ID}"
-: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?replace gateway health port}"
-: "${VICISSITUDE_WORKER_HEALTH_PORT:?replace worker health port}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
 ```
 
-値は実際の service 設定に置き換え、各 terminal で実行します。
+`GUILD_ID` と `CHANNEL_ID` は実際の操作対象に置き換え、operator terminal ごとに実行します。
 
 ### Go-Live
 
 本番用の CharacterDefinition はリポジトリに同梱しません。運用者が独立レビューした定義を import、activate してから Gateway と worker を起動します。
 
-Gateway、worker、operator の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を operator 用にします。外部 deployment adapter を使う場合も、この process 境界を維持します。
+Gateway、worker、operator の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を operator 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。Gateway terminal では `.env.gateway.local`、worker terminal では `.env.worker.local` だけを追加で読み込みます。外部 deployment adapter を使う場合も、この process 境界を維持します。
+
+```bash
+set -euo pipefail
+set -a
+. ./.env.gateway.local
+set +a
+pnpm start:gateway
+```
+
+terminal 1 で Gateway を foreground 起動します。
+
+```bash
+set -euo pipefail
+set -a
+. ./.env.worker.local
+set +a
+pnpm start:worker
+```
+
+terminal 2 で cognition worker を foreground 起動します。operator は terminal 3 で次を実行します。
 
 ```bash
 set -euo pipefail
@@ -154,6 +217,9 @@ pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor 
 
 ```bash
 set -euo pipefail
+set -a
+. ./.env.gateway.local
+set +a
 pnpm start:gateway
 ```
 
@@ -161,6 +227,9 @@ terminal 1 で Gateway を foreground 起動します。
 
 ```bash
 set -euo pipefail
+set -a
+. ./.env.worker.local
+set +a
 pnpm start:worker
 ```
 
@@ -288,7 +357,7 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ### Database
 
-起動時にmigrationは実行しません。直近24時間以内に作成し、`pg_restore --list`で確認したbackupまたはsnapshotの完了時刻を`BACKUP_CONFIRMED_AT`に渡します。`audit_entries`と適用済みmigration versionを確認します。offline rehearsalは`nix build .#checks.x86_64-linux.staging-db-rehearsal`で検証済みですが、本番backup artifactのrestoreは本番前に別途確認してください。
+`DATABASE_URL` が指す database は migration 実行前に作成しておきます。起動時に migration は実行しません。直近24時間以内に作成し、`pg_restore --list` で確認した backup または snapshot の完了時刻を `BACKUP_CONFIRMED_AT` に渡します。新規作成直後の空 database でも、空 database の dump を作成して restore list を確認してから migration を適用します。`audit_entries` と適用済み migration version を確認します。offline rehearsal は `nix build .#checks.x86_64-linux.staging-db-rehearsal` で検証済みですが、本番 backup artifact の restore は本番前に別途確認してください。
 
 ### Health
 
@@ -296,9 +365,9 @@ Guilds、Guild Messages、Message Content intents を有効にします。`VICIS
 
 ### Credential Boundary
 
-Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。`.env` は共通値だけの常時ロード用、`.env.gateway.local` と `.env.worker.local` は process 固有値の追加ロード用です。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
 
-Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
+Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。本番でGateway、worker、adminのDB credentialも分ける場合は、共通 `.env` から `DATABASE_URL` を外し、各 process の local env または deployment adapter で対象 executable 用の `DATABASE_URL` を渡してください。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
 
 offline staging checkはdatabase role/ACLを検証しますが、実運用のcredential注入、environment isolation、process isolationは検証しません。
 
