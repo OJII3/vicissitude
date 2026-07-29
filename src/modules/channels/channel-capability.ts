@@ -11,6 +11,10 @@ export interface ChannelCapabilities {
   shareExternalLinks: boolean;
 }
 
+export interface EffectiveCapabilityRepository {
+  get(guildId: string, channelId: string, threadId: string | null): Promise<ChannelCapabilities>;
+}
+
 export function denyAllCapabilities(guildId: string, channelId: string): ChannelCapabilities {
   return {
     guildId,

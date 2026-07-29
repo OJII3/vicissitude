@@ -173,8 +173,7 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
   await d.registerCommands?.();
   health.setReady(true);
   const controller = new AbortController();
-  // runOneEffect still resolves capability without a thread; Task 7 widens it and switches this over.
-  const effectLoop = runEffectLoop(effects, channelCapabilities, executor, controller.signal, logger, rejectFatal);
+  const effectLoop = runEffectLoop(effects, effectiveCapabilities, executor, controller.signal, logger, rejectFatal);
   let fatalError: unknown;
   try {
     await Promise.race([d.shutdown, fatal]);
@@ -190,7 +189,7 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
 }
 async function runEffectLoop(
   queue: PostgresEffectQueue,
-  capabilities: PostgresChannelCapabilityRepository,
+  capabilities: PostgresEffectiveCapabilityRepository,
   executor: DiscordEffectExecutor,
   signal: AbortSignal,
   logger: ReturnType<typeof createLogger>,
