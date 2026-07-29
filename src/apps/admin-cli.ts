@@ -159,24 +159,28 @@ export async function dispatchAdminCommand(
 }
 export async function main(argv = process.argv.slice(2), env = process.env, d: AdminDependencies = {}): Promise<void> {
   let sql: Sql | undefined;
-  let failed = false;
+  let dispatchFailed = false;
+  let closeFailed = false;
   try {
     const config = loadAdminConfig(env);
     sql = (d.createClient ?? createPostgresClient)(config.databaseUrl);
     await dispatchAdminCommand(parseAdminCommand(argv), sql, config, d);
   } catch {
-    failed = true;
+    dispatchFailed = true;
   } finally {
     if (sql) {
       try {
         await sql.end();
       } catch {
-        failed = true;
+        closeFailed = true;
       }
     }
   }
-  if (failed) {
+  if (dispatchFailed) {
     console.error("Admin command failed");
+    process.exitCode = 1;
+  } else if (closeFailed) {
+    console.error("Admin command succeeded, but closing the database connection failed");
     process.exitCode = 1;
   }
 }
