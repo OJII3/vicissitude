@@ -61,14 +61,13 @@ VICISSITUDE_ADMIN_USER_IDS=admin-discord-user-id
 
 ### Database And Migration
 
-PostgreSQL server は OS の daemon または managed service として起動済みである前提です。`DATABASE_URL` が指す PostgreSQL database を用意してから migration を適用します。app database が未作成の場合は、`MAINTENANCE_DATABASE_URL` で `postgres` などの既存 maintenance database に接続して app database を作成します。
+PostgreSQL server は OS の daemon または managed service として起動済みである前提です。`DATABASE_URL` が指す PostgreSQL database を用意してから migration を適用します。app database が未作成の場合は、`postgres` などの既存 maintenance database に接続して app database を作成します。
 
 ```bash
 set -euo pipefail
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
-export MAINTENANCE_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/postgres
-export DATABASE_NAME="$(node -e 'const url = new URL(process.env.DATABASE_URL); process.stdout.write(decodeURIComponent(url.pathname.slice(1)));')"
-psql "$MAINTENANCE_DATABASE_URL" -v ON_ERROR_STOP=1 -v db="$DATABASE_NAME" <<'SQL'
+DATABASE_NAME="$(node -e 'const url = new URL(process.env.DATABASE_URL); process.stdout.write(decodeURIComponent(url.pathname.slice(1)));')"
+psql postgresql://admin-user@host:5432/postgres -v ON_ERROR_STOP=1 -v db="$DATABASE_NAME" <<'SQL'
 SELECT format('CREATE DATABASE %I', :'db')
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = :'db')
 \gexec
@@ -84,19 +83,19 @@ pnpm build
 : "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 : "${VICISSITUDE_MIGRATIONS_DIR:?set VICISSITUDE_MIGRATIONS_DIR in .env}"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c 'SELECT 1;'
-export BACKUP_DIR=${BACKUP_DIR:-./backups}
+BACKUP_DIR=${BACKUP_DIR:-./backups}
 mkdir -p "$BACKUP_DIR"
-export BACKUP_PATH=$BACKUP_DIR/vicissitude-$(date +%Y%m%d-%H%M%S).dump
+BACKUP_PATH=$BACKUP_DIR/vicissitude-$(date +%Y%m%d-%H%M%S).dump
 pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
-export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
+BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
 pnpm admin migration status
 pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
 pnpm admin character import ./character-reviewed.json --actor admin-id
 pnpm admin character activate primary 1 --actor admin-id
 ```
 
-`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を operator が `export BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
+`BACKUP_CONFIRMED_AT` は `pg_restore --list` が成功した backup file の mtime を指定します。snapshot を使う場合は、provider が記録した snapshot 完了時刻を admin-cli 実行時に `BACKUP_CONFIRMED_AT=...` で設定してください。現在時刻をそのまま指定しないでください。`nix build .#checks.x86_64-linux.staging-db-rehearsal`はtest-only databaseで同じattestationと3 cluster restoreを検証しますが、本番backup artifact自体の復元確認は別途必要です。
 
 CharacterDefinition は次の形を満たす JSON を用意します。これは placeholder であり、本番人格ではありません。
 
@@ -116,28 +115,11 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 ## Operations
 
-### Operator Environment
-
-operator terminal でも `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。`GUILD_ID` と `CHANNEL_ID` は Gateway/worker の設定とは別に、操作対象を明示するため operator terminal で設定します。health port は `.env` の共通値を使い、Gateway と worker の起動設定と一致させます。
-
-```bash
-set -euo pipefail
-export GUILD_ID=guild-id
-export CHANNEL_ID=channel-id
-: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
-: "${GUILD_ID:?replace GUILD_ID}"
-: "${CHANNEL_ID:?replace CHANNEL_ID}"
-: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
-: "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
-```
-
-`GUILD_ID` と `CHANNEL_ID` は実際の操作対象に置き換え、operator terminal ごとに実行します。
-
 ### Go-Live
 
 本番用の CharacterDefinition はリポジトリに同梱しません。運用者が独立レビューした定義を import、activate してから Gateway と worker を起動します。
 
-Gateway、worker、operator の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を operator 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。Gateway terminal では `.env.gateway.local`、worker terminal では `.env.worker.local` だけを追加で読み込みます。外部 deployment adapter を使う場合も、この process 境界を維持します。
+Gateway、worker、admin-cli の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を admin-cli 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。Gateway terminal では `.env.gateway.local`、worker terminal では `.env.worker.local` だけを追加で読み込みます。admin-cli terminal は process 固有 secret を追加で読み込みません。外部 deployment adapter を使う場合も、この process 境界を維持します。
 
 ```bash
 set -euo pipefail
@@ -157,20 +139,17 @@ set +a
 pnpm start:worker
 ```
 
-terminal 2 で cognition worker を foreground 起動します。operator は terminal 3 で次を実行します。
+terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
 
 ```bash
 set -euo pipefail
-# Operator Environment をこの terminal で設定済みであることを確認する。
-: "${DATABASE_URL:?run Operator Environment first}"
-: "${GUILD_ID:?run Operator Environment first}"
-: "${CHANNEL_ID:?run Operator Environment first}"
-: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
-: "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
 # terminal 3: Gateway と worker は terminal 1、2 または外部deployment adapterで起動済みとする。
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
-pnpm admin channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
+pnpm admin channel set discord-guild-id discord-channel-id --observe true --mentions true --actor admin-id --reason "enable reviewed target channel"
 ```
 
 両方の readiness check が成功しなければ channel capability を有効にしません。
@@ -179,12 +158,9 @@ pnpm admin channel set "$GUILD_ID" "$CHANNEL_ID" --observe true --mentions true 
 
 ```bash
 set -euo pipefail
-# Operator Environment をこの terminal で設定済みであることを確認する。
-: "${DATABASE_URL:?run Operator Environment first}"
-: "${GUILD_ID:?run Operator Environment first}"
-: "${CHANNEL_ID:?run Operator Environment first}"
-: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?run Operator Environment first}"
-: "${VICISSITUDE_WORKER_HEALTH_PORT:?run Operator Environment first}"
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
 pnpm admin system drain --actor admin-id --reason "deploy"
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT (SELECT count(*) FROM jobs WHERE state = 'running') + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing'));")" || {
@@ -205,10 +181,12 @@ done
 # If the count does not clear because a worker crashed or a lease expired, do not stop processes or migrate.
 # Investigate first. Unknown effects are handled separately below.
 pnpm build
-export BACKUP_PATH=/var/backups/vicissitude-$(date +%Y%m%d-%H%M%S).dump
+BACKUP_DIR=${BACKUP_DIR:-./backups}
+mkdir -p "$BACKUP_DIR"
+BACKUP_PATH=$BACKUP_DIR/vicissitude-$(date +%Y%m%d-%H%M%S).dump
 pg_dump --format=custom --file "$BACKUP_PATH" "$DATABASE_URL"
 pg_restore --list "$BACKUP_PATH" >/dev/null
-export BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
+BACKUP_CONFIRMED_AT="$(date --iso-8601=seconds --reference="$BACKUP_PATH")"
 pnpm admin migration status
 pnpm admin migration apply --backup-confirmed-at "$BACKUP_CONFIRMED_AT" --actor admin-id
 ```
@@ -233,10 +211,13 @@ set +a
 pnpm start:worker
 ```
 
-terminal 2 で cognition worker を foreground 起動します。operator は terminal 3 で次を実行します。
+terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
 
 ```bash
 set -euo pipefail
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+: "${VICISSITUDE_GATEWAY_HEALTH_PORT:?set gateway health port in .env}"
+: "${VICISSITUDE_WORKER_HEALTH_PORT:?set worker health port in .env}"
 curl --fail http://127.0.0.1:${VICISSITUDE_GATEWAY_HEALTH_PORT}/ready
 curl --fail http://127.0.0.1:${VICISSITUDE_WORKER_HEALTH_PORT}/ready
 pnpm admin system resume --actor admin-id --reason "deploy complete"
@@ -254,13 +235,13 @@ pnpm admin system resume --actor admin-id --reason "deploy complete"
 
 ```bash
 set -euo pipefail
-: "${DATABASE_URL:?run Operator Environment first}"
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT id, run_id, guild_id, capability_channel_id, target_channel_id, target_message_id, updated_at FROM effects WHERE state = 'unknown' ORDER BY updated_at;"
 ```
 
 ```bash
 set -euo pipefail
-: "${DATABASE_URL:?run Operator Environment first}"
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
 pnpm admin effect inspect effect-id
 pnpm admin effect reconcile effect-id --state succeeded --external-resource-id discord-message-id --actor admin-id --reason "verified in Discord"
 ```
@@ -271,16 +252,12 @@ pnpm admin effect reconcile effect-id --state succeeded --external-resource-id d
 
 ### Lease Recovery
 
-単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。`GUILD_ID` と `CHANNEL_ID` は対象を固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
+単一 guild、単一 channel の deploy で running job が消えない場合は、channel capability を変更せず、同じ worker を復旧します。planned または executing effect の処理中に capability を変えると `capability_revoked` になるためです。recovery 対象の guild id と channel id は下の `psql -v` 引数で固定し、別 channel を巻き込みません。別の admin が recovery 中に別 channel を enable しない、という排他運用が必要です。scope の安全性は変数ではなく、下の DB assertions で確認します。
 
 ```bash
 set -euo pipefail
-export GUILD_ID=guild-id
-export CHANNEL_ID=channel-id
-: "${DATABASE_URL:?run Operator Environment first}"
-: "${GUILD_ID:?replace GUILD_ID}"
-: "${CHANNEL_ID:?replace CHANNEL_ID}"
-violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$GUILD_ID" -v channel_id="$CHANNEL_ID" -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
+: "${DATABASE_URL:?set DATABASE_URL in .env and let direnv load it}"
+violations="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id=discord-guild-id -v channel_id=discord-channel-id -Atc "SELECT (SELECT count(*) FROM channel_capabilities WHERE respond_to_mentions AND NOT (guild_id = :'guild_id' AND channel_id = :'channel_id')) + (SELECT count(*) FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state IN ('queued', 'running') AND NOT (e.guild_id = :'guild_id' AND e.channel_id = :'channel_id')) + (SELECT count(*) FROM effects WHERE state IN ('planned', 'executing') AND NOT (guild_id = :'guild_id' AND capability_channel_id = :'channel_id'));" )" || {
   printf '%s\n' "failed to verify recovery scope" >&2
   exit 1
 }
@@ -295,7 +272,7 @@ case "$violations" in
     exit 1
     ;;
 esac
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id="$GUILD_ID" -v channel_id="$CHANNEL_ID" -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -v guild_id=discord-guild-id -v channel_id=discord-channel-id -Atc "SELECT j.id, j.event_id, j.lease_owner, j.leased_until FROM jobs j JOIN events e ON e.id = j.event_id WHERE j.state = 'running' AND e.guild_id = :'guild_id' AND e.channel_id = :'channel_id' ORDER BY j.leased_until NULLS FIRST;"
 # 同じbuildのcognition workerを外部deployment adapterまたは別terminalで再起動する。
 while true; do
   active="$(psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM jobs WHERE state = 'running' AND leased_until > clock_timestamp();")" || {
