@@ -32,6 +32,9 @@ export const channelCommand = new SlashCommandBuilder()
       .setName("set")
       .setDescription("チャンネル権限を設定します")
       .addChannelOption(channelOption)
+      .addStringOption((o) =>
+        o.setName("reason").setDescription("変更理由").setMinLength(1).setMaxLength(500).setRequired(true),
+      )
       .addBooleanOption((o) => o.setName("observe").setDescription("イベントを観察する"))
       .addBooleanOption((o) => o.setName("mentions").setDescription("mentionへ応答する"))
       .addBooleanOption((o) => o.setName("join").setDescription("自発参加する"))
@@ -39,10 +42,7 @@ export const channelCommand = new SlashCommandBuilder()
       .addBooleanOption((o) => o.setName("reactions").setDescription("reactionを追加する"))
       .addBooleanOption((o) => o.setName("threads").setDescription("threadを作成する"))
       .addBooleanOption((o) => o.setName("files").setDescription("fileを共有する"))
-      .addBooleanOption((o) => o.setName("links").setDescription("外部linkを共有する"))
-      .addStringOption((o) =>
-        o.setName("reason").setDescription("変更理由").setMinLength(1).setMaxLength(500).setRequired(true),
-      ),
+      .addBooleanOption((o) => o.setName("links").setDescription("外部linkを共有する")),
   );
 
 interface Repository {

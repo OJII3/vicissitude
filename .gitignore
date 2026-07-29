@@ -1,8 +1,10 @@
 .worktrees/
 .env
+.env.*.local
 dist/
 node_modules/
 result
 coverage/
 *.log
 .tmp/
+/.direnv
