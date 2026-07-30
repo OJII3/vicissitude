@@ -124,6 +124,119 @@ describe("admin dispatch", () => {
     });
     expect(output.write).toHaveBeenLastCalledWith(value);
   });
+  it("patches thread capability overrides and writes only the provided fields", async () => {
+    const patched = {
+      guildId: "g",
+      channelId: "c",
+      threadId: "t",
+      observeEvents: true,
+      respondToMentions: null,
+      addReactions: null,
+    };
+    const patch = vi.fn(async () => patched);
+    const get = vi.fn(async () => null);
+    const output = out();
+    await dispatchAdminCommand(
+      {
+        kind: "thread.set",
+        guildId: "g",
+        channelId: "c",
+        threadId: "t",
+        observeEvents: true,
+        actor: "a",
+        reason: "r",
+      },
+      sql,
+      config,
+      { thread: () => ({ get, patch }), now: () => at, output },
+    );
+    expect(patch).toHaveBeenCalledWith("g", "c", "t", { observeEvents: true }, "a", "r", at);
+    expect(get).not.toHaveBeenCalled();
+    expect(output.write).toHaveBeenCalledWith(patched);
+  });
+
+  it("writes the all-inherit shape when a thread patch deletes the override row", async () => {
+    const patch = vi.fn(async () => null);
+    const output = out();
+    await dispatchAdminCommand(
+      {
+        kind: "thread.set",
+        guildId: "g",
+        channelId: "c",
+        threadId: "t",
+        observeEvents: null,
+        actor: "a",
+        reason: "r",
+      },
+      sql,
+      config,
+      { thread: () => ({ get: vi.fn(), patch }), now: () => at, output },
+    );
+    expect(patch).toHaveBeenCalledWith("g", "c", "t", { observeEvents: null }, "a", "r", at);
+    expect(output.write).toHaveBeenCalledWith({
+      guildId: "g",
+      channelId: "c",
+      threadId: "t",
+      observeEvents: null,
+      respondToMentions: null,
+      addReactions: null,
+    });
+  });
+
+  it("sends an empty patch when thread set has no capability options", async () => {
+    const patch = vi.fn(async () => ({
+      guildId: "g",
+      channelId: "c",
+      threadId: "t",
+      observeEvents: null,
+      respondToMentions: null,
+      addReactions: null,
+    }));
+    await dispatchAdminCommand(
+      { kind: "thread.set", guildId: "g", channelId: "c", threadId: "t", actor: "a", reason: "r" },
+      sql,
+      config,
+      { thread: () => ({ get: vi.fn(), patch }), now: () => at, output: out() },
+    );
+    expect(patch).toHaveBeenCalledWith("g", "c", "t", {}, "a", "r", at);
+  });
+
+  it("shows the stored thread override when one exists", async () => {
+    const override = {
+      guildId: "g",
+      channelId: "c",
+      threadId: "t",
+      observeEvents: true,
+      respondToMentions: null,
+      addReactions: false,
+    };
+    const get = vi.fn(async () => override);
+    const output = out();
+    await dispatchAdminCommand({ kind: "thread.show", guildId: "g", channelId: "c", threadId: "t" }, sql, config, {
+      thread: () => ({ get, patch: vi.fn() }),
+      output,
+    });
+    expect(get).toHaveBeenCalledWith("g", "c", "t");
+    expect(output.write).toHaveBeenCalledWith(override);
+  });
+
+  it("shows the all-inherit shape for thread show when no override row exists", async () => {
+    const get = vi.fn(async () => null);
+    const output = out();
+    await dispatchAdminCommand({ kind: "thread.show", guildId: "g", channelId: "c", threadId: "t" }, sql, config, {
+      thread: () => ({ get, patch: vi.fn() }),
+      output,
+    });
+    expect(output.write).toHaveBeenCalledWith({
+      guildId: "g",
+      channelId: "c",
+      threadId: "t",
+      observeEvents: null,
+      respondToMentions: null,
+      addReactions: null,
+    });
+  });
+
   it("imports and activates character", async () => {
     const value = {
       schemaVersion: 1,

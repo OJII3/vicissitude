@@ -369,7 +369,16 @@ channel capability の主キーは `(guild_id, channel_id)` です。thread に�
 
 許可側の上書き（親 channel は拒否のまま、特定 thread だけ許可）と拒否側の上書き（親 channel は許可のまま、特定 thread だけ拒否）の両方ができます。forum のように「基本は入らないが指定 thread にだけ入る」運用は、親 channel を無効のままにして対象 thread だけ許可すれば実現できます。
 
-thread override の設定と確認は Discord のスラッシュコマンド `/vicissitude-channel thread-set` と `/vicissitude-channel thread-show` で行います。`thread-set` の `observe` / `mentions` / `reactions` の各オプションは `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。全項目を `inherit` に戻すと上書き行は削除されます。admin-cli の `pnpm admin channel set` は親 channel の capability だけを操作し、thread override を操作する subcommand はありません。thread 単位の上書きは現状 Discord のスラッシュコマンドからのみ設定できます。`/vicissitude-channel show` に thread の ID を渡すと、親 channel の capability だけでなく、その thread の override と結果として実効になる capability も併せて返します。
+thread override の設定と確認は Discord のスラッシュコマンド `/vicissitude-channel thread-set` / `thread-show` と、admin-cli の `pnpm admin thread set` / `thread show` の両方で行えます。
+
+```
+pnpm admin thread show <guildId> <channelId> <threadId>
+pnpm admin thread set <guildId> <channelId> <threadId> \
+  [--observe allow|deny|inherit] [--mentions allow|deny|inherit] [--reactions allow|deny|inherit] \
+  --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "<text>"
+```
+
+`<channelId>` は親 channel の ID、`<threadId>` は thread 自身の ID で、`thread_capability_overrides` の主キー `(guild_id, channel_id, thread_id)` にそのまま対応します。`--observe` / `--mentions` / `--reactions`（Discord 側では `observe` / `mentions` / `reactions`）は `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。`channel set` の `--observe` / `--mentions` と異なり、`thread set` はどの capability オプションも必須ではありません。オプションを一つも指定せずに実行しても、上書き行を書き直し audit entry を残します。全項目を `inherit` に戻すと上書き行は削除されます。`thread show` は上書き行が存在しない場合も全項目 `inherit` の形で結果を返します。`/vicissitude-channel show` に thread の ID を渡すと、親 channel の capability だけでなく、その thread の override と結果として実効になる capability も併せて返します。
 
 capability は message 取り込み時と effect 実行直前の両方で再評価します。thread override を拒否側に変えると、すでに queued になっている返信も effect 実行時に `capability_revoked` として止まります。
 

@@ -35,6 +35,53 @@ describe("admin parser exact union", () => {
         reason: "r",
       },
     ],
+    [["thread", "show", "g", "c", "t"], { kind: "thread.show", guildId: "g", channelId: "c", threadId: "t" }],
+    [
+      [
+        "thread",
+        "set",
+        "g",
+        "c",
+        "t",
+        "--observe",
+        "allow",
+        "--mentions",
+        "deny",
+        "--reactions",
+        "inherit",
+        "--actor",
+        ACTOR,
+        "--reason",
+        "r",
+      ],
+      {
+        kind: "thread.set",
+        guildId: "g",
+        channelId: "c",
+        threadId: "t",
+        observeEvents: true,
+        respondToMentions: false,
+        addReactions: null,
+        actor: ACTOR,
+        reason: "r",
+      },
+    ],
+    [
+      ["thread", "set", "g", "c", "t", "--observe", "allow", "--actor", ACTOR, "--reason", "r"],
+      {
+        kind: "thread.set",
+        guildId: "g",
+        channelId: "c",
+        threadId: "t",
+        observeEvents: true,
+        actor: ACTOR,
+        reason: "r",
+      },
+    ],
+    [
+      ["thread", "set", "g", "c", "t", "--actor", ACTOR, "--reason", "r"],
+      { kind: "thread.set", guildId: "g", channelId: "c", threadId: "t", actor: ACTOR, reason: "r" },
+    ],
     [["character", "import", "x", "--actor", ACTOR], { kind: "character.import", path: "x", actor: ACTOR }],
     [
       ["character", "activate", "id", "2", "--actor", ACTOR],
@@ -91,6 +138,35 @@ describe("admin parser exact union", () => {
     expect(command).not.toHaveProperty("mentions");
   });
 
+  it("omits unset thread override fields entirely rather than setting them to undefined", () => {
+    const command = parseAdminCommand([
+      "thread",
+      "set",
+      "g",
+      "c",
+      "t",
+      "--observe",
+      "allow",
+      "--actor",
+      ACTOR,
+      "--reason",
+      "r",
+    ]);
+    expect(command).toHaveProperty("observeEvents", true);
+    expect(command).not.toHaveProperty("respondToMentions");
+    expect(command).not.toHaveProperty("addReactions");
+    expect(Object.keys(command)).not.toContain("observe");
+    expect(Object.keys(command)).not.toContain("mentions");
+    expect(Object.keys(command)).not.toContain("reactions");
+  });
+
+  it("omits all thread override fields when no capability option is supplied", () => {
+    const command = parseAdminCommand(["thread", "set", "g", "c", "t", "--actor", ACTOR, "--reason", "r"]);
+    expect(command).not.toHaveProperty("observeEvents");
+    expect(command).not.toHaveProperty("respondToMentions");
+    expect(command).not.toHaveProperty("addReactions");
+  });
+
   it.each([
     ["missing", []],
     ["unknown action", ["system", "set"]],
@@ -103,6 +179,22 @@ describe("admin parser exact union", () => {
       ["channel", "set", "g", "c", "--observe", "yes", "--mentions", "false", "--actor", ACTOR, "--reason", "r"],
     ],
     ["bad date", ["migration", "apply", "--backup-confirmed-at", "x", "--actor", ACTOR]],
+    ["thread show missing positional", ["thread", "show", "g", "c"]],
+    ["thread show extra positional", ["thread", "show", "g", "c", "t", "x"]],
+    [
+      "bad thread override value",
+      ["thread", "set", "g", "c", "t", "--observe", "yes", "--actor", ACTOR, "--reason", "r"],
+    ],
+    ["thread set missing actor", ["thread", "set", "g", "c", "t", "--observe", "allow", "--reason", "r"]],
+    ["thread set missing reason", ["thread", "set", "g", "c", "t", "--observe", "allow", "--actor", ACTOR]],
+    [
+      "thread set invalid actor",
+      ["thread", "set", "g", "c", "t", "--observe", "allow", "--actor", "not-an-id", "--reason", "r"],
+    ],
+    [
+      "thread set old option",
+      ["thread", "set", "g", "c", "t", "--observed", "allow", "--actor", ACTOR, "--reason", "r"],
+    ],
     ["bad version", ["character", "activate", "id", "0", "--actor", ACTOR]],
     [
       "failed external id",
@@ -165,6 +257,10 @@ describe("admin parser exact union", () => {
       ["effect", "reconcile", "e", "--state", "failed", "--state", "succeeded", "--actor", ACTOR, "--reason", "r"],
     ],
     ["reason", ["system", "stop", "--actor", ACTOR, "--reason", "r1", "--reason", "r2"]],
+    [
+      "thread observe",
+      ["thread", "set", "g", "c", "t", "--observe", "allow", "--observe", "deny", "--actor", ACTOR, "--reason", "r"],
+    ],
   ] as const)("rejects duplicate %s", (_, args) => expect(() => parseAdminCommand([...args])).toThrow());
 
   it.each([
