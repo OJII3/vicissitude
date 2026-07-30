@@ -37,12 +37,15 @@ describe("versioned migrations", () => {
       actor: "test-bootstrap",
       backupConfirmedAt: new Date(),
     });
-    expect(first).toMatchObject({ appliedVersions: ["0001"] });
+    expect(first).toMatchObject({ appliedVersions: ["0001", "0002"] });
     expect(second).toMatchObject({ appliedVersions: [] });
     expect(first.appliedAt).toBeInstanceOf(Date);
 
     const status = await migrationStatus(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!);
-    expect(status).toEqual([expect.objectContaining({ version: "0001", name: "durable_spine", state: "applied" })]);
+    expect(status).toEqual([
+      expect.objectContaining({ version: "0001", name: "durable_spine", state: "applied" }),
+      expect.objectContaining({ version: "0002", name: "thread_scope", state: "applied" }),
+    ]);
     expect(status[0]?.checksum).toMatch(/^[0-9a-f]{64}$/u);
   });
 
@@ -81,7 +84,7 @@ describe("versioned migrations", () => {
       ])) as [{ appliedVersions: string[] }, { appliedVersions: string[] }];
       expect([firstResult.appliedVersions, secondResult.appliedVersions].sort((a, b) => a.length - b.length)).toEqual([
         [],
-        ["0001"],
+        ["0001", "0002"],
       ]);
       const rows = await sql`select version from schema_migrations where version = '0001'`;
       expect(rows).toHaveLength(1);
@@ -154,13 +157,13 @@ describe("versioned migrations", () => {
       actor: "admin@example.com",
       backupConfirmedAt,
     }))!;
-    expect(result.appliedVersions).toEqual(["0001"]);
+    expect(result.appliedVersions).toEqual(["0001", "0002"]);
     expect(result.appliedAt).toBeInstanceOf(Date);
     const rows = await sql<{ summary: { actor: string; backupConfirmedAt: string; appliedVersions: string[] } }[]>`
       select summary from audit_entries where category = 'migration.applied'
     `;
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.summary).toMatchObject({ actor: "admin@example.com", appliedVersions: ["0001"] });
+    expect(rows[0]?.summary).toMatchObject({ actor: "admin@example.com", appliedVersions: ["0001", "0002"] });
     expect(new Date(rows[0]!.summary.backupConfirmedAt).getTime()).toBe(backupConfirmedAt.getTime());
   });
 
@@ -170,7 +173,7 @@ describe("versioned migrations", () => {
     const context = { actor: "admin@example.com", backupConfirmedAt: new Date() };
     const first = (await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, context))!;
     const second = (await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, context))!;
-    expect(first.appliedVersions).toEqual(["0001"]);
+    expect(first.appliedVersions).toEqual(["0001", "0002"]);
     expect(second.appliedVersions).toEqual([]);
     const rows = await sql<{ summary: { appliedVersions: string[] } }[]>`
       select summary from audit_entries where category = 'migration.applied' order by created_at
@@ -242,5 +245,53 @@ describe("versioned migrations", () => {
     const rows = await sql<{ applied_at: Date }[]>`select applied_at from schema_migrations where version = '0001'`;
     await locker.end();
     expect(rows[0]!.applied_at.getTime()).toBeGreaterThanOrEqual(releasedAt.getTime());
+  });
+
+  it("creates the thread override table with an all-inherit guard and the thread-aware event index", async () => {
+    await sql`drop schema public cascade`;
+    await sql`create schema public`;
+    await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {
+      actor: "test-bootstrap",
+      backupConfirmedAt: new Date(),
+    });
+
+    const columns = await sql<{ column_name: string; is_nullable: string }[]>`
+      select column_name, is_nullable from information_schema.columns
+      where table_name = 'thread_capability_overrides'
+        and column_name in ('observe_events', 'respond_to_mentions', 'add_reactions')
+      order by column_name
+    `;
+    expect(columns).toEqual([
+      { column_name: "add_reactions", is_nullable: "YES" },
+      { column_name: "observe_events", is_nullable: "YES" },
+      { column_name: "respond_to_mentions", is_nullable: "YES" },
+    ]);
+
+    const indexes = await sql<{ indexname: string }[]>`
+      select indexname from pg_indexes where tablename = 'events' and indexname = 'events_thread_scope_time_idx'
+    `;
+    expect(indexes).toHaveLength(1);
+
+    await expect(
+      sql`
+        insert into thread_capability_overrides (guild_id, channel_id, thread_id, updated_at, updated_by, reason)
+        values ('guild-1', 'channel-1', 'thread-1', now(), 'test', 'all inherit')
+      `,
+    ).rejects.toThrow();
+  });
+
+  it("adds a nullable thread_id column to effects", async () => {
+    await sql`drop schema public cascade`;
+    await sql`create schema public`;
+    await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {
+      actor: "test-bootstrap",
+      backupConfirmedAt: new Date(),
+    });
+
+    const columns = await sql<{ column_name: string; is_nullable: string }[]>`
+      select column_name, is_nullable from information_schema.columns
+      where table_name = 'effects' and column_name = 'thread_id'
+    `;
+    expect(columns).toEqual([{ column_name: "thread_id", is_nullable: "YES" }]);
   });
 });

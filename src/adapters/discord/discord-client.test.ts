@@ -92,6 +92,7 @@ describe("DiscordClientMessenger", () => {
         guildId: "g",
         capabilityChannelId: "c",
         targetChannelId: "c",
+        threadId: null,
         targetMessageId: "m",
         content: "x",
         attempts: 1,

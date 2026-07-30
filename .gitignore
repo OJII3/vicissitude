@@ -8,3 +8,6 @@ coverage/
 *.log
 .tmp/
 /.direnv
+/backups/
+/config/model-routes.json
+/character-reviewed.json

@@ -154,7 +154,7 @@ export class PostgresDecisionEffectStore implements DecisionEffectStore {
         throw new Error("Invalid mention event");
       const effects = await tx<
         Array<{ id: string }>
-      >`insert into effects (id, run_id, effect_slot, kind, state, guild_id, capability_channel_id, target_channel_id, target_message_id, payload, capability_decision, created_at, updated_at) values (${newId()}, ${input.runId}, 'primary_reply', 'discord.reply', 'planned', ${event.guild_id}, ${event.channel_id}, ${event.thread_id ?? event.channel_id}, ${event.external_event_id}, ${tx.json(payload)}, ${tx.json({ action: "respond_to_mention", allowed: true })}, ${input.now}, ${input.now}) returning id`;
+      >`insert into effects (id, run_id, effect_slot, kind, state, guild_id, capability_channel_id, target_channel_id, thread_id, target_message_id, payload, capability_decision, created_at, updated_at) values (${newId()}, ${input.runId}, 'primary_reply', 'discord.reply', 'planned', ${event.guild_id}, ${event.channel_id}, ${event.thread_id ?? event.channel_id}, ${event.thread_id}, ${event.external_event_id}, ${tx.json(payload)}, ${tx.json({ action: "respond_to_mention", allowed: true })}, ${input.now}, ${input.now}) returning id`;
       await tx`insert into audit_entries (id, category, event_id, job_id, run_id, effect_id, summary, created_at) values (${newId()}, 'decision.completed', ${input.eventId}, ${input.jobId}, ${input.runId}, ${effects[0]!.id}, ${tx.json({ action: "reply", fallback: input.fallback })}, ${input.now})`;
     });
   }

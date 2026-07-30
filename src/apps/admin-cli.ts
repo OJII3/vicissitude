@@ -7,8 +7,13 @@ import { PostgresChannelCapabilityRepository } from "../adapters/postgres/channe
 import { PostgresCharacterRepository } from "../adapters/postgres/character-repository.js";
 import { PostgresEffectQueue } from "../adapters/postgres/effect-queue.js";
 import { PostgresSystemControlRepository } from "../adapters/postgres/system-control-repository.js";
+import {
+  PostgresThreadCapabilityRepository,
+  type ThreadCapabilityPatch,
+} from "../adapters/postgres/thread-capability-repository.js";
 import { CharacterDefinitionSchema } from "../modules/characters/character-definition.js";
 import type { ChannelCapabilities } from "../modules/channels/channel-capability.js";
+import { inheritAllOverride } from "../modules/channels/thread-capability.js";
 import { loadAdminConfig } from "../config/runtime-config.js";
 import { parseAdminCommand, type AdminCommand } from "../modules/admin/admin-command.js";
 export interface AdminOutput {
@@ -25,6 +30,7 @@ type AdminChannelRepository = Pick<PostgresChannelCapabilityRepository, "get"> &
     now: Date,
   ): Promise<ChannelCapabilities>;
 };
+type AdminThreadRepository = Pick<PostgresThreadCapabilityRepository, "get" | "patch">;
 export interface AdminDependencies {
   createClient?: (url: string) => Sql;
   now?: () => Date;
@@ -34,6 +40,7 @@ export interface AdminDependencies {
   runMigrations?: typeof runMigrations;
   system?: (sql: Sql) => Pick<PostgresSystemControlRepository, "setMode">;
   channel?: (sql: Sql) => AdminChannelRepository;
+  thread?: (sql: Sql) => AdminThreadRepository;
   character?: (sql: Sql) => Pick<PostgresCharacterRepository, "importDraft" | "activate">;
   effect?: (sql: Sql) => Pick<PostgresEffectQueue, "inspect" | "reconcileUnknown">;
   output?: AdminOutput;
@@ -116,6 +123,31 @@ export async function dispatchAdminCommand(
         clock(d),
       );
       write(d, next);
+      return;
+    }
+    case "thread.show": {
+      const r = (d.thread ?? ((db) => new PostgresThreadCapabilityRepository(db)))(sql);
+      const override = await r.get(command.guildId, command.channelId, command.threadId);
+      write(d, override ?? inheritAllOverride(command.guildId, command.channelId, command.threadId));
+      return;
+    }
+    case "thread.set": {
+      const r = (d.thread ?? ((db) => new PostgresThreadCapabilityRepository(db)))(sql);
+      const patch: ThreadCapabilityPatch = {
+        ...(command.observeEvents !== undefined ? { observeEvents: command.observeEvents } : {}),
+        ...(command.respondToMentions !== undefined ? { respondToMentions: command.respondToMentions } : {}),
+        ...(command.addReactions !== undefined ? { addReactions: command.addReactions } : {}),
+      };
+      const next = await r.patch(
+        command.guildId,
+        command.channelId,
+        command.threadId,
+        patch,
+        command.actor,
+        command.reason,
+        clock(d),
+      );
+      write(d, next ?? inheritAllOverride(command.guildId, command.channelId, command.threadId));
       return;
     }
     case "character.import": {

@@ -4,6 +4,8 @@ import { createPostgresClient } from "../../src/adapters/postgres/client.js";
 import { runMigrations } from "../../src/adapters/postgres/migrations.js";
 import { runGateway } from "../../src/apps/discord-gateway.js";
 import { createInFlightTracker } from "../../src/apps/app-lifecycle.js";
+import { PostgresChannelCapabilityRepository } from "../../src/adapters/postgres/channel-capability-repository.js";
+import { PostgresThreadCapabilityRepository } from "../../src/adapters/postgres/thread-capability-repository.js";
 
 const threadMessage = (parentChannelId: string) => ({
   id: "message-1",
@@ -87,15 +89,32 @@ describe("runGateway", () => {
   });
 
   it("logs why a message was ignored, keyed on the parent channel of a thread", async () => {
-    const handlers: Record<string, (...args: unknown[]) => void> = {};
     const logger = { error: vi.fn(), debug: vi.fn() };
+
+    await runGatewayOnce(threadMessage("parent-without-capability"), logger);
+
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: "parent-without-capability",
+        threadId: "thread-1",
+        reason: "channel_not_allowed",
+      }),
+      "Discord message ignored",
+    );
+    expect(logger.debug.mock.calls.flat()).not.toContain("mention");
+  });
+
+  async function runGatewayOnce(
+    message: unknown,
+    logger: { error: ReturnType<typeof vi.fn>; debug: ReturnType<typeof vi.fn> },
+  ) {
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
     const inflight = createInFlightTracker();
     const accepting = { value: false };
     let release!: (signal: AbortSignal) => void;
     const shutdown = new Promise<AbortSignal>((resolve) => {
       release = resolve;
     });
-
     const run = runGateway({
       sql,
       client: {
@@ -114,21 +133,86 @@ describe("runGateway", () => {
       accepting,
       inflight,
     });
-
     await vi.waitFor(() => expect(handlers.messageCreate).toBeTypeOf("function"));
-    handlers.messageCreate!(threadMessage("parent-without-capability"));
+    handlers.messageCreate!(message);
     await inflight.drain();
     release(new AbortController().signal);
     await run;
+  }
 
-    expect(logger.debug).toHaveBeenCalledWith(
-      expect.objectContaining({
-        channelId: "parent-without-capability",
-        threadId: "thread-1",
-        reason: "channel_not_allowed",
-      }),
-      "Discord message ignored",
-    );
-    expect(logger.debug.mock.calls.flat()).not.toContain("mention");
+  const cleanup = () =>
+    sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events, thread_capability_overrides, channel_capabilities cascade`;
+
+  it("ingests a thread message that a thread override allows in a denied channel", async () => {
+    try {
+      const now = new Date();
+      await new PostgresChannelCapabilityRepository(sql).patch(
+        "guild",
+        "forum-1",
+        { respondToMentions: false },
+        "admin",
+        "closed forum",
+        now,
+      );
+      await new PostgresThreadCapabilityRepository(sql).patch(
+        "guild",
+        "forum-1",
+        "thread-1",
+        { respondToMentions: true },
+        "admin",
+        "watch one thread",
+        now,
+      );
+      const logger = { error: vi.fn(), debug: vi.fn() };
+
+      await runGatewayOnce(threadMessage("forum-1"), logger);
+
+      await expect(sql`select channel_id, thread_id from events where channel_id = 'forum-1'`).resolves.toEqual([
+        { channel_id: "forum-1", thread_id: "thread-1" },
+      ]);
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "forum-1", threadId: "thread-1", jobQueued: true }),
+        "Discord message ingested",
+      );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("ignores a thread message that a thread override denies in an allowed channel", async () => {
+    try {
+      const now = new Date();
+      await new PostgresChannelCapabilityRepository(sql).patch(
+        "guild",
+        "channel-1",
+        { observeEvents: true, respondToMentions: true },
+        "admin",
+        "open channel",
+        now,
+      );
+      await new PostgresThreadCapabilityRepository(sql).patch(
+        "guild",
+        "channel-1",
+        "thread-1",
+        { observeEvents: false, respondToMentions: false },
+        "admin",
+        "quiet thread",
+        now,
+      );
+      const logger = { error: vi.fn(), debug: vi.fn() };
+
+      await runGatewayOnce(threadMessage("channel-1"), logger);
+
+      await expect(sql`select id from events where channel_id = 'channel-1'`).resolves.toHaveLength(0);
+      await expect(
+        sql`select jobs.id from jobs join events on events.id = jobs.event_id where events.channel_id = 'channel-1'`,
+      ).resolves.toHaveLength(0);
+      expect(logger.debug).toHaveBeenCalledWith(
+        expect.objectContaining({ channelId: "channel-1", threadId: "thread-1", reason: "channel_not_allowed" }),
+        "Discord message ignored",
+      );
+    } finally {
+      await cleanup();
+    }
   });
 });

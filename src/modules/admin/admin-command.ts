@@ -14,6 +14,16 @@ export type AdminCommand =
       observeEvents: boolean;
       respondToMentions: boolean;
     } & ActorReason)
+  | { kind: "thread.show"; guildId: string; channelId: string; threadId: string }
+  | ({
+      kind: "thread.set";
+      guildId: string;
+      channelId: string;
+      threadId: string;
+      observeEvents?: boolean | null;
+      respondToMentions?: boolean | null;
+      addReactions?: boolean | null;
+    } & ActorReason)
   | ({ kind: "character.import"; path: string } & Pick<ActorReason, "actor">)
   | ({ kind: "character.activate"; characterId: string; version: number } & Pick<ActorReason, "actor">)
   | { kind: "effect.inspect"; effectId: string }
@@ -33,6 +43,13 @@ const booleanValue = (value: unknown, name: string): boolean => {
   if (normalized === "true") return true;
   if (normalized === "false") return false;
   throw new Error(`${name} must be true or false`);
+};
+const overrideValue = (value: unknown, name: string): boolean | null => {
+  const normalized = text(value, name);
+  if (normalized === "allow") return true;
+  if (normalized === "deny") return false;
+  if (normalized === "inherit") return null;
+  throw new Error(`${name} must be allow, deny, or inherit`);
 };
 const snowflake = /^[0-9]{17,20}$/u;
 const actorId = (value: unknown): string => {
@@ -114,6 +131,46 @@ export function parseAdminCommand(argv: string[]): AdminCommand {
       channelId: text(channelId, "channelId"),
       observeEvents: booleanValue(result.values.observe, "observe"),
       respondToMentions: booleanValue(result.values.mentions, "mentions"),
+      ...actorReason(result.values),
+    };
+  }
+  if (command === "thread.show") {
+    const result = parse(args, {}, 3);
+    const [guildId, channelId, threadId] = result.positionals;
+    return {
+      kind: "thread.show",
+      guildId: text(guildId, "guildId"),
+      channelId: text(channelId, "channelId"),
+      threadId: text(threadId, "threadId"),
+    };
+  }
+  if (command === "thread.set") {
+    const result = parse(
+      args,
+      {
+        observe: { type: "string" },
+        mentions: { type: "string" },
+        reactions: { type: "string" },
+        actor: { type: "string" },
+        reason: { type: "string" },
+      },
+      3,
+    );
+    const [guildId, channelId, threadId] = result.positionals;
+    return {
+      kind: "thread.set",
+      guildId: text(guildId, "guildId"),
+      channelId: text(channelId, "channelId"),
+      threadId: text(threadId, "threadId"),
+      ...(result.values.observe !== undefined
+        ? { observeEvents: overrideValue(result.values.observe, "observe") }
+        : {}),
+      ...(result.values.mentions !== undefined
+        ? { respondToMentions: overrideValue(result.values.mentions, "mentions") }
+        : {}),
+      ...(result.values.reactions !== undefined
+        ? { addReactions: overrideValue(result.values.reactions, "reactions") }
+        : {}),
       ...actorReason(result.values),
     };
   }

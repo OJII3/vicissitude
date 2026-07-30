@@ -130,6 +130,7 @@ describe("explicit mention durable spine", () => {
     const effectQueue = new PostgresEffectQueue(sql);
     const effect = await effectQueue.claim("gateway", now);
     expect(effect).not.toBeNull();
+    expect(effect).toMatchObject({ threadId: null });
     const reply = vi.fn().mockResolvedValue({ id: "discord-message-2" });
     await new DiscordEffectExecutor({ reply }, effectQueue).execute(effect!, clock);
     expect(reply).toHaveBeenCalledWith(
