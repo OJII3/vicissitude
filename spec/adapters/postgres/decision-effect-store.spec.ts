@@ -57,6 +57,9 @@ describe("PostgresDecisionEffectStore", () => {
     await expect(sql`select count(*)::int as count from effects where run_id = ${run.runId}`).resolves.toEqual([
       { count: 1 },
     ]);
+    await expect(sql`select thread_id from effects where run_id = ${run.runId}`).resolves.toEqual([
+      { thread_id: null },
+    ]);
     await expect(sql`select count(*)::int as count from audit_entries where run_id = ${run.runId}`).resolves.toEqual([
       { count: 1 },
     ]);
@@ -84,12 +87,13 @@ describe("PostgresDecisionEffectStore", () => {
       now: f.now,
     });
     await expect(
-      sql`select guild_id, capability_channel_id, target_channel_id, target_message_id from effects`,
+      sql`select guild_id, capability_channel_id, target_channel_id, thread_id, target_message_id from effects`,
     ).resolves.toEqual([
       {
         guild_id: "g",
         capability_channel_id: "parent",
         target_channel_id: "thread-1",
+        thread_id: "thread-1",
         target_message_id: "message-20",
       },
     ]);

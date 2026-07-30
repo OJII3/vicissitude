@@ -153,6 +153,7 @@ describe("runOneEffect + PostgresEffectiveCapabilityRepository", () => {
         guildId,
         capabilityChannelId: channelId,
         targetChannelId: threadId,
+        threadId,
         content: "スレッドでのお返事です",
       }),
       clock,

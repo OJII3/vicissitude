@@ -13,6 +13,7 @@ export interface ClaimedReplyEffect {
   guildId: string;
   capabilityChannelId: string;
   targetChannelId: string;
+  threadId: string | null;
   targetMessageId: string;
   content: string;
   attempts: number;

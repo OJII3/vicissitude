@@ -7,3 +7,6 @@ CREATE TABLE thread_capability_overrides (
 );
 
 CREATE INDEX events_thread_scope_time_idx ON events (guild_id, channel_id, thread_id, occurred_at DESC);
+
+ALTER TABLE effects ADD COLUMN thread_id text;
+UPDATE effects SET thread_id = target_channel_id WHERE target_channel_id <> capability_channel_id;

@@ -35,6 +35,7 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
       guildId: "g",
       capabilityChannelId: "cap",
       targetChannelId: "target",
+      threadId: null,
       targetMessageId: "message",
       content: "hello",
       allowedMentions: { parse: [], repliedUser: false },
@@ -88,7 +89,7 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
     await sql`insert into jobs (id,kind,event_id,state,available_at,created_at,updated_at) values (${jobId},'mention_response',${eventId},'queued',${now},${now},${now})`;
     await sql`insert into decision_runs (id,job_id,event_id,character_id,character_version,model_route_version,state,started_at) values (${runId},${jobId},${eventId},'c',1,'r','succeeded',${now})`;
     const payload = sql.json({ content: "hello", allowedMentions: { parse: [], repliedUser: false } });
-    await sql`insert into effects (id,run_id,effect_slot,kind,state,guild_id,capability_channel_id,target_channel_id,target_message_id,payload,capability_decision,created_at,updated_at) values (${effectId},${runId},'primary_reply','discord.reply','planned','g2','cap2','target2','message2',${payload},${sql.json({})},${now},${now})`;
+    await sql`insert into effects (id,run_id,effect_slot,kind,state,guild_id,capability_channel_id,target_channel_id,thread_id,target_message_id,payload,capability_decision,created_at,updated_at) values (${effectId},${runId},'primary_reply','discord.reply','planned','g2','cap2','target2','target2','message2',${payload},${sql.json({})},${now},${now})`;
     await sql`update system_state set mode='stopped' where singleton`;
     await expect(new PostgresEffectQueue(sql).claim("stopped", now)).resolves.toBeNull();
     await sql`update system_state set mode='draining' where singleton`;
@@ -96,6 +97,7 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
     expect(claimed).toMatchObject({
       id: effectId,
       targetChannelId: "target2",
+      threadId: "target2",
       targetMessageId: "message2",
       content: "hello",
       attempts: 1,

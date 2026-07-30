@@ -7,11 +7,12 @@ const effect = {
   guildId: "g1",
   capabilityChannelId: "c1",
   targetChannelId: "c1",
+  threadId: null,
   targetMessageId: "m1",
   content: "hello",
   attempts: 1,
 };
-const threadEffect = { ...effect, targetChannelId: "t1" };
+const threadEffect = { ...effect, targetChannelId: "t1", threadId: "t1" };
 const clock = { now: () => new Date("2026-01-01T00:00:00Z") };
 
 describe("runOneEffect", () => {

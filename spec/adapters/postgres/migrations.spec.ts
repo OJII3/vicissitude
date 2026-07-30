@@ -279,4 +279,19 @@ describe("versioned migrations", () => {
       `,
     ).rejects.toThrow();
   });
+
+  it("adds a nullable thread_id column to effects", async () => {
+    await sql`drop schema public cascade`;
+    await sql`create schema public`;
+    await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {
+      actor: "test-bootstrap",
+      backupConfirmedAt: new Date(),
+    });
+
+    const columns = await sql<{ column_name: string; is_nullable: string }[]>`
+      select column_name, is_nullable from information_schema.columns
+      where table_name = 'effects' and column_name = 'thread_id'
+    `;
+    expect(columns).toEqual([{ column_name: "thread_id", is_nullable: "YES" }]);
+  });
 });

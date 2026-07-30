@@ -9,6 +9,7 @@ const effect: ClaimedReplyEffect = {
   guildId: "guild-1",
   capabilityChannelId: "cap-1",
   targetChannelId: "target-1",
+  threadId: "target-1",
   targetMessageId: "message-1",
   content: "hello",
   attempts: 1,

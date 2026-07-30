@@ -27,6 +27,7 @@ export interface EffectInspection {
   guildId: string;
   capabilityChannelId: string;
   targetChannelId: string;
+  threadId: string | null;
   targetMessageId: string;
   content: string;
   allowedMentions: { parse: []; repliedUser: false };
@@ -50,7 +51,7 @@ export class PostgresEffectQueue {
       if (mode[0].mode === "stopped") return null;
       const rows = await tx<
         (ClaimedReplyEffect & { payload: unknown })[]
-      >`with candidate as (select id from effects where state='planned' order by created_at for update skip locked limit 1) update effects e set state='executing', executor_id=${workerId}, attempts=e.attempts+1, updated_at=${now} from candidate c where e.id=c.id returning e.id, e.run_id as "runId", e.guild_id as "guildId", e.capability_channel_id as "capabilityChannelId", e.target_channel_id as "targetChannelId", e.target_message_id as "targetMessageId", e.attempts, e.payload`;
+      >`with candidate as (select id from effects where state='planned' order by created_at for update skip locked limit 1) update effects e set state='executing', executor_id=${workerId}, attempts=e.attempts+1, updated_at=${now} from candidate c where e.id=c.id returning e.id, e.run_id as "runId", e.guild_id as "guildId", e.capability_channel_id as "capabilityChannelId", e.target_channel_id as "targetChannelId", e.thread_id as "threadId", e.target_message_id as "targetMessageId", e.attempts, e.payload`;
       const row = rows[0];
       if (!row) return null;
       try {
@@ -123,6 +124,7 @@ export class PostgresEffectQueue {
         guildId: string;
         capabilityChannelId: string;
         targetChannelId: string;
+        threadId: string | null;
         targetMessageId: string;
         externalResourceId: string | null;
         executorId: string | null;
@@ -133,7 +135,7 @@ export class PostgresEffectQueue {
         payload: unknown;
         capabilityDecision: unknown;
       }[]
-    >`select id,run_id as "runId",effect_slot as "effectSlot",kind,state,guild_id as "guildId",capability_channel_id as "capabilityChannelId",target_channel_id as "targetChannelId",target_message_id as "targetMessageId",external_resource_id as "externalResourceId",executor_id as "executorId",attempts,error,created_at as "createdAt",updated_at as "updatedAt",payload,capability_decision as "capabilityDecision" from effects where id=${id}`;
+    >`select id,run_id as "runId",effect_slot as "effectSlot",kind,state,guild_id as "guildId",capability_channel_id as "capabilityChannelId",target_channel_id as "targetChannelId",thread_id as "threadId",target_message_id as "targetMessageId",external_resource_id as "externalResourceId",executor_id as "executorId",attempts,error,created_at as "createdAt",updated_at as "updatedAt",payload,capability_decision as "capabilityDecision" from effects where id=${id}`;
     if (!rows[0]) throw new Error("Effect not found");
     const row = rows[0];
     if (row.kind !== "discord.reply") throw new Error(`Unsupported effect kind: ${row.kind}`);
