@@ -378,7 +378,7 @@ pnpm admin thread set <guildId> <channelId> <threadId> \
   --actor "$VICISSITUDE_ADMIN_ACTOR" --reason "<text>"
 ```
 
-`<channelId>` は親 channel の ID、`<threadId>` は thread 自身の ID で、`thread_capability_overrides` の主キー `(guild_id, channel_id, thread_id)` にそのまま対応します。`--observe` / `--mentions` / `--reactions`（Discord 側では `observe` / `mentions` / `reactions`）は `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。`channel set` の `--observe` / `--mentions` と異なり、`thread set` はどの capability オプションも必須ではありません。オプションを一つも指定せずに実行しても、上書き行を書き直し audit entry を残します。全項目を `inherit` に戻すと上書き行は削除されます。`thread show` は上書き行が存在しない場合も全項目 `inherit` の形で結果を返します。`/vicissitude-channel show` に thread の ID を渡すと、親 channel の capability だけでなく、その thread の override と結果として実効になる capability も併せて返します。
+`<channelId>` は親 channel の ID、`<threadId>` は thread 自身の ID で、`thread_capability_overrides` の主キー `(guild_id, channel_id, thread_id)` にそのまま対応します。`--observe` / `--mentions` / `--reactions`（Discord 側では `observe` / `mentions` / `reactions`）は `allow` / `deny` / `inherit` から選び、省略した項目は変更しません。`channel set` の `--observe` / `--mentions` と異なり、`thread set` はどの capability オプションも必須ではありません。オプションを一つも指定せずに実行した場合、既存の上書き行があれば同じ値で書き直し、なければ何も作りません。audit entry はどちらの場合も残ります。全項目を `inherit` に戻すと上書き行は削除されます。`thread show` は上書き行が存在しない場合も全項目 `inherit` の形で結果を返します。`/vicissitude-channel show` に thread の ID を渡すと、親 channel の capability だけでなく、その thread の override と結果として実効になる capability も併せて返します。
 
 capability は message 取り込み時と effect 実行直前の両方で再評価します。thread override を拒否側に変えると、すでに queued になっている返信も effect 実行時に `capability_revoked` として止まります。
 
