@@ -382,7 +382,7 @@ readiness は message が取り込まれることを保証しません。両 pro
 
 ### Credential Boundary
 
-Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。`.env` は共通値だけの常時ロード用で、direnv が全 terminal に読み込みます。`.env.gateway.local` と `.env.worker.local` は process 固有値用で、`pnpm start:gateway` と `pnpm start:worker` が Node の `--env-file` で対象 process にだけ読み込みます。Nix executable は env file を読まないため、外部deployment adapterが各processへ必要な値だけを渡し、共有credential setを作らないでください。
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。`.env` は共通値だけの常時ロード用で、direnv が全 terminal に読み込みます。`.env.gateway.local` と `.env.worker.local` は process 固有値用で、`pnpm start:gateway` と `pnpm start:worker` が Node の `--env-file` で対象 process にだけ読み込みます。Nix executable は env file を読まないため、外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
 
 Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。本番でGateway、worker、adminのDB credentialも分ける場合は、共通 `.env` から `DATABASE_URL` を外し、各 process の local env または deployment adapter で対象 executable 用の `DATABASE_URL` を渡してください。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
 
