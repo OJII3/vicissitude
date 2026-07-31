@@ -108,7 +108,9 @@ terminal B:
 curl --fail http://127.0.0.1:8081/ready && echo READY
 ```
 
-Expected: terminal B が `READY` を出す。terminal A には migration、production CharacterDefinition、model routes の preflight 通過後、job claim の待機ログが出る。
+Expected: terminal B が `{"healthy":true,"ready":true}` と `READY` を出す。
+
+`cognition-worker.ts` の logger 呼び出しは iteration 失敗時と起動失敗時の `error` 2 箇所だけで、成功パスに info ログが無い。したがって terminal A には何も出ないのが正常である。preflight（migration、production CharacterDefinition、model routes）が通ったことの観測可能な証拠は `/ready` が `true` を返すことだけになる。
 
 - [ ] **Step 4: credential boundary を確認する**
 
@@ -125,7 +127,7 @@ Expected: 両方とも `absent (ok)`。`PRESENT (bug)` が出た場合は、そ�
 
 terminal A で Ctrl+C を押す。
 
-Expected: worker が SIGINT を受けて shutdown ログを出して終了し、terminal 自体は生きたまま残る。
+Expected: worker が SIGINT を受けて終了し、terminal 自体は生きたまま残る。ここでもログは出ない。終了したことは、プロセスが消えることと `/ready` が接続不能になることで確認する。
 
 - [ ] **Step 6: 検証結果を記録する（commit なし）**
 
