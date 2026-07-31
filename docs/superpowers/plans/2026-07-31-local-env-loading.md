@@ -272,7 +272,11 @@ Expected: 出力なし。残っていれば手動 source 前提の表現なの�
 
 Run: `grep -n 'env-file' README.md`
 
-Expected: Step 1、Step 2、Step 4 で入れた 3 箇所が出る。
+Expected: Step 1 と Step 4 で入れた 2 箇所が出る。Step 2 の文面は「start script が読み込みます」とだけ書き `--env-file` の語を含まないため、ここには現れない。読み込み機構の名前は Development 節と Credential Boundary 節が説明し、Go-Live 節は運用手順として誰が読み込むかだけを述べる。
+
+Run: `grep -n 'start script' README.md`
+
+Expected: Step 1 と Step 2 で入れた 2 箇所が出る。
 
 - [ ] **Step 6: Commit**
 
