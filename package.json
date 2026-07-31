@@ -13,8 +13,8 @@
     "test:spec": "node scripts/test-with-postgres.mjs",
     "test": "pnpm test:unit && pnpm test:spec",
     "validate": "pnpm format:check && pnpm lint && pnpm check && pnpm test",
-    "start:gateway": "node dist/apps/discord-gateway.js",
-    "start:worker": "node dist/apps/cognition-worker.js",
+    "start:gateway": "node --env-file=.env.gateway.local dist/apps/discord-gateway.js",
+    "start:worker": "node --env-file=.env.worker.local dist/apps/cognition-worker.js",
     "admin": "node dist/apps/admin-cli.js"
   },
   "dependencies": {
