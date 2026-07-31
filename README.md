@@ -22,7 +22,7 @@ pnpm test
 
 `.env` は常に読み込まれる共通設定として扱います。`DATABASE_URL`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_ACTOR`、`VICISSITUDE_MIGRATIONS_DIR`、health port、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`LOG_LEVEL` のように複数 process で共有する値だけを置きます。
 
-process 固有の secret や credential は `.env.gateway.local`、`.env.worker.local` などに分け、起動する process の terminal でだけ追加で読み込みます。例えば Gateway は Discord credential だけ、worker は model provider credential だけを読み込みます。このリポジトリは process manager や secret 配布方式を固定しませんが、foreground 起動時も外部 deployment adapter も同じ境界を維持してください。
+process 固有の secret や credential は `.env.gateway.local`、`.env.worker.local` などに分けます。読み込むのは対象 process の start script だけで、`pnpm start:gateway` は `.env.gateway.local` を、`pnpm start:worker` は `.env.worker.local` を Node の `--env-file` で読み込みます。例えば Gateway は Discord credential だけ、worker は model provider credential だけを読み込み、対話 shell や admin-cli terminal の環境には入りません。このリポジトリは process manager や secret 配布方式を固定しませんが、foreground 起動時も外部 deployment adapter も同じ境界を維持してください。
 
 ## Architecture
 
@@ -123,9 +123,9 @@ CharacterDefinition は次の形を満たす JSON を用意します。これは
 
 本番用の CharacterDefinition はリポジトリに同梱しません。運用者が独立レビューした定義を import、activate してから Gateway と worker を起動します。
 
-Gateway、worker、admin-cli の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を admin-cli 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。Gateway terminal では `.env.gateway.local`、worker terminal では `.env.worker.local` だけを追加で読み込みます。admin-cli terminal は process 固有 secret を追加で読み込みません。外部 deployment adapter を使う場合も、この process 境界を維持します。
+Gateway、worker、admin-cli の3端末を使います。Gateway と cognition worker は別 process として起動します。手動なら terminal 1 で Gateway、terminal 2 で worker を foreground 起動し、terminal 3 を admin-cli 用にします。各 terminal では `.envrc` によって `.env` の共通環境変数が読み込まれている前提です。process 固有 secret は start script が読み込みます。`pnpm start:gateway` が `.env.gateway.local` を、`pnpm start:worker` が `.env.worker.local` を読み込み、admin-cli は process 固有 secret を読み込みません。外部 deployment adapter を使う場合も、この process 境界を維持します。
 
-以降の block は `bash <<'SH'` で子 shell に閉じ込めてあります。この形を崩さないでください。`set -euo pipefail` や `: "${VAR:?...}"` を対話 shell へ直接貼ると、guard の失敗や foreground process への Ctrl+C が errexit で対話 shell 自体を終了させ、terminal ごと消えます。子 shell に閉じ込めれば、中断も guard の失敗も子 shell だけで完結し、Gateway と worker は SIGINT を受けて graceful shutdown します。process 固有の secret が対話 shell の環境に残らない利点もあります。
+以降の block のうち、psql や admin-cli を実行するものは `bash <<'SH'` で子 shell に閉じ込めてあります。この形を崩さないでください。`set -euo pipefail` や `: "${VAR:?...}"` を対話 shell へ直接貼ると、guard の失敗が errexit で対話 shell 自体を終了させ、terminal ごと消えます。子 shell に閉じ込めれば guard の失敗も子 shell だけで完結します。Gateway と worker の起動 block は guard を持たないため包みません。Ctrl+C は node へ直接届き、両 process は SIGINT を受けて graceful shutdown します。
 
 ```bash
 pnpm start:gateway
@@ -382,7 +382,7 @@ readiness は message が取り込まれることを保証しません。両 pro
 
 ### Credential Boundary
 
-Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。`.env` は共通値だけの常時ロード用、`.env.gateway.local` と `.env.worker.local` は process 固有値の追加ロード用です。外部deployment adapterは各processへ必要な値だけを渡し、共有credential setを作らないでください。
+Nix packageはGateway、worker、adminの3 executableを提供しますが、environment isolationやsecret配布方式は固定しません。`.env` は共通値だけの常時ロード用で、direnv が全 terminal に読み込みます。`.env.gateway.local` と `.env.worker.local` は process 固有値用で、`pnpm start:gateway` と `pnpm start:worker` が Node の `--env-file` で対象 process にだけ読み込みます。Nix executable は env file を読まないため、外部deployment adapterが各processへ必要な値だけを渡し、共有credential setを作らないでください。
 
 Gatewayの設定契約は`DATABASE_URL`、`DISCORD_TOKEN`、`VICISSITUDE_GUILD_ID`、`VICISSITUDE_ADMIN_USER_IDS`、`VICISSITUDE_GATEWAY_HEALTH_PORT`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Gatewayにprovider credentialやmigrator credentialを渡しません。Workerの設定契約は`DATABASE_URL`、選択したprovider credential、`VICISSITUDE_WORKER_ID`、`VICISSITUDE_WORKER_HEALTH_PORT`、`VICISSITUDE_CHARACTER_ID`、`VICISSITUDE_MODEL_ROUTES_PATH`、`VICISSITUDE_MIGRATIONS_DIR`、`LOG_LEVEL`です。Workerに`DISCORD_TOKEN`やmigrator credentialを渡しません。本番でGateway、worker、adminのDB credentialも分ける場合は、共通 `.env` から `DATABASE_URL` を外し、各 process の local env または deployment adapter で対象 executable 用の `DATABASE_URL` を渡してください。message content、prompt、response、token、connection string、providerのraw errorはログに出しません。
 
