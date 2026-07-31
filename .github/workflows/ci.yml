@@ -16,39 +16,27 @@ jobs:
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17.10@sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: vicissitude_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/vicissitude_test
-      VICISSITUDE_MIGRATIONS_DIR: migrations
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - uses: cachix/cachix-action@02b16339eddcf6ea27126a830c7f1992855cae13 # v17
         with:
-          version: 11.16.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+          name: vicissitude
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      # devShells.ci supplies node and postgresql; pnpm resolves its own version
+      # from the packageManager field, so this caches both the store and pnpm itself.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          node-version: 24.18.0
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm format:check
-      - run: pnpm lint
-      - run: pnpm check
-      - run: pnpm test:unit
-      - run: pnpm exec vitest run spec
-      - run: pnpm build
+          path: ~/.local/share/pnpm
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - run: nix develop .#ci -c pnpm install --frozen-lockfile --ignore-scripts
+      - run: nix develop .#ci -c pnpm format:check
+      - run: nix develop .#ci -c pnpm lint
+      - run: nix develop .#ci -c pnpm check
+      - run: nix develop .#ci -c pnpm test:unit
+      - run: nix develop .#ci -c pnpm test:spec
+      - run: nix develop .#ci -c pnpm build
 
   staging-validation:
     runs-on: ubuntu-24.04
@@ -58,5 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+      - uses: cachix/cachix-action@02b16339eddcf6ea27126a830c7f1992855cae13 # v17
+        with:
+          name: vicissitude
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - run: nix build .#default
       - run: nix build .#checks.x86_64-linux.staging-db-rehearsal
