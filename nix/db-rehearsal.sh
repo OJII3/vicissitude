@@ -81,6 +81,11 @@ SELECT guild_id FROM channel_capabilities;
 INSERT INTO channel_capabilities (guild_id, channel_id, updated_at, updated_by, reason)
 VALUES ('gateway-probe', 'gateway-probe', clock_timestamp(), 'gateway-probe', 'probe');
 UPDATE channel_capabilities SET reason = 'updated' WHERE guild_id = 'gateway-probe' AND channel_id = 'gateway-probe';
+SELECT thread_id FROM thread_capability_overrides;
+INSERT INTO thread_capability_overrides (guild_id, channel_id, thread_id, observe_events, updated_at, updated_by, reason)
+VALUES ('gateway-probe', 'gateway-probe', 'gateway-probe', true, clock_timestamp(), 'gateway-probe', 'probe');
+UPDATE thread_capability_overrides SET reason = 'updated' WHERE guild_id = 'gateway-probe';
+DELETE FROM thread_capability_overrides WHERE guild_id = 'gateway-probe';
 SELECT id FROM events LIMIT 1;
 INSERT INTO events (
   id, schema_version, source, external_event_id, external_version, kind, visibility,
@@ -129,11 +134,11 @@ VALUES (
 );
 INSERT INTO effects (
   id, run_id, effect_slot, kind, state, guild_id, capability_channel_id, target_channel_id,
-  target_message_id, payload, capability_decision, created_at, updated_at
+  thread_id, target_message_id, payload, capability_decision, created_at, updated_at
 ) VALUES (
   '20000000-0000-0000-0000-000000000003', '20000000-0000-0000-0000-000000000001',
-  'worker-probe', 'discord.reply', 'planned', 'guild-staging', 'channel-staging', 'channel-staging',
-  'worker-probe-message', '{}', '{}', clock_timestamp(), clock_timestamp()
+  'worker-probe', 'discord.reply', 'planned', 'guild-staging', 'channel-staging', 'thread-staging',
+  'thread-staging', 'worker-probe-message', '{}', '{}', clock_timestamp(), clock_timestamp()
 );
 INSERT INTO audit_entries (id, category, event_id, job_id, run_id, effect_id, summary, created_at)
 VALUES (
@@ -155,11 +160,14 @@ negative_probes() {
   expect_denied "$cluster" vicissitude_gateway model-write 'UPDATE model_calls SET latency_ms = latency_ms'
   expect_denied "$cluster" vicissitude_gateway system-write "UPDATE system_state SET reason = 'denied'"
   expect_denied "$cluster" vicissitude_gateway migration-write "UPDATE schema_migrations SET checksum = 'denied'"
+  expect_denied "$cluster" vicissitude_gateway channel-delete 'DELETE FROM channel_capabilities'
   expect_denied "$cluster" vicissitude_gateway ddl 'CREATE TABLE gateway_denied(id integer)'
   expect_denied "$cluster" vicissitude_gateway role-change 'CREATE ROLE gateway_denied_role'
 
   expect_denied "$cluster" vicissitude_worker channel-read 'SELECT guild_id FROM channel_capabilities'
   expect_denied "$cluster" vicissitude_worker channel-write "UPDATE channel_capabilities SET reason = 'denied'"
+  expect_denied "$cluster" vicissitude_worker thread-read 'SELECT thread_id FROM thread_capability_overrides'
+  expect_denied "$cluster" vicissitude_worker thread-write "UPDATE thread_capability_overrides SET reason = 'denied'"
   expect_denied "$cluster" vicissitude_worker system-write "UPDATE system_state SET reason = 'denied'"
   expect_denied "$cluster" vicissitude_worker event-write "UPDATE events SET content = '{}'"
   expect_denied "$cluster" vicissitude_worker effect-update 'UPDATE effects SET updated_at = updated_at'
@@ -188,7 +196,7 @@ SELECT value FROM (
   SELECT 'privilege|' || role_name || '|' || table_name || '|' || operation || '|' ||
     has_table_privilege(role_name, format('public.%I', table_name), operation)
     FROM unnest(ARRAY['vicissitude_gateway', 'vicissitude_worker']) role_name
-    CROSS JOIN unnest(ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'events', 'jobs', 'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries']) table_name
+    CROSS JOIN unnest(ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'thread_capability_overrides', 'events', 'jobs', 'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries']) table_name
     CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) operation
   UNION ALL
   SELECT 'default-acl|' || pg_get_userbyid(default_acl.defaclrole) || '|' || default_acl.defaclobjtype::text || '|' ||
@@ -250,14 +258,20 @@ privilege_snapshot populated-restore >"$root/restored-privilege-snapshot"
 cmp "$root/source-privilege-snapshot" "$root/restored-privilege-snapshot" >/dev/null || \
   fail internal privilege-snapshot equal
 
-migration_checksum=$(sha256sum "$package/lib/vicissitude/migrations/0001_durable_spine.sql" | cut -d' ' -f1)
-expected_migration="0001|durable_spine|$migration_checksum"
-source_migration=$(psql_as source postgres vicissitude -At -F '|' -c \
-  "SELECT version, name, checksum FROM schema_migrations WHERE version = '0001'")
-restored_migration=$(psql_as populated-restore postgres vicissitude -At -F '|' -c \
-  "SELECT version, name, checksum FROM schema_migrations WHERE version = '0001'")
-test "$source_migration" = "$expected_migration"
-test "$restored_migration" = "$expected_migration"
+expected_migrations="$root/expected-migrations"
+: >"$expected_migrations"
+for migration_file in "$package/lib/vicissitude/migrations"/[0-9][0-9][0-9][0-9]_*.sql; do
+  migration_stem=$(basename "$migration_file" .sql)
+  printf '%s|%s|%s\n' "${migration_stem%%_*}" "${migration_stem#*_}" \
+    "$(sha256sum "$migration_file" | cut -d' ' -f1)" >>"$expected_migrations"
+done
+test -s "$expected_migrations"
+for cluster in source populated-restore; do
+  psql_as "$cluster" postgres vicissitude -At -F '|' -c \
+    "SELECT version, name, checksum FROM schema_migrations ORDER BY version" >"$root/$cluster-migrations"
+  cmp "$expected_migrations" "$root/$cluster-migrations" >/dev/null || fail internal migration-inventory equal
+done
+expected_versions=$(cut -d'|' -f1 "$expected_migrations" | jq -Rsc 'split("\n") | map(select(length > 0))')
 
 source_audit=$(psql_as source postgres vicissitude -Atc \
   "SELECT summary->>'backupConfirmedAt' FROM audit_entries WHERE category = 'migration.applied' ORDER BY created_at DESC LIMIT 1")
@@ -266,7 +280,7 @@ restored_audit=$(psql_as populated-restore postgres vicissitude -Atc \
 test "$source_audit" = "$backup_confirmed_at"
 test "$restored_audit" = "$backup_confirmed_at"
 test "$(psql_as source postgres vicissitude -Atc \
-  "SELECT summary->'appliedVersions' @> '[\"0001\"]'::jsonb FROM audit_entries WHERE category = 'migration.applied' ORDER BY created_at DESC LIMIT 1")" = t
+  "SELECT summary->'appliedVersions' = '$expected_versions'::jsonb FROM audit_entries WHERE category = 'migration.applied' ORDER BY created_at DESC LIMIT 1")" = t
 
 test "$(sha256sum "$migration_before" | cut -d' ' -f1)" = "$migration_before_hash"
 test "$(sha256sum "$populated" | cut -d' ' -f1)" = "$populated_hash"
@@ -278,7 +292,7 @@ migration_before_contents=$(jq -Rs 'split("\n") | map(select(length > 0))' "$roo
 populated_contents=$(jq -Rs 'split("\n") | map(select(length > 0))' "$root/populated.list")
 manifest="$root/manifest.json"
 jq -n \
-  --arg checksum "$migration_checksum" \
+  --argjson migrations "$(jq -Rs 'split("\n") | map(select(length > 0) | split("|") | {version: .[0], name: .[1], checksum: .[2]})' "$expected_migrations")" \
   --arg backup_confirmed_at "$backup_confirmed_at" \
   --arg migration_before_hash "$migration_before_hash" \
   --arg populated_hash "$populated_hash" \
@@ -288,7 +302,7 @@ jq -n \
   --argjson populated_contents "$populated_contents" \
   '{
     format: 1,
-    migration: {version: "0001", name: "durable_spine", checksum: $checksum},
+    migrations: $migrations,
     migrationAudit: {event: "migration.applied", backupConfirmedAt: $backup_confirmed_at},
     artifacts: {
       migrationBefore: {path: "migration-before.dump", sha256: $migration_before_hash, mtime: $migration_before_mtime, contents: $migration_before_contents},
@@ -298,7 +312,7 @@ jq -n \
   }' >"$manifest"
 
 jq -e \
-  --arg checksum "$migration_checksum" \
+  --argjson migrations "$(jq -Rs 'split("\n") | map(select(length > 0) | split("|") | {version: .[0], name: .[1], checksum: .[2]})' "$root/source-migrations")" \
   --arg backup_confirmed_at "$backup_confirmed_at" \
   --arg migration_before_hash "$(sha256sum "$migration_before" | cut -d' ' -f1)" \
   --arg populated_hash "$(sha256sum "$populated" | cut -d' ' -f1)" \
@@ -307,7 +321,9 @@ jq -e \
   --argjson migration_before_contents "$(pg_restore --list "$migration_before" | jq -Rs 'split("\n") | map(select(length > 0))')" \
   --argjson populated_contents "$(pg_restore --list "$populated" | jq -Rs 'split("\n") | map(select(length > 0))')" \
   '.format == 1
-    and .migration == {version: "0001", name: "durable_spine", checksum: $checksum}
+    and .migrations == $migrations
+    and (.migrations | length > 0)
+    and (.migrations | all(.checksum | test("^[0-9a-f]{64}$")))
     and .migrationAudit == {event: "migration.applied", backupConfirmedAt: $backup_confirmed_at}
     and (.artifacts.migrationBefore.sha256 == $migration_before_hash)
     and (.artifacts.populated.sha256 == $populated_hash)
