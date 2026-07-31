@@ -19,17 +19,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
-      # This job builds nothing of its own, so Cachix would have nothing to push;
-      # the ~1.2GB devShell is all upstream paths. Caching the store in the GitHub
-      # Actions cache is what actually avoids re-substituting it from cache.nixos.org.
-      - uses: nix-community/cache-nix-action@7df957e333c1e5da7721f60227dbba6d06080569 # v7
-        with:
-          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
-          restore-prefixes-first-match: nix-${{ runner.os }}-
-          gc-max-store-size: 2G
-          purge: true
-          purge-prefixes: nix-${{ runner.os }}-
-          purge-created: 604800
+      # No Cachix here: this job builds nothing of its own, so there would be
+      # nothing to push. Caching /nix in the Actions cache was measured too, and
+      # restoring it cost as much as substituting from cache.nixos.org.
       # devShells.ci supplies node and postgresql; pnpm resolves its own version
       # from the packageManager field, so this caches both the store and pnpm itself.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
