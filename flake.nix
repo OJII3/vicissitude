@@ -22,14 +22,18 @@
           ...
         }:
         {
-          devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
-              nodejs_24
-              pnpm
-              postgresql_17
-              pi-coding-agent
-            ];
-          };
+          devShells =
+            let
+              base = with pkgs; [
+                nodejs_24
+                pnpm_11
+                postgresql_17
+              ];
+            in
+            {
+              ci = pkgs.mkShell { packages = base; };
+              default = pkgs.mkShell { packages = base ++ [ pkgs.pi-coding-agent ]; };
+            };
           formatter = pkgs.nixfmt;
           packages.default = pkgs.callPackage ./nix/package.nix { };
           checks = pkgs.lib.optionalAttrs (system == "x86_64-linux") {
