@@ -22,8 +22,9 @@ jobs:
       # No Cachix here: this job builds nothing of its own, so there would be
       # nothing to push. Caching /nix in the Actions cache was measured too, and
       # restoring it cost as much as substituting from cache.nixos.org.
-      # devShells.ci supplies node and postgresql; pnpm resolves its own version
-      # from the packageManager field, so this caches both the store and pnpm itself.
+      #
+      # pnpm resolves its own version from the packageManager field, so this
+      # caches both the package store and pnpm itself.
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.local/share/pnpm
