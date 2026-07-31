@@ -128,25 +128,13 @@ Gateway、worker、admin-cli の3端末を使います。Gateway と cognition w
 以降の block は `bash <<'SH'` で子 shell に閉じ込めてあります。この形を崩さないでください。`set -euo pipefail` や `: "${VAR:?...}"` を対話 shell へ直接貼ると、guard の失敗や foreground process への Ctrl+C が errexit で対話 shell 自体を終了させ、terminal ごと消えます。子 shell に閉じ込めれば、中断も guard の失敗も子 shell だけで完結し、Gateway と worker は SIGINT を受けて graceful shutdown します。process 固有の secret が対話 shell の環境に残らない利点もあります。
 
 ```bash
-bash <<'SH'
-set -euo pipefail
-set -a
-. ./.env.gateway.local
-set +a
-exec pnpm start:gateway
-SH
+pnpm start:gateway
 ```
 
 terminal 1 で Gateway を foreground 起動します。
 
 ```bash
-bash <<'SH'
-set -euo pipefail
-set -a
-. ./.env.worker.local
-set +a
-exec pnpm start:worker
-SH
+pnpm start:worker
 ```
 
 terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
@@ -211,25 +199,13 @@ SH
 上のblockが成功終了するまでdeployを続けません。migration後、外部deployment adapterまたは別terminalでGatewayとcognition workerの両方を起動します。手動運用ではGo-liveと同じく、次の二つを別terminalで実行します。
 
 ```bash
-bash <<'SH'
-set -euo pipefail
-set -a
-. ./.env.gateway.local
-set +a
-exec pnpm start:gateway
-SH
+pnpm start:gateway
 ```
 
 terminal 1 で Gateway を foreground 起動します。
 
 ```bash
-bash <<'SH'
-set -euo pipefail
-set -a
-. ./.env.worker.local
-set +a
-exec pnpm start:worker
-SH
+pnpm start:worker
 ```
 
 terminal 2 で cognition worker を foreground 起動します。admin-cli は terminal 3 で次を実行します。
