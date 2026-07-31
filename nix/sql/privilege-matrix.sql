@@ -8,8 +8,8 @@ DECLARE
   expected boolean;
   actual boolean;
   application_tables constant text[] := ARRAY[
-    'schema_migrations', 'system_state', 'channel_capabilities', 'events', 'jobs',
-    'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries'
+    'schema_migrations', 'system_state', 'channel_capabilities', 'thread_capability_overrides',
+    'events', 'jobs', 'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries'
   ];
   operations constant text[] := ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER'];
 BEGIN
@@ -18,9 +18,10 @@ BEGIN
       FOREACH operation IN ARRAY operations LOOP
         expected := CASE role_name
           WHEN 'vicissitude_gateway' THEN
-            (operation = 'SELECT' AND table_name = ANY (ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'events', 'effects'])) OR
-            (operation = 'INSERT' AND table_name = ANY (ARRAY['channel_capabilities', 'events', 'jobs', 'audit_entries'])) OR
-            (operation = 'UPDATE' AND table_name = ANY (ARRAY['channel_capabilities', 'effects']))
+            (operation = 'SELECT' AND table_name = ANY (ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'thread_capability_overrides', 'events', 'effects'])) OR
+            (operation = 'INSERT' AND table_name = ANY (ARRAY['channel_capabilities', 'thread_capability_overrides', 'events', 'jobs', 'audit_entries'])) OR
+            (operation = 'UPDATE' AND table_name = ANY (ARRAY['channel_capabilities', 'thread_capability_overrides', 'effects'])) OR
+            (operation = 'DELETE' AND table_name = 'thread_capability_overrides')
           WHEN 'vicissitude_worker' THEN
             (operation = 'SELECT' AND table_name = ANY (ARRAY['schema_migrations', 'system_state', 'events', 'jobs', 'character_definitions', 'decision_runs', 'effects'])) OR
             (operation = 'INSERT' AND table_name = ANY (ARRAY['decision_runs', 'model_calls', 'effects', 'audit_entries'])) OR

@@ -6,14 +6,15 @@ DECLARE
 BEGIN
   FOREACH index_name IN ARRAY ARRAY[
     'one_production_character_version', 'events_expires_at_idx', 'events_scope_time_idx',
-    'jobs_claim_idx', 'effects_claim_idx', 'audit_entries_run_idx', 'audit_entries_effect_idx'
+    'events_thread_scope_time_idx', 'jobs_claim_idx', 'effects_claim_idx', 'audit_entries_run_idx',
+    'audit_entries_effect_idx'
   ] LOOP
     IF to_regclass(format('public.%I', index_name)) IS NULL THEN
       RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = format('index/%s', index_name);
     END IF;
   END LOOP;
 
-  IF (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'p') <> 10
+  IF (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'p') <> 11
      OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'u') < 4
      OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'c') < 10
      OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'f') <> 9 THEN

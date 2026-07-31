@@ -7,6 +7,14 @@ INSERT INTO channel_capabilities (
   TIMESTAMPTZ '2026-07-25 00:00:00+00', 'staging-validation', 'offline fixture'
 );
 
+INSERT INTO thread_capability_overrides (
+  guild_id, channel_id, thread_id, observe_events, respond_to_mentions, add_reactions,
+  updated_at, updated_by, reason
+) VALUES (
+  'guild-staging', 'channel-staging', 'thread-staging', true, false, NULL,
+  TIMESTAMPTZ '2026-07-25 00:00:00+00', 'staging-validation', 'offline fixture'
+);
+
 INSERT INTO character_definitions (character_id, version, status, definition, created_at, created_by)
 VALUES (
   'staging-validation', 1, 'production',
