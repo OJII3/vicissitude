@@ -1,0 +1,43 @@
+{
+  "name": "split-question",
+  "description": "質問が複数メッセージに分割して投稿される。最後まで待ってから reply する。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@ふあ 相談があるんだけど",
+      "mentionsBot": true
+    },
+    {
+      "kind": "message",
+      "atMs": 6000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "来週の集まりの店を決めたくて"
+    },
+    {
+      "kind": "message",
+      "atMs": 14000,
+      "id": "m3",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "和食と中華どっちがいいと思う？"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1", "m2", "m3"],
+    "maxWaitMs": 40000,
+    "misinterventionSeverity": "low",
+    "notes": "m1 の時点で反応すると質問の本体を取りこぼす。m3 まで待つ。"
+  }
+}

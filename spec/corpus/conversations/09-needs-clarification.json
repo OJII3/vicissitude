@@ -1,0 +1,25 @@
+{
+  "name": "needs-clarification",
+  "description": "回答に追加情報が必要な依頼。すぐ成果物を出さず、詳細確認の reply を返す。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@ふあ 例のやつ調べてまとめといて",
+      "mentionsBot": true
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1"],
+    "maxWaitMs": 15000,
+    "misinterventionSeverity": "low",
+    "notes": "「例のやつ」が特定できない前提のシナリオ。知ったかぶりで長文をまとめるのではなく、何を指すか確認する短い reply が正解。"
+  }
+}

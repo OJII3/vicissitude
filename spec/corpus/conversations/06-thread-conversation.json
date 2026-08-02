@@ -1,0 +1,43 @@
+{
+  "name": "thread-conversation",
+  "description": "thread 内の会話。thread が scope 境界であり、親チャンネルの会話と混ぜない。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "今日の配信面白かった"
+    },
+    {
+      "kind": "message",
+      "atMs": 5000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": "thread-build",
+      "actorId": "user-b",
+      "content": "拠点の設計図できたから貼っておく"
+    },
+    {
+      "kind": "message",
+      "atMs": 12000,
+      "id": "m3",
+      "channelId": "channel-general",
+      "threadId": "thread-build",
+      "actorId": "user-c",
+      "content": "@ふあ この設計どう思う？",
+      "mentionsBot": true
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m2", "m3"],
+    "maxWaitMs": 20000,
+    "misinterventionSeverity": "medium",
+    "notes": "親チャンネルの m1 は別会話。thread 内の文脈だけで答える。"
+  }
+}

@@ -107,7 +107,7 @@ const conversationsDir = join(import.meta.dirname, "conversations");
 describe("conversation corpus", () => {
   it("loads every scenario file with a unique name", () => {
     const scenarios = loadScenarios(conversationsDir);
-    expect(scenarios.length).toBeGreaterThanOrEqual(1);
+    expect(scenarios.length).toBeGreaterThanOrEqual(10);
     const names = scenarios.map((entry) => entry.scenario.name);
     expect(new Set(names).size).toBe(names.length);
   });

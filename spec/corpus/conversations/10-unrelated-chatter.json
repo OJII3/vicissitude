@@ -1,0 +1,43 @@
+{
+  "name": "unrelated-chatter",
+  "description": "キャラクターに向けられていない雑談。観察するだけで silence。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "腹減った"
+    },
+    {
+      "kind": "message",
+      "atMs": 7000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-b",
+      "content": "ラーメン行く？"
+    },
+    {
+      "kind": "message",
+      "atMs": 11000,
+      "id": "m3",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "いいね、いつもの店で",
+      "replyToId": "m2"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "user", "actorId": "user-b" },
+    "expectedAction": "silence",
+    "referencedMessageIds": [],
+    "maxWaitMs": null,
+    "misinterventionSeverity": "medium",
+    "notes": "ユーザー同士で完結している雑談。毎回割り込むと煩わしいボットになる。"
+  }
+}
