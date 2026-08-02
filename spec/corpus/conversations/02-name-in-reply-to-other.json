@@ -1,0 +1,34 @@
+{
+  "name": "name-in-reply-to-other",
+  "description": "他人への reply の中にキャラクターの名前が出るだけ。宛先はキャラクターではないので silence。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "昨日ふあが変なこと言っててさ、笑った"
+    },
+    {
+      "kind": "message",
+      "atMs": 8000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-b",
+      "content": "それな、ふあらしいよね",
+      "replyToId": "m1"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "user", "actorId": "user-a" },
+    "expectedAction": "silence",
+    "referencedMessageIds": [],
+    "maxWaitMs": null,
+    "misinterventionSeverity": "medium",
+    "notes": "名前が出ているだけで会話には誘われていない。割り込むと自意識過剰に見える。"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "name-call-question",
+  "description": "mention なしの名前呼び質問「ふあはどう思う？」。宛先はキャラクターなので reply。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "新しいゲーム、正直微妙だった"
+    },
+    {
+      "kind": "message",
+      "atMs": 12000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-b",
+      "content": "えー、俺は好きだけどな"
+    },
+    {
+      "kind": "message",
+      "atMs": 20000,
+      "id": "m3",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "ふあはどう思う？"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1", "m2", "m3"],
+    "maxWaitMs": 20000,
+    "misinterventionSeverity": "low"
+  }
+}

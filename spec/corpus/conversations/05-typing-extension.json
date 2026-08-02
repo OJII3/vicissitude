@@ -1,0 +1,41 @@
+{
+  "name": "typing-extension",
+  "description": "mention の後に typing が始まり、追加メッセージが来る。追加分を同じ batch に含めて reply する。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@ふあ ちょっと聞きたいんだけど",
+      "mentionsBot": true
+    },
+    {
+      "kind": "typing",
+      "atMs": 4000,
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a"
+    },
+    {
+      "kind": "message",
+      "atMs": 9000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "この前話してた漫画のタイトルって何だっけ"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1", "m2"],
+    "maxWaitMs": 30000,
+    "misinterventionSeverity": "low",
+    "notes": "m1 だけを見て「どうしたの？」と返すのは早すぎる。m2 まで待って答える。"
+  }
+}
