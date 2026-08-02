@@ -91,4 +91,12 @@ describe("conversationScenarioSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("rejects a silence scenario with referencedMessageIds", () => {
+    const result = conversationScenarioSchema.safeParse({
+      ...base,
+      label: { ...baseLabel, expectedAction: "silence", maxWaitMs: null },
+    });
+    expect(result.success).toBe(false);
+  });
 });

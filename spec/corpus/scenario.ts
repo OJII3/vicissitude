@@ -97,6 +97,13 @@ export const conversationScenarioSchema = z
         message: "reply scenarios must define maxWaitMs",
       });
     }
+    if (scenario.label.expectedAction === "silence" && scenario.label.referencedMessageIds.length > 0) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["label", "referencedMessageIds"],
+        message: "silence scenarios must not reference messages",
+      });
+    }
   });
 
 export type ConversationScenario = z.infer<typeof conversationScenarioSchema>;
