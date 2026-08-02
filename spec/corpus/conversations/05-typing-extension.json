@@ -36,6 +36,6 @@
     "referencedMessageIds": ["m1", "m2"],
     "maxWaitMs": 30000,
     "misinterventionSeverity": "low",
-    "notes": "m1 だけを見て「どうしたの？」と返すのは早すぎる。m2 まで待って答える。"
+    "notes": "m1 だけを見て「どうしたの？」と返すのは早すぎる。m2 まで待って答える。この期待は typing 延長が batchWindow と同じ式で行われる解釈（設計 §3.2）を前提とする。typingExtension を独立パラメータとする解釈ではタイミングを再検討する。"
   }
 }

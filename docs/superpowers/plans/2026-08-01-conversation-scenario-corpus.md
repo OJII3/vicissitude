@@ -177,7 +177,7 @@ const typingEventSchema = z.object({
 
 const scenarioEventSchema = z.discriminatedUnion("kind", [messageEventSchema, typingEventSchema]);
 
-/** イベント列の最後のメッセージの宛先。 */
+/** 評価対象となるトリガーメッセージの宛先。明示的な宛先を持たない後続メッセージは直前のトリガーを引き継ぐ。 */
 const addresseeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("character") }),
   z.object({ kind: z.literal("user"), actorId: z.string().min(1) }),
