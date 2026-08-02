@@ -58,6 +58,6 @@
     "referencedMessageIds": ["m1", "m4"],
     "maxWaitMs": 25000,
     "misinterventionSeverity": "high",
-    "notes": "サッカーの会話 (m2, m3, m5) は別クラスタ。そちらの話題を混ぜて返すのは誤介入。"
+    "notes": "サッカーの会話 (m2, m3, m5) は別クラスタ。そちらの話題を混ぜて返すのは誤介入。他ユーザー間のやり取りへ無断で内容を混ぜる社会的コストが高いため severity は high。"
   }
 }
