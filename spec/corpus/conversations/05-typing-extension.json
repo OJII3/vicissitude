@@ -22,7 +22,7 @@
     },
     {
       "kind": "message",
-      "atMs": 9000,
+      "atMs": 10500,
       "id": "m2",
       "channelId": "channel-general",
       "threadId": null,

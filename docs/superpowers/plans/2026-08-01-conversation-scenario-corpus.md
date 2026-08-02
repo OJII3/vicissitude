@@ -21,7 +21,7 @@
 
 ラベルの意味論（スキーマの doc コメントと README に記載する）:
 
-- `addressee` — イベント列の**最後のメッセージ**の宛先（キャラクター / 特定ユーザー / チャンネル全体 / 不明）
+- `addressee` — 評価対象となるトリガーメッセージの宛先（キャラクター / 特定ユーザー / チャンネル全体 / 不明）。明示的な宛先を持たない後続メッセージは直前のトリガーを引き継ぐ
 - `expectedAction` — シナリオ終端でキャラクターに期待する行動（`reply` / `silence` / `defer`）
 - `referencedMessageIds` — 正しい応答が踏まえているべきメッセージの ID 集合（silence なら空）
 - `maxWaitMs` — トリガーから応答までの許容最大待機時間。`silence` シナリオでは `null`
@@ -906,7 +906,7 @@ Phase 2 の batch パラメータと宛先推定品質を人手評価するた�
 
 ## ラベルの意味
 
-- `addressee` — イベント列の**最後のメッセージ**の宛先
+- `addressee` — 評価対象となるトリガーメッセージの宛先。明示的な宛先を持たない後続メッセージは直前のトリガーを引き継ぐ
 - `expectedAction` — シナリオ終端でキャラクターに期待する行動（`reply` / `silence` / `defer`）
 - `referencedMessageIds` — 正しい応答が踏まえているべきメッセージの ID（silence なら空）
 - `maxWaitMs` — トリガーから応答までの許容最大待機時間。`batchWindow` / `maxWait` の設定値はこのラベルを根拠に決める。silence では `null`
