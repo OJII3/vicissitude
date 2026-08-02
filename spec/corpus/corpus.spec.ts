@@ -1,5 +1,6 @@
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { conversationScenarioSchema } from "./scenario.js";
+import { conversationScenarioSchema, loadScenarios } from "./scenario.js";
 
 const message1 = {
   kind: "message",
@@ -98,5 +99,16 @@ describe("conversationScenarioSchema", () => {
       label: { ...baseLabel, expectedAction: "silence", maxWaitMs: null },
     });
     expect(result.success).toBe(false);
+  });
+});
+
+const conversationsDir = join(import.meta.dirname, "conversations");
+
+describe("conversation corpus", () => {
+  it("loads every scenario file with a unique name", () => {
+    const scenarios = loadScenarios(conversationsDir);
+    expect(scenarios.length).toBeGreaterThanOrEqual(1);
+    const names = scenarios.map((entry) => entry.scenario.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
