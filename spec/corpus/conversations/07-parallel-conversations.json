@@ -1,0 +1,63 @@
+{
+  "name": "parallel-conversations",
+  "description": "同じ channel で2つの会話が並行する。宛先の会話だけを見て reply し、もう一方へ介入しない。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "レポート終わらん、助けて"
+    },
+    {
+      "kind": "message",
+      "atMs": 4000,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-b",
+      "content": "昨日のサッカー見た？"
+    },
+    {
+      "kind": "message",
+      "atMs": 8000,
+      "id": "m3",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-c",
+      "content": "見た見た、最後のゴールやばかった",
+      "replyToId": "m2"
+    },
+    {
+      "kind": "message",
+      "atMs": 12000,
+      "id": "m4",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@{{character}} 気分転換になる話して",
+      "mentionsBot": true
+    },
+    {
+      "kind": "message",
+      "atMs": 15000,
+      "id": "m5",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-b",
+      "content": "延長までもつれると思わなかったわ",
+      "replyToId": "m3"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1", "m4"],
+    "maxWaitMs": 25000,
+    "misinterventionSeverity": "high",
+    "notes": "サッカーの会話 (m2, m3, m5) は別クラスタ。そちらの話題を混ぜて返すのは誤介入。他ユーザー間のやり取りへ無断で内容を混ぜる社会的コストが高いため severity は high。"
+  }
+}

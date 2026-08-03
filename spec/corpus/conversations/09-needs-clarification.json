@@ -1,0 +1,25 @@
+{
+  "name": "needs-clarification",
+  "description": "回答に追加情報が必要な依頼。すぐ成果物を出さず、詳細確認の reply を返す。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@{{character}} 例のやつ調べてまとめといて",
+      "mentionsBot": true
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1"],
+    "maxWaitMs": 15000,
+    "misinterventionSeverity": "low",
+    "notes": "「例のやつ」が特定できない前提のシナリオ。知ったかぶりで長文をまとめるのではなく、何を指すか確認する短い reply が正解。severity が low なのは誤介入（発言すること自体の誤り）のリスクを指すため。明示 mention への応答は常に正当で、知ったかぶりは内容品質の失敗として別軸で評価する。"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "name": "typing-extension",
+  "description": "mention の後に typing が始まり、追加メッセージが来る。追加分を同じ batch に含めて reply する。",
+  "guildId": "guild-1",
+  "events": [
+    {
+      "kind": "message",
+      "atMs": 0,
+      "id": "m1",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "@{{character}} ちょっと聞きたいんだけど",
+      "mentionsBot": true
+    },
+    {
+      "kind": "typing",
+      "atMs": 4000,
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a"
+    },
+    {
+      "kind": "message",
+      "atMs": 10500,
+      "id": "m2",
+      "channelId": "channel-general",
+      "threadId": null,
+      "actorId": "user-a",
+      "content": "この前話してた漫画のタイトルって何だっけ"
+    }
+  ],
+  "label": {
+    "addressee": { "kind": "character" },
+    "expectedAction": "reply",
+    "referencedMessageIds": ["m1", "m2"],
+    "maxWaitMs": 30000,
+    "misinterventionSeverity": "low",
+    "notes": "m1 だけを見て「どうしたの？」と返すのは早すぎる。m2 まで待って答える。この期待は typing 延長が batchWindow と同じ式で行われる解釈（設計 §3.2）を前提とする。typingExtension を独立パラメータとする解釈ではタイミングを再検討する。"
+  }
+}
