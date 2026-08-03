@@ -113,7 +113,29 @@ export interface LoadedScenario {
   scenario: ConversationScenario;
 }
 
-export function loadScenarios(dir: string): LoadedScenario[] {
+export interface LoadScenarioOptions {
+  /** シナリオ本文の {{character}} プレースホルダを置き換えるキャラクター名。 */
+  characterName: string;
+}
+
+const CHARACTER_PLACEHOLDER = "{{character}}";
+
+function substituteCharacter(scenario: ConversationScenario, characterName: string): ConversationScenario {
+  const replace = (text: string) => text.replaceAll(CHARACTER_PLACEHOLDER, characterName);
+  return {
+    ...scenario,
+    description: replace(scenario.description),
+    events: scenario.events.map((event) =>
+      event.kind === "message" ? { ...event, content: replace(event.content) } : event,
+    ),
+    label: {
+      ...scenario.label,
+      ...(scenario.label.notes === undefined ? {} : { notes: replace(scenario.label.notes) }),
+    },
+  };
+}
+
+export function loadScenarios(dir: string, options: LoadScenarioOptions): LoadedScenario[] {
   const files = readdirSync(dir)
     .filter((file) => file.endsWith(".json"))
     .sort();
@@ -123,6 +145,6 @@ export function loadScenarios(dir: string): LoadedScenario[] {
     if (!parsed.success) {
       throw new Error(`${file}: ${parsed.error.message}`);
     }
-    return { file, scenario: parsed.data };
+    return { file, scenario: substituteCharacter(parsed.data, options.characterName) };
   });
 }

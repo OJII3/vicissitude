@@ -7,6 +7,7 @@ Phase 2 の batch パラメータと宛先推定品質を人手評価するた�
 
 - `conversations/NN-<name>.json` が 1 ファイル = 1 scenario
 - スキーマは `scenario.ts` の `conversationScenarioSchema`。`corpus.spec.ts` が全ファイルを検証する
+- キャラクター名は本文に直接書かず `{{character}}` プレースホルダを使う。`loadScenarios(dir, { characterName })` が読み込み時に置換し、spec が生ファイルへの具体名混入を検証する
 
 ## ラベルの意味
 

@@ -10,7 +10,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-a",
-      "content": "@ふあ 相談があるんだけど",
+      "content": "@{{character}} 相談があるんだけど",
       "mentionsBot": true
     },
     {

@@ -10,7 +10,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-a",
-      "content": "昨日ふあが変なこと言っててさ、笑った"
+      "content": "昨日{{character}}が変なこと言っててさ、笑った"
     },
     {
       "kind": "message",
@@ -19,7 +19,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-b",
-      "content": "それな、ふあらしいよね",
+      "content": "それな、{{character}}らしいよね",
       "replyToId": "m1"
     }
   ],

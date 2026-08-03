@@ -28,7 +28,7 @@
       "channelId": "channel-general",
       "threadId": "thread-build",
       "actorId": "user-c",
-      "content": "@ふあ この設計どう思う？",
+      "content": "@{{character}} この設計どう思う？",
       "mentionsBot": true
     }
   ],

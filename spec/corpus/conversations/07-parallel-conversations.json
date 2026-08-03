@@ -38,7 +38,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-a",
-      "content": "@ふあ 気分転換になる話して",
+      "content": "@{{character}} 気分転換になる話して",
       "mentionsBot": true
     },
     {

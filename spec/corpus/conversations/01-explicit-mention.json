@@ -10,7 +10,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-a",
-      "content": "@ふあ 今日のごはん何がいいと思う？",
+      "content": "@{{character}} 今日のごはん何がいいと思う？",
       "mentionsBot": true
     }
   ],

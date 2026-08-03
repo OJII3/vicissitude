@@ -28,7 +28,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-c",
-      "content": "@ふあ も来るの？",
+      "content": "@{{character}} も来るの？",
       "mentionsBot": true
     },
     {

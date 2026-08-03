@@ -1,6 +1,6 @@
 {
   "name": "name-call-question",
-  "description": "mention なしの名前呼び質問「ふあはどう思う？」。宛先はキャラクターなので reply。",
+  "description": "mention なしの名前呼び質問「{{character}}はどう思う？」。宛先はキャラクターなので reply。",
   "guildId": "guild-1",
   "events": [
     {
@@ -28,7 +28,7 @@
       "channelId": "channel-general",
       "threadId": null,
       "actorId": "user-a",
-      "content": "ふあはどう思う？"
+      "content": "{{character}}はどう思う？"
     }
   ],
   "label": {

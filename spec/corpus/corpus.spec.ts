@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { conversationScenarioSchema, loadScenarios } from "./scenario.js";
@@ -106,9 +107,33 @@ const conversationsDir = join(import.meta.dirname, "conversations");
 
 describe("conversation corpus", () => {
   it("loads every scenario file with a unique name", () => {
-    const scenarios = loadScenarios(conversationsDir);
+    const scenarios = loadScenarios(conversationsDir, { characterName: "ふあ" });
     expect(scenarios.length).toBeGreaterThanOrEqual(10);
     const names = scenarios.map((entry) => entry.scenario.name);
     expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("substitutes the character name into scenario text", () => {
+    const scenarios = loadScenarios(conversationsDir, { characterName: "ふあ" });
+    const nameCall = scenarios.find((entry) => entry.scenario.name === "name-call-question");
+    const lastEvent = nameCall?.scenario.events.at(-1);
+    expect(lastEvent?.kind === "message" && lastEvent.content).toBe("ふあはどう思う？");
+    for (const { scenario } of scenarios) {
+      const texts = [
+        scenario.description,
+        scenario.label.notes ?? "",
+        ...scenario.events.map((event) => (event.kind === "message" ? event.content : "")),
+      ];
+      expect(texts.join("\n")).not.toContain("{{character}}");
+    }
+  });
+
+  it("keeps raw scenario files free of a concrete character name", () => {
+    const files = readdirSync(conversationsDir).filter((file) => file.endsWith(".json"));
+    expect(files.length).toBeGreaterThanOrEqual(10);
+    for (const file of files) {
+      const raw = readFileSync(join(conversationsDir, file), "utf8");
+      expect(raw, `${file} must use {{character}} instead of a concrete name`).not.toContain("ふあ");
+    }
   });
 });
