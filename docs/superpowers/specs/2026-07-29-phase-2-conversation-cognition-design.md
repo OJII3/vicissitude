@@ -206,11 +206,11 @@ interface ConversationPolicy {
 
 （注: 項目2〜5は実際は migration 0003 として実装した。0002 は Thread Scope が使用する）
 
-**migration 0003（Phase 2B）**
+**migration 0004（Phase 2B）**
 
 - `decision_runs.action_kind` CHECK 拡張: `('reply', 'silence', 'defer')`
 
-**migration 0004（Phase 2C）**
+**migration 0005（Phase 2C）**
 
 - `effects.kind` CHECK 拡張: `('discord.reply', 'discord.reaction', 'discord.post')` ほか
 
