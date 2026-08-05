@@ -351,6 +351,17 @@ describe("PostgresDecisionEffectStore", () => {
     expect(batch.trigger.eventId).toBe(f.eventId);
   });
 
+  it("always includes the trigger even when it occurred after the claim time", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    const batch = await store.loadBatch(
+      { guildId: "g", channelId: "c", threadId: null, triggerEventId: f.eventId },
+      new Date(f.now.getTime() - 60_000),
+    );
+    expect(batch.messages.map((message) => message.eventId)).toEqual([f.eventId]);
+    expect(batch.trigger.eventId).toBe(f.eventId);
+  });
+
   it("always includes the trigger even when the cursor has passed it", async () => {
     const f = await fixture();
     const store = new PostgresDecisionEffectStore(sql);

@@ -86,7 +86,7 @@ export class PostgresDecisionEffectStore implements ConversationStore {
       where guild_id = ${job.guildId} and channel_id = ${job.channelId}
         and coalesce(thread_id, '') = ${job.threadId ?? ""}
         and kind = 'message.created'
-        and occurred_at <= ${claimedAt}
+        and (occurred_at <= ${claimedAt} or id = ${job.triggerEventId}::uuid)
         ${
           cursor
             ? this

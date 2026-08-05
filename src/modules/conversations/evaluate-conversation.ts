@@ -20,7 +20,7 @@ export interface ConversationBatchView {
   targetChannelId: string;
   threadId: string | null;
   trigger: ConversationMessageView;
-  /** (occurred_at, id) 昇順。 */
+  /** (occurred_at, id) 昇順。必ず trigger を含み空にならない（loadBatch が保証する）。 */
   messages: ConversationMessageView[];
 }
 export interface ModelCallRecord {
