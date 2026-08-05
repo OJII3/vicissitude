@@ -20,6 +20,25 @@ const threadMessage = (parentChannelId: string) => ({
   attachments: new Map(),
 });
 
+const mentionMessage = (channelId: string, messageId: string) => ({
+  id: messageId,
+  guildId: "guild",
+  channelId,
+  channel: { isThread: () => false, parentId: null },
+  author: { id: "human-1", bot: false },
+  createdTimestamp: Date.now(),
+  content: "mention",
+  mentions: { users: new Map([["bot", {}]]) },
+  reference: null,
+  attachments: new Map(),
+});
+
+const typingEvent = (guildId: string, channelId: string) => ({
+  guild: { id: guildId },
+  channel: { id: channelId, isThread: () => false, parentId: null },
+  user: { id: "human-1", bot: false },
+});
+
 const url = process.env.TEST_DATABASE_URL;
 let sql: Sql;
 
@@ -147,6 +166,51 @@ describe("runGateway", () => {
     await run;
   }
 
+  async function startGateway(logger: unknown) {
+    const handlers: Record<string, (...args: unknown[]) => void> = {};
+    const inflight = createInFlightTracker();
+    const accepting = { value: false };
+    let release!: (signal: AbortSignal) => void;
+    const shutdown = new Promise<AbortSignal>((resolve) => {
+      release = resolve;
+    });
+    const run = runGateway({
+      sql,
+      client: {
+        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+          handlers[event] = handler;
+        }),
+        user: { id: "bot" },
+      } as never,
+      config: {
+        migrationsDir: "migrations",
+        guildId: "guild",
+        adminIds: ["admin"],
+        discordToken: "token",
+        batch: { batchWindowMs: 8_000, maxWaitMs: 30_000 },
+      } as never,
+      health: { setReady: vi.fn() } as never,
+      logger: logger as never,
+      shutdown,
+      prepared: true,
+      startClient: async () => undefined,
+      registerCommands: async () => undefined,
+      accepting,
+      inflight,
+    });
+    await vi.waitFor(() => expect(handlers.messageCreate).toBeTypeOf("function"));
+    await vi.waitFor(() => expect(handlers.typingStart).toBeTypeOf("function"));
+    return {
+      handlers,
+      drain: () => inflight.drain(),
+      async stop() {
+        await inflight.drain();
+        release(new AbortController().signal);
+        await run;
+      },
+    };
+  }
+
   const cleanup = () =>
     sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events, thread_capability_overrides, channel_capabilities cascade`;
 
@@ -218,6 +282,72 @@ describe("runGateway", () => {
         expect.objectContaining({ channelId: "channel-1", threadId: "thread-1", reason: "channel_not_allowed" }),
         "Discord message ignored",
       );
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("extends the queued job's available_at when typing starts in the same guild and channel", async () => {
+    try {
+      await new PostgresChannelCapabilityRepository(sql).patch(
+        "guild",
+        "channel-2",
+        { respondToMentions: true },
+        "admin",
+        "allow mentions",
+        new Date(),
+      );
+      const gateway = await startGateway({ error: vi.fn(), debug: vi.fn(), warn: vi.fn() });
+
+      gateway.handlers.messageCreate!(mentionMessage("channel-2", "message-2"));
+      await gateway.drain();
+      const before = await sql<
+        { available_at: Date }[]
+      >`select available_at from jobs where channel_id = 'channel-2' and state = 'queued'`;
+      expect(before).toHaveLength(1);
+
+      const typingAt = Date.now();
+      gateway.handlers.typingStart!(typingEvent("guild", "channel-2"));
+      await gateway.stop();
+
+      const after = await sql<
+        { available_at: Date }[]
+      >`select available_at from jobs where channel_id = 'channel-2' and state = 'queued'`;
+      expect(after).toHaveLength(1);
+      expect(after[0]!.available_at.getTime()).toBeGreaterThan(before[0]!.available_at.getTime());
+      expect(after[0]!.available_at.getTime()).toBeGreaterThanOrEqual(typingAt + 8_000);
+      expect(after[0]!.available_at.getTime()).toBeLessThan(typingAt + 8_000 + 5_000);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it("ignores typingStart events from a different guild", async () => {
+    try {
+      await new PostgresChannelCapabilityRepository(sql).patch(
+        "guild",
+        "channel-3",
+        { respondToMentions: true },
+        "admin",
+        "allow mentions",
+        new Date(),
+      );
+      const gateway = await startGateway({ error: vi.fn(), debug: vi.fn(), warn: vi.fn() });
+
+      gateway.handlers.messageCreate!(mentionMessage("channel-3", "message-3"));
+      await gateway.drain();
+      const before = await sql<
+        { available_at: Date }[]
+      >`select available_at from jobs where channel_id = 'channel-3' and state = 'queued'`;
+      expect(before).toHaveLength(1);
+
+      gateway.handlers.typingStart!(typingEvent("other-guild", "channel-3"));
+      await gateway.stop();
+
+      const after = await sql<
+        { available_at: Date }[]
+      >`select available_at from jobs where channel_id = 'channel-3' and state = 'queued'`;
+      expect(after).toEqual(before);
     } finally {
       await cleanup();
     }

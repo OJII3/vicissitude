@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, type Message } from "discord.js";
+import { Client, GatewayIntentBits, type Message, type Typing } from "discord.js";
 import type { Sql } from "postgres";
 import { createPostgresClient } from "../adapters/postgres/client.js";
 import { migrationStatus } from "../adapters/postgres/migrations.js";
@@ -172,14 +172,14 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
       )
       .catch((error) => logger.error({ err: error }, "Interaction failed"));
   };
-  const onTyping = (typing: import("discord.js").Typing) => {
+  const onTyping = (typing: Typing) => {
     if (!accepting.value) return;
     const scope = toTypingScope({
       guildId: typing.guild?.id ?? null,
       channelId: typing.channel.id,
       parentChannelId: typing.channel.isThread() ? typing.channel.parentId : null,
       isThread: typing.channel.isThread(),
-      userIsBot: typing.user.bot ?? false,
+      userIsBot: typing.user.bot,
     });
     if (!scope || scope.guildId !== config.guildId) return;
     const now = SystemClock.now();
