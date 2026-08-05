@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toDiscordMessageInput } from "./message-snapshot.js";
+import { toDiscordMessageInput, toTypingScope } from "./message-snapshot.js";
 
 const base = {
   id: "m",
@@ -58,5 +58,29 @@ describe("toDiscordMessageInput", () => {
     [{ ...base, authorId: "" }, "author ID"],
   ] as const)("rejects invalid boundary data", (snapshot, message) => {
     expect(() => toDiscordMessageInput(snapshot, "bot")).toThrow(message);
+  });
+});
+
+describe("toTypingScope", () => {
+  it("maps a thread typing event to the parent-channel scope with threadId", () => {
+    expect(
+      toTypingScope({ guildId: "g", channelId: "t", parentChannelId: "c", isThread: true, userIsBot: false }),
+    ).toEqual({ guildId: "g", channelId: "c", threadId: "t" });
+  });
+  it("maps a plain channel typing event", () => {
+    expect(
+      toTypingScope({ guildId: "g", channelId: "c", parentChannelId: null, isThread: false, userIsBot: false }),
+    ).toEqual({ guildId: "g", channelId: "c", threadId: null });
+  });
+  it("returns null for DMs, bots, and threads without a parent", () => {
+    expect(
+      toTypingScope({ guildId: null, channelId: "c", parentChannelId: null, isThread: false, userIsBot: false }),
+    ).toBeNull();
+    expect(
+      toTypingScope({ guildId: "g", channelId: "c", parentChannelId: null, isThread: false, userIsBot: true }),
+    ).toBeNull();
+    expect(
+      toTypingScope({ guildId: "g", channelId: "t", parentChannelId: null, isThread: true, userIsBot: false }),
+    ).toBeNull();
   });
 });

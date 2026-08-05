@@ -10,7 +10,7 @@ import { PostgresSystemControlRepository } from "../adapters/postgres/system-con
 import { PostgresEffectQueue } from "../adapters/postgres/effect-queue.js";
 import { DiscordClientMessenger, snapshotDiscordMessage } from "../adapters/discord/discord-client.js";
 import { DiscordEffectExecutor } from "../adapters/discord/discord-effect-executor.js";
-import { toDiscordMessageInput } from "../adapters/discord/message-snapshot.js";
+import { toDiscordMessageInput, toTypingScope } from "../adapters/discord/message-snapshot.js";
 import { channelCommand, handleChannelCommand } from "../adapters/discord/channel-command.js";
 import { ingestDiscordMessage } from "../modules/events/ingest-message.js";
 import { runOneEffect } from "../modules/effects/run-effect-worker.js";
@@ -44,10 +44,15 @@ export interface GatewayDependencies {
 
 export function registerGatewayListeners(
   client: { on(event: string, listener: (...args: any[]) => void): unknown },
-  handlers: { messageCreate: (...args: any[]) => void; interactionCreate: (...args: any[]) => void },
+  handlers: {
+    messageCreate: (...args: any[]) => void;
+    interactionCreate: (...args: any[]) => void;
+    typingStart: (...args: any[]) => void;
+  },
 ): void {
   client.on("messageCreate", handlers.messageCreate);
   client.on("interactionCreate", handlers.interactionCreate);
+  client.on("typingStart", handlers.typingStart);
 }
 export async function startGatewayClient(
   client: {
@@ -167,8 +172,34 @@ export async function runGateway(d: GatewayDependencies): Promise<void> {
       )
       .catch((error) => logger.error({ err: error }, "Interaction failed"));
   };
+  const onTyping = (typing: import("discord.js").Typing) => {
+    if (!accepting.value) return;
+    const scope = toTypingScope({
+      guildId: typing.guild?.id ?? null,
+      channelId: typing.channel.id,
+      parentChannelId: typing.channel.isThread() ? typing.channel.parentId : null,
+      isThread: typing.channel.isThread(),
+      userIsBot: typing.user.bot ?? false,
+    });
+    if (!scope || scope.guildId !== config.guildId) return;
+    const now = SystemClock.now();
+    inflight
+      .track(
+        ingestion.extendQueuedJob({
+          ...scope,
+          availableAt: new Date(now.getTime() + config.batch.batchWindowMs),
+          maxWaitMs: config.batch.maxWaitMs,
+          now,
+        }),
+      )
+      .catch((error) => logger.warn({ err: error }, "Typing extension failed"));
+  };
   accepting.value = true;
-  registerGatewayListeners(client, { messageCreate: onMessage as never, interactionCreate: onInteraction as never });
+  registerGatewayListeners(client, {
+    messageCreate: onMessage as never,
+    interactionCreate: onInteraction as never,
+    typingStart: onTyping as never,
+  });
   await d.startClient?.();
   await d.registerCommands?.();
   health.setReady(true);
@@ -216,7 +247,12 @@ export async function main(env = process.env): Promise<void> {
   const inflight = createInFlightTracker();
   let primaryError: unknown;
   const client = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent,
+      GatewayIntentBits.GuildMessageTyping,
+    ],
   });
   try {
     sql = createPostgresClient(config.databaseUrl);

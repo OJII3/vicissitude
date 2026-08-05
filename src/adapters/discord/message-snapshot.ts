@@ -1,4 +1,5 @@
 import type { DiscordMessageInput } from "../../modules/events/canonical-event.js";
+import type { ConversationScope } from "../../modules/conversations/scope.js";
 
 export interface DiscordMessageSnapshot {
   id: string;
@@ -42,5 +43,23 @@ export function toDiscordMessageInput(snapshot: DiscordMessageSnapshot, botUserI
     mentionIds: [...snapshot.mentionedUserIds],
     replyToMessageId: snapshot.replyToMessageId,
     attachments: snapshot.attachments.map((attachment) => ({ ...attachment })),
+  };
+}
+
+export interface DiscordTypingSnapshot {
+  guildId: string | null;
+  channelId: string;
+  parentChannelId: string | null;
+  isThread: boolean;
+  userIsBot: boolean;
+}
+
+export function toTypingScope(snapshot: DiscordTypingSnapshot): ConversationScope | null {
+  if (!snapshot.guildId || snapshot.userIsBot) return null;
+  if (snapshot.isThread && !snapshot.parentChannelId) return null;
+  return {
+    guildId: snapshot.guildId,
+    channelId: snapshot.isThread ? snapshot.parentChannelId! : snapshot.channelId,
+    threadId: snapshot.isThread ? snapshot.channelId : null,
   };
 }

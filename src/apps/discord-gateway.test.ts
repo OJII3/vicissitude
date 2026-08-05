@@ -21,9 +21,13 @@ describe("gateway startup helpers", () => {
         })),
       },
     };
-    registerGatewayListeners(client as never, { messageCreate: () => undefined, interactionCreate: () => undefined });
+    registerGatewayListeners(client as never, {
+      messageCreate: () => undefined,
+      interactionCreate: () => undefined,
+      typingStart: () => undefined,
+    });
     await startGatewayClient(client as never, "token", "guild", {});
-    expect(order.slice(0, 2)).toEqual(["listener:messageCreate", "listener:interactionCreate"]);
+    expect(order.slice(0, 3)).toEqual(["listener:messageCreate", "listener:interactionCreate", "listener:typingStart"]);
     expect(order).toContain("login");
     expect(order.at(-1)).toBe("commands");
   });
