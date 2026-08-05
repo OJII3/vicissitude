@@ -37,7 +37,7 @@ describe("versioned migrations", () => {
       actor: "test-bootstrap",
       backupConfirmedAt: new Date(),
     });
-    expect(first).toMatchObject({ appliedVersions: ["0001", "0002"] });
+    expect(first).toMatchObject({ appliedVersions: ["0001", "0002", "0003"] });
     expect(second).toMatchObject({ appliedVersions: [] });
     expect(first.appliedAt).toBeInstanceOf(Date);
 
@@ -45,6 +45,7 @@ describe("versioned migrations", () => {
     expect(status).toEqual([
       expect.objectContaining({ version: "0001", name: "durable_spine", state: "applied" }),
       expect.objectContaining({ version: "0002", name: "thread_scope", state: "applied" }),
+      expect.objectContaining({ version: "0003", name: "conversation_evaluate", state: "applied" }),
     ]);
     expect(status[0]?.checksum).toMatch(/^[0-9a-f]{64}$/u);
   });
@@ -84,7 +85,7 @@ describe("versioned migrations", () => {
       ])) as [{ appliedVersions: string[] }, { appliedVersions: string[] }];
       expect([firstResult.appliedVersions, secondResult.appliedVersions].sort((a, b) => a.length - b.length)).toEqual([
         [],
-        ["0001", "0002"],
+        ["0001", "0002", "0003"],
       ]);
       const rows = await sql`select version from schema_migrations where version = '0001'`;
       expect(rows).toHaveLength(1);
@@ -157,13 +158,13 @@ describe("versioned migrations", () => {
       actor: "admin@example.com",
       backupConfirmedAt,
     }))!;
-    expect(result.appliedVersions).toEqual(["0001", "0002"]);
+    expect(result.appliedVersions).toEqual(["0001", "0002", "0003"]);
     expect(result.appliedAt).toBeInstanceOf(Date);
     const rows = await sql<{ summary: { actor: string; backupConfirmedAt: string; appliedVersions: string[] } }[]>`
       select summary from audit_entries where category = 'migration.applied'
     `;
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.summary).toMatchObject({ actor: "admin@example.com", appliedVersions: ["0001", "0002"] });
+    expect(rows[0]?.summary).toMatchObject({ actor: "admin@example.com", appliedVersions: ["0001", "0002", "0003"] });
     expect(new Date(rows[0]!.summary.backupConfirmedAt).getTime()).toBe(backupConfirmedAt.getTime());
   });
 
@@ -173,7 +174,7 @@ describe("versioned migrations", () => {
     const context = { actor: "admin@example.com", backupConfirmedAt: new Date() };
     const first = (await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, context))!;
     const second = (await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, context))!;
-    expect(first.appliedVersions).toEqual(["0001", "0002"]);
+    expect(first.appliedVersions).toEqual(["0001", "0002", "0003"]);
     expect(second.appliedVersions).toEqual([]);
     const rows = await sql<{ summary: { appliedVersions: string[] } }[]>`
       select summary from audit_entries where category = 'migration.applied' order by created_at
@@ -293,5 +294,45 @@ describe("versioned migrations", () => {
       where table_name = 'effects' and column_name = 'thread_id'
     `;
     expect(columns).toEqual([{ column_name: "thread_id", is_nullable: "YES" }]);
+  });
+
+  it("creates the conversation batch tables and enforces one queued job per scope", async () => {
+    await sql`drop schema public cascade`;
+    await sql`create schema public`;
+    await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {
+      actor: "test-bootstrap",
+      backupConfirmedAt: new Date(),
+    });
+
+    const tables = await sql<{ table_name: string }[]>`
+      select table_name from information_schema.tables
+      where table_name in ('conversation_cursors', 'run_input_events', 'actor_states') order by table_name
+    `;
+    expect(tables.map((table) => table.table_name)).toEqual([
+      "actor_states",
+      "conversation_cursors",
+      "run_input_events",
+    ]);
+
+    const jobColumns = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+      where table_name = 'jobs'
+        and column_name in ('event_id', 'guild_id', 'channel_id', 'thread_id', 'first_triggered_at', 'trigger_event_id')
+      order by column_name
+    `;
+    expect(jobColumns.map((column) => column.column_name)).toEqual([
+      "channel_id",
+      "first_triggered_at",
+      "guild_id",
+      "thread_id",
+      "trigger_event_id",
+    ]);
+
+    const now = new Date();
+    await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values ('00000000-0000-4000-8000-0000000000aa', 1, 'discord', 'scope-guard', '0', 'message.created', 'mention_only', 'g', 'c', 'a', 'human', ${now}, ${now}, ${sql.json({ text: "hi" })}, ${now})`;
+    await sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at) values ('00000000-0000-4000-8000-0000000000ab', 'conversation_evaluate', 'g', 'c', null, '00000000-0000-4000-8000-0000000000aa', 'queued', ${now}, ${now}, ${now}, ${now})`;
+    await expect(
+      sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at) values ('00000000-0000-4000-8000-0000000000ac', 'conversation_evaluate', 'g', 'c', null, '00000000-0000-4000-8000-0000000000aa', 'queued', ${now}, ${now}, ${now}, ${now})`,
+    ).rejects.toThrow(/jobs_scope_queued_idx/u);
   });
 });
