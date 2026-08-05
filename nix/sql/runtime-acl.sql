@@ -10,15 +10,15 @@ ALTER SCHEMA public OWNER TO vicissitude_migrator;
 GRANT CONNECT ON DATABASE vicissitude TO vicissitude_gateway, vicissitude_worker;
 GRANT USAGE ON SCHEMA public TO vicissitude_gateway, vicissitude_worker;
 
-GRANT SELECT ON schema_migrations, system_state, channel_capabilities, thread_capability_overrides, events, effects TO vicissitude_gateway;
-GRANT INSERT ON channel_capabilities, thread_capability_overrides, events, jobs, audit_entries TO vicissitude_gateway;
-GRANT UPDATE ON channel_capabilities, thread_capability_overrides, effects TO vicissitude_gateway;
+GRANT SELECT ON schema_migrations, system_state, channel_capabilities, thread_capability_overrides, events, effects, jobs, actor_states, decision_runs TO vicissitude_gateway;
+GRANT INSERT ON channel_capabilities, thread_capability_overrides, events, jobs, audit_entries, actor_states TO vicissitude_gateway;
+GRANT UPDATE ON channel_capabilities, thread_capability_overrides, effects, jobs, actor_states TO vicissitude_gateway;
 -- Resetting every thread override to inherit deletes the row; no other table needs DELETE.
 GRANT DELETE ON thread_capability_overrides TO vicissitude_gateway;
 
-GRANT SELECT ON schema_migrations, system_state, events, jobs, character_definitions, decision_runs, effects TO vicissitude_worker;
-GRANT INSERT ON decision_runs, model_calls, effects, audit_entries TO vicissitude_worker;
-GRANT UPDATE ON jobs, decision_runs TO vicissitude_worker;
+GRANT SELECT ON schema_migrations, system_state, events, jobs, character_definitions, decision_runs, effects, conversation_cursors, run_input_events TO vicissitude_worker;
+GRANT INSERT ON decision_runs, model_calls, effects, audit_entries, conversation_cursors, run_input_events TO vicissitude_worker;
+GRANT UPDATE ON jobs, decision_runs, conversation_cursors TO vicissitude_worker;
 
 ALTER DEFAULT PRIVILEGES FOR ROLE vicissitude_migrator IN SCHEMA public REVOKE ALL ON TABLES FROM PUBLIC;
 ALTER DEFAULT PRIVILEGES FOR ROLE vicissitude_migrator IN SCHEMA public REVOKE ALL ON SEQUENCES FROM PUBLIC;

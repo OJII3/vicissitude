@@ -6,30 +6,31 @@ DECLARE
 BEGIN
   FOREACH index_name IN ARRAY ARRAY[
     'one_production_character_version', 'events_expires_at_idx', 'events_scope_time_idx',
-    'events_thread_scope_time_idx', 'jobs_claim_idx', 'effects_claim_idx', 'audit_entries_run_idx',
-    'audit_entries_effect_idx'
+    'events_thread_scope_time_idx', 'jobs_claim_idx', 'jobs_scope_queued_idx', 'effects_claim_idx',
+    'audit_entries_run_idx', 'audit_entries_effect_idx'
   ] LOOP
     IF to_regclass(format('public.%I', index_name)) IS NULL THEN
       RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = format('index/%s', index_name);
     END IF;
   END LOOP;
 
-  IF (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'p') <> 11
-     OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'u') < 4
+  IF (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'p') <> 14
+     OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'u') < 3
      OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'c') < 10
-     OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'f') <> 9 THEN
+     OR (SELECT count(*) FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype = 'f') <> 11 THEN
     RAISE EXCEPTION USING ERRCODE = 'P0001', MESSAGE = 'constraint inventory';
   END IF;
 
   IF NOT EXISTS (
     SELECT 1
     FROM events event
-    JOIN jobs job ON job.event_id = event.id
+    JOIN jobs job ON job.trigger_event_id = event.id
     JOIN decision_runs run ON run.job_id = job.id AND run.event_id = event.id
     JOIN model_calls model_call ON model_call.run_id = run.id
     JOIN effects effect ON effect.run_id = run.id
     JOIN audit_entries audit ON audit.event_id = event.id AND audit.job_id = job.id
       AND audit.run_id = run.id AND audit.effect_id = effect.id
+    JOIN run_input_events rie ON rie.run_id = run.id AND rie.event_id = event.id
     WHERE event.id = '00000000-0000-0000-0000-000000000001'
       AND job.id = '00000000-0000-0000-0000-000000000002'
       AND run.id = '00000000-0000-0000-0000-000000000003'

@@ -95,11 +95,17 @@ INSERT INTO events (
   'message.created', 'observed', 'gateway-probe', 'gateway-probe', 'gateway-probe', 'human',
   clock_timestamp(), clock_timestamp(), '{}', clock_timestamp() + interval '1 day'
 );
-INSERT INTO jobs (id, kind, event_id, state, available_at, created_at, updated_at)
+INSERT INTO jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at)
 VALUES (
-  '10000000-0000-0000-0000-000000000002', 'mention_response',
-  '10000000-0000-0000-0000-000000000001', 'queued', clock_timestamp(), clock_timestamp(), clock_timestamp()
+  '10000000-0000-0000-0000-000000000002', 'conversation_evaluate', 'gateway-probe', 'gateway-probe', NULL,
+  '10000000-0000-0000-0000-000000000001', 'queued', clock_timestamp(), clock_timestamp(), clock_timestamp(), clock_timestamp()
 );
+SELECT id FROM jobs LIMIT 1;
+UPDATE jobs SET available_at = available_at WHERE guild_id = 'gateway-probe';
+INSERT INTO actor_states (guild_id, actor_id, state, first_observed_at)
+VALUES ('gateway-probe', 'gateway-probe', 'observed', clock_timestamp());
+UPDATE actor_states SET state = 'interacted', last_interacted_at = clock_timestamp() WHERE guild_id = 'gateway-probe';
+SELECT id FROM decision_runs LIMIT 1;
 SELECT id FROM effects LIMIT 1;
 UPDATE effects SET updated_at = updated_at WHERE id = '00000000-0000-0000-0000-000000000005';
 INSERT INTO audit_entries (id, category, summary, created_at)
@@ -127,10 +133,17 @@ INSERT INTO decision_runs (
   '00000000-0000-0000-0000-000000000008', 'staging-validation', 1, 'running', 'reply',
   ARRAY['worker-probe'], 'worker-probe-route', clock_timestamp()
 );
+INSERT INTO run_input_events (run_id, event_id)
+VALUES ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000008');
+SELECT run_id FROM run_input_events LIMIT 1;
+INSERT INTO conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at)
+VALUES ('guild-staging', 'channel-staging', 'worker-probe', '00000000-0000-0000-0000-000000000008', clock_timestamp(), clock_timestamp());
+UPDATE conversation_cursors SET updated_at = clock_timestamp() WHERE thread_id = 'worker-probe';
+SELECT last_event_id FROM conversation_cursors LIMIT 1;
 INSERT INTO model_calls (id, run_id, purpose, provider, model, route_version, attempt, state, latency_ms, created_at)
 VALUES (
   '20000000-0000-0000-0000-000000000002', '20000000-0000-0000-0000-000000000001',
-  'worker-probe', 'fixture', 'fixture-model', 'worker-probe-route', 1, 'succeeded', 1, clock_timestamp()
+  'conversation_evaluate', 'fixture', 'fixture-model', 'worker-probe-route', 1, 'succeeded', 1, clock_timestamp()
 );
 INSERT INTO effects (
   id, run_id, effect_slot, kind, state, guild_id, capability_channel_id, target_channel_id,
@@ -163,6 +176,8 @@ negative_probes() {
   expect_denied "$cluster" vicissitude_gateway channel-delete 'DELETE FROM channel_capabilities'
   expect_denied "$cluster" vicissitude_gateway ddl 'CREATE TABLE gateway_denied(id integer)'
   expect_denied "$cluster" vicissitude_gateway role-change 'CREATE ROLE gateway_denied_role'
+  expect_denied "$cluster" vicissitude_gateway cursor-write "INSERT INTO conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at) VALUES ('denied', 'denied', '', '00000000-0000-0000-0000-000000000001', clock_timestamp(), clock_timestamp())"
+  expect_denied "$cluster" vicissitude_gateway run-input-write "INSERT INTO run_input_events (run_id, event_id) VALUES ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001')"
 
   expect_denied "$cluster" vicissitude_worker channel-read 'SELECT guild_id FROM channel_capabilities'
   expect_denied "$cluster" vicissitude_worker channel-write "UPDATE channel_capabilities SET reason = 'denied'"
@@ -174,6 +189,7 @@ negative_probes() {
   expect_denied "$cluster" vicissitude_worker migration-write "UPDATE schema_migrations SET checksum = 'denied'"
   expect_denied "$cluster" vicissitude_worker ddl 'CREATE TABLE worker_denied(id integer)'
   expect_denied "$cluster" vicissitude_worker role-change 'CREATE ROLE worker_denied_role'
+  expect_denied "$cluster" vicissitude_worker actor-write "UPDATE actor_states SET state = 'interacted'"
 }
 
 privilege_snapshot() {
@@ -196,7 +212,7 @@ SELECT value FROM (
   SELECT 'privilege|' || role_name || '|' || table_name || '|' || operation || '|' ||
     has_table_privilege(role_name, format('public.%I', table_name), operation)
     FROM unnest(ARRAY['vicissitude_gateway', 'vicissitude_worker']) role_name
-    CROSS JOIN unnest(ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'thread_capability_overrides', 'events', 'jobs', 'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries']) table_name
+    CROSS JOIN unnest(ARRAY['schema_migrations', 'system_state', 'channel_capabilities', 'thread_capability_overrides', 'events', 'jobs', 'character_definitions', 'decision_runs', 'model_calls', 'effects', 'audit_entries', 'conversation_cursors', 'run_input_events', 'actor_states']) table_name
     CROSS JOIN unnest(ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'TRUNCATE', 'REFERENCES', 'TRIGGER']) operation
   UNION ALL
   SELECT 'default-acl|' || pg_get_userbyid(default_acl.defaclrole) || '|' || default_acl.defaclobjtype::text || '|' ||

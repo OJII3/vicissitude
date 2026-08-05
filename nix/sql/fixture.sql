@@ -24,23 +24,27 @@ VALUES (
 
 INSERT INTO events (
   id, schema_version, source, external_event_id, external_version, kind, visibility,
-  guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at
+  guild_id, channel_id, thread_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at
 ) VALUES
   ('00000000-0000-0000-0000-000000000001', 1, 'discord', 'staging-primary', '1', 'message.created', 'mention_only',
-   'guild-staging', 'channel-staging', 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:01+00',
+   'guild-staging', 'channel-staging', NULL, 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:01+00',
    TIMESTAMPTZ '2026-07-25 00:00:02+00', '{"text":"検証fixture"}', TIMESTAMPTZ '2026-08-24 00:00:02+00'),
   ('00000000-0000-0000-0000-000000000007', 1, 'discord', 'staging-gateway-probe', '1', 'message.created', 'observed',
-   'guild-staging', 'channel-staging', 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:07+00',
+   'guild-staging', 'channel-staging', NULL, 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:07+00',
    TIMESTAMPTZ '2026-07-25 00:00:08+00', '{"text":"Gateway probe"}', TIMESTAMPTZ '2026-08-24 00:00:08+00'),
   ('00000000-0000-0000-0000-000000000008', 1, 'discord', 'staging-worker-probe', '1', 'message.created', 'observed',
-   'guild-staging', 'channel-staging', 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:08+00',
+   'guild-staging', 'channel-staging', 'thread-staging', 'actor-staging', 'human', TIMESTAMPTZ '2026-07-25 00:00:08+00',
    TIMESTAMPTZ '2026-07-25 00:00:09+00', '{"text":"Worker probe"}', TIMESTAMPTZ '2026-08-24 00:00:09+00');
 
-INSERT INTO jobs (id, kind, event_id, state, available_at, created_at, updated_at) VALUES
-  ('00000000-0000-0000-0000-000000000002', 'mention_response', '00000000-0000-0000-0000-000000000001', 'queued',
-   TIMESTAMPTZ '2026-07-25 00:00:03+00', TIMESTAMPTZ '2026-07-25 00:00:03+00', TIMESTAMPTZ '2026-07-25 00:00:03+00'),
-  ('00000000-0000-0000-0000-000000000009', 'mention_response', '00000000-0000-0000-0000-000000000008', 'queued',
-   TIMESTAMPTZ '2026-07-25 00:00:09+00', TIMESTAMPTZ '2026-07-25 00:00:09+00', TIMESTAMPTZ '2026-07-25 00:00:09+00');
+INSERT INTO jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at) VALUES
+  ('00000000-0000-0000-0000-000000000002', 'conversation_evaluate', 'guild-staging', 'channel-staging', NULL,
+   '00000000-0000-0000-0000-000000000001', 'queued',
+   TIMESTAMPTZ '2026-07-25 00:00:03+00', TIMESTAMPTZ '2026-07-25 00:00:03+00',
+   TIMESTAMPTZ '2026-07-25 00:00:03+00', TIMESTAMPTZ '2026-07-25 00:00:03+00'),
+  ('00000000-0000-0000-0000-000000000009', 'conversation_evaluate', 'guild-staging', 'channel-staging', 'thread-staging',
+   '00000000-0000-0000-0000-000000000008', 'queued',
+   TIMESTAMPTZ '2026-07-25 00:00:09+00', TIMESTAMPTZ '2026-07-25 00:00:09+00',
+   TIMESTAMPTZ '2026-07-25 00:00:09+00', TIMESTAMPTZ '2026-07-25 00:00:09+00');
 
 INSERT INTO decision_runs (
   id, job_id, event_id, character_id, character_version, state, action_kind, reason_codes, model_route_version, started_at
@@ -53,7 +57,7 @@ INSERT INTO decision_runs (
 INSERT INTO model_calls (id, run_id, purpose, provider, model, route_version, attempt, state, latency_ms, created_at)
 VALUES (
   '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000003',
-  'mention_response', 'fixture', 'fixture-model', 'fixture-route-1', 1, 'succeeded', 1,
+  'conversation_evaluate', 'fixture', 'fixture-model', 'fixture-route-1', 1, 'succeeded', 1,
   TIMESTAMPTZ '2026-07-25 00:00:05+00'
 );
 
@@ -74,3 +78,13 @@ VALUES (
   '00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000005',
   '{"fixture":true}', TIMESTAMPTZ '2026-07-25 00:00:07+00'
 );
+
+INSERT INTO run_input_events (run_id, event_id)
+VALUES ('00000000-0000-0000-0000-000000000003', '00000000-0000-0000-0000-000000000001');
+
+INSERT INTO conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at)
+VALUES ('guild-staging', 'channel-staging', '', '00000000-0000-0000-0000-000000000001',
+        TIMESTAMPTZ '2026-07-25 00:00:01+00', TIMESTAMPTZ '2026-07-25 00:00:04+00');
+
+INSERT INTO actor_states (guild_id, actor_id, state, first_observed_at)
+VALUES ('guild-staging', 'actor-staging', 'observed', TIMESTAMPTZ '2026-07-25 00:00:02+00');
