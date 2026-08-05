@@ -73,6 +73,36 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
     await sql.end({ timeout: 1 });
   });
 
+  it("marks the target actor interacted when a reply effect succeeds", async () => {
+    const sql = createPostgresClient(url!);
+    await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {
+      actor: "test-bootstrap",
+      backupConfirmedAt: new Date(),
+    });
+    await sql`truncate audit_entries, effects, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
+    const now = new Date("2026-01-01T00:00:00Z");
+    const eventId = "00000000-0000-0000-0000-000000000021";
+    const jobId = "00000000-0000-0000-0000-000000000022";
+    const runId = "00000000-0000-0000-0000-000000000023";
+    const effectId = "00000000-0000-0000-0000-000000000024";
+    await sql`insert into events (id,schema_version,source,external_event_id,external_version,kind,visibility,guild_id,channel_id,actor_id,actor_kind,occurred_at,received_at,content,expires_at) values (${eventId},1,'discord','m3','1','message.created','observed','g','c','u','human',${now},${now},${sql.json({})},${now})`;
+    await sql`insert into jobs (id,kind,guild_id,channel_id,thread_id,trigger_event_id,state,available_at,first_triggered_at,created_at,updated_at) values (${jobId},'conversation_evaluate','g','c',null,${eventId},'queued',${now},${now},${now},${now})`;
+    await sql`insert into decision_runs (id,job_id,event_id,character_id,character_version,model_route_version,state,started_at) values (${runId},${jobId},${eventId},'c',1,'r','succeeded',${now})`;
+    const payload = sql.json({ content: "hello", allowedMentions: { parse: [], repliedUser: false } });
+    await sql`insert into effects (id,run_id,effect_slot,kind,state,guild_id,capability_channel_id,target_channel_id,target_message_id,payload,capability_decision,created_at,updated_at) values (${effectId},${runId},'primary_reply','discord.reply','planned','g','cap','target','message',${payload},${sql.json({})},${now},${now})`;
+    await sql`insert into actor_states (guild_id, actor_id, state, first_observed_at) values ('g','u','observed',${now})`;
+
+    const effectQueue = new PostgresEffectQueue(sql);
+    const claimed = await effectQueue.claim("worker", now);
+    expect(claimed).not.toBeNull();
+    await effectQueue.succeed(effectId, "discord-reply-1", now);
+
+    await expect(
+      sql`select state, last_interacted_at from actor_states where guild_id = 'g' and actor_id = 'u'`,
+    ).resolves.toEqual([{ state: "interacted", last_interacted_at: now }]);
+    await sql.end({ timeout: 1 });
+  });
+
   it("enforces mode gates, recovery, reconciliation, and invalid transitions", async () => {
     const sql = createPostgresClient(url!);
     await runMigrations(sql, process.env.VICISSITUDE_MIGRATIONS_DIR!, {

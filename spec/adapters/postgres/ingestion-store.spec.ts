@@ -392,6 +392,31 @@ describe("PostgresIngestionStore", () => {
     ]);
   });
 
+  it("records actors as observed on first ingest only", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const first = canonicalEvent({ receivedAt: now });
+    await store.saveEventAndSyncJob(first, { kind: "none" });
+    const later = canonicalEvent({ receivedAt: new Date("2026-08-04T00:01:00Z") });
+    await store.saveEventAndSyncJob(later, { kind: "none" });
+    await expect(
+      sql`select state, first_observed_at, last_interacted_at from actor_states where guild_id = 'g' and actor_id = 'u'`,
+    ).resolves.toEqual([{ state: "observed", first_observed_at: now, last_interacted_at: null }]);
+  });
+
+  it("does not create an actor_states row for a duplicate event", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const event = canonicalEvent();
+    await store.saveEventAndSyncJob(event, { kind: "none" });
+    await sql`delete from actor_states where guild_id = 'g' and actor_id = 'u'`;
+    const duplicate = canonicalEvent({
+      externalEventId: event.externalEventId,
+      externalVersion: event.externalVersion,
+    });
+    const result = await store.saveEventAndSyncJob(duplicate, { kind: "none" });
+    expect(result).toMatchObject({ duplicate: true });
+    await expect(sql`select * from actor_states where guild_id = 'g' and actor_id = 'u'`).resolves.toHaveLength(0);
+  });
+
   it("extends a queued job out of band and reports a missing scope", async () => {
     const store = new PostgresIngestionStore(sql);
     const event = canonicalEvent();

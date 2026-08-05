@@ -160,6 +160,9 @@ describe("explicit mention durable spine", () => {
       expect.objectContaining({ guildId: "g", nonce: effectNonce(effect!.id), enforceNonce: true }),
     );
     expect(await effectQueue.get(effect!.id)).toEqual({ state: "succeeded", externalResourceId: "discord-message-2" });
+    await expect(sql`select state from actor_states where guild_id = 'g' and actor_id = 'u'`).resolves.toEqual([
+      { state: "interacted" },
+    ]);
     expect(await queue.claim("worker", now, 60_000)).toBeNull();
     expect(await effectQueue.claim("gateway", now)).toBeNull();
     expect(reply).toHaveBeenCalledTimes(1);

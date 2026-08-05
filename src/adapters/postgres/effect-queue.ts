@@ -81,6 +81,17 @@ export class PostgresEffectQueue {
       >`update effects set state=${state}, error=${error ? bounded(safeCode(error)) : null}, external_resource_id=${externalResourceId}, updated_at=${now} where id=${id} and state=${expected} returning run_id`;
       if (!rows[0]) throw new Error(`Invalid effect transition: ${expected} -> ${state}`);
       await tx`insert into audit_entries (id,category,run_id,effect_id,summary,created_at) values (${newId()},${category},${rows[0].run_id},${id},${tx.json(summary)},${now})`;
+      if (state === "succeeded")
+        await tx`
+          update actor_states set state = 'interacted', last_interacted_at = ${now}
+          where (guild_id, actor_id) in (
+            select ev.guild_id, ev.actor_id
+            from effects ef
+            join decision_runs dr on dr.id = ef.run_id
+            join events ev on ev.id = dr.event_id
+            where ef.id = ${id} and ef.kind = 'discord.reply'
+          )
+        `;
     });
   }
   public succeed(id: string, externalResourceId: string, now: Date) {

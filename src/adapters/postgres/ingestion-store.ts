@@ -26,6 +26,11 @@ export class PostgresIngestionStore implements IngestionStore {
         if (!existing[0]) throw new Error("Duplicate event conflict could not find existing event");
         return { eventId: existing[0].id, duplicate: true, jobQueued: false, jobExtended: false };
       }
+      await transaction`
+        insert into actor_states (guild_id, actor_id, state, first_observed_at)
+        values (${event.guildId}, ${event.actorId}, 'observed', ${event.receivedAt})
+        on conflict (guild_id, actor_id) do nothing
+      `;
       let jobQueued = false;
       let jobExtended = false;
       if (directive.kind === "enqueue") {
