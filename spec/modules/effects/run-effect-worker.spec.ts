@@ -14,12 +14,14 @@ import { runMigrations } from "../../../src/adapters/postgres/migrations.js";
 import { PostgresThreadCapabilityRepository } from "../../../src/adapters/postgres/thread-capability-repository.js";
 import { runOneEffect } from "../../../src/modules/effects/run-effect-worker.js";
 import { ingestDiscordMessage } from "../../../src/modules/events/ingest-message.js";
-import { processMention } from "../../../src/modules/mentions/process-mention.js";
+import { processConversation } from "../../../src/modules/conversations/evaluate-conversation.js";
 import { FixedClock } from "../../../src/shared/clock.js";
 
 let sql: Sql;
 const now = new Date("2026-07-24T00:00:00.000Z");
 const clock = new FixedClock(now);
+const batchConfig = { batchWindowMs: 8_000, maxWaitMs: 30_000 };
+const claimAt = new Date(now.getTime() + 8_000);
 const guildId = "run-effect-worker-guild";
 const channelId = "run-effect-worker-channel";
 const threadId = "run-effect-worker-thread";
@@ -45,8 +47,8 @@ beforeEach(async () => {
     update system_state set mode = 'running', updated_at = ${now}, updated_by = 'spec', reason = 'reset' where singleton
   `;
   await sql`
-    truncate audit_entries, effects, model_calls, decision_runs, jobs, events,
-      character_definitions, channel_capabilities, thread_capability_overrides cascade
+    truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors,
+      actor_states, events, character_definitions, channel_capabilities, thread_capability_overrides cascade
   `;
 });
 afterAll(async () => sql.end());
@@ -90,18 +92,19 @@ async function queuePlannedThreadEffect(
     replyToMessageId: null,
     attachments: [] as Array<{ id: string; name: string; contentType: string | null; url: string; size: number }>,
   };
-  const result = await ingestDiscordMessage(input, capability, "running", ingestion, clock);
+  const result = await ingestDiscordMessage(input, capability, "running", batchConfig, ingestion, clock);
   if (result.kind !== "accepted" || !result.jobQueued) throw new Error("test setup failed to queue a mention job");
 
   const jobQueue = new PostgresJobQueue(sql);
-  const job = await jobQueue.claim("worker", now, 60_000);
+  const job = await jobQueue.claim("worker", claimAt, 60_000);
   if (!job) throw new Error("test setup failed to claim the mention job");
   const faux = fauxProvider();
   const models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses([fauxAssistantMessage("スレッドでのお返事です")]);
-  await processMention(
+  await processConversation(
     job,
+    claimAt,
     definition,
     {
       version: "route-v1",
@@ -112,7 +115,7 @@ async function queuePlannedThreadEffect(
     },
     new PiAgentRuntime(models),
     new PostgresDecisionEffectStore(sql),
-    clock,
+    new FixedClock(claimAt),
   );
 
   return { channels, threads, effectiveCapabilities, effectQueue: new PostgresEffectQueue(sql) };

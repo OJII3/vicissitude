@@ -9,7 +9,7 @@ import { PiAgentRuntime } from "../adapters/pi/pi-agent-runtime.js";
 import { loadModelRoutes } from "../config/model-routes.js";
 import { loadWorkerConfig } from "../config/runtime-config.js";
 import { createLogger } from "../observability/logger.js";
-import { processMention, handleMentionFailure } from "../modules/mentions/process-mention.js";
+import { processConversation, handleConversationFailure } from "../modules/conversations/evaluate-conversation.js";
 import { runWorkerIteration } from "./app-lifecycle.js";
 import { createHealthServer } from "../shared/health-server.js";
 import { sleep, shutdownSignal } from "../shared/process-lifecycle.js";
@@ -46,12 +46,13 @@ export async function runCognitionWorker(
   d.health.setReady(true);
   while (!stopping.value) {
     try {
+      const now = d.now();
       const handled = await runWorkerIteration(
         queue,
         config.workerId,
-        d.now(),
-        (job) => processMention(job, character, routes, runtime, store, { now: d.now }),
-        (job, error) => handleMentionFailure(job, error, queue, store, { now: d.now }),
+        now,
+        (job) => processConversation(job, now, character, routes, runtime, store, { now: d.now }),
+        (job, error) => handleConversationFailure(job, error, queue, store, { now: d.now }),
       );
       if (stopping.value) {
         d.health.setReady(false);

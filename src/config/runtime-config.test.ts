@@ -17,7 +17,23 @@ describe("runtime config", () => {
       adminIds: ["a", "b"],
       healthPort: 8080,
       characterId: "primary",
+      batch: { batchWindowMs: 8_000, maxWaitMs: 30_000 },
     });
+  });
+  it("reads batch parameters and rejects a max wait below the batch window", () => {
+    const gateway = {
+      ...base,
+      DISCORD_TOKEN: "x",
+      VICISSITUDE_GUILD_ID: "g",
+      VICISSITUDE_ADMIN_USER_IDS: "a",
+    };
+    expect(
+      loadGatewayConfig({ ...gateway, VICISSITUDE_BATCH_WINDOW_MS: "3000", VICISSITUDE_MAX_WAIT_MS: "12000" }).batch,
+    ).toEqual({ batchWindowMs: 3_000, maxWaitMs: 12_000 });
+    expect(() => loadGatewayConfig({ ...gateway, VICISSITUDE_MAX_WAIT_MS: "5000" })).toThrow(
+      /VICISSITUDE_MAX_WAIT_MS/u,
+    );
+    expect(() => loadGatewayConfig({ ...gateway, VICISSITUDE_BATCH_WINDOW_MS: "0" })).toThrow();
   });
   it("requires gateway secrets and valid ports", () => {
     expect(() => loadGatewayConfig(base)).toThrow();

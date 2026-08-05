@@ -67,6 +67,7 @@ describe("runGateway", () => {
             guildId: "guild",
             adminIds: ["admin"],
             discordToken: "token",
+            batch: { batchWindowMs: 8_000, maxWaitMs: 30_000 },
           } as never,
           health: health as never,
           logger: { error: vi.fn() } as never,
@@ -123,7 +124,13 @@ describe("runGateway", () => {
         }),
         user: { id: "bot" },
       } as never,
-      config: { migrationsDir: "migrations", guildId: "guild", adminIds: ["admin"], discordToken: "token" } as never,
+      config: {
+        migrationsDir: "migrations",
+        guildId: "guild",
+        adminIds: ["admin"],
+        discordToken: "token",
+        batch: { batchWindowMs: 8_000, maxWaitMs: 30_000 },
+      } as never,
       health: { setReady: vi.fn() } as never,
       logger: logger as never,
       shutdown,
@@ -141,7 +148,7 @@ describe("runGateway", () => {
   }
 
   const cleanup = () =>
-    sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events, thread_capability_overrides, channel_capabilities cascade`;
+    sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events, thread_capability_overrides, channel_capabilities cascade`;
 
   it("ingests a thread message that a thread override allows in a denied channel", async () => {
     try {
@@ -205,7 +212,7 @@ describe("runGateway", () => {
 
       await expect(sql`select id from events where channel_id = 'channel-1'`).resolves.toHaveLength(0);
       await expect(
-        sql`select jobs.id from jobs join events on events.id = jobs.event_id where events.channel_id = 'channel-1'`,
+        sql`select jobs.id from jobs join events on events.id = jobs.trigger_event_id where events.channel_id = 'channel-1'`,
       ).resolves.toHaveLength(0);
       expect(logger.debug).toHaveBeenCalledWith(
         expect.objectContaining({ channelId: "channel-1", threadId: "thread-1", reason: "channel_not_allowed" }),

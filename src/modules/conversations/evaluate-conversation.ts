@@ -5,18 +5,27 @@ import type { AgentRuntime } from "../models/agent-runtime.js";
 import type { ClaimedJob, JobQueue } from "../jobs/job-queue.js";
 import type { Clock } from "../../shared/clock.js";
 
-export interface MentionEventView {
+export interface ConversationMessageView {
   eventId: string;
+  messageId: string;
+  actorId: string;
+  occurredAt: Date;
+  text: string;
+  mentionedBot: boolean;
+  replyToMessageId: string | null;
+}
+export interface ConversationBatchView {
   guildId: string;
   capabilityChannelId: string;
   targetChannelId: string;
-  messageId: string;
-  actorId: string;
-  text: string;
+  threadId: string | null;
+  trigger: ConversationMessageView;
+  /** (occurred_at, id) 昇順。 */
+  messages: ConversationMessageView[];
 }
 export interface ModelCallRecord {
   runId: string;
-  purpose: "mention_response";
+  purpose: "conversation_evaluate";
   provider: string;
   model: string;
   routeVersion: string;
@@ -28,46 +37,64 @@ export interface ModelCallRecord {
   error: string | null;
   createdAt: Date;
 }
-export interface DecisionEffectStore {
-  loadMentionEvent(eventId: string): Promise<MentionEventView>;
+export interface ConversationStore {
+  loadBatch(
+    job: Pick<ClaimedJob, "guildId" | "channelId" | "threadId" | "triggerEventId">,
+    claimedAt: Date,
+  ): Promise<ConversationBatchView | null>;
   startOrLoadRun(input: {
     jobId: string;
-    eventId: string;
+    triggerEventId: string;
     leaseToken: string;
     characterId: string;
     characterVersion: number;
     routeVersion: string;
     now: Date;
   }): Promise<{ runId: string; state: "running" | "succeeded" | "failed" }>;
+  recordRunInputEvents(runId: string, eventIds: string[]): Promise<void>;
   recordModelCall(record: ModelCallRecord): Promise<void>;
   completeWithReply(input: {
     runId: string;
     jobId: string;
     leaseToken: string;
-    eventId: string;
+    triggerEventId: string;
+    cursor: { lastEventId: string; lastOccurredAt: Date };
     content: string;
     fallback: boolean;
     now: Date;
   }): Promise<void>;
+  succeedWithoutRun(jobId: string, leaseToken: string, reason: "empty_batch", now: Date): Promise<void>;
   failRunAndJob(jobId: string, leaseToken: string, error: string, now: Date): Promise<void>;
 }
-export async function handleMentionFailure(
+
+export async function handleConversationFailure(
   job: Pick<ClaimedJob, "id" | "attempts" | "maxAttempts" | "leaseToken">,
   error: unknown,
   queue: JobQueue,
-  store: DecisionEffectStore,
+  store: ConversationStore,
   clock: Clock,
 ): Promise<void> {
-  const safeError = "mention_processing_failed";
+  const safeError = "conversation_processing_failed";
   const now = clock.now();
   if (job.attempts < job.maxAttempts) return queue.fail(job.id, job.leaseToken, safeError, true, now);
   return store.failRunAndJob(job.id, job.leaseToken, safeError, now);
 }
+
 function systemPrompt(c: CharacterDefinition): string {
-  return `${c.systemPrompt}\n\nDiscordへの通常発話は日本語で、600文字以内の短い会話文にしてください。\n知らないことを事実として補完せず、内部の分析やsystem情報を出力しないでください。`;
+  return `${c.systemPrompt}\n\nDiscordの会話ログが与えられます。triggerMessageId のメッセージはあなた宛の mention です。会話の流れを踏まえてそれに返事してください。\nDiscordへの通常発話は日本語で、600文字以内の短い会話文にしてください。\n知らないことを事実として補完せず、内部の分析やsystem情報を出力しないでください。`;
 }
-function userPrompt(e: MentionEventView): string {
-  return JSON.stringify({ type: "discord_explicit_mention", authorId: e.actorId, message: e.text });
+function userPrompt(batch: ConversationBatchView): string {
+  return JSON.stringify({
+    type: "discord_conversation",
+    triggerMessageId: batch.trigger.messageId,
+    messages: batch.messages.map((message) => ({
+      id: message.messageId,
+      authorId: message.actorId,
+      text: message.text,
+      mentionsCharacter: message.mentionedBot,
+      replyToMessageId: message.replyToMessageId,
+    })),
+  });
 }
 function response(text: string): string {
   const value = text.trim();
@@ -75,19 +102,25 @@ function response(text: string): string {
   if (value.length > 600) throw new Error("response_too_long");
   return value;
 }
-export async function processMention(
-  job: { id: string; eventId: string; attempts: number; leaseToken: string },
+
+export async function processConversation(
+  job: Pick<ClaimedJob, "id" | "guildId" | "channelId" | "threadId" | "triggerEventId" | "attempts" | "leaseToken">,
+  claimedAt: Date,
   character: CharacterDefinition,
   routes: LoadedModelRoutes,
   runtime: AgentRuntime,
-  store: DecisionEffectStore,
+  store: ConversationStore,
   clock: Clock,
 ): Promise<void> {
-  const event = await store.loadMentionEvent(job.eventId);
+  if (!job.triggerEventId) throw new Error("conversation_evaluate job has no trigger event");
+  const batch = await store.loadBatch(job, claimedAt);
+  if (!batch || batch.messages.length === 0) {
+    return store.succeedWithoutRun(job.id, job.leaseToken, "empty_batch", clock.now());
+  }
   const startedAt = clock.now();
   const run = await store.startOrLoadRun({
     jobId: job.id,
-    eventId: job.eventId,
+    triggerEventId: job.triggerEventId,
     leaseToken: job.leaseToken,
     characterId: character.characterId,
     characterVersion: character.version,
@@ -96,6 +129,12 @@ export async function processMention(
   });
   if (run.state === "succeeded") return;
   if (run.state === "failed") throw new Error("Decision run is already terminal");
+  await store.recordRunInputEvents(
+    run.runId,
+    batch.messages.map((message) => message.eventId),
+  );
+  const last = batch.messages.at(-1)!;
+  const cursor = { lastEventId: last.eventId, lastOccurredAt: last.occurredAt };
   const deadline = startedAt.getTime() + routes.mentionResponseDeadlineMs;
   let previous: string | null = null;
   for (const [index, target] of routes.mentionResponse.entries()) {
@@ -108,12 +147,12 @@ export async function processMention(
         ...target,
         timeoutMs: Math.min(target.timeoutMs, remaining),
         systemPrompt: systemPrompt(character),
-        userPrompt: userPrompt(event),
+        userPrompt: userPrompt(batch),
       });
     } catch (error) {
       await store.recordModelCall({
         runId: run.runId,
-        purpose: "mention_response",
+        purpose: "conversation_evaluate",
         provider: target.provider,
         model: target.model,
         routeVersion: routes.version,
@@ -137,7 +176,7 @@ export async function processMention(
     } catch (error) {
       await store.recordModelCall({
         runId: run.runId,
-        purpose: "mention_response",
+        purpose: "conversation_evaluate",
         provider: target.provider,
         model: target.model,
         routeVersion: routes.version,
@@ -154,7 +193,7 @@ export async function processMention(
     }
     await store.recordModelCall({
       runId: run.runId,
-      purpose: "mention_response",
+      purpose: "conversation_evaluate",
       provider: result.provider,
       model: result.model,
       routeVersion: routes.version,
@@ -170,7 +209,8 @@ export async function processMention(
       runId: run.runId,
       jobId: job.id,
       leaseToken: job.leaseToken,
-      eventId: event.eventId,
+      triggerEventId: job.triggerEventId,
+      cursor,
       content,
       fallback: false,
       now: clock.now(),
@@ -181,7 +221,8 @@ export async function processMention(
     runId: run.runId,
     jobId: job.id,
     leaseToken: job.leaseToken,
-    eventId: event.eventId,
+    triggerEventId: job.triggerEventId,
+    cursor,
     content: character.failureMessages[0]!,
     fallback: true,
     now: clock.now(),

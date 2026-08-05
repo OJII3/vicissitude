@@ -11,13 +11,13 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
       actor: "test-bootstrap",
       backupConfirmedAt: new Date(),
     });
-    await sql`truncate audit_entries, effects, decision_runs, jobs, events cascade`;
+    await sql`truncate audit_entries, effects, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
     const now = new Date("2026-01-01T00:00:00Z");
     const eventId = "00000000-0000-0000-0000-000000000001";
     const runId = "00000000-0000-0000-0000-000000000002";
     const effectId = "00000000-0000-0000-0000-000000000003";
     await sql`insert into events (id,schema_version,source,external_event_id,external_version,kind,visibility,guild_id,channel_id,actor_id,actor_kind,occurred_at,received_at,content,expires_at) values (${eventId},1,'discord','m','1','message.created','observed','g','c','a','human',${now},${now},${sql.json({})},${now})`;
-    await sql`insert into jobs (id,kind,event_id,state,available_at,created_at,updated_at) values ('00000000-0000-0000-0000-000000000004','mention_response',${eventId},'queued',${now},${now},${now})`;
+    await sql`insert into jobs (id,kind,guild_id,channel_id,thread_id,trigger_event_id,state,available_at,first_triggered_at,created_at,updated_at) values ('00000000-0000-0000-0000-000000000004','conversation_evaluate','g','c',null,${eventId},'queued',${now},${now},${now},${now})`;
     await sql`insert into decision_runs (id,job_id,event_id,character_id,character_version,model_route_version,state,started_at) values (${runId},'00000000-0000-0000-0000-000000000004',${eventId},'c',1,'r','succeeded',${now})`;
     await sql`insert into effects (id,run_id,effect_slot,kind,state,guild_id,capability_channel_id,target_channel_id,target_message_id,payload,capability_decision,created_at,updated_at) values (${effectId},${runId},'primary_reply','discord.reply','planned','g','cap','target','message',${sql.json({ content: "hello", allowedMentions: { parse: [], repliedUser: false } })},${sql.json({})},${now},${now})`;
     const [a, b] = await Promise.all([
@@ -79,14 +79,14 @@ describe.skipIf(!url)("PostgresEffectQueue", () => {
       actor: "test-bootstrap",
       backupConfirmedAt: new Date(),
     });
-    await sql`truncate audit_entries, effects, decision_runs, jobs, events cascade`;
+    await sql`truncate audit_entries, effects, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
     const now = new Date("2026-01-01T00:00:00Z");
     const eventId = "00000000-0000-0000-0000-000000000011";
     const jobId = "00000000-0000-0000-0000-000000000012";
     const runId = "00000000-0000-0000-0000-000000000013";
     const effectId = "00000000-0000-0000-0000-000000000014";
     await sql`insert into events (id,schema_version,source,external_event_id,external_version,kind,visibility,guild_id,channel_id,actor_id,actor_kind,occurred_at,received_at,content,expires_at) values (${eventId},1,'discord','m2','1','message.created','observed','g2','c2','a2','human',${now},${now},${sql.json({})},${now})`;
-    await sql`insert into jobs (id,kind,event_id,state,available_at,created_at,updated_at) values (${jobId},'mention_response',${eventId},'queued',${now},${now},${now})`;
+    await sql`insert into jobs (id,kind,guild_id,channel_id,thread_id,trigger_event_id,state,available_at,first_triggered_at,created_at,updated_at) values (${jobId},'conversation_evaluate','g2','c2',null,${eventId},'queued',${now},${now},${now},${now})`;
     await sql`insert into decision_runs (id,job_id,event_id,character_id,character_version,model_route_version,state,started_at) values (${runId},${jobId},${eventId},'c',1,'r','succeeded',${now})`;
     const payload = sql.json({ content: "hello", allowedMentions: { parse: [], repliedUser: false } });
     await sql`insert into effects (id,run_id,effect_slot,kind,state,guild_id,capability_channel_id,target_channel_id,thread_id,target_message_id,payload,capability_decision,created_at,updated_at) values (${effectId},${runId},'primary_reply','discord.reply','planned','g2','cap2','target2','target2','message2',${payload},${sql.json({})},${now},${now})`;

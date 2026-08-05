@@ -14,7 +14,7 @@ beforeAll(async () => {
 });
 afterAll(async () => sql.end());
 beforeEach(async () => {
-  await sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events cascade`;
+  await sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
 });
 async function fixture(
   leaseToken = "00000000-0000-4000-8000-000000000001",
@@ -24,7 +24,7 @@ async function fixture(
   const eventId = "00000000-0000-4000-8000-000000000020";
   const jobId = "00000000-0000-4000-8000-000000000021";
   await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${eventId}, 1, 'discord', 'message-20', '0', 'message.created', 'mention_only', 'g', 'c', 'u', 'human', ${now}, ${now}, ${sql.json({ text: "@bot hi", mentionedBot: true, mentionIds: ["bot"], replyToMessageId: null, attachments: [] })}, ${new Date("2026-08-22T00:00:00Z")})`;
-  await sql`insert into jobs (id, kind, event_id, state, available_at, leased_until, lease_owner, lease_token, attempts, max_attempts, created_at, updated_at) values (${jobId}, 'mention_response', ${eventId}, 'running', ${now}, ${leasedUntil}, 'worker', ${leaseToken}, 1, 3, ${now}, ${now})`;
+  await sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, leased_until, lease_owner, lease_token, attempts, max_attempts, created_at, updated_at) values (${jobId}, 'conversation_evaluate', 'g', 'c', null, ${eventId}, 'running', ${now}, ${now}, ${leasedUntil}, 'worker', ${leaseToken}, 1, 3, ${now}, ${now})`;
   return { now, eventId, jobId, leaseToken };
 }
 describe("PostgresDecisionEffectStore", () => {
@@ -34,7 +34,7 @@ describe("PostgresDecisionEffectStore", () => {
     const run = await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -44,7 +44,8 @@ describe("PostgresDecisionEffectStore", () => {
       runId: run.runId,
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
+      cursor: { lastEventId: f.eventId, lastOccurredAt: f.now },
       content: "返事",
       fallback: false,
       now: f.now,
@@ -67,11 +68,12 @@ describe("PostgresDecisionEffectStore", () => {
   it("uses canonical parent capability and thread target fields", async () => {
     const f = await fixture();
     await sql`update events set channel_id = 'parent', thread_id = 'thread-1' where id = ${f.eventId}`;
+    await sql`update jobs set channel_id = 'parent', thread_id = 'thread-1' where id = ${f.jobId}`;
     const store = new PostgresDecisionEffectStore(sql);
     const run = await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -81,7 +83,8 @@ describe("PostgresDecisionEffectStore", () => {
       runId: run.runId,
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
+      cursor: { lastEventId: f.eventId, lastOccurredAt: f.now },
       content: "返事",
       fallback: false,
       now: f.now,
@@ -101,10 +104,23 @@ describe("PostgresDecisionEffectStore", () => {
   it("loads explicit mentions from observed visibility", async () => {
     const f = await fixture();
     await sql`update events set visibility = 'observed' where id = ${f.eventId}`;
-    await expect(new PostgresDecisionEffectStore(sql).loadMentionEvent(f.eventId)).resolves.toMatchObject({
-      eventId: f.eventId,
-      text: "@bot hi",
-    });
+    const batch = await new PostgresDecisionEffectStore(sql).loadBatch(
+      { guildId: "g", channelId: "c", threadId: null, triggerEventId: f.eventId },
+      new Date("2026-07-23T00:00:10Z"),
+    );
+    expect(batch!.trigger).toMatchObject({ eventId: f.eventId, text: "@bot hi", mentionedBot: true });
+    expect(batch).toMatchObject({ guildId: "g", capabilityChannelId: "c", targetChannelId: "c", threadId: null });
+  });
+
+  it("rejects a trigger event that is not a mention", async () => {
+    const f = await fixture();
+    await sql`update events set content = ${sql.json({ text: "hi", mentionedBot: false, mentionIds: [], replyToMessageId: null, attachments: [] })} where id = ${f.eventId}`;
+    await expect(
+      new PostgresDecisionEffectStore(sql).loadBatch(
+        { guildId: "g", channelId: "c", threadId: null, triggerEventId: f.eventId },
+        new Date("2026-07-23T00:00:10Z"),
+      ),
+    ).rejects.toThrow(/not a mention/u);
   });
   it("rejects every persisted run metadata mismatch", async () => {
     const f = await fixture();
@@ -112,7 +128,7 @@ describe("PostgresDecisionEffectStore", () => {
     await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -122,7 +138,7 @@ describe("PostgresDecisionEffectStore", () => {
       store.startOrLoadRun({
         jobId: f.jobId,
         leaseToken: f.leaseToken,
-        eventId: "00000000-0000-4000-8000-000000000099",
+        triggerEventId: "00000000-0000-4000-8000-000000000099",
         characterId: "primary",
         characterVersion: 1,
         routeVersion: "route-v1",
@@ -138,7 +154,7 @@ describe("PostgresDecisionEffectStore", () => {
         store.startOrLoadRun({
           jobId: f.jobId,
           leaseToken: f.leaseToken,
-          eventId: f.eventId,
+          triggerEventId: f.eventId,
           characterId: input.characterId ?? "primary",
           characterVersion: input.characterVersion ?? 1,
           routeVersion: input.routeVersion ?? "route-v1",
@@ -156,7 +172,7 @@ describe("PostgresDecisionEffectStore", () => {
       await expect(
         new PostgresDecisionEffectStore(sql).startOrLoadRun({
           jobId: f.jobId,
-          eventId: f.eventId,
+          triggerEventId: f.eventId,
           leaseToken: token,
           characterId: "primary",
           characterVersion: 1,
@@ -165,7 +181,7 @@ describe("PostgresDecisionEffectStore", () => {
         }),
       ).rejects.toThrow(/lease lost/i);
       await expect(sql`select count(*)::int as count from decision_runs`).resolves.toEqual([{ count: 0 }]);
-      await sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events cascade`;
+      await sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
     }
   });
   it("rolls back completion when the lease token is stale or expired", async () => {
@@ -178,7 +194,7 @@ describe("PostgresDecisionEffectStore", () => {
       const run = await store.startOrLoadRun({
         jobId: f.jobId,
         leaseToken: f.leaseToken,
-        eventId: f.eventId,
+        triggerEventId: f.eventId,
         characterId: "primary",
         characterVersion: 1,
         routeVersion: "route-v1",
@@ -190,7 +206,8 @@ describe("PostgresDecisionEffectStore", () => {
           runId: run.runId,
           jobId: f.jobId,
           leaseToken: token,
-          eventId: f.eventId,
+          triggerEventId: f.eventId,
+          cursor: { lastEventId: f.eventId, lastOccurredAt: f.now },
           content: "返事",
           fallback: false,
           now: f.now,
@@ -204,7 +221,7 @@ describe("PostgresDecisionEffectStore", () => {
       ]);
       await expect(sql`select count(*)::int as count from effects`).resolves.toEqual([{ count: 0 }]);
       await expect(sql`select count(*)::int as count from audit_entries`).resolves.toEqual([{ count: 0 }]);
-      await sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events cascade`;
+      await sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
     }
   });
   it("atomically fails a leased job and its running decision", async () => {
@@ -213,7 +230,7 @@ describe("PostgresDecisionEffectStore", () => {
     const run = await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -222,10 +239,10 @@ describe("PostgresDecisionEffectStore", () => {
     await store.failRunAndJob(f.jobId, f.leaseToken, "x".repeat(3000), f.now);
     await expect(
       sql`select state, lease_token, leased_until, length(last_error) as error_length from jobs where id = ${f.jobId}`,
-    ).resolves.toEqual([{ state: "failed", lease_token: null, leased_until: null, error_length: 25 }]);
+    ).resolves.toEqual([{ state: "failed", lease_token: null, leased_until: null, error_length: 30 }]);
     await expect(
       sql`select state, length(error) as error_length from decision_runs where id = ${run.runId}`,
-    ).resolves.toEqual([{ state: "failed", error_length: 25 }]);
+    ).resolves.toEqual([{ state: "failed", error_length: 30 }]);
     await expect(sql`select category, run_id from audit_entries where job_id = ${f.jobId}`).resolves.toEqual([
       { category: "decision.failed", run_id: run.runId },
     ]);
@@ -236,7 +253,7 @@ describe("PostgresDecisionEffectStore", () => {
     const run = await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -258,7 +275,7 @@ describe("PostgresDecisionEffectStore", () => {
     const run = await store.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -280,7 +297,7 @@ describe("PostgresDecisionEffectStore", () => {
     const run = await completion.startOrLoadRun({
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
       characterId: "primary",
       characterVersion: 1,
       routeVersion: "route-v1",
@@ -290,7 +307,8 @@ describe("PostgresDecisionEffectStore", () => {
       runId: run.runId,
       jobId: f.jobId,
       leaseToken: f.leaseToken,
-      eventId: f.eventId,
+      triggerEventId: f.eventId,
+      cursor: { lastEventId: f.eventId, lastOccurredAt: f.now },
       content: "返事",
       fallback: false,
       now: f.now,
@@ -310,5 +328,101 @@ describe("PostgresDecisionEffectStore", () => {
         ? rows[0]!.run_state === "succeeded" && rows[0]!.completed === 1
         : rows[0]!.job_state === "failed" && rows[0]!.run_state === "failed" && rows[0]!.failed === 1,
     ).toBe(true);
+  });
+
+  it("reads the batch after the cursor and up to the claim time", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    const insertEvent = async (id: string, occurredAt: Date, text: string, mentioned = false) =>
+      sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${id}, 1, 'discord', ${id}, '0', 'message.created', 'observed', 'g', 'c', 'u', 'human', ${occurredAt}, ${occurredAt}, ${sql.json({ text, mentionedBot: mentioned, mentionIds: [], replyToMessageId: null, attachments: [] })}, ${new Date("2026-08-22T00:00:00Z")})`;
+    const before = "00000000-0000-4000-8000-000000000030";
+    const after = "00000000-0000-4000-8000-000000000031";
+    const late = "00000000-0000-4000-8000-000000000032";
+    await insertEvent(before, new Date("2026-07-22T23:59:00Z"), "cursor 以前");
+    await insertEvent(after, new Date("2026-07-23T00:00:03Z"), "batch 内");
+    await insertEvent(late, new Date("2026-07-23T00:00:20Z"), "claim 後");
+    await sql`insert into conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at) values ('g', 'c', '', ${before}, ${new Date("2026-07-22T23:59:00Z")}, ${f.now})`;
+
+    const batch = await store.loadBatch(
+      { guildId: "g", channelId: "c", threadId: null, triggerEventId: f.eventId },
+      new Date("2026-07-23T00:00:10Z"),
+    );
+    expect(batch!.messages.map((message) => message.eventId)).toEqual([f.eventId, after]);
+    expect(batch!.trigger.eventId).toBe(f.eventId);
+  });
+
+  it("returns null when the cursor has consumed everything", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    await sql`insert into conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at) values ('g', 'c', '', ${f.eventId}, ${f.now}, ${f.now})`;
+    await expect(
+      store.loadBatch(
+        { guildId: "g", channelId: "c", threadId: null, triggerEventId: f.eventId },
+        new Date("2026-07-23T00:00:10Z"),
+      ),
+    ).resolves.toBeNull();
+  });
+
+  it("records run input events idempotently", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    const run = await store.startOrLoadRun({
+      jobId: f.jobId,
+      triggerEventId: f.eventId,
+      leaseToken: f.leaseToken,
+      characterId: "primary",
+      characterVersion: 1,
+      routeVersion: "route-v1",
+      now: f.now,
+    });
+    await store.recordRunInputEvents(run.runId, [f.eventId]);
+    await store.recordRunInputEvents(run.runId, [f.eventId]);
+    await expect(sql`select count(*)::int as count from run_input_events where run_id = ${run.runId}`).resolves.toEqual(
+      [{ count: 1 }],
+    );
+  });
+
+  it("advances the cursor on completion and never moves it backwards", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    const run = await store.startOrLoadRun({
+      jobId: f.jobId,
+      triggerEventId: f.eventId,
+      leaseToken: f.leaseToken,
+      characterId: "primary",
+      characterVersion: 1,
+      routeVersion: "route-v1",
+      now: f.now,
+    });
+    await store.completeWithReply({
+      runId: run.runId,
+      jobId: f.jobId,
+      leaseToken: f.leaseToken,
+      triggerEventId: f.eventId,
+      cursor: { lastEventId: f.eventId, lastOccurredAt: f.now },
+      content: "返事",
+      fallback: false,
+      now: f.now,
+    });
+    const cursors = await sql<
+      { last_event_id: string }[]
+    >`select last_event_id from conversation_cursors where guild_id = 'g' and channel_id = 'c' and thread_id = ''`;
+    expect(cursors).toEqual([{ last_event_id: f.eventId }]);
+    await sql`update conversation_cursors set last_occurred_at = ${new Date("2026-07-23T01:00:00Z")} where guild_id = 'g'`;
+    await sql`insert into conversation_cursors (guild_id, channel_id, thread_id, last_event_id, last_occurred_at, updated_at) values ('g', 'c', '', ${f.eventId}, ${f.now}, ${f.now}) on conflict (guild_id, channel_id, thread_id) do update set last_occurred_at = excluded.last_occurred_at where (conversation_cursors.last_occurred_at, conversation_cursors.last_event_id) < (excluded.last_occurred_at, excluded.last_event_id)`;
+    await expect(sql`select last_occurred_at from conversation_cursors where guild_id = 'g'`).resolves.toEqual([
+      { last_occurred_at: new Date("2026-07-23T01:00:00Z") },
+    ]);
+  });
+
+  it("succeeds a job without a run for an empty batch", async () => {
+    const f = await fixture();
+    const store = new PostgresDecisionEffectStore(sql);
+    await store.succeedWithoutRun(f.jobId, f.leaseToken, "empty_batch", f.now);
+    await expect(sql`select state from jobs where id = ${f.jobId}`).resolves.toEqual([{ state: "succeeded" }]);
+    await expect(sql`select count(*)::int as count from decision_runs`).resolves.toEqual([{ count: 0 }]);
+    await expect(sql`select summary from audit_entries where category = 'decision.skipped'`).resolves.toEqual([
+      { summary: { reason: "empty_batch" } },
+    ]);
   });
 });

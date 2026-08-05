@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DEFAULT_BATCH_CONFIG } from "../modules/conversations/batch-schedule.js";
 
 const envString = (name: string) =>
   z
@@ -37,10 +38,14 @@ export function loadGatewayConfig(input: NodeJS.ProcessEnv) {
         )
         .refine((v) => v.length > 0, "at least one admin id"),
       VICISSITUDE_GATEWAY_HEALTH_PORT: port(8080),
+      VICISSITUDE_BATCH_WINDOW_MS: z.coerce.number().int().positive().default(DEFAULT_BATCH_CONFIG.batchWindowMs),
+      VICISSITUDE_MAX_WAIT_MS: z.coerce.number().int().positive().default(DEFAULT_BATCH_CONFIG.maxWaitMs),
     })
     .parse(raw(input));
   if (value.VICISSITUDE_ADMIN_USER_IDS.some((id) => /\s/u.test(id)))
     throw new Error("admin IDs must not contain whitespace");
+  if (value.VICISSITUDE_MAX_WAIT_MS < value.VICISSITUDE_BATCH_WINDOW_MS)
+    throw new Error("VICISSITUDE_MAX_WAIT_MS must be >= VICISSITUDE_BATCH_WINDOW_MS");
   return {
     databaseUrl: value.DATABASE_URL,
     characterId: value.VICISSITUDE_CHARACTER_ID,
@@ -51,6 +56,7 @@ export function loadGatewayConfig(input: NodeJS.ProcessEnv) {
     guildId: value.VICISSITUDE_GUILD_ID,
     adminIds: value.VICISSITUDE_ADMIN_USER_IDS,
     healthPort: value.VICISSITUDE_GATEWAY_HEALTH_PORT,
+    batch: { batchWindowMs: value.VICISSITUDE_BATCH_WINDOW_MS, maxWaitMs: value.VICISSITUDE_MAX_WAIT_MS },
   };
 }
 export function loadWorkerConfig(input: NodeJS.ProcessEnv) {

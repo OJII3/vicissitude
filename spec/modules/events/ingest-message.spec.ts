@@ -1,3 +1,4 @@
+/* oxlint-disable typescript/unbound-method */
 import { describe, expect, it, vi } from "vitest";
 import { denyAllCapabilities } from "../../../src/modules/channels/channel-capability.js";
 import type { CanonicalMessageEvent } from "../../../src/modules/events/canonical-event.js";
