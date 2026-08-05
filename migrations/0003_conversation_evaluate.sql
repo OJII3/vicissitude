@@ -5,12 +5,13 @@ ALTER TABLE jobs
   ADD COLUMN first_triggered_at timestamptz,
   ADD COLUMN trigger_event_id uuid REFERENCES events(id);
 
+ALTER TABLE jobs DROP CONSTRAINT jobs_kind_check;
+
 UPDATE jobs SET
   guild_id = events.guild_id, channel_id = events.channel_id, thread_id = events.thread_id,
   first_triggered_at = jobs.created_at, trigger_event_id = jobs.event_id, kind = 'conversation_evaluate'
 FROM events WHERE events.id = jobs.event_id;
 
-ALTER TABLE jobs DROP CONSTRAINT jobs_kind_check;
 ALTER TABLE jobs ADD CONSTRAINT jobs_kind_check CHECK (kind IN ('conversation_evaluate'));
 ALTER TABLE jobs
   ALTER COLUMN guild_id SET NOT NULL,

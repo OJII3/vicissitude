@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Sql } from "postgres";
@@ -294,6 +294,58 @@ describe("versioned migrations", () => {
       where table_name = 'effects' and column_name = 'thread_id'
     `;
     expect(columns).toEqual([{ column_name: "thread_id", is_nullable: "YES" }]);
+  });
+
+  it("applies the 0003 backfill against a pre-existing mention_response job without violating the old kind check", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "vicissitude-migrations-"));
+    try {
+      await sql`drop schema public cascade`;
+      await sql`create schema public`;
+      const realDirectory = process.env.VICISSITUDE_MIGRATIONS_DIR!;
+      await copyFile(join(realDirectory, "0001_durable_spine.sql"), join(directory, "0001_durable_spine.sql"));
+      await copyFile(join(realDirectory, "0002_thread_scope.sql"), join(directory, "0002_thread_scope.sql"));
+
+      const context = { actor: "test-bootstrap", backupConfirmedAt: new Date() };
+      const seeded = await runMigrations(sql, directory, context);
+      expect(seeded.appliedVersions).toEqual(["0001", "0002"]);
+
+      const now = new Date();
+      const eventId = "00000000-0000-4000-8000-0000000000ba";
+      const jobId = "00000000-0000-4000-8000-0000000000bb";
+      await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${eventId}, 1, 'discord', 'pre-existing-row', '0', 'message.created', 'mention_only', 'g', 'c', 'a', 'human', ${now}, ${now}, ${sql.json({ text: "hi" })}, ${now})`;
+      await sql`insert into jobs (id, kind, event_id, state, available_at, created_at, updated_at) values (${jobId}, 'mention_response', ${eventId}, 'queued', ${now}, ${now}, ${now})`;
+
+      const result = await runMigrations(sql, realDirectory, context);
+      expect(result.appliedVersions).toEqual(["0003"]);
+
+      const rows = await sql<
+        {
+          kind: string;
+          guild_id: string;
+          channel_id: string;
+          trigger_event_id: string;
+          first_triggered_at: Date | null;
+        }[]
+      >`select kind, guild_id, channel_id, trigger_event_id, first_triggered_at from jobs where id = ${jobId}`;
+      expect(rows).toEqual([
+        expect.objectContaining({
+          kind: "conversation_evaluate",
+          guild_id: "g",
+          channel_id: "c",
+          trigger_event_id: eventId,
+        }),
+      ]);
+      expect(rows[0]?.first_triggered_at).toBeInstanceOf(Date);
+
+      const columns = await sql<{ column_name: string }[]>`
+        select column_name from information_schema.columns where table_name = 'jobs' and column_name = 'event_id'
+      `;
+      expect(columns).toHaveLength(0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+      await sql`drop schema public cascade`;
+      await sql`create schema public`;
+    }
   });
 
   it("creates the conversation batch tables and enforces one queued job per scope", async () => {
