@@ -80,6 +80,8 @@ Phase 1 の `mention_response` job（イベント1件 = job 1件、即時実行�
 
 Gateway が `typingStart` を受けたら、該当 scope の queued job の `available_at` を同じ式（maxWait 上限つき）で延長する UPDATE を発行する。best-effort であり、再起動で typing 延長が失われても job が少し早く発火するだけで安全側に倒れる。
 
+2026-08-04 裁定: typing 延長は後続イベントと同じ式 `min(now + batchWindow, first_triggered_at + maxWait)` を使う。独立した typingExtension パラメータは持たない。
+
 ### 3.3 Batch の読み出しと cursor
 
 - 新テーブル `conversation_cursors`（PK = scope、`last_event_id` / `last_occurred_at`）を追加する
@@ -89,6 +91,8 @@ Gateway が `typingStart` を受けたら、該当 scope の queued job の `ava
 - run 実行中に到着したイベントは claim 時点より後なので読み出し範囲に含まれず、次の job（部分 unique は queued のみ対象のため実行中でも新規 enqueue できる）が cursor 経由で拾う。取りこぼしと二重読みの両方が起きない
 
 認知そのものは Phase 1 と同じ（mention への 600 文字以内 reply）だが、入力が単一イベントから batch に変わる。
+
+既知の制限: 並行 ingest の commit 順逆転で cursor が先行 job の batch に取り込まれた mention を追い越した場合、その mention の job は trigger のみを含む batch で応答する（loadBatch が trigger を無条件に含めるため黙殺はしない。trigger は必ず batch に含まれる）。ただし周辺文脈が欠落した返信になりうる。
 
 ### 3.4 Actor 状態
 
@@ -102,7 +106,7 @@ Phase 2A では記録のみで判断に使わない。2B の宛先推定の入�
 
 ### 3.5 パラメータ
 
-`batchWindow` / `typingExtension` / `maxWait` は設定値とし、初期値は仮置き（8秒 / 5秒 / 30秒）。確定は scenario corpus のラベル（許容最大待機時間）に基づく。
+`batchWindow` / `maxWait` は設定値（環境変数 `VICISSITUDE_BATCH_WINDOW_MS` / `VICISSITUDE_MAX_WAIT_MS`、初期値 8秒 / 30秒）。初期値が corpus のラベルと整合することは `spec/corpus/batch-timing.spec.ts` が機械検証する。
 
 ## 4. Phase 2B: Typed Cognition Pipeline
 
@@ -199,6 +203,8 @@ interface ConversationPolicy {
 4. `run_input_events` テーブル追加（3.3）
 5. `actor_states` テーブル追加（3.4）
 6. `events` に `(guild_id, channel_id, thread_id, occurred_at DESC)` index 追加（2.4）
+
+（注: 項目2〜5は実際は migration 0003 として実装した。0002 は Thread Scope が使用する）
 
 **migration 0003（Phase 2B）**
 
