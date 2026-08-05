@@ -1,7 +1,11 @@
 export interface ClaimedJob {
   id: string;
-  kind: "mention_response";
-  eventId: string;
+  kind: "conversation_evaluate";
+  guildId: string;
+  channelId: string;
+  threadId: string | null;
+  triggerEventId: string | null;
+  firstTriggeredAt: Date;
   attempts: number;
   maxAttempts: number;
   leasedUntil: Date;

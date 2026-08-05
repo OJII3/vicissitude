@@ -7,8 +7,12 @@ describe("runOneJob", () => {
     const now = new Date("2026-01-01T00:00:00Z");
     const job = {
       id: "j1",
-      kind: "mention_response" as const,
-      eventId: "e1",
+      kind: "conversation_evaluate" as const,
+      guildId: "g",
+      channelId: "c",
+      threadId: null,
+      triggerEventId: "e1",
+      firstTriggeredAt: now,
       attempts: 1,
       maxAttempts: 3,
       leasedUntil: now,

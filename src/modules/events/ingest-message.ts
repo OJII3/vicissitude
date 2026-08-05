@@ -1,35 +1,58 @@
 import type { Clock } from "../../shared/clock.js";
 import { newId } from "../../shared/ids.js";
 import type { ChannelCapabilities } from "../channels/channel-capability.js";
+import type { BatchConfig } from "../conversations/batch-schedule.js";
 import type { SystemMode } from "../system/system-control.js";
 import type { CanonicalMessageEvent, DiscordMessageInput } from "./canonical-event.js";
 
 const RAW_EVENT_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 
-export interface MentionResponseJobInput {
+export interface ConversationEvaluateJobInput {
   id: string;
-  kind: "mention_response";
-  eventId: string;
+  kind: "conversation_evaluate";
+  guildId: string;
+  channelId: string;
+  threadId: string | null;
+  triggerEventId: string;
   priority: 100;
+  firstTriggeredAt: Date;
+  /** now + batchWindow。既存 queued job と競合したら DB 側で maxWait 上限つき延長になる。 */
   availableAt: Date;
+  maxWaitMs: number;
   maxAttempts: 3;
 }
 
+export interface QueuedJobExtension {
+  guildId: string;
+  channelId: string;
+  threadId: string | null;
+  /** now + batchWindow。 */
+  availableAt: Date;
+  maxWaitMs: number;
+  now: Date;
+}
+
+export type ConversationJobDirective =
+  | { kind: "none" }
+  | { kind: "enqueue"; job: ConversationEvaluateJobInput }
+  | { kind: "extend"; extension: QueuedJobExtension };
+
 export interface IngestionStore {
-  saveEventAndMaybeEnqueue(
+  saveEventAndSyncJob(
     event: CanonicalMessageEvent,
-    job: MentionResponseJobInput | null,
-  ): Promise<{ eventId: string; duplicate: boolean }>;
+    directive: ConversationJobDirective,
+  ): Promise<{ eventId: string; duplicate: boolean; jobQueued: boolean; jobExtended: boolean }>;
 }
 
 export type IngestMessageResult =
   | { kind: "ignored"; reason: "channel_not_allowed" }
-  | { kind: "accepted"; eventId: string; duplicate: boolean; jobQueued: boolean };
+  | { kind: "accepted"; eventId: string; duplicate: boolean; jobQueued: boolean; jobExtended: boolean };
 
 export async function ingestDiscordMessage(
   input: DiscordMessageInput,
   capability: ChannelCapabilities,
   systemMode: SystemMode,
+  batch: BatchConfig,
   store: IngestionStore,
   clock: Clock,
 ): Promise<IngestMessageResult> {
@@ -64,22 +87,44 @@ export async function ingestDiscordMessage(
     },
     expiresAt: new Date(now.getTime() + RAW_EVENT_RETENTION_MS),
   };
-  const shouldQueue = mentionAllowed && systemMode !== "stopped";
-  const job: MentionResponseJobInput | null = shouldQueue
-    ? {
-        id: newId(),
-        kind: "mention_response",
-        eventId: event.id,
-        priority: 100,
-        availableAt: new Date(now),
-        maxAttempts: 3,
-      }
-    : null;
-  const saved = await store.saveEventAndMaybeEnqueue(event, job);
+  const availableAt = new Date(now.getTime() + batch.batchWindowMs);
+  const directive: ConversationJobDirective =
+    systemMode === "stopped"
+      ? { kind: "none" }
+      : mentionAllowed
+        ? {
+            kind: "enqueue",
+            job: {
+              id: newId(),
+              kind: "conversation_evaluate",
+              guildId: input.guildId,
+              channelId: input.channelId,
+              threadId: input.threadId,
+              triggerEventId: event.id,
+              priority: 100,
+              firstTriggeredAt: new Date(now),
+              availableAt,
+              maxWaitMs: batch.maxWaitMs,
+              maxAttempts: 3,
+            },
+          }
+        : {
+            kind: "extend",
+            extension: {
+              guildId: input.guildId,
+              channelId: input.channelId,
+              threadId: input.threadId,
+              availableAt,
+              maxWaitMs: batch.maxWaitMs,
+              now: new Date(now),
+            },
+          };
+  const saved = await store.saveEventAndSyncJob(event, directive);
   return {
     kind: "accepted",
     eventId: saved.eventId,
     duplicate: saved.duplicate,
-    jobQueued: shouldQueue && !saved.duplicate,
+    jobQueued: saved.jobQueued,
+    jobExtended: saved.jobExtended,
   };
 }

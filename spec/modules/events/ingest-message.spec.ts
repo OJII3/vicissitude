@@ -1,108 +1,134 @@
 import { describe, expect, it, vi } from "vitest";
+import { denyAllCapabilities } from "../../../src/modules/channels/channel-capability.js";
+import type { CanonicalMessageEvent } from "../../../src/modules/events/canonical-event.js";
+import {
+  ingestDiscordMessage,
+  type ConversationJobDirective,
+  type IngestionStore,
+} from "../../../src/modules/events/ingest-message.js";
 import { FixedClock } from "../../../src/shared/clock.js";
-import { ingestDiscordMessage, type IngestionStore } from "../../../src/modules/events/ingest-message.js";
-import { denyAllCapabilities, type ChannelCapabilities } from "../../../src/modules/channels/channel-capability.js";
 
-const clock = new FixedClock(new Date("2026-07-23T00:00:00.000Z"));
-const message = {
-  externalEventId: "111",
+const now = new Date("2026-08-04T00:00:00.000Z");
+const clock = new FixedClock(now);
+const batch = { batchWindowMs: 8_000, maxWaitMs: 30_000 };
+const input = {
+  externalEventId: "discord-message-1",
   externalVersion: "0",
-  guildId: "guild-1",
-  channelId: "channel-1",
+  guildId: "g",
+  channelId: "c",
   threadId: null,
-  actorId: "user-1",
+  actorId: "u",
   actorKind: "human" as const,
-  occurredAt: new Date("2026-07-22T23:59:59.000Z"),
-  content: "こんにちは",
-  mentionedBot: false,
-  mentionIds: [] as string[],
+  occurredAt: now,
+  content: "@bot hi",
+  mentionedBot: true,
+  mentionIds: ["bot"],
   replyToMessageId: null,
-  attachments: [] as Array<{ id: string; name: string; contentType: string | null; url: string; size: number }>,
+  attachments: [],
 };
+const allowed = { ...denyAllCapabilities("g", "c"), observeEvents: true, respondToMentions: true };
 
-function capabilities(overrides: Partial<ChannelCapabilities> = {}): ChannelCapabilities {
-  return { ...denyAllCapabilities("guild-1", "channel-1"), ...overrides };
+function fakeStore(result = { duplicate: false, jobQueued: true, jobExtended: false }) {
+  const calls: { event: CanonicalMessageEvent; directive: ConversationJobDirective }[] = [];
+  const store: IngestionStore = {
+    saveEventAndSyncJob: vi.fn(async (event, directive) => {
+      calls.push({ event, directive });
+      return { eventId: event.id, ...result };
+    }),
+  };
+  return { store, calls };
 }
 
 describe("ingestDiscordMessage", () => {
-  it("does not persist content from a channel with no capability", async () => {
-    const saveEventAndMaybeEnqueue = vi.fn();
-    const store: IngestionStore = { saveEventAndMaybeEnqueue };
-    const result = await ingestDiscordMessage(message, capabilities(), "running", store, clock);
-    expect(result).toEqual({ kind: "ignored", reason: "channel_not_allowed" });
-    expect(saveEventAndMaybeEnqueue).not.toHaveBeenCalled();
+  it("enqueues a scope-keyed conversation_evaluate job for an allowed mention", async () => {
+    const { store, calls } = fakeStore();
+    const result = await ingestDiscordMessage(input, allowed, "running", batch, store, clock);
+    expect(result).toMatchObject({ kind: "accepted", jobQueued: true, jobExtended: false });
+    const directive = calls[0]!.directive;
+    expect(directive.kind).toBe("enqueue");
+    if (directive.kind !== "enqueue") throw new Error("unreachable");
+    expect(directive.job).toMatchObject({
+      kind: "conversation_evaluate",
+      guildId: "g",
+      channelId: "c",
+      threadId: null,
+      triggerEventId: calls[0]!.event.id,
+      priority: 100,
+      maxWaitMs: 30_000,
+      maxAttempts: 3,
+    });
+    expect(directive.job.firstTriggeredAt).toEqual(now);
+    expect(directive.job.availableAt).toEqual(new Date("2026-08-04T00:00:08.000Z"));
+  });
+
+  it("extends the queued job for an observed non-mention message", async () => {
+    const { store, calls } = fakeStore({ duplicate: false, jobQueued: false, jobExtended: true });
+    const result = await ingestDiscordMessage(
+      { ...input, mentionedBot: false, mentionIds: [] },
+      allowed,
+      "running",
+      batch,
+      store,
+      clock,
+    );
+    expect(result).toMatchObject({ kind: "accepted", jobQueued: false, jobExtended: true });
+    const directive = calls[0]!.directive;
+    expect(directive.kind).toBe("extend");
+    if (directive.kind !== "extend") throw new Error("unreachable");
+    expect(directive.extension).toMatchObject({ guildId: "g", channelId: "c", threadId: null, maxWaitMs: 30_000 });
+    expect(directive.extension.availableAt).toEqual(new Date("2026-08-04T00:00:08.000Z"));
+  });
+
+  it("saves the event without touching jobs while stopped", async () => {
+    const { store, calls } = fakeStore({ duplicate: false, jobQueued: false, jobExtended: false });
+    const result = await ingestDiscordMessage(input, allowed, "stopped", batch, store, clock);
+    expect(result).toMatchObject({ kind: "accepted", jobQueued: false, jobExtended: false });
+    expect(calls[0]!.directive).toEqual({ kind: "none" });
+  });
+
+  it("enqueues a job while draining", async () => {
+    const { store, calls } = fakeStore();
+    await expect(ingestDiscordMessage(input, allowed, "draining", batch, store, clock)).resolves.toMatchObject({
+      jobQueued: true,
+    });
+    expect(calls[0]!.directive.kind).toBe("enqueue");
+  });
+
+  it("marks a mention in a mention-only channel as mention_only and keeps the retention window", async () => {
+    const { store, calls } = fakeStore();
+    const mentionOnly = { ...denyAllCapabilities("g", "c"), respondToMentions: true };
+    await ingestDiscordMessage(input, mentionOnly, "running", batch, store, clock);
+    expect(calls[0]!.event).toMatchObject({
+      visibility: "mention_only",
+      expiresAt: new Date("2026-09-03T00:00:00.000Z"),
+    });
+  });
+
+  it("ignores messages outside observed or mention-allowed channels", async () => {
+    const { store } = fakeStore();
+    const denied = denyAllCapabilities("g", "c");
+    await expect(
+      ingestDiscordMessage({ ...input, mentionedBot: false }, denied, "running", batch, store, clock),
+    ).resolves.toEqual({ kind: "ignored", reason: "channel_not_allowed" });
+    expect(store.saveEventAndSyncJob).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["guild", { guildId: "guild-2" }],
-    ["channel", { channelId: "channel-2" }],
-  ])("does not persist content when the allowed capability has a different %s", async (_scope, mismatch) => {
-    const saveEventAndMaybeEnqueue = vi.fn();
-    const result = await ingestDiscordMessage(
-      message,
-      { ...capabilities({ observeEvents: true }), ...mismatch },
-      "running",
-      { saveEventAndMaybeEnqueue },
-      clock,
-    );
-    expect(result).toEqual({ kind: "ignored", reason: "channel_not_allowed" });
-    expect(saveEventAndMaybeEnqueue).not.toHaveBeenCalled();
+    ["guild", { guildId: "other-guild" }],
+    ["channel", { channelId: "other-channel" }],
+  ])("ignores messages when the capability is for a different %s", async (_scope, mismatch) => {
+    const { store } = fakeStore();
+    await expect(
+      ingestDiscordMessage(input, { ...allowed, ...mismatch }, "running", batch, store, clock),
+    ).resolves.toEqual({ kind: "ignored", reason: "channel_not_allowed" });
+    expect(store.saveEventAndSyncJob).not.toHaveBeenCalled();
   });
 
-  it("stores a mention-only event and queues a response", async () => {
-    const saveEventAndMaybeEnqueue = vi.fn().mockResolvedValue({ eventId: "event-1", duplicate: false });
-    const result = await ingestDiscordMessage(
-      { ...message, mentionedBot: true, mentionIds: ["bot-1"] },
-      capabilities({ respondToMentions: true }),
-      "running",
-      { saveEventAndMaybeEnqueue },
-      clock,
-    );
-    expect(result).toEqual({ kind: "accepted", eventId: "event-1", duplicate: false, jobQueued: true });
-    expect(saveEventAndMaybeEnqueue).toHaveBeenCalledWith(
-      expect.objectContaining({ visibility: "mention_only", expiresAt: new Date("2026-08-22T00:00:00.000Z") }),
-      expect.objectContaining({ kind: "mention_response", priority: 100 }),
-    );
-  });
-
-  it("stores observed non-mentions without queuing a response", async () => {
-    const saveEventAndMaybeEnqueue = vi.fn().mockResolvedValue({ eventId: "event-2", duplicate: false });
-    const result = await ingestDiscordMessage(
-      message,
-      capabilities({ observeEvents: true }),
-      "running",
-      { saveEventAndMaybeEnqueue },
-      clock,
-    );
-    expect(result).toEqual({ kind: "accepted", eventId: "event-2", duplicate: false, jobQueued: false });
-    expect(saveEventAndMaybeEnqueue).toHaveBeenCalledWith(expect.objectContaining({ visibility: "observed" }), null);
-  });
-
-  it("persists a mention while stopped but does not queue work", async () => {
-    const saveEventAndMaybeEnqueue = vi.fn().mockResolvedValue({ eventId: "event-3", duplicate: false });
-    const result = await ingestDiscordMessage(
-      { ...message, mentionedBot: true, mentionIds: ["bot-1"] },
-      capabilities({ observeEvents: true, respondToMentions: true }),
-      "stopped",
-      { saveEventAndMaybeEnqueue },
-      clock,
-    );
-    expect(result).toEqual({ kind: "accepted", eventId: "event-3", duplicate: false, jobQueued: false });
-  });
-
-  it("stores and queues a human mention while draining", async () => {
-    const saveEventAndMaybeEnqueue = vi.fn().mockResolvedValue({ eventId: "event-4", duplicate: false });
-    const result = await ingestDiscordMessage(
-      { ...message, mentionedBot: true, mentionIds: ["bot-1"] },
-      capabilities({ respondToMentions: true }),
-      "draining",
-      { saveEventAndMaybeEnqueue },
-      clock,
-    );
-    expect(result).toEqual({ kind: "accepted", eventId: "event-4", duplicate: false, jobQueued: true });
-    expect(saveEventAndMaybeEnqueue).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ kind: "mention_response" }),
-    );
+  it("passes duplicate flags through", async () => {
+    const { store } = fakeStore({ duplicate: true, jobQueued: false, jobExtended: false });
+    await expect(ingestDiscordMessage(input, allowed, "running", batch, store, clock)).resolves.toMatchObject({
+      duplicate: true,
+      jobQueued: false,
+    });
   });
 });

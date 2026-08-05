@@ -4,7 +4,7 @@ import { createPostgresClient } from "../../../src/adapters/postgres/client.js";
 import { runMigrations } from "../../../src/adapters/postgres/migrations.js";
 import { denyAllCapabilities, type ChannelCapabilities } from "../../../src/modules/channels/channel-capability.js";
 import type { CanonicalMessageEvent } from "../../../src/modules/events/canonical-event.js";
-import type { MentionResponseJobInput } from "../../../src/modules/events/ingest-message.js";
+import type { ConversationJobDirective } from "../../../src/modules/events/ingest-message.js";
 import {
   PostgresChannelCapabilityRepository,
   type ChannelCapabilitiesPatch,
@@ -22,7 +22,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events, channel_capabilities cascade`;
+  await sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events, channel_capabilities cascade`;
 });
 
 afterAll(async () => {
@@ -197,23 +197,56 @@ describe("PostgresChannelCapabilityRepository", () => {
 });
 
 describe("PostgresIngestionStore", () => {
-  it("stores an event and queues only the first event for a duplicate key", async () => {
-    const store = new PostgresIngestionStore(sql);
-    const event: CanonicalMessageEvent = {
-      id: "11111111-1111-4111-8111-111111111111",
+  const now = new Date("2026-08-04T00:00:00.000Z");
+
+  function canonicalEvent(overrides: Partial<CanonicalMessageEvent> = {}): CanonicalMessageEvent {
+    return {
+      id: crypto.randomUUID(),
       schemaVersion: 1,
       source: "discord",
-      externalEventId: "external-1",
-      externalVersion: "version-1",
+      externalEventId: crypto.randomUUID(),
+      externalVersion: "0",
       kind: "message.created",
       visibility: "observed",
-      guildId: "guild-1",
-      channelId: "channel-1",
+      guildId: "g",
+      channelId: "c",
       threadId: null,
-      actorId: "actor-1",
+      actorId: "u",
       actorKind: "human",
-      occurredAt: new Date("2026-01-02T03:00:00.000Z"),
-      receivedAt: new Date("2026-01-02T03:04:05.000Z"),
+      occurredAt: now,
+      receivedAt: now,
+      content: { text: "hi", mentionedBot: true, mentionIds: [], replyToMessageId: null, attachments: [] },
+      expiresAt: new Date("2026-09-04T00:00:00.000Z"),
+      ...overrides,
+    };
+  }
+
+  function enqueueDirective(
+    event: CanonicalMessageEvent,
+    availableAt: Date,
+    firstTriggeredAt: Date,
+  ): ConversationJobDirective {
+    return {
+      kind: "enqueue" as const,
+      job: {
+        id: crypto.randomUUID(),
+        kind: "conversation_evaluate" as const,
+        guildId: event.guildId,
+        channelId: event.channelId,
+        threadId: event.threadId,
+        triggerEventId: event.id,
+        priority: 100 as const,
+        firstTriggeredAt,
+        availableAt,
+        maxWaitMs: 30_000,
+        maxAttempts: 3 as const,
+      },
+    };
+  }
+
+  it("stores an event once and reports a duplicate without touching jobs", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const event = canonicalEvent({
       content: {
         text: "hello",
         mentionedBot: true,
@@ -223,47 +256,141 @@ describe("PostgresIngestionStore", () => {
           { id: "attachment-1", name: "a.txt", contentType: "text/plain", url: "https://example.test/a", size: 5 },
         ],
       },
-      expiresAt: new Date("2026-02-01T03:04:05.000Z"),
-    };
-    const job: MentionResponseJobInput = {
-      id: "22222222-2222-4222-8222-222222222222",
-      kind: "mention_response",
+    });
+    await expect(store.saveEventAndSyncJob(event, { kind: "none" })).resolves.toEqual({
       eventId: event.id,
-      priority: 100,
-      availableAt: event.receivedAt,
-      maxAttempts: 3,
-    };
-    const duplicateEvent = {
-      ...event,
-      id: "33333333-3333-4333-8333-333333333333",
+      duplicate: false,
+      jobQueued: false,
+      jobExtended: false,
+    });
+    const duplicate = canonicalEvent({
+      externalEventId: event.externalEventId,
+      externalVersion: event.externalVersion,
       content: { ...event.content, text: "ignored" },
-    };
-
-    await expect(store.saveEventAndMaybeEnqueue(event, job)).resolves.toEqual({ eventId: event.id, duplicate: false });
-    await expect(
-      store.saveEventAndMaybeEnqueue(duplicateEvent, {
-        ...job,
-        id: "44444444-4444-4444-8444-444444444444",
-        eventId: duplicateEvent.id,
-      }),
-    ).resolves.toEqual({ eventId: event.id, duplicate: true });
-
+    });
+    await expect(store.saveEventAndSyncJob(duplicate, { kind: "none" })).resolves.toEqual({
+      eventId: event.id,
+      duplicate: true,
+      jobQueued: false,
+      jobExtended: false,
+    });
     await expect(sql`select id, content from events`).resolves.toEqual([{ id: event.id, content: event.content }]);
-    await expect(
-      sql`select id, kind, event_id, priority, state, available_at, attempts, max_attempts, created_at, updated_at from jobs`,
-    ).resolves.toEqual([
-      {
-        id: job.id,
-        kind: job.kind,
-        event_id: event.id,
-        priority: 100,
-        state: "queued",
-        available_at: job.availableAt,
-        attempts: 0,
-        max_attempts: 3,
-        created_at: event.receivedAt,
-        updated_at: event.receivedAt,
+    await expect(sql`select id from jobs`).resolves.toHaveLength(0);
+  });
+
+  it("creates one queued job per scope and extends it on a second mention", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const first = canonicalEvent();
+    const r1 = await store.saveEventAndSyncJob(first, enqueueDirective(first, new Date("2026-08-04T00:00:08Z"), now));
+    expect(r1).toMatchObject({ jobQueued: true, jobExtended: false });
+
+    const second = canonicalEvent({ receivedAt: new Date("2026-08-04T00:00:05Z") });
+    const r2 = await store.saveEventAndSyncJob(
+      second,
+      enqueueDirective(second, new Date("2026-08-04T00:00:13Z"), new Date("2026-08-04T00:00:05Z")),
+    );
+    expect(r2).toMatchObject({ jobQueued: false, jobExtended: true });
+
+    const jobs = await sql<{ trigger_event_id: string; first_triggered_at: Date; available_at: Date }[]>`
+      select trigger_event_id, first_triggered_at, available_at from jobs where state = 'queued'
+    `;
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ trigger_event_id: first.id, first_triggered_at: now });
+    expect(jobs[0]!.available_at).toEqual(new Date("2026-08-04T00:00:13Z"));
+  });
+
+  it("caps the extension at first_triggered_at + maxWait", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const first = canonicalEvent();
+    await store.saveEventAndSyncJob(first, enqueueDirective(first, new Date("2026-08-04T00:00:08Z"), now));
+    const late = canonicalEvent({
+      content: { text: "追記", mentionedBot: false, mentionIds: [], replyToMessageId: null, attachments: [] },
+    });
+    const result = await store.saveEventAndSyncJob(late, {
+      kind: "extend",
+      extension: {
+        guildId: "g",
+        channelId: "c",
+        threadId: null,
+        availableAt: new Date("2026-08-04T00:00:36Z"),
+        maxWaitMs: 30_000,
+        now: new Date("2026-08-04T00:00:28Z"),
       },
+    });
+    expect(result).toMatchObject({ jobExtended: true });
+    const jobs = await sql<{ available_at: Date }[]>`select available_at from jobs where state = 'queued'`;
+    expect(jobs[0]!.available_at).toEqual(new Date("2026-08-04T00:00:30Z"));
+  });
+
+  it("keeps thread scopes separate and reports no extension without a queued job", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const threadEvent = canonicalEvent({ threadId: "t1" });
+    const r1 = await store.saveEventAndSyncJob(
+      threadEvent,
+      enqueueDirective(threadEvent, new Date("2026-08-04T00:00:08Z"), now),
+    );
+    expect(r1).toMatchObject({ jobQueued: true });
+    const parentEvent = canonicalEvent();
+    const r2 = await store.saveEventAndSyncJob(parentEvent, {
+      kind: "extend",
+      extension: {
+        guildId: "g",
+        channelId: "c",
+        threadId: null,
+        availableAt: new Date("2026-08-04T00:00:09Z"),
+        maxWaitMs: 30_000,
+        now,
+      },
+    });
+    expect(r2).toMatchObject({ jobExtended: false });
+    const parentMention = canonicalEvent();
+    const r3 = await store.saveEventAndSyncJob(
+      parentMention,
+      enqueueDirective(parentMention, new Date("2026-08-04T00:00:08Z"), now),
+    );
+    expect(r3).toMatchObject({ jobQueued: true });
+  });
+
+  it("does not touch jobs for a duplicate event", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const event = canonicalEvent();
+    await store.saveEventAndSyncJob(event, enqueueDirective(event, new Date("2026-08-04T00:00:08Z"), now));
+    const dup = canonicalEvent({
+      externalEventId: event.externalEventId,
+      externalVersion: event.externalVersion,
+    });
+    const result = await store.saveEventAndSyncJob(dup, enqueueDirective(dup, new Date("2026-08-04T00:00:20Z"), now));
+    expect(result).toMatchObject({ duplicate: true, jobQueued: false, jobExtended: false });
+    const jobs = await sql<{ available_at: Date }[]>`select available_at from jobs`;
+    expect(jobs[0]!.available_at).toEqual(new Date("2026-08-04T00:00:08Z"));
+  });
+
+  it("extends a queued job out of band and reports a missing scope", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const event = canonicalEvent();
+    await store.saveEventAndSyncJob(event, enqueueDirective(event, new Date("2026-08-04T00:00:08Z"), now));
+    await expect(
+      store.extendQueuedJob({
+        guildId: "g",
+        channelId: "c",
+        threadId: null,
+        availableAt: new Date("2026-08-04T00:00:11Z"),
+        maxWaitMs: 30_000,
+        now: new Date("2026-08-04T00:00:03Z"),
+      }),
+    ).resolves.toBe(true);
+    await expect(sql`select available_at from jobs where state = 'queued'`).resolves.toEqual([
+      { available_at: new Date("2026-08-04T00:00:11Z") },
     ]);
+    await expect(
+      store.extendQueuedJob({
+        guildId: "g",
+        channelId: "other",
+        threadId: null,
+        availableAt: new Date("2026-08-04T00:00:11Z"),
+        maxWaitMs: 30_000,
+        now: new Date("2026-08-04T00:00:03Z"),
+      }),
+    ).resolves.toBe(false);
   });
 });

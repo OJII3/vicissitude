@@ -23,8 +23,8 @@ export class PostgresJobQueue implements JobQueue {
       if (!mode[0]) throw new Error("System state singleton is missing");
       if (mode[0].mode !== "running") return null;
       const expirationError = "lease_expired_at_maximum_attempts";
-      const expiredJobs = await transaction<Array<{ id: string; event_id: string }>>`
-        select id, event_id from jobs
+      const expiredJobs = await transaction<Array<{ id: string; trigger_event_id: string | null }>>`
+        select id, trigger_event_id from jobs
         where state = 'running' and leased_until < ${now} and attempts >= max_attempts
         for update
       `;
@@ -40,7 +40,7 @@ export class PostgresJobQueue implements JobQueue {
         `;
         await transaction`
           insert into audit_entries (id, category, event_id, job_id, run_id, summary, created_at)
-          values (gen_random_uuid(), 'decision.failed', ${job.event_id}, ${job.id}, ${runs[0]?.id ?? null}, ${transaction.json({ error: expirationError })}, ${now})
+          values (gen_random_uuid(), 'decision.failed', ${job.trigger_event_id}, ${job.id}, ${runs[0]?.id ?? null}, ${transaction.json({ error: expirationError })}, ${now})
         `;
       }
       const rows = await transaction<ClaimedJob[]>`
@@ -53,7 +53,9 @@ export class PostgresJobQueue implements JobQueue {
         )
         update jobs j set state = 'running', lease_owner = ${workerId}, lease_token = gen_random_uuid(), leased_until = ${leasedUntil}, attempts = j.attempts + 1, updated_at = ${now}
         from candidate c where j.id = c.id
-        returning j.id, j.kind, j.event_id as "eventId", j.attempts, j.max_attempts as "maxAttempts", j.leased_until as "leasedUntil", j.lease_token as "leaseToken"
+        returning j.id, j.kind, j.guild_id as "guildId", j.channel_id as "channelId", j.thread_id as "threadId",
+          j.trigger_event_id as "triggerEventId", j.first_triggered_at as "firstTriggeredAt",
+          j.attempts, j.max_attempts as "maxAttempts", j.leased_until as "leasedUntil", j.lease_token as "leaseToken"
       `;
       return rows[0] ?? null;
     });

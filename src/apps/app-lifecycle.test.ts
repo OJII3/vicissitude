@@ -37,11 +37,15 @@ describe("app lifecycle", () => {
     const queue = {
       claim: vi.fn().mockResolvedValue({
         id: "j",
-        eventId: "e",
+        guildId: "g",
+        channelId: "c",
+        threadId: null,
+        triggerEventId: "e",
+        firstTriggeredAt: new Date(),
         attempts: 1,
         maxAttempts: 3,
         leaseToken: "l",
-        kind: "mention_response",
+        kind: "conversation_evaluate",
         leasedUntil: new Date(),
       }),
     };

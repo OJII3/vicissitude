@@ -14,10 +14,17 @@ let sql: Sql;
 async function insertJob(
   id: string,
   event: string,
-  values: { priority: number; createdAt: Date; availableAt?: Date; attempts?: number; maxAttempts?: number },
+  values: {
+    priority: number;
+    createdAt: Date;
+    availableAt?: Date;
+    attempts?: number;
+    maxAttempts?: number;
+    state?: string;
+  },
 ) {
-  await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${event}, 1, 'discord', ${event}, '1', 'message.created', 'mention_only', 'g', 'c', 'a', 'human', ${now}, ${now}, ${sql.json({ text: event })}, ${new Date("2026-02-01T00:00:00Z")})`;
-  await sql`insert into jobs (id, kind, event_id, priority, state, available_at, attempts, max_attempts, created_at, updated_at) values (${id}, 'mention_response', ${event}, ${values.priority}, 'queued', ${values.availableAt ?? now}, ${values.attempts ?? 0}, ${values.maxAttempts ?? 3}, ${values.createdAt}, ${now})`;
+  await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${event}, 1, 'discord', ${event}, '1', 'message.created', 'mention_only', 'g', ${event}, 'a', 'human', ${now}, ${now}, ${sql.json({ text: event })}, ${new Date("2026-02-01T00:00:00Z")})`;
+  await sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, priority, state, available_at, first_triggered_at, attempts, max_attempts, created_at, updated_at) values (${id}, 'conversation_evaluate', 'g', ${event}, null, ${event}, ${values.priority}, ${values.state ?? "queued"}, ${values.availableAt ?? now}, ${values.createdAt}, ${values.attempts ?? 0}, ${values.maxAttempts ?? 3}, ${values.createdAt}, ${now})`;
 }
 
 beforeAll(async () => {
@@ -29,10 +36,10 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
-  await sql`truncate audit_entries, effects, model_calls, decision_runs, jobs, events cascade`;
+  await sql`truncate audit_entries, effects, model_calls, run_input_events, decision_runs, jobs, conversation_cursors, actor_states, events cascade`;
   await sql`update system_state set mode = 'running', updated_at = ${now}, updated_by = 'test', reason = 'reset'`;
   await sql`insert into events (id, schema_version, source, external_event_id, external_version, kind, visibility, guild_id, channel_id, actor_id, actor_kind, occurred_at, received_at, content, expires_at) values (${eventId}, 1, 'discord', 'external', '1', 'message.created', 'mention_only', 'g', 'c', 'a', 'human', ${now}, ${now}, ${sql.json({ text: "hi" })}, ${new Date("2026-02-01T00:00:00Z")})`;
-  await sql`insert into jobs (id, kind, event_id, priority, state, available_at, attempts, max_attempts, created_at, updated_at) values (${jobId}, 'mention_response', ${eventId}, 10, 'queued', ${now}, 0, 3, ${now}, ${now})`;
+  await sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, priority, state, available_at, first_triggered_at, attempts, max_attempts, created_at, updated_at) values (${jobId}, 'conversation_evaluate', 'g', 'c', null, ${eventId}, 10, 'queued', ${now}, ${now}, 0, 3, ${now}, ${now})`;
 });
 
 afterAll(async () => sql.end());
@@ -44,8 +51,12 @@ describe("PostgresJobQueue", () => {
     expect([first, second].filter(Boolean)).toHaveLength(1);
     expect(first ?? second).toMatchObject({
       id: jobId,
-      kind: "mention_response",
-      eventId,
+      kind: "conversation_evaluate",
+      guildId: "g",
+      channelId: "c",
+      threadId: null,
+      triggerEventId: eventId,
+      firstTriggeredAt: now,
       attempts: 1,
       maxAttempts: 3,
     });
@@ -201,7 +212,7 @@ describe("PostgresJobQueue", () => {
       const storePid = (await storeSql<{ pid: number }[]>`select pg_backend_pid() as pid`)[0]!.pid;
       start = new PostgresDecisionEffectStore(storeSql).startOrLoadRun({
         jobId,
-        eventId,
+        triggerEventId: eventId,
         leaseToken,
         characterId: "character",
         characterVersion: 1,
