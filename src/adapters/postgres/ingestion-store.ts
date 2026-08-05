@@ -34,9 +34,10 @@ export class PostgresIngestionStore implements IngestionStore {
           insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, priority, state, available_at, first_triggered_at, attempts, max_attempts, created_at, updated_at)
           values (${job.id}, ${job.kind}, ${job.guildId}, ${job.channelId}, ${job.threadId}, ${job.triggerEventId}, ${job.priority}, 'queued', ${job.availableAt}, ${job.firstTriggeredAt}, 0, ${job.maxAttempts}, ${event.receivedAt}, ${event.receivedAt})
           on conflict (kind, guild_id, channel_id, (coalesce(thread_id, ''))) where state = 'queued'
-          do update set available_at = least(${job.availableAt}, jobs.first_triggered_at + ${job.maxWaitMs} * interval '1 millisecond'), updated_at = ${event.receivedAt}
+          do update set available_at = greatest(jobs.available_at, least(${job.availableAt}, jobs.first_triggered_at + ${job.maxWaitMs} * interval '1 millisecond')), updated_at = ${event.receivedAt}
           returning (xmax = 0) as inserted
         `;
+        // xmax = 0 は upsert が insert だったか（true）既存 job の update だったか（false）の判別。
         jobQueued = rows[0]?.inserted === true;
         jobExtended = rows[0] !== undefined && !rows[0].inserted;
       } else if (directive.kind === "extend") {
@@ -55,7 +56,7 @@ export class PostgresIngestionStore implements IngestionStore {
 async function extendQueuedJobIn(sql: Sql | TransactionSql, extension: QueuedJobExtension): Promise<boolean> {
   const rows = await sql`
     update jobs
-    set available_at = least(${extension.availableAt}, first_triggered_at + ${extension.maxWaitMs} * interval '1 millisecond'), updated_at = ${extension.now}
+    set available_at = greatest(available_at, least(${extension.availableAt}, first_triggered_at + ${extension.maxWaitMs} * interval '1 millisecond')), updated_at = ${extension.now}
     where kind = 'conversation_evaluate' and state = 'queued'
       and guild_id = ${extension.guildId} and channel_id = ${extension.channelId}
       and coalesce(thread_id, '') = ${extension.threadId ?? ""}

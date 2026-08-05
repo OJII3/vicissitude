@@ -41,7 +41,7 @@ export interface ConversationStore {
   loadBatch(
     job: Pick<ClaimedJob, "guildId" | "channelId" | "threadId" | "triggerEventId">,
     claimedAt: Date,
-  ): Promise<ConversationBatchView | null>;
+  ): Promise<ConversationBatchView>;
   startOrLoadRun(input: {
     jobId: string;
     triggerEventId: string;
@@ -63,7 +63,6 @@ export interface ConversationStore {
     fallback: boolean;
     now: Date;
   }): Promise<void>;
-  succeedWithoutRun(jobId: string, leaseToken: string, reason: "empty_batch", now: Date): Promise<void>;
   failRunAndJob(jobId: string, leaseToken: string, error: string, now: Date): Promise<void>;
 }
 
@@ -114,9 +113,6 @@ export async function processConversation(
 ): Promise<void> {
   if (!job.triggerEventId) throw new Error("conversation_evaluate job has no trigger event");
   const batch = await store.loadBatch(job, claimedAt);
-  if (!batch || batch.messages.length === 0) {
-    return store.succeedWithoutRun(job.id, job.leaseToken, "empty_batch", clock.now());
-  }
   const startedAt = clock.now();
   const run = await store.startOrLoadRun({
     jobId: job.id,

@@ -63,14 +63,13 @@ const batch: ConversationBatchView = {
     },
   ],
 };
-function store(loaded: ConversationBatchView | null = batch): ConversationStore {
+function store(loaded: ConversationBatchView = batch): ConversationStore {
   return {
     loadBatch: vi.fn().mockResolvedValue(loaded),
     startOrLoadRun: vi.fn().mockResolvedValue({ runId: "run-1", state: "running" }),
     recordRunInputEvents: vi.fn(),
     recordModelCall: vi.fn(),
     completeWithReply: vi.fn(),
-    succeedWithoutRun: vi.fn(),
     failRunAndJob: vi.fn(),
   };
 }
@@ -116,20 +115,6 @@ describe("processConversation", () => {
     expect(request.userPrompt).toContain('"triggerMessageId":"m1"');
     expect(request.userPrompt).toContain("@bot hi");
     expect(request.userPrompt).toContain("続き");
-  });
-
-  it("succeeds without a run when the batch is empty", async () => {
-    const persistence = store(null);
-    const runtime: AgentRuntime = { run: vi.fn() };
-    await processConversation(job, claimedAt, character, routes, runtime, persistence, new MutableClock());
-    expect(vi.mocked(persistence.succeedWithoutRun)).toHaveBeenCalledWith(
-      "job-1",
-      "token",
-      "empty_batch",
-      expect.any(Date),
-    );
-    expect(vi.mocked(persistence.startOrLoadRun)).not.toHaveBeenCalled();
-    expect(vi.mocked(runtime.run)).not.toHaveBeenCalled();
   });
 
   it("rejects a job without a trigger event", async () => {

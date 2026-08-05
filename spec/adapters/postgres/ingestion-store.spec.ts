@@ -365,6 +365,33 @@ describe("PostgresIngestionStore", () => {
     expect(jobs[0]!.available_at).toEqual(new Date("2026-08-04T00:00:08Z"));
   });
 
+  it("never pulls available_at backwards", async () => {
+    const store = new PostgresIngestionStore(sql);
+    const first = canonicalEvent();
+    await store.saveEventAndSyncJob(first, enqueueDirective(first, new Date("2026-08-04T00:00:08Z"), now));
+    const second = canonicalEvent({ receivedAt: new Date("2026-08-04T00:00:05Z") });
+    await store.saveEventAndSyncJob(
+      second,
+      enqueueDirective(second, new Date("2026-08-04T00:00:13Z"), new Date("2026-08-04T00:00:05Z")),
+    );
+    const late = canonicalEvent();
+    const result = await store.saveEventAndSyncJob(late, {
+      kind: "extend",
+      extension: {
+        guildId: "g",
+        channelId: "c",
+        threadId: null,
+        availableAt: new Date("2026-08-04T00:00:10Z"),
+        maxWaitMs: 30_000,
+        now: new Date("2026-08-04T00:00:02Z"),
+      },
+    });
+    expect(result).toMatchObject({ jobExtended: true });
+    await expect(sql`select available_at from jobs where state = 'queued'`).resolves.toEqual([
+      { available_at: new Date("2026-08-04T00:00:13Z") },
+    ]);
+  });
+
   it("extends a queued job out of band and reports a missing scope", async () => {
     const store = new PostgresIngestionStore(sql);
     const event = canonicalEvent();

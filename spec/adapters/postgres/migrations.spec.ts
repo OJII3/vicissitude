@@ -334,5 +334,9 @@ describe("versioned migrations", () => {
     await expect(
       sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at) values ('00000000-0000-4000-8000-0000000000ac', 'conversation_evaluate', 'g', 'c', null, '00000000-0000-4000-8000-0000000000aa', 'queued', ${now}, ${now}, ${now}, ${now})`,
     ).rejects.toThrow(/jobs_scope_queued_idx/u);
+
+    await sql`update jobs set state = 'succeeded' where id = '00000000-0000-4000-8000-0000000000ab'`;
+    await sql`insert into jobs (id, kind, guild_id, channel_id, thread_id, trigger_event_id, state, available_at, first_triggered_at, created_at, updated_at) values ('00000000-0000-4000-8000-0000000000ac', 'conversation_evaluate', 'g', 'c', null, '00000000-0000-4000-8000-0000000000aa', 'queued', ${now}, ${now}, ${now}, ${now})`;
+    await expect(sql`select count(*)::int as count from jobs where state = 'queued'`).resolves.toEqual([{ count: 1 }]);
   });
 });

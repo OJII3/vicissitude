@@ -51,7 +51,7 @@ export class PostgresDecisionEffectStore implements ConversationStore {
   async loadBatch(
     job: { guildId: string; channelId: string; threadId: string | null; triggerEventId: string | null },
     claimedAt: Date,
-  ): Promise<ConversationBatchView | null> {
+  ): Promise<ConversationBatchView> {
     if (!job.triggerEventId) throw new Error("conversation_evaluate job has no trigger event");
     const triggerRows = await this.sql<
       Array<
@@ -87,10 +87,14 @@ export class PostgresDecisionEffectStore implements ConversationStore {
         and coalesce(thread_id, '') = ${job.threadId ?? ""}
         and kind = 'message.created'
         and occurred_at <= ${claimedAt}
-        ${cursor ? this.sql`and (occurred_at, id) > (${cursor.last_occurred_at}, ${cursor.last_event_id}::uuid)` : this.sql``}
+        ${
+          cursor
+            ? this
+                .sql`and ((occurred_at, id) > (${cursor.last_occurred_at}, ${cursor.last_event_id}::uuid) or id = ${job.triggerEventId}::uuid)`
+            : this.sql``
+        }
       order by occurred_at, id
     `;
-    if (rows.length === 0) return null;
     return {
       guildId: trigger.guild_id,
       capabilityChannelId: trigger.channel_id,
@@ -203,12 +207,14 @@ export class PostgresDecisionEffectStore implements ConversationStore {
         }>
       >`select guild_id, channel_id, thread_id, external_event_id, actor_kind, kind, visibility, content from events where id = ${input.triggerEventId}`;
       const event = eventRows[0];
+      const eventContent = event ? EventContent.safeParse(event.content) : null;
       if (
         !event ||
         event.kind !== "message.created" ||
         !["observed", "mention_only"].includes(event.visibility) ||
         event.actor_kind !== "human" ||
-        !EventContent.safeParse(event.content).success
+        !eventContent?.success ||
+        !eventContent.data.mentionedBot
       )
         throw new Error("Invalid trigger event");
       const effects = await tx<
@@ -222,16 +228,6 @@ export class PostgresDecisionEffectStore implements ConversationStore {
         where (conversation_cursors.last_occurred_at, conversation_cursors.last_event_id) < (excluded.last_occurred_at, excluded.last_event_id)
       `;
       await tx`insert into audit_entries (id, category, event_id, job_id, run_id, effect_id, summary, created_at) values (${newId()}, 'decision.completed', ${input.triggerEventId}, ${input.jobId}, ${input.runId}, ${effects[0]!.id}, ${tx.json({ action: "reply", fallback: input.fallback })}, ${input.now})`;
-    });
-  }
-
-  async succeedWithoutRun(jobId: string, leaseToken: string, reason: "empty_batch", now: Date): Promise<void> {
-    await this.sql.begin(async (tx) => {
-      const jobs = await tx<
-        Array<{ trigger_event_id: string | null }>
-      >`update jobs set state = 'succeeded', leased_until = null, lease_owner = null, lease_token = null, updated_at = ${now} where id = ${jobId} and state = 'running' and lease_token = ${leaseToken} and leased_until > ${now} returning trigger_event_id`;
-      if (!jobs[0]) throw new Error("Job lease lost");
-      await tx`insert into audit_entries (id, category, event_id, job_id, summary, created_at) values (${newId()}, 'decision.skipped', ${jobs[0].trigger_event_id}, ${jobId}, ${tx.json({ reason })}, ${now})`;
     });
   }
 
